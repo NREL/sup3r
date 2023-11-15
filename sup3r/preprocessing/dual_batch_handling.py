@@ -39,19 +39,14 @@ class DualValidationData(ValidationData):
                         h.lr_val_data, self.lr_sample_shape[:2])
                     temporal_slice = uniform_time_sampler(
                         h.lr_val_data, self.lr_sample_shape[2])
-                    lr_index = tuple([
-                        *spatial_slice, temporal_slice,
-                        np.arange(h.lr_val_data.shape[-1])
-                    ])
-                    hr_index = []
-                    for s in lr_index[:2]:
-                        hr_index.append(
-                            slice(s.start * self.s_enhance,
-                                  s.stop * self.s_enhance))
-                    for s in lr_index[2:-1]:
-                        hr_index.append(
-                            slice(s.start * self.t_enhance,
-                                  s.stop * self.t_enhance))
+                    lr_index = (*spatial_slice, temporal_slice,
+                                np.arange(h.lr_val_data.shape[-1]))
+                    hr_index = [slice(s.start * self.s_enhance,
+                                      s.stop * self.s_enhance)
+                                for s in lr_index[:2]]
+                    hr_index += [slice(s.start * self.t_enhance,
+                                       s.stop * self.t_enhance)
+                                 for s in lr_index[2:-1]]
                     hr_index.append(lr_index[-1])
                     hr_index = tuple(hr_index)
                     val_indices.append({

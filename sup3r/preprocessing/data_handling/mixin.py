@@ -158,7 +158,8 @@ class CacheHandlingMixIn:
             cache_files = [
                 cache_pattern.replace('{feature}', f.lower()) for f in features
             ]
-            for i, f in enumerate(cache_files):
+            for i, _ in enumerate(cache_files):
+                f = cache_files[i]
                 if '{shape}' in f:
                     shape = f'{grid_shape[0]}x{grid_shape[1]}'
                     shape += f'x{len(time_index)}'
@@ -731,20 +732,26 @@ class InputMixIn(CacheHandlingMixIn):
                 self._lat_lon = self._lat_lon[::-1]
         return self._lat_lon
 
+    @property
+    def latitude(self):
+        """Flattened list of latitudes"""
+        return self.lat_lon[..., 0].flatten()
+
+    @property
+    def longitude(self):
+        """Flattened list of longitudes"""
+        return self.lat_lon[..., 1].flatten()
+
+    @property
+    def meta(self):
+        """Meta dataframe with coordinates."""
+        return pd.DataFrame({'latitude': self.latitude,
+                             'longitude': self.longitude})
+
     @lat_lon.setter
     def lat_lon(self, lat_lon):
         """Update lat lon"""
         self._lat_lon = lat_lon
-
-    @property
-    def latitude(self):
-        """Return latitude array"""
-        return self.lat_lon[..., 0]
-
-    @property
-    def longitude(self):
-        """Return longitude array"""
-        return self.lat_lon[..., 1]
 
     @property
     def invert_lat(self):
@@ -982,9 +989,7 @@ class TrainingPrepMixIn:
         """
         spatial_slice = uniform_box_sampler(data, sample_shape[:2])
         temporal_slice = uniform_time_sampler(data, sample_shape[2])
-        return tuple(
-            [*spatial_slice, temporal_slice,
-             np.arange(data.shape[-1])])
+        return (*spatial_slice, temporal_slice, np.arange(data.shape[-1]))
 
     @classmethod
     def _unnormalize(cls, data, val_data, means, stds):

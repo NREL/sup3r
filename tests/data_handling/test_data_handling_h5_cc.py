@@ -1,19 +1,23 @@
 # -*- coding: utf-8 -*-
 """pytests for data handling with NSRDB files"""
-import pytest
-import tempfile
-import shutil
 import os
-import numpy as np
-import matplotlib.pyplot as plt
+import shutil
+import tempfile
 
-from rex import Resource, Outputs
+import matplotlib.pyplot as plt
+import numpy as np
+import pytest
+from rex import Outputs, Resource
 
 from sup3r import TEST_DATA_DIR
-from sup3r.preprocessing.data_handling import (DataHandlerH5SolarCC,
-                                               DataHandlerH5WindCC)
-from sup3r.preprocessing.batch_handling import (BatchHandlerCC,
-                                                SpatialBatchHandlerCC)
+from sup3r.preprocessing.batch_handling import (
+    BatchHandlerCC,
+    SpatialBatchHandlerCC,
+)
+from sup3r.preprocessing.data_handling import (
+    DataHandlerH5SolarCC,
+    DataHandlerH5WindCC,
+)
 from sup3r.utilities.utilities import nsrdb_sub_daily_sampler, pd_date_range
 
 SHAPE = (20, 20)

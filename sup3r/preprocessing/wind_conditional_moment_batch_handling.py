@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-Sup3r wind conditional moment batch_handling module.
-"""
+"""Sup3r wind conditional moment batch_handling module."""
 import logging
 
 import numpy as np

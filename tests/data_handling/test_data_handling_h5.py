@@ -2,18 +2,21 @@
 """pytests for data handling"""
 
 import os
+import pickle
+import tempfile
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pytest
-import matplotlib.pyplot as plt
-import tempfile
-import pickle
 from rex import Resource
 from scipy.ndimage.filters import gaussian_filter
 
 from sup3r import TEST_DATA_DIR
+from sup3r.preprocessing.batch_handling import (
+    BatchHandler,
+    SpatialBatchHandler,
+)
 from sup3r.preprocessing.data_handling import DataHandlerH5 as DataHandler
-from sup3r.preprocessing.batch_handling import (BatchHandler,
-                                                SpatialBatchHandler)
 from sup3r.utilities import utilities
 
 input_files = [os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5'),
@@ -25,13 +28,13 @@ sample_shape = (10, 10, 12)
 t_enhance = 2
 s_enhance = 5
 val_split = 0.2
-dh_kwargs = dict(target=target, shape=shape, max_delta=20,
-                 sample_shape=sample_shape,
-                 temporal_slice=slice(None, None, 1),
-                 worker_kwargs=dict(max_workers=1))
-bh_kwargs = dict(batch_size=8, n_batches=20,
-                 s_enhance=s_enhance, t_enhance=t_enhance,
-                 worker_kwargs=dict(max_workers=1))
+dh_kwargs = {'target': target, 'shape': shape, 'max_delta': 20,
+             'sample_shape': sample_shape,
+             'temporal_slice': slice(None, None, 1),
+             'worker_kwargs': {'max_workers': 1}}
+bh_kwargs = {'batch_size': 8, 'n_batches': 20,
+             's_enhance': s_enhance, 't_enhance': t_enhance,
+             'worker_kwargs': {'max_workers': 1}}
 
 
 @pytest.mark.parametrize('sample_shape', [(10, 10, 10), (5, 5, 10),
@@ -79,7 +82,7 @@ def test_topography():
     data_handler = DataHandler(input_files[0], features, **dh_kwargs)
     ri = data_handler.raster_index
     with Resource(input_files[0]) as res:
-        topo = res.get_meta_arr('elevation')[tuple([ri.flatten()])]
+        topo = res.get_meta_arr('elevation')[(ri.flatten(),)]
         topo = topo.reshape((ri.shape[0], ri.shape[1]))
     topo_idx = data_handler.features.index('topography')
     assert np.allclose(topo, data_handler.data[..., 0, topo_idx])
@@ -240,6 +243,29 @@ def test_stats_caching():
             mean = np.mean(stacked_data[..., i])
             assert np.allclose(std, 1, atol=1e-3)
             assert np.allclose(mean, 0, atol=1e-3)
+
+
+def test_unequal_size_normalization():
+    """Test correct normalization for data handlers with different numbers of
+    elements"""
+
+    data_handlers = []
+    for i, input_file in enumerate(input_files):
+        tmp_kwargs = dh_kwargs.copy()
+        tmp_kwargs['temporal_slice'] = slice(0, (i + 1) * 100)
+        data_handler = DataHandler(input_file, features, **tmp_kwargs)
+        data_handlers.append(data_handler)
+    batch_handler = SpatialBatchHandler(data_handlers, **bh_kwargs)
+    stacked_data = np.concatenate(
+        [d.data for d in batch_handler.data_handlers], axis=2)
+
+    for i in range(len(features)):
+        std = np.std(stacked_data[..., i])
+        if std == 0:
+            std = 1
+        mean = np.mean(stacked_data[..., i])
+        assert np.allclose(std, 1, atol=1e-3)
+        assert np.allclose(mean, 0, atol=1e-3)
 
 
 def test_normalization():

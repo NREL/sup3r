@@ -170,7 +170,7 @@ class ExoExtract(ABC):
             temporal_slice=temporal_slice,
             raster_file=raster_file,
             max_delta=max_delta,
-            worker_kwargs=dict(ti_workers=ti_workers),
+            worker_kwargs={'ti_workers': ti_workers},
             res_kwargs=self.res_kwargs
         )
 
@@ -576,7 +576,7 @@ class TopoExtractNC(TopoExtractH5):
         self.source_handler = DataHandlerNC(
             self._exo_source,
             features=['topography'],
-            worker_kwargs=dict(ti_workers=self.ti_workers),
+            worker_kwargs={'ti_workers': self.ti_workers},
             val_split=0.0,
         )
 

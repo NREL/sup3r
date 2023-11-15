@@ -1,15 +1,13 @@
 # -*- coding: utf-8 -*-
-"""
-sup3r data extraction CLI entry points.
-"""
-import click
+"""sup3r data extraction CLI entry points."""
 import logging
+
+import click
 
 import sup3r
 from sup3r.utilities import ModuleName
-from sup3r.version import __version__
 from sup3r.utilities.cli import AVAILABLE_HARDWARE_OPTIONS, BaseCLI
-
+from sup3r.version import __version__
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +41,10 @@ def from_config(ctx, config_file, verbose=False, pipeline_step=None):
         Filepath to sup3r data extraction json file.
     verbose : bool
         Flag to turn on debug logging. Default is not verbose.
+    pipeline_step : str, optional
+        Name of the pipeline step being run. If ``None``, the
+        ``pipeline_step`` will be set to the ``module_name``,
+        mimicking old reV behavior. By default, ``None``.
     """
     config = BaseCLI.from_config_preflight(ModuleName.DATA_EXTRACT, ctx,
                                            config_file, verbose)

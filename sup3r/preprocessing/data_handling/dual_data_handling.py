@@ -19,7 +19,15 @@ logger = logging.getLogger(__name__)
 # pylint: disable=unsubscriptable-object
 class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
     """Batch handling class for h5 data as high res (usually WTK) and netcdf
-    data as low res (usually ERA5)"""
+    data as low res (usually ERA5)
+
+    NOTE: When initializing the lr_handler it's important to pick a shape
+    argument that will produce a low res domain that completely overlaps with
+    the high res domain. When the high res data is not on a regular grid
+    (WTK uses lambert) the low res shape is not simply the high res shape
+    divided by s_enhance. It is easiest to not provide a shape argument at all
+    for lr_handler and to get the full domain.
+    """
 
     def __init__(self,
                  hr_handler,
@@ -495,13 +503,10 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         """
         lr_obs_idx = self._get_observation_index(self.lr_data,
                                                  self.lr_sample_shape)
-        hr_obs_idx = []
-        for s in lr_obs_idx[:2]:
-            hr_obs_idx.append(
-                slice(s.start * self.s_enhance, s.stop * self.s_enhance))
-        for s in lr_obs_idx[2:-1]:
-            hr_obs_idx.append(
-                slice(s.start * self.t_enhance, s.stop * self.t_enhance))
+        hr_obs_idx = [slice(s.start * self.s_enhance, s.stop * self.s_enhance)
+                      for s in lr_obs_idx[:2]]
+        hr_obs_idx += [slice(s.start * self.t_enhance, s.stop * self.t_enhance)
+                       for s in lr_obs_idx[2:-1]]
 
         hr_obs_idx.append(np.arange(len(self.output_features)))
         hr_obs_idx = tuple(hr_obs_idx)
