@@ -599,6 +599,24 @@ class BatchHandler:
         return self.data_handlers[0].output_features
 
     @property
+    def lr_features(self):
+        """Get a list of low-resolution features. All low-resolution features
+        are used for training."""
+        return self.data_handlers[0].features
+
+    @property
+    def hr_train_features(self):
+        """Get a list of high-resolution features that are only used for
+        training e.g., mid-network high-res topo injection."""
+        return self.data_handlers[0].hr_train_features
+
+    @property
+    def hr_out_features(self):
+        """Get a list of low-resolution features that are intended to be output
+        by the GAN."""
+        return self.data_handlers[0].hr_out_features
+
+    @property
     def output_features_ind(self):
         """Get the feature channel indices that should be used for the
         generated output features"""

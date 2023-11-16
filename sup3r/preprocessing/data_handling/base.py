@@ -624,6 +624,29 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         return out
 
     @property
+    def lr_features(self):
+        """Get a list of low-resolution features. All low-resolution features
+        are used for training."""
+        return self.features
+
+    @property
+    def hr_train_features(self):
+        """Get a list of high-resolution features that are only used for
+        training e.g., mid-network high-res topo injection. These must come at
+        the end of the high-res feature set."""
+        out = [fn for fn in self.features if fn not in self.output_features]
+        msg = (f'High-res train-only features "{out}" do not come at the end '
+               f'of the full high-res feature set: {self.features}')
+        assert out == self.features[-len(out):], msg
+        return out
+
+    @property
+    def hr_out_features(self):
+        """Get a list of low-resolution features that are intended to be output
+        by the GAN."""
+        return self.output_features
+
+    @property
     def grid_mem(self):
         """Get memory used by a feature at a single time step
 

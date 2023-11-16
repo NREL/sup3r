@@ -72,14 +72,14 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             history
         meta : dict | None
             Model meta data that describes how the model was created.
-        means : np.ndarray | list | None
-            Set of mean values for data normalization with the same length as
-            number of features. Can be used to maintain a consistent
-            normalization scheme between transfer learning domains.
-        stdevs : np.ndarray | list | None
-            Set of stdev values for data normalization with the same length as
-            number of features. Can be used to maintain a consistent
-            normalization scheme between transfer learning domains.
+        means : dict | None
+            Set of mean values for data normalization keyed by feature name.
+            Can be used to maintain a consistent normalization scheme between
+            transfer learning domains.
+        stdevs : dict | None
+            Set of stdev values for data normalization keyed by feature name.
+            Can be used to maintain a consistent normalization scheme between
+            transfer learning domains.
         default_device : str | None
             Option for default device placement of model weights. If None and a
             single GPU exists, that GPU will be the default device. If None and
@@ -117,10 +117,8 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         self._gen = self.load_network(gen_layers, 'generator')
         self._disc = self.load_network(disc_layers, 'discriminator')
 
-        self._means = (means if means is None else np.array(means).astype(
-            np.float32))
-        self._stdevs = (stdevs if stdevs is None else np.array(stdevs).astype(
-            np.float32))
+        self._means = means
+        self._stdevs = stdevs
 
     def save(self, out_dir):
         """Save the GAN with its sub-networks to a directory.
@@ -225,8 +223,12 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             hi_res = hi_res.numpy()
 
         if norm_in and self._means is not None:
+            mean_arr = [self._means[fn] for fn in self.hr_out_features]
+            std_arr = [self._stdevs[fn] for fn in self.hr_out_features]
+            mean_arr = np.array(mean_arr, dtype=np.float32)
+            std_arr = np.array(std_arr, dtype=np.float32)
             hi_res = hi_res if isinstance(hi_res, tf.Tensor) else hi_res.copy()
-            hi_res = (hi_res - self._means) / self._stdevs
+            hi_res = (hi_res - mean_arr) / std_arr
 
         out = self.discriminator.layers[0](hi_res)
         for i, layer in enumerate(self.discriminator.layers[1:]):
@@ -325,10 +327,6 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         -------
         dict
         """
-        means = (self._means
-                 if self._means is None else [float(m) for m in self._means])
-        stdevs = (self._stdevs if self._stdevs is None else
-                  [float(s) for s in self._stdevs])
 
         config_optm_g = self.get_optimizer_config(self.optimizer)
         config_optm_d = self.get_optimizer_config(self.optimizer_disc)
@@ -339,8 +337,8 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             'version_record': self.version_record,
             'optimizer': config_optm_g,
             'optimizer_disc': config_optm_d,
-            'means': means,
-            'stdevs': stdevs,
+            'means': self._means,
+            'stdevs': self._stdevs,
             'meta': self.meta,
         }
 
@@ -384,7 +382,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
 
         with tf.device(device):
             hr_exo_data = {}
-            for feature in self.exogenous_features:
+            for feature in self.hr_exogenous_features:
                 hr_exo_data[feature] = hr_exo
             _ = self._tf_generate(low_res, hr_exo_data)
             _ = self._tf_discriminate(hi_res)
@@ -858,9 +856,9 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             s_enhance=batch_handler.s_enhance,
             t_enhance=batch_handler.t_enhance,
             smoothing=batch_handler.smoothing,
-            training_features=batch_handler.training_features,
-            train_only_features=batch_handler.train_only_features,
-            output_features=batch_handler.output_features,
+            lr_features=batch_handler.lr_features,
+            hr_train_features=batch_handler.hr_train_features,
+            hr_out_features=batch_handler.hr_out_features,
             smoothed_features=batch_handler.smoothed_features)
 
         epochs = list(range(n_epoch))

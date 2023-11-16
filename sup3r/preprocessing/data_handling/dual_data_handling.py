@@ -238,7 +238,28 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
     @property
     def train_only_features(self):
         """Features to use for training only and not output"""
-        return self.lr_dh.train_only_features
+        tof = [fn for fn in self.lr_dh.features
+               if fn not in self.output_features]
+        return tof
+
+    @property
+    def lr_features(self):
+        """Get a list of low-resolution features. All low-resolution features
+        are used for training."""
+        return self.lr_dh.features
+
+    @property
+    def hr_train_features(self):
+        """Get a list of high-resolution features that are only used for
+        training e.g., mid-network high-res topo injection. These must come at
+        the end of the high-res feature set."""
+        return self.hr_dh.hr_train_features
+
+    @property
+    def hr_out_features(self):
+        """Get a list of low-resolution features that are intended to be output
+        by the GAN."""
+        return self.hr_dh.hr_out_features
 
     def _shape_check(self):
         """Check if hr_handler.shape is divisible by s_enhance. If not take
