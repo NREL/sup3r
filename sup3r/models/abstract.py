@@ -433,6 +433,12 @@ class AbstractInterface(ABC):
                 't_enhance', 'smoothing')
         keys = [k for k in keys if k in kwargs]
 
+        hr_train_feat = kwargs.get('hr_train_features', [])
+        msg = (f'Expected high-res exo features {self.hr_exogenous_features} '
+               f'based on model architecture but received "hr_train_features" '
+               f'from data handler: {hr_train_feat}')
+        assert self.hr_exogenous_features == hr_train_feat, msg
+
         for var in keys:
             val = self.meta.get(var, None)
             if val is None:
