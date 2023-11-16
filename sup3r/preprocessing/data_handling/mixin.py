@@ -392,9 +392,8 @@ class CacheHandlingMixIn:
                                features,
                                max_workers=max_workers)
 
-    @classmethod
-    def check_cached_features(cls,
-                              features,
+    @staticmethod
+    def check_cached_features(features,
                               cache_files=None,
                               overwrite_cache=False,
                               load_cached=False):
@@ -1069,7 +1068,7 @@ class TrainingPrepMixIn:
                                         self.stds[feature])
                     futures.append(future)
 
-                for i, future in enumerate(as_completed(futures)):
+                for future in as_completed(futures):
                     try:
                         future.result()
                     except Exception as e:

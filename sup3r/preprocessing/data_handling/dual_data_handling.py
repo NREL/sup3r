@@ -429,6 +429,18 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         return cache_files
 
     @property
+    def noncached_features(self):
+        """Get list of features needing extraction or derivation"""
+        if self._noncached_features is None:
+            self._noncached_features = self.check_cached_features(
+                self.lr_dh.features,
+                cache_files=self.cache_files,
+                overwrite_cache=self.overwrite_cache,
+                load_cached=self.load_cached,
+            )
+        return self._noncached_features
+
+    @property
     def try_load(self):
         """Check if we should try to load cached data"""
         try_load = self._should_load_cache(self.cache_pattern,
@@ -472,7 +484,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
                 logger.info('Caching low resolution data with '
                             f'shape={self.lr_data.shape}.')
                 self._cache_data(self.lr_data,
-                                 features=self.features,
+                                 features=self.lr_dh.features,
                                  cache_file_paths=self.cache_files,
                                  overwrite=self.overwrite_cache)
 
@@ -495,16 +507,20 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         logger.info('Regridding low resolution feature data.')
         regridder = self.get_regridder()
 
-        for f in self.noncached_features:
-            fidx = self.lr_dh.features.index(f)
+        fnames = set(self.noncached_features)
+        fnames = fnames.intersection(set(self.lr_dh.features))
+        for fname in fnames:
+            fidx = self.lr_dh.features.index(fname)
             tmp = regridder(self.lr_input_data[..., fidx])
             tmp = tmp.reshape(self.lr_required_shape)
             self.lr_data[..., fidx] = tmp
 
         if self.load_cached:
-            for f in self.cached_features:
-                fidx = self.lr_dh.features.index(f)
-                logger.info(f'Loading {f} from {self.cache_files[fidx]}')
+            fnames = set(self.cached_features)
+            fnames = fnames.intersection(set(self.lr_dh.features))
+            for fname in fnames:
+                fidx = self.lr_dh.features.index(fname)
+                logger.info(f'Loading {fname} from {self.cache_files[fidx]}')
                 with open(self.cache_files[fidx], 'rb') as fh:
                     self.lr_data[..., fidx] = pickle.load(fh)
 

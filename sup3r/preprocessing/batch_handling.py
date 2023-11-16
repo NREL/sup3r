@@ -5,7 +5,6 @@ Sup3r batch_handling module.
 import json
 import logging
 import os
-import pickle
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime as dt
 
@@ -712,8 +711,8 @@ class BatchHandler:
                         logger.debug(f'{i+1} out of {len(self.data_handlers)} '
                                      'means calculated.')
 
-            self.means[feature] = self._get_feature_means(feature, max_workers)
-            self.stds[feature] = self._get_feature_stdev(feature, max_workers)
+            self.means[feature] = self._get_feature_means(feature)
+            self.stds[feature] = self._get_feature_stdev(feature)
 
     def __len__(self):
         """Use user input of n_batches to specify length
@@ -786,16 +785,13 @@ class BatchHandler:
         logger.info(f'Finished calculating stats in {dt.now() - now}.')
         self.cache_stats()
 
-    def _get_feature_means(self, feature, max_workers=None):
+    def _get_feature_means(self, feature):
         """Get mean for requested feature
 
         Parameters
         ----------
         feature : str
             Feature to get mean for
-        max_workers : int | None
-            Max number of workers to use for parallel stats calculations. If
-            None the max number of available workers will be used.
         """
 
         logger.debug(f'Calculating mean for {feature}')
@@ -805,7 +801,7 @@ class BatchHandler:
 
         return self.means[feature]
 
-    def _get_feature_stdev(self, feature, max_workers=None):
+    def _get_feature_stdev(self, feature):
         """Get stdev for requested feature
 
         NOTE: We compute the variance across all handlers as a pooled variance
@@ -816,9 +812,6 @@ class BatchHandler:
         ----------
         feature : str
             Feature to get stdev for
-        max_workers : int | None
-            Max number of workers to use for parallel stats calculations. If
-            None the max number of available workers will be used.
         """
 
         logger.debug(f'Calculating stdev for {feature}')
@@ -850,10 +843,13 @@ class BatchHandler:
         if means is None or stds is None:
             self.get_stats()
         elif means is not None and stds is not None:
-            if (not np.array_equal(means.values(), self.means.values())
-                    or not np.array_equal(stds.values(), self.stds.values())):
-                msg = ('Normalization requested with new means/stdevs that '
-                       'dont match previous values!')
+            means0, means1 = list(self.means.values()), list(means.values())
+            stds0, stds1 = list(self.stds.values()), list(stds.values())
+            if (not np.array_equal(means0, means1)
+                    or not np.array_equal(stds0, stds1)):
+                msg = (f'Normalization requested with new means/stdevs '
+                       f'{means1}/{stds1} that '
+                       f'dont match previous values: {means0}/{stds0}')
                 logger.info(msg)
                 raise ValueError(msg)
             else:
