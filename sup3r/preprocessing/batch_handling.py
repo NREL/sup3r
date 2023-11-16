@@ -2,6 +2,7 @@
 Sup3r batch_handling module.
 @author: bbenton
 """
+import json
 import logging
 import os
 import pickle
@@ -410,15 +411,14 @@ class BatchHandler:
         t_enhance : int
             Factor by which to coarsen temporal dimension of the high
             resolution data to generate low res data
-        means : np.ndarray
-            dimensions (features)
-            array of means for all features with same ordering as data
-            features. If not None and norm is True these will be used for
-            normalization
-        stds : np.ndarray
-            dimensions (features)
-            array of means for all features with same ordering as data
-            features.  If not None and norm is True these will be used form
+        means : dict | none
+            Dictionary of means for all features with keys: feature names and
+            values: mean values. if None, this will be calculated. if norm is
+            true these will be used for data normalization
+        stds : dict | none
+            dictionary of standard deviation values for all features with keys:
+            feature names and values: standard deviations. if None, this will
+            be calculated. if norm is true these will be used for data
             normalization
         norm : bool
             Whether to normalize the data or not
@@ -431,9 +431,11 @@ class BatchHandler:
             average over t_enhance time steps, total will sum over t_enhance
             time steps
         stdevs_file : str | None
-            Path to stdevs data or where to save data after calling get_stats
+            Optional .json path to stdevs data or where to save data after
+            calling get_stats
         means_file : str | None
-            Path to means data or where to save data after calling get_stats
+            Optional .json path to means data or where to save data after
+            calling get_stats
         overwrite_stats : bool
             Whether to overwrite stats cache files.
         smoothing : float | None
@@ -626,20 +628,22 @@ class BatchHandler:
         n_lats = self.data_handlers[0].shape[0]
         return (n_lats, n_lons, time_steps, self.data_handlers[0].shape[-1])
 
-    def parallel_normalization(self):
-        """Normalize data in all data handlers in parallel."""
+    def _parallel_normalization(self):
+        """Normalize data in all data handlers in parallel or serial depending
+        on norm_workers."""
         logger.info(f'Normalizing {len(self.data_handlers)} data handlers.')
-        max_workers = self.load_workers
+        max_workers = self.norm_workers
         if max_workers == 1:
-            for d in self.data_handlers:
-                d.normalize(self.means, self.stds)
+            for dh in self.data_handlers:
+                dh.normalize(self.means, self.stds)
         else:
             with ThreadPoolExecutor(max_workers=max_workers) as exe:
                 futures = {}
                 now = dt.now()
-                for i, d in enumerate(self.data_handlers):
-                    future = exe.submit(d.normalize, self.means, self.stds)
-                    futures[future] = i
+                for idh, dh in enumerate(self.data_handlers):
+                    future = exe.submit(dh.normalize, self.means, self.stds,
+                                        max_workers=1)
+                    futures[future] = idh
 
                 logger.info(f'Started normalizing {len(self.data_handlers)} '
                             f'data handlers in {dt.now() - now}.')
@@ -691,33 +695,25 @@ class BatchHandler:
         parallel."""
         logger.info(f'Calculating stats for {len(self.training_features)} '
                     'features.')
-        max_workers = self.norm_workers
-        if max_workers == 1:
-            for f in self.training_features:
-                self.get_stats_for_feature(f)
-        else:
-            with ThreadPoolExecutor(max_workers=max_workers) as exe:
-                futures = {}
-                now = dt.now()
-                for i, f in enumerate(self.training_features):
-                    future = exe.submit(self.get_stats_for_feature, f)
-                    futures[future] = i
+        for feature in self.training_features:
+            logger.debug(f'Calculating mean/stdev for "{feature}"')
+            self.means[feature] = 0
+            self.stds[feature] = 0
+            max_workers = self.stats_workers
 
-                logger.info('Started calculating stats for '
-                            f'{len(self.training_features)} features in '
-                            f'{dt.now() - now}.')
+            if max_workers is None or max_workers >= 1:
+                with ThreadPoolExecutor(max_workers=max_workers) as exe:
+                    futures = {}
+                    for idh, dh in enumerate(self.data_handlers):
+                        future = exe.submit(dh._get_stats)
+                        futures[future] = idh
 
-                for i, future in enumerate(as_completed(futures)):
-                    try:
-                        future.result()
-                    except Exception as e:
-                        msg = ('Error calculating stats for '
-                               f'{self.training_features[futures[future]]}')
-                        logger.exception(msg)
-                        raise RuntimeError(msg) from e
-                    logger.debug(f'{i+1} out of '
-                                 f'{len(self.training_features)} stats '
-                                 'calculated.')
+                    for i, _ in enumerate(as_completed(futures)):
+                        logger.debug(f'{i+1} out of {len(self.data_handlers)} '
+                                     'means calculated.')
+
+            self.means[feature] = self._get_feature_means(feature, max_workers)
+            self.stds[feature] = self._get_feature_stdev(feature, max_workers)
 
     def __len__(self):
         """Use user input of n_batches to specify length
@@ -735,10 +731,15 @@ class BatchHandler:
 
         Returns
         -------
-        means : ndarray
-            Array of means for each feature
-        stds : ndarray
-            Array of stdevs for each feature
+        means : dict | none
+            Dictionary of means for all features with keys: feature names and
+            values: mean values. if None, this will be calculated. if norm is
+            true these will be used for data normalization
+        stds : dict | none
+            dictionary of standard deviation values for all features with keys:
+            feature names and values: standard deviations. if None, this will
+            be calculated. if norm is true these will be used for data
+            normalization
         """
         stdevs_check = (self.stdevs_file is not None
                         and not self.overwrite_stats)
@@ -747,11 +748,11 @@ class BatchHandler:
         means_check = means_check and os.path.exists(self.means_file)
         if stdevs_check and means_check:
             logger.info(f'Loading stdevs from {self.stdevs_file}')
-            with open(self.stdevs_file, 'rb') as fh:
-                self.stds = pickle.load(fh)
+            with open(self.stdevs_file, 'r') as fh:
+                self.stds = json.load(fh)
             logger.info(f'Loading means from {self.means_file}')
-            with open(self.means_file, 'rb') as fh:
-                self.means = pickle.load(fh)
+            with open(self.means_file, 'r') as fh:
+                self.means = json.load(fh)
 
             msg = ('The training features and cached statistics are '
                    'incompatible. Number of training features is '
@@ -765,26 +766,19 @@ class BatchHandler:
     def cache_stats(self):
         """Saved stdevs and means to cache files if files are not None"""
 
-        if self.stdevs_file is not None:
-            logger.info(f'Saving stdevs to {self.stdevs_file}')
-            basedir = os.path.dirname(self.stdevs_file)
-            if not os.path.exists(basedir):
-                os.makedirs(basedir)
-            with open(self.stdevs_file, 'wb') as fh:
-                pickle.dump(self.stds, fh)
-        if self.means_file is not None:
-            logger.info(f'Saving means to {self.means_file}')
-            basedir = os.path.dirname(self.means_file)
-            if not os.path.exists(basedir):
-                os.makedirs(basedir)
-            with open(self.means_file, 'wb') as fh:
-                pickle.dump(self.means, fh)
+        iter = ((self.means_file, self.means), (self.stdevs_file, self.stds))
+        for fp, data in iter:
+            if fp is not None:
+                logger.info(f'Saving stats to {fp}')
+                os.makedirs(os.path.dirname(fp), exist_ok=True)
+                with open(fp, 'w') as fh:
+                    json.dump(data, fh)
 
     def get_stats(self):
         """Get standard deviations and means for all data features"""
 
-        self.means = np.zeros((self.shape[-1]), dtype=np.float32)
-        self.stds = np.zeros((self.shape[-1]), dtype=np.float32)
+        self.means = {}
+        self.stds = {}
 
         now = dt.now()
         logger.info('Calculating stdevs/means.')
@@ -792,62 +786,7 @@ class BatchHandler:
         logger.info(f'Finished calculating stats in {dt.now() - now}.')
         self.cache_stats()
 
-    def get_handler_mean(self, feature_idx, handler_idx):
-        """Get feature mean for a given handler
-
-        Parameters
-        ----------
-        feature_idx : int
-            Index of feature to get mean for
-        handler_idx : int
-            Index of data handler to get mean for
-
-        Returns
-        -------
-        float
-            Feature mean
-        """
-        return np.nanmean(self.data_handlers[handler_idx].data[...,
-                                                               feature_idx])
-
-    def get_handler_variance(self, feature_idx, handler_idx, mean):
-        """Get feature variance for a given handler
-
-        Parameters
-        ----------
-        feature_idx : int
-            Index of feature to get variance for
-        handler_idx : int
-            Index of data handler to get variance for
-        mean : float
-            Mean for the given handler and feature
-
-        Returns
-        -------
-        float
-            Feature variance
-        """
-        istd = self.data_handlers[handler_idx].data[..., feature_idx] - mean
-        return np.nanmean(istd**2)
-
-    def get_stats_for_feature(self, feature):
-        """Get standard deviation and mean for requested feature
-
-        Parameters
-        ----------
-        feature : str
-            Feature to get stats for
-        max_workers : int | None
-            Max number of workers to use for parallel stats calculations. If
-            None the max number of available workers will be used.
-        """
-        idx = self.training_features.index(feature)
-        logger.debug(f'Calculating stdev/mean for {feature}')
-        max_workers = self.stats_workers
-        self.means[idx] = self.get_means_for_feature(feature, max_workers)
-        self.stds[idx] = self.get_stdevs_for_feature(feature, max_workers)
-
-    def get_means_for_feature(self, feature, max_workers=None):
+    def _get_feature_means(self, feature, max_workers=None):
         """Get mean for requested feature
 
         Parameters
@@ -858,32 +797,15 @@ class BatchHandler:
             Max number of workers to use for parallel stats calculations. If
             None the max number of available workers will be used.
         """
-        idx = self.training_features.index(feature)
+
         logger.debug(f'Calculating mean for {feature}')
-        if max_workers == 1:
-            for didx, _ in enumerate(self.data_handlers):
-                self.means[idx] += (self.handler_weights[didx]
-                                    * self.get_handler_mean(idx, didx))
-        else:
-            with ThreadPoolExecutor(max_workers=max_workers) as exe:
-                futures = {}
-                now = dt.now()
-                for didx, _ in enumerate(self.data_handlers):
-                    future = exe.submit(self.get_handler_mean, idx, didx)
-                    futures[future] = didx
+        for idh, dh in enumerate(self.data_handlers):
+            self.means[feature] += (self.handler_weights[idh]
+                                    * dh.means[feature])
 
-                logger.info('Started calculating means for '
-                            f'{len(self.data_handlers)} data_handlers in '
-                            f'{dt.now() - now}.')
+        return self.means[feature]
 
-                for i, future in enumerate(as_completed(futures)):
-                    self.means[idx] += (self.handler_weights[futures[future]]
-                                        * future.result())
-                    logger.debug(f'{i+1} out of {len(self.data_handlers)} '
-                                 'means calculated.')
-        return self.means[idx]
-
-    def get_stdevs_for_feature(self, feature, max_workers=None):
+    def _get_feature_stdev(self, feature, max_workers=None):
         """Get stdev for requested feature
 
         NOTE: We compute the variance across all handlers as a pooled variance
@@ -898,32 +820,15 @@ class BatchHandler:
             Max number of workers to use for parallel stats calculations. If
             None the max number of available workers will be used.
         """
-        idx = self.training_features.index(feature)
+
         logger.debug(f'Calculating stdev for {feature}')
-        if max_workers == 1:
-            for didx, _ in enumerate(self.data_handlers):
-                hstd = self.get_handler_variance(idx, didx, self.means[idx])
-                self.stds[idx] += (hstd * self.handler_weights[didx])
-        else:
-            with ThreadPoolExecutor(max_workers=max_workers) as exe:
-                futures = {}
-                now = dt.now()
-                for didx, _ in enumerate(self.data_handlers):
-                    future = exe.submit(self.get_handler_variance, idx, didx,
-                                        self.means[idx])
-                    futures[future] = didx
+        for idh, dh in enumerate(self.data_handlers):
+            variance = dh.stds[feature]**2
+            self.stds[feature] += (variance * self.handler_weights[idh])
 
-                logger.info('Started calculating stdevs for '
-                            f'{len(self.data_handlers)} data_handlers in '
-                            f'{dt.now() - now}.')
+        self.stds[feature] = np.sqrt(self.stds[feature])
 
-                for i, future in enumerate(as_completed(futures)):
-                    self.stds[idx] += (self.handler_weights[futures[future]]
-                                       * future.result())
-                    logger.debug(f'{i+1} out of {len(self.data_handlers)} '
-                                 'stdevs calculated.')
-        self.stds[idx] = np.sqrt(self.stds[idx])
-        return self.stds[idx]
+        return self.stds[feature]
 
     def normalize(self, means=None, stds=None):
         """Compute means and stds for each feature across all datasets and
@@ -932,29 +837,34 @@ class BatchHandler:
 
         Parameters
         ----------
-        means : ndarray | None
-            Array of means for each feature. If None it will be calculated.
-        stds : ndarray | None
-            Array of stdevs for each feature. If None it will be calculated.
+        means : dict | none
+            Dictionary of means for all features with keys: feature names and
+            values: mean values. if None, this will be calculated. if norm is
+            true these will be used for data normalization
+        stds : dict | none
+            dictionary of standard deviation values for all features with keys:
+            feature names and values: standard deviations. if None, this will
+            be calculated. if norm is true these will be used for data
+            normalization
         """
         if means is None or stds is None:
             self.get_stats()
         elif means is not None and stds is not None:
-            if not np.array_equal(means, self.means) or not np.array_equal(
-                    stds, self.stds):
-                self.unnormalize()
-            self.means = means
-            self.stds = stds
+            if (not np.array_equal(means.values(), self.means.values())
+                    or not np.array_equal(stds.values(), self.stds.values())):
+                msg = ('Normalization requested with new means/stdevs that '
+                       'dont match previous values!')
+                logger.info(msg)
+                raise ValueError(msg)
+            else:
+                self.means = means
+                self.stds = stds
+
         now = dt.now()
         logger.info('Normalizing data in each data handler.')
-        self.parallel_normalization()
+        self._parallel_normalization()
         logger.info('Finished normalizing data in all data handlers in '
                     f'{dt.now() - now}.')
-
-    def unnormalize(self):
-        """Remove normalization from stored means and stds"""
-        for d in self.data_handlers:
-            d.unnormalize(self.means, self.stds)
 
     def __iter__(self):
         self._i = 0

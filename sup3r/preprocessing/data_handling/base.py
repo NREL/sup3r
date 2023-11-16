@@ -1,6 +1,7 @@
 """Base data handling classes.
 @author: bbenton
 """
+import copy
 import logging
 import os
 import pickle
@@ -230,8 +231,9 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
                             temporal_slice=temporal_slice)
 
         self.file_paths = file_paths
-        self.features = (features if isinstance(features,
-                                                (list, tuple)) else [features])
+        self.features = (features if isinstance(features, (list, tuple))
+                         else [features])
+        self.features = copy.deepcopy(self.features)
         self.val_time_index = None
         self.max_delta = max_delta
         self.val_split = val_split
@@ -257,6 +259,9 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         self._raw_features = None
         self._raw_data = {}
         self._time_chunks = None
+        self._means = None
+        self._stds = None
+        self._is_normalized = False
         self.worker_kwargs = worker_kwargs or {}
         self.max_workers = self.worker_kwargs.get('max_workers', None)
         self._ti_workers = self.worker_kwargs.get('ti_workers', None)
@@ -860,28 +865,71 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
                                           target,
                                           features)
 
-    def unnormalize(self, means, stds):
-        """Remove normalization from stored means and stds"""
-        self._unnormalize(self.data, self.val_data, means, stds)
+    @property
+    def means(self):
+        """Get the mean values for each feature.
 
-    def normalize(self, means, stds):
-        """Normalize all data features
+        Returns
+        -------
+        dict
+        """
+        self._get_stats()
+        return self._means
+
+    @property
+    def stds(self):
+        """Get the standard deviation values for each feature.
+
+        Returns
+        -------
+        dict
+        """
+        self._get_stats()
+        return self._stds
+
+    def _get_stats(self):
+        if self._means is None or self._stds is None:
+            msg = (f'DataHandler has {len(self.features)} features '
+                   f'and mismatched shape of {self.shape}')
+            assert len(self.features) == self.shape[-1], msg
+            self._stds = {}
+            self._means = {}
+            for idf, fname in enumerate(self.features):
+                self._means[fname] = np.nanmean(self.data[..., idf])
+                self._stds[fname] = np.nanstd(self.data[..., idf])
+
+    def normalize(self, means=None, stds=None, max_workers=None):
+        """Normalize all data features.
 
         Parameters
         ----------
-        means : np.ndarray
-            dimensions (features)
-            array of means for all features with same ordering as data features
-        stds : np.ndarray
-            dimensions (features)
-            array of means for all features with same ordering as data features
+        means : dict | none
+            Dictionary of means for all features with keys: feature names and
+            values: mean values. If this is None, the self.means attribute will
+            be used. If this is not None, this DataHandler object means
+            attribute will be updated.
+        stds : dict | none
+            dictionary of standard deviation values for all features with keys:
+            feature names and values: standard deviations. If this is None, the
+            self.stds attribute will be used. If this is not None, this
+            DataHandler object stds attribute will be updated.
+        max_workers : None | int
+            Max workers to perform normalization. if None, self.norm_workers
+            will be used
         """
-        max_workers = self.norm_workers
-        self._normalize(self.data,
-                        self.val_data,
-                        means,
-                        stds,
-                        max_workers=max_workers)
+        if means is not None:
+            self._means = means
+        if stds is not None:
+            self._stds = stds
+
+        max_workers = max_workers or self.norm_workers
+        if self._is_normalized:
+            logger.info('Skipping DataHandler, already normalized')
+        else:
+            self._normalize(self.data,
+                            self.val_data,
+                            max_workers=max_workers)
+            self._is_normalized = True
 
     def get_next(self):
         """Get data for observation using random observation index. Loops

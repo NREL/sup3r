@@ -924,6 +924,8 @@ class TrainingPrepMixIn:
     def __init__(self):
         """Initialize common attributes"""
         self.features = None
+        self.means = None
+        self.stds = None
 
     @classmethod
     def _split_data_indices(cls,
@@ -991,29 +993,6 @@ class TrainingPrepMixIn:
         temporal_slice = uniform_time_sampler(data, sample_shape[2])
         return (*spatial_slice, temporal_slice, np.arange(data.shape[-1]))
 
-    @classmethod
-    def _unnormalize(cls, data, val_data, means, stds):
-        """Remove normalization from stored means and stds
-
-        Parameters
-        ----------
-        data : np.ndarray
-            Array of training data.
-            (spatial_1, spatial_2, temporal, n_features)
-        val_data : np.ndarray
-            Array of validation data.
-            (spatial_1, spatial_2, temporal, n_features)
-        means : np.ndarray
-            dimensions (features)
-            array of means for all features with same ordering as data features
-        stds : np.ndarray
-            dimensions (features)
-            array of means for all features with same ordering as data features
-        """
-        val_data = (val_data * stds) + means
-        data = (data * stds) + means
-        return data, val_data
-
     def _normalize_data(self, data, val_data, feature_index, mean, std):
         """Normalize data with initialized mean and standard deviation for a
         specific feature
@@ -1036,6 +1015,7 @@ class TrainingPrepMixIn:
 
         if val_data is not None:
             val_data[..., feature_index] -= mean
+
         data[..., feature_index] -= mean
 
         if std > 0:
@@ -1048,9 +1028,10 @@ class TrainingPrepMixIn:
             logger.warning(msg)
             warnings.warn(msg)
 
-        logger.info(f'Finished normalizing {self.features[feature_index]}.')
+        logger.debug(f'Finished normalizing {self.features[feature_index]} '
+                     f'with mean {mean:.3e} and std {std:.3e}.')
 
-    def _normalize(self, data, val_data, means, stds, max_workers=None):
+    def _normalize(self, data, val_data, max_workers=None):
         """Normalize all data features
 
         Parameters
@@ -1061,74 +1042,38 @@ class TrainingPrepMixIn:
         val_data : np.ndarray
             Array of validation data.
             (spatial_1, spatial_2, temporal, n_features)
-        means : np.ndarray
-            dimensions (features)
-            array of means for all features with same ordering as data features
-        stds : np.ndarray
-            dimensions (features)
-            array of means for all features with same ordering as data features
         max_workers : int | None
             Number of workers to use in thread pool for nomalization.
         """
-        msg = f'Received {len(means)} means for {data.shape[-1]} features'
-        assert len(means) == data.shape[-1], msg
-        msg = f'Received {len(stds)} stds for {data.shape[-1]} features'
-        assert len(stds) == data.shape[-1], msg
-        logger.info(f'Normalizing {data.shape[-1]} features.')
+
+        msg1 = (f'Not all feature names {self.features} were found in '
+                f'self.means: {list(self.means.keys())}')
+        msg2 = (f'Not all feature names {self.features} were found in '
+                f'self.stds: {list(self.stds.keys())}')
+        assert all(fn in self.means for fn in self.features), msg1
+        assert all(fn in self.stds for fn in self.features), msg2
+
+        logger.info(f'Normalizing {data.shape[-1]} features: {self.features}')
+
         if max_workers == 1:
-            for i in range(data.shape[-1]):
-                self._normalize_data(data, val_data, i, means[i], stds[i])
+            for idf, feature in enumerate(self.features):
+                self._normalize_data(data, val_data, idf, self.means[feature],
+                                     self.stds[feature])
         else:
-            self.parallel_normalization(data,
-                                        val_data,
-                                        means,
-                                        stds,
-                                        max_workers=max_workers)
+            with ThreadPoolExecutor(max_workers=max_workers) as exe:
+                futures = []
+                for idf, feature in enumerate(self.features):
+                    future = exe.submit(self._normalize_data,
+                                        data, val_data, idf,
+                                        self.means[feature],
+                                        self.stds[feature])
+                    futures.append(future)
 
-    def parallel_normalization(self,
-                               data,
-                               val_data,
-                               means,
-                               stds,
-                               max_workers=None):
-        """Run normalization of features in parallel
-
-        Parameters
-        ----------
-        data : np.ndarray
-            Array of training data.
-            (spatial_1, spatial_2, temporal, n_features)
-        val_data : np.ndarray
-            Array of validation data.
-            (spatial_1, spatial_2, temporal, n_features)
-        means : np.ndarray
-            dimensions (features)
-            array of means for all features with same ordering as data features
-        stds : np.ndarray
-            dimensions (features)
-            array of means for all features with same ordering as data features
-        max_workers : int | None
-            Max number of workers to use for normalizing features
-        """
-
-        with ThreadPoolExecutor(max_workers=max_workers) as exe:
-            futures = {}
-            now = dt.now()
-            for i in range(data.shape[-1]):
-                future = exe.submit(self._normalize_data, data, val_data, i,
-                                    means[i], stds[i])
-                futures[future] = i
-
-            logger.info(f'Started normalizing {data.shape[-1]} features '
-                        f'in {dt.now() - now}.')
-
-            for i, future in enumerate(as_completed(futures)):
-                try:
-                    future.result()
-                except Exception as e:
-                    msg = ('Error while normalizing future number '
-                           f'{futures[future]}.')
-                    logger.exception(msg)
-                    raise RuntimeError(msg) from e
-                logger.debug(f'{i+1} out of {data.shape[-1]} features '
-                             'normalized.')
+                for i, future in enumerate(as_completed(futures)):
+                    try:
+                        future.result()
+                    except Exception as e:
+                        msg = ('Error while normalizing future number '
+                               f'{futures[future]}.')
+                        logger.exception(msg)
+                        raise RuntimeError(msg) from e

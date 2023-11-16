@@ -1,4 +1,5 @@
 """Dual data handler class for using separate low_res and high_res datasets"""
+import copy
 import logging
 import pickle
 from warnings import warn
@@ -90,7 +91,9 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         self.hr_time_index = None
         self.lr_val_time_index = None
         self.hr_val_time_index = None
-        self.lr_data = np.zeros(self.shape, dtype=np.float32)
+
+        lr_data_shape = (*self.lr_required_shape, len(self.lr_dh.features))
+        self.lr_data = np.zeros(lr_data_shape, dtype=np.float32)
 
         if self.try_load and self.load_cached:
             self.load_cached_data()
@@ -158,39 +161,79 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
                     logger.warning(msg)
                     warn(msg)
 
-    def normalize(self, means, stdevs):
+    def _get_stats(self):
+        """Get mean/stdev stats for HR and LR data handlers"""
+        self.lr_dh._get_stats()
+        self.hr_dh._get_stats()
+
+    @property
+    def means(self):
+        """Get the mean values for each feature. Mean values from the low-res
+        data handler are prioritized because these are typically the "input"
+        features
+
+        Returns
+        -------
+        dict
+        """
+        out = copy.deepcopy(self.hr_dh.means)
+        out.update(self.lr_dh.means)
+        return out
+
+    @property
+    def stds(self):
+        """Get the standard deviation values for each feature. Mean values from
+        the low-res data handler are prioritized because these are typically
+        the "input" features
+
+        Returns
+        -------
+        dict
+        """
+        out = copy.deepcopy(self.hr_dh.stds)
+        out.update(self.lr_dh.stds)
+        return out
+
+    def normalize(self, means=None, stds=None):
         """Normalize low_res and high_res data
 
         Parameters
         ----------
-        means : np.ndarray
-            dimensions (features)
-            array of means for all features with same ordering as data features
-        stdevs : np.ndarray
-            dimensions (features)
-            array of means for all features with same ordering as data features
+        means : dict | none
+            Dictionary of means for all features with keys: feature names and
+            values: mean values. If this is None, the self.means attribute will
+            be used. If this is not None, this DataHandler object means
+            attribute will be updated.
+        stds : dict | none
+            dictionary of standard deviation values for all features with keys:
+            feature names and values: standard deviations. If this is None, the
+            self.stds attribute will be used. If this is not None, this
+            DataHandler object stds attribute will be updated.
         """
+        if means is None:
+            means = self.means
+        if stds is None:
+            stds = self.stds
         logger.info('Normalizing low resolution data features='
-                    f'{self.features}')
-        self._normalize(data=self.lr_data,
-                        val_data=self.lr_val_data,
-                        means=means,
-                        stds=stdevs,
-                        max_workers=self.lr_dh.norm_workers)
+                    f'{self.lr_dh.features}')
+        self.lr_dh.normalize(means=means, stds=stds)
         logger.info('Normalizing high resolution data features='
-                    f'{self.output_features}')
-        indices = [self.features.index(f) for f in self.output_features]
-        self._normalize(data=self.hr_data,
-                        val_data=self.hr_val_data,
-                        means=means[indices],
-                        stds=stdevs[indices],
-                        max_workers=self.hr_dh.norm_workers)
+                    f'{self.hr_dh.features}')
+        self.hr_dh.normalize(means=means, stds=stds)
+
+    @property
+    def features(self):
+        """Get a list of data features including features from both the lr and
+        hr data handlers"""
+        out = list(copy.deepcopy(self.lr_dh.features))
+        out += [fn for fn in self.hr_dh.features if fn not in out]
+        return out
 
     @property
     def output_features(self):
         """Get list of output features. e.g. those that are returned by a
         GAN"""
-        return self.lr_dh.output_features
+        return self.hr_dh.output_features
 
     @property
     def train_only_features(self):
@@ -228,9 +271,6 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
                'hr_handler.val_split and lr_handler.val_split should both be '
                'zero.')
         assert hr_handler.val_split == 0 and lr_handler.val_split == 0, msg
-        msg = ('Handlers have incompatible number of features. '
-               f'({hr_handler.features} vs {lr_handler.features})')
-        assert hr_handler.features == self.output_features, msg
         hr_shape = hr_handler.sample_shape
         lr_shape = (hr_shape[0] // self.s_enhance,
                     hr_shape[1] // self.s_enhance,
@@ -302,11 +342,6 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         return self.hr_dh.sample_shape
 
     @property
-    def features(self):
-        """Get list of features in each data handler"""
-        return self.lr_dh.features
-
-    @property
     def data(self):
         """Get low res data. Same as self.lr_data but used to match property
         used by batch handler for computing means and stdevs"""
@@ -332,7 +367,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
     @property
     def shape(self):
         """Get low_res shape"""
-        return (*self.lr_required_shape, len(self.features))
+        return (*self.lr_required_shape, len(self.lr_dh.features))
 
     @property
     def size(self):
@@ -461,28 +496,28 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         regridder = self.get_regridder()
 
         for f in self.noncached_features:
-            fidx = self.features.index(f)
+            fidx = self.lr_dh.features.index(f)
             tmp = regridder(self.lr_input_data[..., fidx])
             tmp = tmp.reshape(self.lr_required_shape)
             self.lr_data[..., fidx] = tmp
 
         if self.load_cached:
             for f in self.cached_features:
-                f_index = self.features.index(f)
-                logger.info(f'Loading {f} from {self.cache_files[f_index]}')
-                with open(self.cache_files[f_index], 'rb') as fh:
-                    self.lr_data[..., f_index] = pickle.load(fh)
+                fidx = self.lr_dh.features.index(f)
+                logger.info(f'Loading {f} from {self.cache_files[fidx]}')
+                with open(self.cache_files[fidx], 'rb') as fh:
+                    self.lr_data[..., fidx] = pickle.load(fh)
 
         for fidx in range(self.lr_data.shape[-1]):
             nan_perc = (100 * np.isnan(self.lr_data[..., fidx]).sum()
                         / self.lr_data[..., fidx].size)
             if nan_perc > 0:
-                msg = (f'{self.features[fidx]} data has {nan_perc:.3f}% NaN '
-                       'values!')
+                msg = (f'{self.lr_dh.features[fidx]} data has '
+                       f'{nan_perc:.3f}% NaN values!')
                 logger.warning(msg)
                 warn(msg)
-                msg = (f'Doing nn nan fill on low res {self.features[fidx]} '
-                       'data.')
+                msg = (f'Doing nn nan fill on low res '
+                       f'{self.lr_dh.features[fidx]} data.')
                 logger.info(msg)
                 self.lr_data[..., fidx] = nn_fill_array(
                     self.lr_data[..., fidx])
@@ -508,7 +543,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         hr_obs_idx += [slice(s.start * self.t_enhance, s.stop * self.t_enhance)
                        for s in lr_obs_idx[2:-1]]
 
-        hr_obs_idx.append(np.arange(len(self.output_features)))
+        hr_obs_idx.append(np.arange(len(self.hr_dh.features)))
         hr_obs_idx = tuple(hr_obs_idx)
         self.current_obs_index = {
             'hr_index': hr_obs_idx,
