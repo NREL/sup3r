@@ -239,8 +239,8 @@ class CacheHandlingMixIn:
         overwrite : bool
             Whether to overwrite exisiting files.
         """
-        os.makedirs(os.path.dirname(cache_file_paths[0]), exist_ok=True)
         for i, fp in enumerate(cache_file_paths):
+            os.makedirs(os.path.dirname(fp), exist_ok=True)
             if not os.path.exists(fp) or overwrite:
                 if overwrite and os.path.exists(fp):
                     logger.info(f'Overwriting {features[i]} with shape '

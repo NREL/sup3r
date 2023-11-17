@@ -382,7 +382,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
 
         with tf.device(device):
             hr_exo_data = {}
-            for feature in self.hr_exogenous_features:
+            for feature in self.hr_exo_features:
                 hr_exo_data[feature] = hr_exo
             _ = self._tf_generate(low_res, hr_exo_data)
             _ = self._tf_discriminate(hi_res)

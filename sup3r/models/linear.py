@@ -82,23 +82,28 @@ class LinearInterp(AbstractInterface):
                 's_enhance': self._s_enhance,
                 't_enhance': self._t_enhance,
                 't_centered': self._t_centered,
-                'training_features': self.training_features,
-                'output_features': self.output_features,
+                'lr_features': self.lr_features,
+                'hr_out_features': self.hr_out_features,
                 'class': self.__class__.__name__,
                 }
 
     @property
-    def training_features(self):
+    def lr_features(self):
         """Get the list of input feature names that the generative model was
         trained on.
         """
         return self._features
 
     @property
-    def output_features(self):
+    def hr_out_features(self):
         """Get the list of output feature names that the generative model
         outputs"""
         return self._features
+
+    @property
+    def hr_exo_features(self):
+        """Returns an empty list for LinearInterp model"""
+        return []
 
     def save(self, out_dir):
         """
@@ -142,7 +147,7 @@ class LinearInterp(AbstractInterface):
                     int(low_res.shape[1] * self._s_enhance),
                     int(low_res.shape[2] * self._s_enhance),
                     int(low_res.shape[3] * self._t_enhance),
-                    len(self.output_features))
+                    len(self.hr_out_features))
         logger.debug('LinearInterp model with s_enhance of {} '
                      'and t_enhance of {} '
                      'downscaling low-res shape {} to high-res shape {}'

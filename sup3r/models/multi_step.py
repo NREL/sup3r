@@ -236,16 +236,27 @@ class MultiStepGan(AbstractInterface):
         return tuple(model.meta for model in self.models)
 
     @property
-    def training_features(self):
-        """Get the list of input feature names that the first generative model
-        in this MultiStepGan requires as input."""
-        return self.models[0].meta.get('training_features', None)
+    def lr_features(self):
+        """Get a list of low-resolution features input to the generative model.
+        This includes low-resolution features that might be supplied
+        exogenously at inference time but that were in the low-res batches
+        during training"""
+        return self.models[0].lr_features
 
     @property
-    def output_features(self):
-        """Get the list of output feature names that the last generative model
-        in this MultiStepGan outputs."""
-        return self.models[-1].meta.get('output_features', None)
+    def hr_out_features(self):
+        """Get the list of high-resolution output feature names that the
+        generative model outputs."""
+        return self.models[-1].hr_out_features
+
+    @property
+    def hr_exo_features(self):
+        """Get list of high-resolution exogenous filter names the model uses.
+        For the multi-step model, each entry in this list corresponds to one of
+        the single-step models and is itself a list of hr_exo_features for that
+        model.
+        """
+        return [model.hr_exo_features for model in self.models]
 
     @property
     def model_params(self):
@@ -506,25 +517,26 @@ class SolarMultiStepGan(MultiStepGan):
                 + self.temporal_solar_models.meta)
 
     @property
-    def training_features(self):
-        """Get the list of input feature names that the first spatial
-        generative models in this SolarMultiStepGan requires as input.
-        This includes the solar + wind training features."""
-        return (self.spatial_solar_models.training_features
-                + self.spatial_wind_models.training_features)
+    def lr_features(self):
+        """Get a list of low-resolution features input to the generative model.
+        This includes low-resolution features that might be supplied
+        exogenously at inference time but that were in the low-res batches
+        during training"""
+        return (self.spatial_solar_models.lr_features
+                + self.spatial_wind_models.lr_features)
 
     @property
-    def output_features(self):
+    def hr_out_features(self):
         """Get the list of output feature names that the last solar
         spatiotemporal generative model in this SolarMultiStepGan outputs."""
-        return self.temporal_solar_models.output_features
+        return self.temporal_solar_models.hr_out_features
 
     @property
     def idf_wind(self):
         """Get an array of feature indices for the subset of features required
         for the spatial_wind_models. This excludes topography which is assumed
         to be provided as exogenous_data."""
-        return np.array([self.training_features.index(fn) for fn in
+        return np.array([self.lr_features.index(fn) for fn in
                          self.spatial_wind_models.training_features
                          if fn != 'topography'])
 
@@ -543,7 +555,7 @@ class SolarMultiStepGan(MultiStepGan):
         """Get an array of feature indices for the subset of features required
         for the spatial_solar_models. This excludes topography which is assumed
         to be provided as exogenous_data."""
-        return np.array([self.training_features.index(fn) for fn in
+        return np.array([self.lr_features.index(fn) for fn in
                          self.spatial_solar_models.training_features
                          if fn != 'topography'])
 
@@ -557,7 +569,7 @@ class SolarMultiStepGan(MultiStepGan):
         low_res : np.ndarray
             Low-resolution input data to the 1st step spatial GAN, which is a
             4D array of shape: (temporal, spatial_1, spatial_2, n_features).
-            This should include all of the self.training_features which is a
+            This should include all of the self.lr_features which is a
             concatenation of both the solar and wind spatial model features.
             The topography feature might be removed from this input and present
             in the exogenous_data input.

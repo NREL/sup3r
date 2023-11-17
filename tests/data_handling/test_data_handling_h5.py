@@ -2,7 +2,6 @@
 """pytests for data handling"""
 import json
 import os
-import pickle
 import tempfile
 
 import matplotlib.pyplot as plt

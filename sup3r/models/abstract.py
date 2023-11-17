@@ -341,23 +341,6 @@ class AbstractInterface(ABC):
         return high_res_gen
 
     @property
-    def hr_exo_features(self):
-        """Get list of high-resolution exogenous filter names the model uses.
-        If the model has N concat or add layers this list will be the last N
-        features in the training features list. The ordering is assumed to be
-        the same as the order of concat or add layers. If training features is
-        [..., topo, sza], and the model has 2 concat or add layers, exo
-        features will be [topo, sza]. Topo will then be used in the first
-        concat layer and sza will be used in the second"""
-        # pylint: disable=E1101
-        features = []
-        if hasattr(self, '_gen'):
-            for layer in self._gen.layers:
-                if isinstance(layer, (Sup3rAdder, Sup3rConcat)):
-                    features.append(layer.name)
-        return features
-
-    @property
     @abstractmethod
     def meta(self):
         """Get meta data dictionary that defines how the model was created"""
@@ -375,6 +358,23 @@ class AbstractInterface(ABC):
         """Get the list of high-resolution output feature names that the
         generative model outputs."""
         return self.meta.get('hr_out_features', [])
+
+    @property
+    def hr_exo_features(self):
+        """Get list of high-resolution exogenous filter names the model uses.
+        If the model has N concat or add layers this list will be the last N
+        features in the training features list. The ordering is assumed to be
+        the same as the order of concat or add layers. If training features is
+        [..., topo, sza], and the model has 2 concat or add layers, exo
+        features will be [topo, sza]. Topo will then be used in the first
+        concat layer and sza will be used in the second"""
+        # pylint: disable=E1101
+        features = []
+        if hasattr(self, '_gen'):
+            for layer in self._gen.layers:
+                if isinstance(layer, (Sup3rAdder, Sup3rConcat)):
+                    features.append(layer.name)
+        return features
 
     @property
     def smoothing(self):

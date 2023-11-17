@@ -53,8 +53,8 @@ def test_fwp_nc_cc(log=False):
     features = ['U_100m', 'V_100m']
     target = (13.67, 125.0)
     _ = model.generate(np.ones((4, 10, 10, 6, len(features))))
-    model.meta['training_features'] = features
-    model.meta['output_features'] = features
+    model.meta['lr_features'] = features
+    model.meta['hr_out_features'] = features
     model.meta['s_enhance'] = 3
     model.meta['t_enhance'] = 4
     with tempfile.TemporaryDirectory() as td:
@@ -110,8 +110,8 @@ def test_fwp_single_ts_vs_multi_ts_input_files():
     Sup3rGan.seed()
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
     _ = model.generate(np.ones((4, 10, 10, len(FEATURES))))
-    model.meta['training_features'] = FEATURES
-    model.meta['output_features'] = ['U_100m', 'V_100m']
+    model.meta['lr_features'] = FEATURES
+    model.meta['hr_out_features'] = ['U_100m', 'V_100m']
     model.meta['s_enhance'] = 2
     model.meta['t_enhance'] = 1
     with tempfile.TemporaryDirectory() as td:
@@ -172,7 +172,7 @@ def test_fwp_single_ts_vs_multi_ts_input_files():
                                **kwargs) as single_ts:
             with xr.open_mfdataset(multi_ts_handler.out_files,
                                    **kwargs) as multi_ts:
-                for feat in model.meta['output_features']:
+                for feat in model.meta['hr_out_features']:
                     assert np.array_equal(single_ts[feat].values,
                                           multi_ts[feat].values)
 
@@ -186,8 +186,8 @@ def test_fwp_spatial_only():
     Sup3rGan.seed()
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
     _ = model.generate(np.ones((4, 10, 10, len(FEATURES))))
-    model.meta['training_features'] = FEATURES
-    model.meta['output_features'] = ['U_100m', 'V_100m']
+    model.meta['lr_features'] = FEATURES
+    model.meta['hr_out_features'] = ['U_100m', 'V_100m']
     model.meta['s_enhance'] = 2
     model.meta['t_enhance'] = 1
     with tempfile.TemporaryDirectory() as td:
@@ -241,8 +241,8 @@ def test_fwp_nc():
     Sup3rGan.seed()
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
     _ = model.generate(np.ones((4, 10, 10, 6, len(FEATURES))))
-    model.meta['training_features'] = FEATURES
-    model.meta['output_features'] = ['U_100m', 'V_100m']
+    model.meta['lr_features'] = FEATURES
+    model.meta['hr_out_features'] = ['U_100m', 'V_100m']
     model.meta['s_enhance'] = 3
     model.meta['t_enhance'] = 4
     with tempfile.TemporaryDirectory() as td:
@@ -299,8 +299,8 @@ def test_fwp_temporal_slice():
     Sup3rGan.seed()
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
     _ = model.generate(np.ones((4, 10, 10, 6, 2)))
-    model.meta['training_features'] = ['U_100m', 'V_100m']
-    model.meta['output_features'] = ['U_100m', 'V_100m']
+    model.meta['lr_features'] = ['U_100m', 'V_100m']
+    model.meta['hr_out_features'] = ['U_100m', 'V_100m']
     model.meta['s_enhance'] = 3
     model.meta['t_enhance'] = 4
     with tempfile.TemporaryDirectory() as td:
@@ -353,7 +353,7 @@ def test_fwp_temporal_slice():
             assert 'gan_meta' in fh.global_attrs
             gan_meta = json.loads(fh.global_attrs['gan_meta'])
             assert isinstance(gan_meta, dict)
-            assert gan_meta['training_features'] == ['U_100m', 'V_100m']
+            assert gan_meta['lr_features'] == ['U_100m', 'V_100m']
 
 
 def test_fwp_handler():
@@ -365,8 +365,8 @@ def test_fwp_handler():
 
     Sup3rGan.seed()
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-    model.meta['training_features'] = FEATURES
-    model.meta['output_features'] = FEATURES[:-1]
+    model.meta['lr_features'] = FEATURES
+    model.meta['hr_out_features'] = FEATURES[:-1]
     model.meta['s_enhance'] = s_enhance
     model.meta['t_enhance'] = t_enhance
     _ = model.generate(np.ones((4, 10, 10, 12, 3)))
@@ -418,8 +418,8 @@ def test_fwp_chunking(log=False, plot=False):
 
     Sup3rGan.seed()
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-    model.meta['training_features'] = FEATURES
-    model.meta['output_features'] = FEATURES[:-1]
+    model.meta['lr_features'] = FEATURES
+    model.meta['hr_out_features'] = FEATURES[:-1]
     model.meta['s_enhance'] = s_enhance
     model.meta['t_enhance'] = t_enhance
     _ = model.generate(np.ones((4, 10, 10, 12, 3)))
@@ -447,7 +447,7 @@ def test_fwp_chunking(log=False, plot=False):
                                           worker_kwargs=dict(max_workers=1)))
         data_chunked = np.zeros(
             (shape[0] * s_enhance, shape[1] * s_enhance,
-             len(input_files) * t_enhance, len(model.output_features)))
+             len(input_files) * t_enhance, len(model.hr_out_features)))
         handlerNC = DataHandlerNC(input_files,
                                   FEATURES,
                                   target=target,
@@ -495,11 +495,11 @@ def test_fwp_chunking(log=False, plot=False):
                 fig.colorbar(nc,
                              ax=ax1,
                              shrink=0.6,
-                             label=f'{model.output_features[ifeature]}')
+                             label=f'{model.hr_out_features[ifeature]}')
                 fig.colorbar(ch,
                              ax=ax2,
                              shrink=0.6,
-                             label=f'{model.output_features[ifeature]}')
+                             label=f'{model.hr_out_features[ifeature]}')
                 fig.colorbar(diff, ax=ax3, shrink=0.6, label='Difference')
                 plt.savefig(f'./chunk_vs_nochunk_{ifeature}.png')
                 plt.close()
@@ -517,8 +517,8 @@ def test_fwp_nochunking():
 
     Sup3rGan.seed()
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-    model.meta['training_features'] = FEATURES
-    model.meta['output_features'] = FEATURES[:-1]
+    model.meta['lr_features'] = FEATURES
+    model.meta['hr_out_features'] = FEATURES[:-1]
     model.meta['s_enhance'] = s_enhance
     model.meta['t_enhance'] = t_enhance
     _ = model.generate(np.ones((4, 10, 10, 12, 3)))
@@ -569,8 +569,8 @@ def test_fwp_multi_step_model():
     fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
     s_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-    s_model.meta['training_features'] = ['U_100m', 'V_100m']
-    s_model.meta['output_features'] = ['U_100m', 'V_100m']
+    s_model.meta['lr_features'] = ['U_100m', 'V_100m']
+    s_model.meta['hr_out_features'] = ['U_100m', 'V_100m']
     assert s_model.s_enhance == 2
     assert s_model.t_enhance == 1
     _ = s_model.generate(np.ones((4, 10, 10, 2)))
@@ -578,8 +578,8 @@ def test_fwp_multi_step_model():
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
     st_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-    st_model.meta['training_features'] = ['U_100m', 'V_100m']
-    st_model.meta['output_features'] = ['U_100m', 'V_100m']
+    st_model.meta['lr_features'] = ['U_100m', 'V_100m']
+    st_model.meta['hr_out_features'] = ['U_100m', 'V_100m']
     assert st_model.s_enhance == 3
     assert st_model.t_enhance == 4
     _ = st_model.generate(np.ones((4, 10, 10, 6, 2)))
@@ -649,7 +649,7 @@ def test_fwp_multi_step_model():
             assert 'gan_meta' in fh.global_attrs
             gan_meta = json.loads(fh.global_attrs['gan_meta'])
             assert len(gan_meta) == 2  # two step model
-            assert gan_meta[0]['training_features'] == ['U_100m', 'V_100m']
+            assert gan_meta[0]['lr_features'] == ['U_100m', 'V_100m']
 
 
 def test_slicing_no_pad(log=False):
@@ -667,8 +667,8 @@ def test_slicing_no_pad(log=False):
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
     st_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
     features = ['U_100m', 'V_100m']
-    st_model.meta['training_features'] = features
-    st_model.meta['output_features'] = features
+    st_model.meta['lr_features'] = features
+    st_model.meta['hr_out_features'] = features
     st_model.meta['s_enhance'] = s_enhance
     st_model.meta['t_enhance'] = t_enhance
     _ = st_model.generate(np.ones((4, 10, 10, 6, 2)))
@@ -729,8 +729,8 @@ def test_slicing_pad(log=False):
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
     st_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
     features = ['U_100m', 'V_100m']
-    st_model.meta['training_features'] = features
-    st_model.meta['output_features'] = features
+    st_model.meta['lr_features'] = features
+    st_model.meta['hr_out_features'] = features
     st_model.meta['s_enhance'] = s_enhance
     st_model.meta['t_enhance'] = t_enhance
     _ = st_model.generate(np.ones((4, 10, 10, 6, 2)))
