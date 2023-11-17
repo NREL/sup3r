@@ -38,7 +38,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
                  regrid_workers=1,
                  load_cached=True,
                  shuffle_time=False,
-                 s_enhance=15,
+                 s_enhance=1,
                  t_enhance=1,
                  val_split=0.0):
         """Initialize data handler using hr and lr data handlers for h5 data
@@ -194,7 +194,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         out.update(self.lr_dh.stds)
         return out
 
-    def normalize(self, means=None, stds=None):
+    def normalize(self, means=None, stds=None, max_workers=None):
         """Normalize low_res and high_res data
 
         Parameters
@@ -209,6 +209,9 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
             feature names and values: standard deviations. If this is None, the
             self.stds attribute will be used. If this is not None, this
             DataHandler object stds attribute will be updated.
+        max_workers : None | int
+            Max workers to perform normalization. if None, self.norm_workers
+            will be used
         """
         if means is None:
             means = self.means
@@ -216,10 +219,10 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
             stds = self.stds
         logger.info('Normalizing low resolution data features='
                     f'{self.lr_dh.features}')
-        self.lr_dh.normalize(means=means, stds=stds)
+        self.lr_dh.normalize(means=means, stds=stds, max_workers=max_workers)
         logger.info('Normalizing high resolution data features='
                     f'{self.hr_dh.features}')
-        self.hr_dh.normalize(means=means, stds=stds)
+        self.hr_dh.normalize(means=means, stds=stds, max_workers=max_workers)
 
     @property
     def features(self):
@@ -230,30 +233,25 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         return out
 
     @property
-    def output_features(self):
-        """Get list of output features. e.g. those that are returned by a
-        GAN"""
-        return self.hr_dh.output_features
-
-    @property
-    def train_only_features(self):
+    def lr_only_features(self):
         """Features to use for training only and not output"""
         tof = [fn for fn in self.lr_dh.features
-               if fn not in self.output_features]
+               if fn not in self.hr_out_features
+               and fn not in self.hr_exo_features]
         return tof
 
     @property
     def lr_features(self):
         """Get a list of low-resolution features. All low-resolution features
         are used for training."""
-        return self.lr_dh.features
+        return self.lr_dh.lr_features
 
     @property
-    def hr_train_features(self):
+    def hr_exo_features(self):
         """Get a list of high-resolution features that are only used for
         training e.g., mid-network high-res topo injection. These must come at
         the end of the high-res feature set."""
-        return self.hr_dh.hr_train_features
+        return self.hr_dh.hr_exo_features
 
     @property
     def hr_out_features(self):

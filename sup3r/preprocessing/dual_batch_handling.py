@@ -125,8 +125,7 @@ class DualValidationData(ValidationData):
                 high_res = high_res[..., 0, :]
                 low_res = low_res[..., 0, :]
 
-            high_res = self.BATCH_CLASS.reduce_features(
-                high_res, self.output_features_ind)
+            high_res = high_res[..., self.hr_features_ind]
             batch = self.BATCH_CLASS(low_res=low_res, high_res=high_res)
             self._i += 1
             return batch

@@ -29,6 +29,7 @@ t_enhance = 2
 dh_kwargs = dict(target=target,
                  shape=shape,
                  max_delta=20,
+                 lr_only_features=('BVF2*m', 'topography',),
                  sample_shape=sample_shape,
                  temporal_slice=slice(None, None, 1),
                  worker_kwargs=dict(max_workers=1),
@@ -54,7 +55,7 @@ def test_topography():
         topo_idx = data_handler.features.index('topography')
         assert np.allclose(topo, data_handler.data[..., :, topo_idx])
         st_batch_handler = BatchHandler([data_handler], **bh_kwargs)
-        assert data_handler.output_features == features[:2]
+        assert data_handler.hr_out_features == features[:2]
         assert data_handler.data.shape[-1] == len(features)
 
         for batch in st_batch_handler:
@@ -248,16 +249,16 @@ def test_raster_index_caching():
 def test_normalization_input():
     """Test correct normalization input"""
 
-    means = np.random.rand(len(features))
-    stds = np.random.rand(len(features))
+    means = {f: 10 for f in features}
+    stds = {f: 20 for f in features}
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
         data_handler = DataHandler(input_files, features, **dh_kwargs)
         batch_handler = BatchHandler([data_handler], means=means, stds=stds,
                                      **bh_kwargs)
 
-        assert np.array_equal(batch_handler.stds, stds)
-        assert np.array_equal(batch_handler.means, means)
+    assert all(batch_handler.means[f] == means[f] for f in features)
+    assert all(batch_handler.stds[f] == stds[f] for f in features)
 
 
 def test_normalization():

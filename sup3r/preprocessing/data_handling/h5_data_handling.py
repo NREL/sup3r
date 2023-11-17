@@ -196,15 +196,6 @@ class DataHandlerH5WindCC(DataHandlerH5):
     # the handler from rex to open h5 data.
     REX_HANDLER = MultiFileWindX
 
-    # list of features / feature name patterns that are input to the generative
-    # model but are not part of the synthetic output and are not sent to the
-    # discriminator. These are case-insensitive and follow the Unix shell-style
-    # wildcard format.
-    TRAIN_ONLY_FEATURES = ('temperature_max_*m', 'temperature_min_*m',
-                           'relativehumidity_max_*m',
-                           'relativehumidity_min_*m',
-                           )
-
     def __init__(self, *args, **kwargs):
         """
         Parameters
@@ -410,12 +401,6 @@ class DataHandlerH5SolarCC(DataHandlerH5WindCC):
 
     # the handler from rex to open h5 data.
     REX_HANDLER = MultiFileNSRDBX
-
-    # list of features / feature name patterns that are input to the generative
-    # model but are not part of the synthetic output and are not sent to the
-    # discriminator. These are case-insensitive and follow the Unix shell-style
-    # wildcard format.
-    TRAIN_ONLY_FEATURES = ('U*', 'V*', 'topography')
 
     def __init__(self, *args, **kwargs):
         """

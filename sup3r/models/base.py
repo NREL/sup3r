@@ -857,7 +857,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             t_enhance=batch_handler.t_enhance,
             smoothing=batch_handler.smoothing,
             lr_features=batch_handler.lr_features,
-            hr_train_features=batch_handler.hr_train_features,
+            hr_exo_features=batch_handler.hr_exo_features,
             hr_out_features=batch_handler.hr_out_features,
             smoothed_features=batch_handler.smoothed_features)
 

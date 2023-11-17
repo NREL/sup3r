@@ -68,16 +68,6 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
     (spatial_1, spatial_2, temporal, features)
     """
 
-    # list of features / feature name patterns that are input to the generative
-    # model but are not part of the synthetic output and are not sent to the
-    # discriminator. These are case-insensitive and follow the Unix shell-style
-    # wildcard format.
-    TRAIN_ONLY_FEATURES = ('BVF*',
-                           'inversemoninobukhovlength_*',
-                           'RMOL',
-                           'topography',
-                           )
-
     def __init__(self,
                  file_paths,
                  features,
@@ -97,7 +87,8 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
                  overwrite_cache=False,
                  overwrite_ti_cache=False,
                  load_cached=False,
-                 train_only_features=None,
+                 lr_only_features=tuple(),
+                 hr_exo_features=tuple(),
                  handle_features=None,
                  single_ts_files=None,
                  mask_nan=False,
@@ -175,10 +166,14 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
             Whether to overwrite saved time index cache files.
         load_cached : bool
             Whether to load data from cache files
-        train_only_features : list | tuple | None
+        lr_only_features : list | tuple
             List of feature names or patt*erns that should only be included in
-            the training set and not the output. If None (default), this will
-            default to the class TRAIN_ONLY_FEATURES attribute.
+            the low-res training set and not the high-res observations.
+        hr_exo_features : list | tuple
+            List of feature names or patt*erns that should be included in the
+            high-resolution observation but not expected to be output from the
+            generative model. An example is high-res topography that is to be
+            injected mid-network.
         handle_features : list | None
             Optional list of features which are available in the provided data.
             Providing this eliminates the need for an initial search of
@@ -250,7 +245,8 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         self.res_kwargs = res_kwargs or {}
         self._single_ts_files = single_ts_files
         self._cache_pattern = cache_pattern
-        self._train_only_features = train_only_features
+        self._lr_only_features = lr_only_features
+        self._hr_exo_features = hr_exo_features
         self._time_chunk_size = time_chunk_size
         self._handle_features = handle_features
         self._cache_files = None
@@ -408,13 +404,6 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         handle = self.source_handler(self.file_paths)
         desc = handle.attrs
         return desc
-
-    @property
-    def train_only_features(self):
-        """Features to use for training only and not output"""
-        if self._train_only_features is None:
-            self._train_only_features = self.TRAIN_ONLY_FEATURES
-        return self._train_only_features
 
     @property
     def extract_workers(self):
@@ -608,43 +597,80 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         if self._raw_features is None:
             self._raw_features = self.get_raw_feature_list(
                 self.noncached_features, self.handle_features)
+
         return self._raw_features
 
     @property
-    def output_features(self):
-        """Get a list of features that should be output by the generative model
-        corresponding to the features in the high res batch array."""
-        out = []
-        for feature in self.features:
-            ignore = any(
-                fnmatch(feature.lower(), pattern.lower())
-                for pattern in self.train_only_features)
-            if not ignore:
-                out.append(feature)
-        return out
+    def lr_only_features(self):
+        """List of feature names or patt*erns that should only be included in
+        the low-res training set and not the high-res observations."""
+        if isinstance(self._lr_only_features, str):
+            self._lr_only_features = [self._lr_only_features]
+
+        if self._lr_only_features is None:
+            self._lr_only_features = tuple()
+
+        return self._lr_only_features
 
     @property
     def lr_features(self):
-        """Get a list of low-resolution features. All low-resolution features
-        are used for training."""
+        """Get a list of low-resolution features. It is assumed that all
+        features are used in the low-resolution observations. If you want to
+        use high-res-only features, use the DualDataHandler class."""
         return self.features
 
     @property
-    def hr_train_features(self):
-        """Get a list of high-resolution features that are only used for
-        training e.g., mid-network high-res topo injection. These must come at
-        the end of the high-res feature set."""
-        out = [fn for fn in self.features if fn not in self.output_features]
-        msg = (f'High-res train-only features "{out}" do not come at the end '
-               f'of the full high-res feature set: {self.features}')
-        assert out == self.features[-len(out):], msg
-        return out
+    def hr_exo_features(self):
+        """Get a list of exogenous high-resolution features that are only used
+        for training e.g., mid-network high-res topo injection. These must come
+        at the end of the high-res feature set. These can also be input to the
+        model as low-res features."""
+
+        if isinstance(self._hr_exo_features, str):
+            self._hr_exo_features = [self._hr_exo_features]
+
+        if self._hr_exo_features is None:
+            self._hr_exo_features = tuple()
+
+        if any('*' in fn for fn in self._hr_exo_features):
+            hr_exo_features = []
+            for feature in self.features:
+                match = any(fnmatch(feature.lower(), pattern.lower())
+                            for pattern in self._hr_exo_features)
+                if match:
+                    hr_exo_features.append(feature)
+            self._hr_exo_features = hr_exo_features
+
+        if len(self._hr_exo_features) > 0:
+            msg = (f'High-res train-only features "{self._hr_exo_features}" '
+                   f'do not come at the end of the full high-res feature set: '
+                   f'{self.features}')
+            last_feat = self.features[-len(self._hr_exo_features):]
+            assert self._hr_exo_features == last_feat, msg
+
+        return self._hr_exo_features
 
     @property
     def hr_out_features(self):
         """Get a list of low-resolution features that are intended to be output
-        by the GAN."""
-        return self.output_features
+        by the GAN. Does not include high-resolution exogenous features"""
+
+        out = []
+        for feature in self.features:
+            lr_only = any(fnmatch(feature.lower(), pattern.lower())
+                          for pattern in self.lr_only_features)
+            ignore = lr_only or feature in self.hr_exo_features
+            if not ignore:
+                out.append(feature)
+
+        if len(out) == 0:
+            msg = (f'It appears that all handler features "{self.features}" '
+                   'were specified as `hr_exo_features` or `lr_only_features` '
+                   'and therefore there are no output features!')
+            logger.error(msg)
+            raise RuntimeError(msg)
+
+        return out
 
     @property
     def grid_mem(self):

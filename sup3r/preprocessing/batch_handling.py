@@ -72,26 +72,6 @@ class Batch:
         """Get the high-resolution data for the batch."""
         return self._high_res
 
-    @staticmethod
-    def reduce_features(high_res, output_features_ind=None):
-        """Remove any feature channels that are only intended for the low-res
-        training input.
-
-        Parameters
-        ----------
-        high_res : np.ndarray
-            4D | 5D array
-            (batch_size, spatial_1, spatial_2, features)
-            (batch_size, spatial_1, spatial_2, temporal, features)
-        output_features_ind : list | np.ndarray | None
-            List/array of feature channel indices that are used for generative
-            output, without any feature indices used only for training.
-        """
-        if output_features_ind is None:
-            return high_res
-        else:
-            return high_res[..., output_features_ind]
-
     # pylint: disable=W0613
     @classmethod
     def get_coarse_batch(cls,
@@ -99,9 +79,8 @@ class Batch:
                          s_enhance,
                          t_enhance=1,
                          temporal_coarsening_method='subsample',
-                         output_features_ind=None,
-                         output_features=None,
-                         training_features=None,
+                         hr_features_ind=None,
+                         features=None,
                          smoothing=None,
                          smoothing_ignore=None,
                          ):
@@ -123,12 +102,10 @@ class Batch:
         temporal_coarsening_method : str
             Method to use for temporal coarsening. Can be subsample, average,
             min, max, or total
-        output_features_ind : list | np.ndarray | None
+        hr_features_ind : list | np.ndarray | None
             List/array of feature channel indices that are used for generative
             output, without any feature indices used only for training.
-        output_features : list
-            List of Generative model output feature names
-        training_features : list | None
+        features : list | None
             Ordered list of training features input to the generative model
         smoothing : float | None
             Standard deviation to use for gaussian filtering of the coarse
@@ -147,8 +124,11 @@ class Batch:
         """
         low_res = spatial_coarsening(high_res, s_enhance)
 
-        if training_features is None:
-            training_features = [None] * low_res.shape[-1]
+        if features is None:
+            features = [None] * low_res.shape[-1]
+
+        if hr_features_ind is None:
+            hr_features_ind = np.arange(high_res.shape[-1])
 
         if smoothing_ignore is None:
             smoothing_ignore = []
@@ -157,9 +137,9 @@ class Batch:
             low_res = temporal_coarsening(low_res, t_enhance,
                                           temporal_coarsening_method)
 
-        low_res = smooth_data(low_res, training_features, smoothing_ignore,
+        low_res = smooth_data(low_res, features, smoothing_ignore,
                               smoothing)
-        high_res = cls.reduce_features(high_res, output_features_ind)
+        high_res = high_res[..., hr_features_ind]
         batch = cls(low_res, high_res)
 
         return batch
@@ -174,11 +154,10 @@ class ValidationData:
     def __init__(self,
                  data_handlers,
                  batch_size=8,
-                 s_enhance=3,
+                 s_enhance=1,
                  t_enhance=1,
                  temporal_coarsening_method='subsample',
-                 output_features_ind=None,
-                 output_features=None,
+                 hr_features_ind=None,
                  smoothing=None,
                  smoothing_ignore=None):
         """
@@ -199,11 +178,9 @@ class ValidationData:
             Subsample will take every t_enhance-th time step, average will
             average over t_enhance time steps, total will sum over t_enhance
             time steps
-        output_features_ind : list | np.ndarray | None
+        hr_features_ind : list | np.ndarray | None
             List/array of feature channel indices that are used for generative
             output, without any feature indices used only for training.
-        output_features : list
-            List of Generative model output feature names
         smoothing : float | None
             Standard deviation to use for gaussian filtering of the coarse
             data. This can be tuned by matching the kinetic energy of a low
@@ -228,8 +205,7 @@ class ValidationData:
         self._remaining_observations = len(self.val_indices)
         self.temporal_coarsening_method = temporal_coarsening_method
         self._i = 0
-        self.output_features_ind = output_features_ind
-        self.output_features = output_features
+        self.hr_features_ind = hr_features_ind
         self.smoothing = smoothing
         self.smoothing_ignore = smoothing_ignore
         self.current_batch_indices = []
@@ -332,10 +308,9 @@ class ValidationData:
             self.s_enhance,
             t_enhance=self.t_enhance,
             temporal_coarsening_method=self.temporal_coarsening_method,
-            output_features_ind=self.output_features_ind,
+            hr_features_ind=self.hr_features_ind,
             smoothing=self.smoothing,
-            smoothing_ignore=self.smoothing_ignore,
-            output_features=self.output_features)
+            smoothing_ignore=self.smoothing_ignore)
 
     def __next__(self):
         """Get validation data batch
@@ -384,7 +359,7 @@ class BatchHandler:
     def __init__(self,
                  data_handlers,
                  batch_size=8,
-                 s_enhance=3,
+                 s_enhance=1,
                  t_enhance=1,
                  means=None,
                  stds=None,
@@ -471,6 +446,9 @@ class BatchHandler:
         self._norm_workers = worker_kwargs.get('norm_workers', norm_workers)
         self._load_workers = worker_kwargs.get('load_workers', load_workers)
 
+        data_handlers = (data_handlers
+                         if isinstance(data_handlers, (list, tuple))
+                         else [data_handlers])
         msg = 'All data handlers must have the same sample_shape'
         handler_shapes = np.array([d.sample_shape for d in data_handlers])
         assert np.all(handler_shapes[0] == handler_shapes), msg
@@ -496,7 +474,7 @@ class BatchHandler:
         self.smoothing = smoothing
         self.smoothing_ignore = smoothing_ignore or []
         self.smoothed_features = [
-            f for f in self.training_features if f not in self.smoothing_ignore
+            f for f in self.features if f not in self.smoothing_ignore
         ]
 
         logger.info(f'Initializing BatchHandler with '
@@ -523,8 +501,7 @@ class BatchHandler:
             s_enhance=s_enhance,
             t_enhance=t_enhance,
             temporal_coarsening_method=temporal_coarsening_method,
-            output_features_ind=self.output_features_ind,
-            output_features=self.output_features,
+            hr_features_ind=self.hr_features_ind,
             smoothing=self.smoothing,
             smoothing_ignore=self.smoothing_ignore,
         )
@@ -577,26 +554,14 @@ class BatchHandler:
         features"""
         proc_mem = 2 * self.feature_mem
         norm_workers = estimate_max_workers(self._norm_workers, proc_mem,
-                                            len(self.training_features))
+                                            len(self.features))
         return norm_workers
 
     @property
-    def training_features(self):
+    def features(self):
         """Get the ordered list of feature names held in this object's
         data handlers"""
         return self.data_handlers[0].features
-
-    @property
-    def train_only_features(self):
-        """Get the ordered list of feature names used only for training which
-        will not be stored in batch.high_res"""
-        return self.data_handlers[0].train_only_features
-
-    @property
-    def output_features(self):
-        """Get the ordered list of feature names held in this object's
-        data handlers"""
-        return self.data_handlers[0].output_features
 
     @property
     def lr_features(self):
@@ -605,10 +570,10 @@ class BatchHandler:
         return self.data_handlers[0].features
 
     @property
-    def hr_train_features(self):
+    def hr_exo_features(self):
         """Get a list of high-resolution features that are only used for
         training e.g., mid-network high-res topo injection."""
-        return self.data_handlers[0].hr_train_features
+        return self.data_handlers[0].hr_exo_features
 
     @property
     def hr_out_features(self):
@@ -617,16 +582,17 @@ class BatchHandler:
         return self.data_handlers[0].hr_out_features
 
     @property
-    def output_features_ind(self):
-        """Get the feature channel indices that should be used for the
-        generated output features"""
-        if self.training_features == self.output_features:
-            return None
+    def hr_features_ind(self):
+        """Get the high-resolution feature channel indices that should be
+        included for training. Any high-resolution features that are only
+        included in the data handler to be coarsened for the low-res input are
+        removed"""
+        hr_features = list(self.hr_out_features) + list(self.hr_exo_features)
+        if list(self.features) == hr_features:
+            return np.arange(len(self.features))
         else:
-            out = [
-                i for i, feature in enumerate(self.training_features)
-                if feature in self.output_features
-            ]
+            out = [i for i, feature in enumerate(self.features)
+                   if feature in hr_features]
             return out
 
     @property
@@ -710,9 +676,9 @@ class BatchHandler:
     def _get_stats(self):
         """Get standard deviations and means for training features in
         parallel."""
-        logger.info(f'Calculating stats for {len(self.training_features)} '
+        logger.info(f'Calculating stats for {len(self.features)} '
                     'features.')
-        for feature in self.training_features:
+        for feature in self.features:
             logger.debug(f'Calculating mean/stdev for "{feature}"')
             self.means[feature] = 0
             self.stds[feature] = 0
@@ -773,10 +739,10 @@ class BatchHandler:
 
             msg = ('The training features and cached statistics are '
                    'incompatible. Number of training features is '
-                   f'{len(self.training_features)} and number of stats is'
+                   f'{len(self.features)} and number of stats is'
                    f' {len(self.stds)}')
-            check = len(self.means) == len(self.training_features)
-            check = check and (len(self.stds) == len(self.training_features))
+            check = len(self.means) == len(self.features)
+            check = check and (len(self.stds) == len(self.features))
             assert check, msg
         return self.means, self.stds
 
@@ -910,9 +876,8 @@ class BatchHandler:
                 self.s_enhance,
                 t_enhance=self.t_enhance,
                 temporal_coarsening_method=self.temporal_coarsening_method,
-                output_features_ind=self.output_features_ind,
-                output_features=self.output_features,
-                training_features=self.training_features,
+                hr_features_ind=self.hr_features_ind,
+                features=self.features,
                 smoothing=self.smoothing,
                 smoothing_ignore=self.smoothing_ignore)
 
@@ -970,8 +935,7 @@ class BatchHandlerCC(BatchHandler):
             obs_hourly, obs_daily_avg = handler.get_next()
             self.current_batch_indices.append(handler.current_obs_index)
 
-            obs_hourly = self.BATCH_CLASS.reduce_features(
-                obs_hourly, self.output_features_ind)
+            obs_hourly = obs_hourly[..., self.hr_features_ind]
 
             if low_res is None:
                 lr_shape = (self.batch_size, *obs_daily_avg.shape)
@@ -985,16 +949,16 @@ class BatchHandlerCC(BatchHandler):
         high_res = self.reduce_high_res_sub_daily(high_res)
         low_res = spatial_coarsening(low_res, self.s_enhance)
 
-        if (self.output_features is not None
-                and 'clearsky_ratio' in self.output_features):
-            i_cs = self.output_features.index('clearsky_ratio')
+        if (self.hr_out_features is not None
+                and 'clearsky_ratio' in self.hr_out_features):
+            i_cs = self.hr_out_features.index('clearsky_ratio')
             if np.isnan(high_res[..., i_cs]).any():
                 high_res[..., i_cs] = nn_fill_array(high_res[..., i_cs])
 
         if self.smoothing is not None:
             feat_iter = [
                 j for j in range(low_res.shape[-1])
-                if self.training_features[j] not in self.smoothing_ignore
+                if self.features[j] not in self.smoothing_ignore
             ]
             for i in range(low_res.shape[0]):
                 for j in feat_iter:
@@ -1090,19 +1054,18 @@ class SpatialBatchHandlerCC(BatchHandler):
         low_res = low_res[:, :, :, 0, :]
         high_res = high_res[:, :, :, 0, :]
 
-        high_res = self.BATCH_CLASS.reduce_features(high_res,
-                                                    self.output_features_ind)
+        high_res = high_res[..., self.hr_features_ind]
 
-        if (self.output_features is not None
-                and 'clearsky_ratio' in self.output_features):
-            i_cs = self.output_features.index('clearsky_ratio')
+        if (self.hr_out_features is not None
+                and 'clearsky_ratio' in self.hr_out_features):
+            i_cs = self.hr_out_features.index('clearsky_ratio')
             if np.isnan(high_res[..., i_cs]).any():
                 high_res[..., i_cs] = nn_fill_array(high_res[..., i_cs])
 
         if self.smoothing is not None:
             feat_iter = [
                 j for j in range(low_res.shape[-1])
-                if self.training_features[j] not in self.smoothing_ignore
+                if self.features[j] not in self.smoothing_ignore
             ]
             for i in range(low_res.shape[0]):
                 for j in feat_iter:
@@ -1131,8 +1094,8 @@ class SpatialBatchHandler(BatchHandler):
             batch = self.BATCH_CLASS.get_coarse_batch(
                 high_res,
                 self.s_enhance,
-                output_features_ind=self.output_features_ind,
-                training_features=self.training_features,
+                hr_features_ind=self.hr_features_ind,
+                features=self.features,
                 smoothing=self.smoothing,
                 smoothing_ignore=self.smoothing_ignore)
 
@@ -1219,10 +1182,9 @@ class ValidationDataDC(ValidationData):
                 self.s_enhance,
                 t_enhance=self.t_enhance,
                 temporal_coarsening_method=self.temporal_coarsening_method,
-                output_features_ind=self.output_features_ind,
+                hr_features_ind=self.hr_features_ind,
                 smoothing=self.smoothing,
-                smoothing_ignore=self.smoothing_ignore,
-                output_features=self.output_features)
+                smoothing_ignore=self.smoothing_ignore)
             self._i += 1
             return batch
         else:
@@ -1254,10 +1216,9 @@ class ValidationDataSpatialDC(ValidationDataDC):
             batch = self.BATCH_CLASS.get_coarse_batch(
                 high_res,
                 self.s_enhance,
-                output_features_ind=self.output_features_ind,
+                hr_features_ind=self.hr_features_ind,
                 smoothing=self.smoothing,
-                smoothing_ignore=self.smoothing_ignore,
-                output_features=self.output_features)
+                smoothing_ignore=self.smoothing_ignore)
             self._i += 1
             return batch
         else:
@@ -1329,9 +1290,8 @@ class BatchHandlerDC(BatchHandler):
                 self.s_enhance,
                 t_enhance=self.t_enhance,
                 temporal_coarsening_method=self.temporal_coarsening_method,
-                output_features_ind=self.output_features_ind,
-                output_features=self.output_features,
-                training_features=self.training_features,
+                hr_features_ind=self.hr_features_ind,
+                features=self.features,
                 smoothing=self.smoothing,
                 smoothing_ignore=self.smoothing_ignore)
 
@@ -1416,8 +1376,8 @@ class BatchHandlerSpatialDC(BatchHandler):
             batch = self.BATCH_CLASS.get_coarse_batch(
                 high_res,
                 self.s_enhance,
-                output_features_ind=self.output_features_ind,
-                training_features=self.training_features,
+                hr_features_ind=self.hr_features_ind,
+                features=self.features,
                 smoothing=self.smoothing,
                 smoothing_ignore=self.smoothing_ignore,
             )

@@ -333,15 +333,15 @@ class AbstractInterface(ABC):
             Same as input with exogenous data combined with high_res input
         """
         if high_res_true.shape[-1] > high_res_gen.shape[-1]:
-            for feature in self.hr_exogenous_features:
-                f_idx = self.hr_train_features.index(feature)
+            for feature in self.hr_exo_features:
+                f_idx = self.hr_exo_features.index(feature)
                 f_idx += len(self.hr_out_features)
                 exo_data = high_res_true[..., f_idx: f_idx + 1]
                 high_res_gen = tf.concat((high_res_gen, exo_data), axis=-1)
         return high_res_gen
 
     @property
-    def hr_exogenous_features(self):
+    def hr_exo_features(self):
         """Get list of high-resolution exogenous filter names the model uses.
         If the model has N concat or add layers this list will be the last N
         features in the training features list. The ordering is assumed to be
@@ -369,13 +369,6 @@ class AbstractInterface(ABC):
         exogenously at inference time but that were in the low-res batches
         during training"""
         return self.meta.get('lr_features', [])
-
-    @property
-    def hr_train_features(self):
-        """Get the list of features stored in batch.high_res but that are only
-        used for high-resolution data injection and not output by the
-        generative model."""
-        return self.meta.get('hr_train_features', [])
 
     @property
     def hr_out_features(self):
@@ -424,20 +417,20 @@ class AbstractInterface(ABC):
         ----------
         kwargs : dict
             Keyword arguments including 'input_resolution',
-            'lr_features', 'hr_train_features', 'hr_out_features',
+            'lr_features', 'hr_exo_features', 'hr_out_features',
             'smoothed_features', 's_enhance', 't_enhance', 'smoothing'
         """
 
-        keys = ('input_resolution', 'lr_features', 'hr_train_features',
+        keys = ('input_resolution', 'lr_features', 'hr_exo_features',
                 'hr_out_features', 'smoothed_features', 's_enhance',
                 't_enhance', 'smoothing')
         keys = [k for k in keys if k in kwargs]
 
-        hr_train_feat = kwargs.get('hr_train_features', [])
-        msg = (f'Expected high-res exo features {self.hr_exogenous_features} '
-               f'based on model architecture but received "hr_train_features" '
-               f'from data handler: {hr_train_feat}')
-        assert self.hr_exogenous_features == hr_train_feat, msg
+        hr_exo_feat = kwargs.get('hr_exo_features', [])
+        msg = (f'Expected high-res exo features {self.hr_exo_features} '
+               f'based on model architecture but received "hr_exo_features" '
+               f'from data handler: {hr_exo_feat}')
+        assert self.hr_exo_features == hr_exo_feat, msg
 
         for var in keys:
             val = self.meta.get(var, None)
@@ -621,7 +614,8 @@ class AbstractSingleModel(ABC):
             raise TypeError(msg)
 
         missing = [f for f in self.lr_features if f not in self._means]
-        missing += [f for f in self.hr_train_features if f not in self._means]
+        missing += [f for f in self.hr_exo_features
+                    if f not in self._means]
         missing += [f for f in self.hr_out_features if f not in self._means]
         if any(missing):
             msg = (f'Need means for features "{missing}" but did not find '
@@ -819,8 +813,8 @@ class AbstractSingleModel(ABC):
             e.g. {'topography': tf.Tensor(...)}
         """
         exo_data = {}
-        for feature in self.hr_exogenous_features:
-            f_idx = self.hr_train_features.index(feature)
+        for feature in self.hr_exo_features:
+            f_idx = self.hr_exo_features.index(feature)
             f_idx += len(self.hr_out_features)
             exo_fdata = high_res[..., f_idx: f_idx + 1]
             exo_data[feature] = exo_fdata

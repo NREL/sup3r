@@ -259,25 +259,20 @@ def test_solar_batch_nan_stats():
     handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S,
                                    **dh_kwargs)
 
-    true_means = [np.nanmean(handler.data[..., 0])]
-    true_stdevs = [np.nanstd(handler.data[..., 0])]
+    true_csr_mean = np.nanmean(handler.data[..., 0])
+    true_csr_stdev = np.nanstd(handler.data[..., 0])
 
-    orig_daily_means = []
-    orig_daily_stdevs = []
-    for f in range(handler.daily_data.shape[-1]):
-        orig_daily_means.append(handler.daily_data[..., f].mean())
-        orig_daily_stdevs.append(handler.daily_data[..., f].std())
+    orig_daily_mean = handler.daily_data[..., 0].mean()
 
     batcher = BatchHandlerCC([handler], batch_size=1, n_batches=10,
                              s_enhance=1, sub_daily_shape=9)
 
-    assert np.allclose(true_means, batcher.means)
-    assert np.allclose(true_stdevs, batcher.stds)
+    assert batcher.means[FEATURES_S[0]] == true_csr_mean
+    assert batcher.stds[FEATURES_S[0]] == true_csr_stdev
 
-    # make sure the daily means were also normalized
-    for f in range(handler.daily_data.shape[-1]):
-        new = (orig_daily_means[f] - true_means[f]) / true_stdevs[f]
-        assert np.allclose(new, handler.daily_data[..., f].mean(), atol=1e-4)
+    # make sure the daily means were also normalized by same values
+    new = (orig_daily_mean - true_csr_mean) / true_csr_stdev
+    assert np.allclose(new, handler.daily_data[..., 0].mean(), atol=1e-4)
 
     handler1 = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S,
                                     **dh_kwargs)
@@ -288,8 +283,8 @@ def test_solar_batch_nan_stats():
     batcher = BatchHandlerCC([handler1, handler2], batch_size=1,
                              n_batches=10, s_enhance=1, sub_daily_shape=9)
 
-    assert np.allclose(true_means, batcher.means)
-    assert np.allclose(true_stdevs, batcher.stds)
+    assert np.allclose(true_csr_mean, batcher.means[FEATURES_S[0]])
+    assert np.allclose(true_csr_stdev, batcher.stds[FEATURES_S[0]])
 
 
 def test_solar_val_data():
@@ -392,6 +387,7 @@ def test_solar_multi_day_coarse_data():
 
     # run another test with u/v on low res side but not high res
     features = ['clearsky_ratio', 'u', 'v', 'ghi', 'clearsky_ghi']
+    dh_kwargs_new['lr_only_features'] = ['u', 'v']
     handler = DataHandlerH5SolarCC(INPUT_FILE_S, features,
                                    **dh_kwargs_new)
 
@@ -508,6 +504,7 @@ def test_surf_min_max_vars():
     dh_kwargs_new['sample_shape'] = (20, 20, 72)
     dh_kwargs_new['val_split'] = 0
     dh_kwargs_new['temporal_slice'] = slice(None, None, 1)
+    dh_kwargs_new['lr_only_features'] = ['*_min_*', '*_max_*']
     handler = DataHandlerH5WindCC(INPUT_FILE_SURF, surf_features,
                                   **dh_kwargs_new)
 
