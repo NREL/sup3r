@@ -29,7 +29,7 @@ t_enhance = 2
 dh_kwargs = dict(target=target,
                  shape=shape,
                  max_delta=20,
-                 lr_only_features=('BVF2*m', 'topography',),
+                 lr_only_features=('BVF*m', 'topography',),
                  sample_shape=sample_shape,
                  temporal_slice=slice(None, None, 1),
                  worker_kwargs=dict(max_workers=1),
@@ -142,6 +142,7 @@ def test_spatiotemporal_batch_caching(sample_shape):
         cache_pattern = os.path.join(td, 'cache_')
         dh_kwargs_new = dh_kwargs.copy()
         dh_kwargs_new['sample_shape'] = sample_shape
+        dh_kwargs_new['lr_only_features'] = ['BVF*']
         data_handler = DataHandler(input_files, features,
                                    cache_pattern=cache_pattern,
                                    **dh_kwargs_new)
@@ -398,6 +399,7 @@ def test_spatiotemporal_batch_observations(sample_shape):
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
         dh_kwargs_new = dh_kwargs.copy()
         dh_kwargs_new['sample_shape'] = sample_shape
+        dh_kwargs_new['lr_only_features'] = 'BVF*'
         data_handler = DataHandler(input_files, features, **dh_kwargs_new)
         batch_handler = BatchHandler([data_handler], **bh_kwargs)
 

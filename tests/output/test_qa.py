@@ -40,8 +40,8 @@ def test_qa_nc():
     Sup3rGan.seed()
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
     _ = model.generate(np.ones((4, 10, 10, 6, len(TRAIN_FEATURES))))
-    model.meta['training_features'] = TRAIN_FEATURES
-    model.meta['output_features'] = MODEL_OUT_FEATURES
+    model.meta['lr_features'] = TRAIN_FEATURES
+    model.meta['hr_out_features'] = MODEL_OUT_FEATURES
     model.meta['s_enhance'] = 3
     model.meta['t_enhance'] = 4
     with tempfile.TemporaryDirectory() as td:
@@ -123,8 +123,8 @@ def test_qa_h5():
     Sup3rGan.seed()
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
     _ = model.generate(np.ones((4, 10, 10, 6, len(TRAIN_FEATURES))))
-    model.meta['training_features'] = TRAIN_FEATURES
-    model.meta['output_features'] = MODEL_OUT_FEATURES
+    model.meta['lr_features'] = TRAIN_FEATURES
+    model.meta['hr_out_features'] = MODEL_OUT_FEATURES
     model.meta['s_enhance'] = 3
     model.meta['t_enhance'] = 4
     with tempfile.TemporaryDirectory() as td:
@@ -213,8 +213,8 @@ def test_stats(log=False):
     Sup3rGan.seed()
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
     _ = model.generate(np.ones((4, 10, 10, 6, len(TRAIN_FEATURES))))
-    model.meta['training_features'] = TRAIN_FEATURES
-    model.meta['output_features'] = MODEL_OUT_FEATURES
+    model.meta['lr_features'] = TRAIN_FEATURES
+    model.meta['hr_out_features'] = MODEL_OUT_FEATURES
     model.meta['s_enhance'] = 3
     model.meta['t_enhance'] = 4
     with tempfile.TemporaryDirectory() as td:

@@ -44,8 +44,8 @@ def test_pipeline_fwp_collect(runner, log=False):
     Sup3rGan.seed()
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
     _ = model.generate(np.ones((4, 8, 8, 4, len(FEATURES))))
-    model.meta['training_features'] = FEATURES
-    model.meta['output_features'] = FEATURES[:2]
+    model.meta['lr_features'] = FEATURES
+    model.meta['hr_out_features'] = FEATURES[:2]
     model.meta['s_enhance'] = 3
     model.meta['t_enhance'] = 4
 
@@ -207,8 +207,8 @@ def test_fwd_pass_cli(runner, log=False):
     Sup3rGan.seed()
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
     _ = model.generate(np.ones((4, 8, 8, 4, len(FEATURES))))
-    model.meta['training_features'] = FEATURES
-    model.meta['output_features'] = FEATURES[:2]
+    model.meta['lr_features'] = FEATURES
+    model.meta['hr_out_features'] = FEATURES[:2]
     assert model.s_enhance == 3
     assert model.t_enhance == 4
 
@@ -305,8 +305,8 @@ def test_pipeline_fwp_qa(runner, log=False):
     assert model.input_resolution == input_resolution
     assert model.output_resolution == {'spatial': '4km', 'temporal': '15min'}
     _ = model.generate(np.ones((4, 8, 8, 4, len(FEATURES))))
-    model.meta['training_features'] = FEATURES
-    model.meta['output_features'] = FEATURES[:2]
+    model.meta['lr_features'] = FEATURES
+    model.meta['hr_out_features'] = FEATURES[:2]
     assert model.s_enhance == 3
     assert model.t_enhance == 4
 

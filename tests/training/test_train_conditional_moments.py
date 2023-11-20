@@ -61,7 +61,7 @@ def test_train_s_mom1(FEATURES, TRAIN_FEATURES,
     model = Sup3rCondMom(fp_gen, learning_rate=1e-4)
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
-                            train_only_features=TRAIN_FEATURES,
+                            lr_only_features=TRAIN_FEATURES,
                             shape=full_shape,
                             sample_shape=sample_shape,
                             temporal_slice=slice(None, None, 10),
@@ -151,7 +151,7 @@ def test_train_s_mom1_sf(FEATURES, TRAIN_FEATURES,
     model = Sup3rCondMom(fp_gen, learning_rate=1e-4)
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
-                            train_only_features=TRAIN_FEATURES,
+                            lr_only_features=TRAIN_FEATURES,
                             shape=full_shape,
                             sample_shape=sample_shape,
                             temporal_slice=slice(None, None, 10),
@@ -214,7 +214,7 @@ def test_train_s_mom2(FEATURES, TRAIN_FEATURES,
     model_mom2 = Sup3rCondMom(fp_gen_mom2, learning_rate=1e-4)
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
-                            train_only_features=TRAIN_FEATURES,
+                            lr_only_features=TRAIN_FEATURES,
                             shape=full_shape,
                             sample_shape=sample_shape,
                             temporal_slice=slice(None, None, 10),
@@ -276,7 +276,7 @@ def test_train_s_mom2_sf(FEATURES, TRAIN_FEATURES,
     model_mom2 = Sup3rCondMom(fp_gen_mom2, learning_rate=1e-4)
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
-                            train_only_features=TRAIN_FEATURES,
+                            lr_only_features=TRAIN_FEATURES,
                             shape=full_shape,
                             sample_shape=sample_shape,
                             temporal_slice=slice(None, None, 10),
@@ -332,7 +332,7 @@ def test_train_s_mom2_sep(FEATURES, TRAIN_FEATURES,
     model_mom2 = Sup3rCondMom(fp_gen_mom2, learning_rate=1e-4)
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
-                            train_only_features=TRAIN_FEATURES,
+                            lr_only_features=TRAIN_FEATURES,
                             shape=full_shape,
                             sample_shape=sample_shape,
                             temporal_slice=slice(None, None, 10),
@@ -387,7 +387,7 @@ def test_train_s_mom2_sep_sf(FEATURES, TRAIN_FEATURES,
     model_mom2 = Sup3rCondMom(fp_gen_mom2, learning_rate=1e-4)
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
-                            train_only_features=TRAIN_FEATURES,
+                            lr_only_features=TRAIN_FEATURES,
                             shape=full_shape,
                             sample_shape=sample_shape,
                             temporal_slice=slice(None, None, 10),

@@ -63,7 +63,7 @@ def test_solar_cc_model(log=False):
                     out_dir=os.path.join(td, 'test_{epoch}'))
 
         assert 'test_0' in os.listdir(td)
-        assert model.meta['output_features'] == ['clearsky_ratio']
+        assert model.meta['hr_out_features'] == ['clearsky_ratio']
         assert model.meta['class'] == 'Sup3rGan'
 
         out_dir = os.path.join(td, 'cc_gan')
@@ -119,7 +119,7 @@ def test_solar_cc_model_spatial(log=False):
                     out_dir=os.path.join(td, 'test_{epoch}'))
 
         assert 'test_0' in os.listdir(td)
-        assert model.meta['output_features'] == ['clearsky_ratio']
+        assert model.meta['hr_out_features'] == ['clearsky_ratio']
         assert model.meta['class'] == 'Sup3rGan'
 
     x = np.random.uniform(0, 1, (4, 10, 10, 1))

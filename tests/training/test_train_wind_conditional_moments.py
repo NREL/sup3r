@@ -98,7 +98,8 @@ def test_wind_non_cc_hi_res_topo_mom1(custom_layer, batch_class,
                             val_split=0.1,
                             sample_shape=(20, 20),
                             worker_kwargs=dict(max_workers=1),
-                            train_only_features=tuple())
+                            lr_only_features=tuple(),
+                            hr_exo_features=('topography',))
 
     batcher = batch_class([handler],
                           batch_size=batch_size,
@@ -119,11 +120,11 @@ def test_wind_non_cc_hi_res_topo_mom1(custom_layer, batch_class,
                     checkpoint_int=None,
                     out_dir=os.path.join(out_dir_root, 'test_{epoch}'))
         assert f'test_{n_epoch-1}' in os.listdir(out_dir_root)
-        assert model.meta['output_features'] == ['U_100m', 'V_100m']
+        assert model.meta['hr_out_features'] == ['U_100m', 'V_100m']
         assert model.meta['class'] == 'Sup3rCondMom'
         assert model.meta['input_resolution'] == input_resolution
-        assert 'topography' in batcher.output_features
-        assert 'topography' not in model.output_features
+        assert 'topography' in batcher.hr_exo_features
+        assert 'topography' not in model.hr_out_features
 
     x = np.random.uniform(0, 1, (4, 30, 30, 3))
     hi_res_topo = np.random.uniform(0, 1, (4, 60, 60, 1))
@@ -160,7 +161,8 @@ def test_wind_non_cc_hi_res_st_topo_mom1(batch_class, log=False,
                             val_split=0.1,
                             sample_shape=(12, 12, 24),
                             worker_kwargs=dict(max_workers=1),
-                            train_only_features=tuple())
+                            lr_only_features=tuple(),
+                            hr_exo_features=('topography',))
 
     fp_gen = os.path.join(CONFIG_DIR,
                           'sup3rcc',
@@ -210,7 +212,8 @@ def test_wind_non_cc_hi_res_topo_mom2(custom_layer, batch_class,
                             val_split=0.1,
                             sample_shape=(20, 20),
                             worker_kwargs=dict(max_workers=1),
-                            train_only_features=tuple())
+                            lr_only_features=tuple(),
+                            hr_exo_features=('topography',))
 
     gen_model = make_s_gen_model(custom_layer)
 
@@ -258,7 +261,8 @@ def test_wind_non_cc_hi_res_st_topo_mom2(batch_class, log=False,
                             val_split=0.1,
                             sample_shape=(12, 12, 24),
                             worker_kwargs=dict(max_workers=1),
-                            train_only_features=tuple())
+                            lr_only_features=tuple(),
+                            hr_exo_features=('topography',))
 
     fp_gen = os.path.join(CONFIG_DIR,
                           'sup3rcc',

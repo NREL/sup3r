@@ -44,7 +44,7 @@ def test_out_s_mom1(FEATURES, TRAIN_FEATURES,
                     s_enhance=2, model_dir=None):
     """Test basic spatial model outputing."""
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
-                            train_only_features=TRAIN_FEATURES,
+                            lr_only_features=TRAIN_FEATURES,
                             shape=full_shape,
                             sample_shape=sample_shape,
                             temporal_slice=slice(None, None, 10),
@@ -139,7 +139,7 @@ def test_out_s_mom1_sf(FEATURES, TRAIN_FEATURES,
                        s_enhance=2, model_dir=None):
     """Test basic spatial model outputing."""
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
-                            train_only_features=TRAIN_FEATURES,
+                            lr_only_features=TRAIN_FEATURES,
                             shape=full_shape,
                             sample_shape=sample_shape,
                             temporal_slice=slice(None, None, 10),
@@ -234,7 +234,7 @@ def test_out_s_mom2(FEATURES, TRAIN_FEATURES,
                     model_mom1_dir=None):
     """Test basic spatial model outputing."""
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
-                            train_only_features=TRAIN_FEATURES,
+                            lr_only_features=TRAIN_FEATURES,
                             shape=full_shape,
                             sample_shape=sample_shape,
                             temporal_slice=slice(None, None, 10),
@@ -324,7 +324,7 @@ def test_out_s_mom2_sf(FEATURES, TRAIN_FEATURES,
                        model_mom1_dir=None):
     """Test basic spatial model outputing."""
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
-                            train_only_features=TRAIN_FEATURES,
+                            lr_only_features=TRAIN_FEATURES,
                             shape=full_shape,
                             sample_shape=sample_shape,
                             temporal_slice=slice(None, None, 10),
@@ -430,7 +430,7 @@ def test_out_s_mom2_sep(FEATURES, TRAIN_FEATURES,
     """Test basic spatial model outputing for second conditional,
     moment separate from the first moment"""
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
-                            train_only_features=TRAIN_FEATURES,
+                            lr_only_features=TRAIN_FEATURES,
                             shape=full_shape,
                             sample_shape=sample_shape,
                             temporal_slice=slice(None, None, 10),
@@ -533,7 +533,7 @@ def test_out_s_mom2_sep_sf(FEATURES, TRAIN_FEATURES,
                            model_mom1_dir=None):
     """Test basic spatial model outputing."""
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
-                            train_only_features=TRAIN_FEATURES,
+                            lr_only_features=TRAIN_FEATURES,
                             shape=full_shape,
                             sample_shape=sample_shape,
                             temporal_slice=slice(None, None, 10),
