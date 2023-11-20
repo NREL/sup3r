@@ -449,7 +449,9 @@ def test_normalization(log=False,
 
 @pytest.mark.parametrize(['lr_features', 'hr_features', 'hr_exo_features'],
                          [(['U_100m'], ['U_100m', 'V_100m'], ['V_100m']),
+                          (['U_100m'], ['U_100m', 'V_100m'], ('V_100m',)),
                           (['U_100m'], ['V_100m', 'BVF2_200m'], ['BVF2_200m']),
+                          (['U_100m'], ('V_100m', 'BVF2_200m'), ['BVF2_200m']),
                           (['U_100m'], ['V_100m', 'BVF2_200m'], [])])
 def test_mixed_lr_hr_features(lr_features, hr_features, hr_exo_features):
     """Test weird mixes of low-res and high-res features that should work with
@@ -486,9 +488,9 @@ def test_mixed_lr_hr_features(lr_features, hr_features, hr_exo_features):
     hr_only_features = [fn for fn in hr_features if fn not in lr_features]
     hr_out_true = [fn for fn in hr_features if fn not in hr_exo_features]
     assert batch_handler.features == lr_features + hr_only_features
-    assert batch_handler.lr_features == lr_features
-    assert batch_handler.hr_exo_features == hr_exo_features
-    assert batch_handler.hr_out_features == hr_out_true
+    assert batch_handler.lr_features == list(lr_features)
+    assert batch_handler.hr_exo_features == list(hr_exo_features)
+    assert batch_handler.hr_out_features == list(hr_out_true)
 
     for batch in batch_handler:
         assert batch.high_res.shape[-1] == n_hr_features

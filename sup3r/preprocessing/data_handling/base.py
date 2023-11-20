@@ -607,8 +607,11 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         if isinstance(self._lr_only_features, str):
             self._lr_only_features = [self._lr_only_features]
 
-        if self._lr_only_features is None:
-            self._lr_only_features = tuple()
+        elif isinstance(self._lr_only_features, tuple):
+            self._lr_only_features = list(self._lr_only_features)
+
+        elif self._lr_only_features is None:
+            self._lr_only_features = []
 
         return self._lr_only_features
 
@@ -629,8 +632,11 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         if isinstance(self._hr_exo_features, str):
             self._hr_exo_features = [self._hr_exo_features]
 
-        if self._hr_exo_features is None:
-            self._hr_exo_features = tuple()
+        elif isinstance(self._hr_exo_features, tuple):
+            self._hr_exo_features = list(self._hr_exo_features)
+
+        elif self._hr_exo_features is None:
+            self._hr_exo_features = []
 
         if any('*' in fn for fn in self._hr_exo_features):
             hr_exo_features = []
@@ -646,7 +652,7 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
                    f'do not come at the end of the full high-res feature set: '
                    f'{self.features}')
             last_feat = self.features[-len(self._hr_exo_features):]
-            assert self._hr_exo_features == last_feat, msg
+            assert list(self._hr_exo_features) == list(last_feat), msg
 
         return self._hr_exo_features
 
