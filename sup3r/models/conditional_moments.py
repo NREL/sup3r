@@ -45,14 +45,14 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
             history
         meta : dict | None
             Model meta data that describes how the model was created.
-        means : np.ndarray | list | None
-            Set of mean values for data normalization with the same length as
-            number of features. Can be used to maintain a consistent
-            normalization scheme between transfer learning domains.
-        stdevs : np.ndarray | list | None
-            Set of stdev values for data normalization with the same length as
-            number of features. Can be used to maintain a consistent
-            normalization scheme between transfer learning domains.
+        means : dict | None
+            Set of mean values for data normalization keyed by feature name.
+            Can be used to maintain a consistent normalization scheme between
+            transfer learning domains.
+        stdevs : dict | None
+            Set of stdev values for data normalization keyed by feature name.
+            Can be used to maintain a consistent normalization scheme between
+            transfer learning domains.
         default_device : str | None
             Option for default device placement of model weights. If None and a
             single GPU exists, that GPU will be the default device. If None and
@@ -84,10 +84,8 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
 
         self._gen = self.load_network(gen_layers, 'generator')
 
-        self._means = (means if means is None
-                       else np.array(means).astype(np.float32))
-        self._stdevs = (stdevs if stdevs is None
-                        else np.array(stdevs).astype(np.float32))
+        self._means = means
+        self._stdevs = stdevs
 
     def save(self, out_dir):
         """Save the model with its sub-networks to a directory.
@@ -174,10 +172,6 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
         -------
         dict
         """
-        means = (self._means if self._means is None
-                 else [float(m) for m in self._means])
-        stdevs = (self._stdevs if self._stdevs is None
-                  else [float(s) for s in self._stdevs])
 
         config_optm_g = self.get_optimizer_config(self.optimizer)
 
@@ -189,8 +183,8 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
                         'num_par': num_par,
                         'version_record': self.version_record,
                         'optimizer': config_optm_g,
-                        'means': means,
-                        'stdevs': stdevs,
+                        'means': self._means,
+                        'stdevs': self._stdevs,
                         'meta': self.meta,
                         }
 
@@ -395,9 +389,9 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
             s_enhance=batch_handler.s_enhance,
             t_enhance=batch_handler.t_enhance,
             smoothing=batch_handler.smoothing,
-            train_only_features=batch_handler.train_only_features,
-            training_features=batch_handler.training_features,
-            output_features=batch_handler.output_features,
+            lr_features=batch_handler.lr_features,
+            hr_exo_features=batch_handler.hr_exo_features,
+            hr_out_features=batch_handler.hr_out_features,
             smoothed_features=batch_handler.smoothed_features)
 
         epochs = list(range(n_epoch))

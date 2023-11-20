@@ -451,8 +451,8 @@ class SolarMultiStepGan(MultiStepGan):
                '{} (solar) and {} (wind)'.format(s_enh, w_enh))
         assert np.product(s_enh) == np.product(w_enh), msg
 
-        s_t_feat = self.spatial_solar_models.training_features
-        s_o_feat = self.spatial_solar_models.output_features
+        s_t_feat = self.spatial_solar_models.lr_features
+        s_o_feat = self.spatial_solar_models.hr_out_features
         msg = ('Solar spatial enhancement models need to take '
                '"clearsky_ratio" as the only input and output feature but '
                'received models that need {} and output {}'
@@ -460,14 +460,14 @@ class SolarMultiStepGan(MultiStepGan):
         assert s_t_feat == ['clearsky_ratio'], msg
         assert s_o_feat == ['clearsky_ratio'], msg
 
-        temp_solar_feats = self.temporal_solar_models.training_features
+        temp_solar_feats = self.temporal_solar_models.lr_features
         msg = ('Input feature 0 for the temporal_solar_models should be '
                '"clearsky_ratio" but received: {}'
                .format(temp_solar_feats))
         assert temp_solar_feats[0] == 'clearsky_ratio', msg
 
-        spatial_out_features = (self.spatial_wind_models.output_features
-                                + self.spatial_solar_models.output_features)
+        spatial_out_features = (self.spatial_wind_models.hr_out_features
+                                + self.spatial_solar_models.hr_out_features)
         missing = [fn for fn in temp_solar_feats if fn not in
                    spatial_out_features]
         msg = ('Solar temporal model needs features {} that were not '
@@ -537,7 +537,7 @@ class SolarMultiStepGan(MultiStepGan):
         for the spatial_wind_models. This excludes topography which is assumed
         to be provided as exogenous_data."""
         return np.array([self.lr_features.index(fn) for fn in
-                         self.spatial_wind_models.training_features
+                         self.spatial_wind_models.lr_features
                          if fn != 'topography'])
 
     @property
@@ -546,8 +546,8 @@ class SolarMultiStepGan(MultiStepGan):
         required for input to the temporal_solar_models. Typically this is the
         indices of U_200m + V_200m from the output features of
         spatial_wind_models"""
-        temporal_solar_features = self.temporal_solar_models.training_features
-        return np.array([self.spatial_wind_models.output_features.index(fn)
+        temporal_solar_features = self.temporal_solar_models.lr_features
+        return np.array([self.spatial_wind_models.hr_out_features.index(fn)
                          for fn in temporal_solar_features[1:]])
 
     @property
@@ -556,7 +556,7 @@ class SolarMultiStepGan(MultiStepGan):
         for the spatial_solar_models. This excludes topography which is assumed
         to be provided as exogenous_data."""
         return np.array([self.lr_features.index(fn) for fn in
-                         self.spatial_solar_models.training_features
+                         self.spatial_solar_models.lr_features
                          if fn != 'topography'])
 
     def generate(self, low_res, norm_in=True, un_norm_out=True,

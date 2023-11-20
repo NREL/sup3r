@@ -79,7 +79,7 @@ class BatchMom1(Batch):
         s_enhance=None,
         t_enhance=None,
         model_mom1=None,
-        output_features_ind=None,
+        hr_features_ind=None,
         t_enhance_mode='constant',
     ):
         """Make custom batch output
@@ -100,7 +100,7 @@ class BatchMom1(Batch):
             Temporal enhancement factor
         model_mom1 : Sup3rCondMom | None
             Model used to modify the make the batch output
-        output_features_ind : list | np.ndarray | None
+        hr_features_ind : list | np.ndarray | None
             List/array of feature channel indices that are used for generative
             output, without any feature indices used only for training.
         t_enhance_mode : str
@@ -165,7 +165,7 @@ class BatchMom1(Batch):
             None by default
         model_mom1 : Sup3rCondMom | None
             Model used to modify the make the batch output
-        output_features_ind : list | np.ndarray | None
+        hr_features_ind : list | np.ndarray | None
             List/array of feature channel indices that are used for generative
             output, without any feature indices used only for training.
 
@@ -203,9 +203,8 @@ class BatchMom1(Batch):
         t_enhance=1,
         temporal_coarsening_method='subsample',
         temporal_enhancing_method='constant',
-        output_features_ind=None,
-        output_features=None,
-        training_features=None,
+        hr_features_ind=None,
+        features=None,
         smoothing=None,
         smoothing_ignore=None,
         model_mom1=None,
@@ -240,13 +239,12 @@ class BatchMom1(Batch):
             between landmarks.
             linear will linearly interpolate between landmarks to generate the
             low-res data to remove from the high-res.
-        output_features_ind : list | np.ndarray | None
+        hr_features_ind : list | np.ndarray | None
             List/array of feature channel indices that are used for generative
             output, without any feature indices used only for training.
-        output_features : list
-            List of Generative model output feature names
-        training_features : list | None
-            Ordered list of training features input to the generative model
+        features : list | None
+            Ordered list of low-resolution training features input to the
+            generative model
         smoothing : float | None
             Standard deviation to use for gaussian filtering of the coarse
             data. This can be tuned by matching the kinetic energy of a low
@@ -277,8 +275,11 @@ class BatchMom1(Batch):
         """
         low_res = spatial_coarsening(high_res, s_enhance)
 
-        if training_features is None:
-            training_features = [None] * low_res.shape[-1]
+        if features is None:
+            features = [None] * low_res.shape[-1]
+
+        if hr_features_ind is None:
+            hr_features_ind = np.arange(high_res.shape[-1])
 
         if smoothing_ignore is None:
             smoothing_ignore = []
@@ -289,16 +290,16 @@ class BatchMom1(Batch):
             )
 
         low_res = smooth_data(
-            low_res, training_features, smoothing_ignore, smoothing
+            low_res, features, smoothing_ignore, smoothing
         )
-        high_res = cls.reduce_features(high_res, output_features_ind)
+        high_res = high_res[..., hr_features_ind]
         output = cls.make_output(
             low_res,
             high_res,
             s_enhance,
             t_enhance,
             model_mom1,
-            output_features_ind,
+            hr_features_ind,
             temporal_enhancing_method,
         )
         mask = cls.make_mask(
@@ -320,7 +321,7 @@ class BatchMom1SF(BatchMom1):
         s_enhance=None,
         t_enhance=None,
         model_mom1=None,
-        output_features_ind=None,
+        hr_features_ind=None,
         t_enhance_mode='constant',
     ):
         """Make custom batch output
@@ -341,7 +342,7 @@ class BatchMom1SF(BatchMom1):
             Temporal enhancement factor
         model_mom1 : Sup3rCondMom | None
             Model used to modify the make the batch output
-        output_features_ind : list | np.ndarray | None
+        hr_features_ind : list | np.ndarray | None
             List/array of feature channel indices that are used for generative
             output, without any feature indices used only for training.
         t_enhance_mode : str
@@ -362,7 +363,7 @@ class BatchMom1SF(BatchMom1):
         enhanced_lr = temporal_simple_enhancing(
             enhanced_lr, t_enhance=t_enhance, mode=t_enhance_mode
         )
-        enhanced_lr = Batch.reduce_features(enhanced_lr, output_features_ind)
+        enhanced_lr = enhanced_lr[..., hr_features_ind]
 
         return high_res - enhanced_lr
 
@@ -378,7 +379,7 @@ class BatchMom2(BatchMom1):
         s_enhance=None,
         t_enhance=None,
         model_mom1=None,
-        output_features_ind=None,
+        hr_features_ind=None,
         t_enhance_mode='constant',
     ):
         """Make custom batch output
@@ -399,7 +400,7 @@ class BatchMom2(BatchMom1):
             Temporal enhancement factor
         model_mom1 : Sup3rCondMom | None
             Model used to modify the make the batch output
-        output_features_ind : list | np.ndarray | None
+        hr_features_ind : list | np.ndarray | None
             List/array of feature channel indices that are used for generative
             output, without any feature indices used only for training.
         t_enhance_mode : str
@@ -430,7 +431,7 @@ class BatchMom2Sep(BatchMom1):
         s_enhance=None,
         t_enhance=None,
         model_mom1=None,
-        output_features_ind=None,
+        hr_features_ind=None,
         t_enhance_mode='constant',
     ):
         """Make custom batch output
@@ -451,7 +452,7 @@ class BatchMom2Sep(BatchMom1):
             Temporal enhancement factor
         model_mom1 : Sup3rCondMom | None
             Model used to modify the make the batch output
-        output_features_ind : list | np.ndarray | None
+        hr_features_ind : list | np.ndarray | None
             List/array of feature channel indices that are used for generative
             output, without any feature indices used only for training.
         t_enhance_mode : str
@@ -473,7 +474,7 @@ class BatchMom2Sep(BatchMom1):
                 s_enhance,
                 t_enhance,
                 model_mom1,
-                output_features_ind,
+                hr_features_ind,
                 t_enhance_mode,
             )
             ** 2
@@ -491,7 +492,7 @@ class BatchMom2SF(BatchMom1):
         s_enhance=None,
         t_enhance=None,
         model_mom1=None,
-        output_features_ind=None,
+        hr_features_ind=None,
         t_enhance_mode='constant',
     ):
         """Make custom batch output
@@ -512,7 +513,7 @@ class BatchMom2SF(BatchMom1):
             Temporal enhancement factor
         model_mom1 : Sup3rCondMom | None
             Model used to modify the make the batch output
-        output_features_ind : list | np.ndarray | None
+        hr_features_ind : list | np.ndarray | None
             List/array of feature channel indices that are used for generative
             output, without any feature indices used only for training.
         t_enhance_mode : str
@@ -534,7 +535,7 @@ class BatchMom2SF(BatchMom1):
         enhanced_lr = temporal_simple_enhancing(
             enhanced_lr, t_enhance=t_enhance, mode=t_enhance_mode
         )
-        enhanced_lr = Batch.reduce_features(enhanced_lr, output_features_ind)
+        enhanced_lr = enhanced_lr[..., hr_features_ind]
         return (high_res - enhanced_lr - out) ** 2
 
 
@@ -549,7 +550,7 @@ class BatchMom2SepSF(BatchMom1SF):
         s_enhance=None,
         t_enhance=None,
         model_mom1=None,
-        output_features_ind=None,
+        hr_features_ind=None,
         t_enhance_mode='constant',
     ):
         """Make custom batch output
@@ -570,7 +571,7 @@ class BatchMom2SepSF(BatchMom1SF):
             Temporal enhancement factor
         model_mom1 : Sup3rCondMom | None
             Model used to modify the make the batch output
-        output_features_ind : list | np.ndarray | None
+        hr_features_ind : list | np.ndarray | None
             List/array of feature channel indices that are used for generative
             output, without any feature indices used only for training.
         t_enhance_mode : str
@@ -594,7 +595,7 @@ class BatchMom2SepSF(BatchMom1SF):
                 s_enhance,
                 t_enhance,
                 model_mom1,
-                output_features_ind,
+                hr_features_ind,
                 t_enhance_mode,
             )
             ** 2
@@ -615,8 +616,7 @@ class ValidationDataMom1(ValidationData):
         t_enhance=1,
         temporal_coarsening_method='subsample',
         temporal_enhancing_method='constant',
-        output_features_ind=None,
-        output_features=None,
+        hr_features_ind=None,
         smoothing=None,
         smoothing_ignore=None,
         model_mom1=None,
@@ -651,11 +651,9 @@ class ValidationDataMom1(ValidationData):
             between landmarks.
             linear will linearly interpolate between landmarks to generate the
             low-res data to remove from the high-res.
-        output_features_ind : list | np.ndarray | None
+        hr_features_ind : list | np.ndarray | None
             List/array of feature channel indices that are used for generative
             output, without any feature indices used only for training.
-        output_features : list
-            List of Generative model output feature names
         smoothing : float | None
             Standard deviation to use for gaussian filtering of the coarse
             data. This can be tuned by matching the kinetic energy of a low
@@ -698,8 +696,7 @@ class ValidationDataMom1(ValidationData):
         self.temporal_coarsening_method = temporal_coarsening_method
         self.temporal_enhancing_method = temporal_enhancing_method
         self._i = 0
-        self.output_features_ind = output_features_ind
-        self.output_features = output_features
+        self.hr_features_ind = hr_features_ind
         self.smoothing = smoothing
         self.smoothing_ignore = smoothing_ignore
         self.model_mom1 = model_mom1
@@ -724,10 +721,9 @@ class ValidationDataMom1(ValidationData):
             t_enhance=self.t_enhance,
             temporal_coarsening_method=self.temporal_coarsening_method,
             temporal_enhancing_method=self.temporal_enhancing_method,
-            output_features_ind=self.output_features_ind,
+            hr_features_ind=self.hr_features_ind,
             smoothing=self.smoothing,
             smoothing_ignore=self.smoothing_ignore,
-            output_features=self.output_features,
             model_mom1=self.model_mom1,
             s_padding=self.s_padding,
             t_padding=self.t_padding,
@@ -887,7 +883,7 @@ class BatchHandlerMom1(BatchHandler):
         self.smoothing = smoothing
         self.smoothing_ignore = smoothing_ignore or []
         self.smoothed_features = [
-            f for f in self.training_features if f not in self.smoothing_ignore
+            f for f in self.lr_features if f not in self.smoothing_ignore
         ]
         self._stats_workers = stats_workers
         self._norm_workers = norm_workers
@@ -921,8 +917,7 @@ class BatchHandlerMom1(BatchHandler):
             t_enhance=t_enhance,
             temporal_coarsening_method=temporal_coarsening_method,
             temporal_enhancing_method=temporal_enhancing_method,
-            output_features_ind=self.output_features_ind,
-            output_features=self.output_features,
+            hr_features_ind=self.hr_features_ind,
             smoothing=self.smoothing,
             smoothing_ignore=self.smoothing_ignore,
             model_mom1=self.model_mom1,
@@ -969,9 +964,8 @@ class BatchHandlerMom1(BatchHandler):
                 t_enhance=self.t_enhance,
                 temporal_coarsening_method=self.temporal_coarsening_method,
                 temporal_enhancing_method=self.temporal_enhancing_method,
-                output_features_ind=self.output_features_ind,
-                output_features=self.output_features,
-                training_features=self.training_features,
+                hr_features_ind=self.hr_features_ind,
+                features=self.features,
                 smoothing=self.smoothing,
                 smoothing_ignore=self.smoothing_ignore,
                 model_mom1=self.model_mom1,
@@ -1008,8 +1002,8 @@ class SpatialBatchHandlerMom1(BatchHandlerMom1):
             batch = self.BATCH_CLASS.get_coarse_batch(
                 high_res,
                 self.s_enhance,
-                output_features_ind=self.output_features_ind,
-                training_features=self.training_features,
+                hr_features_ind=self.hr_features_ind,
+                features=self.features,
                 smoothing=self.smoothing,
                 smoothing_ignore=self.smoothing_ignore,
                 model_mom1=self.model_mom1,

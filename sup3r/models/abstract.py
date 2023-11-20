@@ -430,7 +430,7 @@ class AbstractInterface(ABC):
         msg = (f'Expected high-res exo features {self.hr_exo_features} '
                f'based on model architecture but received "hr_exo_features" '
                f'from data handler: {hr_exo_feat}')
-        assert self.hr_exo_features == hr_exo_feat, msg
+        assert list(self.hr_exo_features) == list(hr_exo_feat), msg
 
         for var in keys:
             val = self.meta.get(var, None)
@@ -555,29 +555,6 @@ class AbstractSingleModel(ABC):
         """
         return self._stdevs
 
-    @property
-    def output_stdevs(self):
-        """Get the data normalization standard deviation values for only the
-        output features
-
-        Returns
-        -------
-        np.ndarray
-        """
-        out = np.array([self._stdevs[fname] for fname in self.hr_out_features])
-        return out
-
-    @property
-    def output_means(self):
-        """Get the data normalization mean values for only the output features
-
-        Returns
-        -------
-        np.ndarray
-        """
-        out = np.array([self._means[fname] for fname in self.hr_out_features])
-        return out
-
     def set_norm_stats(self, new_means, new_stdevs):
         """Set the normalization statistics associated with a data batch
         handler to model attributes.
@@ -649,14 +626,21 @@ class AbstractSingleModel(ABC):
             if isinstance(low_res, tf.Tensor):
                 low_res = low_res.numpy()
 
-            if any(self._stdevs == 0):
-                stdevs = np.where(self._stdevs == 0, 1, self._stdevs)
+            missing = [fn for fn in self.lr_features if fn not in self._means]
+            if any(missing):
+                msg = (f'Could not find low-res input features {missing} in '
+                       f'means/stdevs: {self._means}/{self._stdevs}')
+                logger.error(msg)
+                raise KeyError(msg)
+
+            means = np.array([self._means[fn] for fn in self.lr_features])
+            stdevs = np.array([self._stdevs[fn] for fn in self.lr_features])
+            if any(stdevs == 0):
+                stdevs = np.where(stdevs == 0, 1, stdevs)
                 msg = 'Some standard deviations are zero.'
                 logger.warning(msg)
                 warn(msg)
-            else:
-                stdevs = self._stdevs
-            low_res = (low_res.copy() - self._means) / stdevs
+            low_res = (low_res.copy() - means) / stdevs
 
         return low_res
 
@@ -677,7 +661,20 @@ class AbstractSingleModel(ABC):
             if isinstance(output, tf.Tensor):
                 output = output.numpy()
 
-            output = (output * self.output_stdevs) + self.output_means
+            missing = [fn for fn in self.hr_out_features
+                       if fn not in self._means]
+            if any(missing):
+                msg = (f'Could not find high-res output features {missing} in '
+                       f'means/stdevs: {self._means}/{self._stdevs}')
+                logger.error(msg)
+                raise KeyError(msg)
+
+            means = [self._means[fn] for fn in self.hr_out_features]
+            stdevs = [self._stdevs[fn] for fn in self.hr_out_features]
+            means = np.array(means)
+            stdevs = np.array(stdevs)
+
+            output = (output * stdevs) + means
 
         return output
 

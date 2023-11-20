@@ -75,7 +75,7 @@ class WindBatchMom1SF(WindBatchMom1):
         enhanced_lr = temporal_simple_enhancing(enhanced_lr,
                                                 t_enhance=t_enhance,
                                                 mode=t_enhance_mode)
-        enhanced_lr = Batch.reduce_features(enhanced_lr, output_features_ind)
+        enhanced_lr = enhanced_lr[..., output_features_ind]
         enhanced_lr[..., -1] = high_res[..., -1]
 
         return high_res - enhanced_lr
@@ -187,7 +187,7 @@ class WindBatchMom2SF(WindBatchMom1):
         enhanced_lr = temporal_simple_enhancing(enhanced_lr,
                                                 t_enhance=t_enhance,
                                                 mode=t_enhance_mode)
-        enhanced_lr = Batch.reduce_features(enhanced_lr, output_features_ind)
+        enhanced_lr = enhanced_lr[..., output_features_ind]
         enhanced_lr[..., -1] = 0.0
         return (high_res - enhanced_lr - out)**2
 

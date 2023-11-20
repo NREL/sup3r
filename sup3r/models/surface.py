@@ -522,7 +522,7 @@ class SurfaceSpatialMetModel(LinearInterp):
         hr_shape = (len(low_res),
                     int(low_res.shape[1] * self._s_enhance),
                     int(low_res.shape[2] * self._s_enhance),
-                    len(self.output_features))
+                    len(self.hr_out_features))
         logger.debug('SurfaceSpatialMetModel with s_enhance of {} '
                      'downscaling low-res shape {} to high-res shape {}'
                      .format(self._s_enhance, low_res.shape, hr_shape))
@@ -567,8 +567,9 @@ class SurfaceSpatialMetModel(LinearInterp):
                 'weight_for_delta_topo': self._w_delta_topo,
                 'pressure_divisor': self._pres_div,
                 'pressure_exponent': self._pres_exp,
-                'training_features': self.training_features,
-                'output_features': self.output_features,
+                'features': self._features,
+                'lr_features': self.lr_features,
+                'hr_out_features': self.hr_out_features,
                 'interp_method': str(self._interp_method),
                 'fix_bias': self._fix_bias,
                 'class': self.__class__.__name__,
