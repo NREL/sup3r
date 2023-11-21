@@ -54,8 +54,8 @@ def test_surface_model(s_enhance=5):
 
     low_res, true_hi_res, topo_lr, topo_hr = get_inputs(s_enhance)
 
-    kwargs = {'meta': {'features': FEATURES, 'lr_features': FEATURES,
-                       'hr_out_features': FEATURES, 's_enhance': s_enhance}}
+    kwargs = {'meta': {'lr_features': FEATURES, 'hr_out_features': FEATURES,
+                       's_enhance': s_enhance}}
     with tempfile.TemporaryDirectory() as td:
         fp_params = os.path.join(td, 'model_params.json')
         with open(fp_params, 'w') as f:
@@ -136,8 +136,7 @@ def test_multi_step_surface(s_enhance=2, t_enhance=2):
         temporal_dir = os.path.join(td, 'model')
         model.save(temporal_dir)
 
-        surface_model_kwargs = {'meta': {'features': FEATURES,
-                                         'lr_features': FEATURES,
+        surface_model_kwargs = {'meta': {'lr_features': FEATURES,
                                          'hr_out_features': FEATURES,
                                          's_enhance': s_enhance}}
 

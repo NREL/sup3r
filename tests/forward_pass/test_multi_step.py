@@ -195,7 +195,7 @@ def test_spatial_gan_then_linear_interp():
     model1 = Sup3rGan(fp_gen, fp_disc)
     _ = model1.generate(np.ones((4, 10, 10, len(FEATURES))))
 
-    model2 = LinearInterp(features=FEATURES, s_enhance=3, t_enhance=4)
+    model2 = LinearInterp(lr_features=FEATURES, s_enhance=3, t_enhance=4)
 
     model1.set_norm_stats({'U_100m': 0.1, 'V_100m': 0.2},
                           {'U_100m': 0.04, 'V_100m': 0.02})

@@ -42,14 +42,14 @@ class SurfaceSpatialMetModel(LinearInterp):
     """Weight for the delta-topography feature for the relative humidity linear
     regression model."""
 
-    def __init__(self, features, s_enhance, noise_adders=None,
+    def __init__(self, lr_features, s_enhance, noise_adders=None,
                  temp_lapse=None, w_delta_temp=None, w_delta_topo=None,
                  pres_div=None, pres_exp=None, interp_method='LANCZOS',
                  fix_bias=True):
         """
         Parameters
         ----------
-        features : list
+        lr_features : list
             List of feature names that this model will operate on for both
             input and output. This must match the feature axis ordering in the
             array input to generate(). Typically this is a list containing:
@@ -63,11 +63,11 @@ class SurfaceSpatialMetModel(LinearInterp):
             Option to add gaussian noise to spatial model output. Noise will be
             normally distributed with mean of 0 and standard deviation =
             noise_adders. noise_adders can be a single value or a list
-            corresponding to the features list. None is no noise. The addition
-            of noise has been shown to help downstream temporal-only models
-            produce diurnal cycles in regions where there is minimal change in
-            topography. A noise_adders around 0.07C (temperature) and 0.1%
-            (relative humidity) have been shown to be effective. This is
+            corresponding to the lr_features list. None is no noise. The
+            addition of noise has been shown to help downstream temporal-only
+            models produce diurnal cycles in regions where there is minimal
+            change in topography. A noise_adders around 0.07C (temperature) and
+            0.1% (relative humidity) have been shown to be effective. This is
             unnecessary if daily min/max temperatures are provided as low res
             training features.
         temp_lapse : None | float
@@ -98,7 +98,7 @@ class SurfaceSpatialMetModel(LinearInterp):
             low-resolution deviation from the input data
         """
 
-        self._features = features
+        self._lr_features = lr_features
         self._s_enhance = s_enhance
         self._noise_adders = noise_adders
         self._temp_lapse = temp_lapse or self.TEMP_LAPSE
@@ -111,7 +111,7 @@ class SurfaceSpatialMetModel(LinearInterp):
         self._interp_method = getattr(Image.Resampling, interp_method)
 
         if isinstance(self._noise_adders, (int, float)):
-            self._noise_adders = [self._noise_adders] * len(self._features)
+            self._noise_adders = [self._noise_adders] * len(self._lr_features)
 
     def __len__(self):
         """Get number of model steps (match interface of MultiStepGan)"""
@@ -162,21 +162,21 @@ class SurfaceSpatialMetModel(LinearInterp):
     @property
     def feature_inds_temp(self):
         """Get the feature index values for the temperature features."""
-        inds = [i for i, name in enumerate(self._features)
+        inds = [i for i, name in enumerate(self._lr_features)
                 if fnmatch(name, 'temperature_*')]
         return inds
 
     @property
     def feature_inds_pres(self):
         """Get the feature index values for the pressure features."""
-        inds = [i for i, name in enumerate(self._features)
+        inds = [i for i, name in enumerate(self._lr_features)
                 if fnmatch(name, 'pressure_*')]
         return inds
 
     @property
     def feature_inds_rh(self):
         """Get the feature index values for the relative humidity features."""
-        inds = [i for i, name in enumerate(self._features)
+        inds = [i for i, name in enumerate(self._lr_features)
                 if fnmatch(name, 'relativehumidity_*')]
         return inds
 
@@ -195,14 +195,14 @@ class SurfaceSpatialMetModel(LinearInterp):
             Index in the feature list for a temperature_*m feature with the
             same hub height as the idf_rh input.
         """
-        name_rh = self._features[idf_rh]
+        name_rh = self._lr_features[idf_rh]
         hh_suffix = name_rh.split('_')[-1]
         idf_temp = None
         for i in self.feature_inds_temp:
-            same_hh = self._features[i].endswith(hh_suffix)
+            same_hh = self._lr_features[i].endswith(hh_suffix)
             not_minmax = not any(mm in name_rh for mm in ('_min_', '_max_'))
-            both_mins = '_min_' in name_rh and '_min_' in self._features[i]
-            both_maxs = '_max_' in name_rh and '_max_' in self._features[i]
+            both_mins = '_min_' in name_rh and '_min_' in self._lr_features[i]
+            both_maxs = '_max_' in name_rh and '_max_' in self._lr_features[i]
 
             if same_hh and (not_minmax or both_mins or both_maxs):
                 idf_temp = i
@@ -210,7 +210,8 @@ class SurfaceSpatialMetModel(LinearInterp):
 
         if idf_temp is None:
             msg = ('Could not find temperature feature corresponding to '
-                   '"{}" in feature list: {}'.format(name_rh, self._features))
+                   '"{}" in feature list: {}'
+                   .format(name_rh, self._lr_features))
             logger.error(msg)
             raise KeyError(msg)
 
@@ -567,7 +568,6 @@ class SurfaceSpatialMetModel(LinearInterp):
                 'weight_for_delta_topo': self._w_delta_topo,
                 'pressure_divisor': self._pres_div,
                 'pressure_exponent': self._pres_exp,
-                'features': self._features,
                 'lr_features': self.lr_features,
                 'hr_out_features': self.hr_out_features,
                 'interp_method': str(self._interp_method),

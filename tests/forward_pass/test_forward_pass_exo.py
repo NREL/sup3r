@@ -776,7 +776,7 @@ def test_fwp_wind_hi_res_topo_plus_linear():
     _ = s_model.generate(np.ones((4, 10, 10, 3)),
                          exogenous_data=exo_tmp)
 
-    t_model = LinearInterp(features=['U_100m', 'V_100m'],
+    t_model = LinearInterp(lr_features=['U_100m', 'V_100m'],
                            s_enhance=1,
                            t_enhance=4)
     t_model.meta['input_resolution'] = {'spatial': '4km',

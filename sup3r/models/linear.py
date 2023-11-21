@@ -17,11 +17,11 @@ class LinearInterp(AbstractInterface):
     """Simple model to do linear interpolation on the spatial and temporal axes
     """
 
-    def __init__(self, features, s_enhance, t_enhance, t_centered=False):
+    def __init__(self, lr_features, s_enhance, t_enhance, t_centered=False):
         """
         Parameters
         ----------
-        features : list
+        lr_features : list
             List of feature names that this model will operate on for both
             input and output. This must match the feature axis ordering in the
             array input to generate().
@@ -35,7 +35,7 @@ class LinearInterp(AbstractInterface):
             time-centered (e.g. interp 01:00 02:00 to 00:45 01:15 01:45 02:15)
         """
 
-        self._features = features
+        self._lr_features = lr_features
         self._s_enhance = s_enhance
         self._t_enhance = t_enhance
         self._t_centered = t_centered
@@ -78,11 +78,10 @@ class LinearInterp(AbstractInterface):
     @property
     def meta(self):
         """Get meta data dictionary that defines the model params"""
-        return {'features': self._features,
+        return {'lr_features': self._lr_features,
                 's_enhance': self._s_enhance,
                 't_enhance': self._t_enhance,
                 't_centered': self._t_centered,
-                'lr_features': self.lr_features,
                 'hr_out_features': self.hr_out_features,
                 'class': self.__class__.__name__,
                 }
@@ -92,13 +91,13 @@ class LinearInterp(AbstractInterface):
         """Get the list of input feature names that the generative model was
         trained on.
         """
-        return self._features
+        return self._lr_features
 
     @property
     def hr_out_features(self):
         """Get the list of output feature names that the generative model
         outputs"""
-        return self._features
+        return self._lr_features
 
     @property
     def hr_exo_features(self):
