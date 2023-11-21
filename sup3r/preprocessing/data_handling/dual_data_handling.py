@@ -255,8 +255,9 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
 
     @property
     def hr_out_features(self):
-        """Get a list of low-resolution features that are intended to be output
-        by the GAN."""
+        """Get a list of high-resolution features that are intended to be
+        output by the GAN. Does not include high-resolution exogenous features
+        """
         return self.hr_dh.hr_out_features
 
     def _shape_check(self):

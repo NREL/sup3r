@@ -658,8 +658,9 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
 
     @property
     def hr_out_features(self):
-        """Get a list of low-resolution features that are intended to be output
-        by the GAN. Does not include high-resolution exogenous features"""
+        """Get a list of high-resolution features that are intended to be
+        output by the GAN. Does not include high-resolution exogenous
+        features"""
 
         out = []
         for feature in self.features:
