@@ -35,8 +35,8 @@ FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)
 
 
-@pytest.mark.parametrize('custom_layer', ['Sup3rAdder', 'Sup3rConcat'])
-def test_wind_hi_res_topo_with_train_only(custom_layer, log=False):
+@pytest.mark.parametrize('CustomLayer', ['Sup3rAdder', 'Sup3rConcat'])
+def test_wind_hi_res_topo_with_train_only(CustomLayer, log=False):
     """Test a special wind cc model with the custom Sup3rAdder or Sup3rConcat
     layer that adds/concatenates hi-res topography in the middle of the
     network. This also includes a train only feature"""
@@ -49,7 +49,8 @@ def test_wind_hi_res_topo_with_train_only(custom_layer, log=False):
                                   val_split=0.1,
                                   sample_shape=(20, 20),
                                   worker_kwargs=dict(max_workers=1),
-                                  train_only_features=['temperature_100m'])
+                                  lr_only_features=['temperature_100m'],
+                                  hr_exo_features=['topography'])
     batcher = SpatialBatchHandlerCC([handler], batch_size=2, n_batches=2,
                                     s_enhance=2)
 
@@ -79,7 +80,7 @@ def test_wind_hi_res_topo_with_train_only(custom_layer, log=False):
                  {"class": "SpatialExpansion", "spatial_mult": 2},
                  {"class": "Activation", "activation": "relu"},
 
-                 {"class": custom_layer, "name": "topography"},
+                 {"class": CustomLayer, "name": "topography"},
 
                  {"class": "FlexiblePadding",
                   "paddings": [[0, 0], [3, 3], [3, 3], [0, 0]],
@@ -103,13 +104,14 @@ def test_wind_hi_res_topo_with_train_only(custom_layer, log=False):
                     checkpoint_int=None,
                     out_dir=os.path.join(td, 'test_{epoch}'))
 
-        assert model.train_only_features == ['temperature_100m']
-        assert model.hr_features == ['U_100m', 'V_100m', 'topography']
+        assert model.lr_features == FEATURES_W
+        assert model.hr_out_features == ['U_100m', 'V_100m']
+        assert model.hr_exo_features == ['topography']
         assert 'test_0' in os.listdir(td)
-        assert model.meta['output_features'] == ['U_100m', 'V_100m']
+        assert model.meta['hr_out_features'] == ['U_100m', 'V_100m']
         assert model.meta['class'] == 'Sup3rGan'
-        assert 'topography' in batcher.output_features
-        assert 'topography' not in model.output_features
+        assert 'topography' in batcher.hr_exo_features
+        assert 'topography' not in model.hr_out_features
 
     x = np.random.uniform(0, 1, (4, 30, 30, 4))
     hi_res_topo = np.random.uniform(0, 1, (4, 60, 60, 1))
@@ -129,8 +131,8 @@ def test_wind_hi_res_topo_with_train_only(custom_layer, log=False):
     assert y.shape[3] == x.shape[3] - 2
 
 
-@pytest.mark.parametrize('custom_layer', ['Sup3rAdder', 'Sup3rConcat'])
-def test_wind_hi_res_topo(custom_layer, log=False):
+@pytest.mark.parametrize('CustomLayer', ['Sup3rAdder', 'Sup3rConcat'])
+def test_wind_hi_res_topo(CustomLayer, log=False):
     """Test a special wind cc model with the custom Sup3rAdder or Sup3rConcat
     layer that adds/concatenates hi-res topography in the middle of the
     network."""
@@ -143,7 +145,8 @@ def test_wind_hi_res_topo(custom_layer, log=False):
                                   val_split=0.1,
                                   sample_shape=(20, 20),
                                   worker_kwargs=dict(max_workers=1),
-                                  train_only_features=())
+                                  lr_only_features=(),
+                                  hr_exo_features=('topography',))
 
     batcher = SpatialBatchHandlerCC([handler], batch_size=2, n_batches=2,
                                     s_enhance=2)
@@ -174,7 +177,7 @@ def test_wind_hi_res_topo(custom_layer, log=False):
                  {"class": "SpatialExpansion", "spatial_mult": 2},
                  {"class": "Activation", "activation": "relu"},
 
-                 {"class": custom_layer, "name": "topography"},
+                 {"class": CustomLayer, "name": "topography"},
 
                  {"class": "FlexiblePadding",
                   "paddings": [[0, 0], [3, 3], [3, 3], [0, 0]],
@@ -199,10 +202,10 @@ def test_wind_hi_res_topo(custom_layer, log=False):
                     out_dir=os.path.join(td, 'test_{epoch}'))
 
         assert 'test_0' in os.listdir(td)
-        assert model.meta['output_features'] == ['U_100m', 'V_100m']
+        assert model.meta['hr_out_features'] == ['U_100m', 'V_100m']
         assert model.meta['class'] == 'Sup3rGan'
-        assert 'topography' in batcher.output_features
-        assert 'topography' not in model.output_features
+        assert 'topography' in batcher.hr_exo_features
+        assert 'topography' not in model.hr_out_features
 
     x = np.random.uniform(0, 1, (4, 30, 30, 3))
     hi_res_topo = np.random.uniform(0, 1, (4, 60, 60, 1))
@@ -222,8 +225,8 @@ def test_wind_hi_res_topo(custom_layer, log=False):
     assert y.shape[3] == x.shape[3] - 1
 
 
-@pytest.mark.parametrize('custom_layer', ['Sup3rAdder', 'Sup3rConcat'])
-def test_wind_non_cc_hi_res_topo(custom_layer, log=False):
+@pytest.mark.parametrize('CustomLayer', ['Sup3rAdder', 'Sup3rConcat'])
+def test_wind_non_cc_hi_res_topo(CustomLayer, log=False):
     """Test a special wind model for non cc with the custom Sup3rAdder or
     Sup3rConcat layer that adds/concatenates hi-res topography in the middle of
     the network."""
@@ -235,7 +238,8 @@ def test_wind_non_cc_hi_res_topo(custom_layer, log=False):
                             val_split=0.1,
                             sample_shape=(20, 20),
                             worker_kwargs=dict(max_workers=1),
-                            train_only_features=tuple())
+                            lr_only_features=tuple(),
+                            hr_exo_features=('topography',))
 
     batcher = SpatialBatchHandler([handler], batch_size=2, n_batches=2,
                                   s_enhance=2)
@@ -266,7 +270,7 @@ def test_wind_non_cc_hi_res_topo(custom_layer, log=False):
                  {"class": "SpatialExpansion", "spatial_mult": 2},
                  {"class": "Activation", "activation": "relu"},
 
-                 {"class": custom_layer, "name": "topography"},
+                 {"class": CustomLayer, "name": "topography"},
 
                  {"class": "FlexiblePadding",
                   "paddings": [[0, 0], [3, 3], [3, 3], [0, 0]],
@@ -291,10 +295,10 @@ def test_wind_non_cc_hi_res_topo(custom_layer, log=False):
                     out_dir=os.path.join(td, 'test_{epoch}'))
 
         assert 'test_0' in os.listdir(td)
-        assert model.meta['output_features'] == ['U_100m', 'V_100m']
+        assert model.meta['hr_out_features'] == ['U_100m', 'V_100m']
         assert model.meta['class'] == 'Sup3rGan'
-        assert 'topography' in batcher.output_features
-        assert 'topography' not in model.output_features
+        assert 'topography' in batcher.hr_exo_features
+        assert 'topography' not in model.hr_out_features
 
     x = np.random.uniform(0, 1, (4, 30, 30, 3))
     hi_res_topo = np.random.uniform(0, 1, (4, 60, 60, 1))
@@ -314,8 +318,8 @@ def test_wind_non_cc_hi_res_topo(custom_layer, log=False):
     assert y.shape[3] == x.shape[3] - 1
 
 
-@pytest.mark.parametrize('custom_layer', ['Sup3rAdder', 'Sup3rConcat'])
-def test_wind_dc_hi_res_topo(custom_layer, log=False):
+@pytest.mark.parametrize('CustomLayer', ['Sup3rAdder', 'Sup3rConcat'])
+def test_wind_dc_hi_res_topo(CustomLayer, log=False):
     """Test a special data centric wind model with the custom Sup3rAdder or
     Sup3rConcat layer that adds/concatenates hi-res topography in the middle of
     the network."""
@@ -327,7 +331,8 @@ def test_wind_dc_hi_res_topo(custom_layer, log=False):
                                  val_split=0.0,
                                  sample_shape=(20, 20, 8),
                                  worker_kwargs=dict(max_workers=1),
-                                 train_only_features=tuple())
+                                 lr_only_features=tuple(),
+                                 hr_exo_features=('topography',))
 
     batcher = BatchHandlerDC([handler], batch_size=2, n_batches=2,
                              s_enhance=2)
@@ -358,7 +363,7 @@ def test_wind_dc_hi_res_topo(custom_layer, log=False):
                  {"class": "SpatioTemporalExpansion", "spatial_mult": 2},
                  {"class": "Activation", "activation": "relu"},
 
-                 {"class": custom_layer, "name": "topography"},
+                 {"class": CustomLayer, "name": "topography"},
 
                  {"class": "FlexiblePadding",
                   "paddings": [[0, 0], [3, 3], [3, 3], [3, 3], [0, 0]],
@@ -383,10 +388,10 @@ def test_wind_dc_hi_res_topo(custom_layer, log=False):
                     out_dir=os.path.join(td, 'test_{epoch}'))
 
         assert 'test_0' in os.listdir(td)
-        assert model.meta['output_features'] == ['U_100m', 'V_100m']
+        assert model.meta['hr_out_features'] == ['U_100m', 'V_100m']
         assert model.meta['class'] == 'Sup3rGanDC'
-        assert 'topography' in batcher.output_features
-        assert 'topography' not in model.output_features
+        assert 'topography' in batcher.hr_exo_features
+        assert 'topography' not in model.hr_out_features
 
     x = np.random.uniform(0, 1, (1, 30, 30, 4, 3))
     hi_res_topo = np.random.uniform(0, 1, (1, 60, 60, 4, 1))

@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 """Test the basic training of super resolution GAN"""
+import copy
 import os
 import tempfile
 
 import matplotlib.pyplot as plt
 import numpy as np
 from rex import init_logger
+import pytest
 
 from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing.data_handling.dual_data_handling import (
@@ -28,7 +30,7 @@ FEATURES = ['U_100m', 'V_100m']
 def test_dual_data_handler(log=False,
                            full_shape=(20, 20),
                            sample_shape=(10, 10, 1),
-                           plot=True):
+                           plot=False):
     """Test basic spatial model training with only gen content loss."""
     if log:
         init_logger('sup3r', log_level='DEBUG')
@@ -258,7 +260,7 @@ def test_st_dual_batch_handler(log=False,
 def test_spatial_dual_batch_handler(log=False,
                                     full_shape=(20, 20),
                                     sample_shape=(10, 10, 1),
-                                    plot=True):
+                                    plot=False):
     """Test spatial dual batch handler."""
     if log:
         init_logger('sup3r', log_level='DEBUG')
@@ -425,29 +427,76 @@ def test_normalization(log=False,
                                    t_enhance=t_enhance,
                                    val_split=0.1)
 
-    means = [
-        np.nanmean(dual_handler.lr_data[..., i])
-        for i in range(dual_handler.lr_data.shape[-1])
-    ]
-    stdevs = [
-        np.nanstd(dual_handler.lr_data[..., i] - means[i])
-        for i in range(dual_handler.lr_data.shape[-1])
-    ]
+    means = copy.deepcopy(lr_handler.means)
+    stdevs = copy.deepcopy(lr_handler.stds)
 
     batch_handler = DualBatchHandler([dual_handler],
                                      batch_size=2,
                                      s_enhance=s_enhance,
                                      t_enhance=t_enhance,
                                      n_batches=10)
-    assert np.allclose(batch_handler.means, means)
-    assert np.allclose(batch_handler.stds, stdevs)
-    stacked_data = np.concatenate(
-        [d.data for d in batch_handler.data_handlers], axis=2)
 
-    for i in range(len(FEATURES)):
-        std = np.std(stacked_data[..., i])
-        if std == 0:
-            std = 1
-        mean = np.mean(stacked_data[..., i])
-        assert np.allclose(std, 1, atol=1e-3)
-        assert np.allclose(mean, 0, atol=1e-3)
+    assert all(means[k] == v for k, v in batch_handler.means.items())
+    assert all(stdevs[k] == v for k, v in batch_handler.stds.items())
+
+    # normalization stats retrieved from LR data before re-gridding
+    for idf in range(lr_handler.shape[-1]):
+        std = lr_handler.data[..., idf].std()
+        mean = lr_handler.data[..., idf].mean()
+        assert np.allclose(std, 1, atol=1e-3), str(std)
+        assert np.allclose(mean, 0, atol=1e-3), str(mean)
+
+
+@pytest.mark.parametrize(['lr_features', 'hr_features', 'hr_exo_features'],
+                         [(['U_100m'], ['U_100m', 'V_100m'], ['V_100m']),
+                          (['U_100m'], ['U_100m', 'V_100m'], ('V_100m',)),
+                          (['U_100m'], ['V_100m', 'BVF2_200m'], ['BVF2_200m']),
+                          (['U_100m'], ('V_100m', 'BVF2_200m'), ['BVF2_200m']),
+                          (['U_100m'], ['V_100m', 'BVF2_200m'], [])])
+def test_mixed_lr_hr_features(lr_features, hr_features, hr_exo_features):
+    """Test weird mixes of low-res and high-res features that should work with
+    the dual dh"""
+    lr_handler = DataHandlerNC(FP_ERA,
+                               lr_features,
+                               sample_shape=(5, 5, 4),
+                               temporal_slice=slice(None, None, 1),
+                               worker_kwargs=dict(max_workers=1),
+                               )
+    hr_handler = DataHandlerH5(FP_WTK,
+                               hr_features,
+                               hr_exo_features=hr_exo_features,
+                               target=TARGET_COORD,
+                               shape=(20, 20),
+                               sample_shape=(5, 5, 4),
+                               temporal_slice=slice(None, None, 1),
+                               worker_kwargs=dict(max_workers=1),
+                               )
+
+    dual_handler = DualDataHandler(hr_handler,
+                                   lr_handler,
+                                   s_enhance=1,
+                                   t_enhance=1,
+                                   val_split=0.0)
+
+    batch_handler = DualBatchHandler(dual_handler, batch_size=2,
+                                     s_enhance=1, t_enhance=1,
+                                     n_batches=10,
+                                     worker_kwargs={'max_workers': 2})
+
+    n_hr_features = (len(batch_handler.hr_out_features)
+                     + len(batch_handler.hr_exo_features))
+    hr_only_features = [fn for fn in hr_features if fn not in lr_features]
+    hr_out_true = [fn for fn in hr_features if fn not in hr_exo_features]
+    assert batch_handler.features == lr_features + hr_only_features
+    assert batch_handler.lr_features == list(lr_features)
+    assert batch_handler.hr_exo_features == list(hr_exo_features)
+    assert batch_handler.hr_out_features == list(hr_out_true)
+
+    for batch in batch_handler:
+        assert batch.high_res.shape[-1] == n_hr_features
+        assert batch.low_res.shape[-1] == len(batch_handler.lr_features)
+
+        if batch_handler.lr_features == lr_features + hr_only_features:
+            assert np.allclose(batch.low_res, batch.high_res)
+        elif batch_handler.lr_features != lr_features + hr_only_features:
+            assert not np.allclose(batch.low_res, batch.high_res)

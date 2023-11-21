@@ -314,8 +314,8 @@ def test_fwp_integration():
     Sup3rGan.seed()
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
     _ = model.generate(np.ones((4, 10, 10, 6, len(features))))
-    model.meta['training_features'] = features
-    model.meta['output_features'] = features
+    model.meta['lr_features'] = features
+    model.meta['hr_out_features'] = features
     model.meta['s_enhance'] = 3
     model.meta['t_enhance'] = 4
 

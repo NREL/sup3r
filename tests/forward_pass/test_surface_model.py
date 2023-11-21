@@ -54,13 +54,15 @@ def test_surface_model(s_enhance=5):
 
     low_res, true_hi_res, topo_lr, topo_hr = get_inputs(s_enhance)
 
-    kwargs = {'meta': {'features': FEATURES, 's_enhance': s_enhance}}
+    kwargs = {'meta': {'lr_features': FEATURES, 'hr_out_features': FEATURES,
+                       's_enhance': s_enhance}}
     with tempfile.TemporaryDirectory() as td:
         fp_params = os.path.join(td, 'model_params.json')
         with open(fp_params, 'w') as f:
             json.dump(kwargs, f)
 
         model = SurfaceSpatialMetModel.load(model_dir=td)
+
     exo_tmp = {'topography': {'steps': [{'data': topo_lr}, {'data': topo_hr}]}}
     hi_res = model.generate(low_res, exogenous_data=exo_tmp)
 
@@ -119,9 +121,12 @@ def test_multi_step_surface(s_enhance=2, t_enhance=2):
     model = Sup3rGan(config_gen, fp_disc)
     _ = model.generate(np.ones((4, 10, 10, 6, len(FEATURES))))
 
-    model.set_norm_stats([0.3, 0.9, 0.1], [0.02, 0.07, 0.03])
-    model.set_model_params(training_features=FEATURES,
-                           output_features=FEATURES,
+    model.set_norm_stats({'temperature_2m': 0.3, 'relativehumidity_2m': 0.9,
+                          'pressure_0m': 0.1},
+                         {'temperature_2m': 0.02, 'relativehumidity_2m': 0.07,
+                          'pressure_0m': 0.03})
+    model.set_model_params(lr_features=FEATURES,
+                           hr_out_features=FEATURES,
                            input_resolution={'spatial': '30km',
                                              'temporal': '60min'},
                            s_enhance=1,
@@ -131,7 +136,8 @@ def test_multi_step_surface(s_enhance=2, t_enhance=2):
         temporal_dir = os.path.join(td, 'model')
         model.save(temporal_dir)
 
-        surface_model_kwargs = {'meta': {'features': FEATURES,
+        surface_model_kwargs = {'meta': {'lr_features': FEATURES,
+                                         'hr_out_features': FEATURES,
                                          's_enhance': s_enhance}}
 
         surface_dir = os.path.join(td, 'surface/')

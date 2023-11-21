@@ -2,9 +2,9 @@
 Sup3r batch_handling module.
 @author: bbenton
 """
+import json
 import logging
 import os
-import pickle
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime as dt
 
@@ -72,26 +72,6 @@ class Batch:
         """Get the high-resolution data for the batch."""
         return self._high_res
 
-    @staticmethod
-    def reduce_features(high_res, output_features_ind=None):
-        """Remove any feature channels that are only intended for the low-res
-        training input.
-
-        Parameters
-        ----------
-        high_res : np.ndarray
-            4D | 5D array
-            (batch_size, spatial_1, spatial_2, features)
-            (batch_size, spatial_1, spatial_2, temporal, features)
-        output_features_ind : list | np.ndarray | None
-            List/array of feature channel indices that are used for generative
-            output, without any feature indices used only for training.
-        """
-        if output_features_ind is None:
-            return high_res
-        else:
-            return high_res[..., output_features_ind]
-
     # pylint: disable=W0613
     @classmethod
     def get_coarse_batch(cls,
@@ -99,9 +79,8 @@ class Batch:
                          s_enhance,
                          t_enhance=1,
                          temporal_coarsening_method='subsample',
-                         output_features_ind=None,
-                         output_features=None,
-                         training_features=None,
+                         hr_features_ind=None,
+                         features=None,
                          smoothing=None,
                          smoothing_ignore=None,
                          ):
@@ -123,12 +102,10 @@ class Batch:
         temporal_coarsening_method : str
             Method to use for temporal coarsening. Can be subsample, average,
             min, max, or total
-        output_features_ind : list | np.ndarray | None
+        hr_features_ind : list | np.ndarray | None
             List/array of feature channel indices that are used for generative
             output, without any feature indices used only for training.
-        output_features : list
-            List of Generative model output feature names
-        training_features : list | None
+        features : list | None
             Ordered list of training features input to the generative model
         smoothing : float | None
             Standard deviation to use for gaussian filtering of the coarse
@@ -147,8 +124,11 @@ class Batch:
         """
         low_res = spatial_coarsening(high_res, s_enhance)
 
-        if training_features is None:
-            training_features = [None] * low_res.shape[-1]
+        if features is None:
+            features = [None] * low_res.shape[-1]
+
+        if hr_features_ind is None:
+            hr_features_ind = np.arange(high_res.shape[-1])
 
         if smoothing_ignore is None:
             smoothing_ignore = []
@@ -157,9 +137,9 @@ class Batch:
             low_res = temporal_coarsening(low_res, t_enhance,
                                           temporal_coarsening_method)
 
-        low_res = smooth_data(low_res, training_features, smoothing_ignore,
+        low_res = smooth_data(low_res, features, smoothing_ignore,
                               smoothing)
-        high_res = cls.reduce_features(high_res, output_features_ind)
+        high_res = high_res[..., hr_features_ind]
         batch = cls(low_res, high_res)
 
         return batch
@@ -174,11 +154,10 @@ class ValidationData:
     def __init__(self,
                  data_handlers,
                  batch_size=8,
-                 s_enhance=3,
+                 s_enhance=1,
                  t_enhance=1,
                  temporal_coarsening_method='subsample',
-                 output_features_ind=None,
-                 output_features=None,
+                 hr_features_ind=None,
                  smoothing=None,
                  smoothing_ignore=None):
         """
@@ -199,11 +178,9 @@ class ValidationData:
             Subsample will take every t_enhance-th time step, average will
             average over t_enhance time steps, total will sum over t_enhance
             time steps
-        output_features_ind : list | np.ndarray | None
+        hr_features_ind : list | np.ndarray | None
             List/array of feature channel indices that are used for generative
             output, without any feature indices used only for training.
-        output_features : list
-            List of Generative model output feature names
         smoothing : float | None
             Standard deviation to use for gaussian filtering of the coarse
             data. This can be tuned by matching the kinetic energy of a low
@@ -228,8 +205,7 @@ class ValidationData:
         self._remaining_observations = len(self.val_indices)
         self.temporal_coarsening_method = temporal_coarsening_method
         self._i = 0
-        self.output_features_ind = output_features_ind
-        self.output_features = output_features
+        self.hr_features_ind = hr_features_ind
         self.smoothing = smoothing
         self.smoothing_ignore = smoothing_ignore
         self.current_batch_indices = []
@@ -332,10 +308,9 @@ class ValidationData:
             self.s_enhance,
             t_enhance=self.t_enhance,
             temporal_coarsening_method=self.temporal_coarsening_method,
-            output_features_ind=self.output_features_ind,
+            hr_features_ind=self.hr_features_ind,
             smoothing=self.smoothing,
-            smoothing_ignore=self.smoothing_ignore,
-            output_features=self.output_features)
+            smoothing_ignore=self.smoothing_ignore)
 
     def __next__(self):
         """Get validation data batch
@@ -384,7 +359,7 @@ class BatchHandler:
     def __init__(self,
                  data_handlers,
                  batch_size=8,
-                 s_enhance=3,
+                 s_enhance=1,
                  t_enhance=1,
                  means=None,
                  stds=None,
@@ -410,15 +385,14 @@ class BatchHandler:
         t_enhance : int
             Factor by which to coarsen temporal dimension of the high
             resolution data to generate low res data
-        means : np.ndarray
-            dimensions (features)
-            array of means for all features with same ordering as data
-            features. If not None and norm is True these will be used for
-            normalization
-        stds : np.ndarray
-            dimensions (features)
-            array of means for all features with same ordering as data
-            features.  If not None and norm is True these will be used form
+        means : dict | none
+            Dictionary of means for all features with keys: feature names and
+            values: mean values. if None, this will be calculated. if norm is
+            true these will be used for data normalization
+        stds : dict | none
+            dictionary of standard deviation values for all features with keys:
+            feature names and values: standard deviations. if None, this will
+            be calculated. if norm is true these will be used for data
             normalization
         norm : bool
             Whether to normalize the data or not
@@ -431,9 +405,11 @@ class BatchHandler:
             average over t_enhance time steps, total will sum over t_enhance
             time steps
         stdevs_file : str | None
-            Path to stdevs data or where to save data after calling get_stats
+            Optional .json path to stdevs data or where to save data after
+            calling get_stats
         means_file : str | None
-            Path to means data or where to save data after calling get_stats
+            Optional .json path to means data or where to save data after
+            calling get_stats
         overwrite_stats : bool
             Whether to overwrite stats cache files.
         smoothing : float | None
@@ -470,6 +446,9 @@ class BatchHandler:
         self._norm_workers = worker_kwargs.get('norm_workers', norm_workers)
         self._load_workers = worker_kwargs.get('load_workers', load_workers)
 
+        data_handlers = (data_handlers
+                         if isinstance(data_handlers, (list, tuple))
+                         else [data_handlers])
         msg = 'All data handlers must have the same sample_shape'
         handler_shapes = np.array([d.sample_shape for d in data_handlers])
         assert np.all(handler_shapes[0] == handler_shapes), msg
@@ -495,7 +474,7 @@ class BatchHandler:
         self.smoothing = smoothing
         self.smoothing_ignore = smoothing_ignore or []
         self.smoothed_features = [
-            f for f in self.training_features if f not in self.smoothing_ignore
+            f for f in self.features if f not in self.smoothing_ignore
         ]
 
         logger.info(f'Initializing BatchHandler with '
@@ -522,8 +501,7 @@ class BatchHandler:
             s_enhance=s_enhance,
             t_enhance=t_enhance,
             temporal_coarsening_method=temporal_coarsening_method,
-            output_features_ind=self.output_features_ind,
-            output_features=self.output_features,
+            hr_features_ind=self.hr_features_ind,
             smoothing=self.smoothing,
             smoothing_ignore=self.smoothing_ignore,
         )
@@ -576,38 +554,45 @@ class BatchHandler:
         features"""
         proc_mem = 2 * self.feature_mem
         norm_workers = estimate_max_workers(self._norm_workers, proc_mem,
-                                            len(self.training_features))
+                                            len(self.features))
         return norm_workers
 
     @property
-    def training_features(self):
+    def features(self):
         """Get the ordered list of feature names held in this object's
         data handlers"""
         return self.data_handlers[0].features
 
     @property
-    def train_only_features(self):
-        """Get the ordered list of feature names used only for training which
-        will not be stored in batch.high_res"""
-        return self.data_handlers[0].train_only_features
+    def lr_features(self):
+        """Get a list of low-resolution features. All low-resolution features
+        are used for training."""
+        return self.data_handlers[0].features
 
     @property
-    def output_features(self):
-        """Get the ordered list of feature names held in this object's
-        data handlers"""
-        return self.data_handlers[0].output_features
+    def hr_exo_features(self):
+        """Get a list of high-resolution features that are only used for
+        training e.g., mid-network high-res topo injection."""
+        return self.data_handlers[0].hr_exo_features
 
     @property
-    def output_features_ind(self):
-        """Get the feature channel indices that should be used for the
-        generated output features"""
-        if self.training_features == self.output_features:
-            return None
+    def hr_out_features(self):
+        """Get a list of low-resolution features that are intended to be output
+        by the GAN."""
+        return self.data_handlers[0].hr_out_features
+
+    @property
+    def hr_features_ind(self):
+        """Get the high-resolution feature channel indices that should be
+        included for training. Any high-resolution features that are only
+        included in the data handler to be coarsened for the low-res input are
+        removed"""
+        hr_features = list(self.hr_out_features) + list(self.hr_exo_features)
+        if list(self.features) == hr_features:
+            return np.arange(len(self.features))
         else:
-            out = [
-                i for i, feature in enumerate(self.training_features)
-                if feature in self.output_features
-            ]
+            out = [i for i, feature in enumerate(self.features)
+                   if feature in hr_features]
             return out
 
     @property
@@ -626,20 +611,22 @@ class BatchHandler:
         n_lats = self.data_handlers[0].shape[0]
         return (n_lats, n_lons, time_steps, self.data_handlers[0].shape[-1])
 
-    def parallel_normalization(self):
-        """Normalize data in all data handlers in parallel."""
+    def _parallel_normalization(self):
+        """Normalize data in all data handlers in parallel or serial depending
+        on norm_workers."""
         logger.info(f'Normalizing {len(self.data_handlers)} data handlers.')
-        max_workers = self.load_workers
+        max_workers = self.norm_workers
         if max_workers == 1:
-            for d in self.data_handlers:
-                d.normalize(self.means, self.stds)
+            for dh in self.data_handlers:
+                dh.normalize(self.means, self.stds)
         else:
             with ThreadPoolExecutor(max_workers=max_workers) as exe:
                 futures = {}
                 now = dt.now()
-                for i, d in enumerate(self.data_handlers):
-                    future = exe.submit(d.normalize, self.means, self.stds)
-                    futures[future] = i
+                for idh, dh in enumerate(self.data_handlers):
+                    future = exe.submit(dh.normalize, self.means, self.stds,
+                                        max_workers=1)
+                    futures[future] = idh
 
                 logger.info(f'Started normalizing {len(self.data_handlers)} '
                             f'data handlers in {dt.now() - now}.')
@@ -689,35 +676,27 @@ class BatchHandler:
     def _get_stats(self):
         """Get standard deviations and means for training features in
         parallel."""
-        logger.info(f'Calculating stats for {len(self.training_features)} '
+        logger.info(f'Calculating stats for {len(self.features)} '
                     'features.')
-        max_workers = self.norm_workers
-        if max_workers == 1:
-            for f in self.training_features:
-                self.get_stats_for_feature(f)
-        else:
-            with ThreadPoolExecutor(max_workers=max_workers) as exe:
-                futures = {}
-                now = dt.now()
-                for i, f in enumerate(self.training_features):
-                    future = exe.submit(self.get_stats_for_feature, f)
-                    futures[future] = i
+        for feature in self.features:
+            logger.debug(f'Calculating mean/stdev for "{feature}"')
+            self.means[feature] = 0
+            self.stds[feature] = 0
+            max_workers = self.stats_workers
 
-                logger.info('Started calculating stats for '
-                            f'{len(self.training_features)} features in '
-                            f'{dt.now() - now}.')
+            if max_workers is None or max_workers >= 1:
+                with ThreadPoolExecutor(max_workers=max_workers) as exe:
+                    futures = {}
+                    for idh, dh in enumerate(self.data_handlers):
+                        future = exe.submit(dh._get_stats)
+                        futures[future] = idh
 
-                for i, future in enumerate(as_completed(futures)):
-                    try:
-                        future.result()
-                    except Exception as e:
-                        msg = ('Error calculating stats for '
-                               f'{self.training_features[futures[future]]}')
-                        logger.exception(msg)
-                        raise RuntimeError(msg) from e
-                    logger.debug(f'{i+1} out of '
-                                 f'{len(self.training_features)} stats '
-                                 'calculated.')
+                    for i, _ in enumerate(as_completed(futures)):
+                        logger.debug(f'{i+1} out of {len(self.data_handlers)} '
+                                     'means calculated.')
+
+            self.means[feature] = self._get_feature_means(feature)
+            self.stds[feature] = self._get_feature_stdev(feature)
 
     def __len__(self):
         """Use user input of n_batches to specify length
@@ -735,10 +714,15 @@ class BatchHandler:
 
         Returns
         -------
-        means : ndarray
-            Array of means for each feature
-        stds : ndarray
-            Array of stdevs for each feature
+        means : dict | none
+            Dictionary of means for all features with keys: feature names and
+            values: mean values. if None, this will be calculated. if norm is
+            true these will be used for data normalization
+        stds : dict | none
+            dictionary of standard deviation values for all features with keys:
+            feature names and values: standard deviations. if None, this will
+            be calculated. if norm is true these will be used for data
+            normalization
         """
         stdevs_check = (self.stdevs_file is not None
                         and not self.overwrite_stats)
@@ -747,44 +731,37 @@ class BatchHandler:
         means_check = means_check and os.path.exists(self.means_file)
         if stdevs_check and means_check:
             logger.info(f'Loading stdevs from {self.stdevs_file}')
-            with open(self.stdevs_file, 'rb') as fh:
-                self.stds = pickle.load(fh)
+            with open(self.stdevs_file, 'r') as fh:
+                self.stds = json.load(fh)
             logger.info(f'Loading means from {self.means_file}')
-            with open(self.means_file, 'rb') as fh:
-                self.means = pickle.load(fh)
+            with open(self.means_file, 'r') as fh:
+                self.means = json.load(fh)
 
             msg = ('The training features and cached statistics are '
                    'incompatible. Number of training features is '
-                   f'{len(self.training_features)} and number of stats is'
+                   f'{len(self.features)} and number of stats is'
                    f' {len(self.stds)}')
-            check = len(self.means) == len(self.training_features)
-            check = check and (len(self.stds) == len(self.training_features))
+            check = len(self.means) == len(self.features)
+            check = check and (len(self.stds) == len(self.features))
             assert check, msg
         return self.means, self.stds
 
     def cache_stats(self):
         """Saved stdevs and means to cache files if files are not None"""
 
-        if self.stdevs_file is not None:
-            logger.info(f'Saving stdevs to {self.stdevs_file}')
-            basedir = os.path.dirname(self.stdevs_file)
-            if not os.path.exists(basedir):
-                os.makedirs(basedir)
-            with open(self.stdevs_file, 'wb') as fh:
-                pickle.dump(self.stds, fh)
-        if self.means_file is not None:
-            logger.info(f'Saving means to {self.means_file}')
-            basedir = os.path.dirname(self.means_file)
-            if not os.path.exists(basedir):
-                os.makedirs(basedir)
-            with open(self.means_file, 'wb') as fh:
-                pickle.dump(self.means, fh)
+        iter = ((self.means_file, self.means), (self.stdevs_file, self.stds))
+        for fp, data in iter:
+            if fp is not None:
+                logger.info(f'Saving stats to {fp}')
+                os.makedirs(os.path.dirname(fp), exist_ok=True)
+                with open(fp, 'w') as fh:
+                    json.dump(data, fh)
 
     def get_stats(self):
         """Get standard deviations and means for all data features"""
 
-        self.means = np.zeros((self.shape[-1]), dtype=np.float32)
-        self.stds = np.zeros((self.shape[-1]), dtype=np.float32)
+        self.means = {}
+        self.stds = {}
 
         now = dt.now()
         logger.info('Calculating stdevs/means.')
@@ -792,98 +769,23 @@ class BatchHandler:
         logger.info(f'Finished calculating stats in {dt.now() - now}.')
         self.cache_stats()
 
-    def get_handler_mean(self, feature_idx, handler_idx):
-        """Get feature mean for a given handler
-
-        Parameters
-        ----------
-        feature_idx : int
-            Index of feature to get mean for
-        handler_idx : int
-            Index of data handler to get mean for
-
-        Returns
-        -------
-        float
-            Feature mean
-        """
-        return np.nanmean(self.data_handlers[handler_idx].data[...,
-                                                               feature_idx])
-
-    def get_handler_variance(self, feature_idx, handler_idx, mean):
-        """Get feature variance for a given handler
-
-        Parameters
-        ----------
-        feature_idx : int
-            Index of feature to get variance for
-        handler_idx : int
-            Index of data handler to get variance for
-        mean : float
-            Mean for the given handler and feature
-
-        Returns
-        -------
-        float
-            Feature variance
-        """
-        istd = self.data_handlers[handler_idx].data[..., feature_idx] - mean
-        return np.nanmean(istd**2)
-
-    def get_stats_for_feature(self, feature):
-        """Get standard deviation and mean for requested feature
-
-        Parameters
-        ----------
-        feature : str
-            Feature to get stats for
-        max_workers : int | None
-            Max number of workers to use for parallel stats calculations. If
-            None the max number of available workers will be used.
-        """
-        idx = self.training_features.index(feature)
-        logger.debug(f'Calculating stdev/mean for {feature}')
-        max_workers = self.stats_workers
-        self.means[idx] = self.get_means_for_feature(feature, max_workers)
-        self.stds[idx] = self.get_stdevs_for_feature(feature, max_workers)
-
-    def get_means_for_feature(self, feature, max_workers=None):
+    def _get_feature_means(self, feature):
         """Get mean for requested feature
 
         Parameters
         ----------
         feature : str
             Feature to get mean for
-        max_workers : int | None
-            Max number of workers to use for parallel stats calculations. If
-            None the max number of available workers will be used.
         """
-        idx = self.training_features.index(feature)
+
         logger.debug(f'Calculating mean for {feature}')
-        if max_workers == 1:
-            for didx, _ in enumerate(self.data_handlers):
-                self.means[idx] += (self.handler_weights[didx]
-                                    * self.get_handler_mean(idx, didx))
-        else:
-            with ThreadPoolExecutor(max_workers=max_workers) as exe:
-                futures = {}
-                now = dt.now()
-                for didx, _ in enumerate(self.data_handlers):
-                    future = exe.submit(self.get_handler_mean, idx, didx)
-                    futures[future] = didx
+        for idh, dh in enumerate(self.data_handlers):
+            self.means[feature] += (self.handler_weights[idh]
+                                    * dh.means[feature])
 
-                logger.info('Started calculating means for '
-                            f'{len(self.data_handlers)} data_handlers in '
-                            f'{dt.now() - now}.')
+        return self.means[feature]
 
-                for i, future in enumerate(as_completed(futures)):
-                    self.means[idx] += (self.handler_weights[futures[future]]
-                                        * future.result())
-                    logger.debug(f'{i+1} out of {len(self.data_handlers)} '
-                                 'means calculated.')
-        return self.means[idx]
-
-    def get_stdevs_for_feature(self, feature, max_workers=None):
+    def _get_feature_stdev(self, feature):
         """Get stdev for requested feature
 
         NOTE: We compute the variance across all handlers as a pooled variance
@@ -894,36 +796,16 @@ class BatchHandler:
         ----------
         feature : str
             Feature to get stdev for
-        max_workers : int | None
-            Max number of workers to use for parallel stats calculations. If
-            None the max number of available workers will be used.
         """
-        idx = self.training_features.index(feature)
+
         logger.debug(f'Calculating stdev for {feature}')
-        if max_workers == 1:
-            for didx, _ in enumerate(self.data_handlers):
-                hstd = self.get_handler_variance(idx, didx, self.means[idx])
-                self.stds[idx] += (hstd * self.handler_weights[didx])
-        else:
-            with ThreadPoolExecutor(max_workers=max_workers) as exe:
-                futures = {}
-                now = dt.now()
-                for didx, _ in enumerate(self.data_handlers):
-                    future = exe.submit(self.get_handler_variance, idx, didx,
-                                        self.means[idx])
-                    futures[future] = didx
+        for idh, dh in enumerate(self.data_handlers):
+            variance = dh.stds[feature]**2
+            self.stds[feature] += (variance * self.handler_weights[idh])
 
-                logger.info('Started calculating stdevs for '
-                            f'{len(self.data_handlers)} data_handlers in '
-                            f'{dt.now() - now}.')
+        self.stds[feature] = np.sqrt(self.stds[feature])
 
-                for i, future in enumerate(as_completed(futures)):
-                    self.stds[idx] += (self.handler_weights[futures[future]]
-                                       * future.result())
-                    logger.debug(f'{i+1} out of {len(self.data_handlers)} '
-                                 'stdevs calculated.')
-        self.stds[idx] = np.sqrt(self.stds[idx])
-        return self.stds[idx]
+        return self.stds[feature]
 
     def normalize(self, means=None, stds=None):
         """Compute means and stds for each feature across all datasets and
@@ -932,29 +814,37 @@ class BatchHandler:
 
         Parameters
         ----------
-        means : ndarray | None
-            Array of means for each feature. If None it will be calculated.
-        stds : ndarray | None
-            Array of stdevs for each feature. If None it will be calculated.
+        means : dict | none
+            Dictionary of means for all features with keys: feature names and
+            values: mean values. if None, this will be calculated. if norm is
+            true these will be used for data normalization
+        stds : dict | none
+            dictionary of standard deviation values for all features with keys:
+            feature names and values: standard deviations. if None, this will
+            be calculated. if norm is true these will be used for data
+            normalization
         """
         if means is None or stds is None:
             self.get_stats()
         elif means is not None and stds is not None:
-            if not np.array_equal(means, self.means) or not np.array_equal(
-                    stds, self.stds):
-                self.unnormalize()
-            self.means = means
-            self.stds = stds
+            means0, means1 = list(self.means.values()), list(means.values())
+            stds0, stds1 = list(self.stds.values()), list(stds.values())
+            if (not np.array_equal(means0, means1)
+                    or not np.array_equal(stds0, stds1)):
+                msg = (f'Normalization requested with new means/stdevs '
+                       f'{means1}/{stds1} that '
+                       f'dont match previous values: {means0}/{stds0}')
+                logger.info(msg)
+                raise ValueError(msg)
+            else:
+                self.means = means
+                self.stds = stds
+
         now = dt.now()
         logger.info('Normalizing data in each data handler.')
-        self.parallel_normalization()
+        self._parallel_normalization()
         logger.info('Finished normalizing data in all data handlers in '
                     f'{dt.now() - now}.')
-
-    def unnormalize(self):
-        """Remove normalization from stored means and stds"""
-        for d in self.data_handlers:
-            d.unnormalize(self.means, self.stds)
 
     def __iter__(self):
         self._i = 0
@@ -986,9 +876,8 @@ class BatchHandler:
                 self.s_enhance,
                 t_enhance=self.t_enhance,
                 temporal_coarsening_method=self.temporal_coarsening_method,
-                output_features_ind=self.output_features_ind,
-                output_features=self.output_features,
-                training_features=self.training_features,
+                hr_features_ind=self.hr_features_ind,
+                features=self.features,
                 smoothing=self.smoothing,
                 smoothing_ignore=self.smoothing_ignore)
 
@@ -1046,8 +935,7 @@ class BatchHandlerCC(BatchHandler):
             obs_hourly, obs_daily_avg = handler.get_next()
             self.current_batch_indices.append(handler.current_obs_index)
 
-            obs_hourly = self.BATCH_CLASS.reduce_features(
-                obs_hourly, self.output_features_ind)
+            obs_hourly = obs_hourly[..., self.hr_features_ind]
 
             if low_res is None:
                 lr_shape = (self.batch_size, *obs_daily_avg.shape)
@@ -1061,16 +949,16 @@ class BatchHandlerCC(BatchHandler):
         high_res = self.reduce_high_res_sub_daily(high_res)
         low_res = spatial_coarsening(low_res, self.s_enhance)
 
-        if (self.output_features is not None
-                and 'clearsky_ratio' in self.output_features):
-            i_cs = self.output_features.index('clearsky_ratio')
+        if (self.hr_out_features is not None
+                and 'clearsky_ratio' in self.hr_out_features):
+            i_cs = self.hr_out_features.index('clearsky_ratio')
             if np.isnan(high_res[..., i_cs]).any():
                 high_res[..., i_cs] = nn_fill_array(high_res[..., i_cs])
 
         if self.smoothing is not None:
             feat_iter = [
                 j for j in range(low_res.shape[-1])
-                if self.training_features[j] not in self.smoothing_ignore
+                if self.features[j] not in self.smoothing_ignore
             ]
             for i in range(low_res.shape[0]):
                 for j in feat_iter:
@@ -1166,19 +1054,18 @@ class SpatialBatchHandlerCC(BatchHandler):
         low_res = low_res[:, :, :, 0, :]
         high_res = high_res[:, :, :, 0, :]
 
-        high_res = self.BATCH_CLASS.reduce_features(high_res,
-                                                    self.output_features_ind)
+        high_res = high_res[..., self.hr_features_ind]
 
-        if (self.output_features is not None
-                and 'clearsky_ratio' in self.output_features):
-            i_cs = self.output_features.index('clearsky_ratio')
+        if (self.hr_out_features is not None
+                and 'clearsky_ratio' in self.hr_out_features):
+            i_cs = self.hr_out_features.index('clearsky_ratio')
             if np.isnan(high_res[..., i_cs]).any():
                 high_res[..., i_cs] = nn_fill_array(high_res[..., i_cs])
 
         if self.smoothing is not None:
             feat_iter = [
                 j for j in range(low_res.shape[-1])
-                if self.training_features[j] not in self.smoothing_ignore
+                if self.features[j] not in self.smoothing_ignore
             ]
             for i in range(low_res.shape[0]):
                 for j in feat_iter:
@@ -1207,8 +1094,8 @@ class SpatialBatchHandler(BatchHandler):
             batch = self.BATCH_CLASS.get_coarse_batch(
                 high_res,
                 self.s_enhance,
-                output_features_ind=self.output_features_ind,
-                training_features=self.training_features,
+                hr_features_ind=self.hr_features_ind,
+                features=self.features,
                 smoothing=self.smoothing,
                 smoothing_ignore=self.smoothing_ignore)
 
@@ -1295,10 +1182,9 @@ class ValidationDataDC(ValidationData):
                 self.s_enhance,
                 t_enhance=self.t_enhance,
                 temporal_coarsening_method=self.temporal_coarsening_method,
-                output_features_ind=self.output_features_ind,
+                hr_features_ind=self.hr_features_ind,
                 smoothing=self.smoothing,
-                smoothing_ignore=self.smoothing_ignore,
-                output_features=self.output_features)
+                smoothing_ignore=self.smoothing_ignore)
             self._i += 1
             return batch
         else:
@@ -1330,10 +1216,9 @@ class ValidationDataSpatialDC(ValidationDataDC):
             batch = self.BATCH_CLASS.get_coarse_batch(
                 high_res,
                 self.s_enhance,
-                output_features_ind=self.output_features_ind,
+                hr_features_ind=self.hr_features_ind,
                 smoothing=self.smoothing,
-                smoothing_ignore=self.smoothing_ignore,
-                output_features=self.output_features)
+                smoothing_ignore=self.smoothing_ignore)
             self._i += 1
             return batch
         else:
@@ -1405,9 +1290,8 @@ class BatchHandlerDC(BatchHandler):
                 self.s_enhance,
                 t_enhance=self.t_enhance,
                 temporal_coarsening_method=self.temporal_coarsening_method,
-                output_features_ind=self.output_features_ind,
-                output_features=self.output_features,
-                training_features=self.training_features,
+                hr_features_ind=self.hr_features_ind,
+                features=self.features,
                 smoothing=self.smoothing,
                 smoothing_ignore=self.smoothing_ignore)
 
@@ -1492,8 +1376,8 @@ class BatchHandlerSpatialDC(BatchHandler):
             batch = self.BATCH_CLASS.get_coarse_batch(
                 high_res,
                 self.s_enhance,
-                output_features_ind=self.output_features_ind,
-                training_features=self.training_features,
+                hr_features_ind=self.hr_features_ind,
+                features=self.features,
                 smoothing=self.smoothing,
                 smoothing_ignore=self.smoothing_ignore,
             )

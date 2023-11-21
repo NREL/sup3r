@@ -335,8 +335,10 @@ class Regridder:
         Parameters
         ----------
         data : ndarray
-            Spatiotemporal data to regrid to target_meta
-            (spatial_1, spatial_2, temporal)
+            Spatiotemporal data to regrid to target_meta. Data can be flattened
+            in the spatial dimension to match the target_meta or be in a 2D
+            spatial grid, e.g.:
+            (spatial, temporal) or (spatial_1, spatial_2, temporal)
 
         Returns
         -------

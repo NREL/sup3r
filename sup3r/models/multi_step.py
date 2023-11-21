@@ -236,16 +236,27 @@ class MultiStepGan(AbstractInterface):
         return tuple(model.meta for model in self.models)
 
     @property
-    def training_features(self):
-        """Get the list of input feature names that the first generative model
-        in this MultiStepGan requires as input."""
-        return self.models[0].meta.get('training_features', None)
+    def lr_features(self):
+        """Get a list of low-resolution features input to the generative model.
+        This includes low-resolution features that might be supplied
+        exogenously at inference time but that were in the low-res batches
+        during training"""
+        return self.models[0].lr_features
 
     @property
-    def output_features(self):
-        """Get the list of output feature names that the last generative model
-        in this MultiStepGan outputs."""
-        return self.models[-1].meta.get('output_features', None)
+    def hr_out_features(self):
+        """Get the list of high-resolution output feature names that the
+        generative model outputs."""
+        return self.models[-1].hr_out_features
+
+    @property
+    def hr_exo_features(self):
+        """Get list of high-resolution exogenous filter names the model uses.
+        For the multi-step model, each entry in this list corresponds to one of
+        the single-step models and is itself a list of hr_exo_features for that
+        model.
+        """
+        return [model.hr_exo_features for model in self.models]
 
     @property
     def model_params(self):
@@ -440,8 +451,8 @@ class SolarMultiStepGan(MultiStepGan):
                '{} (solar) and {} (wind)'.format(s_enh, w_enh))
         assert np.product(s_enh) == np.product(w_enh), msg
 
-        s_t_feat = self.spatial_solar_models.training_features
-        s_o_feat = self.spatial_solar_models.output_features
+        s_t_feat = self.spatial_solar_models.lr_features
+        s_o_feat = self.spatial_solar_models.hr_out_features
         msg = ('Solar spatial enhancement models need to take '
                '"clearsky_ratio" as the only input and output feature but '
                'received models that need {} and output {}'
@@ -449,14 +460,14 @@ class SolarMultiStepGan(MultiStepGan):
         assert s_t_feat == ['clearsky_ratio'], msg
         assert s_o_feat == ['clearsky_ratio'], msg
 
-        temp_solar_feats = self.temporal_solar_models.training_features
+        temp_solar_feats = self.temporal_solar_models.lr_features
         msg = ('Input feature 0 for the temporal_solar_models should be '
                '"clearsky_ratio" but received: {}'
                .format(temp_solar_feats))
         assert temp_solar_feats[0] == 'clearsky_ratio', msg
 
-        spatial_out_features = (self.spatial_wind_models.output_features
-                                + self.spatial_solar_models.output_features)
+        spatial_out_features = (self.spatial_wind_models.hr_out_features
+                                + self.spatial_solar_models.hr_out_features)
         missing = [fn for fn in temp_solar_feats if fn not in
                    spatial_out_features]
         msg = ('Solar temporal model needs features {} that were not '
@@ -506,26 +517,27 @@ class SolarMultiStepGan(MultiStepGan):
                 + self.temporal_solar_models.meta)
 
     @property
-    def training_features(self):
-        """Get the list of input feature names that the first spatial
-        generative models in this SolarMultiStepGan requires as input.
-        This includes the solar + wind training features."""
-        return (self.spatial_solar_models.training_features
-                + self.spatial_wind_models.training_features)
+    def lr_features(self):
+        """Get a list of low-resolution features input to the generative model.
+        This includes low-resolution features that might be supplied
+        exogenously at inference time but that were in the low-res batches
+        during training"""
+        return (self.spatial_solar_models.lr_features
+                + self.spatial_wind_models.lr_features)
 
     @property
-    def output_features(self):
+    def hr_out_features(self):
         """Get the list of output feature names that the last solar
         spatiotemporal generative model in this SolarMultiStepGan outputs."""
-        return self.temporal_solar_models.output_features
+        return self.temporal_solar_models.hr_out_features
 
     @property
     def idf_wind(self):
         """Get an array of feature indices for the subset of features required
         for the spatial_wind_models. This excludes topography which is assumed
         to be provided as exogenous_data."""
-        return np.array([self.training_features.index(fn) for fn in
-                         self.spatial_wind_models.training_features
+        return np.array([self.lr_features.index(fn) for fn in
+                         self.spatial_wind_models.lr_features
                          if fn != 'topography'])
 
     @property
@@ -534,8 +546,8 @@ class SolarMultiStepGan(MultiStepGan):
         required for input to the temporal_solar_models. Typically this is the
         indices of U_200m + V_200m from the output features of
         spatial_wind_models"""
-        temporal_solar_features = self.temporal_solar_models.training_features
-        return np.array([self.spatial_wind_models.output_features.index(fn)
+        temporal_solar_features = self.temporal_solar_models.lr_features
+        return np.array([self.spatial_wind_models.hr_out_features.index(fn)
                          for fn in temporal_solar_features[1:]])
 
     @property
@@ -543,8 +555,8 @@ class SolarMultiStepGan(MultiStepGan):
         """Get an array of feature indices for the subset of features required
         for the spatial_solar_models. This excludes topography which is assumed
         to be provided as exogenous_data."""
-        return np.array([self.training_features.index(fn) for fn in
-                         self.spatial_solar_models.training_features
+        return np.array([self.lr_features.index(fn) for fn in
+                         self.spatial_solar_models.lr_features
                          if fn != 'topography'])
 
     def generate(self, low_res, norm_in=True, un_norm_out=True,
@@ -557,7 +569,7 @@ class SolarMultiStepGan(MultiStepGan):
         low_res : np.ndarray
             Low-resolution input data to the 1st step spatial GAN, which is a
             4D array of shape: (temporal, spatial_1, spatial_2, n_features).
-            This should include all of the self.training_features which is a
+            This should include all of the self.lr_features which is a
             concatenation of both the solar and wind spatial model features.
             The topography feature might be removed from this input and present
             in the exogenous_data input.

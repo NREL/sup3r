@@ -778,7 +778,8 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
         self.t_enhancements = [model.t_enhance for model in models]
         self.s_enhance = np.product(self.s_enhancements)
         self.t_enhance = np.product(self.t_enhancements)
-        self.output_features = model.output_features
+        self.output_features = model.hr_out_features
+        assert len(self.output_features) > 0, 'No output features!'
 
         self.fwp_slicer = ForwardPassSlicer(self.grid_shape,
                                             self.raw_tsteps,
@@ -1084,8 +1085,10 @@ class ForwardPass:
             raise KeyError(msg)
 
         self.model = model_class.load(**self.model_kwargs, verbose=False)
-        self.features = self.model.training_features
-        self.output_features = self.model.output_features
+        self.features = self.model.lr_features
+        self.output_features = self.model.hr_out_features
+        assert len(self.features) > 0, 'No input features!'
+        assert len(self.output_features) > 0, 'No output features!'
 
         self._file_paths = strategy.file_paths
         self.max_workers = strategy.max_workers
@@ -1964,7 +1967,7 @@ class ForwardPass:
             logger.info(f'Saving forward pass output to {self.out_file}.')
             self.output_handler_class._write_output(
                 data=self.output_data,
-                features=self.model.output_features,
+                features=self.model.hr_out_features,
                 lat_lon=self.hr_lat_lon,
                 times=self.hr_times,
                 out_file=self.out_file,

@@ -125,8 +125,7 @@ class DualValidationData(ValidationData):
                 high_res = high_res[..., 0, :]
                 low_res = low_res[..., 0, :]
 
-            high_res = self.BATCH_CLASS.reduce_features(
-                high_res, self.output_features_ind)
+            high_res = high_res[..., self.hr_features_ind]
             batch = self.BATCH_CLASS(low_res=low_res, high_res=high_res)
             self._i += 1
             return batch
@@ -148,7 +147,7 @@ class DualBatchHandler(BatchHandler):
     @property
     def hr_features(self):
         """Features in high res batch."""
-        return self.data_handlers[0].lr_dh.output_features
+        return self.data_handlers[0].hr_dh.features
 
     @property
     def hr_sample_shape(self):
@@ -190,7 +189,8 @@ class DualBatchHandler(BatchHandler):
                                dtype=np.float32)
 
             for i in range(self.batch_size):
-                high_res[i, ...], low_res[i, ...] = handler.get_next()
+                hr_sample, lr_sample = handler.get_next()
+                high_res[i, ...], low_res[i, ...] = hr_sample, lr_sample
                 self.current_batch_indices.append(handler.current_obs_index)
 
             batch = self.BATCH_CLASS(low_res=low_res, high_res=high_res)

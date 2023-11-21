@@ -1,6 +1,7 @@
 """Base data handling classes.
 @author: bbenton
 """
+import copy
 import logging
 import os
 import pickle
@@ -67,16 +68,6 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
     (spatial_1, spatial_2, temporal, features)
     """
 
-    # list of features / feature name patterns that are input to the generative
-    # model but are not part of the synthetic output and are not sent to the
-    # discriminator. These are case-insensitive and follow the Unix shell-style
-    # wildcard format.
-    TRAIN_ONLY_FEATURES = ('BVF*',
-                           'inversemoninobukhovlength_*',
-                           'RMOL',
-                           'topography',
-                           )
-
     def __init__(self,
                  file_paths,
                  features,
@@ -96,7 +87,8 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
                  overwrite_cache=False,
                  overwrite_ti_cache=False,
                  load_cached=False,
-                 train_only_features=None,
+                 lr_only_features=tuple(),
+                 hr_exo_features=tuple(),
                  handle_features=None,
                  single_ts_files=None,
                  mask_nan=False,
@@ -142,12 +134,12 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
             Size of spatial and temporal domain used in a single high-res
             observation for batching
         raster_file : str | None
-            File for raster_index array for the corresponding target and shape.
-            If specified the raster_index will be loaded from the file if it
-            exists or written to the file if it does not yet exist. If None and
-            raster_index is not provided raster_index will be calculated
-            directly. Either need target+shape, raster_file, or raster_index
-            input.
+            .txt file for raster_index array for the corresponding target and
+            shape. If specified the raster_index will be loaded from the file
+            if it exists or written to the file if it does not yet exist. If
+            None and raster_index is not provided raster_index will be
+            calculated directly. Either need target+shape, raster_file, or
+            raster_index input.
         raster_index : list
             List of tuples or slices. Used as an alternative to computing the
             raster index from target+shape or loading the raster index from
@@ -174,10 +166,14 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
             Whether to overwrite saved time index cache files.
         load_cached : bool
             Whether to load data from cache files
-        train_only_features : list | tuple | None
+        lr_only_features : list | tuple
             List of feature names or patt*erns that should only be included in
-            the training set and not the output. If None (default), this will
-            default to the class TRAIN_ONLY_FEATURES attribute.
+            the low-res training set and not the high-res observations.
+        hr_exo_features : list | tuple
+            List of feature names or patt*erns that should be included in the
+            high-resolution observation but not expected to be output from the
+            generative model. An example is high-res topography that is to be
+            injected mid-network.
         handle_features : list | None
             Optional list of features which are available in the provided data.
             Providing this eliminates the need for an initial search of
@@ -230,8 +226,9 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
                             temporal_slice=temporal_slice)
 
         self.file_paths = file_paths
-        self.features = (features if isinstance(features,
-                                                (list, tuple)) else [features])
+        self.features = (features if isinstance(features, (list, tuple))
+                         else [features])
+        self.features = copy.deepcopy(self.features)
         self.val_time_index = None
         self.max_delta = max_delta
         self.val_split = val_split
@@ -248,7 +245,8 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         self.res_kwargs = res_kwargs or {}
         self._single_ts_files = single_ts_files
         self._cache_pattern = cache_pattern
-        self._train_only_features = train_only_features
+        self._lr_only_features = lr_only_features
+        self._hr_exo_features = hr_exo_features
         self._time_chunk_size = time_chunk_size
         self._handle_features = handle_features
         self._cache_files = None
@@ -257,6 +255,9 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         self._raw_features = None
         self._raw_data = {}
         self._time_chunks = None
+        self._means = None
+        self._stds = None
+        self._is_normalized = False
         self.worker_kwargs = worker_kwargs or {}
         self.max_workers = self.worker_kwargs.get('max_workers', None)
         self._ti_workers = self.worker_kwargs.get('ti_workers', None)
@@ -403,13 +404,6 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         handle = self.source_handler(self.file_paths)
         desc = handle.attrs
         return desc
-
-    @property
-    def train_only_features(self):
-        """Features to use for training only and not output"""
-        if self._train_only_features is None:
-            self._train_only_features = self.TRAIN_ONLY_FEATURES
-        return self._train_only_features
 
     @property
     def extract_workers(self):
@@ -603,19 +597,86 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         if self._raw_features is None:
             self._raw_features = self.get_raw_feature_list(
                 self.noncached_features, self.handle_features)
+
         return self._raw_features
 
     @property
-    def output_features(self):
-        """Get a list of features that should be output by the generative model
-        corresponding to the features in the high res batch array."""
+    def lr_only_features(self):
+        """List of feature names or patt*erns that should only be included in
+        the low-res training set and not the high-res observations."""
+        if isinstance(self._lr_only_features, str):
+            self._lr_only_features = [self._lr_only_features]
+
+        elif isinstance(self._lr_only_features, tuple):
+            self._lr_only_features = list(self._lr_only_features)
+
+        elif self._lr_only_features is None:
+            self._lr_only_features = []
+
+        return self._lr_only_features
+
+    @property
+    def lr_features(self):
+        """Get a list of low-resolution features. It is assumed that all
+        features are used in the low-resolution observations. If you want to
+        use high-res-only features, use the DualDataHandler class."""
+        return self.features
+
+    @property
+    def hr_exo_features(self):
+        """Get a list of exogenous high-resolution features that are only used
+        for training e.g., mid-network high-res topo injection. These must come
+        at the end of the high-res feature set. These can also be input to the
+        model as low-res features."""
+
+        if isinstance(self._hr_exo_features, str):
+            self._hr_exo_features = [self._hr_exo_features]
+
+        elif isinstance(self._hr_exo_features, tuple):
+            self._hr_exo_features = list(self._hr_exo_features)
+
+        elif self._hr_exo_features is None:
+            self._hr_exo_features = []
+
+        if any('*' in fn for fn in self._hr_exo_features):
+            hr_exo_features = []
+            for feature in self.features:
+                match = any(fnmatch(feature.lower(), pattern.lower())
+                            for pattern in self._hr_exo_features)
+                if match:
+                    hr_exo_features.append(feature)
+            self._hr_exo_features = hr_exo_features
+
+        if len(self._hr_exo_features) > 0:
+            msg = (f'High-res train-only features "{self._hr_exo_features}" '
+                   f'do not come at the end of the full high-res feature set: '
+                   f'{self.features}')
+            last_feat = self.features[-len(self._hr_exo_features):]
+            assert list(self._hr_exo_features) == list(last_feat), msg
+
+        return self._hr_exo_features
+
+    @property
+    def hr_out_features(self):
+        """Get a list of high-resolution features that are intended to be
+        output by the GAN. Does not include high-resolution exogenous
+        features"""
+
         out = []
         for feature in self.features:
-            ignore = any(
-                fnmatch(feature.lower(), pattern.lower())
-                for pattern in self.train_only_features)
+            lr_only = any(fnmatch(feature.lower(), pattern.lower())
+                          for pattern in self.lr_only_features)
+            ignore = lr_only or feature in self.hr_exo_features
             if not ignore:
                 out.append(feature)
+
+        if len(out) == 0:
+            msg = (f'It appears that all handler features "{self.features}" '
+                   'were specified as `hr_exo_features` or `lr_only_features` '
+                   'and therefore there are no output features!')
+            logger.error(msg)
+            raise RuntimeError(msg)
+
         return out
 
     @property
@@ -860,28 +921,71 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
                                           target,
                                           features)
 
-    def unnormalize(self, means, stds):
-        """Remove normalization from stored means and stds"""
-        self._unnormalize(self.data, self.val_data, means, stds)
+    @property
+    def means(self):
+        """Get the mean values for each feature.
 
-    def normalize(self, means, stds):
-        """Normalize all data features
+        Returns
+        -------
+        dict
+        """
+        self._get_stats()
+        return self._means
+
+    @property
+    def stds(self):
+        """Get the standard deviation values for each feature.
+
+        Returns
+        -------
+        dict
+        """
+        self._get_stats()
+        return self._stds
+
+    def _get_stats(self):
+        if self._means is None or self._stds is None:
+            msg = (f'DataHandler has {len(self.features)} features '
+                   f'and mismatched shape of {self.shape}')
+            assert len(self.features) == self.shape[-1], msg
+            self._stds = {}
+            self._means = {}
+            for idf, fname in enumerate(self.features):
+                self._means[fname] = np.nanmean(self.data[..., idf])
+                self._stds[fname] = np.nanstd(self.data[..., idf])
+
+    def normalize(self, means=None, stds=None, max_workers=None):
+        """Normalize all data features.
 
         Parameters
         ----------
-        means : np.ndarray
-            dimensions (features)
-            array of means for all features with same ordering as data features
-        stds : np.ndarray
-            dimensions (features)
-            array of means for all features with same ordering as data features
+        means : dict | none
+            Dictionary of means for all features with keys: feature names and
+            values: mean values. If this is None, the self.means attribute will
+            be used. If this is not None, this DataHandler object means
+            attribute will be updated.
+        stds : dict | none
+            dictionary of standard deviation values for all features with keys:
+            feature names and values: standard deviations. If this is None, the
+            self.stds attribute will be used. If this is not None, this
+            DataHandler object stds attribute will be updated.
+        max_workers : None | int
+            Max workers to perform normalization. if None, self.norm_workers
+            will be used
         """
-        max_workers = self.norm_workers
-        self._normalize(self.data,
-                        self.val_data,
-                        means,
-                        stds,
-                        max_workers=max_workers)
+        if means is not None:
+            self._means = means
+        if stds is not None:
+            self._stds = stds
+
+        max_workers = max_workers or self.norm_workers
+        if self._is_normalized:
+            logger.info('Skipping DataHandler, already normalized')
+        else:
+            self._normalize(self.data,
+                            self.val_data,
+                            max_workers=max_workers)
+            self._is_normalized = True
 
     def get_next(self):
         """Get data for observation using random observation index. Loops

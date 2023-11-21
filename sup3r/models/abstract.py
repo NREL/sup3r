@@ -255,11 +255,8 @@ class AbstractInterface(ABC):
                 and exogenous_data is not None):
             exogenous_data = ExoData(exogenous_data)
 
-        training_features = ([] if self.training_features is None
-                             else self.training_features)
-        fnum_diff = len(training_features) - low_res.shape[-1]
-        exo_feats = ([] if fnum_diff <= 0
-                     else self.training_features[-fnum_diff:])
+        fnum_diff = len(self.lr_features) - low_res.shape[-1]
+        exo_feats = [] if fnum_diff <= 0 else self.lr_features[-fnum_diff:]
         msg = ('Provided exogenous_data is missing some required features '
                f'({exo_feats})')
         assert all(feature in exogenous_data for feature in exo_feats), msg
@@ -269,6 +266,7 @@ class AbstractInterface(ABC):
                     feature, 'input')
                 if exo_input is not None:
                     low_res = np.concatenate((low_res, exo_input), axis=-1)
+
         return low_res
 
     def _combine_fwp_output(self, hi_res, exogenous_data=None):
@@ -302,11 +300,9 @@ class AbstractInterface(ABC):
                 and exogenous_data is not None):
             exogenous_data = ExoData(exogenous_data)
 
-        output_features = ([] if self.output_features is None
-                           else self.output_features)
-        fnum_diff = len(output_features) - hi_res.shape[-1]
+        fnum_diff = len(self.hr_out_features) - hi_res.shape[-1]
         exo_feats = ([] if fnum_diff <= 0
-                     else self.output_features[-fnum_diff:])
+                     else self.hr_out_features[-fnum_diff:])
         msg = ('Provided exogenous_data is missing some required features '
                f'({exo_feats})')
         assert all(feature in exogenous_data for feature in exo_feats), msg
@@ -318,6 +314,7 @@ class AbstractInterface(ABC):
                     hi_res = np.concatenate((hi_res, exo_output), axis=-1)
         return hi_res
 
+    @tf.function
     def _combine_loss_input(self, high_res_true, high_res_gen):
         """Combine exogenous feature data from high_res_true with high_res_gen
         for loss calculation
@@ -336,28 +333,12 @@ class AbstractInterface(ABC):
             Same as input with exogenous data combined with high_res input
         """
         if high_res_true.shape[-1] > high_res_gen.shape[-1]:
-            for feature in self.exogenous_features:
-                f_idx = self.hr_features.index(feature)
+            for feature in self.hr_exo_features:
+                f_idx = self.hr_exo_features.index(feature)
+                f_idx += len(self.hr_out_features)
                 exo_data = high_res_true[..., f_idx: f_idx + 1]
                 high_res_gen = tf.concat((high_res_gen, exo_data), axis=-1)
         return high_res_gen
-
-    @property
-    def exogenous_features(self):
-        """Get list of exogenous filter names the model uses. If the model has
-        N concat or add layers this list will be the last N features in the
-        training features list. The ordering is assumed to be the same as the
-        order of concat or add layers. If training features is [..., topo,
-        sza], and the model has 2 concat or add layers, exo features will be
-        [topo, sza]. Topo will then be used in the first concat layer and sza
-        will be used in the second"""
-        # pylint: disable=E1101
-        features = []
-        if hasattr(self, '_gen'):
-            for layer in self._gen.layers:
-                if isinstance(layer, (Sup3rAdder, Sup3rConcat)):
-                    features.append(layer.name)
-        return features
 
     @property
     @abstractmethod
@@ -365,33 +346,35 @@ class AbstractInterface(ABC):
         """Get meta data dictionary that defines how the model was created"""
 
     @property
-    def training_features(self):
-        """Get the list of input feature names that the generative model was
-        trained on."""
-        return self.meta.get('training_features', None)
+    def lr_features(self):
+        """Get a list of low-resolution features input to the generative model.
+        This includes low-resolution features that might be supplied
+        exogenously at inference time but that were in the low-res batches
+        during training"""
+        return self.meta.get('lr_features', [])
 
     @property
-    def train_only_features(self):
-        """Get the list of feature names used only for training (expected as
-        input but not included in output)."""
-        return self.meta.get('train_only_features', None)
+    def hr_out_features(self):
+        """Get the list of high-resolution output feature names that the
+        generative model outputs."""
+        return self.meta.get('hr_out_features', [])
 
     @property
-    def hr_features(self):
-        """Get the list of features stored in batch.high_res. This is the same
-        as training_features but without train_only_features. This is used to
-        select the correct high res exogenous data."""
-        hr_features = self.training_features
-        if self.train_only_features is not None:
-            hr_features = [f for f in self.training_features
-                           if f not in self.train_only_features]
-        return hr_features
-
-    @property
-    def output_features(self):
-        """Get the list of output feature names that the generative model
-        outputs and that the discriminator predicts on."""
-        return self.meta.get('output_features', None)
+    def hr_exo_features(self):
+        """Get list of high-resolution exogenous filter names the model uses.
+        If the model has N concat or add layers this list will be the last N
+        features in the training features list. The ordering is assumed to be
+        the same as the order of concat or add layers. If training features is
+        [..., topo, sza], and the model has 2 concat or add layers, exo
+        features will be [topo, sza]. Topo will then be used in the first
+        concat layer and sza will be used in the second"""
+        # pylint: disable=E1101
+        features = []
+        if hasattr(self, '_gen'):
+            for layer in self._gen.layers:
+                if isinstance(layer, (Sup3rAdder, Sup3rConcat)):
+                    features.append(layer.name)
+        return features
 
     @property
     def smoothing(self):
@@ -403,7 +386,7 @@ class AbstractInterface(ABC):
     def smoothed_features(self):
         """Get the list of smoothed input feature names that the generative
         model was trained on."""
-        return self.meta.get('smoothed_features', None)
+        return self.meta.get('smoothed_features', [])
 
     @property
     def model_params(self):
@@ -427,38 +410,6 @@ class AbstractInterface(ABC):
         """
         return VERSION_RECORD
 
-    def _check_exo_features(self, **kwargs):
-        """Make sure exogenous features have the correct ordering and are
-        included in training_features
-
-        Parameters
-        ----------
-        kwargs : dict
-            Keyword arguments including 'training_features', 'output_features',
-            'smoothed_features', 's_enhance', 't_enhance', 'smoothing'
-
-        Returns
-        -------
-        kwargs : dict
-            Same as input but with exogenous_features removed from output
-            features
-        """
-        if 'output_features' not in kwargs:
-            return kwargs
-
-        output_features = kwargs['output_features']
-        msg = (f'Last {len(self.exogenous_features)} output features from the '
-               f'data handler must be {self.exogenous_features} '
-               'to train the Exo model, but received output features: {}'.
-               format(output_features))
-        exo_features = ([] if len(self.exogenous_features) == 0
-                        else output_features[-len(self.exogenous_features):])
-        assert exo_features == self.exogenous_features, msg
-        for f in self.exogenous_features:
-            output_features.remove(f)
-        kwargs['output_features'] = output_features
-        return kwargs
-
     def set_model_params(self, **kwargs):
         """Set parameters used for training the model
 
@@ -466,15 +417,20 @@ class AbstractInterface(ABC):
         ----------
         kwargs : dict
             Keyword arguments including 'input_resolution',
-            'training_features', 'output_features', 'smoothed_features',
-            's_enhance', 't_enhance', 'smoothing'
+            'lr_features', 'hr_exo_features', 'hr_out_features',
+            'smoothed_features', 's_enhance', 't_enhance', 'smoothing'
         """
-        kwargs = self._check_exo_features(**kwargs)
 
-        keys = ('input_resolution', 'training_features', 'output_features',
-                'train_only_features', 'smoothed_features', 's_enhance',
+        keys = ('input_resolution', 'lr_features', 'hr_exo_features',
+                'hr_out_features', 'smoothed_features', 's_enhance',
                 't_enhance', 'smoothing')
         keys = [k for k in keys if k in kwargs]
+
+        hr_exo_feat = kwargs.get('hr_exo_features', [])
+        msg = (f'Expected high-res exo features {self.hr_exo_features} '
+               f'based on model architecture but received "hr_exo_features" '
+               f'from data handler: {hr_exo_feat}')
+        assert list(self.hr_exo_features) == list(hr_exo_feat), msg
 
         for var in keys:
             val = self.meta.get(var, None)
@@ -599,43 +555,20 @@ class AbstractSingleModel(ABC):
         """
         return self._stdevs
 
-    @property
-    def output_stdevs(self):
-        """Get the data normalization standard deviation values for only the
-        output features
-
-        Returns
-        -------
-        np.ndarray
-        """
-        indices = [
-            self.training_features.index(f) for f in self.output_features
-        ]
-        return self._stdevs[indices]
-
-    @property
-    def output_means(self):
-        """Get the data normalization mean values for only the output features
-
-        Returns
-        -------
-        np.ndarray
-        """
-        indices = [
-            self.training_features.index(f) for f in self.output_features
-        ]
-        return self._means[indices]
-
     def set_norm_stats(self, new_means, new_stdevs):
         """Set the normalization statistics associated with a data batch
         handler to model attributes.
 
         Parameters
         ----------
-        new_means : list | tuple | np.ndarray
-            1D iterable of mean values with same length as number of features.
-        new_stdevs : list | tuple | np.ndarray
-            1D iterable of stdev values with same length as number of features.
+        new_means : dict | None
+            Set of mean values for data normalization keyed by feature name.
+            Can be used to maintain a consistent normalization scheme between
+            transfer learning domains.
+        new_stdevs : dict | None
+            Set of stdev values for data normalization keyed by feature name.
+            Can be used to maintain a consistent normalization scheme between
+            transfer learning domains.
         """
 
         if self._means is not None:
@@ -648,10 +581,22 @@ class AbstractSingleModel(ABC):
         self._means = new_means
         self._stdevs = new_stdevs
 
-        if not isinstance(self._means, np.ndarray):
-            self._means = np.array(self._means)
-        if not isinstance(self._stdevs, np.ndarray):
-            self._stdevs = np.array(self._stdevs)
+        if (not isinstance(self._means, dict)
+                or not isinstance(self._stdevs, dict)):
+            msg = ('Means and stdevs need to be dictionaries with keys as '
+                   'feature names but received means of type '
+                   f'{type(self._means)} and '
+                   f'stdevs of type {type(self._stdevs)}')
+            logger.error(msg)
+            raise TypeError(msg)
+
+        missing = [f for f in self.lr_features if f not in self._means]
+        missing += [f for f in self.hr_exo_features
+                    if f not in self._means]
+        missing += [f for f in self.hr_out_features if f not in self._means]
+        if any(missing):
+            msg = (f'Need means for features "{missing}" but did not find '
+                   f'in new means array: {self._means}')
 
         logger.info('Set data normalization mean values: {}'.format(
             self._means))
@@ -681,14 +626,21 @@ class AbstractSingleModel(ABC):
             if isinstance(low_res, tf.Tensor):
                 low_res = low_res.numpy()
 
-            if any(self._stdevs == 0):
-                stdevs = np.where(self._stdevs == 0, 1, self._stdevs)
+            missing = [fn for fn in self.lr_features if fn not in self._means]
+            if any(missing):
+                msg = (f'Could not find low-res input features {missing} in '
+                       f'means/stdevs: {self._means}/{self._stdevs}')
+                logger.error(msg)
+                raise KeyError(msg)
+
+            means = np.array([self._means[fn] for fn in self.lr_features])
+            stdevs = np.array([self._stdevs[fn] for fn in self.lr_features])
+            if any(stdevs == 0):
+                stdevs = np.where(stdevs == 0, 1, stdevs)
                 msg = 'Some standard deviations are zero.'
                 logger.warning(msg)
                 warn(msg)
-            else:
-                stdevs = self._stdevs
-            low_res = (low_res.copy() - self._means) / stdevs
+            low_res = (low_res.copy() - means) / stdevs
 
         return low_res
 
@@ -709,7 +661,20 @@ class AbstractSingleModel(ABC):
             if isinstance(output, tf.Tensor):
                 output = output.numpy()
 
-            output = (output * self.output_stdevs) + self.output_means
+            missing = [fn for fn in self.hr_out_features
+                       if fn not in self._means]
+            if any(missing):
+                msg = (f'Could not find high-res output features {missing} in '
+                       f'means/stdevs: {self._means}/{self._stdevs}')
+                logger.error(msg)
+                raise KeyError(msg)
+
+            means = [self._means[fn] for fn in self.hr_out_features]
+            stdevs = [self._stdevs[fn] for fn in self.hr_out_features]
+            means = np.array(means)
+            stdevs = np.array(stdevs)
+
+            output = (output * stdevs) + means
 
         return output
 
@@ -845,8 +810,9 @@ class AbstractSingleModel(ABC):
             e.g. {'topography': tf.Tensor(...)}
         """
         exo_data = {}
-        for feature in self.exogenous_features:
-            f_idx = self.hr_features.index(feature)
+        for feature in self.hr_exo_features:
+            f_idx = self.hr_exo_features.index(feature)
+            f_idx += len(self.hr_out_features)
             exo_fdata = high_res[..., f_idx: f_idx + 1]
             exo_data[feature] = exo_fdata
         return exo_data
@@ -1245,9 +1211,8 @@ class AbstractSingleModel(ABC):
             return hi_res_exo
 
         if norm_in and self._means is not None:
-            idf = self.training_features.index(exo_name)
-            hi_res_exo = ((hi_res_exo.copy() - self._means[idf])
-                          / self._stdevs[idf])
+            hi_res_exo = ((hi_res_exo.copy() - self._means[exo_name])
+                          / self._stdevs[exo_name])
 
         if len(hi_res_exo.shape) == 3:
             hi_res_exo = np.expand_dims(hi_res_exo, axis=0)
@@ -1385,7 +1350,7 @@ class AbstractSingleModel(ABC):
 
         return hi_res
 
-    @tf.function()
+    @tf.function
     def get_single_grad(self,
                         low_res,
                         hi_res_true,

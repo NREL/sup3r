@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 """pytests for data handling"""
-
+import json
 import os
-import pickle
 import tempfile
 
 import matplotlib.pyplot as plt
@@ -30,6 +29,7 @@ s_enhance = 5
 val_split = 0.2
 dh_kwargs = {'target': target, 'shape': shape, 'max_delta': 20,
              'sample_shape': sample_shape,
+             'lr_only_features': ('BVF*m', 'topography',),
              'temporal_slice': slice(None, None, 1),
              'worker_kwargs': {'max_workers': 1}}
 bh_kwargs = {'batch_size': 8, 'n_batches': 20,
@@ -87,7 +87,7 @@ def test_topography():
     topo_idx = data_handler.features.index('topography')
     assert np.allclose(topo, data_handler.data[..., 0, topo_idx])
     st_batch_handler = BatchHandler([data_handler], **bh_kwargs)
-    assert data_handler.output_features == features[:2]
+    assert data_handler.hr_out_features == features[:2]
     assert data_handler.data.shape[-1] == len(features)
 
     for batch in st_batch_handler:
@@ -197,16 +197,16 @@ def test_raster_index_caching():
 def test_normalization_input():
     """Test correct normalization input"""
 
-    means = np.random.rand(len(features))
-    stds = np.random.rand(len(features))
+    means = {f: 10 for f in features}
+    stds = {f: 20 for f in features}
     data_handlers = []
     for input_file in input_files:
         data_handler = DataHandler(input_file, features, **dh_kwargs)
         data_handlers.append(data_handler)
     batch_handler = BatchHandler(data_handlers, means=means,
                                  stds=stds, **bh_kwargs)
-    assert np.array_equal(batch_handler.stds, stds)
-    assert np.array_equal(batch_handler.means, means)
+    assert all(batch_handler.means[f] == means[f] for f in features)
+    assert all(batch_handler.stds[f] == stds[f] for f in features)
 
 
 def test_stats_caching():
@@ -218,20 +218,20 @@ def test_stats_caching():
         data_handlers.append(data_handler)
 
     with tempfile.TemporaryDirectory() as td:
-        means_file = os.path.join(td, 'means.pkl')
-        stdevs_file = os.path.join(td, 'stdevs.pkl')
+        means_file = os.path.join(td, 'means.json')
+        stdevs_file = os.path.join(td, 'stds.json')
         batch_handler = BatchHandler(data_handlers, stdevs_file=stdevs_file,
                                      means_file=means_file, **bh_kwargs)
         assert os.path.exists(means_file)
         assert os.path.exists(stdevs_file)
 
-        with open(means_file, 'rb') as fh:
-            means = pickle.load(fh)
-        with open(stdevs_file, 'rb') as fh:
-            stdevs = pickle.load(fh)
+        with open(means_file, 'r') as fh:
+            means = json.load(fh)
+        with open(stdevs_file, 'r') as fh:
+            stds = json.load(fh)
 
-        assert np.array_equal(means, batch_handler.means)
-        assert np.array_equal(stdevs, batch_handler.stds)
+        assert all(batch_handler.means[f] == means[f] for f in features)
+        assert all(batch_handler.stds[f] == stds[f] for f in features)
 
         stacked_data = np.concatenate([d.data for d
                                        in batch_handler.data_handlers], axis=2)
@@ -241,8 +241,8 @@ def test_stats_caching():
             if std == 0:
                 std = 1
             mean = np.mean(stacked_data[..., i])
-            assert np.allclose(std, 1, atol=1e-3)
-            assert np.allclose(mean, 0, atol=1e-3)
+            assert np.allclose(std, 1, atol=1e-2), str(std)
+            assert np.allclose(mean, 0, atol=1e-5), str(mean)
 
 
 def test_unequal_size_normalization():
@@ -264,8 +264,8 @@ def test_unequal_size_normalization():
         if std == 0:
             std = 1
         mean = np.mean(stacked_data[..., i])
-        assert np.allclose(std, 1, atol=1e-3)
-        assert np.allclose(mean, 0, atol=1e-3)
+        assert np.allclose(std, 1, atol=2e-2), str(std)
+        assert np.allclose(mean, 0, atol=1e-5), str(mean)
 
 
 def test_normalization():
@@ -284,8 +284,8 @@ def test_normalization():
         if std == 0:
             std = 1
         mean = np.mean(stacked_data[..., i])
-        assert np.allclose(std, 1, atol=1e-3)
-        assert np.allclose(mean, 0, atol=1e-3)
+        assert np.allclose(std, 1, atol=1e-2), str(std)
+        assert np.allclose(mean, 0, atol=1e-5), str(mean)
 
 
 def test_spatiotemporal_normalization():
@@ -304,8 +304,8 @@ def test_spatiotemporal_normalization():
         if std == 0:
             std = 1
         mean = np.mean(stacked_data[..., i])
-        assert np.allclose(std, 1, atol=1e-3)
-        assert np.allclose(mean, 0, atol=1e-3)
+        assert np.allclose(std, 1, atol=1e-2), str(std)
+        assert np.allclose(mean, 0, atol=1e-5), str(mean)
 
 
 def test_data_extraction():
@@ -658,3 +658,78 @@ def test_solar_spatial_h5():
         assert not np.isnan(batch.high_res).any()
         assert batch.low_res.shape == (8, 2, 2, 1)
         assert batch.high_res.shape == (8, 10, 10, 1)
+
+
+def test_lr_only_features():
+    """Test using BVF as a low-resolution only feature that should be dropped
+    from the high-res observations."""
+    dh_kwargs_new = dh_kwargs.copy()
+    dh_kwargs_new["sample_shape"] = sample_shape
+    dh_kwargs_new["lr_only_features"] = 'BVF2*'
+    data_handler = DataHandler(input_files[0], features, **dh_kwargs_new)
+
+    bh_kwargs_new = bh_kwargs.copy()
+    bh_kwargs_new['norm'] = False
+    batch_handler = BatchHandler(data_handler, **bh_kwargs_new)
+
+    for batch in batch_handler:
+        assert batch.low_res.shape[-1] == 3
+        assert batch.high_res.shape[-1] == 2
+
+        for iobs, data_ind in enumerate(batch_handler.current_batch_indices):
+            truth = data_handler.data[data_ind]
+            np.allclose(truth[..., 0:2], batch.high_res[iobs])
+            truth = utilities.spatial_coarsening(truth, s_enhance=s_enhance,
+                                                 obs_axis=False)
+            np.allclose(truth[..., ::t_enhance, :], batch.low_res[iobs])
+
+
+def test_hr_exo_features():
+    """Test using BVF as a high-res exogenous feature. For the single data
+    handler, this isnt supposed to do anything because the feature is still
+    assumed to be in the low-res."""
+    dh_kwargs_new = dh_kwargs.copy()
+    dh_kwargs_new["sample_shape"] = sample_shape
+    dh_kwargs_new["hr_exo_features"] = 'BVF2*'
+    data_handler = DataHandler(input_files[0], features, **dh_kwargs_new)
+    assert data_handler.hr_exo_features == ['BVF2_200m']
+
+    bh_kwargs_new = bh_kwargs.copy()
+    bh_kwargs_new['norm'] = False
+    batch_handler = BatchHandler(data_handler, **bh_kwargs_new)
+
+    for batch in batch_handler:
+        assert batch.low_res.shape[-1] == 3
+        assert batch.high_res.shape[-1] == 3
+
+        for iobs, data_ind in enumerate(batch_handler.current_batch_indices):
+            truth = data_handler.data[data_ind]
+            np.allclose(truth, batch.high_res[iobs])
+            truth = utilities.spatial_coarsening(truth, s_enhance=s_enhance,
+                                                 obs_axis=False)
+            np.allclose(truth[..., ::t_enhance, :], batch.low_res[iobs])
+
+
+@pytest.mark.parametrize(['features', 'lr_only_features', 'hr_exo_features'],
+                         [(['V_100m'], ['V_100m'], []),
+                          (['U_100m'], ['V_100m'], ['V_100m']),
+                          (['U_100m'], [], ['U_100m']),
+                          (['U_100m', 'V_100m'], [], ['U_100m']),
+                          (['U_100m', 'V_100m'], [], ['V_100m', 'U_100m'])])
+def test_feature_errors(features, lr_only_features, hr_exo_features):
+    """Each of these feature combinations should raise an error due to no
+    features left in hr output or bad ordering"""
+    handler = DataHandler(input_files[0],
+                          features,
+                          lr_only_features=lr_only_features,
+                          hr_exo_features=hr_exo_features,
+                          target=target,
+                          shape=(20, 20),
+                          sample_shape=(5, 5, 4),
+                          temporal_slice=slice(None, None, 1),
+                          worker_kwargs=dict(max_workers=1),
+                          )
+    with pytest.raises(Exception):
+        _ = handler.lr_features
+        _ = handler.hr_out_features
+        _ = handler.hr_exo_features

@@ -290,12 +290,17 @@ class OutputHandler(OutputMixIn):
         data : ndarray
             Array of feature data with physical limits enforced
         """
-        maxes = [H5_ATTRS[Feature.get_basename(f)].get('max', np.inf)
-                 for f in features]
-        mins = [H5_ATTRS[Feature.get_basename(f)].get('min', -np.inf)
-                for f in features]
+        maxs = []
+        mins = []
+        for fn in features:
+            max = H5_ATTRS[Feature.get_basename(fn)].get('max', np.inf)
+            min = H5_ATTRS[Feature.get_basename(fn)].get('min', -np.inf)
+            logger.debug(f'Enforcing range of ({max}, {min} for "{fn}")')
+            maxs.append(max)
+            mins.append(min)
+
         data = np.maximum(data, mins)
-        data = np.minimum(data, maxes)
+        data = np.minimum(data, maxs)
 
         return data
 
