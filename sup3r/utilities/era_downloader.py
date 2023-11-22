@@ -54,7 +54,8 @@ class EraDownloader:
         'total_precipitation', "convective_available_potential_energy",
         "2m_dewpoint_temperature", "convective_inhibition",
         "surface_latent_heat_flux", "instantaneous_moisture_flux",
-        "mean_total_precipitation_rate"
+        "mean_total_precipitation_rate", "mean_sea_level_pressure",
+        "friction_velocity"
     ]
 
     # variables available on multiple pressure levels

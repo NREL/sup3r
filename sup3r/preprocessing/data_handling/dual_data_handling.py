@@ -87,13 +87,12 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         self.hr_data = None
         self.lr_val_data = None
         self.hr_val_data = None
-        self.lr_time_index = None
-        self.hr_time_index = None
-        self.lr_val_time_index = None
-        self.hr_val_time_index = None
-
         lr_data_shape = (*self.lr_required_shape, len(self.lr_dh.features))
         self.lr_data = np.zeros(lr_data_shape, dtype=np.float32)
+        self.lr_time_index = lr_handler.time_index
+        self.hr_time_index = hr_handler.time_index
+        self.lr_val_time_index = lr_handler.val_time_index
+        self.hr_val_time_index = hr_handler.val_time_index
 
         if self.try_load and self.load_cached:
             self.load_cached_data()
@@ -269,8 +268,8 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
             self.hr_dh.load_cached_data(with_split=False)
 
         msg = (f'hr_handler.shape {self.hr_dh.shape[:-1]} is not divisible '
-               f'by s_enhance. Using shape = {self.hr_required_shape} '
-               'instead.')
+               f'by s_enhance ({self.s_enhance}). Using shape = '
+               f'{self.hr_required_shape} instead.')
         if self.hr_dh.shape[:-1] != self.hr_required_shape:
             logger.warning(msg)
             warn(msg)

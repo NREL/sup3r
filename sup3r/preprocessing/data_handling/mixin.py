@@ -887,7 +887,8 @@ class InputMixIn(CacheHandlingMixIn):
             return None
 
         if self.cache_pattern is not None and self._time_index_file is None:
-            basename = self.cache_pattern.replace('{times}', '')
+            basename = self.cache_pattern.replace('_{times}', '')
+            basename = basename.replace('{times}', '')
             basename = basename.replace('{shape}', str(len(self.file_paths)))
             basename = basename.replace('_{target}', '')
             basename = basename.replace('{feature}', 'time_index')

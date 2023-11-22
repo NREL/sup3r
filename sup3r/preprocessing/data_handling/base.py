@@ -47,6 +47,7 @@ from sup3r.utilities.utilities import (
     estimate_max_workers,
     get_chunk_slices,
     get_raster_shape,
+    nn_fill_array,
     np_to_pd_times,
     spatial_coarsening,
     uniform_box_sampler,
@@ -543,8 +544,7 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         handle_features = []
         for f in file_paths:
             handle = cls.source_handler([f])
-            for r in handle:
-                handle_features.append(Feature.get_basename(r))
+            handle_features += [Feature.get_basename(r) for r in handle]
         return list(set(handle_features))
 
     @property
@@ -1159,7 +1159,7 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         self.run_data_compute()
 
         logger.info('Building final data array')
-        self.parallel_data_fill(shifted_time_chunks, self.extract_workers)
+        self.data_fill(shifted_time_chunks, self.extract_workers)
 
         if self.invert_lat:
             self.data = self.data[::-1]
@@ -1182,7 +1182,15 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
 
         logger.info(f'Finished extracting data for {self.input_file_info} in '
                     f'{dt.now() - now}')
+
+        self.run_nn_fill()
         return self.data
+
+    def run_nn_fill(self):
+        """Run nn nan fill on full data array."""
+        for i in range(self.data.shape[-1]):
+            if np.isnan(self.data[..., i]).any():
+                self.data[..., i] = nn_fill_array(self.data[..., i])
 
     def run_data_extraction(self):
         """Run the raw dataset extraction process from disk to raw
@@ -1238,7 +1246,7 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
             logger.info(f'Finished computing {self.derive_features} for '
                         f'{self.input_file_info}')
 
-    def data_fill(self, t, t_slice, f_index, f):
+    def _data_fill(self, t, t_slice, f_index, f):
         """Place single extracted / computed chunk in final data array
 
         Parameters
@@ -1269,14 +1277,12 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         for t, ts in enumerate(shifted_time_chunks):
             for _, f in enumerate(self.noncached_features):
                 f_index = self.features.index(f)
-                self.data_fill(t, ts, f_index, f)
-            interval = int(np.ceil(len(shifted_time_chunks) / 10))
-            if t % interval == 0:
-                logger.info(f'Added {t + 1} of {len(shifted_time_chunks)} '
-                            'chunks to final data array')
+                self._data_fill(t, ts, f_index, f)
+            logger.info(f'Added {t + 1} of {len(shifted_time_chunks)} '
+                        'chunks to final data array')
             self._raw_data.pop(t)
 
-    def parallel_data_fill(self, shifted_time_chunks, max_workers=None):
+    def data_fill(self, shifted_time_chunks, max_workers=None):
         """Fill final data array with extracted / computed chunks
 
         Parameters
@@ -1304,13 +1310,12 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
                 for t, ts in enumerate(shifted_time_chunks):
                     for _, f in enumerate(self.noncached_features):
                         f_index = self.features.index(f)
-                        future = exe.submit(self.data_fill, t, ts, f_index, f)
+                        future = exe.submit(self._data_fill, t, ts, f_index, f)
                         futures[future] = {'t': t, 'fidx': f_index}
 
                 logger.info(f'Started adding {len(futures)} chunks '
                             f'to data array in {dt.now() - now}.')
 
-                interval = int(np.ceil(len(futures) / 10))
                 for i, future in enumerate(as_completed(futures)):
                     try:
                         future.result()
@@ -1320,9 +1325,8 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
                                'final data array.')
                         logger.exception(msg)
                         raise RuntimeError(msg) from e
-                    if i % interval == 0:
-                        logger.debug(f'Added {i+1} out of {len(futures)} '
-                                     'chunks to final data array')
+                    logger.debug(f'Added {i+1} out of {len(futures)} '
+                                 'chunks to final data array')
         logger.info('Finished building data array')
 
     @abstractmethod
