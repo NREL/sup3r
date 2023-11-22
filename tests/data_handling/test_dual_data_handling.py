@@ -500,3 +500,84 @@ def test_mixed_lr_hr_features(lr_features, hr_features, hr_exo_features):
             assert np.allclose(batch.low_res, batch.high_res)
         elif batch_handler.lr_features != lr_features + hr_only_features:
             assert not np.allclose(batch.low_res, batch.high_res)
+
+
+def test_bad_cache_load():
+    """This tests good errors when load_cached gets messed up with dual data
+    handling and stats normalization."""
+    s_enhance = 2
+    t_enhance = 2
+    full_shape = (20, 20)
+    sample_shape = (10, 10, 4)
+
+    with tempfile.TemporaryDirectory() as td:
+        lr_cache = f'{td}/lr_cache_' + '{feature}.pkl'
+        hr_cache = f'{td}/hr_cache_' + '{feature}.pkl'
+        dual_cache = f'{td}/dual_cache_' + '{feature}.pkl'
+
+        hr_handler = DataHandlerH5(FP_WTK,
+                                   FEATURES,
+                                   target=TARGET_COORD,
+                                   shape=full_shape,
+                                   sample_shape=sample_shape,
+                                   temporal_slice=slice(None, None, 10),
+                                   cache_pattern=hr_cache,
+                                   load_cached=False,
+                                   worker_kwargs=dict(max_workers=1))
+
+        lr_handler = DataHandlerNC(FP_ERA,
+                                   FEATURES,
+                                   sample_shape=(sample_shape[0] // s_enhance,
+                                                 sample_shape[1] // s_enhance,
+                                                 sample_shape[2] // t_enhance),
+                                   temporal_slice=slice(None, None,
+                                                        t_enhance * 10),
+                                   cache_pattern=lr_cache,
+                                   load_cached=False,
+                                   worker_kwargs=dict(max_workers=1))
+
+        # because load_cached is False
+        assert hr_handler.data is None
+        assert lr_handler.data is None
+
+        dual_handler = DualDataHandler(hr_handler,
+                                       lr_handler,
+                                       s_enhance=s_enhance,
+                                       t_enhance=t_enhance,
+                                       cache_pattern=dual_cache,
+                                       load_cached=False,
+                                       val_split=0.1)
+
+        # because load_cached is False
+        assert hr_handler.data is None
+        assert lr_handler.data is not None
+
+        good_err = "Try initializing DualDataHandler with load_cached=True"
+        with pytest.raises(RuntimeError) as ex:
+            _ = copy.deepcopy(dual_handler.means)
+        assert good_err in str(ex.value)
+
+        with pytest.raises(RuntimeError) as ex:
+            _ = copy.deepcopy(dual_handler.stds)
+        assert good_err in str(ex.value)
+
+        with pytest.raises(RuntimeError) as ex:
+            dual_handler.normalize()
+        assert good_err in str(ex.value)
+
+        dual_handler = DualDataHandler(hr_handler,
+                                       lr_handler,
+                                       s_enhance=s_enhance,
+                                       t_enhance=t_enhance,
+                                       cache_pattern=dual_cache,
+                                       load_cached=True,
+                                       val_split=0.1)
+
+        # because load_cached is True
+        assert hr_handler.data is not None
+        assert lr_handler.data is not None
+
+        # should run without error now that load_cached=True
+        _ = copy.deepcopy(dual_handler.means)
+        _ = copy.deepcopy(dual_handler.stds)
+        dual_handler.normalize()

@@ -176,6 +176,14 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         -------
         dict
         """
+
+        if self.lr_dh.data is None or self.hr_dh.data is None:
+            msg = ('Low-res or High-res DataHandler object has '
+                   'DataHandler.data=None! Try initializing DualDataHandler '
+                   'with load_cached=True')
+            logger.error(msg)
+            raise RuntimeError(msg)
+
         out = copy.deepcopy(self.hr_dh.means)
         out.update(self.lr_dh.means)
         return out
@@ -190,6 +198,14 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         -------
         dict
         """
+
+        if self.lr_dh.data is None or self.hr_dh.data is None:
+            msg = ('Low-res or High-res DataHandler object has '
+                   'DataHandler.data=None! Try initializing DualDataHandler '
+                   'with load_cached=True')
+            logger.error(msg)
+            raise RuntimeError(msg)
+
         out = copy.deepcopy(self.hr_dh.stds)
         out.update(self.lr_dh.stds)
         return out
@@ -213,10 +229,19 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
             Max workers to perform normalization. if None, self.norm_workers
             will be used
         """
+
+        if self.lr_dh.data is None or self.hr_dh.data is None:
+            msg = ('Low-res or High-res DataHandler object has '
+                   'DataHandler.data=None! Try initializing DualDataHandler '
+                   'with load_cached=True')
+            logger.error(msg)
+            raise RuntimeError(msg)
+
         if means is None:
             means = self.means
         if stds is None:
             stds = self.stds
+
         logger.info('Normalizing low resolution data features='
                     f'{self.lr_dh.features}')
         self.lr_dh.normalize(means=means, stds=stds, max_workers=max_workers)
@@ -483,6 +508,8 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         self.load_lr_cached_data()
         self._shape_check()
         self._val_split_check()
+        self.hr_dh.load_cached_data()
+        self.lr_dh.load_cached_data()
 
     def check_clear_data(self):
         """Check if data was cached and free memory if load_cached is False"""
