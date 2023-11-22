@@ -55,7 +55,10 @@ class EraDownloader:
         "2m_dewpoint_temperature", "convective_inhibition",
         "surface_latent_heat_flux", "instantaneous_moisture_flux",
         "mean_total_precipitation_rate", "mean_sea_level_pressure",
-        "friction_velocity"
+        "friction_velocity", "lake_cover", "high_vegetation_cover",
+        "land_sea_mask", "k_index", "forecast_surface_roughness",
+        "northward_turbulent_surface_stress",
+        "eastward_turbulent_surface_stress",
     ]
 
     # variables available on multiple pressure levels
