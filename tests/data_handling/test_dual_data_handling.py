@@ -395,7 +395,9 @@ def test_validation_batching(log=False,
             assert np.array_equal(coarse_ti.values, lr_ti.values)
 
 
-def test_normalization(log=False,
+@pytest.mark.parametrize('cache', [True, False])
+def test_normalization(cache,
+                       log=False,
                        full_shape=(20, 20),
                        sample_shape=(10, 10, 4)):
     """Test correct normalization"""
@@ -405,41 +407,53 @@ def test_normalization(log=False,
     s_enhance = 2
     t_enhance = 2
 
-    hr_handler = DataHandlerH5(FP_WTK,
-                               FEATURES,
-                               target=TARGET_COORD,
-                               shape=full_shape,
-                               sample_shape=sample_shape,
-                               temporal_slice=slice(None, None, 10),
-                               worker_kwargs=dict(max_workers=1))
-    lr_handler = DataHandlerNC(FP_ERA,
-                               FEATURES,
-                               sample_shape=(sample_shape[0] // s_enhance,
-                                             sample_shape[1] // s_enhance,
-                                             sample_shape[2] // t_enhance),
-                               temporal_slice=slice(None, None,
-                                                    t_enhance * 10),
-                               worker_kwargs=dict(max_workers=1))
+    with tempfile.TemporaryDirectory() as td:
+        hr_cache = None
+        lr_cache = None
+        dual_cache = None
+        if cache:
+            hr_cache = os.path.join(td, 'hr_cache_{feature}.pkl')
+            lr_cache = os.path.join(td, 'lr_cache_{feature}.pkl')
+            dual_cache = os.path.join(td, 'dual_cache_{feature}.pkl')
 
-    dual_handler = DualDataHandler(hr_handler,
-                                   lr_handler,
-                                   s_enhance=s_enhance,
-                                   t_enhance=t_enhance,
-                                   val_split=0.1)
+        hr_handler = DataHandlerH5(FP_WTK,
+                                   FEATURES,
+                                   target=TARGET_COORD,
+                                   shape=full_shape,
+                                   sample_shape=sample_shape,
+                                   temporal_slice=slice(None, None, 10),
+                                   cache_pattern=hr_cache,
+                                   worker_kwargs=dict(max_workers=1))
+        lr_handler = DataHandlerNC(FP_ERA,
+                                   FEATURES,
+                                   sample_shape=(sample_shape[0] // s_enhance,
+                                                 sample_shape[1] // s_enhance,
+                                                 sample_shape[2] // t_enhance),
+                                   temporal_slice=slice(None, None,
+                                                        t_enhance * 10),
+                                   cache_pattern=lr_cache,
+                                   worker_kwargs=dict(max_workers=1))
 
-    hr_means0 = np.mean(hr_handler.data, axis=(0, 1, 2))
-    lr_means0 = np.mean(lr_handler.data, axis=(0, 1, 2))
-    ddh_hr_means0 = np.mean(dual_handler.hr_data, axis=(0, 1, 2))
-    ddh_lr_means0 = np.mean(dual_handler.lr_data, axis=(0, 1, 2))
+        dual_handler = DualDataHandler(hr_handler,
+                                       lr_handler,
+                                       s_enhance=s_enhance,
+                                       t_enhance=t_enhance,
+                                       cache_pattern=dual_cache,
+                                       val_split=0.1)
 
-    means = copy.deepcopy(lr_handler.means)
-    stdevs = copy.deepcopy(lr_handler.stds)
+        hr_means0 = np.mean(hr_handler.data, axis=(0, 1, 2))
+        lr_means0 = np.mean(lr_handler.data, axis=(0, 1, 2))
+        ddh_hr_means0 = np.mean(dual_handler.hr_data, axis=(0, 1, 2))
+        ddh_lr_means0 = np.mean(dual_handler.lr_data, axis=(0, 1, 2))
 
-    batch_handler = DualBatchHandler([dual_handler],
-                                     batch_size=2,
-                                     s_enhance=s_enhance,
-                                     t_enhance=t_enhance,
-                                     n_batches=10)
+        means = copy.deepcopy(lr_handler.means)
+        stdevs = copy.deepcopy(lr_handler.stds)
+
+        batch_handler = DualBatchHandler([dual_handler],
+                                         batch_size=2,
+                                         s_enhance=s_enhance,
+                                         t_enhance=t_enhance,
+                                         n_batches=10)
 
     hr_means1 = np.mean(hr_handler.data, axis=(0, 1, 2))
     lr_means1 = np.mean(lr_handler.data, axis=(0, 1, 2))
@@ -457,10 +471,19 @@ def test_normalization(log=False,
         assert np.allclose(mean, 0, atol=1e-3), str(mean)
 
         fn = FEATURES[idf]
-        assert np.allclose(hr_means0[idf] - means[fn], hr_means1[idf])
-        assert np.allclose(lr_means0[idf] - means[fn], lr_means1[idf])
-        assert np.allclose(ddh_hr_means0[idf] - means[fn], ddh_hr_means1[idf])
-        assert np.allclose(ddh_lr_means0[idf] - means[fn], ddh_lr_means1[idf])
+        true_hr_mean0 = (hr_means0[idf] - means[fn]) / stdevs[fn]
+        true_lr_mean0 = (lr_means0[idf] - means[fn]) / stdevs[fn]
+        true_ddh_hr_mean0 = (ddh_hr_means0[idf] - means[fn]) / stdevs[fn]
+        true_ddh_lr_mean0 = (ddh_lr_means0[idf] - means[fn]) / stdevs[fn]
+
+        assert np.allclose(true_hr_mean0, hr_means1[idf],
+                           rtol=1e-4, atol=1e-5)
+        assert np.allclose(true_lr_mean0, lr_means1[idf],
+                           rtol=1e-4, atol=1e-5)
+        assert np.allclose(true_ddh_hr_mean0, ddh_hr_means1[idf],
+                           rtol=1e-4, atol=1e-5)
+        assert np.allclose(true_ddh_lr_mean0, ddh_lr_means1[idf],
+                           rtol=1e-4, atol=1e-5)
 
 
 @pytest.mark.parametrize(['lr_features', 'hr_features', 'hr_exo_features'],

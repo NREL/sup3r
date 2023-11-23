@@ -249,6 +249,14 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
                     f'{self.hr_dh.features}')
         self.hr_dh.normalize(means=means, stds=stds, max_workers=max_workers)
 
+        # need to normalize data attribute arrays in addition to handlers
+        lr_mean_arr = np.array([means[fn] for fn in self.lr_dh.features])
+        lr_std_arr = np.array([stds[fn] for fn in self.lr_dh.features])
+        hr_mean_arr = np.array([means[fn] for fn in self.hr_dh.features])
+        hr_std_arr = np.array([stds[fn] for fn in self.hr_dh.features])
+        self.lr_data = (self.lr_data - lr_mean_arr) / lr_std_arr
+        self.hr_data = (self.hr_data - hr_mean_arr) / hr_std_arr
+
     @property
     def features(self):
         """Get a list of data features including features from both the lr and
