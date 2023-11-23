@@ -17,6 +17,7 @@ import psutil
 from scipy.stats import mode
 
 from sup3r.utilities.utilities import (
+    estimate_max_workers,
     get_source_type,
     ignore_case_path_fetch,
     uniform_box_sampler,
@@ -924,8 +925,14 @@ class TrainingPrepMixIn:
     def __init__(self):
         """Initialize common attributes"""
         self.features = None
-        self.means = None
-        self.stds = None
+        self.data = None
+        self.val_data = None
+        self.feature_mem = None
+        self.shape = None
+        self._means = None
+        self._stds = None
+        self._is_normalized = False
+        self._norm_workers = None
 
     @classmethod
     def _split_data_indices(cls,
@@ -1031,7 +1038,7 @@ class TrainingPrepMixIn:
         logger.debug(f'Finished normalizing {self.features[feature_index]} '
                      f'with mean {mean:.3e} and std {std:.3e}.')
 
-    def _normalize(self, data, val_data, max_workers=None):
+    def _normalize(self, data, val_data, features=None, max_workers=None):
         """Normalize all data features
 
         Parameters
@@ -1042,27 +1049,31 @@ class TrainingPrepMixIn:
         val_data : np.ndarray
             Array of validation data.
             (spatial_1, spatial_2, temporal, n_features)
+        features : list | None
+            List of features used for indexing data array during normalization.
         max_workers : int | None
             Number of workers to use in thread pool for nomalization.
         """
+        if features is None:
+            features = self.features
 
-        msg1 = (f'Not all feature names {self.features} were found in '
+        msg1 = (f'Not all feature names {features} were found in '
                 f'self.means: {list(self.means.keys())}')
-        msg2 = (f'Not all feature names {self.features} were found in '
+        msg2 = (f'Not all feature names {features} were found in '
                 f'self.stds: {list(self.stds.keys())}')
-        assert all(fn in self.means for fn in self.features), msg1
-        assert all(fn in self.stds for fn in self.features), msg2
+        assert all(fn in self.means for fn in features), msg1
+        assert all(fn in self.stds for fn in features), msg2
 
-        logger.info(f'Normalizing {data.shape[-1]} features: {self.features}')
+        logger.info(f'Normalizing {data.shape[-1]} features: {features}')
 
         if max_workers == 1:
-            for idf, feature in enumerate(self.features):
+            for idf, feature in enumerate(features):
                 self._normalize_data(data, val_data, idf, self.means[feature],
                                      self.stds[feature])
         else:
             with ThreadPoolExecutor(max_workers=max_workers) as exe:
                 futures = []
-                for idf, feature in enumerate(self.features):
+                for idf, feature in enumerate(features):
                     future = exe.submit(self._normalize_data,
                                         data, val_data, idf,
                                         self.means[feature],
@@ -1077,3 +1088,88 @@ class TrainingPrepMixIn:
                                f'{futures[future]}.')
                         logger.exception(msg)
                         raise RuntimeError(msg) from e
+
+    @property
+    def means(self):
+        """Get the mean values for each feature.
+
+        Returns
+        -------
+        dict
+        """
+        self._get_stats()
+        return self._means
+
+    @property
+    def stds(self):
+        """Get the standard deviation values for each feature.
+
+        Returns
+        -------
+        dict
+        """
+        self._get_stats()
+        return self._stds
+
+    def _get_stats(self, features=None):
+        """Get the mean/stdev for each feature in the data handler."""
+        if features is None:
+            features = self.features
+        if self._means is None or self._stds is None:
+            msg = (f'DataHandler has {len(features)} features '
+                   f'and mismatched shape of {self.shape}')
+            assert len(features) == self.shape[-1], msg
+            self._stds = {}
+            self._means = {}
+            for idf, fname in enumerate(features):
+                self._means[fname] = np.nanmean(
+                    self.data[..., idf].astype(np.float64))
+                self._stds[fname] = np.nanstd(
+                    self.data[..., idf].astype(np.float64))
+
+    def normalize(self, means=None, stds=None, features=None,
+                  max_workers=None):
+        """Normalize all data features.
+
+        Parameters
+        ----------
+        means : dict | none
+            Dictionary of means for all features with keys: feature names and
+            values: mean values. If this is None, the self.means attribute will
+            be used. If this is not None, this DataHandler object means
+            attribute will be updated.
+        stds : dict | none
+            dictionary of standard deviation values for all features with keys:
+            feature names and values: standard deviations. If this is None, the
+            self.stds attribute will be used. If this is not None, this
+            DataHandler object stds attribute will be updated.
+        features : list | None
+            List of features used for indexing data array during normalization.
+        max_workers : None | int
+            Max workers to perform normalization. if None, self.norm_workers
+            will be used
+        """
+        if means is not None:
+            self._means = means
+        if stds is not None:
+            self._stds = stds
+
+        if self._is_normalized:
+            logger.info('Skipping DataHandler, already normalized')
+        else:
+            self._normalize(self.data,
+                            self.val_data,
+                            features=features,
+                            max_workers=max_workers)
+            self._is_normalized = True
+
+    @property
+    def norm_workers(self):
+        """Get upper bound on workers used for normalization."""
+        if self.data is not None:
+            norm_workers = estimate_max_workers(self._norm_workers,
+                                                2 * self.feature_mem,
+                                                self.shape[-1])
+        else:
+            norm_workers = self._norm_workers
+        return norm_workers

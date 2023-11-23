@@ -451,17 +451,6 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         return load_workers
 
     @property
-    def norm_workers(self):
-        """Get upper bound on workers used for normalization."""
-        if self.data is not None:
-            norm_workers = estimate_max_workers(self._norm_workers,
-                                                2 * self.feature_mem,
-                                                self.shape[-1])
-        else:
-            norm_workers = self._norm_workers
-        return norm_workers
-
-    @property
     def time_chunks(self):
         """Get time chunks which will be extracted from source data
 
@@ -920,72 +909,6 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
                                           time_index,
                                           target,
                                           features)
-
-    @property
-    def means(self):
-        """Get the mean values for each feature.
-
-        Returns
-        -------
-        dict
-        """
-        self._get_stats()
-        return self._means
-
-    @property
-    def stds(self):
-        """Get the standard deviation values for each feature.
-
-        Returns
-        -------
-        dict
-        """
-        self._get_stats()
-        return self._stds
-
-    def _get_stats(self):
-        if self._means is None or self._stds is None:
-            msg = (f'DataHandler has {len(self.features)} features '
-                   f'and mismatched shape of {self.shape}')
-            assert len(self.features) == self.shape[-1], msg
-            self._stds = {}
-            self._means = {}
-            for idf, fname in enumerate(self.features):
-                self._means[fname] = np.nanmean(self.data[..., idf])
-                self._stds[fname] = np.nanstd(self.data[..., idf])
-
-    def normalize(self, means=None, stds=None, max_workers=None):
-        """Normalize all data features.
-
-        Parameters
-        ----------
-        means : dict | none
-            Dictionary of means for all features with keys: feature names and
-            values: mean values. If this is None, the self.means attribute will
-            be used. If this is not None, this DataHandler object means
-            attribute will be updated.
-        stds : dict | none
-            dictionary of standard deviation values for all features with keys:
-            feature names and values: standard deviations. If this is None, the
-            self.stds attribute will be used. If this is not None, this
-            DataHandler object stds attribute will be updated.
-        max_workers : None | int
-            Max workers to perform normalization. if None, self.norm_workers
-            will be used
-        """
-        if means is not None:
-            self._means = means
-        if stds is not None:
-            self._stds = stds
-
-        max_workers = max_workers or self.norm_workers
-        if self._is_normalized:
-            logger.info('Skipping DataHandler, already normalized')
-        else:
-            self._normalize(self.data,
-                            self.val_data,
-                            max_workers=max_workers)
-            self._is_normalized = True
 
     def get_next(self):
         """Get data for observation using random observation index. Loops

@@ -618,14 +618,15 @@ class BatchHandler:
         max_workers = self.norm_workers
         if max_workers == 1:
             for dh in self.data_handlers:
-                dh.normalize(self.means, self.stds)
+                dh.normalize(self.means, self.stds,
+                             max_workers=dh.norm_workers)
         else:
             with ThreadPoolExecutor(max_workers=max_workers) as exe:
                 futures = {}
                 now = dt.now()
                 for idh, dh in enumerate(self.data_handlers):
                     future = exe.submit(dh.normalize, self.means, self.stds,
-                                        max_workers=1)
+                                        max_workers=dh.norm_workers)
                     futures[future] = idh
 
                 logger.info(f'Started normalizing {len(self.data_handlers)} '
@@ -691,7 +692,8 @@ class BatchHandler:
                         future = exe.submit(dh._get_stats)
                         futures[future] = idh
 
-                    for i, _ in enumerate(as_completed(futures)):
+                    for i, future in enumerate(as_completed(futures)):
+                        _ = future.result()
                         logger.debug(f'{i+1} out of {len(self.data_handlers)} '
                                      'means calculated.')
 
@@ -731,10 +733,10 @@ class BatchHandler:
         means_check = means_check and os.path.exists(self.means_file)
         if stdevs_check and means_check:
             logger.info(f'Loading stdevs from {self.stdevs_file}')
-            with open(self.stdevs_file, 'r') as fh:
+            with open(self.stdevs_file) as fh:
                 self.stds = json.load(fh)
             logger.info(f'Loading means from {self.means_file}')
-            with open(self.means_file, 'r') as fh:
+            with open(self.means_file) as fh:
                 self.means = json.load(fh)
 
             msg = ('The training features and cached statistics are '
@@ -777,8 +779,7 @@ class BatchHandler:
         feature : str
             Feature to get mean for
         """
-
-        logger.debug(f'Calculating mean for {feature}')
+        logger.debug(f'Calculating multi-handler mean for {feature}')
         for idh, dh in enumerate(self.data_handlers):
             self.means[feature] += (self.handler_weights[idh]
                                     * dh.means[feature])
@@ -798,7 +799,7 @@ class BatchHandler:
             Feature to get stdev for
         """
 
-        logger.debug(f'Calculating stdev for {feature}')
+        logger.debug(f'Calculating multi-handler stdev for {feature}')
         for idh, dh in enumerate(self.data_handlers):
             variance = dh.stds[feature]**2
             self.stds[feature] += (variance * self.handler_weights[idh])
@@ -823,6 +824,9 @@ class BatchHandler:
             feature names and values: standard deviations. if None, this will
             be calculated. if norm is true these will be used for data
             normalization
+        features : list | None
+            Optional list of features used to index data array during
+            normalization. If this is None self.features will be used.
         """
         if means is None or stds is None:
             self.get_stats()
