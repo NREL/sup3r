@@ -250,12 +250,18 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         self.hr_dh.normalize(means=means, stds=stds, max_workers=max_workers)
 
         # need to normalize data attribute arrays in addition to handlers
-        lr_mean_arr = np.array([means[fn] for fn in self.lr_dh.features])
-        lr_std_arr = np.array([stds[fn] for fn in self.lr_dh.features])
-        hr_mean_arr = np.array([means[fn] for fn in self.hr_dh.features])
-        hr_std_arr = np.array([stds[fn] for fn in self.hr_dh.features])
-        self.lr_data = (self.lr_data - lr_mean_arr) / lr_std_arr
-        self.hr_data = (self.hr_data - hr_mean_arr) / hr_std_arr
+        mean_arr = np.array([means[fn] for fn in self.lr_dh.features])
+        std_arr = np.array([stds[fn] for fn in self.lr_dh.features])
+        self.lr_data = (self.lr_data - mean_arr) / std_arr
+        self.lr_data = self.lr_data.astype(np.float32)
+
+        if id(self.hr_data.base) != id(self.hr_dh.data):
+            # self.hr_data is usually just a sliced view of self.hr_dh.data
+            # but if the view is broken then it will have to be normalized too
+            mean_arr = np.array([means[fn] for fn in self.hr_dh.features])
+            std_arr = np.array([stds[fn] for fn in self.hr_dh.features])
+            self.hr_data = (self.hr_data - mean_arr) / std_arr
+            self.hr_data = self.hr_data.astype(np.float32)
 
     @property
     def features(self):
@@ -308,6 +314,9 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
             logger.warning(msg)
             warn(msg)
 
+        # Note that operations like normalization on self.hr_dh.data will also
+        # happen to self.hr_data because hr_data is just a sliced view not a
+        # copy. This is to save memory with big data volume
         self.hr_data = self.hr_dh.data[:self.hr_required_shape[0],
                                        :self.hr_required_shape[1],
                                        :self.hr_required_shape[2]]

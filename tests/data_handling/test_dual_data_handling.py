@@ -253,8 +253,9 @@ def test_st_dual_batch_handler(log=False,
             lr_ti = handler.lr_time_index[lr_index[2]]
             assert np.array_equal(coarse_ti.values, lr_ti.values)
 
+            # hr_data is a view of hr_dh.data
             assert np.array_equal(batch.high_res[i], handler.hr_data[hr_index])
-            assert np.array_equal(batch.low_res[i], handler.lr_data[lr_index])
+            assert np.allclose(batch.low_res[i], handler.lr_data[lr_index])
 
 
 def test_spatial_dual_batch_handler(log=False,
@@ -299,15 +300,16 @@ def test_spatial_dual_batch_handler(log=False,
             hr_index = index['hr_index']
             lr_index = index['lr_index']
 
+            # hr_data is a view of hr_dh.data
             assert np.array_equal(batch.high_res[j, :, :],
                                   dual_handler.hr_data[hr_index][..., 0, :])
-            assert np.array_equal(batch.low_res[j, :, :],
-                                  dual_handler.lr_data[lr_index][..., 0, :])
+            assert np.allclose(batch.low_res[j, :, :],
+                               dual_handler.lr_data[lr_index][..., 0, :])
 
             coarse_lat_lon = spatial_coarsening(
                 dual_handler.hr_lat_lon[hr_index[:2]], obs_axis=False)
             lr_lat_lon = dual_handler.lr_lat_lon[lr_index[:2]]
-            assert np.array_equal(coarse_lat_lon, lr_lat_lon)
+            assert np.allclose(coarse_lat_lon, lr_lat_lon)
 
         if plot:
             for ifeature in range(batch.high_res.shape[-1]):
@@ -441,19 +443,34 @@ def test_normalization(cache,
                                        cache_pattern=dual_cache,
                                        val_split=0.1)
 
-        hr_means0 = np.mean(hr_handler.data, axis=(0, 1, 2))
-        lr_means0 = np.mean(lr_handler.data, axis=(0, 1, 2))
-        ddh_hr_means0 = np.mean(dual_handler.hr_data, axis=(0, 1, 2))
-        ddh_lr_means0 = np.mean(dual_handler.lr_data, axis=(0, 1, 2))
+    assert hr_handler.data.dtype == np.float32
+    assert lr_handler.data.dtype == np.float32
+    assert dual_handler.lr_data.dtype == np.float32
+    assert dual_handler.hr_data.dtype == np.float32
+    assert dual_handler.lr_data.dtype == np.float32
+    assert dual_handler.hr_data.dtype == np.float32
 
-        means = copy.deepcopy(lr_handler.means)
-        stdevs = copy.deepcopy(lr_handler.stds)
+    hr_means0 = np.mean(hr_handler.data, axis=(0, 1, 2))
+    lr_means0 = np.mean(lr_handler.data, axis=(0, 1, 2))
+    ddh_hr_means0 = np.mean(dual_handler.hr_data, axis=(0, 1, 2))
+    ddh_lr_means0 = np.mean(dual_handler.lr_data, axis=(0, 1, 2))
 
-        batch_handler = DualBatchHandler([dual_handler],
-                                         batch_size=2,
-                                         s_enhance=s_enhance,
-                                         t_enhance=t_enhance,
-                                         n_batches=10)
+    means = copy.deepcopy(lr_handler.means)
+    stdevs = copy.deepcopy(lr_handler.stds)
+    assert all(v.dtype == np.float32 for v in means.values())
+    assert all(v.dtype == np.float32 for v in stdevs.values())
+
+    batch_handler = DualBatchHandler([dual_handler],
+                                     batch_size=2,
+                                     s_enhance=s_enhance,
+                                     t_enhance=t_enhance,
+                                     n_batches=10,
+                                     norm=True)
+
+    assert hr_handler.data.dtype == np.float32
+    assert lr_handler.data.dtype == np.float32
+    assert dual_handler.lr_data.dtype == np.float32
+    assert dual_handler.hr_data.dtype == np.float32
 
     hr_means1 = np.mean(hr_handler.data, axis=(0, 1, 2))
     lr_means1 = np.mean(lr_handler.data, axis=(0, 1, 2))
@@ -462,6 +479,9 @@ def test_normalization(cache,
 
     assert all(means[k] == v for k, v in batch_handler.means.items())
     assert all(stdevs[k] == v for k, v in batch_handler.stds.items())
+
+    assert all(v.dtype == np.float32 for v in batch_handler.means.values())
+    assert all(v.dtype == np.float32 for v in batch_handler.stds.values())
 
     # normalization stats retrieved from LR data before re-gridding
     for idf in range(lr_handler.shape[-1]):
@@ -476,14 +496,14 @@ def test_normalization(cache,
         true_ddh_hr_mean0 = (ddh_hr_means0[idf] - means[fn]) / stdevs[fn]
         true_ddh_lr_mean0 = (ddh_lr_means0[idf] - means[fn]) / stdevs[fn]
 
-        assert np.allclose(true_hr_mean0, hr_means1[idf],
-                           rtol=1e-4, atol=1e-5)
+        rtol, atol = 1e-6, 1e-5
+        assert np.allclose(true_hr_mean0, hr_means1[idf], rtol=rtol, atol=atol)
         assert np.allclose(true_lr_mean0, lr_means1[idf],
-                           rtol=1e-4, atol=1e-5)
+                           rtol=rtol, atol=atol)
         assert np.allclose(true_ddh_hr_mean0, ddh_hr_means1[idf],
-                           rtol=1e-4, atol=1e-5)
+                           rtol=rtol, atol=atol)
         assert np.allclose(true_ddh_lr_mean0, ddh_lr_means1[idf],
-                           rtol=1e-4, atol=1e-5)
+                           rtol=rtol, atol=atol)
 
 
 @pytest.mark.parametrize(['lr_features', 'hr_features', 'hr_exo_features'],
