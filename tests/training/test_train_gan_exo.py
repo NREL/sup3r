@@ -125,6 +125,7 @@ def test_wind_hi_res_topo_with_train_only(CustomLayer, log=False):
                 {'model': 0, 'combine_type': 'layer', 'data': hi_res_topo}]}}
     y = model.generate(x, exogenous_data=exo_tmp)
 
+    assert y.dtype == np.float32
     assert y.shape[0] == x.shape[0]
     assert y.shape[1] == x.shape[1] * 2
     assert y.shape[2] == x.shape[2] * 2
@@ -219,6 +220,7 @@ def test_wind_hi_res_topo(CustomLayer, log=False):
                 {'model': 0, 'combine_type': 'layer', 'data': hi_res_topo}]}}
     y = model.generate(x, exogenous_data=exo_tmp)
 
+    assert y.dtype == np.float32
     assert y.shape[0] == x.shape[0]
     assert y.shape[1] == x.shape[1] * 2
     assert y.shape[2] == x.shape[2] * 2
@@ -312,6 +314,7 @@ def test_wind_non_cc_hi_res_topo(CustomLayer, log=False):
                 {'model': 0, 'combine_type': 'layer', 'data': hi_res_topo}]}}
     y = model.generate(x, exogenous_data=exo_tmp)
 
+    assert y.dtype == np.float32
     assert y.shape[0] == x.shape[0]
     assert y.shape[1] == x.shape[1] * 2
     assert y.shape[2] == x.shape[2] * 2
@@ -405,6 +408,7 @@ def test_wind_dc_hi_res_topo(CustomLayer, log=False):
                 {'model': 0, 'combine_type': 'layer', 'data': hi_res_topo}]}}
     y = model.generate(x, exogenous_data=exo_tmp)
 
+    assert y.dtype == np.float32
     assert y.shape[0] == x.shape[0]
     assert y.shape[1] == x.shape[1] * 2
     assert y.shape[2] == x.shape[2] * 2

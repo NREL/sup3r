@@ -515,6 +515,7 @@ class BatchHandler:
         relative sizes"""
         sizes = [dh.size for dh in self.data_handlers]
         weights = sizes / np.sum(sizes)
+        weights = weights.astype(np.float32)
         return weights
 
     def get_handler_index(self):
@@ -680,8 +681,8 @@ class BatchHandler:
                     'features.')
         for feature in self.features:
             logger.debug(f'Calculating mean/stdev for "{feature}"')
-            self.means[feature] = 0
-            self.stds[feature] = 0
+            self.means[feature] = np.float32(0)
+            self.stds[feature] = np.float32(0)
             max_workers = self.stats_workers
 
             if max_workers is None or max_workers >= 1:
@@ -755,7 +756,9 @@ class BatchHandler:
                 logger.info(f'Saving stats to {fp}')
                 os.makedirs(os.path.dirname(fp), exist_ok=True)
                 with open(fp, 'w') as fh:
-                    json.dump(data, fh)
+                    # need to convert numpy float32 type to python float to be
+                    # serializable in json
+                    json.dump({k: float(v) for k, v in data.items()}, fh)
 
     def get_stats(self):
         """Get standard deviations and means for all data features"""
@@ -803,7 +806,7 @@ class BatchHandler:
             variance = dh.stds[feature]**2
             self.stds[feature] += (variance * self.handler_weights[idh])
 
-        self.stds[feature] = np.sqrt(self.stds[feature])
+        self.stds[feature] = np.sqrt(self.stds[feature]).astype(np.float32)
 
         return self.stds[feature]
 

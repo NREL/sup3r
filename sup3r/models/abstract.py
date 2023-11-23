@@ -578,8 +578,8 @@ class AbstractSingleModel(ABC):
             logger.info("Model's previous data stdev values: {}".format(
                 self._stdevs))
 
-            self._means = new_means
-            self._stdevs = new_stdevs
+            self._means = {k: np.float32(v) for k, v in new_means.items()}
+            self._stdevs = {k: np.float32(v) for k, v in new_stdevs.items()}
 
             if (not isinstance(self._means, dict)
                     or not isinstance(self._stdevs, dict)):
@@ -793,6 +793,14 @@ class AbstractSingleModel(ABC):
                             'that was created with the '
                             'following package versions: \n{}'.format(
                                 pprint.pformat(version_record, indent=2)))
+
+        means = params.get('means', None)
+        stdevs = params.get('stdevs', None)
+        if means is not None and stdevs is not None:
+            means = {k: np.float32(v) for k, v in means.items()}
+            stdevs = {k: np.float32(v) for k, v in stdevs.items()}
+            params['means'] = means
+            params['stdevs'] = stdevs
 
         return params
 
