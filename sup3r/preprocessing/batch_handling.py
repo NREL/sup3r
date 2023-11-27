@@ -626,7 +626,7 @@ class BatchHandler:
                 now = dt.now()
                 for idh, dh in enumerate(self.data_handlers):
                     future = exe.submit(dh.normalize, self.means, self.stds,
-                                        max_workers=dh.norm_workers)
+                                        max_workers=1)
                     futures[future] = idh
 
                 logger.info(f'Started normalizing {len(self.data_handlers)} '

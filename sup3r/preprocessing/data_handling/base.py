@@ -1169,7 +1169,7 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
             logger.info(f'Finished computing {self.derive_features} for '
                         f'{self.input_file_info}')
 
-    def _data_fill(self, t, t_slice, f_index, f):
+    def _single_data_fill(self, t, t_slice, f_index, f):
         """Place single extracted / computed chunk in final data array
 
         Parameters
@@ -1200,7 +1200,7 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         for t, ts in enumerate(shifted_time_chunks):
             for _, f in enumerate(self.noncached_features):
                 f_index = self.features.index(f)
-                self._data_fill(t, ts, f_index, f)
+                self._single_data_fill(t, ts, f_index, f)
             logger.info(f'Added {t + 1} of {len(shifted_time_chunks)} '
                         'chunks to final data array')
             self._raw_data.pop(t)
@@ -1233,7 +1233,8 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
                 for t, ts in enumerate(shifted_time_chunks):
                     for _, f in enumerate(self.noncached_features):
                         f_index = self.features.index(f)
-                        future = exe.submit(self._data_fill, t, ts, f_index, f)
+                        future = exe.submit(self._single_data_fill,
+                                            t, ts, f_index, f)
                         futures[future] = {'t': t, 'fidx': f_index}
 
                 logger.info(f'Started adding {len(futures)} chunks '
