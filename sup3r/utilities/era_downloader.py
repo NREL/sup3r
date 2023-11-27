@@ -87,7 +87,9 @@ class EraDownloader:
         'divergence': 'd',
         'total_precipitation': 'tp',
         'convective_available_potential_energy': 'cape',
-        'mean_total_precipitation_rate': 'mtpr'
+        'mean_total_precipitation_rate': 'mtpr',
+        'u_component_of_wind': 'u',
+        'v_component_of_wind': 'v'
     }
 
     def __init__(self,
