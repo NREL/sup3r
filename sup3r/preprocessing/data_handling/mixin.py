@@ -1156,7 +1156,7 @@ class TrainingPrepMixIn:
 
         if self._is_normalized:
             logger.info('Skipping DataHandler, already normalized')
-        else:
+        elif self.data is not None:
             self._normalize(self.data,
                             self.val_data,
                             features=features,

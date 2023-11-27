@@ -615,13 +615,13 @@ def test_bad_cache_load():
                                        t_enhance=t_enhance,
                                        cache_pattern=dual_cache,
                                        load_cached=False,
-                                       val_split=0.1)
+                                       val_split=0.0)
 
         # because load_cached is False
         assert hr_handler.data is None
         assert lr_handler.data is not None
 
-        good_err = "Try initializing DualDataHandler with load_cached=True"
+        good_err = "DataHandler.data=None!"
         with pytest.raises(RuntimeError) as ex:
             _ = copy.deepcopy(dual_handler.means)
         assert good_err in str(ex.value)
@@ -640,7 +640,7 @@ def test_bad_cache_load():
                                        t_enhance=t_enhance,
                                        cache_pattern=dual_cache,
                                        load_cached=True,
-                                       val_split=0.1)
+                                       val_split=0.0)
 
         # because load_cached is True
         assert hr_handler.data is not None

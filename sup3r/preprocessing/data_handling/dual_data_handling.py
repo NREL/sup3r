@@ -185,7 +185,8 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
 
         if self.hr_dh.data is None:
             msg = ('High-res DataHandler object has DataHandler.data=None! '
-                   'Try initializing DualDataHandler with load_cached=True')
+                   'Try initializing the high-res handler with '
+                   'load_cached=True')
             logger.error(msg)
             raise RuntimeError(msg)
 
@@ -206,7 +207,8 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
 
         if self.hr_dh.data is None:
             msg = ('High-res DataHandler object has DataHandler.data=None! '
-                   'Try initializing DualDataHandler with load_cached=True')
+                   'Try initializing the high-res handler with '
+                   'load_cached=True')
             logger.error(msg)
             raise RuntimeError(msg)
 
@@ -234,10 +236,10 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
             Has no effect. Used to match MixIn class signature.
         """
 
-        if self.lr_dh.data is None or self.hr_dh.data is None:
-            msg = ('Low-res or High-res DataHandler object has '
-                   'DataHandler.data=None! Try initializing DualDataHandler '
-                   'with load_cached=True')
+        if self.hr_dh.data is None:
+            msg = ('High-res DataHandler object has DataHandler.data=None! '
+                   'Try initializing the high-res handler with '
+                   'load_cached=True')
             logger.error(msg)
             raise RuntimeError(msg)
 
@@ -254,6 +256,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         self.lr_dh.normalize(means=means, stds=stds,
                              features=self.lr_dh.features,
                              max_workers=self.lr_dh.norm_workers)
+
         logger.info('Normalizing high resolution data features='
                     f'{self.hr_dh.features}')
         self.hr_dh.normalize(means=means, stds=stds,
