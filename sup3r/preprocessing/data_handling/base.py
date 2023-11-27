@@ -93,6 +93,7 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
                  handle_features=None,
                  single_ts_files=None,
                  mask_nan=False,
+                 fill_nan=False,
                  worker_kwargs=None,
                  res_kwargs=None):
         """
@@ -187,6 +188,10 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
             Flag to mask out (remove) any timesteps with NaN data from the
             source dataset. This is False by default because it can create
             discontinuities in the timeseries.
+        fill_nan : bool
+            Flag to gap-fill any NaN data from the source dataset using a
+            nearest neighbor algorithm. This is False by default because it can
+            hide bad datasets that should be identified by the user.
         worker_kwargs : dict | None
             Dictionary of worker values. Can include max_workers,
             extract_workers, compute_workers, load_workers, norm_workers,
@@ -303,11 +308,10 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
 
             self._val_split_check()
 
-        if mask_nan and self.data is not None:
-            nan_mask = np.isnan(self.data).any(axis=(0, 1, 3))
-            logger.info('Removing {} out of {} timesteps due to NaNs'.format(
-                nan_mask.sum(), self.data.shape[2]))
-            self.data = self.data[:, :, ~nan_mask, :]
+        if fill_nan and self.data is not None:
+            self.run_nn_fill()
+        elif mask_nan and self.data is not None:
+            self.mask_nan()
 
         if (self.hr_spatial_coarsen > 1
                 and self.lat_lon.shape == self.raw_lat_lon.shape):
@@ -1106,7 +1110,6 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         logger.info(f'Finished extracting data for {self.input_file_info} in '
                     f'{dt.now() - now}')
 
-        self.run_nn_fill()
         return self.data
 
     def run_nn_fill(self):
@@ -1114,6 +1117,13 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         for i in range(self.data.shape[-1]):
             if np.isnan(self.data[..., i]).any():
                 self.data[..., i] = nn_fill_array(self.data[..., i])
+
+    def mask_nan(self):
+        """Drop timesteps with NaN data"""
+        nan_mask = np.isnan(self.data).any(axis=(0, 1, 3))
+        logger.info('Removing {} out of {} timesteps due to NaNs'.format(
+            nan_mask.sum(), self.data.shape[2]))
+        self.data = self.data[:, :, ~nan_mask, :]
 
     def run_data_extraction(self):
         """Run the raw dataset extraction process from disk to raw
