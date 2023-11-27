@@ -1123,9 +1123,9 @@ class TrainingPrepMixIn:
             self._means = {}
             for idf, fname in enumerate(features):
                 self._means[fname] = np.nanmean(
-                    self.data[..., idf].astype(np.float64))
+                    self.data[..., idf].astype(np.float32))
                 self._stds[fname] = np.nanstd(
-                    self.data[..., idf].astype(np.float64))
+                    self.data[..., idf].astype(np.float32))
 
     def normalize(self, means=None, stds=None, features=None,
                   max_workers=None):
