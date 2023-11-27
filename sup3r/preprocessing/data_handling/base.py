@@ -47,6 +47,7 @@ from sup3r.utilities.utilities import (
     estimate_max_workers,
     get_chunk_slices,
     get_raster_shape,
+    nn_fill_array,
     np_to_pd_times,
     spatial_coarsening,
     uniform_box_sampler,
@@ -450,17 +451,6 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         return load_workers
 
     @property
-    def norm_workers(self):
-        """Get upper bound on workers used for normalization."""
-        if self.data is not None:
-            norm_workers = estimate_max_workers(self._norm_workers,
-                                                2 * self.feature_mem,
-                                                self.shape[-1])
-        else:
-            norm_workers = self._norm_workers
-        return norm_workers
-
-    @property
     def time_chunks(self):
         """Get time chunks which will be extracted from source data
 
@@ -543,8 +533,7 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         handle_features = []
         for f in file_paths:
             handle = cls.source_handler([f])
-            for r in handle:
-                handle_features.append(Feature.get_basename(r))
+            handle_features += [Feature.get_basename(r) for r in handle]
         return list(set(handle_features))
 
     @property
@@ -921,72 +910,6 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
                                           target,
                                           features)
 
-    @property
-    def means(self):
-        """Get the mean values for each feature.
-
-        Returns
-        -------
-        dict
-        """
-        self._get_stats()
-        return self._means
-
-    @property
-    def stds(self):
-        """Get the standard deviation values for each feature.
-
-        Returns
-        -------
-        dict
-        """
-        self._get_stats()
-        return self._stds
-
-    def _get_stats(self):
-        if self._means is None or self._stds is None:
-            msg = (f'DataHandler has {len(self.features)} features '
-                   f'and mismatched shape of {self.shape}')
-            assert len(self.features) == self.shape[-1], msg
-            self._stds = {}
-            self._means = {}
-            for idf, fname in enumerate(self.features):
-                self._means[fname] = np.nanmean(self.data[..., idf])
-                self._stds[fname] = np.nanstd(self.data[..., idf])
-
-    def normalize(self, means=None, stds=None, max_workers=None):
-        """Normalize all data features.
-
-        Parameters
-        ----------
-        means : dict | none
-            Dictionary of means for all features with keys: feature names and
-            values: mean values. If this is None, the self.means attribute will
-            be used. If this is not None, this DataHandler object means
-            attribute will be updated.
-        stds : dict | none
-            dictionary of standard deviation values for all features with keys:
-            feature names and values: standard deviations. If this is None, the
-            self.stds attribute will be used. If this is not None, this
-            DataHandler object stds attribute will be updated.
-        max_workers : None | int
-            Max workers to perform normalization. if None, self.norm_workers
-            will be used
-        """
-        if means is not None:
-            self._means = means
-        if stds is not None:
-            self._stds = stds
-
-        max_workers = max_workers or self.norm_workers
-        if self._is_normalized:
-            logger.info('Skipping DataHandler, already normalized')
-        else:
-            self._normalize(self.data,
-                            self.val_data,
-                            max_workers=max_workers)
-            self._is_normalized = True
-
     def get_next(self):
         """Get data for observation using random observation index. Loops
         repeatedly over randomized time index
@@ -1159,7 +1082,7 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         self.run_data_compute()
 
         logger.info('Building final data array')
-        self.parallel_data_fill(shifted_time_chunks, self.extract_workers)
+        self.data_fill(shifted_time_chunks, self.extract_workers)
 
         if self.invert_lat:
             self.data = self.data[::-1]
@@ -1182,7 +1105,15 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
 
         logger.info(f'Finished extracting data for {self.input_file_info} in '
                     f'{dt.now() - now}')
+
+        self.run_nn_fill()
         return self.data
+
+    def run_nn_fill(self):
+        """Run nn nan fill on full data array."""
+        for i in range(self.data.shape[-1]):
+            if np.isnan(self.data[..., i]).any():
+                self.data[..., i] = nn_fill_array(self.data[..., i])
 
     def run_data_extraction(self):
         """Run the raw dataset extraction process from disk to raw
@@ -1238,7 +1169,7 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
             logger.info(f'Finished computing {self.derive_features} for '
                         f'{self.input_file_info}')
 
-    def data_fill(self, t, t_slice, f_index, f):
+    def _single_data_fill(self, t, t_slice, f_index, f):
         """Place single extracted / computed chunk in final data array
 
         Parameters
@@ -1269,14 +1200,12 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         for t, ts in enumerate(shifted_time_chunks):
             for _, f in enumerate(self.noncached_features):
                 f_index = self.features.index(f)
-                self.data_fill(t, ts, f_index, f)
-            interval = int(np.ceil(len(shifted_time_chunks) / 10))
-            if t % interval == 0:
-                logger.info(f'Added {t + 1} of {len(shifted_time_chunks)} '
-                            'chunks to final data array')
+                self._single_data_fill(t, ts, f_index, f)
+            logger.info(f'Added {t + 1} of {len(shifted_time_chunks)} '
+                        'chunks to final data array')
             self._raw_data.pop(t)
 
-    def parallel_data_fill(self, shifted_time_chunks, max_workers=None):
+    def data_fill(self, shifted_time_chunks, max_workers=None):
         """Fill final data array with extracted / computed chunks
 
         Parameters
@@ -1304,13 +1233,13 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
                 for t, ts in enumerate(shifted_time_chunks):
                     for _, f in enumerate(self.noncached_features):
                         f_index = self.features.index(f)
-                        future = exe.submit(self.data_fill, t, ts, f_index, f)
+                        future = exe.submit(self._single_data_fill,
+                                            t, ts, f_index, f)
                         futures[future] = {'t': t, 'fidx': f_index}
 
                 logger.info(f'Started adding {len(futures)} chunks '
                             f'to data array in {dt.now() - now}.')
 
-                interval = int(np.ceil(len(futures) / 10))
                 for i, future in enumerate(as_completed(futures)):
                     try:
                         future.result()
@@ -1320,9 +1249,8 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
                                'final data array.')
                         logger.exception(msg)
                         raise RuntimeError(msg) from e
-                    if i % interval == 0:
-                        logger.debug(f'Added {i+1} out of {len(futures)} '
-                                     'chunks to final data array')
+                    logger.debug(f'Added {i+1} out of {len(futures)} '
+                                 'chunks to final data array')
         logger.info('Finished building data array')
 
     @abstractmethod
