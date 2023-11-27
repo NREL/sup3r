@@ -117,7 +117,11 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
 
     def _val_split_check(self):
         """Check if val_split > 0 and split data into validation and training.
-        Make sure validation data is larger than sample_shape"""
+        Make sure validation data is larger than sample_shape
+
+        Note that if val split > 0.0, hr_data will no longer be a view of
+        self.hr_dh.data and this could lead to lots of memory usage.
+        """
 
         if self.hr_data is not None and self.val_split > 0.0:
             n_val_obs = self.hr_data.shape[2] * (1 - self.val_split)
@@ -361,6 +365,9 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
                    f'and lr_val_data.shape {self.lr_val_data.shape}'
                    f' are incompatible. Must be {hr_shape} and {lr_shape}.')
             assert self.lr_val_data.shape[:-1] == lr_shape, msg
+
+        if self.val_split == 0.0:
+            assert id(self.hr_data.base) == id(hr_handler.data)
 
     @property
     def grid_mem(self):

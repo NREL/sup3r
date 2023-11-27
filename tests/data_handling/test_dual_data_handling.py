@@ -397,8 +397,10 @@ def test_validation_batching(log=False,
             assert np.array_equal(coarse_ti.values, lr_ti.values)
 
 
-@pytest.mark.parametrize('cache', [True, False])
+@pytest.mark.parametrize(('cache', 'val_split'),
+                         ([True, 1.0], [True, 0.0], [False, 0.0]))
 def test_normalization(cache,
+                       val_split,
                        log=False,
                        full_shape=(20, 20),
                        sample_shape=(10, 10, 4)):
@@ -425,7 +427,8 @@ def test_normalization(cache,
                                    sample_shape=sample_shape,
                                    temporal_slice=slice(None, None, 10),
                                    cache_pattern=hr_cache,
-                                   worker_kwargs=dict(max_workers=1))
+                                   worker_kwargs=dict(max_workers=1),
+                                   val_split=0.0)
         lr_handler = DataHandlerNC(FP_ERA,
                                    FEATURES,
                                    sample_shape=(sample_shape[0] // s_enhance,
@@ -434,14 +437,18 @@ def test_normalization(cache,
                                    temporal_slice=slice(None, None,
                                                         t_enhance * 10),
                                    cache_pattern=lr_cache,
-                                   worker_kwargs=dict(max_workers=1))
+                                   worker_kwargs=dict(max_workers=1),
+                                   val_split=0.0)
 
         dual_handler = DualDataHandler(hr_handler,
                                        lr_handler,
                                        s_enhance=s_enhance,
                                        t_enhance=t_enhance,
                                        cache_pattern=dual_cache,
-                                       val_split=0.1)
+                                       val_split=val_split)
+
+    if val_split == 0.0:
+        assert id(dual_handler.hr_data.base) == id(dual_handler.hr_dh.data)
 
     assert hr_handler.data.dtype == np.float32
     assert lr_handler.data.dtype == np.float32
@@ -466,6 +473,9 @@ def test_normalization(cache,
                                      t_enhance=t_enhance,
                                      n_batches=10,
                                      norm=True)
+
+    if val_split == 0.0:
+        assert id(dual_handler.hr_data.base) == id(dual_handler.hr_dh.data)
 
     assert hr_handler.data.dtype == np.float32
     assert lr_handler.data.dtype == np.float32
