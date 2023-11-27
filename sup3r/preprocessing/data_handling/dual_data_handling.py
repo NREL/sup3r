@@ -183,10 +183,9 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         dict
         """
 
-        if self.lr_dh.data is None or self.hr_dh.data is None:
-            msg = ('Low-res or High-res DataHandler object has '
-                   'DataHandler.data=None! Try initializing DualDataHandler '
-                   'with load_cached=True')
+        if self.hr_dh.data is None:
+            msg = ('High-res DataHandler object has DataHandler.data=None! '
+                   'Try initializing DualDataHandler with load_cached=True')
             logger.error(msg)
             raise RuntimeError(msg)
 
@@ -205,10 +204,9 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         dict
         """
 
-        if self.lr_dh.data is None or self.hr_dh.data is None:
-            msg = ('Low-res or High-res DataHandler object has '
-                   'DataHandler.data=None! Try initializing DualDataHandler '
-                   'with load_cached=True')
+        if self.hr_dh.data is None:
+            msg = ('High-res DataHandler object has DataHandler.data=None! '
+                   'Try initializing DualDataHandler with load_cached=True')
             logger.error(msg)
             raise RuntimeError(msg)
 
@@ -253,17 +251,14 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         super().normalize(means=means, stds=stds,
                           features=self.lr_dh.features,
                           max_workers=self.lr_dh.norm_workers)
+        self.lr_dh.normalize(means=means, stds=stds,
+                             features=self.lr_dh.features,
+                             max_workers=self.lr_dh.norm_workers)
         logger.info('Normalizing high resolution data features='
                     f'{self.hr_dh.features}')
         self.hr_dh.normalize(means=means, stds=stds,
                              features=self.hr_dh.features,
                              max_workers=self.hr_dh.norm_workers)
-
-        # need to normalize data attribute arrays in addition to handlers
-        mean_arr = np.array([means[fn] for fn in self.lr_dh.features])
-        std_arr = np.array([stds[fn] for fn in self.lr_dh.features])
-        self.lr_data = (self.lr_data - mean_arr) / std_arr
-        self.lr_data = self.lr_data.astype(np.float32)
 
         if id(self.hr_data.base) != id(self.hr_dh.data):
             # self.hr_data is usually just a sliced view of self.hr_dh.data
