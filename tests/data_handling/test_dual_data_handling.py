@@ -462,8 +462,8 @@ def test_normalization(cache,
     ddh_hr_means0 = np.mean(dual_handler.hr_data, axis=(0, 1, 2))
     ddh_lr_means0 = np.mean(dual_handler.lr_data, axis=(0, 1, 2))
 
-    means = copy.deepcopy(lr_handler.means)
-    stdevs = copy.deepcopy(lr_handler.stds)
+    means = copy.deepcopy(dual_handler.means)
+    stdevs = copy.deepcopy(dual_handler.stds)
     assert all(v.dtype == np.float32 for v in means.values())
     assert all(v.dtype == np.float32 for v in stdevs.values())
 
@@ -495,8 +495,8 @@ def test_normalization(cache,
 
     # normalization stats retrieved from LR data before re-gridding
     for idf in range(lr_handler.shape[-1]):
-        std = lr_handler.data[..., idf].std()
-        mean = lr_handler.data[..., idf].mean()
+        std = dual_handler.data[..., idf].std()
+        mean = dual_handler.data[..., idf].mean()
         assert np.allclose(std, 1, atol=1e-3), str(std)
         assert np.allclose(mean, 0, atol=1e-3), str(mean)
 
