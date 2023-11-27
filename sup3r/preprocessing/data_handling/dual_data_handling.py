@@ -113,7 +113,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         """Check hr and lr shapes and trim hr data if needed to match required
         relationship to lr shape based on enhancement factors. Then regrid lr
         data and split hr and lr data into training and validation sets."""
-        self._shape_check()
+        self._set_hr_data()
         self.get_lr_data()
         self._val_split_check()
 
@@ -304,9 +304,10 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         """
         return self.hr_dh.hr_out_features
 
-    def _shape_check(self):
-        """Check if hr_handler.shape is divisible by s_enhance. If not take
-        the largest shape that can be."""
+    def _set_hr_data(self):
+        """Set the high resolution data attribute and check if hr_handler.shape
+        is divisible by s_enhance. If not, take the largest shape that can
+        be."""
 
         if self.hr_data is None:
             logger.info("Loading high resolution cache.")
@@ -532,10 +533,8 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
     def load_cached_data(self):
         """Load regridded low_res and high_res cache data"""
         self.load_lr_cached_data()
-        self._shape_check()
+        self._set_hr_data()
         self._val_split_check()
-        self.hr_dh.load_cached_data()
-        self.lr_dh.load_cached_data()
 
     def check_clear_data(self):
         """Check if data was cached and free memory if load_cached is False"""
