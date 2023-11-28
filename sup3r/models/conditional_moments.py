@@ -179,12 +179,18 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
                       [np.prod(v.get_shape().as_list())
                        for v in self.weights]))
 
+        means = self._means
+        stdevs = self._stdevs
+        if means is not None and stdevs is not None:
+            means = {k: float(v) for k, v in means.items()}
+            stdevs = {k: float(v) for k, v in stdevs.items()}
+
         model_params = {'name': self.name,
                         'num_par': num_par,
                         'version_record': self.version_record,
                         'optimizer': config_optm_g,
-                        'means': self._means,
-                        'stdevs': self._stdevs,
+                        'means': means,
+                        'stdevs': stdevs,
                         'meta': self.meta,
                         }
 

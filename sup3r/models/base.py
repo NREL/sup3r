@@ -328,6 +328,12 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         dict
         """
 
+        means = self._means
+        stdevs = self._stdevs
+        if means is not None and stdevs is not None:
+            means = {k: float(v) for k, v in means.items()}
+            stdevs = {k: float(v) for k, v in stdevs.items()}
+
         config_optm_g = self.get_optimizer_config(self.optimizer)
         config_optm_d = self.get_optimizer_config(self.optimizer_disc)
 
@@ -337,8 +343,8 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             'version_record': self.version_record,
             'optimizer': config_optm_g,
             'optimizer_disc': config_optm_d,
-            'means': self._means,
-            'stdevs': self._stdevs,
+            'means': means,
+            'stdevs': stdevs,
             'meta': self.meta,
         }
 

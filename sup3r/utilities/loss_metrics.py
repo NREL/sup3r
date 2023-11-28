@@ -1,5 +1,6 @@
 """Loss metrics for Sup3r"""
 
+import numpy as np
 import tensorflow as tf
 from tensorflow.keras.losses import MeanAbsoluteError, MeanSquaredError
 
@@ -144,7 +145,7 @@ class MmdMseLoss(tf.keras.losses.Loss):
         """
         mmd = self.MMD_LOSS(x1, x2, sigma=sigma)
         mse = self.MSE_LOSS(x1, x2)
-        return mmd + mse
+        return (mmd + mse) / 2
 
 
 class CoarseMseLoss(tf.keras.losses.Loss):
@@ -175,23 +176,11 @@ class CoarseMseLoss(tf.keras.losses.Loss):
         return self.MSE_LOSS(x1_coarse, x2_coarse)
 
 
-class SpatialExtremesLoss(tf.keras.losses.Loss):
+class SpatialExtremesOnlyLoss(tf.keras.losses.Loss):
     """Loss class that encourages accuracy of the min/max values in the
-    spatial domain"""
+    spatial domain. This does not include an additional MAE term"""
 
     MAE_LOSS = MeanAbsoluteError()
-
-    def __init__(self, weight=1.0):
-        """Initialize the loss with given weight
-
-        Parameters
-        ----------
-        weight : float
-            Weight for min/max loss terms. Setting this to zero turns
-            loss into MAE.
-        """
-        super().__init__()
-        self._weight = weight
 
     def __call__(self, x1, x2):
         """Custom content loss that encourages temporal min/max accuracy
@@ -216,11 +205,87 @@ class SpatialExtremesLoss(tf.keras.losses.Loss):
         x1_max = tf.reduce_max(x1, axis=(1, 2))
         x2_max = tf.reduce_max(x2, axis=(1, 2))
 
-        mae = self.MAE_LOSS(x1, x2)
         mae_min = self.MAE_LOSS(x1_min, x2_min)
         mae_max = self.MAE_LOSS(x1_max, x2_max)
 
-        return mae + self._weight * (mae_min + mae_max)
+        return (mae_min + mae_max) / 2
+
+
+class SpatialExtremesLoss(tf.keras.losses.Loss):
+    """Loss class that encourages accuracy of the min/max values in the
+    spatial domain"""
+
+    MAE_LOSS = MeanAbsoluteError()
+    EX_LOSS = SpatialExtremesOnlyLoss()
+
+    def __init__(self, weight=1.0):
+        """Initialize the loss with given weight
+
+        Parameters
+        ----------
+        weight : float
+            Weight for min/max loss terms. Setting this to zero turns
+            loss into MAE.
+        """
+        super().__init__()
+        self._weight = weight
+
+    def __call__(self, x1, x2):
+        """Custom content loss that encourages temporal min/max accuracy
+
+        Parameters
+        ----------
+        x1 : tf.tensor
+            synthetic generator output
+            (n_observations, spatial_1, spatial_2, features)
+        x2 : tf.tensor
+            high resolution data
+            (n_observations, spatial_1, spatial_2, features)
+
+        Returns
+        -------
+        tf.tensor
+            0D tensor with loss value
+        """
+        mae = self.MAE_LOSS(x1, x2)
+        ex_mae = self.EX_LOSS(x1, x2)
+
+        return (mae + 2 * self._weight * ex_mae) / 3
+
+
+class TemporalExtremesOnlyLoss(tf.keras.losses.Loss):
+    """Loss class that encourages accuracy of the min/max values in the
+    timeseries. This does not include an additional mae term"""
+
+    MAE_LOSS = MeanAbsoluteError()
+
+    def __call__(self, x1, x2):
+        """Custom content loss that encourages temporal min/max accuracy
+
+        Parameters
+        ----------
+        x1 : tf.tensor
+            synthetic generator output
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        x2 : tf.tensor
+            high resolution data
+            (n_observations, spatial_1, spatial_2, temporal, features)
+
+        Returns
+        -------
+        tf.tensor
+            0D tensor with loss value
+        """
+        x1_min = tf.reduce_min(x1, axis=3)
+        x2_min = tf.reduce_min(x2, axis=3)
+
+        x1_max = tf.reduce_max(x1, axis=3)
+        x2_max = tf.reduce_max(x2, axis=3)
+
+        mae_min = self.MAE_LOSS(x1_min, x2_min)
+        mae_max = self.MAE_LOSS(x1_max, x2_max)
+
+        return (mae_min + mae_max) / 2
 
 
 class TemporalExtremesLoss(tf.keras.losses.Loss):
@@ -228,6 +293,7 @@ class TemporalExtremesLoss(tf.keras.losses.Loss):
     timeseries"""
 
     MAE_LOSS = MeanAbsoluteError()
+    EX_LOSS = TemporalExtremesOnlyLoss()
 
     def __init__(self, weight=1.0):
         """Initialize the loss with given weight
@@ -258,22 +324,19 @@ class TemporalExtremesLoss(tf.keras.losses.Loss):
         tf.tensor
             0D tensor with loss value
         """
-        x1_min = tf.reduce_min(x1, axis=3)
-        x2_min = tf.reduce_min(x2, axis=3)
-
-        x1_max = tf.reduce_max(x1, axis=3)
-        x2_max = tf.reduce_max(x2, axis=3)
-
         mae = self.MAE_LOSS(x1, x2)
-        mae_min = self.MAE_LOSS(x1_min, x2_min)
-        mae_max = self.MAE_LOSS(x1_max, x2_max)
+        ex_mae = self.EX_LOSS(x1, x2)
 
-        return mae + self._weight * (mae_min + mae_max)
+        return (mae + 2 * self._weight * ex_mae) / 3
 
 
 class SpatiotemporalExtremesLoss(tf.keras.losses.Loss):
     """Loss class that encourages accuracy of the min/max values across both
     space and time"""
+
+    MAE_LOSS = MeanAbsoluteError()
+    S_EX_LOSS = SpatialExtremesOnlyLoss()
+    T_EX_LOSS = TemporalExtremesOnlyLoss()
 
     def __init__(self, spatial_weight=1.0, temporal_weight=1.0):
         """Initialize the loss with given weight
@@ -286,13 +349,11 @@ class SpatiotemporalExtremesLoss(tf.keras.losses.Loss):
             Weight for temporal min/max loss terms.
         """
         super().__init__()
-        self.sp_ex_loss = SpatialExtremesLoss(2 * temporal_weight)
-        self.temp_ex_loss = TemporalExtremesLoss(2 * spatial_weight)
+        self.s_weight = spatial_weight
+        self.t_weight = temporal_weight
 
     def __call__(self, x1, x2):
         """Custom content loss that encourages spatiotemporal min/max accuracy.
-        This is computed as 1/2 times the sum of spatial and temporal extremes
-        loss functions with doubled weights.
 
         Parameters
         ----------
@@ -308,4 +369,146 @@ class SpatiotemporalExtremesLoss(tf.keras.losses.Loss):
         tf.tensor
             0D tensor with loss value
         """
-        return 0.5 * (self.sp_ex_loss(x1, x2) + self.temp_ex_loss(x1, x2))
+        mae = self.MAE_LOSS(x1, x2)
+        s_ex_mae = self.S_EX_LOSS(x1, x2)
+        t_ex_mae = self.T_EX_LOSS(x1, x2)
+        return (mae + 2 * self.s_weight * s_ex_mae
+                + 2 * self.t_weight * t_ex_mae) / 5
+
+
+class SpatialFftOnlyLoss(tf.keras.losses.Loss):
+    """Loss class that encourages accuracy of the spatial frequency spectrum"""
+
+    MAE_LOSS = MeanAbsoluteError()
+
+    @staticmethod
+    def _freq_weights(x):
+        """Get product of squared frequencies to weight frequency amplitudes"""
+        k0 = np.array([k**2 for k in range(x.shape[1])])
+        k1 = np.array([k**2 for k in range(x.shape[2])])
+        freqs = np.multiply.outer(k0, k1)
+        freqs = tf.convert_to_tensor(freqs[np.newaxis, ..., np.newaxis])
+        return tf.cast(freqs, x.dtype)
+
+    def _fft(self, x):
+        """Apply needed transpositions and fft operation."""
+        x_hat = tf.transpose(x, perm=[3, 0, 1, 2])
+        x_hat = tf.signal.fft2d(tf.cast(x_hat, tf.complex64))
+        x_hat = tf.transpose(x_hat, perm=[1, 2, 3, 0])
+        x_hat = tf.cast(tf.abs(x_hat), x.dtype)
+        x_hat = tf.math.multiply(self._freq_weights(x), x_hat)
+        return tf.math.log(1 + x_hat)
+
+    def __call__(self, x1, x2):
+        """Custom content loss that encourages frequency domain accuracy
+
+        Parameters
+        ----------
+        x1 : tf.tensor
+            synthetic generator output
+            (n_observations, spatial_1, spatial_2, features)
+        x2 : tf.tensor
+            high resolution data
+            (n_observations, spatial_1, spatial_2, features)
+
+        Returns
+        -------
+        tf.tensor
+            0D tensor with loss value
+        """
+        x1_hat = self._fft(x1)
+        x2_hat = self._fft(x2)
+        return self.MAE_LOSS(x1_hat, x2_hat)
+
+
+class SpatiotemporalFftOnlyLoss(tf.keras.losses.Loss):
+    """Loss class that encourages accuracy of the spatiotemporal frequency
+    spectrum"""
+
+    MAE_LOSS = MeanAbsoluteError()
+
+    @staticmethod
+    def _freq_weights(x):
+        """Get product of squared frequencies to weight frequency amplitudes"""
+        k0 = np.array([k**2 for k in range(x.shape[1])])
+        k1 = np.array([k**2 for k in range(x.shape[2])])
+        f = np.array([f**2 for f in range(x.shape[3])])
+        freqs = np.multiply.outer(k0, k1)
+        freqs = np.multiply.outer(freqs, f)
+        freqs = tf.convert_to_tensor(freqs[np.newaxis, ..., np.newaxis])
+        return tf.cast(freqs, x.dtype)
+
+    def _fft(self, x):
+        """Apply needed transpositions and fft operation."""
+        x_hat = tf.transpose(x, perm=[4, 0, 1, 2, 3])
+        x_hat = tf.signal.fft3d(tf.cast(x_hat, tf.complex64))
+        x_hat = tf.transpose(x_hat, perm=[1, 2, 3, 4, 0])
+        x_hat = tf.cast(tf.abs(x_hat), x.dtype)
+        x_hat = tf.math.multiply(self._freq_weights(x), x_hat)
+        return tf.math.log(1 + x_hat)
+
+    def __call__(self, x1, x2):
+        """Custom content loss that encourages frequency domain accuracy
+
+        Parameters
+        ----------
+        x1 : tf.tensor
+            synthetic generator output
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        x2 : tf.tensor
+            high resolution data
+            (n_observations, spatial_1, spatial_2, temporal, features)
+
+        Returns
+        -------
+        tf.tensor
+            0D tensor with loss value
+        """
+        x1_hat = self._fft(x1)
+        x2_hat = self._fft(x2)
+        return self.MAE_LOSS(x1_hat, x2_hat)
+
+
+class StExtremesFftLoss(tf.keras.losses.Loss):
+    """Loss class that encourages accuracy of the min/max values across both
+    space and time as well as frequency domain accuracy."""
+
+    def __init__(self, spatial_weight=1.0, temporal_weight=1.0,
+                 fft_weight=1.0):
+        """Initialize the loss with given weight
+
+        Parameters
+        ----------
+        spatial_weight : float
+            Weight for spatial min/max loss terms.
+        temporal_weight : float
+            Weight for temporal min/max loss terms.
+        fft_weight : float
+            Weight for the fft loss term.
+        """
+        super().__init__()
+        self.st_ex_loss = SpatiotemporalExtremesLoss(spatial_weight,
+                                                     temporal_weight)
+        self.fft_loss = SpatiotemporalFftOnlyLoss()
+        self.fft_weight = fft_weight
+
+    def __call__(self, x1, x2):
+        """Custom content loss that encourages spatiotemporal min/max accuracy
+        and fft accuracy.
+
+        Parameters
+        ----------
+        x1 : tf.tensor
+            synthetic generator output
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        x2 : tf.tensor
+            high resolution data
+            (n_observations, spatial_1, spatial_2, temporal, features)
+
+        Returns
+        -------
+        tf.tensor
+            0D tensor with loss value
+        """
+        return (5 * self.st_ex_loss(x1, x2)
+                + self.fft_weight * self.fft_loss(x1, x2)) / 6

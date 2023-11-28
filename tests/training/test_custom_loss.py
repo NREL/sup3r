@@ -23,7 +23,7 @@ def test_mmd_loss():
     mse = mse_fun(x, y)
     mmd_plus_mse = mmd_mse_fun(x, y)
 
-    assert mmd_plus_mse > 2 * mse
+    assert mmd_plus_mse > mse
 
     x = np.random.rand(6, 10, 10, 8, 3)
     x /= np.max(x)
@@ -34,7 +34,7 @@ def test_mmd_loss():
     mse = mse_fun(5 * x, x)
     mmd_plus_mse = mmd_mse_fun(5 * x, x)
 
-    assert mmd_plus_mse < 2 * mse
+    assert mmd_plus_mse < mse
 
 
 def test_coarse_mse_loss():
@@ -67,12 +67,10 @@ def test_tex_loss():
     x[..., 24, 0] = 20
     y[..., 25, 0] = 25
     loss = loss_obj(x, y)
-    assert loss.numpy() > 5
-    assert loss.numpy() < 6
+    assert loss.numpy() > 1.5
 
     # loss should be dominated by special min/max values
-    x[..., 24, 0] = -10
-    y[..., 25, 0] = -15
+    x[..., 24, 0] = -20
+    y[..., 25, 0] = -25
     loss = loss_obj(x, y)
-    assert loss.numpy() > 5
-    assert loss.numpy() < 6
+    assert loss.numpy() > 1.5

@@ -642,7 +642,8 @@ def test_solar_spatial_h5():
                          shape=(20, 20), sample_shape=(10, 10, 12),
                          mask_nan=False)
     dh = DataHandler(input_file_s, features_s, target=target_s,
-                     shape=(20, 20), sample_shape=(10, 10, 12), mask_nan=True)
+                     shape=(20, 20), sample_shape=(10, 10, 12),
+                     mask_nan=True)
     assert np.nanmax(dh.data) == 1
     assert np.nanmin(dh.data) == 0
     assert not np.isnan(dh.data).any()

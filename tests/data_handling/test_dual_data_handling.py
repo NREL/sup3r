@@ -253,8 +253,9 @@ def test_st_dual_batch_handler(log=False,
             lr_ti = handler.lr_time_index[lr_index[2]]
             assert np.array_equal(coarse_ti.values, lr_ti.values)
 
+            # hr_data is a view of hr_dh.data
             assert np.array_equal(batch.high_res[i], handler.hr_data[hr_index])
-            assert np.array_equal(batch.low_res[i], handler.lr_data[lr_index])
+            assert np.allclose(batch.low_res[i], handler.lr_data[lr_index])
 
 
 def test_spatial_dual_batch_handler(log=False,
@@ -299,15 +300,16 @@ def test_spatial_dual_batch_handler(log=False,
             hr_index = index['hr_index']
             lr_index = index['lr_index']
 
+            # hr_data is a view of hr_dh.data
             assert np.array_equal(batch.high_res[j, :, :],
                                   dual_handler.hr_data[hr_index][..., 0, :])
-            assert np.array_equal(batch.low_res[j, :, :],
-                                  dual_handler.lr_data[lr_index][..., 0, :])
+            assert np.allclose(batch.low_res[j, :, :],
+                               dual_handler.lr_data[lr_index][..., 0, :])
 
             coarse_lat_lon = spatial_coarsening(
                 dual_handler.hr_lat_lon[hr_index[:2]], obs_axis=False)
             lr_lat_lon = dual_handler.lr_lat_lon[lr_index[:2]]
-            assert np.array_equal(coarse_lat_lon, lr_lat_lon)
+            assert np.allclose(coarse_lat_lon, lr_lat_lon)
 
         if plot:
             for ifeature in range(batch.high_res.shape[-1]):
@@ -395,7 +397,11 @@ def test_validation_batching(log=False,
             assert np.array_equal(coarse_ti.values, lr_ti.values)
 
 
-def test_normalization(log=False,
+@pytest.mark.parametrize(('cache', 'val_split'),
+                         ([True, 1.0], [True, 0.0], [False, 0.0]))
+def test_normalization(cache,
+                       val_split,
+                       log=False,
                        full_shape=(20, 20),
                        sample_shape=(10, 10, 4)):
     """Test correct normalization"""
@@ -405,46 +411,109 @@ def test_normalization(log=False,
     s_enhance = 2
     t_enhance = 2
 
-    hr_handler = DataHandlerH5(FP_WTK,
-                               FEATURES,
-                               target=TARGET_COORD,
-                               shape=full_shape,
-                               sample_shape=sample_shape,
-                               temporal_slice=slice(None, None, 10),
-                               worker_kwargs=dict(max_workers=1))
-    lr_handler = DataHandlerNC(FP_ERA,
-                               FEATURES,
-                               sample_shape=(sample_shape[0] // s_enhance,
-                                             sample_shape[1] // s_enhance,
-                                             sample_shape[2] // t_enhance),
-                               temporal_slice=slice(None, None,
-                                                    t_enhance * 10),
-                               worker_kwargs=dict(max_workers=1))
+    with tempfile.TemporaryDirectory() as td:
+        hr_cache = None
+        lr_cache = None
+        dual_cache = None
+        if cache:
+            hr_cache = os.path.join(td, 'hr_cache_{feature}.pkl')
+            lr_cache = os.path.join(td, 'lr_cache_{feature}.pkl')
+            dual_cache = os.path.join(td, 'dual_cache_{feature}.pkl')
 
-    dual_handler = DualDataHandler(hr_handler,
-                                   lr_handler,
-                                   s_enhance=s_enhance,
-                                   t_enhance=t_enhance,
-                                   val_split=0.1)
+        hr_handler = DataHandlerH5(FP_WTK,
+                                   FEATURES,
+                                   target=TARGET_COORD,
+                                   shape=full_shape,
+                                   sample_shape=sample_shape,
+                                   temporal_slice=slice(None, None, 10),
+                                   cache_pattern=hr_cache,
+                                   worker_kwargs=dict(max_workers=1),
+                                   val_split=0.0)
+        lr_handler = DataHandlerNC(FP_ERA,
+                                   FEATURES,
+                                   sample_shape=(sample_shape[0] // s_enhance,
+                                                 sample_shape[1] // s_enhance,
+                                                 sample_shape[2] // t_enhance),
+                                   temporal_slice=slice(None, None,
+                                                        t_enhance * 10),
+                                   cache_pattern=lr_cache,
+                                   worker_kwargs=dict(max_workers=1),
+                                   val_split=0.0)
 
-    means = copy.deepcopy(lr_handler.means)
-    stdevs = copy.deepcopy(lr_handler.stds)
+        dual_handler = DualDataHandler(hr_handler,
+                                       lr_handler,
+                                       s_enhance=s_enhance,
+                                       t_enhance=t_enhance,
+                                       cache_pattern=dual_cache,
+                                       val_split=val_split)
+
+    if val_split == 0.0:
+        assert id(dual_handler.hr_data.base) == id(dual_handler.hr_dh.data)
+
+    assert hr_handler.data.dtype == np.float32
+    assert lr_handler.data.dtype == np.float32
+    assert dual_handler.lr_data.dtype == np.float32
+    assert dual_handler.hr_data.dtype == np.float32
+    assert dual_handler.lr_data.dtype == np.float32
+    assert dual_handler.hr_data.dtype == np.float32
+
+    hr_means0 = np.mean(hr_handler.data, axis=(0, 1, 2))
+    lr_means0 = np.mean(lr_handler.data, axis=(0, 1, 2))
+    ddh_hr_means0 = np.mean(dual_handler.hr_data, axis=(0, 1, 2))
+    ddh_lr_means0 = np.mean(dual_handler.lr_data, axis=(0, 1, 2))
+
+    means = copy.deepcopy(dual_handler.means)
+    stdevs = copy.deepcopy(dual_handler.stds)
+    assert all(v.dtype == np.float32 for v in means.values())
+    assert all(v.dtype == np.float32 for v in stdevs.values())
 
     batch_handler = DualBatchHandler([dual_handler],
                                      batch_size=2,
                                      s_enhance=s_enhance,
                                      t_enhance=t_enhance,
-                                     n_batches=10)
+                                     n_batches=10,
+                                     norm=True)
+
+    if val_split == 0.0:
+        assert id(dual_handler.hr_data.base) == id(dual_handler.hr_dh.data)
+
+    assert hr_handler.data.dtype == np.float32
+    assert lr_handler.data.dtype == np.float32
+    assert dual_handler.lr_data.dtype == np.float32
+    assert dual_handler.hr_data.dtype == np.float32
+
+    hr_means1 = np.mean(hr_handler.data, axis=(0, 1, 2))
+    lr_means1 = np.mean(lr_handler.data, axis=(0, 1, 2))
+    ddh_hr_means1 = np.mean(dual_handler.hr_data, axis=(0, 1, 2))
+    ddh_lr_means1 = np.mean(dual_handler.lr_data, axis=(0, 1, 2))
 
     assert all(means[k] == v for k, v in batch_handler.means.items())
     assert all(stdevs[k] == v for k, v in batch_handler.stds.items())
 
+    assert all(v.dtype == np.float32 for v in batch_handler.means.values())
+    assert all(v.dtype == np.float32 for v in batch_handler.stds.values())
+
     # normalization stats retrieved from LR data before re-gridding
     for idf in range(lr_handler.shape[-1]):
-        std = lr_handler.data[..., idf].std()
-        mean = lr_handler.data[..., idf].mean()
+        std = dual_handler.data[..., idf].std()
+        mean = dual_handler.data[..., idf].mean()
         assert np.allclose(std, 1, atol=1e-3), str(std)
         assert np.allclose(mean, 0, atol=1e-3), str(mean)
+
+        fn = FEATURES[idf]
+        true_hr_mean0 = (hr_means0[idf] - means[fn]) / stdevs[fn]
+        true_lr_mean0 = (lr_means0[idf] - means[fn]) / stdevs[fn]
+        true_ddh_hr_mean0 = (ddh_hr_means0[idf] - means[fn]) / stdevs[fn]
+        true_ddh_lr_mean0 = (ddh_lr_means0[idf] - means[fn]) / stdevs[fn]
+
+        rtol, atol = 1e-6, 1e-5
+        assert np.allclose(true_hr_mean0, hr_means1[idf], rtol=rtol, atol=atol)
+        assert np.allclose(true_lr_mean0, lr_means1[idf],
+                           rtol=rtol, atol=atol)
+        assert np.allclose(true_ddh_hr_mean0, ddh_hr_means1[idf],
+                           rtol=rtol, atol=atol)
+        assert np.allclose(true_ddh_lr_mean0, ddh_lr_means1[idf],
+                           rtol=rtol, atol=atol)
 
 
 @pytest.mark.parametrize(['lr_features', 'hr_features', 'hr_exo_features'],
@@ -500,3 +569,84 @@ def test_mixed_lr_hr_features(lr_features, hr_features, hr_exo_features):
             assert np.allclose(batch.low_res, batch.high_res)
         elif batch_handler.lr_features != lr_features + hr_only_features:
             assert not np.allclose(batch.low_res, batch.high_res)
+
+
+def test_bad_cache_load():
+    """This tests good errors when load_cached gets messed up with dual data
+    handling and stats normalization."""
+    s_enhance = 2
+    t_enhance = 2
+    full_shape = (20, 20)
+    sample_shape = (10, 10, 4)
+
+    with tempfile.TemporaryDirectory() as td:
+        lr_cache = f'{td}/lr_cache_' + '{feature}.pkl'
+        hr_cache = f'{td}/hr_cache_' + '{feature}.pkl'
+        dual_cache = f'{td}/dual_cache_' + '{feature}.pkl'
+
+        hr_handler = DataHandlerH5(FP_WTK,
+                                   FEATURES,
+                                   target=TARGET_COORD,
+                                   shape=full_shape,
+                                   sample_shape=sample_shape,
+                                   temporal_slice=slice(None, None, 10),
+                                   cache_pattern=hr_cache,
+                                   load_cached=False,
+                                   worker_kwargs=dict(max_workers=1))
+
+        lr_handler = DataHandlerNC(FP_ERA,
+                                   FEATURES,
+                                   sample_shape=(sample_shape[0] // s_enhance,
+                                                 sample_shape[1] // s_enhance,
+                                                 sample_shape[2] // t_enhance),
+                                   temporal_slice=slice(None, None,
+                                                        t_enhance * 10),
+                                   cache_pattern=lr_cache,
+                                   load_cached=False,
+                                   worker_kwargs=dict(max_workers=1))
+
+        # because load_cached is False
+        assert hr_handler.data is None
+        assert lr_handler.data is None
+
+        dual_handler = DualDataHandler(hr_handler,
+                                       lr_handler,
+                                       s_enhance=s_enhance,
+                                       t_enhance=t_enhance,
+                                       cache_pattern=dual_cache,
+                                       load_cached=False,
+                                       val_split=0.0)
+
+        # because load_cached is False
+        assert hr_handler.data is None
+        assert lr_handler.data is not None
+
+        good_err = "DataHandler.data=None!"
+        with pytest.raises(RuntimeError) as ex:
+            _ = copy.deepcopy(dual_handler.means)
+        assert good_err in str(ex.value)
+
+        with pytest.raises(RuntimeError) as ex:
+            _ = copy.deepcopy(dual_handler.stds)
+        assert good_err in str(ex.value)
+
+        with pytest.raises(RuntimeError) as ex:
+            dual_handler.normalize()
+        assert good_err in str(ex.value)
+
+        dual_handler = DualDataHandler(hr_handler,
+                                       lr_handler,
+                                       s_enhance=s_enhance,
+                                       t_enhance=t_enhance,
+                                       cache_pattern=dual_cache,
+                                       load_cached=True,
+                                       val_split=0.0)
+
+        # because load_cached is True
+        assert hr_handler.data is not None
+        assert lr_handler.data is not None
+
+        # should run without error now that load_cached=True
+        _ = copy.deepcopy(dual_handler.means)
+        _ = copy.deepcopy(dual_handler.stds)
+        dual_handler.normalize()

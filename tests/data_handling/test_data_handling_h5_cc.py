@@ -267,8 +267,8 @@ def test_solar_batch_nan_stats():
     batcher = BatchHandlerCC([handler], batch_size=1, n_batches=10,
                              s_enhance=1, sub_daily_shape=9)
 
-    assert batcher.means[FEATURES_S[0]] == true_csr_mean
-    assert batcher.stds[FEATURES_S[0]] == true_csr_stdev
+    assert np.allclose(batcher.means[FEATURES_S[0]], true_csr_mean)
+    assert np.allclose(batcher.stds[FEATURES_S[0]], true_csr_stdev)
 
     # make sure the daily means were also normalized by same values
     new = (orig_daily_mean - true_csr_mean) / true_csr_stdev

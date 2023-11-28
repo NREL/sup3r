@@ -571,37 +571,38 @@ class AbstractSingleModel(ABC):
             transfer learning domains.
         """
 
-        if self._means is not None:
+        if new_means is not None and new_stdevs is not None:
             logger.info('Setting new normalization statistics...')
             logger.info("Model's previous data mean values: {}".format(
                 self._means))
             logger.info("Model's previous data stdev values: {}".format(
                 self._stdevs))
 
-        self._means = new_means
-        self._stdevs = new_stdevs
+            self._means = {k: np.float32(v) for k, v in new_means.items()}
+            self._stdevs = {k: np.float32(v) for k, v in new_stdevs.items()}
 
-        if (not isinstance(self._means, dict)
-                or not isinstance(self._stdevs, dict)):
-            msg = ('Means and stdevs need to be dictionaries with keys as '
-                   'feature names but received means of type '
-                   f'{type(self._means)} and '
-                   f'stdevs of type {type(self._stdevs)}')
-            logger.error(msg)
-            raise TypeError(msg)
+            if (not isinstance(self._means, dict)
+                    or not isinstance(self._stdevs, dict)):
+                msg = ('Means and stdevs need to be dictionaries with keys as '
+                       'feature names but received means of type '
+                       f'{type(self._means)} and '
+                       f'stdevs of type {type(self._stdevs)}')
+                logger.error(msg)
+                raise TypeError(msg)
 
-        missing = [f for f in self.lr_features if f not in self._means]
-        missing += [f for f in self.hr_exo_features
-                    if f not in self._means]
-        missing += [f for f in self.hr_out_features if f not in self._means]
-        if any(missing):
-            msg = (f'Need means for features "{missing}" but did not find '
-                   f'in new means array: {self._means}')
+            missing = [f for f in self.lr_features if f not in self._means]
+            missing += [f for f in self.hr_exo_features
+                        if f not in self._means]
+            missing += [f for f in self.hr_out_features
+                        if f not in self._means]
+            if any(missing):
+                msg = (f'Need means for features "{missing}" but did not find '
+                       f'in new means array: {self._means}')
 
-        logger.info('Set data normalization mean values: {}'.format(
-            self._means))
-        logger.info('Set data normalization stdev values: {}'.format(
-            self._stdevs))
+            logger.info('Set data normalization mean values: {}'.format(
+                self._means))
+            logger.info('Set data normalization stdev values: {}'.format(
+                self._stdevs))
 
     def norm_input(self, low_res):
         """Normalize low resolution data being input to the generator.
@@ -792,6 +793,14 @@ class AbstractSingleModel(ABC):
                             'that was created with the '
                             'following package versions: \n{}'.format(
                                 pprint.pformat(version_record, indent=2)))
+
+        means = params.get('means', None)
+        stdevs = params.get('stdevs', None)
+        if means is not None and stdevs is not None:
+            means = {k: np.float32(v) for k, v in means.items()}
+            stdevs = {k: np.float32(v) for k, v in stdevs.items()}
+            params['means'] = means
+            params['stdevs'] = stdevs
 
         return params
 

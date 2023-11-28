@@ -515,6 +515,7 @@ class BatchHandler:
         relative sizes"""
         sizes = [dh.size for dh in self.data_handlers]
         weights = sizes / np.sum(sizes)
+        weights = weights.astype(np.float32)
         return weights
 
     def get_handler_index(self):
@@ -618,7 +619,8 @@ class BatchHandler:
         max_workers = self.norm_workers
         if max_workers == 1:
             for dh in self.data_handlers:
-                dh.normalize(self.means, self.stds)
+                dh.normalize(self.means, self.stds,
+                             max_workers=dh.norm_workers)
         else:
             with ThreadPoolExecutor(max_workers=max_workers) as exe:
                 futures = {}
@@ -680,8 +682,8 @@ class BatchHandler:
                     'features.')
         for feature in self.features:
             logger.debug(f'Calculating mean/stdev for "{feature}"')
-            self.means[feature] = 0
-            self.stds[feature] = 0
+            self.means[feature] = np.float32(0)
+            self.stds[feature] = np.float32(0)
             max_workers = self.stats_workers
 
             if max_workers is None or max_workers >= 1:
@@ -691,7 +693,8 @@ class BatchHandler:
                         future = exe.submit(dh._get_stats)
                         futures[future] = idh
 
-                    for i, _ in enumerate(as_completed(futures)):
+                    for i, future in enumerate(as_completed(futures)):
+                        _ = future.result()
                         logger.debug(f'{i+1} out of {len(self.data_handlers)} '
                                      'means calculated.')
 
@@ -731,10 +734,10 @@ class BatchHandler:
         means_check = means_check and os.path.exists(self.means_file)
         if stdevs_check and means_check:
             logger.info(f'Loading stdevs from {self.stdevs_file}')
-            with open(self.stdevs_file, 'r') as fh:
+            with open(self.stdevs_file) as fh:
                 self.stds = json.load(fh)
             logger.info(f'Loading means from {self.means_file}')
-            with open(self.means_file, 'r') as fh:
+            with open(self.means_file) as fh:
                 self.means = json.load(fh)
 
             msg = ('The training features and cached statistics are '
@@ -755,7 +758,9 @@ class BatchHandler:
                 logger.info(f'Saving stats to {fp}')
                 os.makedirs(os.path.dirname(fp), exist_ok=True)
                 with open(fp, 'w') as fh:
-                    json.dump(data, fh)
+                    # need to convert numpy float32 type to python float to be
+                    # serializable in json
+                    json.dump({k: float(v) for k, v in data.items()}, fh)
 
     def get_stats(self):
         """Get standard deviations and means for all data features"""
@@ -777,8 +782,7 @@ class BatchHandler:
         feature : str
             Feature to get mean for
         """
-
-        logger.debug(f'Calculating mean for {feature}')
+        logger.debug(f'Calculating multi-handler mean for {feature}')
         for idh, dh in enumerate(self.data_handlers):
             self.means[feature] += (self.handler_weights[idh]
                                     * dh.means[feature])
@@ -798,12 +802,12 @@ class BatchHandler:
             Feature to get stdev for
         """
 
-        logger.debug(f'Calculating stdev for {feature}')
+        logger.debug(f'Calculating multi-handler stdev for {feature}')
         for idh, dh in enumerate(self.data_handlers):
             variance = dh.stds[feature]**2
             self.stds[feature] += (variance * self.handler_weights[idh])
 
-        self.stds[feature] = np.sqrt(self.stds[feature])
+        self.stds[feature] = np.sqrt(self.stds[feature]).astype(np.float32)
 
         return self.stds[feature]
 
@@ -823,6 +827,9 @@ class BatchHandler:
             feature names and values: standard deviations. if None, this will
             be calculated. if norm is true these will be used for data
             normalization
+        features : list | None
+            Optional list of features used to index data array during
+            normalization. If this is None self.features will be used.
         """
         if means is None or stds is None:
             self.get_stats()

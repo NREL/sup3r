@@ -72,28 +72,30 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         self.t_enhance = t_enhance
         self.lr_dh = lr_handler
         self.hr_dh = hr_handler
-        self._cache_pattern = cache_pattern
-        self._cached_features = None
-        self._noncached_features = None
         self.overwrite_cache = overwrite_cache
         self.val_split = val_split
         self.current_obs_index = None
         self.load_cached = load_cached
         self.regrid_workers = regrid_workers
         self.shuffle_time = shuffle_time
-        self._lr_lat_lon = None
-        self._hr_lat_lon = None
-        self._lr_input_data = None
         self.hr_data = None
         self.lr_val_data = None
         self.hr_val_data = None
-        self.lr_time_index = None
-        self.hr_time_index = None
-        self.lr_val_time_index = None
-        self.hr_val_time_index = None
-
-        lr_data_shape = (*self.lr_required_shape, len(self.lr_dh.features))
-        self.lr_data = np.zeros(lr_data_shape, dtype=np.float32)
+        self.lr_data = np.zeros(self.shape, dtype=np.float32)
+        self.lr_time_index = lr_handler.time_index
+        self.hr_time_index = hr_handler.time_index
+        self.lr_val_time_index = lr_handler.val_time_index
+        self.hr_val_time_index = hr_handler.val_time_index
+        self._lr_lat_lon = None
+        self._hr_lat_lon = None
+        self._lr_input_data = None
+        self._cache_pattern = cache_pattern
+        self._cached_features = None
+        self._noncached_features = None
+        self._means = None
+        self._stds = None
+        self._is_normalized = False
+        self._norm_workers = self.lr_dh.norm_workers
 
         if self.try_load and self.load_cached:
             self.load_cached_data()
@@ -111,13 +113,17 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         """Check hr and lr shapes and trim hr data if needed to match required
         relationship to lr shape based on enhancement factors. Then regrid lr
         data and split hr and lr data into training and validation sets."""
-        self._shape_check()
+        self._set_hr_data()
         self.get_lr_data()
         self._val_split_check()
 
     def _val_split_check(self):
         """Check if val_split > 0 and split data into validation and training.
-        Make sure validation data is larger than sample_shape"""
+        Make sure validation data is larger than sample_shape
+
+        Note that if val split > 0.0, hr_data will no longer be a view of
+        self.hr_dh.data and this could lead to lots of memory usage.
+        """
 
         if self.hr_data is not None and self.val_split > 0.0:
             n_val_obs = self.hr_data.shape[2] * (1 - self.val_split)
@@ -163,7 +169,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
 
     def _get_stats(self):
         """Get mean/stdev stats for HR and LR data handlers"""
-        self.lr_dh._get_stats()
+        super()._get_stats(features=self.lr_dh.features)
         self.hr_dh._get_stats()
 
     @property
@@ -176,8 +182,16 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         -------
         dict
         """
+
+        if self.hr_dh.data is None:
+            msg = ('High-res DataHandler object has DataHandler.data=None! '
+                   'Try initializing the high-res handler with '
+                   'load_cached=True')
+            logger.error(msg)
+            raise RuntimeError(msg)
+
         out = copy.deepcopy(self.hr_dh.means)
-        out.update(self.lr_dh.means)
+        out.update(super().means)
         return out
 
     @property
@@ -190,10 +204,19 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         -------
         dict
         """
+
+        if self.hr_dh.data is None:
+            msg = ('High-res DataHandler object has DataHandler.data=None! '
+                   'Try initializing the high-res handler with '
+                   'load_cached=True')
+            logger.error(msg)
+            raise RuntimeError(msg)
+
         out = copy.deepcopy(self.hr_dh.stds)
-        out.update(self.lr_dh.stds)
+        out.update(super().stds)
         return out
 
+    # pylint: disable=unused-argument
     def normalize(self, means=None, stds=None, max_workers=None):
         """Normalize low_res and high_res data
 
@@ -210,19 +233,43 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
             self.stds attribute will be used. If this is not None, this
             DataHandler object stds attribute will be updated.
         max_workers : None | int
-            Max workers to perform normalization. if None, self.norm_workers
-            will be used
+            Has no effect. Used to match MixIn class signature.
         """
+
+        if self.hr_dh.data is None:
+            msg = ('High-res DataHandler object has DataHandler.data=None! '
+                   'Try initializing the high-res handler with '
+                   'load_cached=True')
+            logger.error(msg)
+            raise RuntimeError(msg)
+
         if means is None:
             means = self.means
         if stds is None:
             stds = self.stds
+
         logger.info('Normalizing low resolution data features='
                     f'{self.lr_dh.features}')
-        self.lr_dh.normalize(means=means, stds=stds, max_workers=max_workers)
+        super().normalize(means=means, stds=stds,
+                          features=self.lr_dh.features,
+                          max_workers=self.lr_dh.norm_workers)
+        self.lr_dh.normalize(means=means, stds=stds,
+                             features=self.lr_dh.features,
+                             max_workers=self.lr_dh.norm_workers)
+
         logger.info('Normalizing high resolution data features='
                     f'{self.hr_dh.features}')
-        self.hr_dh.normalize(means=means, stds=stds, max_workers=max_workers)
+        self.hr_dh.normalize(means=means, stds=stds,
+                             features=self.hr_dh.features,
+                             max_workers=self.hr_dh.norm_workers)
+
+        if id(self.hr_data.base) != id(self.hr_dh.data):
+            # self.hr_data is usually just a sliced view of self.hr_dh.data
+            # but if the view is broken then it will have to be normalized too
+            mean_arr = np.array([means[fn] for fn in self.hr_dh.features])
+            std_arr = np.array([stds[fn] for fn in self.hr_dh.features])
+            self.hr_data = (self.hr_data - mean_arr) / std_arr
+            self.hr_data = self.hr_data.astype(np.float32)
 
     @property
     def features(self):
@@ -260,21 +307,25 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         """
         return self.hr_dh.hr_out_features
 
-    def _shape_check(self):
-        """Check if hr_handler.shape is divisible by s_enhance. If not take
-        the largest shape that can be."""
+    def _set_hr_data(self):
+        """Set the high resolution data attribute and check if hr_handler.shape
+        is divisible by s_enhance. If not, take the largest shape that can
+        be."""
 
         if self.hr_data is None:
             logger.info("Loading high resolution cache.")
             self.hr_dh.load_cached_data(with_split=False)
 
         msg = (f'hr_handler.shape {self.hr_dh.shape[:-1]} is not divisible '
-               f'by s_enhance. Using shape = {self.hr_required_shape} '
-               'instead.')
+               f'by s_enhance ({self.s_enhance}). Using shape = '
+               f'{self.hr_required_shape} instead.')
         if self.hr_dh.shape[:-1] != self.hr_required_shape:
             logger.warning(msg)
             warn(msg)
 
+        # Note that operations like normalization on self.hr_dh.data will also
+        # happen to self.hr_data because hr_data is just a sliced view not a
+        # copy. This is to save memory with big data volume
         self.hr_data = self.hr_dh.data[:self.hr_required_shape[0],
                                        :self.hr_required_shape[1],
                                        :self.hr_required_shape[2]]
@@ -320,6 +371,9 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
                    f' are incompatible. Must be {hr_shape} and {lr_shape}.')
             assert self.lr_val_data.shape[:-1] == lr_shape, msg
 
+        if self.val_split == 0.0:
+            assert id(self.hr_data.base) == id(hr_handler.data)
+
     @property
     def grid_mem(self):
         """Get memory used by a feature at a single time step
@@ -364,8 +418,14 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
     @property
     def data(self):
         """Get low res data. Same as self.lr_data but used to match property
-        used by batch handler for computing means and stdevs"""
+        used for computing means and stdevs"""
         return self.lr_data
+
+    @property
+    def val_data(self):
+        """Get low res validation data. Same as self.lr_val_data but used to
+        match property used by normalization routine."""
+        return self.lr_val_data
 
     @property
     def lr_input_data(self):
@@ -405,11 +465,6 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
     def lr_grid_shape(self):
         """Return grid shape for regridded low_res data"""
         return (self.lr_required_shape[0], self.lr_required_shape[1])
-
-    @property
-    def lr_requested_shape(self):
-        """Return requested shape for low_res data"""
-        return (*self.lr_required_shape, len(self.features))
 
     @property
     def lr_lat_lon(self):
@@ -472,16 +527,16 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         """Load low_res cache data"""
 
         logger.info(
-            f'Loading cache with requested_shape={self.lr_requested_shape}.')
+            f'Loading cache with requested_shape={self.shape}.')
         self._load_cached_data(self.lr_data,
                                self.cache_files,
-                               self.features,
+                               self.lr_dh.features,
                                max_workers=self.hr_dh.load_workers)
 
     def load_cached_data(self):
         """Load regridded low_res and high_res cache data"""
         self.load_lr_cached_data()
-        self._shape_check()
+        self._set_hr_data()
         self._val_split_check()
 
     def check_clear_data(self):

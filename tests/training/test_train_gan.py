@@ -70,6 +70,8 @@ def test_train_spatial(log=False, full_shape=(20, 20),
         assert 'test_1' in os.listdir(td)
         assert 'model_gen.pkl' in os.listdir(td + '/test_1')
         assert 'model_disc.pkl' in os.listdir(td + '/test_1')
+        assert model.means is not None
+        assert model.stdevs is not None
 
         # make an un-trained dummy model
         dummy = Sup3rGan(fp_gen, fp_disc, learning_rate=2e-5,
@@ -85,9 +87,15 @@ def test_train_spatial(log=False, full_shape=(20, 20),
         assert isinstance(loaded.loss_fun, tf.keras.losses.MeanAbsoluteError)
 
         for batch in batch_handler:
-            out_og = model._tf_generate(batch.low_res)
-            out_dummy = dummy._tf_generate(batch.low_res)
-            out_loaded = loaded._tf_generate(batch.low_res)
+            out_og = model.generate(batch.low_res, norm_in=True,
+                                    un_norm_out=True)
+            out_dummy = dummy.generate(batch.low_res, norm_in=True,
+                                       un_norm_out=True)
+            out_loaded = loaded.generate(batch.low_res, norm_in=True,
+                                         un_norm_out=True)
+            assert out_og.dtype == np.float32
+            assert out_dummy.dtype == np.float32
+            assert out_loaded.dtype == np.float32
 
             # make sure the loaded model generates the same data as the saved
             # model but different than the dummy
@@ -96,6 +104,10 @@ def test_train_spatial(log=False, full_shape=(20, 20),
                 tf.assert_equal(out_og, out_dummy)
 
             # make sure the trained model has less loss than dummy
+            out_og = model.generate(batch.low_res, norm_in=False,
+                                    un_norm_out=False)
+            out_dummy = dummy.generate(batch.low_res, norm_in=False,
+                                       un_norm_out=False)
             loss_og = model.calc_loss(batch.high_res, out_og)[0]
             loss_dummy = dummy.calc_loss(batch.high_res, out_dummy)[0]
             assert loss_og.numpy() < loss_dummy.numpy()
@@ -306,6 +318,8 @@ def test_train_st(n_epoch=2, log=False):
         assert 'test_1' in os.listdir(td)
         assert 'model_gen.pkl' in os.listdir(td + '/test_1')
         assert 'model_disc.pkl' in os.listdir(td + '/test_1')
+        assert model.means is not None
+        assert model.stdevs is not None
 
         # test save/load functionality
         out_dir = os.path.join(td, 'st_gan')
@@ -330,9 +344,15 @@ def test_train_st(n_epoch=2, log=False):
                          learning_rate_disc=2e-5)
 
         for batch in batch_handler:
-            out_og = model._tf_generate(batch.low_res)
-            out_dummy = dummy._tf_generate(batch.low_res)
-            out_loaded = loaded._tf_generate(batch.low_res)
+            out_og = model.generate(batch.low_res, norm_in=True,
+                                    un_norm_out=True)
+            out_dummy = dummy.generate(batch.low_res, norm_in=True,
+                                       un_norm_out=True)
+            out_loaded = loaded.generate(batch.low_res, norm_in=True,
+                                         un_norm_out=True)
+            assert out_og.dtype == np.float32
+            assert out_dummy.dtype == np.float32
+            assert out_loaded.dtype == np.float32
 
             # make sure the loaded model generates the same data as the saved
             # model but different than the dummy
@@ -341,6 +361,10 @@ def test_train_st(n_epoch=2, log=False):
                 tf.assert_equal(out_og, out_dummy)
 
             # make sure the trained model has less loss than dummy
+            out_og = model.generate(batch.low_res, norm_in=False,
+                                    un_norm_out=False)
+            out_dummy = dummy.generate(batch.low_res, norm_in=False,
+                                       un_norm_out=False)
             loss_og = model.calc_loss(batch.high_res, out_og)[0]
             loss_dummy = dummy.calc_loss(batch.high_res, out_dummy)[0]
             assert loss_og.numpy() < loss_dummy.numpy()
