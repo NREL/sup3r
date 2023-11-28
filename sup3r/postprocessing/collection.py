@@ -37,6 +37,7 @@ class BaseCollector(OutputMixIn, ABC):
         """
         if not isinstance(file_paths, list):
             file_paths = glob.glob(file_paths)
+        self.file_paths = file_paths
         self.flist = sorted(file_paths)
         self.data = None
         self.file_attrs = {}
@@ -173,6 +174,17 @@ class CollectorNC(BaseCollector):
             )
 
         logger.info('Finished file collection.')
+
+    def group_spatial_chunks(self):
+        """Group same spatial chunks together so each chunk has same spatial
+        footprint but different times"""
+        chunks = {}
+        for file in self.flist:
+            s_chunk = file.split('_')[0]
+            dirname = os.path.dirname(file)
+            s_file = os.path.join(dirname, f's_{s_chunk}.nc')
+            chunks[s_file] = [*chunks.get(s_file, []), s_file]
+        return chunks
 
 
 class CollectorH5(BaseCollector):

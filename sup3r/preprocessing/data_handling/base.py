@@ -834,7 +834,7 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
             lat_lon = lat_lon[::-1]
         # put angle betwen -180 and 180
         lat_lon[..., 1] = (lat_lon[..., 1] + 180) % 360 - 180
-        return lat_lon
+        return lat_lon.astype(np.float32)
 
     @classmethod
     def get_node_cmd(cls, config):
@@ -1110,7 +1110,7 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         logger.info(f'Finished extracting data for {self.input_file_info} in '
                     f'{dt.now() - now}')
 
-        return self.data
+        return self.data.astype(np.float32)
 
     def run_nn_fill(self):
         """Run nn nan fill on full data array."""

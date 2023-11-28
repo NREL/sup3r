@@ -576,13 +576,13 @@ class OutputHandlerNC(OutputHandler):
             List of coordinate indices used to label each lat lon pair and to
             help with spatial chunk data collection
         """
-        coords = {'Times': (['Time'], [str(t).encode('utf-8') for t in times]),
-                  'XLAT': (['south_north', 'east_west'], lat_lon[..., 0]),
-                  'XLONG': (['south_north', 'east_west'], lat_lon[..., 1])}
+        coords = {'Time': [str(t).encode('utf-8') for t in times],
+                  'south_north': lat_lon[:, 0, 0],
+                  'west_east': lat_lon[0, :, 1]}
 
         data_vars = {}
         for i, f in enumerate(features):
-            data_vars[f] = (['Time', 'south_north', 'east_west'],
+            data_vars[f] = (['Time', 'south_north', 'west_east'],
                             np.transpose(data[..., i], (2, 0, 1)))
 
         attrs = {}

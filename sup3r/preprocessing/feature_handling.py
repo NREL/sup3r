@@ -1077,9 +1077,11 @@ class LatLonNC:
         fp = file_paths if isinstance(file_paths, str) else file_paths[0]
         handle = xr.open_dataset(fp)
         valid_vars = set(handle.variables)
-        lat_key = {'XLAT', 'lat', 'latitude'}.intersection(valid_vars)
+        lat_key = {'XLAT', 'lat', 'latitude', 'south_north'}.intersection(
+            valid_vars)
         lat_key = next(iter(lat_key))
-        lon_key = {'XLONG', 'lon', 'longitude'}.intersection(valid_vars)
+        lon_key = {'XLONG', 'lon', 'longitude', 'west_east'}.intersection(
+            valid_vars)
         lon_key = next(iter(lon_key))
 
         if len(handle.variables[lat_key].dims) == 4:
