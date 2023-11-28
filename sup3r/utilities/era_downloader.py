@@ -59,6 +59,7 @@ class EraDownloader:
         "land_sea_mask", "k_index", "forecast_surface_roughness",
         "northward_turbulent_surface_stress",
         "eastward_turbulent_surface_stress",
+        "sea_surface_temperature",
     ]
 
     # variables available on multiple pressure levels
