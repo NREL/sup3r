@@ -154,8 +154,7 @@ class CollectorNC(BaseCollector):
             os.remove(out_file)
 
         if not os.path.exists(out_file):
-            res_kwargs = (res_kwargs
-                          or {"concat_dim": "Time", "combine": "nested"})
+            res_kwargs = res_kwargs or {}
             out = xr.open_mfdataset(collector.flist, **res_kwargs)
             features = [feat for feat in out if feat in features
                         or feat.lower() in features]

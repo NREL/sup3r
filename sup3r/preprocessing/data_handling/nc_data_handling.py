@@ -154,6 +154,8 @@ class DataHandlerNC(DataHandler):
 
         if hasattr(handle, 'Times'):
             time_index = np_to_pd_times(handle.Times.values)
+        elif hasattr(handle, 'Time'):
+            time_index = np_to_pd_times(handle.Time.values)
         elif hasattr(handle, 'indexes') and 'time' in handle.indexes:
             time_index = handle.indexes['time']
             if not isinstance(time_index, pd.DatetimeIndex):

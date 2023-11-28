@@ -639,9 +639,7 @@ class Shear(DerivedFeature):
         """
         height = Feature.get_height(feature)
         heights = [int(height), int(height) + 20]
-        features = []
-        for height in heights:
-            features.append(f'winddirection_{height}m')
+        features = [f'winddirection_{height}m' for height in heights]
         return features
 
     @classmethod

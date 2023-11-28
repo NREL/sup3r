@@ -577,8 +577,8 @@ class OutputHandlerNC(OutputHandler):
             help with spatial chunk data collection
         """
         coords = {'Time': [str(t).encode('utf-8') for t in times],
-                  'south_north': lat_lon[:, 0, 0],
-                  'west_east': lat_lon[0, :, 1]}
+                  'south_north': lat_lon[:, 0, 0].astype(np.float32),
+                  'west_east': lat_lon[0, :, 1].astype(np.float32)}
 
         data_vars = {}
         for i, f in enumerate(features):
