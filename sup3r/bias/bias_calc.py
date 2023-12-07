@@ -877,7 +877,7 @@ class LinearCorrection(DataRetrievalBase):
             logger.debug('Running serial calculation.')
             for i, bias_gid in enumerate(self.bias_meta.index):
                 raster_loc = np.where(self.bias_gid_raster == bias_gid)
-                dist, base_gid = self.get_base_gid(bias_gid)
+                _, base_gid = self.get_base_gid(bias_gid)
 
                 if not base_gid.any():
                     self.bad_bias_gids.append(bias_gid)
@@ -907,7 +907,7 @@ class LinearCorrection(DataRetrievalBase):
                     max_workers))
             with ProcessPoolExecutor(max_workers=max_workers) as exe:
                 futures = {}
-                for bias_gid, bias_row in self.bias_meta.iterrows():
+                for bias_gid in self.bias_meta.index:
                     raster_loc = np.where(self.bias_gid_raster == bias_gid)
                     dist, base_gid = self.get_base_gid(bias_gid)
 

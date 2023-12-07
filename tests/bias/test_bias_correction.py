@@ -512,9 +512,8 @@ def test_nc_base_file():
     assert (calc.nn_dist == 0).all()
 
     with pytest.raises(RuntimeError) as exc:
-        base_data, _ = calc.get_base_data(calc.base_fps, calc.base_dset,
-                                          base_gid, calc.base_handler,
-                                          daily_reduction='avg')
+        calc.get_base_data(calc.base_fps, calc.base_dset, base_gid,
+                           calc.base_handler, daily_reduction='avg')
 
     good_err = 'only to be used with `base_handler` as a `sup3r.DataHandler` '
     assert good_err in str(exc.value)
