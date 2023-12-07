@@ -19,6 +19,7 @@ from scipy.ndimage.filters import gaussian_filter
 from scipy.spatial import KDTree
 
 import sup3r.preprocessing.data_handling
+from sup3r.preprocessing.data_handling.base import DataHandler
 from sup3r.utilities import VERSION_RECORD, ModuleName
 from sup3r.utilities.cli import BaseCLI
 from sup3r.utilities.utilities import nn_fill_array
@@ -74,7 +75,10 @@ class DataRetrievalBase:
             full domain shape will be used.
         base_handler : str
             Name of rex resource handler or sup3r.preprocessing.data_handling
-            class to be retrieved from the rex/sup3r library.
+            class to be retrieved from the rex/sup3r library. If a
+            sup3r.preprocessing.data_handling class is used, all data will be
+            loaded in this class' initialization and the subsequent bias
+            calculation will be done in serial
         bias_handler : str
             Name of the bias data handler class to be retrieved from the
             sup3r.preprocessing.data_handling library.
@@ -110,20 +114,30 @@ class DataRetrievalBase:
         if isinstance(self.bias_fps, str):
             self.bias_fps = sorted(glob(self.bias_fps))
 
-        base_sup3r_h = getattr(sup3r.preprocessing.data_handling,
-                               base_handler, None)
-        base_rex_h = getattr(rex, base_handler, None)
-        msg = f'Could not retrieve "{base_handler}" from sup3r or rex!'
-        assert base_sup3r_h is not None or base_rex_h is not None, msg
-        self.base_handler = base_rex_h or base_sup3r_h
+        base_sup3r_handler = getattr(sup3r.preprocessing.data_handling,
+                                     base_handler, None)
+        base_rex_handler = getattr(rex, base_handler, None)
+
+        if base_rex_handler is not None:
+            self.base_handler = base_rex_handler
+            self.base_dh = self.base_handler(self.base_fps[0],
+                                             **self.base_handler_kwargs)
+        elif base_sup3r_handler is not None:
+            self.base_handler = base_sup3r_handler
+            self.base_handler_kwargs['features'] = [self.base_dset]
+            self.base_dh = self.base_handler(self.base_fps,
+                                             **self.base_handler_kwargs)
+            msg = ('Base data handler opened with a sup3r DataHandler class '
+                   'must load cached data!')
+            assert self.base_dh.data is not None, msg
+        else:
+            msg = f'Could not retrieve "{base_handler}" from sup3r or rex!'
+            logger.error(msg)
+            raise RuntimeError(msg)
 
         self.bias_handler = getattr(sup3r.preprocessing.data_handling,
                                     bias_handler)
-
-        self.base_dh = self.base_handler(self.base_fps[0],
-                                         **self.base_handler_kwargs)
         self.base_meta = self.base_dh.meta
-
         self.bias_dh = self.bias_handler(self.bias_fps, [self.bias_feature],
                                          target=self.target,
                                          shape=self.shape,
@@ -363,8 +377,10 @@ class DataRetrievalBase:
                       base_dset,
                       base_gid,
                       base_handler,
+                      base_handler_kwargs=None,
                       daily_reduction='avg',
-                      decimals=None):
+                      decimals=None,
+                      base_dh_inst=None):
         """Get data from the baseline data source, possibly for many high-res
         base gids corresponding to a single coarse low-res bias gid.
 
@@ -380,7 +396,11 @@ class DataRetrievalBase:
             One or more spatial gids to retrieve from base_fps. The data will
             be spatially averaged across all of these sites.
         base_handler : rex.Resource
-            A rex data handler similar to rex.Resource
+            A rex data handler similar to rex.Resource or sup3r.DataHandler
+            classes (if using the latter, must also input base_dh_inst)
+        base_handler_kwargs : dict | None
+            Optional kwargs to send to the initialization of the base_handler
+            class
         daily_reduction : None | str
             Option to do a reduction of the hourly+ source base data to daily
             data. Can be None (no reduction, keep source time frequency), "avg"
@@ -390,10 +410,14 @@ class DataRetrievalBase:
             decimals, this gets passed to np.around(). If decimals
             is negative, it specifies the number of positions to
             the left of the decimal point.
+        base_dh_inst : sup3r.DataHandler
+            Instantiated  DataHandler class that has already loaded the base
+            data (required if base files are .nc and are not being opened by a
+            rex Resource handler).
 
         Returns
         -------
-        out : np.ndarray
+        out_data : np.ndarray
             1D array of base data spatially averaged across the base_gid input
             and possibly daily-averaged or min/max'd as well.
         out_ti : pd.DatetimeIndex
@@ -401,37 +425,82 @@ class DataRetrievalBase:
             output data.
         """
 
-        out = []
+        out_data = []
         out_ti = []
-        for fp in base_fps:
-            with base_handler(fp) as res:
-                base_ti = res.time_index
+        all_cs_ghi = []
+        base_handler_kwargs = base_handler_kwargs or {}
 
-                base_data, base_cs_ghi = cls._read_base_data(
-                    res, base_dset, base_gid)
-                if daily_reduction is not None:
-                    base_data = cls._reduce_base_data(
-                        base_ti,
-                        base_data,
-                        base_cs_ghi,
-                        base_dset,
-                        daily_reduction,
-                    )
-                    base_ti = np.array(sorted(set(base_ti.date)))
+        if issubclass(base_handler, DataHandler) and base_dh_inst is None:
+            msg = ('The method `get_base_data()` is only to be used with '
+                   '`base_handler` as a `sup3r.DataHandler` subclass if '
+                   '`base_dh_inst` is also provided!')
+            logger.error(msg)
+            raise RuntimeError(msg)
 
-            out.append(base_data)
-            out_ti.append(base_ti)
+        if issubclass(base_handler, DataHandler) and base_dh_inst is not None:
+            all_cs_ghi = [None]
+            out_ti = base_dh_inst.time_index
+            out_data = cls._read_base_sup3r_data(base_dh_inst, base_dset,
+                                                 base_gid)
+        else:
+            for fp in base_fps:
+                with base_handler(fp, **base_handler_kwargs) as res:
+                    base_ti = res.time_index
+                    temp_out = cls._read_base_rex_data(res, base_dset,
+                                                       base_gid)
+                    base_data, base_cs_ghi = temp_out
 
-        out = np.hstack(out)
+                out_data.append(base_data)
+                out_ti.append(base_ti)
+                all_cs_ghi.append(base_cs_ghi)
+
+            out_data = np.hstack(out_data)
+            out_ti = pd.DatetimeIndex(np.hstack(out_ti))
+            all_cs_ghi = np.hstack(all_cs_ghi)
+
+        if daily_reduction is not None:
+            out_data, out_ti = cls._reduce_base_data(out_ti,
+                                                     out_data,
+                                                     all_cs_ghi,
+                                                     base_dset,
+                                                     daily_reduction)
 
         if decimals is not None:
-            out = np.around(out, decimals=decimals)
+            out_data = np.around(out_data, decimals=decimals)
 
-        return out, pd.DatetimeIndex(np.hstack(out_ti))
+        return out_data, out_ti
 
     @staticmethod
-    def _read_base_data(res, base_dset, base_gid):
-        """Read baseline data from the resource handler with extra logic for
+    def _read_base_sup3r_data(dh, base_dset, base_gid):
+        """Read baseline data from a sup3r DataHandler
+
+        Parameters
+        ----------
+        dh : sup3r.DataHandler
+            sup3r DataHandler that is an open file handler of the base file(s)
+        base_dset : str
+            A single dataset from the base_fps to retrieve.
+        base_gid : int | np.ndarray
+            One or more spatial gids to retrieve from base_fps. The data will
+            be spatially averaged across all of these sites.
+
+        Returns
+        -------
+        base_data : np.ndarray
+            1D array of base data spatially averaged across the base_gid input
+        """
+        idf = dh.features.index(base_dset)
+        gid_raster = np.arange(len(dh.meta))
+        gid_raster = gid_raster.reshape(dh.shape[:2])
+        idy, idx = np.where(np.isin(gid_raster, base_gid))
+        base_data = dh.data[idy, idx, :, idf]
+        assert base_data.shape[0] == len(base_gid)
+        assert base_data.shape[1] == len(dh.time_index)
+        return base_data.mean(axis=0)
+
+    @staticmethod
+    def _read_base_rex_data(res, base_dset, base_gid):
+        """Read baseline data from a rex resource handler with extra logic for
         special datasets (e.g. u/v wind components or clearsky_ratio)
 
         Parameters
@@ -453,6 +522,9 @@ class DataRetrievalBase:
             If base_dset == "clearsky_ratio", the base_data array is GHI and
             this base_cs_ghi is clearsky GHI. Otherwise this is None
         """
+
+        msg = '`res` input must not be a `DataHandler` subclass!'
+        assert not issubclass(res.__class__, DataHandler), msg
 
         base_cs_ghi = None
 
@@ -509,19 +581,19 @@ class DataRetrievalBase:
         base_data : np.ndarray
             1D array of base data spatially averaged across the base_gid input
             and possibly daily-averaged or min/max'd as well.
+        daily_ti : pd.DatetimeIndex
+            Daily DatetimeIndex corresponding to the daily base_data
         """
 
         if daily_reduction is None:
             return base_data
 
-        slices = [
-            np.where(base_ti.date == date)
-            for date in sorted(set(base_ti.date))
-        ]
+        daily_ti = pd.DatetimeIndex(sorted(set(base_ti.date)))
+        slices = [np.where(base_ti.date == date.date()) for date in daily_ti]
 
         if base_dset == 'clearsky_ratio' and daily_reduction.lower() == 'avg':
-            base_data = np.array(
-                [base_data[s0].sum() / base_cs_ghi[s0].sum() for s0 in slices])
+            base_data = np.array([base_data[s0].sum() / base_cs_ghi[s0].sum()
+                                  for s0 in slices])
 
         elif daily_reduction.lower() == 'avg':
             base_data = np.array([base_data[s0].mean() for s0 in slices])
@@ -532,7 +604,12 @@ class DataRetrievalBase:
         elif daily_reduction.lower() == 'min':
             base_data = np.array([base_data[s0].min() for s0 in slices])
 
-        return base_data
+        msg = (f'Daily reduced base data shape {base_data.shape} does not '
+               f'match daily time index shape {daily_ti.shape}, '
+               'something went wrong!')
+        assert base_data.shape == daily_ti.shape, msg
+
+        return base_data, daily_ti
 
 
 class LinearCorrection(DataRetrievalBase):
@@ -613,7 +690,8 @@ class LinearCorrection(DataRetrievalBase):
                     base_handler,
                     daily_reduction,
                     bias_ti,
-                    decimals):
+                    decimals,
+                    base_dh_inst=None):
         """Find the nominal scalar + adder combination to bias correct data
         at a single site"""
 
@@ -622,7 +700,8 @@ class LinearCorrection(DataRetrievalBase):
                                          base_gid,
                                          base_handler,
                                          daily_reduction=daily_reduction,
-                                         decimals=decimals)
+                                         decimals=decimals,
+                                         base_dh_inst=base_dh_inst)
 
         out = cls.get_linear_correction(bias_data, base_data, bias_feature,
                                         base_dset)
@@ -789,6 +868,11 @@ class LinearCorrection(DataRetrievalBase):
 
         self.bad_bias_gids = []
 
+        # sup3r DataHandler opening base files will load all data in parallel
+        # during the init and should not be passed in parallel to workers
+        if isinstance(self.base_dh, DataHandler):
+            max_workers = 1
+
         if max_workers == 1:
             logger.debug('Running serial calculation.')
             for i, bias_gid in enumerate(self.bias_meta.index):
@@ -809,6 +893,7 @@ class LinearCorrection(DataRetrievalBase):
                         daily_reduction,
                         self.bias_ti,
                         self.decimals,
+                        base_dh_inst=self.base_dh,
                     )
                     for key, arr in single_out.items():
                         self.out[key][raster_loc] = arr
@@ -883,7 +968,8 @@ class MonthlyLinearCorrection(LinearCorrection):
                     base_handler,
                     daily_reduction,
                     bias_ti,
-                    decimals):
+                    decimals,
+                    base_dh_inst=None):
         """Find the nominal scalar + adder combination to bias correct data
         at a single site"""
 
@@ -892,7 +978,8 @@ class MonthlyLinearCorrection(LinearCorrection):
                                                base_gid,
                                                base_handler,
                                                daily_reduction=daily_reduction,
-                                               decimals=decimals)
+                                               decimals=decimals,
+                                               base_dh_inst=base_dh_inst)
 
         base_arr = np.full(cls.NT, np.nan, dtype=np.float32)
         out = {}
@@ -1051,13 +1138,14 @@ class SkillAssessment(MonthlyLinearCorrection):
     @classmethod
     def _run_single(cls, bias_data, base_fps, bias_feature, base_dset,
                     base_gid, base_handler, daily_reduction, bias_ti,
-                    decimals):
+                    decimals, base_dh_inst=None):
         """Do a skill assessment at a single site"""
 
         base_data, base_ti = cls.get_base_data(base_fps, base_dset,
                                                base_gid, base_handler,
                                                daily_reduction=daily_reduction,
-                                               decimals=decimals)
+                                               decimals=decimals,
+                                               base_dh_inst=base_dh_inst)
 
         arr = np.full(cls.NT, np.nan, dtype=np.float32)
         out = {f'bias_{bias_feature}_mean_monthly': arr.copy(),

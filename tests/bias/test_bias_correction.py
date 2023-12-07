@@ -300,11 +300,14 @@ def test_clearsky_ratio():
     assert not np.isnan(out['clearsky_ratio_scalar']).any()
     assert not np.isnan(out['clearsky_ratio_adder']).any()
 
-    assert (out['base_clearsky_ratio_mean'] > 0.3).all()
-    assert (out['base_clearsky_ratio_mean'] < 1.0).all()
+    base_cs = out['base_clearsky_ratio_mean']
+    bias_cs = out['bias_clearsky_ratio_mean']
 
-    assert (out['bias_clearsky_ratio_mean'] > 0.3).all()
-    assert (out['bias_clearsky_ratio_mean'] < 1.0).all()
+    assert (base_cs > 0.3).all()
+    assert (base_cs < 1.0).all()
+
+    assert (base_cs > 0.3).all()
+    assert (bias_cs < 1.0).all()
 
 
 def test_fwp_integration():
@@ -492,3 +495,38 @@ def test_skill_assessment():
     ks = stats.ks_2samp(base_data - base_mean, bias_data - bias_mean)
     assert np.allclose(out['rsds_ks_stat'][iloc], ks.statistic)
     assert np.allclose(out['rsds_ks_p'][iloc], ks.pvalue)
+
+
+def test_nc_base_file():
+    """Test a base file being a .nc like ERA5"""
+    calc = SkillAssessment(FP_CC, FP_CC, 'rsds', 'rsds',
+                           target=TARGET, shape=SHAPE,
+                           distance_upper_bound=0.7,
+                           base_handler='DataHandlerNCforCC',
+                           bias_handler='DataHandlerNCforCC')
+
+    # test a known in-bounds gid
+    bias_gid = 5
+    dist, base_gid = calc.get_base_gid(bias_gid)
+    assert dist == 0
+    assert (calc.nn_dist == 0).all()
+
+    with pytest.raises(RuntimeError) as exc:
+        base_data, _ = calc.get_base_data(calc.base_fps, calc.base_dset,
+                                          base_gid, calc.base_handler,
+                                          daily_reduction='avg')
+
+    good_err = 'only to be used with `base_handler` as a `sup3r.DataHandler` '
+    assert good_err in str(exc.value)
+
+    base_data, _ = calc.get_base_data(calc.base_fps, calc.base_dset,
+                                      base_gid, calc.base_handler,
+                                      daily_reduction='avg',
+                                      base_dh_inst=calc.base_dh)
+
+    out = calc.run(fill_extend=True, max_workers=1)
+
+    assert (out['rsds_scalar'] == 1).all()
+    assert (out['rsds_adder'] == 0).all()
+    assert np.allclose(out['base_rsds_mean'], out['bias_rsds_mean'])
+    assert np.allclose(out['base_rsds_std'], out['bias_rsds_std'])
