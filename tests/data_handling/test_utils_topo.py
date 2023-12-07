@@ -25,16 +25,33 @@ WRF_TARGET = (19.3, -123.5)
 WRF_SHAPE = (8, 8)
 
 
-def make_dummy_h5_topo(td, N=100, offset=0.1):
-    """Make a dummy h5 file with high-res topo for testing"""
-    wtk = Resource(FP_WTK)
+def get_lat_lon_range_h5(fp):
+    """Get the min/max lat/lon from an h5 file"""
+    with Resource(fp) as wtk:
+        lat_range = (wtk.meta['latitude'].min(), wtk.meta['latitude'].max())
+        lon_range = (wtk.meta['longitude'].min(), wtk.meta['longitude'].max())
+    return lat_range, lon_range
 
-    lat = np.linspace(wtk.meta['latitude'].min() - offset,
-                      wtk.meta['latitude'].max() + offset,
-                      N)
-    lon = np.linspace(wtk.meta['longitude'].min() - offset,
-                      wtk.meta['longitude'].max() + offset,
-                      N)
+
+def get_lat_lon_range_nc(fp):
+    """Get the min/max lat/lon from a netcdf file"""
+    import xarray as xr
+    dset = xr.open_dataset(fp)
+    lat_range = (dset['lat'].values.min(), dset['lat'].values.max())
+    lon_range = (dset['lon'].values.min(), dset['lon'].values.max())
+    return lat_range, lon_range
+
+
+def make_topo_file(fp, td, N=100, offset=0.1):
+    """Make a dummy h5 file with high-res topo for testing"""
+
+    if fp.endswith('.h5'):
+        lat_range, lon_range = get_lat_lon_range_h5(fp)
+    else:
+        lat_range, lon_range = get_lat_lon_range_nc(fp)
+
+    lat = np.linspace(lat_range[0] - offset, lat_range[1] + offset, N)
+    lon = np.linspace(lon_range[0] - offset, lon_range[1] + offset, N)
     idy, idx = np.meshgrid(np.arange(len(lon)), np.arange(len(lat)))
     lon, lat = np.meshgrid(lon, lat)
     lon, lat = lon.flatten(), lat.flatten()
@@ -56,7 +73,7 @@ def test_topo_extraction_h5(s_enhance, plot=False):
     """Test the spatial enhancement of a test grid and then the lookup of the
     elevation data to a reference WTK file (also the same file for the test)"""
     with tempfile.TemporaryDirectory() as td:
-        fp_exo_topo = make_dummy_h5_topo(td)
+        fp_exo_topo = make_topo_file(FP_WTK, td)
 
         te = TopoExtractH5(FP_WTK, fp_exo_topo, s_enhance=s_enhance,
                            t_enhance=1, t_agg_factor=1,
@@ -106,7 +123,7 @@ def test_bad_s_enhance(s_enhance=10):
     """Test a large s_enhance factor that results in a bad mapping with
     enhanced grid pixels not having source exo data points"""
     with tempfile.TemporaryDirectory() as td:
-        fp_exo_topo = make_dummy_h5_topo(td)
+        fp_exo_topo = make_topo_file(FP_WTK, td)
 
         with pytest.warns(UserWarning) as warnings:
             te = TopoExtractH5(FP_WTK, fp_exo_topo, s_enhance=s_enhance,
@@ -122,7 +139,11 @@ def test_bad_s_enhance(s_enhance=10):
 
 def test_topo_extraction_nc():
     """Test the spatial enhancement of a test grid and then the lookup of the
-    elevation data to a reference WRF file (also the same file for the test)"""
+    elevation data to a reference WRF file (also the same file for the test)
+
+    We already test proper topo mapping and aggregation in the h5 test so this
+    just makes sure that the data can be extracted from a WRF file.
+    """
     te = TopoExtractNC(FP_WRF, FP_WRF, s_enhance=1, t_enhance=1,
                        t_agg_factor=1, target=None, shape=None)
     hr_elev = te.data
