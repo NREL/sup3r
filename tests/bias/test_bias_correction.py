@@ -518,10 +518,11 @@ def test_nc_base_file():
     good_err = 'only to be used with `base_handler` as a `sup3r.DataHandler` '
     assert good_err in str(exc.value)
 
-    base_data, _ = calc.get_base_data(calc.base_fps, calc.base_dset,
-                                      base_gid, calc.base_handler,
-                                      daily_reduction='avg',
-                                      base_dh_inst=calc.base_dh)
+    # make sure this doesnt raise error now that calc.base_dh is provided
+    calc.get_base_data(calc.base_fps, calc.base_dset,
+                       base_gid, calc.base_handler,
+                       daily_reduction='avg',
+                       base_dh_inst=calc.base_dh)
 
     out = calc.run(fill_extend=True, max_workers=1)
 

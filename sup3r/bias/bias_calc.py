@@ -909,7 +909,7 @@ class LinearCorrection(DataRetrievalBase):
                 futures = {}
                 for bias_gid in self.bias_meta.index:
                     raster_loc = np.where(self.bias_gid_raster == bias_gid)
-                    dist, base_gid = self.get_base_gid(bias_gid)
+                    _, base_gid = self.get_base_gid(bias_gid)
 
                     if not base_gid.any():
                         self.bad_bias_gids.append(bias_gid)

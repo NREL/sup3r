@@ -8,7 +8,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
-from scipy.spatial import KDTree
 from rex import Resource
 from rex import Outputs
 
@@ -77,6 +76,7 @@ def test_topo_extraction_h5(s_enhance, plot=False):
             exo_coords = te.source_lat_lon[iloc]
 
             # make sure all mapped high-res exo coordinates are closest to gid
+            # pylint: disable=consider-using-enumerate
             for i in range(len(exo_coords)):
                 dist = hr_wtk_meta - exo_coords[i]
                 dist = np.hypot(dist[:, 0], dist[:, 1])

@@ -134,7 +134,7 @@ class ExoExtract(ABC):
         self._source_lat_lon = None
         self._hr_time_index = None
         self._src_time_index = None
-        self._distance_upper_bound = None
+        self._distance_upper_bound = distance_upper_bound
         self.cache_data = cache_data
         self.cache_dir = cache_dir
         self.temporal_slice = temporal_slice
