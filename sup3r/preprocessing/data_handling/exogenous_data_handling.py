@@ -1,4 +1,5 @@
 """Sup3r exogenous data handling"""
+from inspect import signature
 import logging
 import re
 from typing import ClassVar
@@ -573,21 +574,24 @@ class ExogenousDataHandler:
 
         exo_handler = self.get_exo_handler(feature, self.source_file,
                                            self.exo_handler)
-        data = exo_handler(self.file_paths,
-                           self.source_file,
-                           s_enhance=s_enhance,
-                           t_enhance=t_enhance,
-                           s_agg_factor=s_agg_factor,
-                           t_agg_factor=t_agg_factor,
-                           target=self.target,
-                           shape=self.shape,
-                           temporal_slice=self.temporal_slice,
-                           raster_file=self.raster_file,
-                           max_delta=self.max_delta,
-                           input_handler=self.input_handler,
-                           cache_data=self.cache_data,
-                           cache_dir=self.cache_dir,
-                           res_kwargs=self.res_kwargs).data
+        kwargs = dict(file_paths=self.file_paths,
+                      exo_source=self.source_file,
+                      s_enhance=s_enhance,
+                      t_enhance=t_enhance,
+                      s_agg_factor=s_agg_factor,
+                      t_agg_factor=t_agg_factor,
+                      target=self.target,
+                      shape=self.shape,
+                      temporal_slice=self.temporal_slice,
+                      raster_file=self.raster_file,
+                      max_delta=self.max_delta,
+                      input_handler=self.input_handler,
+                      cache_data=self.cache_data,
+                      cache_dir=self.cache_dir,
+                      res_kwargs=self.res_kwargs)
+        sig = signature(exo_handler)
+        kwargs = {k: v for k, v in kwargs.items() if k in sig.parameters}
+        data = exo_handler(**kwargs).data
         return data
 
     @classmethod
