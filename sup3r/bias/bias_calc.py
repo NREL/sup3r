@@ -37,7 +37,7 @@ class DataRetrievalBase:
                  bias_fps,
                  base_dset,
                  bias_feature,
-                 distance_upper_bound,
+                 distance_upper_bound=None,
                  target=None,
                  shape=None,
                  base_handler='Resource',
@@ -66,7 +66,8 @@ class DataRetrievalBase:
         distance_upper_bound : float
             Upper bound on the nearest neighbor distance in decimal degrees.
             This should be the approximate resolution of the low-resolution
-            bias data.
+            bias data. None (default) will calculate this based on the median
+            distance between points in bias_fps
         target : tuple
             (lat, lon) lower left corner of raster to retrieve from bias_fps.
             If None then the lower left corner of the full domain will be used.
@@ -108,6 +109,7 @@ class DataRetrievalBase:
         self.base_handler_kwargs = base_handler_kwargs or {}
         self.bias_handler_kwargs = bias_handler_kwargs or {}
         self.bad_bias_gids = []
+        self._distance_upper_bound = distance_upper_bound
 
         if isinstance(self.base_fps, str):
             self.base_fps = sorted(glob(self.base_fps))
@@ -153,10 +155,9 @@ class DataRetrievalBase:
         self.bias_gid_raster = np.arange(lats.size)
         self.bias_gid_raster = self.bias_gid_raster.reshape(raster_shape)
 
-        out = self.bias_tree.query(self.base_meta[['latitude', 'longitude']],
-                                   k=1,
-                                   distance_upper_bound=distance_upper_bound)
-        self.nn_dist, self.nn_ind = out
+        self.nn_dist, self.nn_ind = self.bias_tree.query(
+            self.base_meta[['latitude', 'longitude']], k=1,
+            distance_upper_bound=self.distance_upper_bound)
 
         self.out = None
         self._init_out()
@@ -179,6 +180,19 @@ class DataRetrievalBase:
                 'class': str(self.__class__),
                 'version_record': VERSION_RECORD}
         return meta
+
+    @property
+    def distance_upper_bound(self):
+        """Maximum distance (float) to map high-resolution data from exo_source
+        to the low-resolution file_paths input."""
+        if self._distance_upper_bound is None:
+            diff = np.diff(self.bias_meta[['latitude', 'longitude']].values,
+                           axis=0)
+            diff = np.max(np.median(diff, axis=0))
+            self._distance_upper_bound = diff
+            logger.info('Set distance upper bound to {:.4f}'
+                        .format(self._distance_upper_bound))
+        return self._distance_upper_bound
 
     @staticmethod
     def compare_dists(base_data, bias_data, adder=0, scalar=1):

@@ -104,7 +104,7 @@ def test_topo_extraction_h5(s_enhance, plot=False):
             true_out = te.source_data[iloc].mean()
             assert np.allclose(test_out, true_out)
 
-        shutil.rmtree('./exo_cache/')
+        shutil.rmtree('./exo_cache/', ignore_errors=True)
 
         if plot:
             a = plt.scatter(te.source_lat_lon[:, 1], te.source_lat_lon[:, 0],

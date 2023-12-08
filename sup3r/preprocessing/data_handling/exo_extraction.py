@@ -56,9 +56,14 @@ class ExoExtract(ABC):
             typically low-res WRF output or GCM netcdf data files that is
             source low-resolution data intended to be sup3r resolved.
         exo_source : str
-            Filepath to source wtk or nsrdb file to get hi-res (2km or 4km)
-            elevation data from which will be mapped to the enhanced grid of
-            the file_paths input
+            Filepath to source data file to get hi-res elevation data from
+            which will be mapped to the enhanced grid of the file_paths input.
+            Pixels from this exo_source will be mapped to their nearest low-res
+            pixel in the file_paths input. Accordingly, exo_source should be a
+            significantly higher resolution than file_paths. Warnings will be
+            raised if the low-resolution pixels in file_paths do not have
+            unique nearest pixels from exo_source. File format can be .h5 for
+            TopoExtractH5 or .nc for TopoExtractNC
         s_enhance : int
             Factor by which the Sup3rGan model will enhance the spatial
             dimensions of low resolution data from file_paths input. For
@@ -72,12 +77,13 @@ class ExoExtract(ABC):
             t_enhance is 4, this class will output a sza raster
             corresponding to the file_paths temporally enhanced 4x to 15 min
         t_agg_factor : int
-            Factor by which to aggregate the exo_source data to the resolution
-            of the file_paths input enhanced by t_enhance. For example, if
-            getting sza data, file_paths have hourly data, and t_enhance
-            is 4 resulting in a desired resolution of 5 min and exo_source
-            has a resolution of 5 min, the t_agg_factor should be 4 so that
-            every fourth timestep in the exo_source data is skipped.
+            Factor by which to aggregate / subsample the exo_source data to the
+            resolution of the file_paths input enhanced by t_enhance. For
+            example, if getting sza data, file_paths have hourly data, and
+            t_enhance is 4 resulting in a target resolution of 15 min and
+            exo_source has a resolution of 5 min, the t_agg_factor should be 3
+            so that only timesteps that are a multiple of 15min are selected
+            e.g., [0, 5, 10, 15, 20, 25, 30][slice(0, None, 3)] = [0, 15, 30]
         target : tuple
             (lat, lon) lower left corner of raster. Either need target+shape or
             raster_file.
@@ -308,6 +314,8 @@ class ExoExtract(ABC):
             diff = np.diff(self.source_lat_lon, axis=0)
             diff = np.max(np.median(diff, axis=0))
             self._distance_upper_bound = diff
+            logger.info('Set distance upper bound to {:.4f}'
+                        .format(self._distance_upper_bound))
         return self._distance_upper_bound
 
     @property

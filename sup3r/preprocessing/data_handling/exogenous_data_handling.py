@@ -245,9 +245,13 @@ class ExogenousDataHandler:
             source. e.g. {'spatial': '4km', 'temporal': '60min'}. This is used
             only if agg factors are not provided in the steps list.
         source_file : str
-            Filepath to source wtk, nsrdb, or netcdf file to get hi-res (2km or
-            4km) data from which will be mapped to the enhanced grid of the
-            file_paths input
+            Filepath to source wtk, nsrdb, or netcdf file to get hi-res data
+            from which will be mapped to the enhanced grid of the file_paths
+            input. Pixels from this file will be mapped to their nearest
+            low-res pixel in the file_paths input. Accordingly, the input
+            should be a significantly higher resolution than file_paths.
+            Warnings will be raised if the low-resolution pixels in file_paths
+            do not have unique nearest pixels from this exo source data.
         target : tuple
             (lat, lon) lower left corner of raster. Either need target+shape or
             raster_file.
