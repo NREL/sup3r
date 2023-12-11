@@ -26,25 +26,11 @@ from sup3r.utilities.interpolate_log_profile import LogLinInterpolator
 
 logger = logging.getLogger(__name__)
 
-try:
-    import cdsapi
-
-    CDS_API_CLIENT = cdsapi.Client()
-except ImportError as e:
-    msg = f'Could not import cdsapi package. {e}'
-    logger.error(msg)
-
 
 class EraDownloader:
     """Class to handle ERA5 downloading, variable renaming, file combination,
     and interpolation.
     """
-
-    msg = ('To download ERA5 data you need to have a ~/.cdsapirc file '
-           'with a valid url and api key. Follow the instructions here: '
-           'https://cds.climate.copernicus.eu/api-how-to')
-    req_file = os.path.join(os.path.expanduser('~'), '.cdsapirc')
-    assert os.path.exists(req_file), msg
 
     # variables available on a single level (e.g. surface)
     SFC_VARS: ClassVar[list] = [
@@ -275,6 +261,26 @@ class EraDownloader:
                 logger.warning(msg)
                 warn(msg)
 
+    @staticmethod
+    def get_cds_client():
+        """Get the copernicus climate data store (CDS) API object for ERA
+        downloads."""
+        try:
+            import cdsapi
+            cds_api_client = cdsapi.Client()
+        except ImportError as e:
+            msg = f'Could not import cdsapi package. {e}'
+            logger.error(msg)
+            raise ImportError(msg) from e
+
+        msg = ('To download ERA5 data you need to have a ~/.cdsapirc file '
+               'with a valid url and api key. Follow the instructions here: '
+               'https://cds.climate.copernicus.eu/api-how-to')
+        req_file = os.path.join(os.path.expanduser('~'), '.cdsapirc')
+        assert os.path.exists(req_file), msg
+
+        return cds_api_client
+
     def download_process_combine(self):
         """Run the download routine."""
         sfc_check = len(self.sfc_file_variables) > 0
@@ -338,7 +344,8 @@ class EraDownloader:
             if level_type == 'pressure':
                 entry['pressure_level'] = levels
             logger.info(f'Calling CDS-API with {entry}.')
-            CDS_API_CLIENT.retrieve(
+            cds_api_client = cls.get_cds_client()
+            cds_api_client.retrieve(
                 f'reanalysis-era5-{level_type}-levels',
                 entry, out_file)
         else:

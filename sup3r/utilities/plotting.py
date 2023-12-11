@@ -2,7 +2,6 @@
 """Utilities module for plotting data
 """
 
-import imageio
 import matplotlib
 from matplotlib import cm
 import matplotlib.pyplot as plt
@@ -170,6 +169,12 @@ def make_movie(ntime, movieDir, movieName, fps=24):
         number of frame per second for the movie, by default 24
 
     """
+    try:
+        import imageio
+    except ImportError as e:
+        msg = f'Need extra installation to make movie "imageio": {e}'
+        raise ImportError(msg) from e
+
     # initiate an empty  list of "plotted" images
     myimages = []
     # loops through available pngs

@@ -13,7 +13,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import numpy as np
 import pandas as pd
-import rioxarray
 import xarray as xr
 from rex import Resource
 from scipy.interpolate import interp1d
@@ -116,6 +115,11 @@ class VortexMeanPrepper:
             os.remove(outfile)
 
         if not os.path.exists(outfile) or self.overwrite:
+            try:
+                import rioxarray
+            except ImportError as e:
+                msg = 'Need special installation of "rioxarray" to run this!'
+                raise ImportError(msg) from e
             tmp = rioxarray.open_rasterio(infile)
             ds = tmp.to_dataset("band")
             ds = ds.rename(
