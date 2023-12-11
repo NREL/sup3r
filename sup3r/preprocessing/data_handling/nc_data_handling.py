@@ -281,7 +281,9 @@ class DataHandlerNC(DataHandler):
                 time_slice)
 
         else:
-            msg = f'{feature} cannot be extracted from source data.'
+            available = [str(var) for var in handle.variables]
+            msg = (f'Requested feature "{feature}" cannot be extracted from '
+                   f'source data that has available variables: {available}.')
             logger.exception(msg)
             raise ValueError(msg)
 
