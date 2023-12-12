@@ -2,7 +2,7 @@
 """Super Resolving Renewable Energy Resource Data (SUP3R)"""
 import os
 from sup3r.version import __version__
-import sup3r.cli  # import sets up CLI commands
+
 
 __author__ = """Brandon Benton"""
 __email__ = "brandon.benton@nrel.gov"
