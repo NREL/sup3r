@@ -323,7 +323,8 @@ class DataRetrievalBase:
         daily_reduction : None | str
             Option to do a reduction of the hourly+ source base data to daily
             data. Can be None (no reduction, keep source time frequency), "avg"
-            (daily average), "max" (daily max), or "min" (daily min)
+            (daily average), "max" (daily max), "min" (daily min),
+            "sum" (daily sum/total)
 
         Returns
         -------
@@ -418,7 +419,8 @@ class DataRetrievalBase:
         daily_reduction : None | str
             Option to do a reduction of the hourly+ source base data to daily
             data. Can be None (no reduction, keep source time frequency), "avg"
-            (daily average), "max" (daily max), or "min" (daily min)
+            (daily average), "max" (daily max), "min" (daily min),
+            "sum" (daily sum/total)
         decimals : int | None
             Option to round bias and base data to this number of
             decimals, this gets passed to np.around(). If decimals
@@ -452,10 +454,10 @@ class DataRetrievalBase:
             raise RuntimeError(msg)
 
         if issubclass(base_handler, DataHandler) and base_dh_inst is not None:
-            all_cs_ghi = [None]
             out_ti = base_dh_inst.time_index
             out_data = cls._read_base_sup3r_data(base_dh_inst, base_dset,
                                                  base_gid)
+            all_cs_ghi = np.ones(len(out_data), dtype=np.float32) * np.nan
         else:
             for fp in base_fps:
                 with base_handler(fp, **base_handler_kwargs) as res:
@@ -532,9 +534,10 @@ class DataRetrievalBase:
         -------
         base_data : np.ndarray
             1D array of base data spatially averaged across the base_gid input
-        base_cs_ghi : np.ndarray | None
+        base_cs_ghi : np.ndarray
             If base_dset == "clearsky_ratio", the base_data array is GHI and
-            this base_cs_ghi is clearsky GHI. Otherwise this is None
+            this base_cs_ghi is clearsky GHI. Otherwise this is an array with
+            same length as base_data but full of np.nan
         """
 
         msg = '`res` input must not be a `DataHandler` subclass!'
@@ -566,6 +569,9 @@ class DataRetrievalBase:
             if base_cs_ghi is not None:
                 base_cs_ghi = np.nanmean(base_cs_ghi, axis=1)
 
+        if base_cs_ghi is None:
+            base_cs_ghi = np.ones(len(base_data), dtype=np.float32) * np.nan
+
         return base_data, base_cs_ghi
 
     @staticmethod
@@ -580,15 +586,17 @@ class DataRetrievalBase:
             Time index associated with base_data
         base_data : np.ndarray
             1D array of base data spatially averaged across the base_gid input
-        base_cs_ghi : np.ndarray | None
+        base_cs_ghi : np.ndarray
             If base_dset == "clearsky_ratio", the base_data array is GHI and
-            this base_cs_ghi is clearsky GHI. Otherwise this is None
+            this base_cs_ghi is clearsky GHI. Otherwise this is an array with
+            same length as base_data but full of np.nan
         base_dset : str
             A single dataset from the base_fps to retrieve.
         daily_reduction : str
             Option to do a reduction of the hourly+ source base data to daily
             data. Can be None (no reduction, keep source time frequency), "avg"
-            (daily average), "max" (daily max), or "min" (daily min)
+            (daily average), "max" (daily max), "min" (daily min),
+            "sum" (daily sum/total)
 
         Returns
         -------
@@ -603,24 +611,38 @@ class DataRetrievalBase:
             return base_data
 
         daily_ti = pd.DatetimeIndex(sorted(set(base_ti.date)))
-        slices = [np.where(base_ti.date == date.date()) for date in daily_ti]
+        df = pd.DataFrame({'date': base_ti.date,
+                           'base_data': base_data,
+                           'base_cs_ghi': base_cs_ghi})
 
-        if base_dset == 'clearsky_ratio' and daily_reduction.lower() == 'avg':
-            base_data = np.array([base_data[s0].sum() / base_cs_ghi[s0].sum()
-                                  for s0 in slices])
+        cs_ratio = (daily_reduction.lower() in ('avg', 'average', 'mean')
+                    and base_dset == 'clearsky_ratio')
 
-        elif daily_reduction.lower() == 'avg':
-            base_data = np.array([base_data[s0].mean() for s0 in slices])
+        if cs_ratio:
+            daily_ghi = df.groupby('date').sum()['base_data'].values
+            daily_cs_ghi = df.groupby('date').sum()['base_cs_ghi'].values
+            base_data = daily_ghi / daily_cs_ghi
+            msg = ('Could not calculate daily average "clearsky_ratio" with '
+                   'base_data and base_cs_ghi inputs: \n{}, \n{}'
+                   .format(base_data, base_cs_ghi))
+            assert not np.isnan(base_data).any(), msg
 
-        elif daily_reduction.lower() == 'max':
-            base_data = np.array([base_data[s0].max() for s0 in slices])
+        elif daily_reduction.lower() in ('avg', 'average', 'mean'):
+            base_data = df.groupby('date').mean()['base_data'].values
 
-        elif daily_reduction.lower() == 'min':
-            base_data = np.array([base_data[s0].min() for s0 in slices])
+        elif daily_reduction.lower() in ('max', 'maximum'):
+            base_data = df.groupby('date').max()['base_data'].values
+
+        elif daily_reduction.lower() in ('min', 'minimum'):
+            base_data = df.groupby('date').min()['base_data'].values
+
+        elif daily_reduction.lower() in ('sum', 'total'):
+            base_data = df.groupby('date').sum()['base_data'].values
 
         msg = (f'Daily reduced base data shape {base_data.shape} does not '
                f'match daily time index shape {daily_ti.shape}, '
                'something went wrong!')
+        assert len(base_data.shape) == 1, msg
         assert base_data.shape == daily_ti.shape, msg
 
         return base_data, daily_ti
@@ -853,7 +875,8 @@ class LinearCorrection(DataRetrievalBase):
         daily_reduction : None | str
             Option to do a reduction of the hourly+ source base data to daily
             data. Can be None (no reduction, keep source time frequency), "avg"
-            (daily average), "max" (daily max), or "min" (daily min)
+            (daily average), "max" (daily max), "min" (daily min),
+            "sum" (daily sum/total)
         fill_extend : bool
             Flag to fill data past distance_upper_bound using spatial nearest
             neighbor. If False, the extended domain will be left as NaN.
