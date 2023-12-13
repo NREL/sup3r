@@ -137,9 +137,9 @@ class DataHandlerH5(DataHandler):
         try:
             fdata = handle[(feature, time_slice, *(raster_index.flatten(),))]
         except ValueError as e:
+            hfeatures = cls.get_handle_features(file_paths)
             msg = (f'Requested feature "{feature}" cannot be extracted from '
-                   f'source data that has available variables: '
-                   f'{handle.dsets}.')
+                   f'source data that has handle features: {hfeatures}.')
             logger.exception(msg)
             raise ValueError(msg) from e
 
