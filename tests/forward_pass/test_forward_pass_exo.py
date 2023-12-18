@@ -2,6 +2,7 @@
 """pytests for data handling"""
 import json
 import os
+import shutil
 import tempfile
 
 import matplotlib.pyplot as plt
@@ -963,6 +964,8 @@ def test_fwp_multi_step_model_multi_exo():
                 'U_100m', 'V_100m', 'topography'
             ]
 
+    shutil.rmtree('./exo_cache', ignore_errors=True)
+
 
 def test_fwp_multi_step_exo_hi_res_topo_and_sza():
     """Test the forward pass with multiple ExoGan models requiring
@@ -1197,3 +1200,5 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza():
 
         for fp in handler.out_files:
             assert os.path.exists(fp)
+
+    shutil.rmtree('./exo_cache', ignore_errors=True)

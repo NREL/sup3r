@@ -1460,12 +1460,12 @@ def get_input_handler_class(file_paths, input_handler_name):
 
 
 def np_to_pd_times(times):
-    """Convert np.bytes_ times to DatetimeIndex
+    """Convert `np.bytes_` times to DatetimeIndex
 
     Parameters
     ----------
     times : ndarray | list
-        List of np.bytes_ objects for time indices
+        List of `np.bytes_` objects for time indices
 
     Returns
     -------

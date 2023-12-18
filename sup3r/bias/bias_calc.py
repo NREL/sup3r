@@ -19,6 +19,7 @@ from scipy.ndimage.filters import gaussian_filter
 from scipy.spatial import KDTree
 
 import sup3r.preprocessing.data_handling
+from sup3r.preprocessing.data_handling.base import DataHandler
 from sup3r.utilities import VERSION_RECORD, ModuleName
 from sup3r.utilities.cli import BaseCLI
 from sup3r.utilities.utilities import nn_fill_array
@@ -36,10 +37,12 @@ class DataRetrievalBase:
                  bias_fps,
                  base_dset,
                  bias_feature,
+                 distance_upper_bound=None,
                  target=None,
                  shape=None,
                  base_handler='Resource',
                  bias_handler='DataHandlerNCforCC',
+                 base_handler_kwargs=None,
                  bias_handler_kwargs=None,
                  decimals=None):
         """
@@ -60,6 +63,11 @@ class DataRetrievalBase:
         bias_feature : str
             This is the biased feature from bias_fps to retrieve. This should
             be a single feature name corresponding to base_dset
+        distance_upper_bound : float
+            Upper bound on the nearest neighbor distance in decimal degrees.
+            This should be the approximate resolution of the low-resolution
+            bias data. None (default) will calculate this based on the median
+            distance between points in bias_fps
         target : tuple
             (lat, lon) lower left corner of raster to retrieve from bias_fps.
             If None then the lower left corner of the full domain will be used.
@@ -67,11 +75,17 @@ class DataRetrievalBase:
             (rows, cols) grid size to retrieve from bias_fps. If None then the
             full domain shape will be used.
         base_handler : str
-            Name of rex resource handler class to be retrieved from the rex
-            library.
+            Name of rex resource handler or sup3r.preprocessing.data_handling
+            class to be retrieved from the rex/sup3r library. If a
+            sup3r.preprocessing.data_handling class is used, all data will be
+            loaded in this class' initialization and the subsequent bias
+            calculation will be done in serial
         bias_handler : str
             Name of the bias data handler class to be retrieved from the
             sup3r.preprocessing.data_handling library.
+        base_handler_kwargs : dict | None
+            Optional kwargs to send to the initialization of the base_handler
+            class
         bias_handler_kwargs : dict | None
             Optional kwargs to send to the initialization of the bias_handler
             class
@@ -92,35 +106,58 @@ class DataRetrievalBase:
         self.target = target
         self.shape = shape
         self.decimals = decimals
-        bias_handler_kwargs = bias_handler_kwargs or {}
+        self.base_handler_kwargs = base_handler_kwargs or {}
+        self.bias_handler_kwargs = bias_handler_kwargs or {}
+        self.bad_bias_gids = []
+        self._distance_upper_bound = distance_upper_bound
 
         if isinstance(self.base_fps, str):
             self.base_fps = sorted(glob(self.base_fps))
         if isinstance(self.bias_fps, str):
             self.bias_fps = sorted(glob(self.bias_fps))
 
-        self.base_handler = getattr(rex, base_handler)
+        base_sup3r_handler = getattr(sup3r.preprocessing.data_handling,
+                                     base_handler, None)
+        base_rex_handler = getattr(rex, base_handler, None)
+
+        if base_rex_handler is not None:
+            self.base_handler = base_rex_handler
+            self.base_dh = self.base_handler(self.base_fps[0],
+                                             **self.base_handler_kwargs)
+        elif base_sup3r_handler is not None:
+            self.base_handler = base_sup3r_handler
+            self.base_handler_kwargs['features'] = [self.base_dset]
+            self.base_dh = self.base_handler(self.base_fps,
+                                             **self.base_handler_kwargs)
+            msg = ('Base data handler opened with a sup3r DataHandler class '
+                   'must load cached data!')
+            assert self.base_dh.data is not None, msg
+        else:
+            msg = f'Could not retrieve "{base_handler}" from sup3r or rex!'
+            logger.error(msg)
+            raise RuntimeError(msg)
+
         self.bias_handler = getattr(sup3r.preprocessing.data_handling,
                                     bias_handler)
-
-        with self.base_handler(self.base_fps[0]) as res:
-            self.base_meta = res.meta
-            self.base_tree = KDTree(self.base_meta[['latitude', 'longitude']])
-
+        self.base_meta = self.base_dh.meta
         self.bias_dh = self.bias_handler(self.bias_fps, [self.bias_feature],
                                          target=self.target,
                                          shape=self.shape,
                                          val_split=0.0,
-                                         **bias_handler_kwargs)
+                                         **self.bias_handler_kwargs)
         lats = self.bias_dh.lat_lon[..., 0].flatten()
-        lons = self.bias_dh.lat_lon[..., 1].flatten()
-        self.bias_meta = pd.DataFrame({'latitude': lats, 'longitude': lons})
+        self.bias_meta = self.bias_dh.meta
         self.bias_ti = self.bias_dh.time_index
 
         raster_shape = self.bias_dh.lat_lon[..., 0].shape
-        self.bias_tree = KDTree(self.bias_meta[['latitude', 'longitude']])
+        bias_lat_lon = self.bias_meta[['latitude', 'longitude']].values
+        self.bias_tree = KDTree(bias_lat_lon)
         self.bias_gid_raster = np.arange(lats.size)
         self.bias_gid_raster = self.bias_gid_raster.reshape(raster_shape)
+
+        self.nn_dist, self.nn_ind = self.bias_tree.query(
+            self.base_meta[['latitude', 'longitude']], k=1,
+            distance_upper_bound=self.distance_upper_bound)
 
         self.out = None
         self._init_out()
@@ -143,6 +180,19 @@ class DataRetrievalBase:
                 'class': str(self.__class__),
                 'version_record': VERSION_RECORD}
         return meta
+
+    @property
+    def distance_upper_bound(self):
+        """Maximum distance (float) to map high-resolution data from exo_source
+        to the low-resolution file_paths input."""
+        if self._distance_upper_bound is None:
+            diff = np.diff(self.bias_meta[['latitude', 'longitude']].values,
+                           axis=0)
+            diff = np.max(np.median(diff, axis=0))
+            self._distance_upper_bound = diff
+            logger.info('Set distance upper bound to {:.4f}'
+                        .format(self._distance_upper_bound))
+        return self._distance_upper_bound
 
     @staticmethod
     def compare_dists(base_data, bias_data, adder=0, scalar=1):
@@ -238,7 +288,7 @@ class DataRetrievalBase:
         bias_gid = self.bias_gid_raster.flatten()[i]
         return bias_gid, d
 
-    def get_base_gid(self, bias_gid, knn):
+    def get_base_gid(self, bias_gid):
         """Get one or more base gid(s) corresponding to a bias gid.
 
         Parameters
@@ -247,36 +297,34 @@ class DataRetrievalBase:
             gid of the data to retrieve in the bias data source raster data.
             The gids for this data source are the enumerated indices of the
             flattened coordinate array.
-        knn : int
-            Number of nearest neighbors to aggregate from the base data when
-            comparing to a single site from the bias data.
 
         Returns
         -------
         dist : np.ndarray
-            Array of nearest neighbor distances with length == knn
+            Array of nearest neighbor distances with length equal to the number
+            of high-resolution baseline gids that map to the low resolution
+            bias gid pixel.
         base_gid : np.ndarray
             Array of base gids that are the nearest neighbors of bias_gid with
-            length == knn
+            length equal to the number of high-resolution baseline gids that
+            map to the low resolution bias gid pixel.
         """
-        coord = self.bias_meta.loc[bias_gid, ['latitude', 'longitude']]
-        dist, base_gid = self.base_tree.query(coord, k=knn)
+        base_gid = np.where(self.nn_ind == bias_gid)[0]
+        dist = self.nn_dist[base_gid]
         return dist, base_gid
 
-    def get_data_pair(self, coord, knn, daily_reduction='avg'):
+    def get_data_pair(self, coord, daily_reduction='avg'):
         """Get base and bias data observations based on a single bias gid.
 
         Parameters
         ----------
         coord : tuple
             (lat, lon) to get data for.
-        knn : int
-            Number of nearest neighbors to aggregate from the base data when
-            comparing to a single site from the bias data.
         daily_reduction : None | str
             Option to do a reduction of the hourly+ source base data to daily
             data. Can be None (no reduction, keep source time frequency), "avg"
-            (daily average), "max" (daily max), or "min" (daily min)
+            (daily average), "max" (daily max), "min" (daily min),
+            "sum" (daily sum/total)
 
         Returns
         -------
@@ -287,12 +335,13 @@ class DataRetrievalBase:
             1D array of temporal data at the requested gid.
         base_dist : np.ndarray
             Array of nearest neighbor distances from coord to the base data
-            sites with length == knn
+            sites with length equal to the number of high-resolution baseline
+            gids that map to the low resolution bias gid pixel.
         bias_dist : Float
             Nearest neighbor distance from coord to the bias data site
         """
         bias_gid, bias_dist = self.get_bias_gid(coord)
-        base_dist, base_gid = self.get_base_gid(bias_gid, knn)
+        base_dist, base_gid = self.get_base_gid(bias_gid)
         bias_data = self.get_bias_data(bias_gid)
         base_data = self.get_base_data(self.base_fps,
                                        self.base_dset,
@@ -343,8 +392,10 @@ class DataRetrievalBase:
                       base_dset,
                       base_gid,
                       base_handler,
+                      base_handler_kwargs=None,
                       daily_reduction='avg',
-                      decimals=None):
+                      decimals=None,
+                      base_dh_inst=None):
         """Get data from the baseline data source, possibly for many high-res
         base gids corresponding to a single coarse low-res bias gid.
 
@@ -360,20 +411,29 @@ class DataRetrievalBase:
             One or more spatial gids to retrieve from base_fps. The data will
             be spatially averaged across all of these sites.
         base_handler : rex.Resource
-            A rex data handler similar to rex.Resource
+            A rex data handler similar to rex.Resource or sup3r.DataHandler
+            classes (if using the latter, must also input base_dh_inst)
+        base_handler_kwargs : dict | None
+            Optional kwargs to send to the initialization of the base_handler
+            class
         daily_reduction : None | str
             Option to do a reduction of the hourly+ source base data to daily
             data. Can be None (no reduction, keep source time frequency), "avg"
-            (daily average), "max" (daily max), or "min" (daily min)
+            (daily average), "max" (daily max), "min" (daily min),
+            "sum" (daily sum/total)
         decimals : int | None
             Option to round bias and base data to this number of
             decimals, this gets passed to np.around(). If decimals
             is negative, it specifies the number of positions to
             the left of the decimal point.
+        base_dh_inst : sup3r.DataHandler
+            Instantiated  DataHandler class that has already loaded the base
+            data (required if base files are .nc and are not being opened by a
+            rex Resource handler).
 
         Returns
         -------
-        out : np.ndarray
+        out_data : np.ndarray
             1D array of base data spatially averaged across the base_gid input
             and possibly daily-averaged or min/max'd as well.
         out_ti : pd.DatetimeIndex
@@ -381,37 +441,82 @@ class DataRetrievalBase:
             output data.
         """
 
-        out = []
+        out_data = []
         out_ti = []
-        for fp in base_fps:
-            with base_handler(fp) as res:
-                base_ti = res.time_index
+        all_cs_ghi = []
+        base_handler_kwargs = base_handler_kwargs or {}
 
-                base_data, base_cs_ghi = cls._read_base_data(
-                    res, base_dset, base_gid)
-                if daily_reduction is not None:
-                    base_data = cls._reduce_base_data(
-                        base_ti,
-                        base_data,
-                        base_cs_ghi,
-                        base_dset,
-                        daily_reduction,
-                    )
-                    base_ti = np.array(sorted(set(base_ti.date)))
+        if issubclass(base_handler, DataHandler) and base_dh_inst is None:
+            msg = ('The method `get_base_data()` is only to be used with '
+                   '`base_handler` as a `sup3r.DataHandler` subclass if '
+                   '`base_dh_inst` is also provided!')
+            logger.error(msg)
+            raise RuntimeError(msg)
 
-            out.append(base_data)
-            out_ti.append(base_ti)
+        if issubclass(base_handler, DataHandler) and base_dh_inst is not None:
+            out_ti = base_dh_inst.time_index
+            out_data = cls._read_base_sup3r_data(base_dh_inst, base_dset,
+                                                 base_gid)
+            all_cs_ghi = np.ones(len(out_data), dtype=np.float32) * np.nan
+        else:
+            for fp in base_fps:
+                with base_handler(fp, **base_handler_kwargs) as res:
+                    base_ti = res.time_index
+                    temp_out = cls._read_base_rex_data(res, base_dset,
+                                                       base_gid)
+                    base_data, base_cs_ghi = temp_out
 
-        out = np.hstack(out)
+                out_data.append(base_data)
+                out_ti.append(base_ti)
+                all_cs_ghi.append(base_cs_ghi)
+
+            out_data = np.hstack(out_data)
+            out_ti = pd.DatetimeIndex(np.hstack(out_ti))
+            all_cs_ghi = np.hstack(all_cs_ghi)
+
+        if daily_reduction is not None:
+            out_data, out_ti = cls._reduce_base_data(out_ti,
+                                                     out_data,
+                                                     all_cs_ghi,
+                                                     base_dset,
+                                                     daily_reduction)
 
         if decimals is not None:
-            out = np.around(out, decimals=decimals)
+            out_data = np.around(out_data, decimals=decimals)
 
-        return out, pd.DatetimeIndex(np.hstack(out_ti))
+        return out_data, out_ti
 
     @staticmethod
-    def _read_base_data(res, base_dset, base_gid):
-        """Read baseline data from the resource handler with extra logic for
+    def _read_base_sup3r_data(dh, base_dset, base_gid):
+        """Read baseline data from a sup3r DataHandler
+
+        Parameters
+        ----------
+        dh : sup3r.DataHandler
+            sup3r DataHandler that is an open file handler of the base file(s)
+        base_dset : str
+            A single dataset from the base_fps to retrieve.
+        base_gid : int | np.ndarray
+            One or more spatial gids to retrieve from base_fps. The data will
+            be spatially averaged across all of these sites.
+
+        Returns
+        -------
+        base_data : np.ndarray
+            1D array of base data spatially averaged across the base_gid input
+        """
+        idf = dh.features.index(base_dset)
+        gid_raster = np.arange(len(dh.meta))
+        gid_raster = gid_raster.reshape(dh.shape[:2])
+        idy, idx = np.where(np.isin(gid_raster, base_gid))
+        base_data = dh.data[idy, idx, :, idf]
+        assert base_data.shape[0] == len(base_gid)
+        assert base_data.shape[1] == len(dh.time_index)
+        return base_data.mean(axis=0)
+
+    @staticmethod
+    def _read_base_rex_data(res, base_dset, base_gid):
+        """Read baseline data from a rex resource handler with extra logic for
         special datasets (e.g. u/v wind components or clearsky_ratio)
 
         Parameters
@@ -429,10 +534,14 @@ class DataRetrievalBase:
         -------
         base_data : np.ndarray
             1D array of base data spatially averaged across the base_gid input
-        base_cs_ghi : np.ndarray | None
+        base_cs_ghi : np.ndarray
             If base_dset == "clearsky_ratio", the base_data array is GHI and
-            this base_cs_ghi is clearsky GHI. Otherwise this is None
+            this base_cs_ghi is clearsky GHI. Otherwise this is an array with
+            same length as base_data but full of np.nan
         """
+
+        msg = '`res` input must not be a `DataHandler` subclass!'
+        assert not issubclass(res.__class__, DataHandler), msg
 
         base_cs_ghi = None
 
@@ -460,6 +569,9 @@ class DataRetrievalBase:
             if base_cs_ghi is not None:
                 base_cs_ghi = np.nanmean(base_cs_ghi, axis=1)
 
+        if base_cs_ghi is None:
+            base_cs_ghi = np.ones(len(base_data), dtype=np.float32) * np.nan
+
         return base_data, base_cs_ghi
 
     @staticmethod
@@ -474,45 +586,66 @@ class DataRetrievalBase:
             Time index associated with base_data
         base_data : np.ndarray
             1D array of base data spatially averaged across the base_gid input
-        base_cs_ghi : np.ndarray | None
+        base_cs_ghi : np.ndarray
             If base_dset == "clearsky_ratio", the base_data array is GHI and
-            this base_cs_ghi is clearsky GHI. Otherwise this is None
+            this base_cs_ghi is clearsky GHI. Otherwise this is an array with
+            same length as base_data but full of np.nan
         base_dset : str
             A single dataset from the base_fps to retrieve.
         daily_reduction : str
             Option to do a reduction of the hourly+ source base data to daily
             data. Can be None (no reduction, keep source time frequency), "avg"
-            (daily average), "max" (daily max), or "min" (daily min)
+            (daily average), "max" (daily max), "min" (daily min),
+            "sum" (daily sum/total)
 
         Returns
         -------
         base_data : np.ndarray
             1D array of base data spatially averaged across the base_gid input
             and possibly daily-averaged or min/max'd as well.
+        daily_ti : pd.DatetimeIndex
+            Daily DatetimeIndex corresponding to the daily base_data
         """
 
         if daily_reduction is None:
             return base_data
 
-        slices = [
-            np.where(base_ti.date == date)
-            for date in sorted(set(base_ti.date))
-        ]
+        daily_ti = pd.DatetimeIndex(sorted(set(base_ti.date)))
+        df = pd.DataFrame({'date': base_ti.date,
+                           'base_data': base_data,
+                           'base_cs_ghi': base_cs_ghi})
 
-        if base_dset == 'clearsky_ratio' and daily_reduction.lower() == 'avg':
-            base_data = np.array(
-                [base_data[s0].sum() / base_cs_ghi[s0].sum() for s0 in slices])
+        cs_ratio = (daily_reduction.lower() in ('avg', 'average', 'mean')
+                    and base_dset == 'clearsky_ratio')
 
-        elif daily_reduction.lower() == 'avg':
-            base_data = np.array([base_data[s0].mean() for s0 in slices])
+        if cs_ratio:
+            daily_ghi = df.groupby('date').sum()['base_data'].values
+            daily_cs_ghi = df.groupby('date').sum()['base_cs_ghi'].values
+            base_data = daily_ghi / daily_cs_ghi
+            msg = ('Could not calculate daily average "clearsky_ratio" with '
+                   'base_data and base_cs_ghi inputs: \n{}, \n{}'
+                   .format(base_data, base_cs_ghi))
+            assert not np.isnan(base_data).any(), msg
 
-        elif daily_reduction.lower() == 'max':
-            base_data = np.array([base_data[s0].max() for s0 in slices])
+        elif daily_reduction.lower() in ('avg', 'average', 'mean'):
+            base_data = df.groupby('date').mean()['base_data'].values
 
-        elif daily_reduction.lower() == 'min':
-            base_data = np.array([base_data[s0].min() for s0 in slices])
+        elif daily_reduction.lower() in ('max', 'maximum'):
+            base_data = df.groupby('date').max()['base_data'].values
 
-        return base_data
+        elif daily_reduction.lower() in ('min', 'minimum'):
+            base_data = df.groupby('date').min()['base_data'].values
+
+        elif daily_reduction.lower() in ('sum', 'total'):
+            base_data = df.groupby('date').sum()['base_data'].values
+
+        msg = (f'Daily reduced base data shape {base_data.shape} does not '
+               f'match daily time index shape {daily_ti.shape}, '
+               'something went wrong!')
+        assert len(base_data.shape) == 1, msg
+        assert base_data.shape == daily_ti.shape, msg
+
+        return base_data, daily_ti
 
 
 class LinearCorrection(DataRetrievalBase):
@@ -593,7 +726,8 @@ class LinearCorrection(DataRetrievalBase):
                     base_handler,
                     daily_reduction,
                     bias_ti,
-                    decimals):
+                    decimals,
+                    base_dh_inst=None):
         """Find the nominal scalar + adder combination to bias correct data
         at a single site"""
 
@@ -602,7 +736,8 @@ class LinearCorrection(DataRetrievalBase):
                                          base_gid,
                                          base_handler,
                                          daily_reduction=daily_reduction,
-                                         decimals=decimals)
+                                         decimals=decimals,
+                                         base_dh_inst=base_dh_inst)
 
         out = cls.get_linear_correction(bias_data, base_data, bias_feature,
                                         base_dset)
@@ -651,6 +786,10 @@ class LinearCorrection(DataRetrievalBase):
             like: bias_data * scalar + adder. Each value is of shape
             (lat, lon, time).
         """
+        if len(self.bad_bias_gids) > 0:
+            logger.info('Found {} bias gids that are out of bounds: {}'
+                        .format(len(self.bad_bias_gids), self.bad_bias_gids))
+
         for key, arr in out.items():
             nan_mask = np.isnan(arr[..., 0])
             for idt in range(arr.shape[-1]):
@@ -661,6 +800,9 @@ class LinearCorrection(DataRetrievalBase):
                               and fill_extend) or smooth_interior > 0
 
                 if needs_fill:
+                    logger.info('Filling NaN values outside of valid spatial '
+                                'extent for dataset "{}" for timestep {}'
+                                .format(key, idt))
                     arr_smooth = nn_fill_array(arr_smooth)
 
                 arr_smooth_int = arr_smooth_ext = arr_smooth
@@ -714,8 +856,6 @@ class LinearCorrection(DataRetrievalBase):
                     'Wrote scalar adder factors to file: {}'.format(fp_out))
 
     def run(self,
-            knn,
-            threshold=0.6,
             fp_out=None,
             max_workers=None,
             daily_reduction='avg',
@@ -727,14 +867,6 @@ class LinearCorrection(DataRetrievalBase):
 
         Parameters
         ----------
-        knn : int
-            Number of nearest neighbors to aggregate from the base data when
-            comparing to a single site from the bias data.
-        threshold : float
-            If the bias data coordinate is on average further from the base
-            data coordinates than this threshold, no bias correction factors
-            will be calculated directly and will just be filled from nearest
-            neighbor (if fill_extend=True, else it will be nan).
         fp_out : str | None
             Optional .h5 output file to write scalar and adder arrays.
         max_workers : int
@@ -743,15 +875,16 @@ class LinearCorrection(DataRetrievalBase):
         daily_reduction : None | str
             Option to do a reduction of the hourly+ source base data to daily
             data. Can be None (no reduction, keep source time frequency), "avg"
-            (daily average), "max" (daily max), or "min" (daily min)
+            (daily average), "max" (daily max), "min" (daily min),
+            "sum" (daily sum/total)
         fill_extend : bool
-            Flag to fill data past threshold using spatial nearest neighbor. If
-            False, the extended domain will be left as NaN.
+            Flag to fill data past distance_upper_bound using spatial nearest
+            neighbor. If False, the extended domain will be left as NaN.
         smooth_extend : float
             Option to smooth the scalar/adder data outside of the spatial
-            domain set by the threshold input. This alleviates the weird seams
-            far from the domain of interest. This value is the standard
-            deviation for the gaussian_filter kernel
+            domain set by the distance_upper_bound input. This alleviates the
+            weird seams far from the domain of interest. This value is the
+            standard deviation for the gaussian_filter kernel
         smooth_interior : float
             Option to smooth the scalar/adder data within the valid spatial
             domain.  This can reduce the affect of extreme values within
@@ -770,14 +903,22 @@ class LinearCorrection(DataRetrievalBase):
         logger.info('Initialized scalar / adder with shape: {}'
                     .format(self.bias_gid_raster.shape))
 
+        self.bad_bias_gids = []
+
+        # sup3r DataHandler opening base files will load all data in parallel
+        # during the init and should not be passed in parallel to workers
+        if isinstance(self.base_dh, DataHandler):
+            max_workers = 1
+
         if max_workers == 1:
             logger.debug('Running serial calculation.')
-            for i, (bias_gid, row) in enumerate(self.bias_meta.iterrows()):
+            for i, bias_gid in enumerate(self.bias_meta.index):
                 raster_loc = np.where(self.bias_gid_raster == bias_gid)
-                coord = row[['latitude', 'longitude']]
-                dist, base_gid = self.base_tree.query(coord, k=knn)
+                _, base_gid = self.get_base_gid(bias_gid)
 
-                if np.mean(dist) < threshold:
+                if not base_gid.any():
+                    self.bad_bias_gids.append(bias_gid)
+                else:
                     bias_data = self.get_bias_data(bias_gid)
                     single_out = self._run_single(
                         bias_data,
@@ -789,6 +930,7 @@ class LinearCorrection(DataRetrievalBase):
                         daily_reduction,
                         self.bias_ti,
                         self.decimals,
+                        base_dh_inst=self.base_dh,
                     )
                     for key, arr in single_out.items():
                         self.out[key][raster_loc] = arr
@@ -802,14 +944,14 @@ class LinearCorrection(DataRetrievalBase):
                     max_workers))
             with ProcessPoolExecutor(max_workers=max_workers) as exe:
                 futures = {}
-                for bias_gid, bias_row in self.bias_meta.iterrows():
+                for bias_gid in self.bias_meta.index:
                     raster_loc = np.where(self.bias_gid_raster == bias_gid)
-                    coord = bias_row[['latitude', 'longitude']]
-                    dist, base_gid = self.base_tree.query(coord, k=knn)
+                    _, base_gid = self.get_base_gid(bias_gid)
 
-                    if np.mean(dist) < threshold:
+                    if not base_gid.any():
+                        self.bad_bias_gids.append(bias_gid)
+                    else:
                         bias_data = self.get_bias_data(bias_gid)
-
                         future = exe.submit(
                             self._run_single,
                             bias_data,
@@ -863,7 +1005,8 @@ class MonthlyLinearCorrection(LinearCorrection):
                     base_handler,
                     daily_reduction,
                     bias_ti,
-                    decimals):
+                    decimals,
+                    base_dh_inst=None):
         """Find the nominal scalar + adder combination to bias correct data
         at a single site"""
 
@@ -872,7 +1015,8 @@ class MonthlyLinearCorrection(LinearCorrection):
                                                base_gid,
                                                base_handler,
                                                daily_reduction=daily_reduction,
-                                               decimals=decimals)
+                                               decimals=decimals,
+                                               base_dh_inst=base_dh_inst)
 
         base_arr = np.full(cls.NT, np.nan, dtype=np.float32)
         out = {}
@@ -1031,13 +1175,14 @@ class SkillAssessment(MonthlyLinearCorrection):
     @classmethod
     def _run_single(cls, bias_data, base_fps, bias_feature, base_dset,
                     base_gid, base_handler, daily_reduction, bias_ti,
-                    decimals):
+                    decimals, base_dh_inst=None):
         """Do a skill assessment at a single site"""
 
         base_data, base_ti = cls.get_base_data(base_fps, base_dset,
                                                base_gid, base_handler,
                                                daily_reduction=daily_reduction,
-                                               decimals=decimals)
+                                               decimals=decimals,
+                                               base_dh_inst=base_dh_inst)
 
         arr = np.full(cls.NT, np.nan, dtype=np.float32)
         out = {f'bias_{bias_feature}_mean_monthly': arr.copy(),

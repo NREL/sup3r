@@ -1,4 +1,5 @@
 """Sup3r exogenous data handling"""
+from inspect import signature
 import logging
 import re
 from typing import ClassVar
@@ -244,9 +245,13 @@ class ExogenousDataHandler:
             source. e.g. {'spatial': '4km', 'temporal': '60min'}. This is used
             only if agg factors are not provided in the steps list.
         source_file : str
-            Filepath to source wtk, nsrdb, or netcdf file to get hi-res (2km or
-            4km) data from which will be mapped to the enhanced grid of the
-            file_paths input
+            Filepath to source wtk, nsrdb, or netcdf file to get hi-res data
+            from which will be mapped to the enhanced grid of the file_paths
+            input. Pixels from this file will be mapped to their nearest
+            low-res pixel in the file_paths input. Accordingly, the input
+            should be a significantly higher resolution than file_paths.
+            Warnings will be raised if the low-resolution pixels in file_paths
+            do not have unique nearest pixels from this exo source data.
         target : tuple
             (lat, lon) lower left corner of raster. Either need target+shape or
             raster_file.
@@ -573,21 +578,24 @@ class ExogenousDataHandler:
 
         exo_handler = self.get_exo_handler(feature, self.source_file,
                                            self.exo_handler)
-        data = exo_handler(self.file_paths,
-                           self.source_file,
-                           s_enhance=s_enhance,
-                           t_enhance=t_enhance,
-                           s_agg_factor=s_agg_factor,
-                           t_agg_factor=t_agg_factor,
-                           target=self.target,
-                           shape=self.shape,
-                           temporal_slice=self.temporal_slice,
-                           raster_file=self.raster_file,
-                           max_delta=self.max_delta,
-                           input_handler=self.input_handler,
-                           cache_data=self.cache_data,
-                           cache_dir=self.cache_dir,
-                           res_kwargs=self.res_kwargs).data
+        kwargs = dict(file_paths=self.file_paths,
+                      exo_source=self.source_file,
+                      s_enhance=s_enhance,
+                      t_enhance=t_enhance,
+                      s_agg_factor=s_agg_factor,
+                      t_agg_factor=t_agg_factor,
+                      target=self.target,
+                      shape=self.shape,
+                      temporal_slice=self.temporal_slice,
+                      raster_file=self.raster_file,
+                      max_delta=self.max_delta,
+                      input_handler=self.input_handler,
+                      cache_data=self.cache_data,
+                      cache_dir=self.cache_dir,
+                      res_kwargs=self.res_kwargs)
+        sig = signature(exo_handler)
+        kwargs = {k: v for k, v in kwargs.items() if k in sig.parameters}
+        data = exo_handler(**kwargs).data
         return data
 
     @classmethod

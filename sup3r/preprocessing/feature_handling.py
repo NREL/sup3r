@@ -1223,11 +1223,13 @@ class Feature:
             height to use for interpolation
             in meters
         """
-        height = re.search(r'\d+m', feature)
-        if height:
-            height = height.group(0).strip('m')
-            if not height.isdigit():
-                height = None
+        height = None
+        if isinstance(feature, str):
+            height = re.search(r'\d+m', feature)
+            if height:
+                height = height.group(0).strip('m')
+                if not height.isdigit():
+                    height = None
         return height
 
     @staticmethod
@@ -1244,11 +1246,13 @@ class Feature:
         float | None
             pressure to use for interpolation in pascals
         """
-        pressure = re.search(r'\d+pa', feature)
-        if pressure:
-            pressure = pressure.group(0).strip('pa')
-            if not pressure.isdigit():
-                pressure = None
+        pressure = None
+        if isinstance(feature, str):
+            pressure = re.search(r'\d+pa', feature)
+            if pressure:
+                pressure = pressure.group(0).strip('pa')
+                if not pressure.isdigit():
+                    pressure = None
         return pressure
 
 
@@ -1752,10 +1756,11 @@ class FeatureHandler:
             Matching feature registry entry.
         """
         out = None
-        for k, v in cls.FEATURE_REGISTRY.items():
-            if k.lower() == feature.lower():
-                out = v
-                break
+        if isinstance(feature, str):
+            for k, v in cls.FEATURE_REGISTRY.items():
+                if k.lower() == feature.lower():
+                    out = v
+                    break
         return out
 
     @classmethod
@@ -1774,10 +1779,11 @@ class FeatureHandler:
             Matching feature registry entry.
         """
         out = None
-        for k, v in cls.FEATURE_REGISTRY.items():
-            if re.match(k.lower(), feature.lower()):
-                out = v
-                break
+        if isinstance(feature, str):
+            for k, v in cls.FEATURE_REGISTRY.items():
+                if re.match(k.lower(), feature.lower()):
+                    out = v
+                    break
         return out
 
     @classmethod
@@ -1816,7 +1822,7 @@ class FeatureHandler:
         if pressure is not None:
             out = out.split('(.*)')[0] + f'{pressure}pa'
 
-        return lambda x: [out]
+        return lambda x: [out] if isinstance(out, str) else out
 
     @classmethod
     def lookup(cls, feature, attr_name, handle_features=None):
@@ -1851,7 +1857,6 @@ class FeatureHandler:
             return getattr(out, attr_name, None)
 
         elif attr_name == 'inputs':
-
             return cls._lookup(out, feature, handle_features)
 
     @classmethod
@@ -1873,11 +1878,11 @@ class FeatureHandler:
         """
         raw_features = []
         method = cls.lookup(feature, 'inputs', handle_features=handle_features)
-        lower_handle_features = [f.lower() for f in handle_features]
+        low_handle_features = [f.lower() for f in handle_features]
+        vhf = cls.valid_handle_features([feature.lower()], low_handle_features)
 
         check1 = feature not in raw_features
-        check2 = (cls.valid_handle_features(
-            [feature.lower()], lower_handle_features) or method is None)
+        check2 = (vhf or method is None)
 
         if check1 and check2:
             raw_features.append(feature)
@@ -1924,6 +1929,7 @@ class FeatureHandler:
                        f'Requested features: {req}')
                 logger.error(msg)
                 raise ValueError(msg)
+
         return raw_features
 
     @classmethod
