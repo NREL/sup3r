@@ -185,7 +185,7 @@ class EraDownloader:
     def surface_file(self):
         """Get name of file with variables from single level download"""
         basedir = os.path.dirname(self.combined_file)
-        basename = f'sfc_{"_".join(self.variables)}_{self.year}_'
+        basename = f'sfc_{self.year}_'
         basename += f'{str(self.month).zfill(2)}.nc'
         return os.path.join(basedir, basename)
 
@@ -193,7 +193,7 @@ class EraDownloader:
     def level_file(self):
         """Get name of file with variables from pressure level download"""
         basedir = os.path.dirname(self.combined_file)
-        basename = f'levels_{"_".join(self.variables)}_{self.year}_'
+        basename = f'levels_{self.year}_'
         basename += f'{str(self.month).zfill(2)}.nc'
         return os.path.join(basedir, basename)
 
