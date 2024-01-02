@@ -631,11 +631,9 @@ class OutputHandlerH5(OutputHandler):
             List of renamed features u/v -> windspeed/winddirection for each
             height
         """
-        heights = []
+        heights = [Feature.get_height(f) for f in features
+                   if re.match('U_(.*?)m'.lower(), f.lower())]
         renamed_features = features.copy()
-        for f in features:
-            if re.match('U_(.*?)m'.lower(), f.lower()):
-                heights.append(Feature.get_height(f))
 
         for height in heights:
             u_idx = features.index(f'U_{height}m')
@@ -666,10 +664,8 @@ class OutputHandlerH5(OutputHandler):
             will be estimated based on memory limits.
         """
 
-        heights = []
-        for f in features:
-            if re.match('U_(.*?)m'.lower(), f.lower()):
-                heights.append(Feature.get_height(f))
+        heights = [Feature.get_height(f) for f in features if
+                   re.match('U_(.*?)m'.lower(), f.lower())]
         if heights:
             logger.info('Converting u/v to windspeed/winddirection for h5'
                         ' output')
