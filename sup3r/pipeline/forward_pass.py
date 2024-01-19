@@ -1256,7 +1256,7 @@ class ForwardPass:
         files)."""
         meta_data = {
             'chunk_meta': self.chunk_specific_meta,
-            'gan_meta': self.model.meta,
+            'gan_meta': self.model.model_params,
             'model_kwargs': self.model_kwargs,
             'model_class': self.model_class,
             'spatial_enhance': int(self.s_enhance),
