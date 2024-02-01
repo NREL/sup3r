@@ -39,7 +39,7 @@ class LogLinInterpolator:
         'pv': [10, 40, 80, 100, 120, 160, 200],
         'temperature': [10, 40, 80, 100, 120, 160, 200],
         'pressure': [0, 100, 200],
-        'relative_humidity': [80, 100, 120],
+        'relativehumidity': [2, 10, 40, 80, 100, 120, 160, 200],
         'divergence': [80, 100, 120]
     }
 

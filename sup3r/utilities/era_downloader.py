@@ -63,8 +63,8 @@ class EraDownloader:
         't': 'temperature',
         't2m': 'temperature_2m',
         'sp': 'pressure_0m',
-        'r': 'relative_humidity',
-        'q': 'specific_humidity',
+        'r': 'relativehumidity',
+        'q': 'specifichumidity',
         'd': 'divergence',
     }
 
