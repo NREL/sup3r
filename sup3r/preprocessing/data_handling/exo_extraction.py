@@ -148,6 +148,9 @@ class ExoExtract(ABC):
         self.shape = shape
         self.res_kwargs = res_kwargs
 
+        # for subclasses
+        self._source_handler = None
+
         if input_handler is None:
             in_type = get_source_type(file_paths)
             if in_type == 'nc':
@@ -566,23 +569,20 @@ class TopoExtractH5(ExoExtract):
 class TopoExtractNC(TopoExtractH5):
     """TopoExtract for netCDF files"""
 
-    def __init__(self, *args, **kwargs):
-        """Parameters
-        ----------
-        args : list
-            Same positional arguments as TopoExtract
-        kwargs : dict
-            Same keyword arguments as TopoExtract
-        """
-        super().__init__(*args, **kwargs)
-        logger.info('Getting topography for full domain from '
-                    f'{self._exo_source}')
-        self.source_handler = DataHandlerNC(
-            self._exo_source,
-            features=['topography'],
-            worker_kwargs={'ti_workers': self.ti_workers},
-            val_split=0.0,
-        )
+    @property
+    def source_handler(self):
+        """Get the DataHandlerNC object that handles the .nc source topography
+        data file."""
+        if self._source_handler is None:
+            logger.info('Getting topography for full domain from '
+                        f'{self._exo_source}')
+            self._source_handler = DataHandlerNC(
+                self._exo_source,
+                features=['topography'],
+                worker_kwargs={'ti_workers': self.ti_workers},
+                val_split=0.0,
+            )
+        return self._source_handler
 
     @property
     def source_data(self):

@@ -92,6 +92,11 @@ H5_ATTRS = {'windspeed': {'scale_factor': 100.0,
                      'units': 's-2',
                      'dtype': 'int16',
                      'chunks': (2000, 500)},
+            'pr': {'scale_factor': 1,
+                   'units': 'kg m-2 s-1',
+                   'dtype': 'float32',
+                   'min': 0,
+                   'chunks': (2000, 250)},
             }
 
 
@@ -293,8 +298,14 @@ class OutputHandler(OutputMixIn):
         maxs = []
         mins = []
         for fn in features:
-            max = H5_ATTRS[Feature.get_basename(fn)].get('max', np.inf)
-            min = H5_ATTRS[Feature.get_basename(fn)].get('min', -np.inf)
+            dset_name = Feature.get_basename(fn)
+            if dset_name not in H5_ATTRS:
+                msg = ('Could not find "{dset_name}" in H5_ATTRS dict!')
+                logger.error(msg)
+                raise KeyError(msg)
+
+            max = H5_ATTRS[dset_name].get('max', np.inf)
+            min = H5_ATTRS[dset_name].get('min', -np.inf)
             logger.debug(f'Enforcing range of ({max}, {min} for "{fn}")')
             maxs.append(max)
             mins.append(min)
