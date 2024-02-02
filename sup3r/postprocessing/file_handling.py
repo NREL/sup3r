@@ -95,6 +95,7 @@ H5_ATTRS = {'windspeed': {'scale_factor': 100.0,
             'pr': {'scale_factor': 1,
                    'units': 'kg m-2 s-1',
                    'dtype': 'float32',
+                   'min': 0,
                    'chunks': (2000, 250)},
             }
 
