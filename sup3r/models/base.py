@@ -775,7 +775,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
 
             if update_frac != 1:
                 logger.debug(
-                    f'New discriminator weight: {weight_gen_advers:.3f}')
+                    f'New discriminator weight: {weight_gen_advers:.4e}')
 
         return weight_gen_advers
 

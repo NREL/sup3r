@@ -117,6 +117,97 @@ class MmdLoss(tf.keras.losses.Loss):
         return mmd
 
 
+class MaterialDerivativeLoss(tf.keras.losses.Loss):
+    """Loss class for the material derivative. This is the left hand side of
+    the Navier-Stokes equation and is equal to internal + external forces
+    divided by density.
+    https://en.wikipedia.org/wiki/Material_derivative
+    """
+
+    MAE_LOSS = MeanAbsoluteError()
+
+    def _gradient(self, x, axis=1):
+        """Custom gradient function for compatibility with tensorflow
+
+        Parameters
+        ----------
+        x : tf.Tensor
+            (n_observations, spatial_1, spatial_2, temporal)
+        axis : int
+            Axis to take gradient over
+        """
+        if axis == 1:
+            return tf.concat([x[:, 1:2] - x[:, 0:1],
+                              (x[:, 2:] - x[:, :-2]) / 2,
+                              x[:, -1:] - x[:, -2:-1]], axis=1)
+        if axis == 2:
+            return tf.concat([x[..., 1:2, :] - x[..., 0:1, :],
+                              (x[..., 2:, :] - x[..., :-2, :]) / 2,
+                              x[..., -1:, :] - x[..., -2:-1, :]], axis=2)
+        if axis == 3:
+            return tf.concat([x[..., 1:2] - x[..., 0:1],
+                              (x[..., 2:] - x[..., :-2]) / 2,
+                              x[..., -1:] - x[..., -2:-1]], axis=3)
+
+    def _compute_md(self, x, fidx):
+        """Compute material derivative the feature given by the index fidx.
+        It is assumed that for a given feature index fidx there is a pair of
+        wind components u/v given by 2 * (fidx // 2) and 2 * (fidx // 2) + 1
+
+        Parameters
+        ----------
+        x : tf.tensor
+            synthetic output or high resolution data
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        fidx : int
+            Feature index to compute material derivative for.
+        """
+        uidx = 2 * (fidx // 2)
+        vidx = 2 * (fidx // 2) + 1
+        # df/dt
+        x_div = self._gradient(x[..., fidx], axis=3)
+        # u * df/dx
+        x_div += tf.math.multiply(
+            x[..., uidx], self._gradient(x[..., fidx], axis=1))
+        # v * df/dy
+        x_div += tf.math.multiply(
+            x[..., vidx], self._gradient(x[..., fidx], axis=2))
+
+        return x_div
+
+    def __call__(self, x1, x2):
+        """Custom content loss that encourages accuracy of the material
+        derivative. This assumes that the first 2 * N features are N u/v
+        wind components at different hub heights and that the total number of
+        features is either 2 * N or 2 * N + 1
+
+        Parameters
+        ----------
+        x1 : tf.tensor
+            synthetic generator output
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        x2 : tf.tensor
+            high resolution data
+            (n_observations, spatial_1, spatial_2, temporal, features)
+
+        Returns
+        -------
+        tf.tensor
+            0D tensor with loss value
+        """
+        hub_heights = x1.shape[-1] // 2
+
+        x1_div = tf.stack(
+            [self._compute_md(x1, fidx=i) for i in range(2 * hub_heights)])
+        x2_div = tf.stack(
+            [self._compute_md(x2, fidx=i) for i in range(2 * hub_heights)])
+
+        mae = self.MAE_LOSS(x1, x2)
+        div_mae = self.MAE_LOSS(x1_div, x2_div)
+
+        return (mae + div_mae) / 2
+
+
 class MmdMseLoss(tf.keras.losses.Loss):
     """Loss class for MMD + MSE"""
 
