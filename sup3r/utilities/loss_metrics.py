@@ -551,10 +551,11 @@ class LowResLoss(tf.keras.losses.Loss):
         """Perform spatial coarsening on a 4D tensor of shape
         (n_obs, spatial_1, spatial_2, features)"""
         shape = tensor.shape
-        tensor = tf.reshape(tensor, shape[0],
-                            shape[1] // self._s_enhance, self._s_enhance,
-                            shape[2] // self._s_enhance, self._s_enhance,
-                            shape[3])
+        tensor = tf.reshape(tensor,
+                            (shape[0],
+                             shape[1] // self._s_enhance, self._s_enhance,
+                             shape[2] // self._s_enhance, self._s_enhance,
+                             shape[3]))
         tensor = tf.math.reduce_sum(tensor, axis=(2, 4)) / self._s_enhance**2
         return tensor
 
@@ -562,10 +563,11 @@ class LowResLoss(tf.keras.losses.Loss):
         """Perform spatial coarsening on a 5D tensor of shape
         (n_obs, spatial_1, spatial_2, time, features)"""
         shape = tensor.shape
-        tensor = tf.reshape(tensor, shape[0],
-                            shape[1] // self._s_enhance, self._s_enhance,
-                            shape[2] // self._s_enhance, self._s_enhance,
-                            shape[3], shape[4])
+        tensor = tf.reshape(tensor,
+                            (shape[0],
+                             shape[1] // self._s_enhance, self._s_enhance,
+                             shape[2] // self._s_enhance, self._s_enhance,
+                             shape[3], shape[4]))
         tensor = tf.math.reduce_sum(tensor, axis=(2, 4)) / self._s_enhance**2
         return tensor
 
@@ -573,7 +575,7 @@ class LowResLoss(tf.keras.losses.Loss):
         """Perform temporal subsampling on a 5D tensor of shape
         (n_obs, spatial_1, spatial_2, time, features)"""
         assert len(tensor.shape) == 5
-        tensor = tensor[:, :, :, ::self.t_enhance, :]
+        tensor = tensor[:, :, :, ::self._t_enhance, :]
         return tensor
 
     def _t_coarsen_avg(self, tensor):
