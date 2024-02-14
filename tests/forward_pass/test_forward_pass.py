@@ -351,6 +351,7 @@ def test_fwp_temporal_slice():
             version_record = json.loads(fh.global_attrs['full_version_record'])
             assert version_record['tensorflow'] == tf.__version__
             assert 'gan_meta' in fh.global_attrs
+            assert 'gan_params' in fh.global_attrs
             gan_meta = json.loads(fh.global_attrs['gan_meta'])
             assert isinstance(gan_meta, dict)
             assert gan_meta['lr_features'] == ['U_100m', 'V_100m']
@@ -647,6 +648,7 @@ def test_fwp_multi_step_model():
             version_record = json.loads(fh.global_attrs['full_version_record'])
             assert version_record['tensorflow'] == tf.__version__
             assert 'gan_meta' in fh.global_attrs
+            assert 'gan_params' in fh.global_attrs
             gan_meta = json.loads(fh.global_attrs['gan_meta'])
             assert len(gan_meta) == 2  # two step model
             assert gan_meta[0]['lr_features'] == ['U_100m', 'V_100m']
