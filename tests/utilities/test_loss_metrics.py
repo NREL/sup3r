@@ -136,3 +136,10 @@ def test_lr_loss():
     yarr_lr = spatial_coarsening(yarr, s_enhance=s_enhance, obs_axis=True)
     loss = loss_obj(xtensor, ytensor)
     assert np.allclose(loss, loss_obj._tf_loss(xarr_lr, yarr_lr))
+
+    # test 4D spatial only with spatial extremes
+    loss_obj = LowResLoss(s_enhance=s_enhance, t_enhance=1, t_method=t_meth,
+                          tf_loss='MeanSquaredError',
+                          ex_loss='SpatialExtremesOnlyLoss')
+    ex_loss = loss_obj(xtensor, ytensor)
+    assert ex_loss > loss

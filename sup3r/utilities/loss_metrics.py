@@ -519,8 +519,12 @@ class LowResLoss(tf.keras.losses.Loss):
     high-resolution data pairs and then performing the pointwise content loss
     on the low-resolution fields"""
 
+    EX_LOSS_METRICS = {'SpatialExtremesOnlyLoss': SpatialExtremesOnlyLoss,
+                       'TemporalExtremesOnlyLoss': TemporalExtremesOnlyLoss,
+                       }
+
     def __init__(self, s_enhance=1, t_enhance=1, t_method='average',
-                 tf_loss='MeanSquaredError'):
+                 tf_loss='MeanSquaredError', ex_loss=None):
         """Initialize the loss with given weight
 
         Parameters
@@ -539,6 +543,10 @@ class LowResLoss(tf.keras.losses.Loss):
             The tensorflow loss function to operate on the low-res fields. Must
             be the name of a loss class that can be retrieved from
             ``tf.keras.losses`` e.g., "MeanSquaredError" or "MeanAbsoluteError"
+        ex_loss : None | str
+            Optional additional loss metric evaluating the spatial or temporal
+            extremes of the high-res data. Can be "SpatialExtremesOnlyLoss" or
+            "TemporalExtremesOnlyLoss" (keys in ``EX_LOSS_METRICS``).
         """
 
         super().__init__()
@@ -546,6 +554,9 @@ class LowResLoss(tf.keras.losses.Loss):
         self._t_enhance = t_enhance
         self._t_method = str(t_method).casefold()
         self._tf_loss = getattr(tf.keras.losses, tf_loss)()
+        self._ex_loss = ex_loss
+        if self._ex_loss is not None:
+            self._ex_loss = self.EX_LOSS_METRICS[self._ex_loss]()
 
     def _s_coarsen_4d_tensor(self, tensor):
         """Perform spatial coarsening on a 4D tensor of shape
@@ -611,6 +622,10 @@ class LowResLoss(tf.keras.losses.Loss):
         assert x1.shape == x2.shape
         s_only = len(x1.shape) == 4
 
+        ex_loss = tf.constant(0, dtype=x1.dtype)
+        if self._ex_loss is not None:
+            ex_loss = self._ex_loss(x1, x2)
+
         if self._s_enhance > 1 and s_only:
             x1 = self._s_coarsen_4d_tensor(x1)
             x2 = self._s_coarsen_4d_tensor(x2)
@@ -627,4 +642,4 @@ class LowResLoss(tf.keras.losses.Loss):
             x1 = self._t_coarsen_sample(x1)
             x2 = self._t_coarsen_sample(x2)
 
-        return self._tf_loss(x1, x2)
+        return self._tf_loss(x1, x2) + ex_loss
