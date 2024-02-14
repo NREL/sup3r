@@ -126,28 +126,34 @@ class MaterialDerivativeLoss(tf.keras.losses.Loss):
 
     MAE_LOSS = MeanAbsoluteError()
 
-    def _gradient(self, x, axis=1):
-        """Custom gradient function for compatibility with tensorflow
+    def _derivative(self, x, axis=1):
+        """Custom derivative function for compatibility with tensorflow
 
         Parameters
         ----------
         x : tf.Tensor
             (n_observations, spatial_1, spatial_2, temporal)
         axis : int
-            Axis to take gradient over
+            Axis to take derivative over
         """
         if axis == 1:
             return tf.concat([x[:, 1:2] - x[:, 0:1],
                               (x[:, 2:] - x[:, :-2]) / 2,
                               x[:, -1:] - x[:, -2:-1]], axis=1)
-        if axis == 2:
+        elif axis == 2:
             return tf.concat([x[..., 1:2, :] - x[..., 0:1, :],
                               (x[..., 2:, :] - x[..., :-2, :]) / 2,
                               x[..., -1:, :] - x[..., -2:-1, :]], axis=2)
-        if axis == 3:
+        elif axis == 3:
             return tf.concat([x[..., 1:2] - x[..., 0:1],
                               (x[..., 2:] - x[..., :-2]) / 2,
                               x[..., -1:] - x[..., -2:-1]], axis=3)
+
+        else:
+            msg = (f'{self.__class__}._derivative received axis={axis}. '
+                   'This is meant to compute only temporal (axis=3) or '
+                   'spatial (axis=1/2) derivatives.')
+            raise ValueError(msg)
 
     def _compute_md(self, x, fidx):
         """Compute material derivative the feature given by the index fidx.
@@ -165,13 +171,13 @@ class MaterialDerivativeLoss(tf.keras.losses.Loss):
         uidx = 2 * (fidx // 2)
         vidx = 2 * (fidx // 2) + 1
         # df/dt
-        x_div = self._gradient(x[..., fidx], axis=3)
+        x_div = self._derivative(x[..., fidx], axis=3)
         # u * df/dx
         x_div += tf.math.multiply(
-            x[..., uidx], self._gradient(x[..., fidx], axis=1))
+            x[..., uidx], self._derivative(x[..., fidx], axis=1))
         # v * df/dy
         x_div += tf.math.multiply(
-            x[..., vidx], self._gradient(x[..., fidx], axis=2))
+            x[..., vidx], self._derivative(x[..., fidx], axis=2))
 
         return x_div
 
