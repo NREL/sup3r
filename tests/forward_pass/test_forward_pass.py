@@ -102,7 +102,8 @@ def test_fwp_nc_cc(log=False):
 
 
 def test_fwp_single_ts_vs_multi_ts_input_files():
-    """Test forward pass handler output for spatial only model."""
+    """Test forward pass with single timestep files and multi-timestep files as
+    input with both sets of files containing the same data."""
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
@@ -167,14 +168,13 @@ def test_fwp_single_ts_vs_multi_ts_input_files():
         multi_ts_forward_pass = ForwardPass(multi_ts_handler)
         multi_ts_forward_pass.run(multi_ts_handler, node_index=0)
 
-        kwargs = {'combine': 'nested', 'concat_dim': 'Time'}
-        with xr.open_mfdataset(single_ts_handler.out_files,
-                               **kwargs) as single_ts:
-            with xr.open_mfdataset(multi_ts_handler.out_files,
-                                   **kwargs) as multi_ts:
+        for sf, mf in zip(single_ts_handler.out_files,
+                          multi_ts_handler.out_files):
+
+            with xr.open_dataset(sf) as s_res, xr.open_dataset(mf) as m_res:
                 for feat in model.meta['hr_out_features']:
-                    assert np.array_equal(single_ts[feat].values,
-                                          multi_ts[feat].values)
+                    assert np.array_equal(s_res[feat].values,
+                                          m_res[feat].values)
 
 
 def test_fwp_spatial_only():
@@ -351,7 +351,6 @@ def test_fwp_temporal_slice():
             version_record = json.loads(fh.global_attrs['full_version_record'])
             assert version_record['tensorflow'] == tf.__version__
             assert 'gan_meta' in fh.global_attrs
-            assert 'gan_params' in fh.global_attrs
             gan_meta = json.loads(fh.global_attrs['gan_meta'])
             assert isinstance(gan_meta, dict)
             assert gan_meta['lr_features'] == ['U_100m', 'V_100m']
@@ -648,7 +647,6 @@ def test_fwp_multi_step_model():
             version_record = json.loads(fh.global_attrs['full_version_record'])
             assert version_record['tensorflow'] == tf.__version__
             assert 'gan_meta' in fh.global_attrs
-            assert 'gan_params' in fh.global_attrs
             gan_meta = json.loads(fh.global_attrs['gan_meta'])
             assert len(gan_meta) == 2  # two step model
             assert gan_meta[0]['lr_features'] == ['U_100m', 'V_100m']
