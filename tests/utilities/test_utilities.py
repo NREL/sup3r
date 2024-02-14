@@ -366,7 +366,6 @@ def test_t_coarsen():
     """Test temporal coarsening of 5D array"""
     t_enhance = 4
     hr_shape = (3, 10, 10, 48, 2)
-    arr = np.random.uniform(-1, 1, )
     arr = np.arange(np.product(hr_shape)).reshape(hr_shape).astype(float)
 
     # test 4x temporal enhancement averaging
