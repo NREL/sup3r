@@ -18,6 +18,7 @@ from sup3r.utilities.regridder import RegridOutput
 from sup3r.utilities.utilities import (
     get_chunk_slices,
     spatial_coarsening,
+    temporal_coarsening,
     st_interp,
     transform_rotate_wind,
     uniform_box_sampler,
@@ -260,7 +261,7 @@ def test_uniform_box_sampler():
     assert s2.stop == data.shape[1]
 
 
-def test_s_enhance_errors():
+def test_s_coarsen_errors():
     """Negative tests of spatial coarsening method"""
 
     arr = np.arange(28800).reshape((2, 20, 20, 12, 3))
@@ -281,7 +282,7 @@ def test_s_enhance_errors():
 
 
 @pytest.mark.parametrize('s_enhance', [1, 2, 4, 5])
-def test_s_enhance_5D(s_enhance):
+def test_s_coarsen_5D(s_enhance):
     """Test the spatial enhancement of a 5D array"""
     arr = np.arange(28800).reshape((2, 20, 20, 12, 3))
     coarse = spatial_coarsening(arr, s_enhance=s_enhance, obs_axis=True)
@@ -303,7 +304,7 @@ def test_s_enhance_5D(s_enhance):
 
 
 @pytest.mark.parametrize('s_enhance', [1, 2, 4, 5])
-def test_s_enhance_4D(s_enhance):
+def test_s_coarsen_4D(s_enhance):
     """Test the spatial enhancement of a 4D array"""
     arr = np.arange(28800).reshape((24, 20, 20, 3))
     coarse = spatial_coarsening(arr, s_enhance=s_enhance, obs_axis=True)
@@ -323,7 +324,7 @@ def test_s_enhance_4D(s_enhance):
 
 
 @pytest.mark.parametrize('s_enhance', [1, 2, 4, 5])
-def test_s_enhance_4D_no_obs(s_enhance):
+def test_s_coarsen_4D_no_obs(s_enhance):
     """Test the spatial enhancement of a 4D array without the obs axis"""
     arr = np.arange(28800).reshape((20, 20, 24, 3))
     coarse = spatial_coarsening(arr, s_enhance=s_enhance, obs_axis=False)
@@ -343,7 +344,7 @@ def test_s_enhance_4D_no_obs(s_enhance):
 
 
 @pytest.mark.parametrize('s_enhance', [1, 2, 4, 5])
-def test_s_enhance_3D_no_obs(s_enhance):
+def test_s_coarsen_3D_no_obs(s_enhance):
     """Test the spatial enhancement of a 3D array without the obs axis"""
     arr = np.arange(28800).reshape((20, 20, 72))
     coarse = spatial_coarsening(arr, s_enhance=s_enhance, obs_axis=False)
@@ -359,6 +360,34 @@ def test_s_enhance_3D_no_obs(s_enhance):
 
                 assert np.allclose(coarse[i_lr, j_lr, f], arr[i_hr, j_hr,
                                                               f].mean())
+
+
+def test_t_coarsen():
+    """Test temporal coarsening of 5D array"""
+    t_enhance = 4
+    hr_shape = (3, 10, 10, 48, 2)
+    arr = np.arange(np.product(hr_shape)).reshape(hr_shape).astype(float)
+
+    # test 4x temporal enhancement averaging
+    arr_lr = temporal_coarsening(arr, t_enhance=t_enhance, method='average')
+    for i, idt0 in enumerate(range(0, arr.shape[3], t_enhance)):
+        truth = arr[:, :, :, slice(idt0, idt0 + t_enhance), :].mean(axis=3)
+        test = arr_lr[:, :, :, i, :]
+        assert np.allclose(truth, test)
+
+    # test 4x temporal enhancement total
+    arr_lr = temporal_coarsening(arr, t_enhance=t_enhance, method='total')
+    for i, idt0 in enumerate(range(0, arr.shape[3], t_enhance)):
+        truth = arr[:, :, :, slice(idt0, idt0 + t_enhance), :].sum(axis=3)
+        test = arr_lr[:, :, :, i, :]
+        assert np.allclose(truth, test)
+
+    # test 4x temporal enhancement subsampling
+    arr_lr = temporal_coarsening(arr, t_enhance=t_enhance, method='subsample')
+    for i, idt0 in enumerate(range(0, arr.shape[3], t_enhance)):
+        truth = arr[:, :, :, idt0, :]
+        test = arr_lr[:, :, :, i, :]
+        assert np.allclose(truth, test)
 
 
 def test_transform_rotate():

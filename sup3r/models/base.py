@@ -48,10 +48,12 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             discriminative model (spatial or spatiotemporal discriminator). Can
             also be a str filepath to a .json config file containing the input
             layers argument or a .pkl for a saved pre-trained model.
-        loss : str
+        loss : str | dict
             Loss function class name from sup3r.utilities.loss_metrics
             (prioritized) or tensorflow.keras.losses. Defaults to
-            tf.keras.losses.MeanSquaredError.
+            tf.keras.losses.MeanSquaredError. This can be provided as a dict
+            with kwargs for loss functions with extra parameters.
+            e.g. {'SpatialExtremesLoss': {'weight': 0.5}}
         optimizer : tf.keras.optimizers.Optimizer | dict | None | str
             Instantiated tf.keras.optimizers object or a dict optimizer config
             from tf.keras.optimizers.get_config(). None defaults to Adam.
