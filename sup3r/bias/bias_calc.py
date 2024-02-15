@@ -98,9 +98,11 @@ class DataRetrievalBase:
         match_zero_rate : bool
             Option to fix the frequency of zero values in the biased data. The
             lowest percentile of values in the biased data will be set to zero
-            to match the percentile of zeros in the base data. This helps
-            resolve the issue where global climate models produce too many days
-            with small precipitation totals e.g., the "drizzle problem".
+            to match the percentile of zeros in the base data. If
+            SkillAssessment is being run and this is True, the distributions
+            will not be mean-centered. This helps resolve the issue where
+            global climate models produce too many days with small
+            precipitation totals e.g., the "drizzle problem".
             Ref: Polade et al., 2014 https://doi.org/10.1038/srep04364
         """
 
@@ -518,16 +520,16 @@ class DataRetrievalBase:
             associated with zeros in base_data will be set to zero
         """
 
-        q_zero_base_in = (base_data == 0).mean()
-        q_zero_bias_in = (bias_data == 0).mean()
+        q_zero_base_in = np.nanmean(base_data == 0)
+        q_zero_bias_in = np.nanmean(bias_data == 0)
 
         q_bias = np.linspace(0, 1, len(bias_data))
         min_value_bias = np.interp(q_zero_base_in, q_bias, sorted(bias_data))
 
         bias_data[bias_data < min_value_bias] = 0
 
-        q_zero_base_out = (base_data == 0).mean()
-        q_zero_bias_out = (bias_data == 0).mean()
+        q_zero_base_out = np.nanmean(base_data == 0)
+        q_zero_bias_out = np.nanmean(bias_data == 0)
 
         logger.debug('Input bias/base zero rate is {:.3e}/{:.3e}, '
                      'output is {:.3e}/{:.3e}'
@@ -1200,12 +1202,16 @@ class SkillAssessment(MonthlyLinearCorrection):
             self.out[bias_k] = arr.copy()
 
     @classmethod
-    def _run_skill_eval(cls, bias_data, base_data, bias_feature, base_dset):
+    def _run_skill_eval(cls, bias_data, base_data, bias_feature, base_dset,
+                        match_zero_rate=False):
         """Run skill assessment metrics on 1D datasets at a single site.
 
         Note we run the KS test on the mean=0 distributions as per:
         S. Brands et al. 2013 https://doi.org/10.1007/s00382-013-1742-8
         """
+
+        if match_zero_rate:
+            bias_data = cls._match_zero_rate(bias_data, base_data)
 
         out = {}
         bias_mean = np.nanmean(bias_data)
@@ -1216,15 +1222,20 @@ class SkillAssessment(MonthlyLinearCorrection):
         out[f'bias_{bias_feature}_std'] = np.nanstd(bias_data)
         out[f'bias_{bias_feature}_skew'] = stats.skew(bias_data)
         out[f'bias_{bias_feature}_kurtosis'] = stats.kurtosis(bias_data)
-        out[f'bias_{bias_feature}_zero_rate'] = (bias_data == 0).mean()
+        out[f'bias_{bias_feature}_zero_rate'] = np.nanmean(bias_data == 0)
 
         out[f'base_{base_dset}_mean'] = base_mean
         out[f'base_{base_dset}_std'] = np.nanstd(base_data)
         out[f'base_{base_dset}_skew'] = stats.skew(base_data)
         out[f'base_{base_dset}_kurtosis'] = stats.kurtosis(base_data)
-        out[f'base_{base_dset}_zero_rate'] = (base_data == 0).mean()
+        out[f'base_{base_dset}_zero_rate'] = np.nanmean(base_data == 0)
 
-        ks_out = stats.ks_2samp(base_data - base_mean, bias_data - bias_mean)
+        if match_zero_rate:
+            ks_out = stats.ks_2samp(base_data, bias_data)
+        else:
+            ks_out = stats.ks_2samp(base_data - base_mean,
+                                    bias_data - bias_mean)
+
         out[f'{bias_feature}_ks_stat'] = ks_out.statistic
         out[f'{bias_feature}_ks_p'] = ks_out.pvalue
 
@@ -1248,9 +1259,6 @@ class SkillAssessment(MonthlyLinearCorrection):
                                                decimals=decimals,
                                                base_dh_inst=base_dh_inst)
 
-        if match_zero_rate:
-            bias_data = cls._match_zero_rate(bias_data, base_data)
-
         arr = np.full(cls.NT, np.nan, dtype=np.float32)
         out = {f'bias_{bias_feature}_mean_monthly': arr.copy(),
                f'bias_{bias_feature}_std_monthly': arr.copy(),
@@ -1259,7 +1267,8 @@ class SkillAssessment(MonthlyLinearCorrection):
                }
 
         out.update(cls._run_skill_eval(bias_data, base_data,
-                                       bias_feature, base_dset))
+                                       bias_feature, base_dset,
+                                       match_zero_rate=match_zero_rate))
 
         for month in range(1, 13):
             bias_mask = bias_ti.month == month
