@@ -150,9 +150,10 @@ class MaterialDerivativeLoss(tf.keras.losses.Loss):
                               x[..., -1:] - x[..., -2:-1]], axis=3)
 
         else:
-            msg = (f'{self.__class__}._derivative received axis={axis}. '
-                   'This is meant to compute only temporal (axis=3) or '
-                   'spatial (axis=1/2) derivatives.')
+            msg = (f'{self.__class__.__name__}._derivative received '
+                   f'axis={axis}. This is meant to compute only temporal '
+                   '(axis=3) or spatial (axis=1/2) derivatives for tensors '
+                   'of shape (n_obs, spatial_1, spatial_2, temporal)')
             raise ValueError(msg)
 
     def _compute_md(self, x, fidx):

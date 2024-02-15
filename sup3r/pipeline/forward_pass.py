@@ -727,19 +727,7 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
             https://github.com/tensorflow/tensorflow/issues/51870
         """
         self._input_handler_kwargs = input_handler_kwargs or {}
-        target = self._input_handler_kwargs.get('target', None)
-        grid_shape = self._input_handler_kwargs.get('shape', None)
-        raster_file = self._input_handler_kwargs.get('raster_file', None)
-        raster_index = self._input_handler_kwargs.get('raster_index', None)
-        temporal_slice = self._input_handler_kwargs.get(
-            'temporal_slice', slice(None, None, 1))
-        InputMixIn.__init__(self,
-                            target=target,
-                            shape=grid_shape,
-                            raster_file=raster_file,
-                            raster_index=raster_index,
-                            temporal_slice=temporal_slice)
-
+        self.init_mixin()
         self.file_paths = file_paths
         self.model_kwargs = model_kwargs
         self.fwp_chunk_shape = fwp_chunk_shape
@@ -807,6 +795,23 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
                                     incremental=self.incremental)
 
         self.preflight()
+
+    def init_mixin(self):
+        """Initialize InputMixIn class"""
+        target = self._input_handler_kwargs.get('target', None)
+        grid_shape = self._input_handler_kwargs.get('shape', None)
+        raster_file = self._input_handler_kwargs.get('raster_file', None)
+        raster_index = self._input_handler_kwargs.get('raster_index', None)
+        temporal_slice = self._input_handler_kwargs.get(
+            'temporal_slice', slice(None, None, 1))
+        res_kwargs = self._input_handler_kwargs.get('res_kwargs', None)
+        InputMixIn.__init__(self,
+                            target=target,
+                            shape=grid_shape,
+                            raster_file=raster_file,
+                            raster_index=raster_index,
+                            temporal_slice=temporal_slice,
+                            res_kwargs=res_kwargs)
 
     def preflight(self):
         """Prelight path name formatting and sanity checks"""
