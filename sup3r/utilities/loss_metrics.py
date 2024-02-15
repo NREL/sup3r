@@ -124,7 +124,7 @@ class MaterialDerivativeLoss(tf.keras.losses.Loss):
     https://en.wikipedia.org/wiki/Material_derivative
     """
 
-    MAE_LOSS = MeanAbsoluteError()
+    LOSS_METRIC = MeanAbsoluteError()
 
     def _derivative(self, x, axis=1):
         """Custom derivative function for compatibility with tensorflow
@@ -203,13 +203,19 @@ class MaterialDerivativeLoss(tf.keras.losses.Loss):
         """
         hub_heights = x1.shape[-1] // 2
 
-        x1_div = tf.stack(
-            [self._compute_md(x1, fidx=i) for i in range(2 * hub_heights)])
-        x2_div = tf.stack(
-            [self._compute_md(x2, fidx=i) for i in range(2 * hub_heights)])
+        msg = (f'The {self.__class__} is meant to be used on spatiotemporal '
+               'data only. Received tensor(s) that are not 5D')
+        assert len(x1.shape) == 5 and len(x2.shape) == 5, msg
 
-        mae = self.MAE_LOSS(x1, x2)
-        div_mae = self.MAE_LOSS(x1_div, x2_div)
+        x1_div = tf.stack(
+            [self._compute_md(x1, fidx=i)
+             for i in range(0, 2 * hub_heights, 2)])
+        x2_div = tf.stack(
+            [self._compute_md(x2, fidx=i)
+             for i in range(0, 2 * hub_heights, 2)])
+
+        mae = self.LOSS_METRIC(x1, x2)
+        div_mae = self.LOSS_METRIC(x1_div, x2_div)
 
         return (mae + div_mae) / 2
 
