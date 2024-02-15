@@ -4,7 +4,8 @@ import numpy as np
 import tensorflow as tf
 
 from sup3r.utilities.loss_metrics import (MmdMseLoss, CoarseMseLoss,
-                                          TemporalExtremesLoss, LowResLoss)
+                                          TemporalExtremesLoss, LowResLoss,
+                                          MaterialDerivativeLoss)
 from sup3r.utilities.utilities import spatial_coarsening, temporal_coarsening
 
 
@@ -143,3 +144,32 @@ def test_lr_loss():
                           ex_loss='SpatialExtremesOnlyLoss')
     ex_loss = loss_obj(xtensor, ytensor)
     assert ex_loss > loss
+
+
+def test_md_loss():
+    """Test the material derivative calculation in the material derivative
+    content loss class."""
+
+    x = np.random.rand(6, 10, 10, 8, 3)
+    y = x.copy()
+
+    md_loss = MaterialDerivativeLoss()
+    u_div = md_loss._compute_md(x, fidx=0)
+    v_div = md_loss._compute_md(x, fidx=1)
+
+    u_div_np = np.gradient(y[..., 0], axis=3)
+    u_div_np += y[..., 0] * np.gradient(y[..., 0], axis=1)
+    u_div_np += y[..., 1] * np.gradient(y[..., 0], axis=2)
+
+    v_div_np = np.gradient(x[..., 1], axis=3)
+    v_div_np += y[..., 0] * np.gradient(y[..., 1], axis=1)
+    v_div_np += y[..., 1] * np.gradient(y[..., 1], axis=2)
+
+    with pytest.raises(ValueError):
+        md_loss._derivative(x, axis=0)
+
+    with pytest.raises(Exception):
+        md_loss(x[..., 0], y[..., 0])
+
+    assert np.allclose(u_div, u_div_np)
+    assert np.allclose(v_div, v_div_np)
