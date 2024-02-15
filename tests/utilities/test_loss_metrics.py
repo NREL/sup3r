@@ -2,6 +2,7 @@
 """Test the basic training of super resolution GAN"""
 import numpy as np
 import tensorflow as tf
+import pytest
 
 from sup3r.utilities.loss_metrics import (MmdMseLoss, CoarseMseLoss,
                                           TemporalExtremesLoss, LowResLoss,
