@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """pytests bias correction calculations"""
 import os
+import shutil
 import tempfile
 
 import h5py
@@ -548,3 +549,21 @@ def test_match_zero_rate():
     skill = SkillAssessment._run_skill_eval(bias_data, base_data, 'f1', 'f1')
     assert (bias_data == 0).mean() == (base_data == 0).mean()
     assert skill['bias_f1_zero_rate'] == skill['base_f1_zero_rate']
+
+    with tempfile.TemporaryDirectory() as td:
+        fp_nsrdb_temp = os.path.join(td, os.path.basename(FP_NSRDB))
+        shutil.copy(FP_NSRDB, fp_nsrdb_temp)
+        with h5py.File(fp_nsrdb_temp, 'a') as nsrdb_temp:
+            ghi = nsrdb_temp['ghi'][...]
+            ghi[:1000, :] = 0
+            nsrdb_temp['ghi'][...] = ghi
+        calc = SkillAssessment(fp_nsrdb_temp, FP_CC, 'ghi', 'rsds',
+                               target=TARGET, shape=SHAPE,
+                               distance_upper_bound=0.7,
+                               bias_handler='DataHandlerNCforCC',
+                               match_zero_rate=True)
+        out = calc.run(fill_extend=True, max_workers=1)
+
+    bias_rate = out['bias_rsds_zero_rate']
+    base_rate = out['base_ghi_zero_rate']
+    assert np.allclose(bias_rate, base_rate, rtol=0.005)

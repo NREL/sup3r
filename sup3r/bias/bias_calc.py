@@ -791,7 +791,7 @@ class LinearCorrection(DataRetrievalBase):
                                          base_dh_inst=base_dh_inst)
 
         if match_zero_rate:
-            cls._match_zero_rate(bias_data, base_data)
+            bias_data = cls._match_zero_rate(bias_data, base_data)
 
         out = cls.get_linear_correction(bias_data, base_data, bias_feature,
                                         base_dset)
@@ -1076,7 +1076,7 @@ class MonthlyLinearCorrection(LinearCorrection):
                                                base_dh_inst=base_dh_inst)
 
         if match_zero_rate:
-            cls._match_zero_rate(bias_data, base_data)
+            bias_data = cls._match_zero_rate(bias_data, base_data)
 
         base_arr = np.full(cls.NT, np.nan, dtype=np.float32)
         out = {}
@@ -1249,7 +1249,7 @@ class SkillAssessment(MonthlyLinearCorrection):
                                                base_dh_inst=base_dh_inst)
 
         if match_zero_rate:
-            cls._match_zero_rate(bias_data, base_data)
+            bias_data = cls._match_zero_rate(bias_data, base_data)
 
         arr = np.full(cls.NT, np.nan, dtype=np.float32)
         out = {f'bias_{bias_feature}_mean_monthly': arr.copy(),
