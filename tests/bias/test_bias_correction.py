@@ -526,7 +526,25 @@ def test_nc_base_file():
 
     out = calc.run(fill_extend=True, max_workers=1)
 
-    assert (out['rsds_scalar'] == 1).all()
-    assert (out['rsds_adder'] == 0).all()
+    assert np.allclose(out['base_rsds_mean_monthly'],
+                       out['bias_rsds_mean_monthly'])
     assert np.allclose(out['base_rsds_mean'], out['bias_rsds_mean'])
     assert np.allclose(out['base_rsds_std'], out['bias_rsds_std'])
+
+
+def test_match_zero_rate():
+    """Test feature to match the rate of zeros in the bias data based on the
+    zero rate in the base data. Useful for precip where GCMs have a low-precip
+    "drizzle" problem."""
+    bias_data = np.random.uniform(0, 1, 1000)
+    base_data = np.random.uniform(0, 1, 1000)
+    base_data[base_data < 0.1] = 0
+
+    skill = SkillAssessment._run_skill_eval(bias_data, base_data, 'f1', 'f1')
+    assert skill['bias_f1_zero_rate'] != skill['base_f1_zero_rate']
+    assert (bias_data == 0).mean() != (base_data == 0).mean()
+
+    bias_data = SkillAssessment._match_zero_rate(bias_data, base_data)
+    skill = SkillAssessment._run_skill_eval(bias_data, base_data, 'f1', 'f1')
+    assert (bias_data == 0).mean() == (base_data == 0).mean()
+    assert skill['bias_f1_zero_rate'] == skill['base_f1_zero_rate']
