@@ -692,14 +692,15 @@ class DataHandlerNCforCC(DataHandlerNC):
         if cs_ghi.shape[-1] < len(self.time_index):
             n = int(np.ceil(len(self.time_index) / cs_ghi.shape[-1]))
             cs_ghi = np.repeat(cs_ghi, n, axis=2)
-            cs_ghi = cs_ghi[..., :len(self.time_index)]
+
+        cs_ghi = cs_ghi[..., :len(self.time_index)]
 
         logger.info(
             'Reshaped clearsky_ghi data to final shape {} to '
             'correspond with CC daily average data over source '
             'temporal_slice {} with (lat, lon) grid shape of {}'.format(
                 cs_ghi.shape, self.temporal_slice, self.grid_shape))
-        msg = ('nsrdb clearsky GHI time dimension {}'
+        msg = ('nsrdb clearsky GHI time dimension {} '
                'does not match the GCM time dimension {}'
                .format(cs_ghi.shape[2], len(self.time_index)))
         assert cs_ghi.shape[2] == len(self.time_index), msg
