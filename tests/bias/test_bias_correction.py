@@ -21,10 +21,10 @@ from sup3r.qa.qa import Sup3rQa
 FP_NSRDB = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')
 FP_CC = os.path.join(TEST_DATA_DIR, 'rsds_test.nc')
 
-with xr.open_mfdataset(FP_CC) as fh:
-    MIN_LAT = np.min(fh.lat.values)
-    MIN_LON = np.min(fh.lon.values) - 360
-    TARGET = (MIN_LAT, MIN_LON)
+with xr.open_dataset(FP_CC) as fh:
+    MIN_LAT = np.min(fh.lat.values.astype(np.float32))
+    MIN_LON = np.min(fh.lon.values.astype(np.float32)) - 360
+    TARGET = (float(MIN_LAT), float(MIN_LON))
     SHAPE = (len(fh.lat.values), len(fh.lon.values))
 
 

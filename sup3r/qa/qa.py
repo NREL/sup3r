@@ -273,7 +273,8 @@ class Sup3rQa:
         list
         """
         # all lower case
-        ignore = ('meta', 'time_index', 'times', 'xlat', 'xlong')
+        ignore = ('meta', 'time_index', 'times', 'time', 'xlat', 'xlong',
+                  'south_north', 'west_east')
 
         if self._features is None or self._features == [None]:
             if self.output_type == 'nc':

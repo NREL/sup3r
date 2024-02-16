@@ -117,6 +117,113 @@ class MmdLoss(tf.keras.losses.Loss):
         return mmd
 
 
+class MaterialDerivativeLoss(tf.keras.losses.Loss):
+    """Loss class for the material derivative. This is the left hand side of
+    the Navier-Stokes equation and is equal to internal + external forces
+    divided by density.
+    https://en.wikipedia.org/wiki/Material_derivative
+    """
+
+    LOSS_METRIC = MeanAbsoluteError()
+
+    def _derivative(self, x, axis=1):
+        """Custom derivative function for compatibility with tensorflow.
+
+        NOTE: Matches np.gradient by using the central difference
+        approximation.
+
+        Parameters
+        ----------
+        x : tf.Tensor
+            (n_observations, spatial_1, spatial_2, temporal)
+        axis : int
+            Axis to take derivative over
+        """
+        if axis == 1:
+            return tf.concat([x[:, 1:2] - x[:, 0:1],
+                              (x[:, 2:] - x[:, :-2]) / 2,
+                              x[:, -1:] - x[:, -2:-1]], axis=1)
+        elif axis == 2:
+            return tf.concat([x[..., 1:2, :] - x[..., 0:1, :],
+                              (x[..., 2:, :] - x[..., :-2, :]) / 2,
+                              x[..., -1:, :] - x[..., -2:-1, :]], axis=2)
+        elif axis == 3:
+            return tf.concat([x[..., 1:2] - x[..., 0:1],
+                              (x[..., 2:] - x[..., :-2]) / 2,
+                              x[..., -1:] - x[..., -2:-1]], axis=3)
+
+        else:
+            msg = (f'{self.__class__.__name__}._derivative received '
+                   f'axis={axis}. This is meant to compute only temporal '
+                   '(axis=3) or spatial (axis=1/2) derivatives for tensors '
+                   'of shape (n_obs, spatial_1, spatial_2, temporal)')
+            raise ValueError(msg)
+
+    def _compute_md(self, x, fidx):
+        """Compute material derivative the feature given by the index fidx.
+        It is assumed that for a given feature index fidx there is a pair of
+        wind components u/v given by 2 * (fidx // 2) and 2 * (fidx // 2) + 1
+
+        Parameters
+        ----------
+        x : tf.tensor
+            synthetic output or high resolution data
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        fidx : int
+            Feature index to compute material derivative for.
+        """
+        uidx = 2 * (fidx // 2)
+        vidx = 2 * (fidx // 2) + 1
+        # df/dt
+        x_div = self._derivative(x[..., fidx], axis=3)
+        # u * df/dx
+        x_div += tf.math.multiply(
+            x[..., uidx], self._derivative(x[..., fidx], axis=1))
+        # v * df/dy
+        x_div += tf.math.multiply(
+            x[..., vidx], self._derivative(x[..., fidx], axis=2))
+
+        return x_div
+
+    def __call__(self, x1, x2):
+        """Custom content loss that encourages accuracy of the material
+        derivative. This assumes that the first 2 * N features are N u/v
+        wind components at different hub heights and that the total number of
+        features is either 2 * N or 2 * N + 1
+
+        Parameters
+        ----------
+        x1 : tf.tensor
+            synthetic generator output
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        x2 : tf.tensor
+            high resolution data
+            (n_observations, spatial_1, spatial_2, temporal, features)
+
+        Returns
+        -------
+        tf.tensor
+            0D tensor with loss value
+        """
+        hub_heights = x1.shape[-1] // 2
+
+        msg = (f'The {self.__class__.__name__} is meant to be used on '
+               'spatiotemporal data only. Received tensor(s) that are not 5D')
+        assert len(x1.shape) == 5 and len(x2.shape) == 5, msg
+
+        x1_div = tf.stack(
+            [self._compute_md(x1, fidx=i)
+             for i in range(0, 2 * hub_heights, 2)])
+        x2_div = tf.stack(
+            [self._compute_md(x2, fidx=i)
+             for i in range(0, 2 * hub_heights, 2)])
+
+        mae = self.LOSS_METRIC(x1, x2)
+        div_mae = self.LOSS_METRIC(x1_div, x2_div)
+
+        return (mae + div_mae) / 2
+
+
 class MmdMseLoss(tf.keras.losses.Loss):
     """Loss class for MMD + MSE"""
 

@@ -41,8 +41,8 @@ def test_data_handling_nc_cc():
     ]
 
     with xr.open_mfdataset(input_files) as fh:
-        min_lat = np.min(fh.lat.values)
-        min_lon = np.min(fh.lon.values)
+        min_lat = np.min(fh.lat.values.astype(np.float32))
+        min_lon = np.min(fh.lon.values.astype(np.float32))
         target = (min_lat, min_lon)
         plevel = fh.plev[-1]
         ua = np.transpose(fh['ua'][:, -1, ...].values, (1, 2, 0))
@@ -81,8 +81,8 @@ def test_solar_cc():
     nsrdb_source_fp = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')
 
     with xr.open_mfdataset(input_files) as fh:
-        min_lat = np.min(fh.lat.values)
-        min_lon = np.min(fh.lon.values) - 360
+        min_lat = np.min(fh.lat.values.astype(np.float32))
+        min_lon = np.min(fh.lon.values.astype(np.float32)) - 360
         target = (min_lat, min_lon)
         shape = (len(fh.lat.values), len(fh.lon.values))
 

@@ -28,6 +28,7 @@ class Regridder:
     """
 
     MIN_DISTANCE = 1e-12
+    MAX_DISTANCE = 0.01
 
     def __init__(self,
                  source_meta,
@@ -36,6 +37,7 @@ class Regridder:
                  leaf_size=4,
                  k_neighbors=4,
                  n_chunks=100,
+                 max_distance=None,
                  max_workers=None):
         """Get weights and indices used to map from source grid to target grid
 
@@ -57,6 +59,9 @@ class Regridder:
             Number of spatial chunks to use for tree queries. The total number
             of points in the target_meta will be split into n_chunks and the
             points in each chunk will be queried at the same time.
+        max_distance : float | None
+            Max distance to new grid points from original points before filling
+            with nans.
         max_workers : int | None
             Max number of workers to use for running all tree queries needed
             to building full set of indices and distances for each target_meta
@@ -70,17 +75,37 @@ class Regridder:
         self.k_neighbors = k_neighbors
         self.n_chunks = n_chunks
         self.max_workers = max_workers
-        self.tree = None
+        self._tree = None
+        self.max_distance = max_distance or self.MAX_DISTANCE
         self.leaf_size = leaf_size
-        self.distances = [None] * len(self.target_meta)
-        self.indices = [None] * len(self.target_meta)
+        self._distances = None
+        self._indices = None
         self._weights = None
+
+    @property
+    def distances(self):
+        """Get distances for all tree queries."""
+        if self._distances is None:
+            self.init_queries()
+        return self._distances
+
+    @property
+    def indices(self):
+        """Get indices for all tree queries."""
+        if self._indices is None:
+            self.init_queries()
+        return self._indices
+
+    def init_queries(self):
+        """Initialize arrays for tree queries and either load query cache or
+        perform all queries"""
+        self._indices = [None] * len(self.target_meta)
+        self._distances = [None] * len(self.target_meta)
 
         if self.cache_exists:
             self.load_cache()
         else:
-            self.build_tree()
-            self.get_all_queries(max_workers)
+            self.get_all_queries(self.max_workers)
             self.cache_all_queries()
 
     @classmethod
@@ -152,13 +177,16 @@ class Regridder:
                               and os.path.exists(self.distance_file))
         return cache_exists_check
 
-    def build_tree(self):
+    @property
+    def tree(self):
         """Build ball tree from source_meta"""
-
-        logger.info("Building ball tree for regridding.")
-        ll2 = self.source_meta[['latitude', 'longitude']].values
-        ll2 = np.radians(ll2)
-        self.tree = BallTree(ll2, leaf_size=self.leaf_size, metric='haversine')
+        if self._tree is None:
+            logger.info("Building ball tree for regridding.")
+            ll2 = self.source_meta[['latitude', 'longitude']].values
+            ll2 = np.radians(ll2)
+            self._tree = BallTree(ll2, leaf_size=self.leaf_size,
+                                  metric='haversine')
+        return self._tree
 
     def get_all_queries(self, max_workers=None):
         """Query ball tree for all coordinates in the target_meta and store
@@ -224,9 +252,9 @@ class Regridder:
     def load_cache(self):
         """Load cached indices and distances from ball tree query"""
         with open(self.index_file, 'rb') as f:
-            self.indices = pickle.load(f)
+            self._indices = pickle.load(f)
         with open(self.distance_file, 'rb') as f:
-            self.distances = pickle.load(f)
+            self._distances = pickle.load(f)
         logger.info(f'Loaded cache files: {self.index_file}, '
                     f'{self.distance_file}')
 
@@ -296,6 +324,17 @@ class Regridder:
         return self.tree.query(self.get_spatial_chunk(s_slice),
                                k=self.k_neighbors)
 
+    @property
+    def dist_mask(self):
+        """Mask for points too far from original grid
+
+        Returns
+        -------
+        mask : ndarray
+            Bool array for points outside original grid extent
+        """
+        return np.array(self.distances)[:, -1] > self.max_distance
+
     @classmethod
     def interpolate(cls, distance_chunk, values):
         """Interpolate to new coordinates based on distances from those
@@ -355,8 +394,7 @@ class Regridder:
             for i in range(data.shape[-1])
         ]
         vals = np.concatenate(vals, axis=0)
-        out = np.einsum('ijk,jk->ij', vals, self.weights)
-        return out.T
+        return np.einsum('ijk,jk->ij', vals, self.weights).T
 
 
 class WindRegridder(Regridder):

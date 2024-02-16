@@ -459,6 +459,7 @@ class InputMixIn(CacheHandlingMixIn):
                  raster_file=None,
                  raster_index=None,
                  temporal_slice=slice(None, None, 1),
+                 res_kwargs=None,
                  ):
         """Provide properties of the spatiotemporal data domain
 
@@ -484,6 +485,8 @@ class InputMixIn(CacheHandlingMixIn):
             Slice specifying extent and step of temporal extraction. e.g.
             slice(start, stop, time_pruning). If equal to slice(None, None, 1)
             the full time dimension is selected.
+        res_kwargs : dict | None
+            Dictionary of kwargs to pass to xarray.open_mfdataset.
         """
         self.raster_file = raster_file
         self.target = target
@@ -505,7 +508,7 @@ class InputMixIn(CacheHandlingMixIn):
         self._full_raw_lat_lon = None
         self._single_ts_files = None
         self._worker_attrs = ['ti_workers']
-        self.res_kwargs = {}
+        self.res_kwargs = res_kwargs or {}
 
     @property
     def raw_tsteps(self):

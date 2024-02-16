@@ -306,7 +306,7 @@ class OutputHandler(OutputMixIn):
 
             max = H5_ATTRS[dset_name].get('max', np.inf)
             min = H5_ATTRS[dset_name].get('min', -np.inf)
-            logger.debug(f'Enforcing range of ({max}, {min} for "{fn}")')
+            logger.debug(f'Enforcing range of ({min}, {max} for "{fn}")')
             maxs.append(max)
             mins.append(min)
 
@@ -576,13 +576,13 @@ class OutputHandlerNC(OutputHandler):
             List of coordinate indices used to label each lat lon pair and to
             help with spatial chunk data collection
         """
-        coords = {'Times': (['Time'], [str(t).encode('utf-8') for t in times]),
-                  'XLAT': (['south_north', 'east_west'], lat_lon[..., 0]),
-                  'XLONG': (['south_north', 'east_west'], lat_lon[..., 1])}
+        coords = {'Time': [str(t).encode('utf-8') for t in times],
+                  'south_north': lat_lon[:, 0, 0].astype(np.float32),
+                  'west_east': lat_lon[0, :, 1].astype(np.float32)}
 
         data_vars = {}
         for i, f in enumerate(features):
-            data_vars[f] = (['Time', 'south_north', 'east_west'],
+            data_vars[f] = (['Time', 'south_north', 'west_east'],
                             np.transpose(data[..., i], (2, 0, 1)))
 
         attrs = {}
@@ -631,11 +631,9 @@ class OutputHandlerH5(OutputHandler):
             List of renamed features u/v -> windspeed/winddirection for each
             height
         """
-        heights = []
+        heights = [Feature.get_height(f) for f in features
+                   if re.match('U_(.*?)m'.lower(), f.lower())]
         renamed_features = features.copy()
-        for f in features:
-            if re.match('U_(.*?)m'.lower(), f.lower()):
-                heights.append(Feature.get_height(f))
 
         for height in heights:
             u_idx = features.index(f'U_{height}m')
@@ -666,10 +664,8 @@ class OutputHandlerH5(OutputHandler):
             will be estimated based on memory limits.
         """
 
-        heights = []
-        for f in features:
-            if re.match('U_(.*?)m'.lower(), f.lower()):
-                heights.append(Feature.get_height(f))
+        heights = [Feature.get_height(f) for f in features if
+                   re.match('U_(.*?)m'.lower(), f.lower())]
         if heights:
             logger.info('Converting u/v to windspeed/winddirection for h5'
                         ' output')
