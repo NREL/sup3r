@@ -306,7 +306,7 @@ class OutputHandler(OutputMixIn):
 
             max = H5_ATTRS[dset_name].get('max', np.inf)
             min = H5_ATTRS[dset_name].get('min', -np.inf)
-            logger.debug(f'Enforcing range of ({max}, {min} for "{fn}")')
+            logger.debug(f'Enforcing range of ({min}, {max} for "{fn}")')
             maxs.append(max)
             mins.append(min)
 

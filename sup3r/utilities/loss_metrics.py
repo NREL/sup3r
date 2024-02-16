@@ -127,7 +127,10 @@ class MaterialDerivativeLoss(tf.keras.losses.Loss):
     LOSS_METRIC = MeanAbsoluteError()
 
     def _derivative(self, x, axis=1):
-        """Custom derivative function for compatibility with tensorflow
+        """Custom derivative function for compatibility with tensorflow.
+
+        NOTE: Matches np.gradient by using the central difference
+        approximation.
 
         Parameters
         ----------
@@ -204,8 +207,8 @@ class MaterialDerivativeLoss(tf.keras.losses.Loss):
         """
         hub_heights = x1.shape[-1] // 2
 
-        msg = (f'The {self.__class__} is meant to be used on spatiotemporal '
-               'data only. Received tensor(s) that are not 5D')
+        msg = (f'The {self.__class__.__name__} is meant to be used on '
+               'spatiotemporal data only. Received tensor(s) that are not 5D')
         assert len(x1.shape) == 5 and len(x2.shape) == 5, msg
 
         x1_div = tf.stack(
