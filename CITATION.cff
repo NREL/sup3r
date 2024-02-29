@@ -1,0 +1,44 @@
+cff-version: 1.2.0
+title: The Super-Resolution for Renewable Resource Data (sup3r)
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - family-names: Benton
+    given-names: Brandon
+    affiliation: NREL
+    orcid: "https://orcid.org/0009-0008-9931-2050"
+  - family-names: Buster
+    given-names: Grant
+    affiliation: NREL
+    orcid: "https://orcid.org/0000-0001-8616-8100"
+  - family-names: Glaws
+    given-names: Andrew
+    affiliation: NREL
+  - family-names: King
+    given-names: Ryan
+    affiliation: NREL
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.6808547
+repository-code: 'https://github.com/NREL/sup3r'
+abstract: >-
+  The Super Resolution for Renewable Resource Data (sup3r)
+  software uses generative adversarial networks to create
+  synthetic high-resolution wind and solar spatiotemporal
+  data from coarse low-resolution inputs.
+keywords:
+  - machine-learning
+  - deep-learning
+  - generative-adversarial-network
+  - climate-change
+  - tensorflow
+  - climate-data
+  - solar-energy
+  - renewable-energy
+  - wind-energy
+license: BSD-3-Clause
+commit: 6d0f100
+version: 0.1.2
+date-released: '2023-12-18'
