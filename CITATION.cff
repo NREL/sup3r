@@ -13,6 +13,18 @@ authors:
     given-names: Grant
     affiliation: NREL
     orcid: "https://orcid.org/0000-0001-8616-8100"
+  - family-names: Hassanaly
+    given-names: Malik
+    affiliation: NREL
+    orcid: "https://orcid.org/0000-0002-0425-9090"
+  - family-names: Pinchuk
+    given-names: Paul
+    affiliation: NREL
+    orcid: "https://orcid.org/0000-0003-4736-4728"
+  - family-names: Podgorny
+    given-names: Slater
+    affiliation: NREL
+    orcid: "https://orcid.org/0009-0008-4903-411X"
   - family-names: Glaws
     given-names: Andrew
     affiliation: NREL
