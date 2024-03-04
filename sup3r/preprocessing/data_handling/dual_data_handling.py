@@ -349,7 +349,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         msg = (f'hr_handler.sample_shape {hr_handler.sample_shape} and '
                f'lr_handler.sample_shape {lr_handler.sample_shape} are '
                f'incompatible. Must be {hr_shape} and {lr_shape}.')
-        assert list(*lr_handler.sample_shape) == lr_shape, msg
+        assert list(lr_handler.sample_shape) == lr_shape, msg
 
         if hr_handler.data is not None and lr_handler.data is not None:
             hr_shape = self.hr_data.shape
