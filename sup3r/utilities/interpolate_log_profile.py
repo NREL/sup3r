@@ -35,12 +35,9 @@ class LogLinInterpolator:
     DEFAULT_OUTPUT_HEIGHTS: ClassVar[dict] = {
         'u': [10, 40, 80, 100, 120, 160, 200],
         'v': [10, 40, 80, 100, 120, 160, 200],
-        'w': [10, 40, 80, 100, 120, 160, 200],
-        'pv': [10, 40, 80, 100, 120, 160, 200],
-        'temperature': [10, 40, 80, 100, 120, 160, 200],
+        'temperature': [2, 10, 40, 80, 100, 120, 160, 200],
         'pressure': [0, 100, 200],
-        'relativehumidity': [2, 10, 40, 80, 100, 120, 160, 200],
-        'divergence': [80, 100, 120]
+        'relativehumidity': [2, 10, 40, 80, 100, 120, 160, 200]
     }
 
     def __init__(
