@@ -65,8 +65,5 @@ setup(
     keywords="sup3r",
     test_suite="tests",
     install_requires=install_requires,
-    extras_require={
-        "dev": ["flake8", "pre-commit", "pylint"],
-    },
     cmdclass={"develop": PostDevelopCommand},
 )
