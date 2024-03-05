@@ -45,7 +45,7 @@ class SurfaceSpatialMetModel(LinearInterp):
     def __init__(self, lr_features, s_enhance, noise_adders=None,
                  temp_lapse=None, w_delta_temp=None, w_delta_topo=None,
                  pres_div=None, pres_exp=None, interp_method='LANCZOS',
-                 fix_bias=True):
+                 input_resolution=None, fix_bias=True):
         """
         Parameters
         ----------
@@ -96,6 +96,10 @@ class SurfaceSpatialMetModel(LinearInterp):
             Some local bias can be introduced by the bilinear interp + lapse
             rate, this flag will attempt to correct that bias by using the
             low-resolution deviation from the input data
+        input_resolution : dict | None
+            Resolution of the input data. e.g. {'spatial': '30km', 'temporal':
+            '60min'}. This is used to determine how to aggregate
+            high-resolution topography data.
         """
 
         self._lr_features = lr_features
@@ -107,7 +111,7 @@ class SurfaceSpatialMetModel(LinearInterp):
         self._pres_div = pres_div or self.PRES_DIV
         self._pres_exp = pres_exp or self.PRES_EXP
         self._fix_bias = fix_bias
-        self._input_resolution = None
+        self._input_resolution = input_resolution
         self._interp_method = getattr(Image.Resampling, interp_method)
 
         if isinstance(self._noise_adders, (int, float)):
@@ -147,17 +151,6 @@ class SurfaceSpatialMetModel(LinearInterp):
         assert se0 == se1, 'Calculated s_enhance does not match along axis'
 
         return int(se0)
-
-    @property
-    def input_dims(self):
-        """Get dimension of model generator input. This is always 4 for an
-        input array of shape: (n_obs, spatial_1, spatial_2, n_features)
-
-        Returns
-        -------
-        int
-        """
-        return 4
 
     @property
     def feature_inds_temp(self):
@@ -507,7 +500,7 @@ class SurfaceSpatialMetModel(LinearInterp):
                      .format(topo_lr.shape, topo_hr.shape))
 
         msg = ('topo_lr has a bad shape {} that doesnt match the low res '
-               'data shape {}'.format(topo_lr.shape, topo_hr.shape))
+               'data shape {}'.format(topo_lr.shape, low_res.shape))
         assert isinstance(topo_lr, np.ndarray), msg
         assert isinstance(topo_hr, np.ndarray), msg
         assert len(topo_lr.shape) == 2, msg

@@ -1725,20 +1725,22 @@ class ForwardPass:
                            'exceeds the number of model steps')
                     assert entry['model'] < len(models), msg
                     current_model = models[entry['model']]
-                    if current_model.is_4d:
+                    if current_model.is_5d:
+                        out = np.expand_dims(entry['data'], axis=0)
+                    elif current_model.is_4d:
                         out = np.transpose(entry['data'], axes=(2, 0, 1, 3))
                     else:
-                        out = np.expand_dims(entry['data'], axis=0)
+                        out = entry['data'][:, :, 0, 0]
                     exo_data[feature]['steps'][i]['data'] = out
 
-        if model.is_4d:
-            i_lr_t = 0
-            i_lr_s = 1
-            data_chunk = np.transpose(data_chunk, axes=(2, 0, 1, 3))
-        else:
+        if model.is_5d:
             i_lr_t = 3
             i_lr_s = 1
             data_chunk = np.expand_dims(data_chunk, axis=0)
+        else:
+            i_lr_t = 0
+            i_lr_s = 1
+            data_chunk = np.transpose(data_chunk, axes=(2, 0, 1, 3))
 
         return data_chunk, exo_data, i_lr_t, i_lr_s
 

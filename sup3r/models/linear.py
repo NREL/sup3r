@@ -70,10 +70,23 @@ class LinearInterp(AbstractInterface):
         model = cls(**kwargs)
 
         if verbose:
+            logger.info(f'args: {args}')
             logger.info('Loading LinearInterp with meta data: {}'
                         .format(model.meta))
 
         return model
+
+    @property
+    def input_dims(self):
+        """Get dimension of model input. This is 2 for linear and surface
+        models (spatial_1, spatial_2)
+
+        Returns
+        -------
+        int
+        """
+        return 2
+
 
     @property
     def meta(self):
