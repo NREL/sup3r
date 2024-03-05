@@ -447,6 +447,59 @@ class SurfaceSpatialMetModel(LinearInterp):
 
         return hi_res_pres
 
+    @property
+    def input_dims(self):
+        """Get dimension of model input. This is 4 for linear and surface
+        models (n_obs, spatial_1, spatial_2, temporal)
+
+        Returns
+        -------
+        int
+        """
+        return 4
+
+    def _get_topo_from_exo(self, exogenous_data):
+        """Get lr_topo and hr_topo from exo_data dictionary.
+
+        Parameters
+        ----------
+        exogenous_data : dict
+            For the SurfaceSpatialMetModel, this must be a nested dictionary
+            with a main 'topography' key and two entries for
+            exogenous_data['topography']['steps']. The first entry includes a
+            2D (lat, lon) or 4D (n_obs, lat, lon, temporal) array of
+            low-resolution surface elevation data in meters (lat, lon must
+            match spatial_1, spatial_2 from low_res), and the second entry
+            includes a 2D (lat, lon) or 4D (n_obs, lat, lon, temporal) array of
+            high-resolution surface elevation data in meters. e.g.
+            {'topography': {'steps': [{'data': lr_topo}, {'data': hr_topo'}]}}
+
+        Returns
+        -------
+        lr_topo : ndarray
+            (lat, lon)
+        hr_topo : ndarray
+            (lat, lon)
+        """
+        exo_data = [step['data']
+                    for step in exogenous_data['topography']['steps']]
+        msg = ('exogenous_data is of a bad type {}!'
+               .format(type(exo_data)))
+        assert isinstance(exo_data, (list, tuple)), msg
+        msg = ('exogenous_data is of a bad length {}!'
+               .format(len(exo_data)))
+        assert len(exo_data) == 2, msg
+
+        lr_topo = exo_data[0]
+        hr_topo = exo_data[1]
+
+        if len(lr_topo.shape) == 4:
+            lr_topo = lr_topo[0, :, :, 0]
+        if len(hr_topo.shape) == 4:
+            hr_topo = hr_topo[0, :, :, 0]
+
+        return lr_topo, hr_topo
+
     # pylint: disable=unused-argument
     def generate(self, low_res, norm_in=False, un_norm_out=False,
                  exogenous_data=None):
@@ -484,33 +537,23 @@ class SurfaceSpatialMetModel(LinearInterp):
             channel can include temperature_*m, relativehumidity_*m, and/or
             pressure_*m
         """
-        exo_data = [step['data']
-                    for step in exogenous_data['topography']['steps']]
-        msg = ('exogenous_data is of a bad type {}!'
-               .format(type(exo_data)))
-        assert isinstance(exo_data, (list, tuple)), msg
-        msg = ('exogenous_data is of a bad length {}!'
-               .format(len(exo_data)))
-        assert len(exo_data) == 2, msg
-
-        topo_lr = exo_data[0]
-        topo_hr = exo_data[1]
+        lr_topo, hr_topo = self._get_topo_from_exo(exogenous_data)
         logger.debug('SurfaceSpatialMetModel received low/high res topo '
                      'shapes of {} and {}'
-                     .format(topo_lr.shape, topo_hr.shape))
+                     .format(lr_topo.shape, hr_topo.shape))
 
         msg = ('topo_lr has a bad shape {} that doesnt match the low res '
-               'data shape {}'.format(topo_lr.shape, low_res.shape))
-        assert isinstance(topo_lr, np.ndarray), msg
-        assert isinstance(topo_hr, np.ndarray), msg
-        assert len(topo_lr.shape) == 2, msg
-        assert len(topo_hr.shape) == 2, msg
-        assert topo_lr.shape[0] == low_res.shape[1], msg
-        assert topo_lr.shape[1] == low_res.shape[2], msg
-        s_enhance = self._get_s_enhance(topo_lr, topo_hr)
+               'data shape {}'.format(lr_topo.shape, low_res.shape))
+        assert isinstance(lr_topo, np.ndarray), msg
+        assert isinstance(hr_topo, np.ndarray), msg
+        assert len(lr_topo.shape) == 2, msg
+        assert len(hr_topo.shape) == 2, msg
+        assert lr_topo.shape[0] == low_res.shape[1], msg
+        assert lr_topo.shape[1] == low_res.shape[2], msg
+        s_enhance = self._get_s_enhance(lr_topo, hr_topo)
         msg = ('Topo shapes of {} and {} did not match desired spatial '
                'enhancement of {}'
-               .format(topo_lr.shape, topo_hr.shape, self._s_enhance))
+               .format(lr_topo.shape, hr_topo.shape, self._s_enhance))
         assert self._s_enhance == s_enhance, msg
 
         hr_shape = (len(low_res),
@@ -525,12 +568,12 @@ class SurfaceSpatialMetModel(LinearInterp):
         for iobs in range(len(low_res)):
             for idf_temp in self.feature_inds_temp:
                 _tmp = self.downscale_temp(low_res[iobs, :, :, idf_temp],
-                                           topo_lr, topo_hr)
+                                           lr_topo, hr_topo)
                 hi_res[iobs, :, :, idf_temp] = _tmp
 
             for idf_pres in self.feature_inds_pres:
                 _tmp = self.downscale_pres(low_res[iobs, :, :, idf_pres],
-                                           topo_lr, topo_hr)
+                                           lr_topo, hr_topo)
                 hi_res[iobs, :, :, idf_pres] = _tmp
 
             for idf_rh in self.feature_inds_rh:
@@ -538,7 +581,7 @@ class SurfaceSpatialMetModel(LinearInterp):
                 _tmp = self.downscale_rh(low_res[iobs, :, :, idf_rh],
                                          low_res[iobs, :, :, idf_temp],
                                          hi_res[iobs, :, :, idf_temp],
-                                         topo_lr, topo_hr)
+                                         lr_topo, hr_topo)
                 hi_res[iobs, :, :, idf_rh] = _tmp
 
         if self._noise_adders is not None:
