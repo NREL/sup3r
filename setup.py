@@ -61,7 +61,6 @@ setup(
     package_dir={"sup3r": "sup3r"},
     include_package_data=True,
     zip_safe=False,
-    keywords="sup3r",
     test_suite="tests",
     install_requires=install_requires,
     cmdclass={"develop": PostDevelopCommand},
