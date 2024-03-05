@@ -78,15 +78,14 @@ class LinearInterp(AbstractInterface):
 
     @property
     def input_dims(self):
-        """Get dimension of model input. This is 2 for linear and surface
-        models (spatial_1, spatial_2)
+        """Get dimension of model input. This is 3 for linear and surface
+        models (spatial_1, spatial_2, temporal)
 
         Returns
         -------
         int
         """
-        return 2
-
+        return 3
 
     @property
     def meta(self):
