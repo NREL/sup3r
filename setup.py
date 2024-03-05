@@ -39,7 +39,6 @@ class PostDevelopCommand(develop):
 
 
 setup(
-    version=version,
     entry_points={
         "console_scripts": ["sup3r=sup3r.cli:main",
                             "sup3r-pipeline=sup3r.pipeline.pipeline_cli:main",
