@@ -11,9 +11,6 @@ from warnings import warn
 
 here = os.path.abspath(os.path.dirname(__file__))
 
-with open(os.path.join(here, "requirements.txt")) as f:
-    install_requires = f.readlines()
-
 with open(os.path.join(here, "sup3r", "version.py"), encoding="utf-8") as f:
     version = f.read()
 
@@ -61,6 +58,5 @@ setup(
     package_dir={"sup3r": "sup3r"},
     include_package_data=True,
     test_suite="tests",
-    install_requires=install_requires,
     cmdclass={"develop": PostDevelopCommand},
 )
