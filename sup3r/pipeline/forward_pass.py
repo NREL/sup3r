@@ -1685,6 +1685,11 @@ class ForwardPass:
         """Reshape and transpose data chunk and exogenous data before being
         passed to the sup3r model.
 
+        NOTE: Exo data needs to be different shapes for 5D (Spatiotemporal) /
+        4D (Spatial) / 3D (Surface) models, and different models use different
+        indices for spatial and temporal dimensions. These differences are
+        handled here.
+
         Parameters
         ----------
         model : Sup3rGan
