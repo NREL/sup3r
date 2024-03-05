@@ -70,7 +70,6 @@ class LinearInterp(AbstractInterface):
         model = cls(**kwargs)
 
         if verbose:
-            logger.info(f'args: {args}')
             logger.info('Loading LinearInterp with meta data: {}'
                         .format(model.meta))
 
