@@ -53,3 +53,4 @@ repository = "https://github.com/NREL/sup3r"
 
 [tool.setuptools]
 include-package-data = true
+packages = ["sup3r"]

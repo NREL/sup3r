@@ -3,7 +3,7 @@ setup.py
 """
 import os
 from codecs import open
-from setuptools import setup, find_packages
+from setuptools import setup
 from setuptools.command.develop import develop
 from subprocess import check_call
 import shlex
@@ -54,8 +54,6 @@ setup(
                              "data_collect_cli:main"),
                             ],
     },
-    packages=find_packages(),
-    package_dir={"sup3r": "sup3r"},
     test_suite="tests",
     cmdclass={"develop": PostDevelopCommand},
 )
