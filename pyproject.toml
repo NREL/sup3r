@@ -50,3 +50,6 @@ dev = [
 homepage = "https://github.com/NREL/sup3r"
 documentation = "https://nrel.github.io/sup3r/"
 repository = "https://github.com/NREL/sup3r"
+
+[tool.setuptools]
+include-package-data = true

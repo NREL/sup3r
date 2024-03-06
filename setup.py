@@ -56,7 +56,6 @@ setup(
     },
     packages=find_packages(),
     package_dir={"sup3r": "sup3r"},
-    include_package_data=True,
     test_suite="tests",
     cmdclass={"develop": PostDevelopCommand},
 )
