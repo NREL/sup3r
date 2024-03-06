@@ -84,7 +84,7 @@ class SurfaceSpatialMetModel(LinearInterp):
         pres_div : None | float
             Divisor factor in the pressure scale height equation. Defaults to
             the cls.PRES_DIV attribute.
-        pres_div : None | float
+        pres_exp : None | float
             Exponential factor in the pressure scale height equation. Defaults
             to the cls.PRES_EXP attribute.
         interp_method : str
@@ -101,7 +101,6 @@ class SurfaceSpatialMetModel(LinearInterp):
             '60min'}. This is used to determine how to aggregate
             high-resolution topography data.
         """
-
         self._lr_features = lr_features
         self._s_enhance = s_enhance
         self._noise_adders = noise_adders
@@ -112,6 +111,7 @@ class SurfaceSpatialMetModel(LinearInterp):
         self._pres_exp = pres_exp or self.PRES_EXP
         self._fix_bias = fix_bias
         self._input_resolution = input_resolution
+        self._interp_name = interp_method
         self._interp_method = getattr(Image.Resampling, interp_method)
 
         if isinstance(self._noise_adders, (int, float)):
@@ -606,7 +606,7 @@ class SurfaceSpatialMetModel(LinearInterp):
                 'pressure_exponent': self._pres_exp,
                 'lr_features': self.lr_features,
                 'hr_out_features': self.hr_out_features,
-                'interp_method': str(self._interp_method),
+                'interp_method': self._interp_name,
                 'fix_bias': self._fix_bias,
                 'class': self.__class__.__name__,
                 }
