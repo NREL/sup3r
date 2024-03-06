@@ -48,5 +48,5 @@ dev = [
 
 [project.urls]
 homepage = "https://github.com/NREL/sup3r"
-documentation = "https://github.com/NREL/sup3r"
+documentation = "https://nrel.github.io/sup3r/"
 repository = "https://github.com/NREL/sup3r"
