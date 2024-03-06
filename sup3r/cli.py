@@ -7,7 +7,7 @@ import logging
 
 from gaps import Pipeline
 
-from sup3r.version import __version__
+from sup3r import __version__
 from sup3r.utilities import ModuleName
 from sup3r.pipeline.forward_pass_cli import from_config as fwp_cli
 from sup3r.solar.solar_cli import from_config as solar_cli

@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """Super Resolving Renewable Energy Resource Data (SUP3R)"""
 import os
-from sup3r.version import __version__
+
+from ._version import __version__
 # Next import sets up CLI commands
 # This line could be "import sup3r.cli" but that breaks sphinx as of 12/11/2023
 from sup3r.cli import main

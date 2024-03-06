@@ -1,20 +1,11 @@
 """
 setup.py
 """
-import os
-from codecs import open
 from setuptools import setup
 from setuptools.command.develop import develop
 from subprocess import check_call
 import shlex
 from warnings import warn
-
-here = os.path.abspath(os.path.dirname(__file__))
-
-with open(os.path.join(here, "sup3r", "version.py"), encoding="utf-8") as f:
-    version = f.read()
-
-version = version.split('=')[-1].strip().strip('"').strip("'")
 
 
 class PostDevelopCommand(develop):

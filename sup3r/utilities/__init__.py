@@ -12,7 +12,7 @@ from enum import Enum
 import phygnn
 import rex
 
-from sup3r.version import __version__
+from sup3r import __version__
 
 
 VERSION_RECORD = {'sup3r': __version__,

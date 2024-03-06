@@ -7,9 +7,9 @@ import click
 import logging
 import os
 
+from sup3r import __version__
 from sup3r.solar import Solar
 from sup3r.utilities import ModuleName
-from sup3r.version import __version__
 from sup3r.utilities.cli import AVAILABLE_HARDWARE_OPTIONS, BaseCLI
 
 

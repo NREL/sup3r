@@ -25,7 +25,7 @@ from sup3r.utilities.utilities import (
     invert_uv,
     pd_date_range,
 )
-from sup3r.version import __version__
+from sup3r import __version__
 
 logger = logging.getLogger(__name__)
 

@@ -5,8 +5,8 @@ sup3r WindStats module CLI entry points.
 import click
 import logging
 
+from sup3r import __version__
 from sup3r.utilities import ModuleName
-from sup3r.version import __version__
 from sup3r.qa.stats import Sup3rStatsMulti
 from sup3r.utilities.cli import BaseCLI
 

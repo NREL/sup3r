@@ -8,8 +8,8 @@ import logging
 from inspect import signature
 import os
 
+from sup3r import __version__
 from sup3r.utilities import ModuleName
-from sup3r.version import __version__
 from sup3r.utilities.regridder import RegridOutput
 from sup3r.utilities.cli import AVAILABLE_HARDWARE_OPTIONS, BaseCLI
 
