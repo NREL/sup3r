@@ -12,7 +12,7 @@ import tensorflow as tf
 from rex import ResourceX, init_logger
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR, __version__
-from sup3r.models import LinearInterp, Sup3rGan
+from sup3r.models import LinearInterp, Sup3rGan, SurfaceSpatialMetModel
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.utilities.pytest import make_fake_nc_files
 
@@ -369,6 +369,74 @@ def test_fwp_multi_step_model_topo_noskip():
             ]
 
 
+def test_fwp_single_step_sfc_model(plot=False):
+    """Test the forward pass with a single SurfaceSpatialMetModel model
+    which requires low and high-resolution topography input from the
+    exogenous_data feature."""
+
+    model = SurfaceSpatialMetModel(
+        lr_features=['pressure_0m'], s_enhance=2,
+        input_resolution={'spatial': '8km', 'temporal': '60min'})
+
+    with tempfile.TemporaryDirectory() as td:
+        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
+
+        sfc_out_dir = os.path.join(td, 'sfc')
+        model.save(sfc_out_dir)
+
+        exo_kwargs = {
+            'topography': {
+                'file_paths': input_files,
+                'source_file': FP_WTK,
+                'target': target,
+                'shape': shape,
+                'cache_dir': td,
+                'exo_resolution': {'spatial': '4km', 'temporal': '60min'},
+                'steps': [
+                    {'model': 0, 'combine_type': 'input'},
+                    {'model': 0, 'combine_type': 'output'}
+                ]}}
+
+        out_files = os.path.join(td, 'out_{file_id}.h5')
+        input_handler_kwargs = dict(target=target,
+                                    shape=shape,
+                                    temporal_slice=temporal_slice,
+                                    worker_kwargs=dict(max_workers=1),
+                                    overwrite_cache=True)
+
+        handler = ForwardPassStrategy(
+            input_files,
+            model_kwargs=sfc_out_dir,
+            model_class='SurfaceSpatialMetModel',
+            fwp_chunk_shape=(8, 8, 8),
+            spatial_pad=4,
+            temporal_pad=4,
+            input_handler_kwargs=input_handler_kwargs,
+            out_pattern=out_files,
+            worker_kwargs=dict(max_workers=1),
+            exo_kwargs=exo_kwargs,
+            max_nodes=1)
+        forward_pass = ForwardPass(handler)
+
+        if plot:
+            for ifeature, feature in enumerate(model.hr_out_features):
+                fig = plt.figure(figsize=(15, 5))
+                ax1 = fig.add_subplot(111)
+                vmin = np.min(forward_pass.input_data[..., ifeature])
+                vmax = np.max(forward_pass.input_data[..., ifeature])
+                nc = ax1.imshow(forward_pass.input_data[..., 0, ifeature],
+                                vmin=vmin,
+                                vmax=vmax)
+                fig.colorbar(nc, ax=ax1, shrink=0.6, label=f'{feature}')
+                plt.savefig(f'./input_{feature}.png')
+                plt.close()
+
+        forward_pass.run(handler, node_index=0)
+
+        for fp in handler.out_files:
+            assert os.path.exists(fp)
+
+
 def test_fwp_single_step_wind_hi_res_topo(plot=False):
     """Test the forward pass with a single spatiotemporal Sup3rGan model
     requiring high-resolution topography input from the exogenous_data
@@ -495,7 +563,7 @@ def test_fwp_single_step_wind_hi_res_topo(plot=False):
         forward_pass = ForwardPass(handler)
 
         if plot:
-            for ifeature, feature in enumerate(forward_pass.hr_out_features):
+            for ifeature, feature in enumerate(model.hr_out_features):
                 fig = plt.figure(figsize=(15, 5))
                 ax1 = fig.add_subplot(111)
                 vmin = np.min(forward_pass.input_data[..., ifeature])

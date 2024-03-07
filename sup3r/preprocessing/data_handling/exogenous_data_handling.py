@@ -1,7 +1,7 @@
 """Sup3r exogenous data handling"""
-from inspect import signature
 import logging
 import re
+from inspect import signature
 from typing import ClassVar
 
 import numpy as np
@@ -219,7 +219,7 @@ class ExogenousDataHandler:
             netcdf data that is source low-resolution data intended to be
             sup3r resolved.
         feature : str
-            Exogenous feature to extract from source_h5
+            Exogenous feature to extract from file_paths
         models : list
             List of models used with the given steps list. This list of models
             is used to determine the input and output resolution and

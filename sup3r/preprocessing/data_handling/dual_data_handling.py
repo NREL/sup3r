@@ -343,33 +343,33 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
                'zero.')
         assert hr_handler.val_split == 0 and lr_handler.val_split == 0, msg
         hr_shape = hr_handler.sample_shape
-        lr_shape = (hr_shape[0] // self.s_enhance,
+        lr_shape = [hr_shape[0] // self.s_enhance,
                     hr_shape[1] // self.s_enhance,
-                    hr_shape[2] // self.t_enhance)
+                    hr_shape[2] // self.t_enhance]
         msg = (f'hr_handler.sample_shape {hr_handler.sample_shape} and '
                f'lr_handler.sample_shape {lr_handler.sample_shape} are '
                f'incompatible. Must be {hr_shape} and {lr_shape}.')
-        assert lr_handler.sample_shape == lr_shape, msg
+        assert list(lr_handler.sample_shape) == lr_shape, msg
 
         if hr_handler.data is not None and lr_handler.data is not None:
-            hr_shape = self.hr_data.shape
-            lr_shape = (hr_shape[0] // self.s_enhance,
+            hr_shape = self.hr_data.shape[:-1]
+            lr_shape = [hr_shape[0] // self.s_enhance,
                         hr_shape[1] // self.s_enhance,
-                        hr_shape[2] // self.t_enhance)
+                        hr_shape[2] // self.t_enhance]
             msg = (f'hr_data.shape {self.hr_data.shape} and '
                    f'lr_data.shape {self.lr_data.shape} are '
                    f'incompatible. Must be {hr_shape} and {lr_shape}.')
-            assert self.lr_data.shape[:-1] == lr_shape, msg
+            assert list(self.lr_data.shape[:-1]) == lr_shape, msg
 
         if self.lr_val_data is not None and self.hr_val_data is not None:
             hr_shape = self.hr_val_data.shape
-            lr_shape = (hr_shape[0] // self.s_enhance,
+            lr_shape = [hr_shape[0] // self.s_enhance,
                         hr_shape[1] // self.s_enhance,
-                        hr_shape[2] // self.t_enhance)
+                        hr_shape[2] // self.t_enhance]
             msg = (f'hr_val_data.shape {self.hr_val_data.shape} '
                    f'and lr_val_data.shape {self.lr_val_data.shape}'
                    f' are incompatible. Must be {hr_shape} and {lr_shape}.')
-            assert self.lr_val_data.shape[:-1] == lr_shape, msg
+            assert list(self.lr_val_data.shape[:-1]) == lr_shape, msg
 
         if self.val_split == 0.0:
             assert id(self.hr_data.base) == id(hr_handler.data)
