@@ -161,7 +161,7 @@ class Regridder:
             dists = np.array(self.distances, dtype=np.float32)
             mask = dists < self.MIN_DISTANCE
             if mask.sum() > 0:
-                logger.info(f'{np.sum(mask)} of {np.product(mask.shape)} '
+                logger.info(f'{np.sum(mask)} of {np.prod(mask.shape)} '
                             'distances are zero.')
             dists[mask] = self.MIN_DISTANCE
             weights = 1 / dists
@@ -360,7 +360,7 @@ class Regridder:
         dists = np.array(distance_chunk, dtype=np.float32)
         mask = dists < cls.MIN_DISTANCE
         if mask.sum() > 0:
-            logger.info(f'{np.sum(mask)} of {np.product(mask.shape)} '
+            logger.info(f'{np.sum(mask)} of {np.prod(mask.shape)} '
                         'distances are zero.')
         dists[mask] = cls.MIN_DISTANCE
         weights = 1 / dists

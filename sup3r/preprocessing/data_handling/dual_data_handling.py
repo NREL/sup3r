@@ -383,7 +383,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         int
             Number of bytes for a single feature array at a single time step
         """
-        grid_mem = np.product(self.lr_grid_shape)
+        grid_mem = np.prod(self.lr_grid_shape)
         # assuming feature arrays are float32 (4 bytes)
         return 4 * grid_mem
 
@@ -452,7 +452,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
     @property
     def size(self):
         """Get low_res size"""
-        return np.product(self.shape)
+        return np.prod(self.shape)
 
     @property
     def hr_required_shape(self):

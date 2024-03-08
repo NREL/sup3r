@@ -508,12 +508,12 @@ class ExogenousDataHandler:
                 s_enhance = 1
                 t_enhance = 1
             else:
-                s_enhance = np.product(s_enhancements[:model_step])
-                t_enhance = np.product(t_enhancements[:model_step])
+                s_enhance = np.prod(s_enhancements[:model_step])
+                t_enhance = np.prod(t_enhancements[:model_step])
 
         elif combine_type.lower() in ('output', 'layer'):
-            s_enhance = np.product(s_enhancements[:model_step + 1])
-            t_enhance = np.product(t_enhancements[:model_step + 1])
+            s_enhance = np.prod(s_enhancements[:model_step + 1])
+            t_enhance = np.prod(t_enhancements[:model_step + 1])
 
         else:
             msg = ('Received exo_kwargs entry without valid combine_type '

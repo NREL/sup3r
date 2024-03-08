@@ -166,7 +166,7 @@ def make_fake_h5_chunks(td):
     lon, lat = np.meshgrid(lon, lat)
     low_res_lat_lon = np.dstack((lat, lon))
 
-    gids = np.arange(np.product(shape[:2]))
+    gids = np.arange(np.prod(shape[:2]))
     gids = gids.reshape(shape[:2])
 
     low_res_times = pd_date_range(

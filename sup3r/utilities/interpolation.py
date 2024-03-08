@@ -347,12 +347,12 @@ class Interpolator:
         array_shape = var_array.shape
 
         # Flatten h_array and var_array along lat, long axis
-        shape = (len(levels), array_shape[-4], np.product(array_shape[-2:]))
+        shape = (len(levels), array_shape[-4], np.prod(array_shape[-2:]))
         out_array = np.zeros(shape, dtype=np.float32).T
 
         # iterate through time indices
         for idt in range(array_shape[0]):
-            shape = (array_shape[-3], np.product(array_shape[-2:]))
+            shape = (array_shape[-3], np.prod(array_shape[-2:]))
             h_tmp = lev_array[idt].reshape(shape).T
             var_tmp = var_array[idt].reshape(shape).T
             not_nan = ~np.isnan(h_tmp) & ~np.isnan(var_tmp)

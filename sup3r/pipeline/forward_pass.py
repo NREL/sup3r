@@ -100,8 +100,8 @@ class ForwardPassSlicer:
         self.time_steps = time_steps
         self.s_enhancements = s_enhancements
         self.t_enhancements = t_enhancements
-        self.s_enhance = np.product(self.s_enhancements)
-        self.t_enhance = np.product(self.t_enhancements)
+        self.s_enhance = np.prod(self.s_enhancements)
+        self.t_enhance = np.prod(self.t_enhancements)
         self.dummy_time_index = np.arange(time_steps)
         self.temporal_slice = temporal_slice
         self.temporal_pad = temporal_pad
@@ -775,8 +775,8 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
         models = getattr(model, 'models', [model])
         self.s_enhancements = [model.s_enhance for model in models]
         self.t_enhancements = [model.t_enhance for model in models]
-        self.s_enhance = np.product(self.s_enhancements)
-        self.t_enhance = np.product(self.t_enhancements)
+        self.s_enhance = np.prod(self.s_enhancements)
+        self.t_enhance = np.prod(self.t_enhancements)
         self.output_features = model.hr_out_features
         assert len(self.output_features) > 0, 'No output features!'
 
@@ -841,7 +841,7 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
         hr_data_shape = (self.grid_shape[0] * self.s_enhance,
                          self.grid_shape[1] * self.s_enhance,
                          )
-        self.gids = np.arange(np.product(hr_data_shape))
+        self.gids = np.arange(np.prod(hr_data_shape))
         self.gids = self.gids.reshape(hr_data_shape)
 
         out = self.fwp_slicer.get_spatial_slices()
@@ -1475,15 +1475,15 @@ class ForwardPass:
                 s_enhance = 1
                 t_enhance = 1
             else:
-                s_enhance = np.product(
+                s_enhance = np.prod(
                     self.strategy.s_enhancements[:model_step])
-                t_enhance = np.product(
+                t_enhance = np.prod(
                     self.strategy.t_enhancements[:model_step])
 
         elif combine_type.lower() in ('output', 'layer'):
-            s_enhance = np.product(
+            s_enhance = np.prod(
                 self.strategy.s_enhancements[:model_step + 1])
-            t_enhance = np.product(
+            t_enhance = np.prod(
                 self.strategy.t_enhancements[:model_step + 1])
         return s_enhance, t_enhance
 
