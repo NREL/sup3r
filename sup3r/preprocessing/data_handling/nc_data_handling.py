@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from rex import Resource
-from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage import gaussian_filter
 from scipy.spatial import KDTree
 from scipy.stats import mode
 

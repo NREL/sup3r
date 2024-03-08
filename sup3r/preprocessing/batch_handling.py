@@ -10,7 +10,7 @@ from datetime import datetime as dt
 
 import numpy as np
 from rex.utilities import log_mem
-from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage import gaussian_filter
 
 from sup3r.preprocessing.data_handling.h5_data_handling import (
     DataHandlerDCforH5,

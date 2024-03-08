@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import psutil
 from rex.utilities.fun_utils import get_fun_call_str
-from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage import gaussian_filter
 
 from sup3r.preprocessing.feature_handling import Feature
 from sup3r.qa.utilities import (
