@@ -545,10 +545,13 @@ def test_match_zero_rate():
     assert skill['bias_f1_zero_rate'] != skill['base_f1_zero_rate']
     assert (bias_data == 0).mean() != (base_data == 0).mean()
 
-    bias_data = SkillAssessment._match_zero_rate(bias_data, base_data)
-    skill = SkillAssessment._run_skill_eval(bias_data, base_data, 'f1', 'f1')
+    skill = SkillAssessment._run_skill_eval(bias_data, base_data, 'f1', 'f1',
+                                            match_zero_rate=True)
     assert (bias_data == 0).mean() == (base_data == 0).mean()
     assert skill['bias_f1_zero_rate'] == skill['base_f1_zero_rate']
+    for p in (1, 5, 25, 50, 75, 95, 99):
+        assert np.allclose(skill[f'base_f1_percentile_{p}'],
+                           np.percentile(base_data, p))
 
     with tempfile.TemporaryDirectory() as td:
         fp_nsrdb_temp = os.path.join(td, os.path.basename(FP_NSRDB))
