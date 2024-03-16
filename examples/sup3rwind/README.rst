@@ -7,14 +7,14 @@ Super-Resolution for Renewable Energy Resource Data with Wind from Reanalysis Da
 Sup3rWind Data Access
 ===================
 
-The Sup3rWind data is publicly available in a public AWS S3 bucket. The data files can be downloaded directly from there to your local machine or an EC2 instance using the `OEDI data explorer <https://data.openei.org/s3_viewer?bucket=nrel-pds-wtk&prefix=sup3rwind%2F>`_ or the `AWS CLI <https://aws.amazon.com/cli/>`_. A word of caution: there's a lot of data here. The smallest Sup3rWind file for just a single variable at 2-km 5-minute resolution is 130 GB.
+The Sup3rWind data and models are publicly available in a public AWS S3 bucket. The data files can be downloaded directly from there to your local machine or an EC2 instance using the `OEDI data explorer <https://data.openei.org/s3_viewer?bucket=nrel-pds-wtk&prefix=sup3rwind%2F>`_ or the `AWS CLI <https://aws.amazon.com/cli/>`_. A word of caution: there's a lot of data here. The smallest Sup3rWind file for just a single variable at 2-km 5-minute resolution is 130 GB.
 
 The Sup3rWind data is also loaded into `HSDS <https://www.hdfgroup.org/solutions/highly-scalable-data-service-hsds/>`_ so that you may stream the data via the `NREL developer API <https://developer.nrel.gov/signup/>`_ or your own HSDS server. This is the best option if you're not going to want a full annual dataset. See these `rex instructions <https://nrel.github.io/rex/misc/examples.hsds.html>`_ for more details on how to access this data with HSDS and rex.
 
 Example Sup3rWind Data Usage
 ==========================
 
-Sup3rWind data can be used in generally the same way as Sup3rCC data, with the condition that Sup3rWind includes only wind data and ancillary variables for modeling wind energy generation. Refer to ``/sup3r/examples/sup3rcc/README.rst`` for usage patterns.
+Sup3rWind data can be used in generally the same way as Sup3rCC data, with the condition that Sup3rWind includes only wind data and ancillary variables for modeling wind energy generation. Refer to the Sup3rCC example notebook `here <https://github.com/NREL/sup3r/tree/main/examples/sup3rcc/using_the_data.ipynb>`_ for usage patterns.
 
 Running Sup3rWind Models
 ======================
@@ -52,7 +52,7 @@ The Sup3rWind data has versions that coincide with the sup3r software versions. 
 Recommended Citation
 ====================
 
-Brandon Benton, Grant Buster, Pavlo Pinchuk, Andrew Glaws, Ryan King, Galen Maclaurin, Ilya Chernyakhovskiy. "Super-Resolution for Renewable Energy Resource Data with Wind from Reanalysis Data (Sup3rWind)".
+Brandon Benton, Grant Buster, Pavlo Pinchuk, Andrew Glaws, Ryan King, Galen Maclaurin, Ilya Chernyakhovskiy. "Super-Resolution for Renewable Energy Resource Data with Wind from Reanalysis Data (Sup3rWind)". In Prep.
 
 Acknowledgements
 ================
