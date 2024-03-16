@@ -1,0 +1,37 @@
+{
+    "worker_kwargs": {"pass_workers": 6, "ti_workers": 1},
+    "input_handler_kwargs": {
+        "worker_kwargs": {"ti_workers": 1},
+        "res_kwargs": {"concat_dim": "Time",
+                       "combine": "nested"}},
+    "input_handler": "DataHandlerNC",
+    "max_nodes": 30,
+    "execution_control": {
+        "memory": 174,
+        "option": "kestrel",
+        "alloc": "usaiddata",
+        "walltime": 47
+    },
+    "file_paths": "./output/sup3rwind_hourly.nc",
+    "fwp_chunk_shape": [
+        170,
+        170,
+        40
+    ],
+    "model_class": "MultiStepGan",
+    "log_level": "DEBUG",
+    "log_pattern": "./logs/fwp_temporal_log_{node_index}.log",
+    "model_kwargs": {"model_dirs": [
+        "./sup3rwind_models_202401/step3_1x_12x_14f"]},
+    "out_pattern": "./temporal/output/fwp_out_{file_id}.h5",
+    "spatial_pad": 5,
+    "temporal_pad": 3,
+    "exo_kwargs": {
+        "topography": {
+            "file_paths": "./output/sup3rwind_hourly.nc",
+            "res_kwargs": {"combine": "nested", "concat_dim": "Time"},
+            "source_file": "PLACEHOLDER",
+            "exo_resolution": {"spatial": "1km", "temporal": "60min"},
+            "steps": [{"model": 0, "combine_type": "input"}]}
+    }
+}

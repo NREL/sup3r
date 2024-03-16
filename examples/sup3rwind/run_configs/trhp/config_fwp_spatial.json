@@ -1,0 +1,40 @@
+{
+    "worker_kwargs": {"pass_workers": 5, "ti_workers": 1},
+    "input_handler_kwargs": {
+        "worker_kwargs": {"ti_workers": 1},
+        "res_kwargs": {"concat_dim": "time",
+                       "combine": "nested"}},
+    "input_handler": "DataHandlerNC",
+    "max_nodes": 30,
+    "execution_control": {
+        "memory": 174,
+        "option": "kestrel",
+        "alloc": "usaiddata",
+        "walltime": 47
+    },
+    "file_paths": [
+        "PLACEHOLDER"
+    ],
+    "fwp_chunk_shape": [
+        75,
+        75,
+        38
+    ],
+    "model_class": "SurfaceSpatialMetModel",
+    "log_level": "DEBUG",
+    "log_pattern": "./logs/fwp_spatial_log_{node_index}.log",
+    "model_kwargs": "./sup3rwind_models_202401/sup3rwind_trhp_step1_15x_1x_9f",
+    "out_pattern": "./output/fwp_out_{file_id}.h5",
+    "spatial_pad": 0,
+    "temporal_pad": 5,
+    "exo_kwargs": {
+        "topography": {
+            "file_paths": [
+                "PLACEHOLDER"
+            ],
+            "source_file": "PLACEHOLDER",
+            "exo_resolution": {"spatial": "1km", "temporal": "60min"},
+            "steps": [{"model": 0, "combine_type": "input"},
+                      {"model": 0, "combine_type": "output"}]}
+    }
+}

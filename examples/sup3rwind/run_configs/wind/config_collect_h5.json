@@ -1,0 +1,32 @@
+{
+    "n_writes": 3,
+    "dset_split": true,
+    "join_times": true,
+    "execution_control": {
+        "memory": 175,
+        "option": "kestrel",
+        "walltime": 40,
+        "feature": "--qos=normal",
+        "alloc": "usaiddata"
+    },
+    "features": [
+        "windspeed_10m",
+        "windspeed_40m",
+        "windspeed_80m",
+        "windspeed_100m",
+        "windspeed_120m",
+        "windspeed_160m",
+        "windspeed_200m",
+        "winddirection_10m",
+        "winddirection_40m",
+        "winddirection_80m",
+        "winddirection_100m",
+        "winddirection_120m",
+        "winddirection_160m",
+        "winddirection_200m"
+    ],
+    "file_paths": "./temporal/output/fwp_out_2000*.h5",
+    "log_file": "./logs/collect_h5.log",
+    "log_level": "DEBUG",
+    "out_file": "./output/sup3rwind_2000.h5"
+}

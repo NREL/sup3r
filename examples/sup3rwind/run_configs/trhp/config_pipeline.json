@@ -1,0 +1,15 @@
+{
+    "logging": {
+        "log_level": "DEBUG"
+    },
+    "pipeline": [
+        {
+            "forward-pass-spatial": "./config_fwp_spatial.json",
+            "command": "forward-pass"
+        },
+        {
+            "data-collect-h5": "./config_collect_h5.json",
+            "command": "data-collect"
+        }
+    ]
+}
