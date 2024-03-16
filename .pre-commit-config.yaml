@@ -7,7 +7,7 @@ repos:
     -   id: check-symlinks
     -   id: flake8
     -   id: mixed-line-ending
--   repo: https://github.com/pre-commit/mirrors-pylint
-    rev: v2.3.1
+-   repo: https://github.com/PyCQA/pylint
+    rev: v3.1.0
     hooks:
     -   id: pylint
