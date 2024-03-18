@@ -49,6 +49,8 @@ Option 1: Install from PIP (recommended for analysts):
 
 4. Run this if you want to train models on GPUs: ``conda install -c anaconda tensorflow-gpu``
 
+   4.1 For OSX use instead: ``python -m pip install tensorflow-metal``
+
 Option 2: Clone repo (recommended for developers)
 -------------------------------------------------
 
