@@ -587,6 +587,10 @@ class OutputHandlerNC(OutputHandler):
             attrs = {k: v if isinstance(v, str) else json.dumps(v)
                      for k, v in meta_data.items()}
 
+        attrs['date_modified'] = dt.utcnow().isoformat()
+        if 'date_created' not in attrs:
+            attrs['date_created'] = attrs['date_modified']
+
         return xr.Dataset(data_vars=data_vars, coords=coords, attrs=attrs)
 
     # pylint: disable=W0613
