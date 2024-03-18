@@ -6,7 +6,7 @@ from warnings import warn
 
 import numpy as np
 from rex import Resource
-from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage import gaussian_filter
 
 logger = logging.getLogger(__name__)
 

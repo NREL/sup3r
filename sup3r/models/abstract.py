@@ -114,7 +114,7 @@ class AbstractInterface(ABC):
         if hasattr(self, '_gen'):
             s_enhancements = [getattr(layer, '_spatial_mult', 1)
                               for layer in self._gen.layers]
-            s_enhance = int(np.product(s_enhancements))
+            s_enhance = int(np.prod(s_enhancements))
         return s_enhance
 
     # pylint: disable=E1101
@@ -125,7 +125,7 @@ class AbstractInterface(ABC):
         if hasattr(self, '_gen'):
             t_enhancements = [getattr(layer, '_temporal_mult', 1)
                               for layer in self._gen.layers]
-            t_enhance = int(np.product(t_enhancements))
+            t_enhance = int(np.prod(t_enhancements))
         return t_enhance
 
     @property

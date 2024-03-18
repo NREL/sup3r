@@ -505,7 +505,7 @@ class TopoExtractH5(ExoExtract):
 
         df = pd.DataFrame({'topo': self.source_data.flatten(),
                            'gid_target': self.nn})
-        n_target = np.product(self.hr_shape[:-1])
+        n_target = np.prod(self.hr_shape[:-1])
         df = df[df['gid_target'] != n_target]
         df = df.sort_values('gid_target')
         df = df.groupby('gid_target').mean()

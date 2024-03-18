@@ -6,9 +6,11 @@ NREL-farms>=1.0.4
 google-auth-oauthlib==0.5.3
 pytest>=5.2
 pillow>=10.0
-tensorflow>2.4
+tensorflow>2.4,<2.16
 xarray>=2023.0
 netCDF4==1.5.8
+numpy>=1.7.0
 dask>=2022.0
 sphinx>=7.0
+scipy>=1.0.0
 pandas>=2.0

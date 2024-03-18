@@ -543,7 +543,7 @@ class LogLinInterpolator:
 
         """
         array_shape = var_array.shape
-        shape = (array_shape[-3], np.product(array_shape[-2:]))
+        shape = (array_shape[-3], np.prod(array_shape[-2:]))
         h_t = lev_array[idt].reshape(shape).T
         var_t = var_array[idt].reshape(shape).T
         mask = ~np.isnan(h_t) & ~np.isnan(var_t)
@@ -648,7 +648,7 @@ class LogLinInterpolator:
         array_shape = var_array.shape
 
         # Flatten h_array and var_array along lat, long axis
-        shape = (len(levels), array_shape[-4], np.product(array_shape[-2:]))
+        shape = (len(levels), array_shape[-4], np.prod(array_shape[-2:]))
         out_array = np.zeros(shape, dtype=np.float32).T
         total_checks = []
 

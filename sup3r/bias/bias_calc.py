@@ -15,7 +15,7 @@ import pandas as pd
 import rex
 from rex.utilities.fun_utils import get_fun_call_str
 from scipy import stats
-from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage import gaussian_filter
 from scipy.spatial import KDTree
 
 import sup3r.preprocessing.data_handling

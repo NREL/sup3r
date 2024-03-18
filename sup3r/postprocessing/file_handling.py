@@ -677,7 +677,7 @@ class OutputHandlerH5(OutputHandler):
             logger.debug('Found heights {} for output features {}'
                          .format(heights, features))
 
-        proc_mem = 4 * np.product(data.shape[:-1])
+        proc_mem = 4 * np.prod(data.shape[:-1])
         n_procs = len(heights)
         max_workers = estimate_max_workers(max_workers, proc_mem, n_procs)
 
@@ -797,7 +797,7 @@ class OutputHandlerH5(OutputHandler):
         data, features = cls._transform_output(data.copy(), features, lat_lon,
                                                max_workers)
         gids = (gids if gids is not None
-                else np.arange(np.product(lat_lon.shape[:-1])))
+                else np.arange(np.prod(lat_lon.shape[:-1])))
         meta = pd.DataFrame({'gid': gids.flatten(),
                              'latitude': lat_lon[..., 0].flatten(),
                              'longitude': lat_lon[..., 1].flatten()})

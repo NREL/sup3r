@@ -449,7 +449,7 @@ class SolarMultiStepGan(MultiStepGan):
         msg = ('Solar and wind spatial enhancements must be equivalent but '
                'received models that do spatial enhancements of '
                '{} (solar) and {} (wind)'.format(s_enh, w_enh))
-        assert np.product(s_enh) == np.product(w_enh), msg
+        assert np.prod(s_enh) == np.prod(w_enh), msg
 
         s_t_feat = self.spatial_solar_models.lr_features
         s_o_feat = self.spatial_solar_models.hr_out_features

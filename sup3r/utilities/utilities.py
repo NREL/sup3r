@@ -21,7 +21,7 @@ from packaging import version
 from scipy import ndimage as nd
 from scipy.interpolate import RegularGridInterpolator, interp1d
 from scipy.ndimage import zoom
-from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage import gaussian_filter
 
 np.random.seed(42)
 

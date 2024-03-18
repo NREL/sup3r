@@ -679,7 +679,7 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         int
             Number of bytes for a single feature array at a single time step
         """
-        grid_mem = np.product(self.grid_shape)
+        grid_mem = np.prod(self.grid_shape)
         # assuming feature arrays are float32 (4 bytes)
         return 4 * grid_mem
 
@@ -986,7 +986,7 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         size : int
             Number of total elements contained in data array
         """
-        return np.product(self.requested_shape)
+        return np.prod(self.requested_shape)
 
     def cache_data(self, cache_file_paths):
         """Cache feature data to file and delete from memory
