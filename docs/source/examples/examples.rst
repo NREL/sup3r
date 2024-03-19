@@ -4,5 +4,5 @@ Examples
 ========
 .. toctree::
 
-   examples.sup3rcc
-   examples.sup3rwind
+   sup3rcc
+   sup3rwind
