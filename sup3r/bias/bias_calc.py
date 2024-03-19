@@ -1211,3 +1211,8 @@ class SkillAssessment(MonthlyLinearCorrection):
                     out[k][month - 1] = v
 
         return out
+
+
+class QuantileDeltaMapping(DataRetrievalBase):
+    def run(self):
+        logger.debug('Starting linear correction calculation...')
