@@ -57,7 +57,7 @@ class EmpiricalDistribution(BaseDistribution):
         self._ppf = scipy.interpolate.interp1d(self.quantile, self.cut_point)
 
     @staticmethod
-    def from_fit(x, n_quantiles=101):
+    def from_fit(x, n_quantiles=21):
         """
 
         Example
