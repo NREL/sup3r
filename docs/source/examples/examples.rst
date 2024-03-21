@@ -1,8 +1,7 @@
-.. _examples:
-
 Examples
 ========
+
 .. toctree::
 
-   sup3rcc
-   sup3rwind
+    sup3rcc
+    sup3rwind
