@@ -554,6 +554,47 @@ class OutputHandlerNC(OutputHandler):
 
     # pylint: disable=W0613
     @classmethod
+    def _get_xr_dset(cls, data, features, lat_lon, times, meta_data=None):
+        """Convert data to xarray Dataset() object.
+
+        Parameters
+        ----------
+        data : ndarray
+            (spatial_1, spatial_2, temporal, features)
+            High resolution forward pass output
+        features : list
+            List of feature names corresponding to the last dimension of data
+        lat_lon : ndarray
+            Array of high res lat/lon for output data.
+            (spatial_1, spatial_2, 2)
+            Last dimension has ordering (lat, lon)
+        times : pd.Datetimeindex
+            List of times for high res output data
+        meta_data : dict | None
+            Dictionary of meta data from model
+        """
+        coords = {'Time': [str(t).encode('utf-8') for t in times],
+                  'south_north': lat_lon[:, 0, 0].astype(np.float32),
+                  'west_east': lat_lon[0, :, 1].astype(np.float32)}
+
+        data_vars = {}
+        for i, f in enumerate(features):
+            data_vars[f] = (['Time', 'south_north', 'west_east'],
+                            np.transpose(data[..., i], (2, 0, 1)))
+
+        attrs = {}
+        if meta_data is not None:
+            attrs = {k: v if isinstance(v, str) else json.dumps(v)
+                     for k, v in meta_data.items()}
+
+        attrs['date_modified'] = dt.utcnow().isoformat()
+        if 'date_created' not in attrs:
+            attrs['date_created'] = attrs['date_modified']
+
+        return xr.Dataset(data_vars=data_vars, coords=coords, attrs=attrs)
+
+    # pylint: disable=W0613
+    @classmethod
     def _write_output(cls, data, features, lat_lon, times, out_file,
                       meta_data=None, max_workers=None, gids=None):
         """Write forward pass output to NETCDF file
@@ -581,23 +622,9 @@ class OutputHandlerNC(OutputHandler):
             List of coordinate indices used to label each lat lon pair and to
             help with spatial chunk data collection
         """
-        coords = {'Time': [str(t).encode('utf-8') for t in times],
-                  'south_north': lat_lon[:, 0, 0].astype(np.float32),
-                  'west_east': lat_lon[0, :, 1].astype(np.float32)}
-
-        data_vars = {}
-        for i, f in enumerate(features):
-            data_vars[f] = (['Time', 'south_north', 'west_east'],
-                            np.transpose(data[..., i], (2, 0, 1)))
-
-        attrs = {}
-        if meta_data is not None:
-            attrs = {k: v if isinstance(v, str) else json.dumps(v)
-                     for k, v in meta_data.items()}
-
-        with xr.Dataset(data_vars=data_vars, coords=coords,
-                        attrs=attrs) as ncfile:
-            ncfile.to_netcdf(out_file)
+        cls._get_xr_dset(data=data, lat_lon=lat_lon, features=features,
+                         times=times,
+                         meta_data=meta_data).to_netcdf(out_file)
         logger.info(f'Saved output of size {data.shape} to: {out_file}')
 
     @classmethod

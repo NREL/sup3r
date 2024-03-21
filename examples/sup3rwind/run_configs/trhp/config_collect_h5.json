@@ -1,0 +1,27 @@
+{
+    "n_writes": 3,
+    "dset_split": false,
+    "join_times": true,
+    "execution_control": {
+        "memory": 175,
+        "option": "kestrel",
+        "walltime": 40,
+        "feature": "--qos=normal",
+        "alloc": "usaiddata"
+    },
+    "features": [
+        "temperature_2m",
+        "temperature_100m",
+        "temperature_200m",
+        "relativehumidity_2m",
+        "relativehumidity_100m",
+        "relativehumidity_200m",
+        "pressure_0m",
+        "pressure_100m",
+        "pressure_200m"
+    ],
+    "file_paths": "./output/fwp_out_*.h5",
+    "log_file": "./collect_h5.log",
+    "log_level": "DEBUG",
+    "out_file": "./output/sup3rwind_ancillary.h5"
+}

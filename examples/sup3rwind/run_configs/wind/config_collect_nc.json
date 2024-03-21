@@ -1,0 +1,31 @@
+{
+    "res_kwargs": {"concat_dim": "Time", "combine": "nested"},
+    "execution_control": {
+        "memory": 175,
+        "option": "kestrel",
+        "walltime": 40,
+        "feature": "--qos=normal",
+        "alloc": "usaiddata"
+    },
+    "overwrite": false,
+    "features": [
+        "u_10m",
+        "u_40m",
+        "u_80m",
+        "u_100m",
+        "u_120m",
+        "u_160m",
+        "u_200m",
+        "v_10m",
+        "v_40m",
+        "v_80m",
+        "v_100m",
+        "v_120m",
+        "v_160m",
+        "v_200m"
+    ],
+    "file_paths": "./spatial/output/fwp_out_2000*.nc",
+    "log_file": "./logs/collect_nc.log",
+    "log_level": "DEBUG",
+    "out_file": "./output/sup3rwind_2000_hourly.nc"
+}
