@@ -20,7 +20,8 @@ jobs:
     - uses: actions/checkout@v4
       with:
         ref: ${{ github.event.pull_request.head.ref }}
-        fetch-depth: 1
+        fetch-depth: 0
+        fetch-tags: true
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
       with:
@@ -29,8 +30,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        python -m pip install pytest
-        python -m pip install .
+        python -m pip install .[test]
     - name: Run pytest
       run: |
         python -m pytest -v --disable-warnings

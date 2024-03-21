@@ -1,0 +1,71 @@
+[build-system]
+requires = [
+  "setuptools >= 61.0",
+  "setuptools_scm[toml] >= 8",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "NREL-sup3r"
+dynamic = ["version"]
+description = "Super Resolving Renewable Resource Data (sup3r)"
+keywords = ["sup3r", "NREL"]
+readme = "README.rst"
+authors = [
+  {name = "Brandon Benton", email = "brandon.benton@nrel.gov"},
+]
+license = {text = "BSD-3-Clause"}
+requires-python = ">= 3.8"
+classifiers=[
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: BSD License",
+  "Natural Language :: English",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+]
+dependencies = [
+  "NREL-rex>=0.2.84",
+  "NREL-phygnn>=0.0.23",
+  "NREL-gaps>=0.6.0",
+  "NREL-farms>=1.0.4",
+  "dask>=2022.0",
+  "google-auth-oauthlib==0.5.3",
+  "matplotlib>=3.1",
+  "numpy>=1.7.0",
+  "netCDF4==1.5.8",
+  "pandas>=2.0",
+  "pillow>=10.0",
+  "pytest>=5.2",
+  "scipy>=1.0.0",
+  "sphinx>=7.0",
+  "tensorflow>2.4,<2.16",
+  "xarray>=2023.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "build>=0.5",
+  "flake8",
+  "pre-commit",
+  "pylint",
+]
+doc = [
+  "sphinx>=7.0",
+]
+test = [
+  "pytest>=5.2",
+]
+
+[project.urls]
+homepage = "https://github.com/NREL/sup3r"
+documentation = "https://nrel.github.io/sup3r/"
+repository = "https://github.com/NREL/sup3r"
+
+[tool.setuptools]
+include-package-data = true
+packages = ["sup3r"]
+
+[tool.setuptools_scm]
+version_file = "sup3r/_version.py"

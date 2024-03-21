@@ -5,9 +5,9 @@ import logging
 import click
 
 import sup3r
+from sup3r import __version__
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import AVAILABLE_HARDWARE_OPTIONS, BaseCLI
-from sup3r.version import __version__
 
 logger = logging.getLogger(__name__)
 
