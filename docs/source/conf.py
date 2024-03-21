@@ -30,7 +30,7 @@ pkg = os.path.dirname(os.path.abspath(os.path.dirname(__file__)))
 pkg = os.path.dirname(pkg)
 sys.path.append(pkg)
 
-from sup3r.version import __version__ as v
+from sup3r import __version__ as v
 # The short X.Y version
 version = v
 # The full version, including alpha/beta/rc tags
