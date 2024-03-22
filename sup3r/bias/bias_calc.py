@@ -363,7 +363,7 @@ class DataRetrievalBase:
         base_data = base_data[0]
         return base_data, bias_data, base_dist, bias_dist
 
-    def get_bias_data(self, bias_gid):
+    def get_bias_data(self, bias_gid, bias_dh=None):
         """Get data from the biased data source for a single gid
 
         Parameters
@@ -373,6 +373,13 @@ class DataRetrievalBase:
             The gids for this data source are the enumerated indices of the
             flattened coordinate array.
 
+        bias_dh : DataHandler, default=self.bias_dh
+            A derived DataHandler from `sup3r.preprocessing.data_handling`.
+            This optional argument allows an alternative handler other than
+            the usual `self.bias_dh`. For instance, `QuantileDeltaMapping`
+            uses this same `get_bias_data()` to access the historical biased
+            dataset as well as the future biased dataset.
+
         Returns
         -------
         bias_data : np.ndarray
@@ -380,9 +387,14 @@ class DataRetrievalBase:
         """
 
         idx = np.where(self.bias_gid_raster == bias_gid)
-        if self.bias_dh.data is None:
-            self.bias_dh.load_cached_data()
-        bias_data = self.bias_dh.data[idx][0]
+
+        # This can be confusing. The given argument `bias_dh` can be None,
+        # thus the default value for dh is `self.bias_dh`.
+        dh = bias_dh or self.bias_dh
+        # And the `data` from the handler `dh` can also be None.
+        if dh.data is None:
+            dh.load_cached_data()
+        bias_data = dh.data[idx][0]
 
         if bias_data.shape[-1] == 1:
             bias_data = bias_data[:, 0]
