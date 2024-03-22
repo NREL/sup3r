@@ -1,0 +1,6 @@
+sup3r.utilities.stitching.prune\_levels
+=======================================
+
+.. currentmodule:: sup3r.utilities.stitching
+
+.. autofunction:: prune_levels

@@ -1,0 +1,39 @@
+sup3r.utilities.interpolate\_log\_profile.LogLinInterpolator
+============================================================
+
+.. currentmodule:: sup3r.utilities.interpolate_log_profile
+
+.. autoclass:: LogLinInterpolator
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~LogLinInterpolator.get_tmp_file
+      ~LogLinInterpolator.init_dims
+      ~LogLinInterpolator.interp_single_ts
+      ~LogLinInterpolator.interp_var_to_height
+      ~LogLinInterpolator.interpolate_vars
+      ~LogLinInterpolator.load
+      ~LogLinInterpolator.pbl_interp_to_height
+      ~LogLinInterpolator.run
+      ~LogLinInterpolator.run_multiple
+      ~LogLinInterpolator.save_output
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~LogLinInterpolator.DEFAULT_OUTPUT_HEIGHTS
+   
+   

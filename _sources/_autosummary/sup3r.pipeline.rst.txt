@@ -1,0 +1,32 @@
+sup3r.pipeline
+==============
+
+.. automodule:: sup3r.pipeline
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+
+.. autosummary::
+   :toctree:
+   :template: custom-module-template.rst
+   :recursive:
+
+   sup3r.pipeline.forward_pass
+   sup3r.pipeline.forward_pass_cli
+   sup3r.pipeline.pipeline_cli
+

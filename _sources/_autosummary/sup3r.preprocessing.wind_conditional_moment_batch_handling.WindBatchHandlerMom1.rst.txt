@@ -1,0 +1,47 @@
+sup3r.preprocessing.wind\_conditional\_moment\_batch\_handling.WindBatchHandlerMom1
+===================================================================================
+
+.. currentmodule:: sup3r.preprocessing.wind_conditional_moment_batch_handling
+
+.. autoclass:: WindBatchHandlerMom1
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~WindBatchHandlerMom1.cache_stats
+      ~WindBatchHandlerMom1.check_cached_stats
+      ~WindBatchHandlerMom1.get_handler_index
+      ~WindBatchHandlerMom1.get_rand_handler
+      ~WindBatchHandlerMom1.get_stats
+      ~WindBatchHandlerMom1.load_handler_data
+      ~WindBatchHandlerMom1.normalize
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~WindBatchHandlerMom1.DATA_HANDLER_CLASS
+      ~WindBatchHandlerMom1.feature_mem
+      ~WindBatchHandlerMom1.features
+      ~WindBatchHandlerMom1.handler_weights
+      ~WindBatchHandlerMom1.hr_exo_features
+      ~WindBatchHandlerMom1.hr_features_ind
+      ~WindBatchHandlerMom1.hr_out_features
+      ~WindBatchHandlerMom1.load_workers
+      ~WindBatchHandlerMom1.lr_features
+      ~WindBatchHandlerMom1.norm_workers
+      ~WindBatchHandlerMom1.shape
+      ~WindBatchHandlerMom1.stats_workers
+   
+   

@@ -1,0 +1,133 @@
+sup3r.preprocessing.data\_handling.nc\_data\_handling.DataHandlerDCforNC
+========================================================================
+
+.. currentmodule:: sup3r.preprocessing.data_handling.nc_data_handling
+
+.. autoclass:: DataHandlerDCforNC
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~DataHandlerDCforNC.cache_data
+      ~DataHandlerDCforNC.cap_worker_args
+      ~DataHandlerDCforNC.check_cached_features
+      ~DataHandlerDCforNC.check_clear_data
+      ~DataHandlerDCforNC.clear_data
+      ~DataHandlerDCforNC.compute_raster_index
+      ~DataHandlerDCforNC.data_fill
+      ~DataHandlerDCforNC.direct_extract
+      ~DataHandlerDCforNC.extract_feature
+      ~DataHandlerDCforNC.get_cache_file_names
+      ~DataHandlerDCforNC.get_capped_workers
+      ~DataHandlerDCforNC.get_closest_lat_lon
+      ~DataHandlerDCforNC.get_file_times
+      ~DataHandlerDCforNC.get_full_domain
+      ~DataHandlerDCforNC.get_handle_features
+      ~DataHandlerDCforNC.get_input_arrays
+      ~DataHandlerDCforNC.get_inputs_recursive
+      ~DataHandlerDCforNC.get_lat_lon
+      ~DataHandlerDCforNC.get_lat_lon_df
+      ~DataHandlerDCforNC.get_next
+      ~DataHandlerDCforNC.get_node_cmd
+      ~DataHandlerDCforNC.get_observation_index
+      ~DataHandlerDCforNC.get_raster_index
+      ~DataHandlerDCforNC.get_raw_feature_list
+      ~DataHandlerDCforNC.get_time_index
+      ~DataHandlerDCforNC.has_exact_feature
+      ~DataHandlerDCforNC.has_multilevel_feature
+      ~DataHandlerDCforNC.has_surrounding_features
+      ~DataHandlerDCforNC.lats_are_descending
+      ~DataHandlerDCforNC.lin_bc
+      ~DataHandlerDCforNC.load_cached_data
+      ~DataHandlerDCforNC.lookup
+      ~DataHandlerDCforNC.mask_nan
+      ~DataHandlerDCforNC.normalize
+      ~DataHandlerDCforNC.parallel_compute
+      ~DataHandlerDCforNC.parallel_extract
+      ~DataHandlerDCforNC.parallel_load
+      ~DataHandlerDCforNC.pop_old_data
+      ~DataHandlerDCforNC.preflight
+      ~DataHandlerDCforNC.recursive_compute
+      ~DataHandlerDCforNC.run_all_data_init
+      ~DataHandlerDCforNC.run_data_compute
+      ~DataHandlerDCforNC.run_data_extraction
+      ~DataHandlerDCforNC.run_nn_fill
+      ~DataHandlerDCforNC.serial_compute
+      ~DataHandlerDCforNC.serial_data_fill
+      ~DataHandlerDCforNC.serial_extract
+      ~DataHandlerDCforNC.source_handler
+      ~DataHandlerDCforNC.split_data
+      ~DataHandlerDCforNC.time_index_conflict_check
+      ~DataHandlerDCforNC.valid_handle_features
+      ~DataHandlerDCforNC.valid_input_features
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~DataHandlerDCforNC.CHUNKS
+      ~DataHandlerDCforNC.FEATURE_REGISTRY
+      ~DataHandlerDCforNC.attrs
+      ~DataHandlerDCforNC.cache_files
+      ~DataHandlerDCforNC.cache_pattern
+      ~DataHandlerDCforNC.cached_features
+      ~DataHandlerDCforNC.compute_workers
+      ~DataHandlerDCforNC.derive_features
+      ~DataHandlerDCforNC.extract_features
+      ~DataHandlerDCforNC.extract_workers
+      ~DataHandlerDCforNC.feature_mem
+      ~DataHandlerDCforNC.file_paths
+      ~DataHandlerDCforNC.full_raw_lat_lon
+      ~DataHandlerDCforNC.grid_mem
+      ~DataHandlerDCforNC.grid_shape
+      ~DataHandlerDCforNC.handle_features
+      ~DataHandlerDCforNC.hr_exo_features
+      ~DataHandlerDCforNC.hr_out_features
+      ~DataHandlerDCforNC.input_file_info
+      ~DataHandlerDCforNC.invert_lat
+      ~DataHandlerDCforNC.is_time_independent
+      ~DataHandlerDCforNC.lat_lon
+      ~DataHandlerDCforNC.latitude
+      ~DataHandlerDCforNC.load_workers
+      ~DataHandlerDCforNC.longitude
+      ~DataHandlerDCforNC.lr_features
+      ~DataHandlerDCforNC.lr_only_features
+      ~DataHandlerDCforNC.means
+      ~DataHandlerDCforNC.meta
+      ~DataHandlerDCforNC.n_tsteps
+      ~DataHandlerDCforNC.need_full_domain
+      ~DataHandlerDCforNC.noncached_features
+      ~DataHandlerDCforNC.norm_workers
+      ~DataHandlerDCforNC.raster_index
+      ~DataHandlerDCforNC.raw_features
+      ~DataHandlerDCforNC.raw_lat_lon
+      ~DataHandlerDCforNC.raw_time_index
+      ~DataHandlerDCforNC.raw_tsteps
+      ~DataHandlerDCforNC.requested_shape
+      ~DataHandlerDCforNC.shape
+      ~DataHandlerDCforNC.single_ts_files
+      ~DataHandlerDCforNC.size
+      ~DataHandlerDCforNC.source_type
+      ~DataHandlerDCforNC.stds
+      ~DataHandlerDCforNC.target
+      ~DataHandlerDCforNC.temporal_slice
+      ~DataHandlerDCforNC.ti_workers
+      ~DataHandlerDCforNC.time_chunk_size
+      ~DataHandlerDCforNC.time_chunks
+      ~DataHandlerDCforNC.time_freq_hours
+      ~DataHandlerDCforNC.time_index
+      ~DataHandlerDCforNC.time_index_file
+      ~DataHandlerDCforNC.try_load
+   
+   

@@ -1,0 +1,79 @@
+sup3r.models.conditional\_moments.Sup3rCondMom
+==============================================
+
+.. currentmodule:: sup3r.models.conditional_moments
+
+.. autoclass:: Sup3rCondMom
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~Sup3rCondMom.calc_loss
+      ~Sup3rCondMom.calc_loss_cond_mom
+      ~Sup3rCondMom.calc_val_loss
+      ~Sup3rCondMom.early_stop
+      ~Sup3rCondMom.finish_epoch
+      ~Sup3rCondMom.generate
+      ~Sup3rCondMom.get_high_res_exo_input
+      ~Sup3rCondMom.get_loss_fun
+      ~Sup3rCondMom.get_optimizer_config
+      ~Sup3rCondMom.get_s_enhance_from_layers
+      ~Sup3rCondMom.get_single_grad
+      ~Sup3rCondMom.get_t_enhance_from_layers
+      ~Sup3rCondMom.init_optimizer
+      ~Sup3rCondMom.load
+      ~Sup3rCondMom.load_network
+      ~Sup3rCondMom.load_saved_params
+      ~Sup3rCondMom.log_loss_details
+      ~Sup3rCondMom.norm_input
+      ~Sup3rCondMom.run_gradient_descent
+      ~Sup3rCondMom.save
+      ~Sup3rCondMom.save_params
+      ~Sup3rCondMom.seed
+      ~Sup3rCondMom.set_model_params
+      ~Sup3rCondMom.set_norm_stats
+      ~Sup3rCondMom.train
+      ~Sup3rCondMom.train_epoch
+      ~Sup3rCondMom.un_norm_output
+      ~Sup3rCondMom.update_loss_details
+      ~Sup3rCondMom.update_optimizer
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~Sup3rCondMom.generator
+      ~Sup3rCondMom.generator_weights
+      ~Sup3rCondMom.history
+      ~Sup3rCondMom.hr_exo_features
+      ~Sup3rCondMom.hr_out_features
+      ~Sup3rCondMom.input_dims
+      ~Sup3rCondMom.input_resolution
+      ~Sup3rCondMom.is_4d
+      ~Sup3rCondMom.is_5d
+      ~Sup3rCondMom.lr_features
+      ~Sup3rCondMom.means
+      ~Sup3rCondMom.meta
+      ~Sup3rCondMom.model_params
+      ~Sup3rCondMom.optimizer
+      ~Sup3rCondMom.output_resolution
+      ~Sup3rCondMom.s_enhance
+      ~Sup3rCondMom.smoothed_features
+      ~Sup3rCondMom.smoothing
+      ~Sup3rCondMom.stdevs
+      ~Sup3rCondMom.t_enhance
+      ~Sup3rCondMom.version_record
+      ~Sup3rCondMom.weights
+   
+   

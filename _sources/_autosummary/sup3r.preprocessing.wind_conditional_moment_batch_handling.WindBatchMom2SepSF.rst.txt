@@ -1,0 +1,36 @@
+sup3r.preprocessing.wind\_conditional\_moment\_batch\_handling.WindBatchMom2SepSF
+=================================================================================
+
+.. currentmodule:: sup3r.preprocessing.wind_conditional_moment_batch_handling
+
+.. autoclass:: WindBatchMom2SepSF
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~WindBatchMom2SepSF.get_coarse_batch
+      ~WindBatchMom2SepSF.make_mask
+      ~WindBatchMom2SepSF.make_output
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~WindBatchMom2SepSF.high_res
+      ~WindBatchMom2SepSF.low_res
+      ~WindBatchMom2SepSF.mask
+      ~WindBatchMom2SepSF.output
+      ~WindBatchMom2SepSF.shape
+   
+   

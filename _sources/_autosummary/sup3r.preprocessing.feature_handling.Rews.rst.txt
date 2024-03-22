@@ -1,0 +1,31 @@
+sup3r.preprocessing.feature\_handling.Rews
+==========================================
+
+.. currentmodule:: sup3r.preprocessing.feature_handling
+
+.. autoclass:: Rews
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~Rews.compute
+      ~Rews.inputs
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~Rews.HEIGHTS
+   
+   

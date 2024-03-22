@@ -1,0 +1,6 @@
+sup3r.utilities.utilities.get\_chunk\_slices
+============================================
+
+.. currentmodule:: sup3r.utilities.utilities
+
+.. autofunction:: get_chunk_slices

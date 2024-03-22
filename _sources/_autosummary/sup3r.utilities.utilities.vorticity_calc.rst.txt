@@ -1,0 +1,6 @@
+sup3r.utilities.utilities.vorticity\_calc
+=========================================
+
+.. currentmodule:: sup3r.utilities.utilities
+
+.. autofunction:: vorticity_calc

@@ -1,0 +1,64 @@
+sup3r.preprocessing.data\_handling.mixin.InputMixIn
+===================================================
+
+.. currentmodule:: sup3r.preprocessing.data_handling.mixin
+
+.. autoclass:: InputMixIn
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~InputMixIn.cap_worker_args
+      ~InputMixIn.check_cached_features
+      ~InputMixIn.get_cache_file_names
+      ~InputMixIn.get_capped_workers
+      ~InputMixIn.get_full_domain
+      ~InputMixIn.get_lat_lon
+      ~InputMixIn.get_time_index
+      ~InputMixIn.lats_are_descending
+      ~InputMixIn.parallel_load
+      ~InputMixIn.time_index_conflict_check
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~InputMixIn.cache_files
+      ~InputMixIn.cache_pattern
+      ~InputMixIn.cached_features
+      ~InputMixIn.file_paths
+      ~InputMixIn.full_raw_lat_lon
+      ~InputMixIn.grid_shape
+      ~InputMixIn.input_file_info
+      ~InputMixIn.invert_lat
+      ~InputMixIn.lat_lon
+      ~InputMixIn.latitude
+      ~InputMixIn.longitude
+      ~InputMixIn.meta
+      ~InputMixIn.need_full_domain
+      ~InputMixIn.noncached_features
+      ~InputMixIn.raw_lat_lon
+      ~InputMixIn.raw_time_index
+      ~InputMixIn.raw_tsteps
+      ~InputMixIn.single_ts_files
+      ~InputMixIn.source_type
+      ~InputMixIn.target
+      ~InputMixIn.temporal_slice
+      ~InputMixIn.ti_workers
+      ~InputMixIn.time_freq_hours
+      ~InputMixIn.time_index
+      ~InputMixIn.time_index_file
+      ~InputMixIn.try_load
+   
+   

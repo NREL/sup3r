@@ -1,0 +1,45 @@
+sup3r.preprocessing.feature\_handling.FeatureHandler
+====================================================
+
+.. currentmodule:: sup3r.preprocessing.feature_handling
+
+.. autoclass:: FeatureHandler
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~FeatureHandler.extract_feature
+      ~FeatureHandler.get_input_arrays
+      ~FeatureHandler.get_inputs_recursive
+      ~FeatureHandler.get_raw_feature_list
+      ~FeatureHandler.has_exact_feature
+      ~FeatureHandler.has_multilevel_feature
+      ~FeatureHandler.has_surrounding_features
+      ~FeatureHandler.lookup
+      ~FeatureHandler.parallel_compute
+      ~FeatureHandler.parallel_extract
+      ~FeatureHandler.pop_old_data
+      ~FeatureHandler.recursive_compute
+      ~FeatureHandler.serial_compute
+      ~FeatureHandler.serial_extract
+      ~FeatureHandler.valid_handle_features
+      ~FeatureHandler.valid_input_features
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~FeatureHandler.FEATURE_REGISTRY
+   
+   

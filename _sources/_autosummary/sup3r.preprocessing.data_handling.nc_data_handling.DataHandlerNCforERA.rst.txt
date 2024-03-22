@@ -1,0 +1,132 @@
+sup3r.preprocessing.data\_handling.nc\_data\_handling.DataHandlerNCforERA
+=========================================================================
+
+.. currentmodule:: sup3r.preprocessing.data_handling.nc_data_handling
+
+.. autoclass:: DataHandlerNCforERA
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~DataHandlerNCforERA.cache_data
+      ~DataHandlerNCforERA.cap_worker_args
+      ~DataHandlerNCforERA.check_cached_features
+      ~DataHandlerNCforERA.check_clear_data
+      ~DataHandlerNCforERA.clear_data
+      ~DataHandlerNCforERA.compute_raster_index
+      ~DataHandlerNCforERA.data_fill
+      ~DataHandlerNCforERA.direct_extract
+      ~DataHandlerNCforERA.extract_feature
+      ~DataHandlerNCforERA.get_cache_file_names
+      ~DataHandlerNCforERA.get_capped_workers
+      ~DataHandlerNCforERA.get_closest_lat_lon
+      ~DataHandlerNCforERA.get_file_times
+      ~DataHandlerNCforERA.get_full_domain
+      ~DataHandlerNCforERA.get_handle_features
+      ~DataHandlerNCforERA.get_input_arrays
+      ~DataHandlerNCforERA.get_inputs_recursive
+      ~DataHandlerNCforERA.get_lat_lon
+      ~DataHandlerNCforERA.get_lat_lon_df
+      ~DataHandlerNCforERA.get_next
+      ~DataHandlerNCforERA.get_node_cmd
+      ~DataHandlerNCforERA.get_raster_index
+      ~DataHandlerNCforERA.get_raw_feature_list
+      ~DataHandlerNCforERA.get_time_index
+      ~DataHandlerNCforERA.has_exact_feature
+      ~DataHandlerNCforERA.has_multilevel_feature
+      ~DataHandlerNCforERA.has_surrounding_features
+      ~DataHandlerNCforERA.lats_are_descending
+      ~DataHandlerNCforERA.lin_bc
+      ~DataHandlerNCforERA.load_cached_data
+      ~DataHandlerNCforERA.lookup
+      ~DataHandlerNCforERA.mask_nan
+      ~DataHandlerNCforERA.normalize
+      ~DataHandlerNCforERA.parallel_compute
+      ~DataHandlerNCforERA.parallel_extract
+      ~DataHandlerNCforERA.parallel_load
+      ~DataHandlerNCforERA.pop_old_data
+      ~DataHandlerNCforERA.preflight
+      ~DataHandlerNCforERA.recursive_compute
+      ~DataHandlerNCforERA.run_all_data_init
+      ~DataHandlerNCforERA.run_data_compute
+      ~DataHandlerNCforERA.run_data_extraction
+      ~DataHandlerNCforERA.run_nn_fill
+      ~DataHandlerNCforERA.serial_compute
+      ~DataHandlerNCforERA.serial_data_fill
+      ~DataHandlerNCforERA.serial_extract
+      ~DataHandlerNCforERA.source_handler
+      ~DataHandlerNCforERA.split_data
+      ~DataHandlerNCforERA.time_index_conflict_check
+      ~DataHandlerNCforERA.valid_handle_features
+      ~DataHandlerNCforERA.valid_input_features
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~DataHandlerNCforERA.CHUNKS
+      ~DataHandlerNCforERA.FEATURE_REGISTRY
+      ~DataHandlerNCforERA.attrs
+      ~DataHandlerNCforERA.cache_files
+      ~DataHandlerNCforERA.cache_pattern
+      ~DataHandlerNCforERA.cached_features
+      ~DataHandlerNCforERA.compute_workers
+      ~DataHandlerNCforERA.derive_features
+      ~DataHandlerNCforERA.extract_features
+      ~DataHandlerNCforERA.extract_workers
+      ~DataHandlerNCforERA.feature_mem
+      ~DataHandlerNCforERA.file_paths
+      ~DataHandlerNCforERA.full_raw_lat_lon
+      ~DataHandlerNCforERA.grid_mem
+      ~DataHandlerNCforERA.grid_shape
+      ~DataHandlerNCforERA.handle_features
+      ~DataHandlerNCforERA.hr_exo_features
+      ~DataHandlerNCforERA.hr_out_features
+      ~DataHandlerNCforERA.input_file_info
+      ~DataHandlerNCforERA.invert_lat
+      ~DataHandlerNCforERA.is_time_independent
+      ~DataHandlerNCforERA.lat_lon
+      ~DataHandlerNCforERA.latitude
+      ~DataHandlerNCforERA.load_workers
+      ~DataHandlerNCforERA.longitude
+      ~DataHandlerNCforERA.lr_features
+      ~DataHandlerNCforERA.lr_only_features
+      ~DataHandlerNCforERA.means
+      ~DataHandlerNCforERA.meta
+      ~DataHandlerNCforERA.n_tsteps
+      ~DataHandlerNCforERA.need_full_domain
+      ~DataHandlerNCforERA.noncached_features
+      ~DataHandlerNCforERA.norm_workers
+      ~DataHandlerNCforERA.raster_index
+      ~DataHandlerNCforERA.raw_features
+      ~DataHandlerNCforERA.raw_lat_lon
+      ~DataHandlerNCforERA.raw_time_index
+      ~DataHandlerNCforERA.raw_tsteps
+      ~DataHandlerNCforERA.requested_shape
+      ~DataHandlerNCforERA.shape
+      ~DataHandlerNCforERA.single_ts_files
+      ~DataHandlerNCforERA.size
+      ~DataHandlerNCforERA.source_type
+      ~DataHandlerNCforERA.stds
+      ~DataHandlerNCforERA.target
+      ~DataHandlerNCforERA.temporal_slice
+      ~DataHandlerNCforERA.ti_workers
+      ~DataHandlerNCforERA.time_chunk_size
+      ~DataHandlerNCforERA.time_chunks
+      ~DataHandlerNCforERA.time_freq_hours
+      ~DataHandlerNCforERA.time_index
+      ~DataHandlerNCforERA.time_index_file
+      ~DataHandlerNCforERA.try_load
+   
+   

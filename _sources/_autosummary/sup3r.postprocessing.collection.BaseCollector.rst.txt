@@ -1,0 +1,28 @@
+sup3r.postprocessing.collection.BaseCollector
+=============================================
+
+.. currentmodule:: sup3r.postprocessing.collection
+
+.. autoclass:: BaseCollector
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~BaseCollector.collect
+      ~BaseCollector.get_dset_attrs
+      ~BaseCollector.get_node_cmd
+      ~BaseCollector.get_time_dim_name
+      ~BaseCollector.write_data
+   
+   
+
+   
+   
+   

@@ -1,0 +1,36 @@
+sup3r.preprocessing
+===================
+
+.. automodule:: sup3r.preprocessing
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+
+.. autosummary::
+   :toctree:
+   :template: custom-module-template.rst
+   :recursive:
+
+   sup3r.preprocessing.batch_handling
+   sup3r.preprocessing.conditional_moment_batch_handling
+   sup3r.preprocessing.data_extract_cli
+   sup3r.preprocessing.data_handling
+   sup3r.preprocessing.dual_batch_handling
+   sup3r.preprocessing.feature_handling
+   sup3r.preprocessing.wind_conditional_moment_batch_handling
+

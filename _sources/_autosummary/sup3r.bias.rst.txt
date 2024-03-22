@@ -1,0 +1,33 @@
+sup3r.bias
+==========
+
+.. automodule:: sup3r.bias
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+
+.. autosummary::
+   :toctree:
+   :template: custom-module-template.rst
+   :recursive:
+
+   sup3r.bias.bias_calc
+   sup3r.bias.bias_calc_cli
+   sup3r.bias.bias_correct_means
+   sup3r.bias.bias_transforms
+

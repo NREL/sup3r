@@ -1,0 +1,33 @@
+sup3r.bias.bias\_transforms
+===========================
+
+.. automodule:: sup3r.bias.bias_transforms
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      get_spatial_bc_factors
+      global_linear_bc
+      local_linear_bc
+      monthly_local_linear_bc
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

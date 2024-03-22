@@ -1,0 +1,33 @@
+sup3r.preprocessing.wind\_conditional\_moment\_batch\_handling.ValidationDataWindMom2SF
+=======================================================================================
+
+.. currentmodule:: sup3r.preprocessing.wind_conditional_moment_batch_handling
+
+.. autoclass:: ValidationDataWindMom2SF
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~ValidationDataWindMom2SF.any
+      ~ValidationDataWindMom2SF.batch_next
+      ~ValidationDataWindMom2SF.get_handler_index
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~ValidationDataWindMom2SF.handler_weights
+      ~ValidationDataWindMom2SF.shape
+   
+   

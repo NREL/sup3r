@@ -1,0 +1,43 @@
+sup3r.qa.stats.Sup3rStatsCompute
+================================
+
+.. currentmodule:: sup3r.qa.stats
+
+.. autoclass:: Sup3rStatsCompute
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~Sup3rStatsCompute.check_return_cache
+      ~Sup3rStatsCompute.close
+      ~Sup3rStatsCompute.export
+      ~Sup3rStatsCompute.get_feature_data
+      ~Sup3rStatsCompute.get_feature_stats
+      ~Sup3rStatsCompute.get_fluctuation
+      ~Sup3rStatsCompute.get_node_cmd
+      ~Sup3rStatsCompute.get_stats
+      ~Sup3rStatsCompute.interpolate_data
+      ~Sup3rStatsCompute.load_cache
+      ~Sup3rStatsCompute.run
+      ~Sup3rStatsCompute.save_cache
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~Sup3rStatsCompute.f_range
+      ~Sup3rStatsCompute.features
+      ~Sup3rStatsCompute.k_range
+   
+   

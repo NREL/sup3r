@@ -1,0 +1,47 @@
+sup3r.preprocessing.wind\_conditional\_moment\_batch\_handling.WindSpatialBatchHandlerMom2SepSF
+===============================================================================================
+
+.. currentmodule:: sup3r.preprocessing.wind_conditional_moment_batch_handling
+
+.. autoclass:: WindSpatialBatchHandlerMom2SepSF
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~WindSpatialBatchHandlerMom2SepSF.cache_stats
+      ~WindSpatialBatchHandlerMom2SepSF.check_cached_stats
+      ~WindSpatialBatchHandlerMom2SepSF.get_handler_index
+      ~WindSpatialBatchHandlerMom2SepSF.get_rand_handler
+      ~WindSpatialBatchHandlerMom2SepSF.get_stats
+      ~WindSpatialBatchHandlerMom2SepSF.load_handler_data
+      ~WindSpatialBatchHandlerMom2SepSF.normalize
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~WindSpatialBatchHandlerMom2SepSF.DATA_HANDLER_CLASS
+      ~WindSpatialBatchHandlerMom2SepSF.feature_mem
+      ~WindSpatialBatchHandlerMom2SepSF.features
+      ~WindSpatialBatchHandlerMom2SepSF.handler_weights
+      ~WindSpatialBatchHandlerMom2SepSF.hr_exo_features
+      ~WindSpatialBatchHandlerMom2SepSF.hr_features_ind
+      ~WindSpatialBatchHandlerMom2SepSF.hr_out_features
+      ~WindSpatialBatchHandlerMom2SepSF.load_workers
+      ~WindSpatialBatchHandlerMom2SepSF.lr_features
+      ~WindSpatialBatchHandlerMom2SepSF.norm_workers
+      ~WindSpatialBatchHandlerMom2SepSF.shape
+      ~WindSpatialBatchHandlerMom2SepSF.stats_workers
+   
+   

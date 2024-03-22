@@ -1,0 +1,25 @@
+sup3r.preprocessing.feature\_handling.Shear
+===========================================
+
+.. currentmodule:: sup3r.preprocessing.feature_handling
+
+.. autoclass:: Shear
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~Shear.compute
+      ~Shear.inputs
+   
+   
+
+   
+   
+   

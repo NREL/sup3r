@@ -1,0 +1,35 @@
+sup3r.preprocessing.batch\_handling.ValidationDataDC
+====================================================
+
+.. currentmodule:: sup3r.preprocessing.batch_handling
+
+.. autoclass:: ValidationDataDC
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~ValidationDataDC.any
+      ~ValidationDataDC.batch_next
+      ~ValidationDataDC.get_handler_index
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~ValidationDataDC.N_SPACE_BINS
+      ~ValidationDataDC.N_TIME_BINS
+      ~ValidationDataDC.handler_weights
+      ~ValidationDataDC.shape
+   
+   

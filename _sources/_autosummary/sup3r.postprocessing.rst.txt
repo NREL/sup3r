@@ -1,0 +1,32 @@
+sup3r.postprocessing
+====================
+
+.. automodule:: sup3r.postprocessing
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+
+.. autosummary::
+   :toctree:
+   :template: custom-module-template.rst
+   :recursive:
+
+   sup3r.postprocessing.collection
+   sup3r.postprocessing.data_collect_cli
+   sup3r.postprocessing.file_handling
+

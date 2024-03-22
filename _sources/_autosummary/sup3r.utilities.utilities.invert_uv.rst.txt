@@ -1,0 +1,6 @@
+sup3r.utilities.utilities.invert\_uv
+====================================
+
+.. currentmodule:: sup3r.utilities.utilities
+
+.. autofunction:: invert_uv

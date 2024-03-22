@@ -1,0 +1,6 @@
+sup3r.utilities.utilities.weighted\_box\_sampler
+================================================
+
+.. currentmodule:: sup3r.utilities.utilities
+
+.. autofunction:: weighted_box_sampler

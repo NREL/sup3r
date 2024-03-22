@@ -1,0 +1,47 @@
+sup3r.preprocessing.batch\_handling.SpatialBatchHandlerCC
+=========================================================
+
+.. currentmodule:: sup3r.preprocessing.batch_handling
+
+.. autoclass:: SpatialBatchHandlerCC
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~SpatialBatchHandlerCC.cache_stats
+      ~SpatialBatchHandlerCC.check_cached_stats
+      ~SpatialBatchHandlerCC.get_handler_index
+      ~SpatialBatchHandlerCC.get_rand_handler
+      ~SpatialBatchHandlerCC.get_stats
+      ~SpatialBatchHandlerCC.load_handler_data
+      ~SpatialBatchHandlerCC.normalize
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~SpatialBatchHandlerCC.DATA_HANDLER_CLASS
+      ~SpatialBatchHandlerCC.feature_mem
+      ~SpatialBatchHandlerCC.features
+      ~SpatialBatchHandlerCC.handler_weights
+      ~SpatialBatchHandlerCC.hr_exo_features
+      ~SpatialBatchHandlerCC.hr_features_ind
+      ~SpatialBatchHandlerCC.hr_out_features
+      ~SpatialBatchHandlerCC.load_workers
+      ~SpatialBatchHandlerCC.lr_features
+      ~SpatialBatchHandlerCC.norm_workers
+      ~SpatialBatchHandlerCC.shape
+      ~SpatialBatchHandlerCC.stats_workers
+   
+   

@@ -1,0 +1,38 @@
+sup3r.utilities.execution.DistributedProcess
+============================================
+
+.. currentmodule:: sup3r.utilities.execution
+
+.. autoclass:: DistributedProcess
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~DistributedProcess.chunk_finished
+      ~DistributedProcess.node_finished
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~DistributedProcess.all_finished
+      ~DistributedProcess.chunks
+      ~DistributedProcess.failed_chunks
+      ~DistributedProcess.max_nodes
+      ~DistributedProcess.node_chunks
+      ~DistributedProcess.node_files
+      ~DistributedProcess.nodes
+      ~DistributedProcess.out_files
+   
+   

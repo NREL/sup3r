@@ -1,0 +1,1556 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>sup3r.models.base &mdash; sup3r 0.1.3.dev67+g986a1fe documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/copybutton.css?v=76b2166b" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/tabs.css?v=a5c4661c" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=c28dfcad"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="../../../_static/clipboard.min.js?v=a7894cd8"></script>
+        <script src="../../../_static/copybutton.js?v=f281be69"></script>
+        <script src="../../../_static/tabs.js?v=3030b3cb"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            sup3r
+          </a>
+              <div class="version">
+                0.1.3.dev67+g986a1fe
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">Home page</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../misc/installation_usage.html">Installation and Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../misc/installation.html">Installation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../misc/installation.html#option-1-install-from-pip-recommended-for-analysts">Option 1: Install from PIP (recommended for analysts):</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../misc/installation.html#option-2-clone-repo-recommended-for-developers">Option 2: Clone repo (recommended for developers)</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/examples.html">Examples</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples/sup3rcc.html">Sup3rCC Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#sup3rcc-data-access">Sup3rCC Data Access</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#example-sup3rcc-data-usage">Example Sup3rCC Data Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#running-sup3rcc-models">Running Sup3rCC Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#nuances-of-sup3rcc">Nuances of Sup3rCC</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#sup3rcc-versions">Sup3rCC Versions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#recommended-citation">Recommended Citation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#acknowledgements">Acknowledgements</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples/sup3rwind.html">Sup3rWind Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rwind.html#sup3rwind-data-access">Sup3rWind Data Access</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rwind.html#example-sup3rwind-data-usage">Example Sup3rWind Data Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rwind.html#running-sup3rwind-models">Running Sup3rWind Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rwind.html#sup3rwind-versions">Sup3rWind Versions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rwind.html#recommended-citation">Recommended Citation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rwind.html#acknowledgements">Acknowledgements</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../_autosummary/sup3r.html">API reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.batch.html">sup3r.batch</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.batch.batch_cli.html">sup3r.batch.batch_cli</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.bias.html">sup3r.bias</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc.html">sup3r.bias.bias_calc</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc.DataRetrievalBase.html">sup3r.bias.bias_calc.DataRetrievalBase</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc.LinearCorrection.html">sup3r.bias.bias_calc.LinearCorrection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc.MonthlyLinearCorrection.html">sup3r.bias.bias_calc.MonthlyLinearCorrection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc.MonthlyScalarCorrection.html">sup3r.bias.bias_calc.MonthlyScalarCorrection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc.SkillAssessment.html">sup3r.bias.bias_calc.SkillAssessment</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc_cli.html">sup3r.bias.bias_calc_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc_cli.kickoff_local_job.html">sup3r.bias.bias_calc_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc_cli.kickoff_slurm_job.html">sup3r.bias.bias_calc_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_correct_means.html">sup3r.bias.bias_correct_means</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_correct_means.BiasCorrectUpdate.html">sup3r.bias.bias_correct_means.BiasCorrectUpdate</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_correct_means.VortexMeanPrepper.html">sup3r.bias.bias_correct_means.VortexMeanPrepper</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_transforms.html">sup3r.bias.bias_transforms</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_transforms.get_spatial_bc_factors.html">sup3r.bias.bias_transforms.get_spatial_bc_factors</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_transforms.global_linear_bc.html">sup3r.bias.bias_transforms.global_linear_bc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_transforms.local_linear_bc.html">sup3r.bias.bias_transforms.local_linear_bc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_transforms.monthly_local_linear_bc.html">sup3r.bias.bias_transforms.monthly_local_linear_bc</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.cli.html">sup3r.cli</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.models.html">sup3r.models</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.abstract.html">sup3r.models.abstract</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.abstract.AbstractInterface.html">sup3r.models.abstract.AbstractInterface</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.abstract.AbstractSingleModel.html">sup3r.models.abstract.AbstractSingleModel</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.base.html">sup3r.models.base</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.base.Sup3rGan.html">sup3r.models.base.Sup3rGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.conditional_moments.html">sup3r.models.conditional_moments</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.conditional_moments.Sup3rCondMom.html">sup3r.models.conditional_moments.Sup3rCondMom</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.data_centric.html">sup3r.models.data_centric</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.data_centric.Sup3rGanDC.html">sup3r.models.data_centric.Sup3rGanDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.data_centric.Sup3rGanSpatialDC.html">sup3r.models.data_centric.Sup3rGanSpatialDC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.linear.html">sup3r.models.linear</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.linear.LinearInterp.html">sup3r.models.linear.LinearInterp</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.multi_step.html">sup3r.models.multi_step</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.multi_step.MultiStepGan.html">sup3r.models.multi_step.MultiStepGan</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.multi_step.MultiStepSurfaceMetGan.html">sup3r.models.multi_step.MultiStepSurfaceMetGan</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.multi_step.SolarMultiStepGan.html">sup3r.models.multi_step.SolarMultiStepGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.solar_cc.html">sup3r.models.solar_cc</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.solar_cc.SolarCC.html">sup3r.models.solar_cc.SolarCC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.surface.html">sup3r.models.surface</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.surface.SurfaceSpatialMetModel.html">sup3r.models.surface.SurfaceSpatialMetModel</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.html">sup3r.pipeline</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass.html">sup3r.pipeline.forward_pass</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass.ForwardPass.html">sup3r.pipeline.forward_pass.ForwardPass</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass.ForwardPassSlicer.html">sup3r.pipeline.forward_pass.ForwardPassSlicer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass.ForwardPassStrategy.html">sup3r.pipeline.forward_pass.ForwardPassStrategy</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass_cli.html">sup3r.pipeline.forward_pass_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass_cli.kickoff_local_job.html">sup3r.pipeline.forward_pass_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass_cli.kickoff_slurm_job.html">sup3r.pipeline.forward_pass_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.pipeline_cli.html">sup3r.pipeline.pipeline_cli</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.html">sup3r.postprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.collection.html">sup3r.postprocessing.collection</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.collection.BaseCollector.html">sup3r.postprocessing.collection.BaseCollector</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.collection.CollectorH5.html">sup3r.postprocessing.collection.CollectorH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.collection.CollectorNC.html">sup3r.postprocessing.collection.CollectorNC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.data_collect_cli.html">sup3r.postprocessing.data_collect_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.data_collect_cli.kickoff_local_job.html">sup3r.postprocessing.data_collect_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.data_collect_cli.kickoff_slurm_job.html">sup3r.postprocessing.data_collect_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.html">sup3r.postprocessing.file_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.OutputHandler.html">sup3r.postprocessing.file_handling.OutputHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.OutputHandlerH5.html">sup3r.postprocessing.file_handling.OutputHandlerH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.OutputHandlerNC.html">sup3r.postprocessing.file_handling.OutputHandlerNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.OutputMixIn.html">sup3r.postprocessing.file_handling.OutputMixIn</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.RexOutputs.html">sup3r.postprocessing.file_handling.RexOutputs</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.html">sup3r.preprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.html">sup3r.preprocessing.batch_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.Batch.html">sup3r.preprocessing.batch_handling.Batch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.BatchHandler.html">sup3r.preprocessing.batch_handling.BatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.BatchHandlerCC.html">sup3r.preprocessing.batch_handling.BatchHandlerCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.BatchHandlerDC.html">sup3r.preprocessing.batch_handling.BatchHandlerDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.BatchHandlerSpatialDC.html">sup3r.preprocessing.batch_handling.BatchHandlerSpatialDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.SpatialBatchHandler.html">sup3r.preprocessing.batch_handling.SpatialBatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC.html">sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.ValidationData.html">sup3r.preprocessing.batch_handling.ValidationData</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.ValidationDataDC.html">sup3r.preprocessing.batch_handling.ValidationDataDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.ValidationDataSpatialDC.html">sup3r.preprocessing.batch_handling.ValidationDataSpatialDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.ValidationDataTemporalDC.html">sup3r.preprocessing.batch_handling.ValidationDataTemporalDC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.html">sup3r.preprocessing.conditional_moment_batch_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1SF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2Sep.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SepSF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SepSF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1SF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2Sep.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SepSF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SepSF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1SF.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SF.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2Sep.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SepSF.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SepSF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1SF.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SF.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2Sep.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SepSF.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SepSF</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_extract_cli.html">sup3r.preprocessing.data_extract_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_extract_cli.kickoff_local_job.html">sup3r.preprocessing.data_extract_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_extract_cli.kickoff_slurm_job.html">sup3r.preprocessing.data_extract_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.html">sup3r.preprocessing.data_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.base.html">sup3r.preprocessing.data_handling.base</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.dual_data_handling.html">sup3r.preprocessing.data_handling.dual_data_handling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.exo_extraction.html">sup3r.preprocessing.data_handling.exo_extraction</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.exogenous_data_handling.html">sup3r.preprocessing.data_handling.exogenous_data_handling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.h5_data_handling.html">sup3r.preprocessing.data_handling.h5_data_handling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.mixin.html">sup3r.preprocessing.data_handling.mixin</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.nc_data_handling.html">sup3r.preprocessing.data_handling.nc_data_handling</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.dual_batch_handling.html">sup3r.preprocessing.dual_batch_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.dual_batch_handling.DualBatchHandler.html">sup3r.preprocessing.dual_batch_handling.DualBatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.dual_batch_handling.DualValidationData.html">sup3r.preprocessing.dual_batch_handling.DualValidationData</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.dual_batch_handling.SpatialDualBatchHandler.html">sup3r.preprocessing.dual_batch_handling.SpatialDualBatchHandler</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.html">sup3r.preprocessing.feature_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.BVFreqMon.html">sup3r.preprocessing.feature_handling.BVFreqMon</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.BVFreqSquaredH5.html">sup3r.preprocessing.feature_handling.BVFreqSquaredH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.BVFreqSquaredNC.html">sup3r.preprocessing.feature_handling.BVFreqSquaredNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.ClearSkyRatioCC.html">sup3r.preprocessing.feature_handling.ClearSkyRatioCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.ClearSkyRatioH5.html">sup3r.preprocessing.feature_handling.ClearSkyRatioH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.CloudMaskH5.html">sup3r.preprocessing.feature_handling.CloudMaskH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.DerivedFeature.html">sup3r.preprocessing.feature_handling.DerivedFeature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Feature.html">sup3r.preprocessing.feature_handling.Feature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.FeatureHandler.html">sup3r.preprocessing.feature_handling.FeatureHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.InverseMonNC.html">sup3r.preprocessing.feature_handling.InverseMonNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.LatLonH5.html">sup3r.preprocessing.feature_handling.LatLonH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.LatLonNC.html">sup3r.preprocessing.feature_handling.LatLonNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.PotentialTempNC.html">sup3r.preprocessing.feature_handling.PotentialTempNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.PressureNC.html">sup3r.preprocessing.feature_handling.PressureNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Rews.html">sup3r.preprocessing.feature_handling.Rews</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Shear.html">sup3r.preprocessing.feature_handling.Shear</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Tas.html">sup3r.preprocessing.feature_handling.Tas</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.TasMax.html">sup3r.preprocessing.feature_handling.TasMax</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.TasMin.html">sup3r.preprocessing.feature_handling.TasMin</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.TempNC.html">sup3r.preprocessing.feature_handling.TempNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.TempNCforCC.html">sup3r.preprocessing.feature_handling.TempNCforCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.TopoH5.html">sup3r.preprocessing.feature_handling.TopoH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.UWind.html">sup3r.preprocessing.feature_handling.UWind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.UWindPowerLaw.html">sup3r.preprocessing.feature_handling.UWindPowerLaw</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.VWind.html">sup3r.preprocessing.feature_handling.VWind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.VWindPowerLaw.html">sup3r.preprocessing.feature_handling.VWindPowerLaw</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Veer.html">sup3r.preprocessing.feature_handling.Veer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Vorticity.html">sup3r.preprocessing.feature_handling.Vorticity</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.WinddirectionNC.html">sup3r.preprocessing.feature_handling.WinddirectionNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.WindspeedNC.html">sup3r.preprocessing.feature_handling.WindspeedNC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.wind_conditional_moment_batch_handling.html">sup3r.preprocessing.wind_conditional_moment_batch_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.wind_conditional_moment_batch_handling.ValidationDataWindMom1SF.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.ValidationDataWindMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.wind_conditional_moment_batch_handling.ValidationDataWindMom2.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.ValidationDataWindMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.wind_conditional_moment_batch_handling.ValidationDataWindMom2SF.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.ValidationDataWindMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.wind_conditional_moment_batch_handling.ValidationDataWindMom2Sep.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.ValidationDataWindMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.wind_conditional_moment_batch_handling.ValidationDataWindMom2SepSF.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.ValidationDataWindMom2SepSF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchHandlerMom1.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchHandlerMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchHandlerMom1SF.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchHandlerMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchHandlerMom2.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchHandlerMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchHandlerMom2SF.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchHandlerMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchHandlerMom2Sep.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchHandlerMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchHandlerMom2SepSF.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchHandlerMom2SepSF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchMom1.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchMom1SF.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchMom2.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchMom2SF.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchMom2Sep.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchMom2SepSF.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchMom2SepSF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.wind_conditional_moment_batch_handling.WindSpatialBatchHandlerMom1.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.WindSpatialBatchHandlerMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.wind_conditional_moment_batch_handling.WindSpatialBatchHandlerMom1SF.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.WindSpatialBatchHandlerMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.wind_conditional_moment_batch_handling.WindSpatialBatchHandlerMom2.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.WindSpatialBatchHandlerMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.wind_conditional_moment_batch_handling.WindSpatialBatchHandlerMom2SF.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.WindSpatialBatchHandlerMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.wind_conditional_moment_batch_handling.WindSpatialBatchHandlerMom2Sep.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.WindSpatialBatchHandlerMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.wind_conditional_moment_batch_handling.WindSpatialBatchHandlerMom2SepSF.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.WindSpatialBatchHandlerMom2SepSF</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.qa.html">sup3r.qa</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.qa.qa.html">sup3r.qa.qa</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.qa.Sup3rQa.html">sup3r.qa.qa.Sup3rQa</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.qa.qa_cli.html">sup3r.qa.qa_cli</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.qa.stats.html">sup3r.qa.stats</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.stats.Sup3rStatsBase.html">sup3r.qa.stats.Sup3rStatsBase</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.stats.Sup3rStatsCompute.html">sup3r.qa.stats.Sup3rStatsCompute</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.stats.Sup3rStatsMulti.html">sup3r.qa.stats.Sup3rStatsMulti</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.stats.Sup3rStatsSingle.html">sup3r.qa.stats.Sup3rStatsSingle</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.qa.stats_cli.html">sup3r.qa.stats_cli</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.html">sup3r.qa.utilities</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.continuous_dist.html">sup3r.qa.utilities.continuous_dist</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.direct_dist.html">sup3r.qa.utilities.direct_dist</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.frequency_spectrum.html">sup3r.qa.utilities.frequency_spectrum</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.gradient_dist.html">sup3r.qa.utilities.gradient_dist</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.time_derivative_dist.html">sup3r.qa.utilities.time_derivative_dist</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.tke_frequency_spectrum.html">sup3r.qa.utilities.tke_frequency_spectrum</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.tke_wavenumber_spectrum.html">sup3r.qa.utilities.tke_wavenumber_spectrum</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.wavenumber_spectrum.html">sup3r.qa.utilities.wavenumber_spectrum</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.qa.visual_qa.html">sup3r.qa.visual_qa</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.visual_qa.Sup3rVisualQa.html">sup3r.qa.visual_qa.Sup3rVisualQa</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.qa.visual_qa_cli.html">sup3r.qa.visual_qa_cli</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.solar.html">sup3r.solar</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.solar.solar.html">sup3r.solar.solar</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.solar.solar.Solar.html">sup3r.solar.solar.Solar</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.solar.solar_cli.html">sup3r.solar.solar_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.solar.solar_cli.kickoff_local_job.html">sup3r.solar.solar_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.solar.solar_cli.kickoff_slurm_job.html">sup3r.solar.solar_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.html">sup3r.utilities</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.ModuleName.html">sup3r.utilities.ModuleName</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.ModuleName.html#sup3r.utilities.ModuleName"><code class="docutils literal notranslate"><span class="pre">ModuleName</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.cli.html">sup3r.utilities.cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.cli.BaseCLI.html">sup3r.utilities.cli.BaseCLI</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.cli.SlurmManager.html">sup3r.utilities.cli.SlurmManager</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.era_downloader.html">sup3r.utilities.era_downloader</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.era_downloader.EraDownloader.html">sup3r.utilities.era_downloader.EraDownloader</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.execution.html">sup3r.utilities.execution</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.execution.DistributedProcess.html">sup3r.utilities.execution.DistributedProcess</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.interpolate_log_profile.html">sup3r.utilities.interpolate_log_profile</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.interpolate_log_profile.LogLinInterpolator.html">sup3r.utilities.interpolate_log_profile.LogLinInterpolator</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.interpolation.html">sup3r.utilities.interpolation</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.interpolation.Interpolator.html">sup3r.utilities.interpolation.Interpolator</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.html">sup3r.utilities.loss_metrics</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.gaussian_kernel.html">sup3r.utilities.loss_metrics.gaussian_kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.CoarseMseLoss.html">sup3r.utilities.loss_metrics.CoarseMseLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.ExpLoss.html">sup3r.utilities.loss_metrics.ExpLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.LowResLoss.html">sup3r.utilities.loss_metrics.LowResLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.MaterialDerivativeLoss.html">sup3r.utilities.loss_metrics.MaterialDerivativeLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.MmdLoss.html">sup3r.utilities.loss_metrics.MmdLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.MmdMseLoss.html">sup3r.utilities.loss_metrics.MmdMseLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.MseExpLoss.html">sup3r.utilities.loss_metrics.MseExpLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.SpatialExtremesLoss.html">sup3r.utilities.loss_metrics.SpatialExtremesLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.SpatialExtremesOnlyLoss.html">sup3r.utilities.loss_metrics.SpatialExtremesOnlyLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.SpatialFftOnlyLoss.html">sup3r.utilities.loss_metrics.SpatialFftOnlyLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.SpatiotemporalExtremesLoss.html">sup3r.utilities.loss_metrics.SpatiotemporalExtremesLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.SpatiotemporalFftOnlyLoss.html">sup3r.utilities.loss_metrics.SpatiotemporalFftOnlyLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.StExtremesFftLoss.html">sup3r.utilities.loss_metrics.StExtremesFftLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.TemporalExtremesLoss.html">sup3r.utilities.loss_metrics.TemporalExtremesLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.TemporalExtremesOnlyLoss.html">sup3r.utilities.loss_metrics.TemporalExtremesOnlyLoss</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.html">sup3r.utilities.plotting</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.ax_plot_legend.html">sup3r.utilities.plotting.ax_plot_legend</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.ax_pretty_labels.html">sup3r.utilities.plotting.ax_pretty_labels</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.make_movie.html">sup3r.utilities.plotting.make_movie</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.plot_legend.html">sup3r.utilities.plotting.plot_legend</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.plot_multi_contour.html">sup3r.utilities.plotting.plot_multi_contour</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.plot_single_contour.html">sup3r.utilities.plotting.plot_single_contour</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.pretty_labels.html">sup3r.utilities.plotting.pretty_labels</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.pytest.html">sup3r.utilities.pytest</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.pytest.make_fake_cs_ratio_files.html">sup3r.utilities.pytest.make_fake_cs_ratio_files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.pytest.make_fake_era_files.html">sup3r.utilities.pytest.make_fake_era_files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.pytest.make_fake_h5_chunks.html">sup3r.utilities.pytest.make_fake_h5_chunks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.pytest.make_fake_multi_time_nc_files.html">sup3r.utilities.pytest.make_fake_multi_time_nc_files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.pytest.make_fake_nc_files.html">sup3r.utilities.pytest.make_fake_nc_files</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.regridder.html">sup3r.utilities.regridder</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.regridder.RegridOutput.html">sup3r.utilities.regridder.RegridOutput</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.regridder.Regridder.html">sup3r.utilities.regridder.Regridder</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.regridder.WindRegridder.html">sup3r.utilities.regridder.WindRegridder</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.regridder_cli.html">sup3r.utilities.regridder_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.regridder_cli.kickoff_local_job.html">sup3r.utilities.regridder_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.regridder_cli.kickoff_slurm_job.html">sup3r.utilities.regridder_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.html">sup3r.utilities.stitching</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.blend_domains.html">sup3r.utilities.stitching.blend_domains</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.forward_avg.html">sup3r.utilities.stitching.forward_avg</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.get_domain_region.html">sup3r.utilities.stitching.get_domain_region</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.get_files.html">sup3r.utilities.stitching.get_files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.get_handles.html">sup3r.utilities.stitching.get_handles</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.impute_domain.html">sup3r.utilities.stitching.impute_domain</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.prune_levels.html">sup3r.utilities.stitching.prune_levels</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.regrid_main_domain.html">sup3r.utilities.stitching.regrid_main_domain</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.stitch_and_save.html">sup3r.utilities.stitching.stitch_and_save</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.stitch_domains.html">sup3r.utilities.stitching.stitch_domains</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.unstagger_vars.html">sup3r.utilities.stitching.unstagger_vars</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.Regridder.html">sup3r.utilities.stitching.Regridder</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.html">sup3r.utilities.utilities</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.bvf_squared.html">sup3r.utilities.utilities.bvf_squared</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.correct_path.html">sup3r.utilities.utilities.correct_path</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.daily_temporal_coarsening.html">sup3r.utilities.utilities.daily_temporal_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.daily_time_sampler.html">sup3r.utilities.utilities.daily_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.estimate_max_workers.html">sup3r.utilities.utilities.estimate_max_workers</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.forward_average.html">sup3r.utilities.utilities.forward_average</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.generate_random_string.html">sup3r.utilities.utilities.generate_random_string</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_chunk_slices.html">sup3r.utilities.utilities.get_chunk_slices</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_input_handler_class.html">sup3r.utilities.utilities.get_input_handler_class</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_raster_shape.html">sup3r.utilities.utilities.get_raster_shape</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_source_type.html">sup3r.utilities.utilities.get_source_type</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_time_dim_name.html">sup3r.utilities.utilities.get_time_dim_name</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_wrf_date_range.html">sup3r.utilities.utilities.get_wrf_date_range</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.gradient_richardson_number.html">sup3r.utilities.utilities.gradient_richardson_number</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.ignore_case_path_fetch.html">sup3r.utilities.utilities.ignore_case_path_fetch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.inverse_mo_length.html">sup3r.utilities.utilities.inverse_mo_length</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.invert_pot_temp.html">sup3r.utilities.utilities.invert_pot_temp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.invert_uv.html">sup3r.utilities.utilities.invert_uv</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.lat_lon_coarsening.html">sup3r.utilities.utilities.lat_lon_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.nn_fill_array.html">sup3r.utilities.utilities.nn_fill_array</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.np_to_pd_times.html">sup3r.utilities.utilities.np_to_pd_times</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.nsrdb_reduce_daily_data.html">sup3r.utilities.utilities.nsrdb_reduce_daily_data</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.nsrdb_sub_daily_sampler.html">sup3r.utilities.utilities.nsrdb_sub_daily_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.pd_date_range.html">sup3r.utilities.utilities.pd_date_range</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.potential_temperature.html">sup3r.utilities.utilities.potential_temperature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.potential_temperature_average.html">sup3r.utilities.utilities.potential_temperature_average</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.potential_temperature_difference.html">sup3r.utilities.utilities.potential_temperature_difference</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.rotor_area.html">sup3r.utilities.utilities.rotor_area</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.rotor_equiv_ws.html">sup3r.utilities.utilities.rotor_equiv_ws</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.round_array.html">sup3r.utilities.utilities.round_array</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.smooth_data.html">sup3r.utilities.utilities.smooth_data</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.spatial_coarsening.html">sup3r.utilities.utilities.spatial_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.spatial_simple_enhancing.html">sup3r.utilities.utilities.spatial_simple_enhancing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.st_interp.html">sup3r.utilities.utilities.st_interp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.temporal_coarsening.html">sup3r.utilities.utilities.temporal_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.temporal_simple_enhancing.html">sup3r.utilities.utilities.temporal_simple_enhancing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.transform_rotate_wind.html">sup3r.utilities.utilities.transform_rotate_wind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.uniform_box_sampler.html">sup3r.utilities.utilities.uniform_box_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.uniform_time_sampler.html">sup3r.utilities.utilities.uniform_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.vorticity_calc.html">sup3r.utilities.utilities.vorticity_calc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.weighted_box_sampler.html">sup3r.utilities.utilities.weighted_box_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.weighted_time_sampler.html">sup3r.utilities.utilities.weighted_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.windspeed_log_law.html">sup3r.utilities.utilities.windspeed_log_law</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../_cli/cli.html">CLI reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../_cli/sup3r.html">sup3r</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-batch">batch</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-bias-calc">bias-calc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-data-collect">data-collect</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-data-extract">data-extract</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-forward-pass">forward-pass</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-pipeline">pipeline</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-qa">qa</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-regrid">regrid</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-solar">solar</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-stats">stats</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-visual-qa">visual-qa</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">sup3r</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">sup3r.models.base</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for sup3r.models.base</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;Sup3r model software&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">pprint</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">warnings</span> <span class="kn">import</span> <span class="n">warn</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">tensorflow</span> <span class="k">as</span> <span class="nn">tf</span>
+<span class="kn">from</span> <span class="nn">tensorflow.keras</span> <span class="kn">import</span> <span class="n">optimizers</span>
+
+<span class="kn">from</span> <span class="nn">sup3r.models.abstract</span> <span class="kn">import</span> <span class="n">AbstractInterface</span><span class="p">,</span> <span class="n">AbstractSingleModel</span>
+<span class="kn">from</span> <span class="nn">sup3r.utilities</span> <span class="kn">import</span> <span class="n">VERSION_RECORD</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="Sup3rGan">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.models.base.Sup3rGan.html#sup3r.models.base.Sup3rGan">[docs]</a>
+<span class="k">class</span> <span class="nc">Sup3rGan</span><span class="p">(</span><span class="n">AbstractSingleModel</span><span class="p">,</span> <span class="n">AbstractInterface</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Basic sup3r GAN model.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">gen_layers</span><span class="p">,</span>
+                 <span class="n">disc_layers</span><span class="p">,</span>
+                 <span class="n">loss</span><span class="o">=</span><span class="s1">&#39;MeanSquaredError&#39;</span><span class="p">,</span>
+                 <span class="n">optimizer</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">learning_rate</span><span class="o">=</span><span class="mf">1e-4</span><span class="p">,</span>
+                 <span class="n">optimizer_disc</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">learning_rate_disc</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">history</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">meta</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">means</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">stdevs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">default_device</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        gen_layers : list | str</span>
+<span class="sd">            Hidden layers input argument to phygnn.base.CustomNetwork for the</span>
+<span class="sd">            generative super resolving model. Can also be a str filepath to a</span>
+<span class="sd">            .json config file containing the input layers argument or a .pkl</span>
+<span class="sd">            for a saved pre-trained model.</span>
+<span class="sd">        disc_layers : list | str</span>
+<span class="sd">            Hidden layers input argument to phygnn.base.CustomNetwork for the</span>
+<span class="sd">            discriminative model (spatial or spatiotemporal discriminator). Can</span>
+<span class="sd">            also be a str filepath to a .json config file containing the input</span>
+<span class="sd">            layers argument or a .pkl for a saved pre-trained model.</span>
+<span class="sd">        loss : str | dict</span>
+<span class="sd">            Loss function class name from sup3r.utilities.loss_metrics</span>
+<span class="sd">            (prioritized) or tensorflow.keras.losses. Defaults to</span>
+<span class="sd">            tf.keras.losses.MeanSquaredError. This can be provided as a dict</span>
+<span class="sd">            with kwargs for loss functions with extra parameters.</span>
+<span class="sd">            e.g. {&#39;SpatialExtremesLoss&#39;: {&#39;weight&#39;: 0.5}}</span>
+<span class="sd">        optimizer : tf.keras.optimizers.Optimizer | dict | None | str</span>
+<span class="sd">            Instantiated tf.keras.optimizers object or a dict optimizer config</span>
+<span class="sd">            from tf.keras.optimizers.get_config(). None defaults to Adam.</span>
+<span class="sd">        learning_rate : float, optional</span>
+<span class="sd">            Optimizer learning rate. Not used if optimizer input arg is a</span>
+<span class="sd">            pre-initialized object or if optimizer input arg is a config dict.</span>
+<span class="sd">        optimizer_disc : tf.keras.optimizers.Optimizer | dict | None</span>
+<span class="sd">            Same as optimizer input, but if specified this makes a different</span>
+<span class="sd">            optimizer just for the discriminator network (spatial or</span>
+<span class="sd">            spatiotemporal disc).</span>
+<span class="sd">        learning_rate_disc : float, optional</span>
+<span class="sd">            Same as learning_rate input, but if specified this makes a</span>
+<span class="sd">            different learning_rate just for the discriminator network (spatial</span>
+<span class="sd">            or spatiotemporal disc).</span>
+<span class="sd">        history : pd.DataFrame | str | None</span>
+<span class="sd">            Model training history with &quot;epoch&quot; index, str pointing to a saved</span>
+<span class="sd">            history csv file with &quot;epoch&quot; as first column, or None for clean</span>
+<span class="sd">            history</span>
+<span class="sd">        meta : dict | None</span>
+<span class="sd">            Model meta data that describes how the model was created.</span>
+<span class="sd">        means : dict | None</span>
+<span class="sd">            Set of mean values for data normalization keyed by feature name.</span>
+<span class="sd">            Can be used to maintain a consistent normalization scheme between</span>
+<span class="sd">            transfer learning domains.</span>
+<span class="sd">        stdevs : dict | None</span>
+<span class="sd">            Set of stdev values for data normalization keyed by feature name.</span>
+<span class="sd">            Can be used to maintain a consistent normalization scheme between</span>
+<span class="sd">            transfer learning domains.</span>
+<span class="sd">        default_device : str | None</span>
+<span class="sd">            Option for default device placement of model weights. If None and a</span>
+<span class="sd">            single GPU exists, that GPU will be the default device. If None and</span>
+<span class="sd">            multiple GPUs exist, the CPU will be the default device (this was</span>
+<span class="sd">            tested as most efficient given the custom multi-gpu strategy</span>
+<span class="sd">            developed in self.run_gradient_descent()). Examples: &quot;/gpu:0&quot; or</span>
+<span class="sd">            &quot;/cpu:0&quot;</span>
+<span class="sd">        name : str | None</span>
+<span class="sd">            Optional name for the GAN.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">default_device</span> <span class="o">=</span> <span class="n">default_device</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_device</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gpu_list</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">default_device</span> <span class="o">=</span> <span class="s1">&#39;/gpu:0&#39;</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_device</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gpu_list</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">default_device</span> <span class="o">=</span> <span class="s1">&#39;/cpu:0&#39;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span> <span class="k">if</span> <span class="n">name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_meta</span> <span class="o">=</span> <span class="n">meta</span> <span class="k">if</span> <span class="n">meta</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">{}</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">loss_name</span> <span class="o">=</span> <span class="n">loss</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">loss_fun</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_loss_fun</span><span class="p">(</span><span class="n">loss</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_history</span> <span class="o">=</span> <span class="n">history</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_history</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_history</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_history</span><span class="p">,</span> <span class="n">index_col</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="n">optimizer_disc</span> <span class="o">=</span> <span class="n">optimizer_disc</span> <span class="ow">or</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">optimizer</span><span class="p">)</span>
+        <span class="n">learning_rate_disc</span> <span class="o">=</span> <span class="n">learning_rate_disc</span> <span class="ow">or</span> <span class="n">learning_rate</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_optimizer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">init_optimizer</span><span class="p">(</span><span class="n">optimizer</span><span class="p">,</span> <span class="n">learning_rate</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_optimizer_disc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">init_optimizer</span><span class="p">(</span><span class="n">optimizer_disc</span><span class="p">,</span>
+                                                   <span class="n">learning_rate_disc</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_gen</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_network</span><span class="p">(</span><span class="n">gen_layers</span><span class="p">,</span> <span class="s1">&#39;generator&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_disc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_network</span><span class="p">(</span><span class="n">disc_layers</span><span class="p">,</span> <span class="s1">&#39;discriminator&#39;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_means</span> <span class="o">=</span> <span class="n">means</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stdevs</span> <span class="o">=</span> <span class="n">stdevs</span>
+
+<div class="viewcode-block" id="Sup3rGan.save">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.models.base.Sup3rGan.html#sup3r.models.base.Sup3rGan.save">[docs]</a>
+    <span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">out_dir</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Save the GAN with its sub-networks to a directory.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        out_dir : str</span>
+<span class="sd">            Directory to save GAN model files. This directory will be created</span>
+<span class="sd">            if it does not already exist.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">out_dir</span><span class="p">):</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">out_dir</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="n">fp_gen</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">out_dir</span><span class="p">,</span> <span class="s1">&#39;model_gen.pkl&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">generator</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">fp_gen</span><span class="p">)</span>
+
+        <span class="n">fp_disc</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">out_dir</span><span class="p">,</span> <span class="s1">&#39;model_disc.pkl&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">discriminator</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">fp_disc</span><span class="p">)</span>
+
+        <span class="n">fp_history</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
+            <span class="n">fp_history</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">out_dir</span><span class="p">,</span> <span class="s1">&#39;history.csv&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">fp_history</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">save_params</span><span class="p">(</span><span class="n">out_dir</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Saved GAN to disk in directory: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">out_dir</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="Sup3rGan.load">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.models.base.Sup3rGan.html#sup3r.models.base.Sup3rGan.load">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">model_dir</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load the GAN with its sub-networks from a previously saved-to output</span>
+<span class="sd">        directory.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        model_dir : str</span>
+<span class="sd">            Directory to load GAN model files from.</span>
+<span class="sd">        verbose : bool</span>
+<span class="sd">            Flag to log information about the loaded model.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        out : BaseModel</span>
+<span class="sd">            Returns a pretrained gan model that was previously saved to out_dir</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s1">&#39;Loading GAN from disk in directory: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">model_dir</span><span class="p">))</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;Active python environment versions: </span><span class="se">\n</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">pprint</span><span class="o">.</span><span class="n">pformat</span><span class="p">(</span><span class="n">VERSION_RECORD</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">4</span><span class="p">)))</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+        <span class="n">fp_gen</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">model_dir</span><span class="p">,</span> <span class="s1">&#39;model_gen.pkl&#39;</span><span class="p">)</span>
+        <span class="n">fp_disc</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">model_dir</span><span class="p">,</span> <span class="s1">&#39;model_disc.pkl&#39;</span><span class="p">)</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">load_saved_params</span><span class="p">(</span><span class="n">model_dir</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">fp_gen</span><span class="p">,</span> <span class="n">fp_disc</span><span class="p">,</span> <span class="o">**</span><span class="n">params</span><span class="p">)</span></div>
+
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">discriminator</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the discriminator model.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        phygnn.base.CustomNetwork</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_disc</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">discriminator_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get a list of layer weights and bias terms for the discriminator</span>
+<span class="sd">        model.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        list</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">discriminator</span><span class="o">.</span><span class="n">weights</span>
+
+<div class="viewcode-block" id="Sup3rGan.discriminate">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.models.base.Sup3rGan.html#sup3r.models.base.Sup3rGan.discriminate">[docs]</a>
+    <span class="k">def</span> <span class="nf">discriminate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hi_res</span><span class="p">,</span> <span class="n">norm_in</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Run the discriminator model on a hi resolution input field.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        hi_res : np.ndarray</span>
+<span class="sd">            Real or fake high res data in a 4D or 5D tensor:</span>
+<span class="sd">            (n_obs, spatial_1, spatial_2, n_features)</span>
+<span class="sd">            (n_obs, spatial_1, spatial_2, n_temporal, n_features)</span>
+<span class="sd">        norm_in : bool</span>
+<span class="sd">            Flag to normalize low_res input data if the self._means,</span>
+<span class="sd">            self._stdevs attributes are available. The disc should always</span>
+<span class="sd">            received normalized data with mean=0 stdev=1.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        out : np.ndarray</span>
+<span class="sd">            Discriminator output logits</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">hi_res</span><span class="p">,</span> <span class="n">tf</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+            <span class="n">hi_res</span> <span class="o">=</span> <span class="n">hi_res</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">norm_in</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_means</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">mean_arr</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_means</span><span class="p">[</span><span class="n">fn</span><span class="p">]</span> <span class="k">for</span> <span class="n">fn</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">hr_out_features</span><span class="p">]</span>
+            <span class="n">std_arr</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_stdevs</span><span class="p">[</span><span class="n">fn</span><span class="p">]</span> <span class="k">for</span> <span class="n">fn</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">hr_out_features</span><span class="p">]</span>
+            <span class="n">mean_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">mean_arr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+            <span class="n">std_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">std_arr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+            <span class="n">hi_res</span> <span class="o">=</span> <span class="n">hi_res</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">hi_res</span><span class="p">,</span> <span class="n">tf</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="k">else</span> <span class="n">hi_res</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">hi_res</span> <span class="o">=</span> <span class="p">(</span><span class="n">hi_res</span> <span class="o">-</span> <span class="n">mean_arr</span><span class="p">)</span> <span class="o">/</span> <span class="n">std_arr</span>
+
+        <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">discriminator</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="mi">0</span><span class="p">](</span><span class="n">hi_res</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">layer</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">discriminator</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="mi">1</span><span class="p">:]):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">out</span> <span class="o">=</span> <span class="n">layer</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;Could not run layer #</span><span class="si">{}</span><span class="s1"> &quot;</span><span class="si">{}</span><span class="s1">&quot; on tensor of shape </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span>
+                       <span class="nb">format</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">layer</span><span class="p">,</span> <span class="n">out</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span> <span class="kn">from</span> <span class="nn">e</span>
+
+        <span class="n">out</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">out</span></div>
+
+
+    <span class="nd">@tf</span><span class="o">.</span><span class="n">function</span>
+    <span class="k">def</span> <span class="nf">_tf_discriminate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hi_res</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Run the discriminator model on a hi resolution input field.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        hi_res : np.ndarray</span>
+<span class="sd">            Real or fake high res data in a 4D or 5D tensor:</span>
+<span class="sd">            (n_obs, spatial_1, spatial_2, n_features)</span>
+<span class="sd">            (n_obs, spatial_1, spatial_2, n_temporal, n_features)</span>
+<span class="sd">            This input should always be normalized with mean=0 and stdev=1</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        out : np.ndarray</span>
+<span class="sd">            Discriminator output logits</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">discriminator</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="mi">0</span><span class="p">](</span><span class="n">hi_res</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">layer</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">discriminator</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="mi">1</span><span class="p">:]):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">out</span> <span class="o">=</span> <span class="n">layer</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;Could not run layer #</span><span class="si">{}</span><span class="s1"> &quot;</span><span class="si">{}</span><span class="s1">&quot; on tensor of shape </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span>
+                       <span class="nb">format</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">layer</span><span class="p">,</span> <span class="n">out</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span> <span class="kn">from</span> <span class="nn">e</span>
+
+        <span class="k">return</span> <span class="n">out</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">optimizer_disc</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the tensorflow optimizer to perform gradient descent</span>
+<span class="sd">        calculations for the discriminator network.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        tf.keras.optimizers.Optimizer</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_optimizer_disc</span>
+
+<div class="viewcode-block" id="Sup3rGan.update_optimizer">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.models.base.Sup3rGan.html#sup3r.models.base.Sup3rGan.update_optimizer">[docs]</a>
+    <span class="k">def</span> <span class="nf">update_optimizer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">option</span><span class="o">=</span><span class="s1">&#39;generator&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Update optimizer by changing current configuration</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        option : str</span>
+<span class="sd">            Which optimizer to update. Can be &quot;generator&quot;, &quot;discriminator&quot;, or</span>
+<span class="sd">            &quot;all&quot;</span>
+<span class="sd">        kwargs : dict</span>
+<span class="sd">            kwargs to use for optimizer configuration update</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="s1">&#39;gen&#39;</span> <span class="ow">in</span> <span class="n">option</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">or</span> <span class="s1">&#39;all&#39;</span> <span class="ow">in</span> <span class="n">option</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
+            <span class="n">conf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_optimizer_config</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">optimizer</span><span class="p">)</span>
+            <span class="n">conf</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="n">OptimizerClass</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">optimizers</span><span class="p">,</span> <span class="n">conf</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_optimizer</span> <span class="o">=</span> <span class="n">OptimizerClass</span><span class="o">.</span><span class="n">from_config</span><span class="p">(</span><span class="n">conf</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s1">&#39;disc&#39;</span> <span class="ow">in</span> <span class="n">option</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">or</span> <span class="s1">&#39;all&#39;</span> <span class="ow">in</span> <span class="n">option</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
+            <span class="n">conf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_optimizer_config</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">optimizer_disc</span><span class="p">)</span>
+            <span class="n">conf</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="n">OptimizerClass</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">optimizers</span><span class="p">,</span> <span class="n">conf</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_optimizer_disc</span> <span class="o">=</span> <span class="n">OptimizerClass</span><span class="o">.</span><span class="n">from_config</span><span class="p">(</span><span class="n">conf</span><span class="p">)</span></div>
+
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">meta</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get meta data dictionary that defines how the model was created&quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="s1">&#39;class&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_meta</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_meta</span><span class="p">[</span><span class="s1">&#39;class&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_meta</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">model_params</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Model parameters, used to save model to disc</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        dict</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">means</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_means</span>
+        <span class="n">stdevs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stdevs</span>
+        <span class="k">if</span> <span class="n">means</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">stdevs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">means</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">means</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+            <span class="n">stdevs</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">stdevs</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+        <span class="n">config_optm_g</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_optimizer_config</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">optimizer</span><span class="p">)</span>
+        <span class="n">config_optm_d</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_optimizer_config</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">optimizer_disc</span><span class="p">)</span>
+
+        <span class="n">model_params</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+            <span class="s1">&#39;loss&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss_name</span><span class="p">,</span>
+            <span class="s1">&#39;version_record&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">version_record</span><span class="p">,</span>
+            <span class="s1">&#39;optimizer&#39;</span><span class="p">:</span> <span class="n">config_optm_g</span><span class="p">,</span>
+            <span class="s1">&#39;optimizer_disc&#39;</span><span class="p">:</span> <span class="n">config_optm_d</span><span class="p">,</span>
+            <span class="s1">&#39;means&#39;</span><span class="p">:</span> <span class="n">means</span><span class="p">,</span>
+            <span class="s1">&#39;stdevs&#39;</span><span class="p">:</span> <span class="n">stdevs</span><span class="p">,</span>
+            <span class="s1">&#39;meta&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="k">return</span> <span class="n">model_params</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">weights</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get a list of all the layer weights and bias terms for the</span>
+<span class="sd">        generator and discriminator networks</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">generator_weights</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">discriminator_weights</span>
+
+<div class="viewcode-block" id="Sup3rGan.init_weights">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.models.base.Sup3rGan.html#sup3r.models.base.Sup3rGan.init_weights">[docs]</a>
+    <span class="k">def</span> <span class="nf">init_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lr_shape</span><span class="p">,</span> <span class="n">hr_shape</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize the generator and discriminator weights with device</span>
+<span class="sd">        placement.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        lr_shape : tuple</span>
+<span class="sd">            Shape of one batch of low res input data for sup3r resolution. Note</span>
+<span class="sd">            that the batch size (axis=0) must be included, but the actual batch</span>
+<span class="sd">            size doesnt really matter.</span>
+<span class="sd">        hr_shape : tuple</span>
+<span class="sd">            Shape of one batch of high res input data for sup3r resolution.</span>
+<span class="sd">            Note that the batch size (axis=0) must be included, but the actual</span>
+<span class="sd">            batch size doesnt really matter.</span>
+<span class="sd">        device : str | None</span>
+<span class="sd">            Option to place model weights on a device. If None,</span>
+<span class="sd">            self.default_device will be used.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">device</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">device</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_device</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Initializing model weights on device &quot;</span><span class="si">{}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">device</span><span class="p">))</span>
+        <span class="n">low_res</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">lr_shape</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">hi_res</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">hr_shape</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+        <span class="n">hr_exo_shape</span> <span class="o">=</span> <span class="n">hr_shape</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span><span class="p">,)</span>
+        <span class="n">hr_exo</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">hr_exo_shape</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="n">device</span><span class="p">):</span>
+            <span class="n">hr_exo_data</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">feature</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">hr_exo_features</span><span class="p">:</span>
+                <span class="n">hr_exo_data</span><span class="p">[</span><span class="n">feature</span><span class="p">]</span> <span class="o">=</span> <span class="n">hr_exo</span>
+            <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tf_generate</span><span class="p">(</span><span class="n">low_res</span><span class="p">,</span> <span class="n">hr_exo_data</span><span class="p">)</span>
+            <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tf_discriminate</span><span class="p">(</span><span class="n">hi_res</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Sup3rGan.get_weight_update_fraction">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.models.base.Sup3rGan.html#sup3r.models.base.Sup3rGan.get_weight_update_fraction">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">get_weight_update_fraction</span><span class="p">(</span><span class="n">history</span><span class="p">,</span>
+                                   <span class="n">comparison_key</span><span class="p">,</span>
+                                   <span class="n">update_bounds</span><span class="o">=</span><span class="p">(</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.95</span><span class="p">),</span>
+                                   <span class="n">update_frac</span><span class="o">=</span><span class="mf">0.0</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the factor by which to multiply previous adversarial loss</span>
+<span class="sd">        weight</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        history : dict</span>
+<span class="sd">            Dictionary with information on how often discriminators</span>
+<span class="sd">            were trained during previous epoch.</span>
+<span class="sd">        comparison_key : str</span>
+<span class="sd">            history key to use for update check</span>
+<span class="sd">        update_bounds : tuple</span>
+<span class="sd">            Tuple specifying allowed range for history[comparison_key]. If</span>
+<span class="sd">            history[comparison_key] &lt; update_bounds[0] then the weight will be</span>
+<span class="sd">            increased by (1 + update_frac). If history[comparison_key] &gt;</span>
+<span class="sd">            update_bounds[1] then the weight will be decreased by 1 / (1 +</span>
+<span class="sd">            update_frac).</span>
+<span class="sd">        update_frac : float</span>
+<span class="sd">            Fraction by which to increase/decrease adversarial loss weight</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        float</span>
+<span class="sd">            Factor by which to multiply old weight to get updated weight</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">val</span> <span class="o">=</span> <span class="n">history</span><span class="p">[</span><span class="n">comparison_key</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)):</span>
+            <span class="n">val</span> <span class="o">=</span> <span class="n">val</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">val</span> <span class="o">&lt;</span> <span class="n">update_bounds</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+            <span class="k">return</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">update_frac</span>
+        <span class="k">elif</span> <span class="n">val</span> <span class="o">&gt;</span> <span class="n">update_bounds</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+            <span class="k">return</span> <span class="mi">1</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">update_frac</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mi">1</span></div>
+
+
+<div class="viewcode-block" id="Sup3rGan.calc_loss_gen_content">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.models.base.Sup3rGan.html#sup3r.models.base.Sup3rGan.calc_loss_gen_content">[docs]</a>
+    <span class="nd">@tf</span><span class="o">.</span><span class="n">function</span>
+    <span class="k">def</span> <span class="nf">calc_loss_gen_content</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hi_res_true</span><span class="p">,</span> <span class="n">hi_res_gen</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate the content loss term for the generator model.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        hi_res_true : tf.Tensor</span>
+<span class="sd">            Ground truth high resolution spatiotemporal data.</span>
+<span class="sd">        hi_res_gen : tf.Tensor</span>
+<span class="sd">            Superresolved high resolution spatiotemporal data generated by the</span>
+<span class="sd">            generative model.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        loss_gen_s : tf.Tensor</span>
+<span class="sd">            0D tensor generator model loss for the content loss comparing the</span>
+<span class="sd">            hi res ground truth to the hi res synthetically generated output.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">hi_res_gen</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_combine_loss_input</span><span class="p">(</span><span class="n">hi_res_true</span><span class="p">,</span> <span class="n">hi_res_gen</span><span class="p">)</span>
+        <span class="n">loss_gen_content</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss_fun</span><span class="p">(</span><span class="n">hi_res_true</span><span class="p">,</span> <span class="n">hi_res_gen</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">loss_gen_content</span></div>
+
+
+<div class="viewcode-block" id="Sup3rGan.calc_loss_gen_advers">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.models.base.Sup3rGan.html#sup3r.models.base.Sup3rGan.calc_loss_gen_advers">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="nd">@tf</span><span class="o">.</span><span class="n">function</span>
+    <span class="k">def</span> <span class="nf">calc_loss_gen_advers</span><span class="p">(</span><span class="n">disc_out_gen</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate the adversarial component of the loss term for the</span>
+<span class="sd">        generator model.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        disc_out_gen : tf.Tensor</span>
+<span class="sd">            Raw discriminator outputs from the discriminator model</span>
+<span class="sd">            predicting only on hi_res_gen (not on hi_res_true).</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        loss_gen_advers : tf.Tensor</span>
+<span class="sd">            0D tensor generator model loss for the adversarial component of the</span>
+<span class="sd">            generator loss term.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># note that these have flipped labels from the discriminator</span>
+        <span class="c1"># loss because of the opposite optimization goal</span>
+        <span class="n">loss_gen_advers</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">sigmoid_cross_entropy_with_logits</span><span class="p">(</span>
+            <span class="n">logits</span><span class="o">=</span><span class="n">disc_out_gen</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">disc_out_gen</span><span class="p">))</span>
+        <span class="n">loss_gen_advers</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">reduce_mean</span><span class="p">(</span><span class="n">loss_gen_advers</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">loss_gen_advers</span></div>
+
+
+<div class="viewcode-block" id="Sup3rGan.calc_loss_disc">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.models.base.Sup3rGan.html#sup3r.models.base.Sup3rGan.calc_loss_disc">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="nd">@tf</span><span class="o">.</span><span class="n">function</span>
+    <span class="k">def</span> <span class="nf">calc_loss_disc</span><span class="p">(</span><span class="n">disc_out_true</span><span class="p">,</span> <span class="n">disc_out_gen</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate the loss term for the discriminator model (either the</span>
+<span class="sd">        spatial or temporal discriminator).</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        disc_out_true : tf.Tensor</span>
+<span class="sd">            Raw discriminator outputs from the discriminator model predicting</span>
+<span class="sd">            only on ground truth data hi_res_true (not on hi_res_gen).</span>
+<span class="sd">        disc_out_gen : tf.Tensor</span>
+<span class="sd">            Raw discriminator outputs from the discriminator model predicting</span>
+<span class="sd">            only on synthetic data hi_res_gen (not on hi_res_true).</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        loss_disc : tf.Tensor</span>
+<span class="sd">            0D tensor discriminator model loss for either the spatial or</span>
+<span class="sd">            temporal component of the super resolution generated output.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># note that these have flipped labels from the generator</span>
+        <span class="c1"># loss because of the opposite optimization goal</span>
+        <span class="n">logits</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">disc_out_true</span><span class="p">,</span> <span class="n">disc_out_gen</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">labels</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">tf</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">disc_out_true</span><span class="p">),</span>
+             <span class="n">tf</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">disc_out_gen</span><span class="p">)],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="n">loss_disc</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">sigmoid_cross_entropy_with_logits</span><span class="p">(</span><span class="n">logits</span><span class="o">=</span><span class="n">logits</span><span class="p">,</span>
+                                                            <span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">)</span>
+        <span class="n">loss_disc</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">reduce_mean</span><span class="p">(</span><span class="n">loss_disc</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">loss_disc</span></div>
+
+
+<div class="viewcode-block" id="Sup3rGan.calc_loss">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.models.base.Sup3rGan.html#sup3r.models.base.Sup3rGan.calc_loss">[docs]</a>
+    <span class="nd">@tf</span><span class="o">.</span><span class="n">function</span>
+    <span class="k">def</span> <span class="nf">calc_loss</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                  <span class="n">hi_res_true</span><span class="p">,</span>
+                  <span class="n">hi_res_gen</span><span class="p">,</span>
+                  <span class="n">weight_gen_advers</span><span class="o">=</span><span class="mf">0.001</span><span class="p">,</span>
+                  <span class="n">train_gen</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                  <span class="n">train_disc</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate the GAN loss function using generated and true high</span>
+<span class="sd">        resolution data.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        hi_res_true : tf.Tensor</span>
+<span class="sd">            Ground truth high resolution spatiotemporal data.</span>
+<span class="sd">        hi_res_gen : tf.Tensor</span>
+<span class="sd">            Superresolved high resolution spatiotemporal data generated by the</span>
+<span class="sd">            generative model.</span>
+<span class="sd">        weight_gen_advers : float</span>
+<span class="sd">            Weight factor for the adversarial loss component of the generator</span>
+<span class="sd">            vs. the discriminator.</span>
+<span class="sd">        train_gen : bool</span>
+<span class="sd">            True if generator is being trained, then loss=loss_gen</span>
+<span class="sd">        train_disc : bool</span>
+<span class="sd">            True if disc is being trained, then loss=loss_disc</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        loss : tf.Tensor</span>
+<span class="sd">            0D tensor representing the loss value for the network being trained</span>
+<span class="sd">            (either generator or one of the discriminators)</span>
+<span class="sd">        loss_details : dict</span>
+<span class="sd">            Namespace of the breakdown of loss components</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">hi_res_gen</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_combine_loss_input</span><span class="p">(</span><span class="n">hi_res_true</span><span class="p">,</span> <span class="n">hi_res_gen</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">hi_res_gen</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">hi_res_true</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;The tensor shapes of the synthetic output </span><span class="si">{}</span><span class="s1"> and &#39;</span>
+                   <span class="s1">&#39;true high res </span><span class="si">{}</span><span class="s1"> did not have matching shape! &#39;</span>
+                   <span class="s1">&#39;Check the spatiotemporal enhancement multipliers in your &#39;</span>
+                   <span class="s1">&#39;your model config and data handlers.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                       <span class="n">hi_res_gen</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">hi_res_true</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+        <span class="n">disc_out_true</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tf_discriminate</span><span class="p">(</span><span class="n">hi_res_true</span><span class="p">)</span>
+        <span class="n">disc_out_gen</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tf_discriminate</span><span class="p">(</span><span class="n">hi_res_gen</span><span class="p">)</span>
+
+        <span class="n">loss_gen_content</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc_loss_gen_content</span><span class="p">(</span><span class="n">hi_res_true</span><span class="p">,</span> <span class="n">hi_res_gen</span><span class="p">)</span>
+        <span class="n">loss_gen_advers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc_loss_gen_advers</span><span class="p">(</span><span class="n">disc_out_gen</span><span class="p">)</span>
+        <span class="n">loss_gen</span> <span class="o">=</span> <span class="n">loss_gen_content</span> <span class="o">+</span> <span class="n">weight_gen_advers</span> <span class="o">*</span> <span class="n">loss_gen_advers</span>
+
+        <span class="n">loss_disc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc_loss_disc</span><span class="p">(</span><span class="n">disc_out_true</span><span class="p">,</span> <span class="n">disc_out_gen</span><span class="p">)</span>
+
+        <span class="n">loss</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">train_gen</span><span class="p">:</span>
+            <span class="n">loss</span> <span class="o">=</span> <span class="n">loss_gen</span>
+        <span class="k">elif</span> <span class="n">train_disc</span><span class="p">:</span>
+            <span class="n">loss</span> <span class="o">=</span> <span class="n">loss_disc</span>
+
+        <span class="n">loss_details</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;loss_gen&#39;</span><span class="p">:</span> <span class="n">loss_gen</span><span class="p">,</span>
+            <span class="s1">&#39;loss_gen_content&#39;</span><span class="p">:</span> <span class="n">loss_gen_content</span><span class="p">,</span>
+            <span class="s1">&#39;loss_gen_advers&#39;</span><span class="p">:</span> <span class="n">loss_gen_advers</span><span class="p">,</span>
+            <span class="s1">&#39;loss_disc&#39;</span><span class="p">:</span> <span class="n">loss_disc</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="k">return</span> <span class="n">loss</span><span class="p">,</span> <span class="n">loss_details</span></div>
+
+
+<div class="viewcode-block" id="Sup3rGan.calc_val_loss">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.models.base.Sup3rGan.html#sup3r.models.base.Sup3rGan.calc_val_loss">[docs]</a>
+    <span class="k">def</span> <span class="nf">calc_val_loss</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">batch_handler</span><span class="p">,</span> <span class="n">weight_gen_advers</span><span class="p">,</span> <span class="n">loss_details</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate the validation loss at the current state of model training</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        batch_handler : sup3r.data_handling.preprocessing.BatchHandler</span>
+<span class="sd">            BatchHandler object to iterate through</span>
+<span class="sd">        weight_gen_advers : float</span>
+<span class="sd">            Weight factor for the adversarial loss component of the generator</span>
+<span class="sd">            vs. the discriminator.</span>
+<span class="sd">        loss_details : dict</span>
+<span class="sd">            Namespace of the breakdown of loss components</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        loss_details : dict</span>
+<span class="sd">            Same as input but now includes val_* loss info</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Starting end-of-epoch validation loss calculation...&#39;</span><span class="p">)</span>
+        <span class="n">loss_details</span><span class="p">[</span><span class="s1">&#39;n_obs&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">val_batch</span> <span class="ow">in</span> <span class="n">batch_handler</span><span class="o">.</span><span class="n">val_data</span><span class="p">:</span>
+            <span class="n">val_exo_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_high_res_exo_input</span><span class="p">(</span><span class="n">val_batch</span><span class="o">.</span><span class="n">high_res</span><span class="p">)</span>
+            <span class="n">high_res_gen</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tf_generate</span><span class="p">(</span><span class="n">val_batch</span><span class="o">.</span><span class="n">low_res</span><span class="p">,</span> <span class="n">val_exo_data</span><span class="p">)</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">v_loss_details</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc_loss</span><span class="p">(</span>
+                <span class="n">val_batch</span><span class="o">.</span><span class="n">high_res</span><span class="p">,</span> <span class="n">high_res_gen</span><span class="p">,</span>
+                <span class="n">weight_gen_advers</span><span class="o">=</span><span class="n">weight_gen_advers</span><span class="p">,</span>
+                <span class="n">train_gen</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">train_disc</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+            <span class="n">loss_details</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">update_loss_details</span><span class="p">(</span><span class="n">loss_details</span><span class="p">,</span>
+                                                    <span class="n">v_loss_details</span><span class="p">,</span>
+                                                    <span class="nb">len</span><span class="p">(</span><span class="n">val_batch</span><span class="p">),</span>
+                                                    <span class="n">prefix</span><span class="o">=</span><span class="s1">&#39;val_&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">loss_details</span></div>
+
+
+<div class="viewcode-block" id="Sup3rGan.train_epoch">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.models.base.Sup3rGan.html#sup3r.models.base.Sup3rGan.train_epoch">[docs]</a>
+    <span class="k">def</span> <span class="nf">train_epoch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                    <span class="n">batch_handler</span><span class="p">,</span>
+                    <span class="n">weight_gen_advers</span><span class="p">,</span>
+                    <span class="n">train_gen</span><span class="p">,</span>
+                    <span class="n">train_disc</span><span class="p">,</span>
+                    <span class="n">disc_loss_bounds</span><span class="p">,</span>
+                    <span class="n">multi_gpu</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Train the GAN for one epoch.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        batch_handler : sup3r.data_handling.preprocessing.BatchHandler</span>
+<span class="sd">            BatchHandler object to iterate through</span>
+<span class="sd">        weight_gen_advers : float</span>
+<span class="sd">            Weight factor for the adversarial loss component of the generator</span>
+<span class="sd">            vs. the discriminator.</span>
+<span class="sd">        train_gen : bool</span>
+<span class="sd">            Flag whether to train the generator for this set of epochs</span>
+<span class="sd">        train_disc : bool</span>
+<span class="sd">            Flag whether to train the discriminator for this set of epochs</span>
+<span class="sd">        disc_loss_bounds : tuple</span>
+<span class="sd">            Lower and upper bounds for the discriminator loss outside of which</span>
+<span class="sd">            the discriminators will not train unless train_disc=True or</span>
+<span class="sd">            and train_gen=False.</span>
+<span class="sd">        multi_gpu : bool</span>
+<span class="sd">            Flag to break up the batch for parallel gradient descent</span>
+<span class="sd">            calculations on multiple gpus. If True and multiple GPUs are</span>
+<span class="sd">            present, each batch from the batch_handler will be divided up</span>
+<span class="sd">            between the GPUs and the resulting gradient from each GPU will</span>
+<span class="sd">            constitute a single gradient descent step with the nominal learning</span>
+<span class="sd">            rate that the model was initialized with. If true and multiple gpus</span>
+<span class="sd">            are found, default_device device should be set to /gpu:0</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        loss_details : dict</span>
+<span class="sd">            Namespace of the breakdown of loss components</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">disc_th_low</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">disc_loss_bounds</span><span class="p">)</span>
+        <span class="n">disc_th_high</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">disc_loss_bounds</span><span class="p">)</span>
+        <span class="n">loss_details</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;n_obs&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;train_loss_disc&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
+
+        <span class="n">only_gen</span> <span class="o">=</span> <span class="n">train_gen</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">train_disc</span>
+        <span class="n">only_disc</span> <span class="o">=</span> <span class="n">train_disc</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">train_gen</span>
+
+        <span class="k">for</span> <span class="n">ib</span><span class="p">,</span> <span class="n">batch</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">batch_handler</span><span class="p">):</span>
+            <span class="n">trained_gen</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">trained_disc</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">b_loss_details</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">loss_disc</span> <span class="o">=</span> <span class="n">loss_details</span><span class="p">[</span><span class="s1">&#39;train_loss_disc&#39;</span><span class="p">]</span>
+            <span class="n">disc_too_good</span> <span class="o">=</span> <span class="n">loss_disc</span> <span class="o">&lt;=</span> <span class="n">disc_th_low</span>
+            <span class="n">disc_too_bad</span> <span class="o">=</span> <span class="p">(</span><span class="n">loss_disc</span> <span class="o">&gt;</span> <span class="n">disc_th_high</span><span class="p">)</span> <span class="ow">and</span> <span class="n">train_disc</span>
+            <span class="n">gen_too_good</span> <span class="o">=</span> <span class="n">disc_too_bad</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">generator_weights</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">init_weights</span><span class="p">(</span><span class="n">batch</span><span class="o">.</span><span class="n">low_res</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">batch</span><span class="o">.</span><span class="n">high_res</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">only_gen</span> <span class="ow">or</span> <span class="p">(</span><span class="n">train_gen</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">gen_too_good</span><span class="p">):</span>
+                <span class="n">trained_gen</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">b_loss_details</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_gradient_descent</span><span class="p">(</span>
+                    <span class="n">batch</span><span class="o">.</span><span class="n">low_res</span><span class="p">,</span>
+                    <span class="n">batch</span><span class="o">.</span><span class="n">high_res</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">generator_weights</span><span class="p">,</span>
+                    <span class="n">weight_gen_advers</span><span class="o">=</span><span class="n">weight_gen_advers</span><span class="p">,</span>
+                    <span class="n">optimizer</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">optimizer</span><span class="p">,</span>
+                    <span class="n">train_gen</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">train_disc</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="n">multi_gpu</span><span class="o">=</span><span class="n">multi_gpu</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">only_disc</span> <span class="ow">or</span> <span class="p">(</span><span class="n">train_disc</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">disc_too_good</span><span class="p">):</span>
+                <span class="n">trained_disc</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">b_loss_details</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_gradient_descent</span><span class="p">(</span>
+                    <span class="n">batch</span><span class="o">.</span><span class="n">low_res</span><span class="p">,</span>
+                    <span class="n">batch</span><span class="o">.</span><span class="n">high_res</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">discriminator_weights</span><span class="p">,</span>
+                    <span class="n">weight_gen_advers</span><span class="o">=</span><span class="n">weight_gen_advers</span><span class="p">,</span>
+                    <span class="n">optimizer</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">optimizer_disc</span><span class="p">,</span>
+                    <span class="n">train_gen</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="n">train_disc</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">multi_gpu</span><span class="o">=</span><span class="n">multi_gpu</span><span class="p">)</span>
+
+            <span class="n">b_loss_details</span><span class="p">[</span><span class="s1">&#39;gen_trained_frac&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">trained_gen</span><span class="p">)</span>
+            <span class="n">b_loss_details</span><span class="p">[</span><span class="s1">&#39;disc_trained_frac&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">trained_disc</span><span class="p">)</span>
+            <span class="n">loss_details</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">update_loss_details</span><span class="p">(</span><span class="n">loss_details</span><span class="p">,</span>
+                                                    <span class="n">b_loss_details</span><span class="p">,</span>
+                                                    <span class="nb">len</span><span class="p">(</span><span class="n">batch</span><span class="p">),</span>
+                                                    <span class="n">prefix</span><span class="o">=</span><span class="s1">&#39;train_&#39;</span><span class="p">)</span>
+
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Batch </span><span class="si">{}</span><span class="s1"> out of </span><span class="si">{}</span><span class="s1"> has epoch-average &#39;</span>
+                         <span class="s1">&#39;(gen / disc) loss of: (</span><span class="si">{:.2e}</span><span class="s1"> / </span><span class="si">{:.2e}</span><span class="s1">). &#39;</span>
+                         <span class="s1">&#39;Trained (gen / disc): (</span><span class="si">{}</span><span class="s1"> / </span><span class="si">{}</span><span class="s1">)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                             <span class="n">ib</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">batch_handler</span><span class="p">),</span>
+                             <span class="n">loss_details</span><span class="p">[</span><span class="s1">&#39;train_loss_gen&#39;</span><span class="p">],</span>
+                             <span class="n">loss_details</span><span class="p">[</span><span class="s1">&#39;train_loss_disc&#39;</span><span class="p">],</span> <span class="n">trained_gen</span><span class="p">,</span>
+                             <span class="n">trained_disc</span><span class="p">))</span>
+
+            <span class="k">if</span> <span class="nb">all</span><span class="p">([</span><span class="ow">not</span> <span class="n">trained_gen</span><span class="p">,</span> <span class="ow">not</span> <span class="n">trained_disc</span><span class="p">]):</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;For some reason none of the GAN networks trained &#39;</span>
+                       <span class="s1">&#39;during batch </span><span class="si">{}</span><span class="s1"> out of </span><span class="si">{}</span><span class="s1">!&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                           <span class="n">ib</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">batch_handler</span><span class="p">)))</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+                <span class="n">warn</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">loss_details</span></div>
+
+
+<div class="viewcode-block" id="Sup3rGan.update_adversarial_weights">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.models.base.Sup3rGan.html#sup3r.models.base.Sup3rGan.update_adversarial_weights">[docs]</a>
+    <span class="k">def</span> <span class="nf">update_adversarial_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">history</span><span class="p">,</span> <span class="n">adaptive_update_fraction</span><span class="p">,</span>
+                                   <span class="n">adaptive_update_bounds</span><span class="p">,</span> <span class="n">weight_gen_advers</span><span class="p">,</span>
+                                   <span class="n">train_disc</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Update spatial / temporal adversarial loss weights based on training</span>
+<span class="sd">        fraction history.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        history : dict</span>
+<span class="sd">            Dictionary with information on how often discriminators</span>
+<span class="sd">            were trained during current and previous epochs.</span>
+<span class="sd">        adaptive_update_fraction : float</span>
+<span class="sd">            Amount by which to increase or decrease adversarial loss weights</span>
+<span class="sd">            for adaptive updates</span>
+<span class="sd">        adaptive_update_bounds : tuple</span>
+<span class="sd">            Tuple specifying allowed range for history[comparison_key]. If</span>
+<span class="sd">            history[comparison_key] &lt; update_bounds[0] then the weight will be</span>
+<span class="sd">            increased by (1 + update_frac). If history[comparison_key] &gt;</span>
+<span class="sd">            update_bounds[1] then the weight will be decreased by 1 / (1 +</span>
+<span class="sd">            update_frac).</span>
+<span class="sd">        weight_gen_advers : float</span>
+<span class="sd">            Weight factor for the adversarial loss component of the generator</span>
+<span class="sd">            vs. the discriminator.</span>
+<span class="sd">        train_disc : bool</span>
+<span class="sd">            Whether the discriminator was set to be trained during the</span>
+<span class="sd">            previous epoch</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        weight_gen_advers : float</span>
+<span class="sd">            Updated weight factor for the adversarial loss component of the</span>
+<span class="sd">            generator vs. the discriminator.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">adaptive_update_fraction</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">update_frac</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="n">train_disc</span><span class="p">:</span>
+                <span class="n">update_frac</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_weight_update_fraction</span><span class="p">(</span>
+                    <span class="n">history</span><span class="p">,</span>
+                    <span class="s1">&#39;train_disc_trained_frac&#39;</span><span class="p">,</span>
+                    <span class="n">update_frac</span><span class="o">=</span><span class="n">adaptive_update_fraction</span><span class="p">,</span>
+                    <span class="n">update_bounds</span><span class="o">=</span><span class="n">adaptive_update_bounds</span><span class="p">)</span>
+                <span class="n">weight_gen_advers</span> <span class="o">*=</span> <span class="n">update_frac</span>
+
+            <span class="k">if</span> <span class="n">update_frac</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s1">&#39;New discriminator weight: </span><span class="si">{</span><span class="n">weight_gen_advers</span><span class="si">:</span><span class="s1">.4e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">weight_gen_advers</span></div>
+
+
+<div class="viewcode-block" id="Sup3rGan.train">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.models.base.Sup3rGan.html#sup3r.models.base.Sup3rGan.train">[docs]</a>
+    <span class="k">def</span> <span class="nf">train</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+              <span class="n">batch_handler</span><span class="p">,</span>
+              <span class="n">input_resolution</span><span class="p">,</span>
+              <span class="n">n_epoch</span><span class="p">,</span>
+              <span class="n">weight_gen_advers</span><span class="o">=</span><span class="mf">0.001</span><span class="p">,</span>
+              <span class="n">train_gen</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+              <span class="n">train_disc</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+              <span class="n">disc_loss_bounds</span><span class="o">=</span><span class="p">(</span><span class="mf">0.45</span><span class="p">,</span> <span class="mf">0.6</span><span class="p">),</span>
+              <span class="n">checkpoint_int</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+              <span class="n">out_dir</span><span class="o">=</span><span class="s1">&#39;./gan_</span><span class="si">{epoch}</span><span class="s1">&#39;</span><span class="p">,</span>
+              <span class="n">early_stop_on</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+              <span class="n">early_stop_threshold</span><span class="o">=</span><span class="mf">0.005</span><span class="p">,</span>
+              <span class="n">early_stop_n_epoch</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+              <span class="n">adaptive_update_bounds</span><span class="o">=</span><span class="p">(</span><span class="mf">0.9</span><span class="p">,</span> <span class="mf">0.99</span><span class="p">),</span>
+              <span class="n">adaptive_update_fraction</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+              <span class="n">multi_gpu</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Train the GAN model on real low res data and real high res data</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        batch_handler : sup3r.data_handling.preprocessing.BatchHandler</span>
+<span class="sd">            BatchHandler object to iterate through</span>
+<span class="sd">        input_resolution : dict</span>
+<span class="sd">            Dictionary specifying spatiotemporal input resolution. e.g.</span>
+<span class="sd">            {&#39;temporal&#39;: &#39;60min&#39;, &#39;spatial&#39;: &#39;30km&#39;}</span>
+<span class="sd">        n_epoch : int</span>
+<span class="sd">            Number of epochs to train on</span>
+<span class="sd">        weight_gen_advers : float</span>
+<span class="sd">            Weight factor for the adversarial loss component of the generator</span>
+<span class="sd">            vs. the discriminator.</span>
+<span class="sd">        train_gen : bool</span>
+<span class="sd">            Flag whether to train the generator for this set of epochs</span>
+<span class="sd">        train_disc : bool</span>
+<span class="sd">            Flag whether to train the discriminator for this set of epochs</span>
+<span class="sd">        disc_loss_bounds : tuple</span>
+<span class="sd">            Lower and upper bounds for the discriminator loss outside of which</span>
+<span class="sd">            the discriminator will not train unless train_disc=True and</span>
+<span class="sd">            train_gen=False.</span>
+<span class="sd">        checkpoint_int : int | None</span>
+<span class="sd">            Epoch interval at which to save checkpoint models.</span>
+<span class="sd">        out_dir : str</span>
+<span class="sd">            Directory to save checkpoint GAN models. Should have {epoch} in</span>
+<span class="sd">            the directory name. This directory will be created if it does not</span>
+<span class="sd">            already exist.</span>
+<span class="sd">        early_stop_on : str | None</span>
+<span class="sd">            If not None, this should be a column in the training history to</span>
+<span class="sd">            evaluate for early stopping (e.g. validation_loss_gen,</span>
+<span class="sd">            validation_loss_disc). If this value in this history decreases by</span>
+<span class="sd">            an absolute fractional relative difference of less than 0.01 for</span>
+<span class="sd">            more than 5 epochs in a row, the training will stop early.</span>
+<span class="sd">        early_stop_threshold : float</span>
+<span class="sd">            The absolute relative fractional difference in validation loss</span>
+<span class="sd">            between subsequent epochs below which an early termination is</span>
+<span class="sd">            warranted. E.g. if val losses were 0.1 and 0.0998 the relative</span>
+<span class="sd">            diff would be calculated as 0.0002 / 0.1 = 0.002 which would be</span>
+<span class="sd">            less than the default thresold of 0.01 and would satisfy the</span>
+<span class="sd">            condition for early termination.</span>
+<span class="sd">        early_stop_n_epoch : int</span>
+<span class="sd">            The number of consecutive epochs that satisfy the threshold that</span>
+<span class="sd">            warrants an early stop.</span>
+<span class="sd">        adaptive_update_bounds : tuple</span>
+<span class="sd">            Tuple specifying allowed range for loss_details[comparison_key]. If</span>
+<span class="sd">            history[comparison_key] &lt; threshold_range[0] then the weight will</span>
+<span class="sd">            be increased by (1 + update_frac). If history[comparison_key] &gt;</span>
+<span class="sd">            threshold_range[1] then the weight will be decreased by 1 / (1 +</span>
+<span class="sd">            update_frac).</span>
+<span class="sd">        adaptive_update_fraction : float</span>
+<span class="sd">            Amount by which to increase or decrease adversarial weights for</span>
+<span class="sd">            adaptive updates</span>
+<span class="sd">        multi_gpu : bool</span>
+<span class="sd">            Flag to break up the batch for parallel gradient descent</span>
+<span class="sd">            calculations on multiple gpus. If True and multiple GPUs are</span>
+<span class="sd">            present, each batch from the batch_handler will be divided up</span>
+<span class="sd">            between the GPUs and the resulting gradient from each GPU will</span>
+<span class="sd">            constitute a single gradient descent step with the nominal learning</span>
+<span class="sd">            rate that the model was initialized with. If true and multiple gpus</span>
+<span class="sd">            are found, default_device device should be set to /gpu:0</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_norm_stats</span><span class="p">(</span><span class="n">batch_handler</span><span class="o">.</span><span class="n">means</span><span class="p">,</span> <span class="n">batch_handler</span><span class="o">.</span><span class="n">stds</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_model_params</span><span class="p">(</span>
+            <span class="n">input_resolution</span><span class="o">=</span><span class="n">input_resolution</span><span class="p">,</span>
+            <span class="n">s_enhance</span><span class="o">=</span><span class="n">batch_handler</span><span class="o">.</span><span class="n">s_enhance</span><span class="p">,</span>
+            <span class="n">t_enhance</span><span class="o">=</span><span class="n">batch_handler</span><span class="o">.</span><span class="n">t_enhance</span><span class="p">,</span>
+            <span class="n">smoothing</span><span class="o">=</span><span class="n">batch_handler</span><span class="o">.</span><span class="n">smoothing</span><span class="p">,</span>
+            <span class="n">lr_features</span><span class="o">=</span><span class="n">batch_handler</span><span class="o">.</span><span class="n">lr_features</span><span class="p">,</span>
+            <span class="n">hr_exo_features</span><span class="o">=</span><span class="n">batch_handler</span><span class="o">.</span><span class="n">hr_exo_features</span><span class="p">,</span>
+            <span class="n">hr_out_features</span><span class="o">=</span><span class="n">batch_handler</span><span class="o">.</span><span class="n">hr_out_features</span><span class="p">,</span>
+            <span class="n">smoothed_features</span><span class="o">=</span><span class="n">batch_handler</span><span class="o">.</span><span class="n">smoothed_features</span><span class="p">)</span>
+
+        <span class="n">epochs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">n_epoch</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_history</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_history</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;elapsed_time&#39;</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_history</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;epoch&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">epochs</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_history</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
+
+        <span class="n">t0</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Training model with adversarial weight: </span><span class="si">{}</span><span class="s1"> &#39;</span>
+                    <span class="s1">&#39;for </span><span class="si">{}</span><span class="s1"> epochs starting at epoch </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">weight_gen_advers</span><span class="p">,</span> <span class="n">n_epoch</span><span class="p">,</span> <span class="n">epochs</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+
+        <span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="n">epochs</span><span class="p">:</span>
+            <span class="n">loss_details</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">train_epoch</span><span class="p">(</span><span class="n">batch_handler</span><span class="p">,</span>
+                                            <span class="n">weight_gen_advers</span><span class="p">,</span>
+                                            <span class="n">train_gen</span><span class="p">,</span>
+                                            <span class="n">train_disc</span><span class="p">,</span>
+                                            <span class="n">disc_loss_bounds</span><span class="p">,</span>
+                                            <span class="n">multi_gpu</span><span class="o">=</span><span class="n">multi_gpu</span><span class="p">)</span>
+
+            <span class="n">loss_details</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc_val_loss</span><span class="p">(</span><span class="n">batch_handler</span><span class="p">,</span> <span class="n">weight_gen_advers</span><span class="p">,</span>
+                                              <span class="n">loss_details</span><span class="p">)</span>
+
+            <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;Epoch </span><span class="si">{</span><span class="n">epoch</span><span class="si">}</span><span class="s1"> of </span><span class="si">{</span><span class="n">epochs</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s1"> &#39;</span>
+            <span class="n">msg</span> <span class="o">+=</span> <span class="s1">&#39;gen/disc train loss: </span><span class="si">{:.2e}</span><span class="s1">/</span><span class="si">{:.2e}</span><span class="s1"> &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">loss_details</span><span class="p">[</span><span class="s2">&quot;train_loss_gen&quot;</span><span class="p">],</span>
+                <span class="n">loss_details</span><span class="p">[</span><span class="s2">&quot;train_loss_disc&quot;</span><span class="p">])</span>
+
+            <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="n">loss</span> <span class="ow">in</span> <span class="n">loss_details</span>
+                   <span class="k">for</span> <span class="n">loss</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;val_loss_gen&#39;</span><span class="p">,</span> <span class="s1">&#39;val_loss_disc&#39;</span><span class="p">)):</span>
+                <span class="n">msg</span> <span class="o">+=</span> <span class="s1">&#39;gen/disc val loss: </span><span class="si">{:.2e}</span><span class="s1">/</span><span class="si">{:.2e}</span><span class="s1"> &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">loss_details</span><span class="p">[</span><span class="s2">&quot;val_loss_gen&quot;</span><span class="p">],</span>
+                    <span class="n">loss_details</span><span class="p">[</span><span class="s2">&quot;val_loss_disc&quot;</span><span class="p">])</span>
+
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+            <span class="n">lr_g</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_optimizer_config</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">optimizer</span><span class="p">)[</span><span class="s1">&#39;learning_rate&#39;</span><span class="p">]</span>
+            <span class="n">lr_d</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_optimizer_config</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">optimizer_disc</span><span class="p">)[</span><span class="s1">&#39;learning_rate&#39;</span><span class="p">]</span>
+
+            <span class="n">extras</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;weight_gen_advers&#39;</span><span class="p">:</span> <span class="n">weight_gen_advers</span><span class="p">,</span>
+                <span class="s1">&#39;disc_loss_bound_0&#39;</span><span class="p">:</span> <span class="n">disc_loss_bounds</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                <span class="s1">&#39;disc_loss_bound_1&#39;</span><span class="p">:</span> <span class="n">disc_loss_bounds</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+                <span class="s1">&#39;learning_rate_gen&#39;</span><span class="p">:</span> <span class="n">lr_g</span><span class="p">,</span>
+                <span class="s1">&#39;learning_rate_disc&#39;</span><span class="p">:</span> <span class="n">lr_d</span>
+            <span class="p">}</span>
+
+            <span class="n">weight_gen_advers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">update_adversarial_weights</span><span class="p">(</span>
+                <span class="n">loss_details</span><span class="p">,</span> <span class="n">adaptive_update_fraction</span><span class="p">,</span> <span class="n">adaptive_update_bounds</span><span class="p">,</span>
+                <span class="n">weight_gen_advers</span><span class="p">,</span> <span class="n">train_disc</span><span class="p">)</span>
+
+            <span class="n">stop</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">finish_epoch</span><span class="p">(</span><span class="n">epoch</span><span class="p">,</span>
+                                     <span class="n">epochs</span><span class="p">,</span>
+                                     <span class="n">t0</span><span class="p">,</span>
+                                     <span class="n">loss_details</span><span class="p">,</span>
+                                     <span class="n">checkpoint_int</span><span class="p">,</span>
+                                     <span class="n">out_dir</span><span class="p">,</span>
+                                     <span class="n">early_stop_on</span><span class="p">,</span>
+                                     <span class="n">early_stop_threshold</span><span class="p">,</span>
+                                     <span class="n">early_stop_n_epoch</span><span class="p">,</span>
+                                     <span class="n">extras</span><span class="o">=</span><span class="n">extras</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">stop</span><span class="p">:</span>
+                <span class="k">break</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Alliance for Sustainable Energy, LLC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

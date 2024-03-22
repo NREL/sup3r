@@ -1,0 +1,6 @@
+sup3r.utilities.utilities.invert\_pot\_temp
+===========================================
+
+.. currentmodule:: sup3r.utilities.utilities
+
+.. autofunction:: invert_pot_temp

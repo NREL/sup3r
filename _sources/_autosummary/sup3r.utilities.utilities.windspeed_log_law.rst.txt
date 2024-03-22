@@ -1,0 +1,6 @@
+sup3r.utilities.utilities.windspeed\_log\_law
+=============================================
+
+.. currentmodule:: sup3r.utilities.utilities
+
+.. autofunction:: windspeed_log_law

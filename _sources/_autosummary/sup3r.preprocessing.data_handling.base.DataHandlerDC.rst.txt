@@ -1,0 +1,129 @@
+sup3r.preprocessing.data\_handling.base.DataHandlerDC
+=====================================================
+
+.. currentmodule:: sup3r.preprocessing.data_handling.base
+
+.. autoclass:: DataHandlerDC
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~DataHandlerDC.cache_data
+      ~DataHandlerDC.cap_worker_args
+      ~DataHandlerDC.check_cached_features
+      ~DataHandlerDC.check_clear_data
+      ~DataHandlerDC.clear_data
+      ~DataHandlerDC.data_fill
+      ~DataHandlerDC.extract_feature
+      ~DataHandlerDC.get_cache_file_names
+      ~DataHandlerDC.get_capped_workers
+      ~DataHandlerDC.get_closest_lat_lon
+      ~DataHandlerDC.get_full_domain
+      ~DataHandlerDC.get_handle_features
+      ~DataHandlerDC.get_input_arrays
+      ~DataHandlerDC.get_inputs_recursive
+      ~DataHandlerDC.get_lat_lon
+      ~DataHandlerDC.get_lat_lon_df
+      ~DataHandlerDC.get_next
+      ~DataHandlerDC.get_node_cmd
+      ~DataHandlerDC.get_observation_index
+      ~DataHandlerDC.get_raster_index
+      ~DataHandlerDC.get_raw_feature_list
+      ~DataHandlerDC.get_time_index
+      ~DataHandlerDC.has_exact_feature
+      ~DataHandlerDC.has_multilevel_feature
+      ~DataHandlerDC.has_surrounding_features
+      ~DataHandlerDC.lats_are_descending
+      ~DataHandlerDC.lin_bc
+      ~DataHandlerDC.load_cached_data
+      ~DataHandlerDC.lookup
+      ~DataHandlerDC.mask_nan
+      ~DataHandlerDC.normalize
+      ~DataHandlerDC.parallel_compute
+      ~DataHandlerDC.parallel_extract
+      ~DataHandlerDC.parallel_load
+      ~DataHandlerDC.pop_old_data
+      ~DataHandlerDC.preflight
+      ~DataHandlerDC.recursive_compute
+      ~DataHandlerDC.run_all_data_init
+      ~DataHandlerDC.run_data_compute
+      ~DataHandlerDC.run_data_extraction
+      ~DataHandlerDC.run_nn_fill
+      ~DataHandlerDC.serial_compute
+      ~DataHandlerDC.serial_data_fill
+      ~DataHandlerDC.serial_extract
+      ~DataHandlerDC.source_handler
+      ~DataHandlerDC.split_data
+      ~DataHandlerDC.time_index_conflict_check
+      ~DataHandlerDC.valid_handle_features
+      ~DataHandlerDC.valid_input_features
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~DataHandlerDC.FEATURE_REGISTRY
+      ~DataHandlerDC.attrs
+      ~DataHandlerDC.cache_files
+      ~DataHandlerDC.cache_pattern
+      ~DataHandlerDC.cached_features
+      ~DataHandlerDC.compute_workers
+      ~DataHandlerDC.derive_features
+      ~DataHandlerDC.extract_features
+      ~DataHandlerDC.extract_workers
+      ~DataHandlerDC.feature_mem
+      ~DataHandlerDC.file_paths
+      ~DataHandlerDC.full_raw_lat_lon
+      ~DataHandlerDC.grid_mem
+      ~DataHandlerDC.grid_shape
+      ~DataHandlerDC.handle_features
+      ~DataHandlerDC.hr_exo_features
+      ~DataHandlerDC.hr_out_features
+      ~DataHandlerDC.input_file_info
+      ~DataHandlerDC.invert_lat
+      ~DataHandlerDC.is_time_independent
+      ~DataHandlerDC.lat_lon
+      ~DataHandlerDC.latitude
+      ~DataHandlerDC.load_workers
+      ~DataHandlerDC.longitude
+      ~DataHandlerDC.lr_features
+      ~DataHandlerDC.lr_only_features
+      ~DataHandlerDC.means
+      ~DataHandlerDC.meta
+      ~DataHandlerDC.n_tsteps
+      ~DataHandlerDC.need_full_domain
+      ~DataHandlerDC.noncached_features
+      ~DataHandlerDC.norm_workers
+      ~DataHandlerDC.raster_index
+      ~DataHandlerDC.raw_features
+      ~DataHandlerDC.raw_lat_lon
+      ~DataHandlerDC.raw_time_index
+      ~DataHandlerDC.raw_tsteps
+      ~DataHandlerDC.requested_shape
+      ~DataHandlerDC.shape
+      ~DataHandlerDC.single_ts_files
+      ~DataHandlerDC.size
+      ~DataHandlerDC.source_type
+      ~DataHandlerDC.stds
+      ~DataHandlerDC.target
+      ~DataHandlerDC.temporal_slice
+      ~DataHandlerDC.ti_workers
+      ~DataHandlerDC.time_chunk_size
+      ~DataHandlerDC.time_chunks
+      ~DataHandlerDC.time_freq_hours
+      ~DataHandlerDC.time_index
+      ~DataHandlerDC.time_index_file
+      ~DataHandlerDC.try_load
+   
+   

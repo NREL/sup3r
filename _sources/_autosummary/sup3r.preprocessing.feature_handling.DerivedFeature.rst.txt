@@ -1,0 +1,25 @@
+sup3r.preprocessing.feature\_handling.DerivedFeature
+====================================================
+
+.. currentmodule:: sup3r.preprocessing.feature_handling
+
+.. autoclass:: DerivedFeature
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~DerivedFeature.compute
+      ~DerivedFeature.inputs
+   
+   
+
+   
+   
+   

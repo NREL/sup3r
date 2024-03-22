@@ -1,0 +1,33 @@
+sup3r.preprocessing.data\_handling.exogenous\_data\_handling.ExogenousDataHandler
+=================================================================================
+
+.. currentmodule:: sup3r.preprocessing.data_handling.exogenous_data_handling
+
+.. autoclass:: ExogenousDataHandler
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~ExogenousDataHandler.get_agg_factors
+      ~ExogenousDataHandler.get_exo_data
+      ~ExogenousDataHandler.get_exo_handler
+      ~ExogenousDataHandler.input_check
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~ExogenousDataHandler.AVAILABLE_HANDLERS
+   
+   

@@ -1,0 +1,54 @@
+sup3r.pipeline.forward\_pass.ForwardPassSlicer
+==============================================
+
+.. currentmodule:: sup3r.pipeline.forward_pass
+
+.. autoclass:: ForwardPassSlicer
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~ForwardPassSlicer.get_cropped_slices
+      ~ForwardPassSlicer.get_hr_slices
+      ~ForwardPassSlicer.get_padded_slices
+      ~ForwardPassSlicer.get_spatial_slices
+      ~ForwardPassSlicer.get_temporal_slices
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~ForwardPassSlicer.chunk_lookup
+      ~ForwardPassSlicer.hr_crop_slices
+      ~ForwardPassSlicer.n_chunks
+      ~ForwardPassSlicer.n_spatial_chunks
+      ~ForwardPassSlicer.n_temporal_chunks
+      ~ForwardPassSlicer.s1_hr_slices
+      ~ForwardPassSlicer.s1_lr_pad_slices
+      ~ForwardPassSlicer.s1_lr_slices
+      ~ForwardPassSlicer.s2_hr_slices
+      ~ForwardPassSlicer.s2_lr_pad_slices
+      ~ForwardPassSlicer.s2_lr_slices
+      ~ForwardPassSlicer.s_hr_crop_slices
+      ~ForwardPassSlicer.s_hr_slices
+      ~ForwardPassSlicer.s_lr_crop_slices
+      ~ForwardPassSlicer.s_lr_pad_slices
+      ~ForwardPassSlicer.s_lr_slices
+      ~ForwardPassSlicer.spatial_chunk_lookup
+      ~ForwardPassSlicer.t_hr_crop_slices
+      ~ForwardPassSlicer.t_lr_crop_slices
+      ~ForwardPassSlicer.t_lr_pad_slices
+      ~ForwardPassSlicer.t_lr_slices
+   
+   

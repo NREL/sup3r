@@ -1,0 +1,6 @@
+sup3r.utilities.utilities.rotor\_area
+=====================================
+
+.. currentmodule:: sup3r.utilities.utilities
+
+.. autofunction:: rotor_area

@@ -1,0 +1,33 @@
+sup3r.preprocessing.batch\_handling.ValidationData
+==================================================
+
+.. currentmodule:: sup3r.preprocessing.batch_handling
+
+.. autoclass:: ValidationData
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~ValidationData.any
+      ~ValidationData.batch_next
+      ~ValidationData.get_handler_index
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~ValidationData.handler_weights
+      ~ValidationData.shape
+   
+   

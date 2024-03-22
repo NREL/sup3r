@@ -1,0 +1,35 @@
+sup3r.preprocessing.batch\_handling.ValidationDataSpatialDC
+===========================================================
+
+.. currentmodule:: sup3r.preprocessing.batch_handling
+
+.. autoclass:: ValidationDataSpatialDC
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~ValidationDataSpatialDC.any
+      ~ValidationDataSpatialDC.batch_next
+      ~ValidationDataSpatialDC.get_handler_index
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~ValidationDataSpatialDC.N_SPACE_BINS
+      ~ValidationDataSpatialDC.N_TIME_BINS
+      ~ValidationDataSpatialDC.handler_weights
+      ~ValidationDataSpatialDC.shape
+   
+   

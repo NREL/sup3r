@@ -1,0 +1,35 @@
+sup3r.preprocessing.dual\_batch\_handling.DualValidationData
+============================================================
+
+.. currentmodule:: sup3r.preprocessing.dual_batch_handling
+
+.. autoclass:: DualValidationData
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~DualValidationData.any
+      ~DualValidationData.batch_next
+      ~DualValidationData.get_handler_index
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~DualValidationData.handler_weights
+      ~DualValidationData.hr_sample_shape
+      ~DualValidationData.lr_sample_shape
+      ~DualValidationData.shape
+   
+   

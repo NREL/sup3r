@@ -1,0 +1,6 @@
+sup3r.utilities.stitching.impute\_domain
+========================================
+
+.. currentmodule:: sup3r.utilities.stitching
+
+.. autofunction:: impute_domain

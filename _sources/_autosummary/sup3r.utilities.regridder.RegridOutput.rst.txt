@@ -1,0 +1,50 @@
+sup3r.utilities.regridder.RegridOutput
+======================================
+
+.. currentmodule:: sup3r.utilities.regridder
+
+.. autoclass:: RegridOutput
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~RegridOutput.chunk_finished
+      ~RegridOutput.get_dset_attrs
+      ~RegridOutput.get_node_cmd
+      ~RegridOutput.get_time_dim_name
+      ~RegridOutput.node_finished
+      ~RegridOutput.run
+      ~RegridOutput.write_coordinates
+      ~RegridOutput.write_data
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~RegridOutput.all_finished
+      ~RegridOutput.chunks
+      ~RegridOutput.distance_chunks
+      ~RegridOutput.failed_chunks
+      ~RegridOutput.index_chunks
+      ~RegridOutput.max_memory
+      ~RegridOutput.max_nodes
+      ~RegridOutput.meta_chunks
+      ~RegridOutput.node_chunks
+      ~RegridOutput.node_files
+      ~RegridOutput.nodes
+      ~RegridOutput.out_files
+      ~RegridOutput.output_features
+      ~RegridOutput.spatial_slices
+   
+   

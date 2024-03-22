@@ -1,0 +1,6 @@
+sup3r.utilities.utilities.get\_input\_handler\_class
+====================================================
+
+.. currentmodule:: sup3r.utilities.utilities
+
+.. autofunction:: get_input_handler_class

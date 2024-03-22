@@ -1,0 +1,35 @@
+sup3r.postprocessing.file\_handling
+===================================
+
+.. automodule:: sup3r.postprocessing.file_handling
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+      :template: custom-class-template.rst
+   
+      OutputHandler
+      OutputHandlerH5
+      OutputHandlerNC
+      OutputMixIn
+      RexOutputs
+   
+   
+
+   
+   
+   
+
+
+

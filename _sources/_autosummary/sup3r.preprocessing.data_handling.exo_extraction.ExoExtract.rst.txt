@@ -1,0 +1,44 @@
+sup3r.preprocessing.data\_handling.exo\_extraction.ExoExtract
+=============================================================
+
+.. currentmodule:: sup3r.preprocessing.data_handling.exo_extraction
+
+.. autoclass:: ExoExtract
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~ExoExtract.get_cache_file
+      ~ExoExtract.get_data
+      ~ExoExtract.get_exo_raster
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~ExoExtract.data
+      ~ExoExtract.distance_upper_bound
+      ~ExoExtract.hr_lat_lon
+      ~ExoExtract.hr_shape
+      ~ExoExtract.hr_time_index
+      ~ExoExtract.lr_lat_lon
+      ~ExoExtract.lr_shape
+      ~ExoExtract.nn
+      ~ExoExtract.source_data
+      ~ExoExtract.source_lat_lon
+      ~ExoExtract.source_temporal_slice
+      ~ExoExtract.source_time_index
+      ~ExoExtract.tree
+   
+   

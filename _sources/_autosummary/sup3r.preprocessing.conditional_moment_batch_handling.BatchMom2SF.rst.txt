@@ -1,0 +1,36 @@
+sup3r.preprocessing.conditional\_moment\_batch\_handling.BatchMom2SF
+====================================================================
+
+.. currentmodule:: sup3r.preprocessing.conditional_moment_batch_handling
+
+.. autoclass:: BatchMom2SF
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~BatchMom2SF.get_coarse_batch
+      ~BatchMom2SF.make_mask
+      ~BatchMom2SF.make_output
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~BatchMom2SF.high_res
+      ~BatchMom2SF.low_res
+      ~BatchMom2SF.mask
+      ~BatchMom2SF.output
+      ~BatchMom2SF.shape
+   
+   

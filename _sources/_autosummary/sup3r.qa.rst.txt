@@ -1,0 +1,36 @@
+sup3r.qa
+========
+
+.. automodule:: sup3r.qa
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+
+.. autosummary::
+   :toctree:
+   :template: custom-module-template.rst
+   :recursive:
+
+   sup3r.qa.qa
+   sup3r.qa.qa_cli
+   sup3r.qa.stats
+   sup3r.qa.stats_cli
+   sup3r.qa.utilities
+   sup3r.qa.visual_qa
+   sup3r.qa.visual_qa_cli
+

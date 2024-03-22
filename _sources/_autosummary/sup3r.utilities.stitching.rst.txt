@@ -1,0 +1,48 @@
+sup3r.utilities.stitching
+=========================
+
+.. automodule:: sup3r.utilities.stitching
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      blend_domains
+      forward_avg
+      get_domain_region
+      get_files
+      get_handles
+      impute_domain
+      prune_levels
+      regrid_main_domain
+      stitch_and_save
+      stitch_domains
+      unstagger_vars
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+      :template: custom-class-template.rst
+   
+      Regridder
+   
+   
+
+   
+   
+   
+
+
+

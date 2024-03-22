@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>sup3r.preprocessing.data_handling.mixin.InputMixIn &mdash; sup3r 0.1.3.dev67+g986a1fe documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+      <link rel="stylesheet" type="text/css" href="../_static/tabs.css?v=a5c4661c" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=c28dfcad"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+        <script src="../_static/copybutton.js?v=f281be69"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="sup3r.preprocessing.data_handling.mixin.TrainingPrepMixIn" href="sup3r.preprocessing.data_handling.mixin.TrainingPrepMixIn.html" />
+    <link rel="prev" title="sup3r.preprocessing.data_handling.mixin.CacheHandlingMixIn" href="sup3r.preprocessing.data_handling.mixin.CacheHandlingMixIn.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            sup3r
+          </a>
+              <div class="version">
+                0.1.3.dev67+g986a1fe
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../index.html">Home page</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../misc/installation_usage.html">Installation and Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../misc/installation.html">Installation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../misc/installation.html#option-1-install-from-pip-recommended-for-analysts">Option 1: Install from PIP (recommended for analysts):</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../misc/installation.html#option-2-clone-repo-recommended-for-developers">Option 2: Clone repo (recommended for developers)</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../examples/examples.html">Examples</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../examples/sup3rcc.html">Sup3rCC Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rcc.html#sup3rcc-data-access">Sup3rCC Data Access</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rcc.html#example-sup3rcc-data-usage">Example Sup3rCC Data Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rcc.html#running-sup3rcc-models">Running Sup3rCC Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rcc.html#nuances-of-sup3rcc">Nuances of Sup3rCC</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rcc.html#sup3rcc-versions">Sup3rCC Versions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rcc.html#recommended-citation">Recommended Citation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rcc.html#acknowledgements">Acknowledgements</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../examples/sup3rwind.html">Sup3rWind Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rwind.html#sup3rwind-data-access">Sup3rWind Data Access</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rwind.html#example-sup3rwind-data-usage">Example Sup3rWind Data Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rwind.html#running-sup3rwind-models">Running Sup3rWind Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rwind.html#sup3rwind-versions">Sup3rWind Versions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rwind.html#recommended-citation">Recommended Citation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rwind.html#acknowledgements">Acknowledgements</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="sup3r.html">API reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="sup3r.batch.html">sup3r.batch</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.batch.batch_cli.html">sup3r.batch.batch_cli</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.bias.html">sup3r.bias</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.bias.bias_calc.html">sup3r.bias.bias_calc</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.bias.bias_calc.DataRetrievalBase.html">sup3r.bias.bias_calc.DataRetrievalBase</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.bias.bias_calc.LinearCorrection.html">sup3r.bias.bias_calc.LinearCorrection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.bias.bias_calc.MonthlyLinearCorrection.html">sup3r.bias.bias_calc.MonthlyLinearCorrection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.bias.bias_calc.MonthlyScalarCorrection.html">sup3r.bias.bias_calc.MonthlyScalarCorrection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.bias.bias_calc.SkillAssessment.html">sup3r.bias.bias_calc.SkillAssessment</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.bias.bias_calc_cli.html">sup3r.bias.bias_calc_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.bias.bias_calc_cli.kickoff_local_job.html">sup3r.bias.bias_calc_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.bias.bias_calc_cli.kickoff_slurm_job.html">sup3r.bias.bias_calc_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.bias.bias_correct_means.html">sup3r.bias.bias_correct_means</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.bias.bias_correct_means.BiasCorrectUpdate.html">sup3r.bias.bias_correct_means.BiasCorrectUpdate</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.bias.bias_correct_means.VortexMeanPrepper.html">sup3r.bias.bias_correct_means.VortexMeanPrepper</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.bias.bias_transforms.html">sup3r.bias.bias_transforms</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.bias.bias_transforms.get_spatial_bc_factors.html">sup3r.bias.bias_transforms.get_spatial_bc_factors</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.bias.bias_transforms.global_linear_bc.html">sup3r.bias.bias_transforms.global_linear_bc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.bias.bias_transforms.local_linear_bc.html">sup3r.bias.bias_transforms.local_linear_bc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.bias.bias_transforms.monthly_local_linear_bc.html">sup3r.bias.bias_transforms.monthly_local_linear_bc</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.cli.html">sup3r.cli</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.models.html">sup3r.models</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.abstract.html">sup3r.models.abstract</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.abstract.AbstractInterface.html">sup3r.models.abstract.AbstractInterface</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.abstract.AbstractSingleModel.html">sup3r.models.abstract.AbstractSingleModel</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.base.html">sup3r.models.base</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.base.Sup3rGan.html">sup3r.models.base.Sup3rGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.conditional_moments.html">sup3r.models.conditional_moments</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.conditional_moments.Sup3rCondMom.html">sup3r.models.conditional_moments.Sup3rCondMom</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.data_centric.html">sup3r.models.data_centric</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.data_centric.Sup3rGanDC.html">sup3r.models.data_centric.Sup3rGanDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.data_centric.Sup3rGanSpatialDC.html">sup3r.models.data_centric.Sup3rGanSpatialDC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.linear.html">sup3r.models.linear</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.linear.LinearInterp.html">sup3r.models.linear.LinearInterp</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.multi_step.html">sup3r.models.multi_step</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.multi_step.MultiStepGan.html">sup3r.models.multi_step.MultiStepGan</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.multi_step.MultiStepSurfaceMetGan.html">sup3r.models.multi_step.MultiStepSurfaceMetGan</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.multi_step.SolarMultiStepGan.html">sup3r.models.multi_step.SolarMultiStepGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.solar_cc.html">sup3r.models.solar_cc</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.solar_cc.SolarCC.html">sup3r.models.solar_cc.SolarCC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.surface.html">sup3r.models.surface</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.surface.SurfaceSpatialMetModel.html">sup3r.models.surface.SurfaceSpatialMetModel</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.pipeline.html">sup3r.pipeline</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.pipeline.forward_pass.html">sup3r.pipeline.forward_pass</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.forward_pass.ForwardPass.html">sup3r.pipeline.forward_pass.ForwardPass</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.forward_pass.ForwardPassSlicer.html">sup3r.pipeline.forward_pass.ForwardPassSlicer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.forward_pass.ForwardPassStrategy.html">sup3r.pipeline.forward_pass.ForwardPassStrategy</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.pipeline.forward_pass_cli.html">sup3r.pipeline.forward_pass_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.forward_pass_cli.kickoff_local_job.html">sup3r.pipeline.forward_pass_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.forward_pass_cli.kickoff_slurm_job.html">sup3r.pipeline.forward_pass_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.pipeline.pipeline_cli.html">sup3r.pipeline.pipeline_cli</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.postprocessing.html">sup3r.postprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.postprocessing.collection.html">sup3r.postprocessing.collection</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.collection.BaseCollector.html">sup3r.postprocessing.collection.BaseCollector</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.collection.CollectorH5.html">sup3r.postprocessing.collection.CollectorH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.collection.CollectorNC.html">sup3r.postprocessing.collection.CollectorNC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.postprocessing.data_collect_cli.html">sup3r.postprocessing.data_collect_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.data_collect_cli.kickoff_local_job.html">sup3r.postprocessing.data_collect_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.data_collect_cli.kickoff_slurm_job.html">sup3r.postprocessing.data_collect_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.postprocessing.file_handling.html">sup3r.postprocessing.file_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.file_handling.OutputHandler.html">sup3r.postprocessing.file_handling.OutputHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.file_handling.OutputHandlerH5.html">sup3r.postprocessing.file_handling.OutputHandlerH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.file_handling.OutputHandlerNC.html">sup3r.postprocessing.file_handling.OutputHandlerNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.file_handling.OutputMixIn.html">sup3r.postprocessing.file_handling.OutputMixIn</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.file_handling.RexOutputs.html">sup3r.postprocessing.file_handling.RexOutputs</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 current"><a class="reference internal" href="sup3r.preprocessing.html">sup3r.preprocessing</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="sup3r.preprocessing.batch_handling.html">sup3r.preprocessing.batch_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.Batch.html">sup3r.preprocessing.batch_handling.Batch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.BatchHandler.html">sup3r.preprocessing.batch_handling.BatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.BatchHandlerCC.html">sup3r.preprocessing.batch_handling.BatchHandlerCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.BatchHandlerDC.html">sup3r.preprocessing.batch_handling.BatchHandlerDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.BatchHandlerSpatialDC.html">sup3r.preprocessing.batch_handling.BatchHandlerSpatialDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.SpatialBatchHandler.html">sup3r.preprocessing.batch_handling.SpatialBatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC.html">sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.ValidationData.html">sup3r.preprocessing.batch_handling.ValidationData</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.ValidationDataDC.html">sup3r.preprocessing.batch_handling.ValidationDataDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.ValidationDataSpatialDC.html">sup3r.preprocessing.batch_handling.ValidationDataSpatialDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.ValidationDataTemporalDC.html">sup3r.preprocessing.batch_handling.ValidationDataTemporalDC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.html">sup3r.preprocessing.conditional_moment_batch_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1SF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2Sep.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SepSF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SepSF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1SF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2Sep.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SepSF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SepSF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1SF.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SF.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2Sep.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SepSF.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SepSF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1SF.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SF.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2Sep.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SepSF.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SepSF</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.preprocessing.data_extract_cli.html">sup3r.preprocessing.data_extract_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_extract_cli.kickoff_local_job.html">sup3r.preprocessing.data_extract_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_extract_cli.kickoff_slurm_job.html">sup3r.preprocessing.data_extract_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3 current"><a class="reference internal" href="sup3r.preprocessing.data_handling.html">sup3r.preprocessing.data_handling</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.base.html">sup3r.preprocessing.data_handling.base</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.dual_data_handling.html">sup3r.preprocessing.data_handling.dual_data_handling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.exo_extraction.html">sup3r.preprocessing.data_handling.exo_extraction</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.exogenous_data_handling.html">sup3r.preprocessing.data_handling.exogenous_data_handling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.h5_data_handling.html">sup3r.preprocessing.data_handling.h5_data_handling</a></li>
+<li class="toctree-l4 current"><a class="reference internal" href="sup3r.preprocessing.data_handling.mixin.html">sup3r.preprocessing.data_handling.mixin</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.nc_data_handling.html">sup3r.preprocessing.data_handling.nc_data_handling</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.preprocessing.dual_batch_handling.html">sup3r.preprocessing.dual_batch_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.dual_batch_handling.DualBatchHandler.html">sup3r.preprocessing.dual_batch_handling.DualBatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.dual_batch_handling.DualValidationData.html">sup3r.preprocessing.dual_batch_handling.DualValidationData</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.dual_batch_handling.SpatialDualBatchHandler.html">sup3r.preprocessing.dual_batch_handling.SpatialDualBatchHandler</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.preprocessing.feature_handling.html">sup3r.preprocessing.feature_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.BVFreqMon.html">sup3r.preprocessing.feature_handling.BVFreqMon</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.BVFreqSquaredH5.html">sup3r.preprocessing.feature_handling.BVFreqSquaredH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.BVFreqSquaredNC.html">sup3r.preprocessing.feature_handling.BVFreqSquaredNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.ClearSkyRatioCC.html">sup3r.preprocessing.feature_handling.ClearSkyRatioCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.ClearSkyRatioH5.html">sup3r.preprocessing.feature_handling.ClearSkyRatioH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.CloudMaskH5.html">sup3r.preprocessing.feature_handling.CloudMaskH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.DerivedFeature.html">sup3r.preprocessing.feature_handling.DerivedFeature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.Feature.html">sup3r.preprocessing.feature_handling.Feature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.FeatureHandler.html">sup3r.preprocessing.feature_handling.FeatureHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.InverseMonNC.html">sup3r.preprocessing.feature_handling.InverseMonNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.LatLonH5.html">sup3r.preprocessing.feature_handling.LatLonH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.LatLonNC.html">sup3r.preprocessing.feature_handling.LatLonNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.PotentialTempNC.html">sup3r.preprocessing.feature_handling.PotentialTempNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.PressureNC.html">sup3r.preprocessing.feature_handling.PressureNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.Rews.html">sup3r.preprocessing.feature_handling.Rews</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.Shear.html">sup3r.preprocessing.feature_handling.Shear</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.Tas.html">sup3r.preprocessing.feature_handling.Tas</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.TasMax.html">sup3r.preprocessing.feature_handling.TasMax</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.TasMin.html">sup3r.preprocessing.feature_handling.TasMin</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.TempNC.html">sup3r.preprocessing.feature_handling.TempNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.TempNCforCC.html">sup3r.preprocessing.feature_handling.TempNCforCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.TopoH5.html">sup3r.preprocessing.feature_handling.TopoH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.UWind.html">sup3r.preprocessing.feature_handling.UWind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.UWindPowerLaw.html">sup3r.preprocessing.feature_handling.UWindPowerLaw</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.VWind.html">sup3r.preprocessing.feature_handling.VWind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.VWindPowerLaw.html">sup3r.preprocessing.feature_handling.VWindPowerLaw</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.Veer.html">sup3r.preprocessing.feature_handling.Veer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.Vorticity.html">sup3r.preprocessing.feature_handling.Vorticity</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.WinddirectionNC.html">sup3r.preprocessing.feature_handling.WinddirectionNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.WindspeedNC.html">sup3r.preprocessing.feature_handling.WindspeedNC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.preprocessing.wind_conditional_moment_batch_handling.html">sup3r.preprocessing.wind_conditional_moment_batch_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.wind_conditional_moment_batch_handling.ValidationDataWindMom1SF.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.ValidationDataWindMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.wind_conditional_moment_batch_handling.ValidationDataWindMom2.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.ValidationDataWindMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.wind_conditional_moment_batch_handling.ValidationDataWindMom2SF.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.ValidationDataWindMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.wind_conditional_moment_batch_handling.ValidationDataWindMom2Sep.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.ValidationDataWindMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.wind_conditional_moment_batch_handling.ValidationDataWindMom2SepSF.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.ValidationDataWindMom2SepSF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchHandlerMom1.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchHandlerMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchHandlerMom1SF.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchHandlerMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchHandlerMom2.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchHandlerMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchHandlerMom2SF.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchHandlerMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchHandlerMom2Sep.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchHandlerMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchHandlerMom2SepSF.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchHandlerMom2SepSF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchMom1.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchMom1SF.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchMom2.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchMom2SF.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchMom2Sep.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchMom2SepSF.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.WindBatchMom2SepSF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.wind_conditional_moment_batch_handling.WindSpatialBatchHandlerMom1.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.WindSpatialBatchHandlerMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.wind_conditional_moment_batch_handling.WindSpatialBatchHandlerMom1SF.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.WindSpatialBatchHandlerMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.wind_conditional_moment_batch_handling.WindSpatialBatchHandlerMom2.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.WindSpatialBatchHandlerMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.wind_conditional_moment_batch_handling.WindSpatialBatchHandlerMom2SF.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.WindSpatialBatchHandlerMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.wind_conditional_moment_batch_handling.WindSpatialBatchHandlerMom2Sep.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.WindSpatialBatchHandlerMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.wind_conditional_moment_batch_handling.WindSpatialBatchHandlerMom2SepSF.html">sup3r.preprocessing.wind_conditional_moment_batch_handling.WindSpatialBatchHandlerMom2SepSF</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.qa.html">sup3r.qa</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.qa.qa.html">sup3r.qa.qa</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.qa.qa.Sup3rQa.html">sup3r.qa.qa.Sup3rQa</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.qa.qa_cli.html">sup3r.qa.qa_cli</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.qa.stats.html">sup3r.qa.stats</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.qa.stats.Sup3rStatsBase.html">sup3r.qa.stats.Sup3rStatsBase</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.qa.stats.Sup3rStatsCompute.html">sup3r.qa.stats.Sup3rStatsCompute</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.qa.stats.Sup3rStatsMulti.html">sup3r.qa.stats.Sup3rStatsMulti</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.qa.stats.Sup3rStatsSingle.html">sup3r.qa.stats.Sup3rStatsSingle</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.qa.stats_cli.html">sup3r.qa.stats_cli</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.qa.utilities.html">sup3r.qa.utilities</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.qa.utilities.continuous_dist.html">sup3r.qa.utilities.continuous_dist</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.qa.utilities.direct_dist.html">sup3r.qa.utilities.direct_dist</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.qa.utilities.frequency_spectrum.html">sup3r.qa.utilities.frequency_spectrum</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.qa.utilities.gradient_dist.html">sup3r.qa.utilities.gradient_dist</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.qa.utilities.time_derivative_dist.html">sup3r.qa.utilities.time_derivative_dist</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.qa.utilities.tke_frequency_spectrum.html">sup3r.qa.utilities.tke_frequency_spectrum</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.qa.utilities.tke_wavenumber_spectrum.html">sup3r.qa.utilities.tke_wavenumber_spectrum</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.qa.utilities.wavenumber_spectrum.html">sup3r.qa.utilities.wavenumber_spectrum</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.qa.visual_qa.html">sup3r.qa.visual_qa</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.qa.visual_qa.Sup3rVisualQa.html">sup3r.qa.visual_qa.Sup3rVisualQa</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.qa.visual_qa_cli.html">sup3r.qa.visual_qa_cli</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.solar.html">sup3r.solar</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.solar.solar.html">sup3r.solar.solar</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.solar.solar.Solar.html">sup3r.solar.solar.Solar</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.solar.solar_cli.html">sup3r.solar.solar_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.solar.solar_cli.kickoff_local_job.html">sup3r.solar.solar_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.solar.solar_cli.kickoff_slurm_job.html">sup3r.solar.solar_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.utilities.html">sup3r.utilities</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.ModuleName.html">sup3r.utilities.ModuleName</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.ModuleName.html#sup3r.utilities.ModuleName"><code class="docutils literal notranslate"><span class="pre">ModuleName</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.cli.html">sup3r.utilities.cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.cli.BaseCLI.html">sup3r.utilities.cli.BaseCLI</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.cli.SlurmManager.html">sup3r.utilities.cli.SlurmManager</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.era_downloader.html">sup3r.utilities.era_downloader</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.era_downloader.EraDownloader.html">sup3r.utilities.era_downloader.EraDownloader</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.execution.html">sup3r.utilities.execution</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.execution.DistributedProcess.html">sup3r.utilities.execution.DistributedProcess</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.interpolate_log_profile.html">sup3r.utilities.interpolate_log_profile</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.interpolate_log_profile.LogLinInterpolator.html">sup3r.utilities.interpolate_log_profile.LogLinInterpolator</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.interpolation.html">sup3r.utilities.interpolation</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.interpolation.Interpolator.html">sup3r.utilities.interpolation.Interpolator</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.loss_metrics.html">sup3r.utilities.loss_metrics</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.gaussian_kernel.html">sup3r.utilities.loss_metrics.gaussian_kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.CoarseMseLoss.html">sup3r.utilities.loss_metrics.CoarseMseLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.ExpLoss.html">sup3r.utilities.loss_metrics.ExpLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.LowResLoss.html">sup3r.utilities.loss_metrics.LowResLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.MaterialDerivativeLoss.html">sup3r.utilities.loss_metrics.MaterialDerivativeLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.MmdLoss.html">sup3r.utilities.loss_metrics.MmdLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.MmdMseLoss.html">sup3r.utilities.loss_metrics.MmdMseLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.MseExpLoss.html">sup3r.utilities.loss_metrics.MseExpLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.SpatialExtremesLoss.html">sup3r.utilities.loss_metrics.SpatialExtremesLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.SpatialExtremesOnlyLoss.html">sup3r.utilities.loss_metrics.SpatialExtremesOnlyLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.SpatialFftOnlyLoss.html">sup3r.utilities.loss_metrics.SpatialFftOnlyLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.SpatiotemporalExtremesLoss.html">sup3r.utilities.loss_metrics.SpatiotemporalExtremesLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.SpatiotemporalFftOnlyLoss.html">sup3r.utilities.loss_metrics.SpatiotemporalFftOnlyLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.StExtremesFftLoss.html">sup3r.utilities.loss_metrics.StExtremesFftLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.TemporalExtremesLoss.html">sup3r.utilities.loss_metrics.TemporalExtremesLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.TemporalExtremesOnlyLoss.html">sup3r.utilities.loss_metrics.TemporalExtremesOnlyLoss</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.plotting.html">sup3r.utilities.plotting</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.plotting.ax_plot_legend.html">sup3r.utilities.plotting.ax_plot_legend</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.plotting.ax_pretty_labels.html">sup3r.utilities.plotting.ax_pretty_labels</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.plotting.make_movie.html">sup3r.utilities.plotting.make_movie</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.plotting.plot_legend.html">sup3r.utilities.plotting.plot_legend</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.plotting.plot_multi_contour.html">sup3r.utilities.plotting.plot_multi_contour</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.plotting.plot_single_contour.html">sup3r.utilities.plotting.plot_single_contour</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.plotting.pretty_labels.html">sup3r.utilities.plotting.pretty_labels</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.pytest.html">sup3r.utilities.pytest</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.pytest.make_fake_cs_ratio_files.html">sup3r.utilities.pytest.make_fake_cs_ratio_files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.pytest.make_fake_era_files.html">sup3r.utilities.pytest.make_fake_era_files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.pytest.make_fake_h5_chunks.html">sup3r.utilities.pytest.make_fake_h5_chunks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.pytest.make_fake_multi_time_nc_files.html">sup3r.utilities.pytest.make_fake_multi_time_nc_files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.pytest.make_fake_nc_files.html">sup3r.utilities.pytest.make_fake_nc_files</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.regridder.html">sup3r.utilities.regridder</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.regridder.RegridOutput.html">sup3r.utilities.regridder.RegridOutput</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.regridder.Regridder.html">sup3r.utilities.regridder.Regridder</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.regridder.WindRegridder.html">sup3r.utilities.regridder.WindRegridder</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.regridder_cli.html">sup3r.utilities.regridder_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.regridder_cli.kickoff_local_job.html">sup3r.utilities.regridder_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.regridder_cli.kickoff_slurm_job.html">sup3r.utilities.regridder_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.stitching.html">sup3r.utilities.stitching</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.stitching.blend_domains.html">sup3r.utilities.stitching.blend_domains</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.stitching.forward_avg.html">sup3r.utilities.stitching.forward_avg</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.stitching.get_domain_region.html">sup3r.utilities.stitching.get_domain_region</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.stitching.get_files.html">sup3r.utilities.stitching.get_files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.stitching.get_handles.html">sup3r.utilities.stitching.get_handles</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.stitching.impute_domain.html">sup3r.utilities.stitching.impute_domain</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.stitching.prune_levels.html">sup3r.utilities.stitching.prune_levels</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.stitching.regrid_main_domain.html">sup3r.utilities.stitching.regrid_main_domain</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.stitching.stitch_and_save.html">sup3r.utilities.stitching.stitch_and_save</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.stitching.stitch_domains.html">sup3r.utilities.stitching.stitch_domains</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.stitching.unstagger_vars.html">sup3r.utilities.stitching.unstagger_vars</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.stitching.Regridder.html">sup3r.utilities.stitching.Regridder</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.utilities.html">sup3r.utilities.utilities</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.bvf_squared.html">sup3r.utilities.utilities.bvf_squared</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.correct_path.html">sup3r.utilities.utilities.correct_path</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.daily_temporal_coarsening.html">sup3r.utilities.utilities.daily_temporal_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.daily_time_sampler.html">sup3r.utilities.utilities.daily_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.estimate_max_workers.html">sup3r.utilities.utilities.estimate_max_workers</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.forward_average.html">sup3r.utilities.utilities.forward_average</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.generate_random_string.html">sup3r.utilities.utilities.generate_random_string</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.get_chunk_slices.html">sup3r.utilities.utilities.get_chunk_slices</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.get_input_handler_class.html">sup3r.utilities.utilities.get_input_handler_class</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.get_raster_shape.html">sup3r.utilities.utilities.get_raster_shape</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.get_source_type.html">sup3r.utilities.utilities.get_source_type</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.get_time_dim_name.html">sup3r.utilities.utilities.get_time_dim_name</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.get_wrf_date_range.html">sup3r.utilities.utilities.get_wrf_date_range</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.gradient_richardson_number.html">sup3r.utilities.utilities.gradient_richardson_number</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.ignore_case_path_fetch.html">sup3r.utilities.utilities.ignore_case_path_fetch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.inverse_mo_length.html">sup3r.utilities.utilities.inverse_mo_length</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.invert_pot_temp.html">sup3r.utilities.utilities.invert_pot_temp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.invert_uv.html">sup3r.utilities.utilities.invert_uv</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.lat_lon_coarsening.html">sup3r.utilities.utilities.lat_lon_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.nn_fill_array.html">sup3r.utilities.utilities.nn_fill_array</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.np_to_pd_times.html">sup3r.utilities.utilities.np_to_pd_times</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.nsrdb_reduce_daily_data.html">sup3r.utilities.utilities.nsrdb_reduce_daily_data</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.nsrdb_sub_daily_sampler.html">sup3r.utilities.utilities.nsrdb_sub_daily_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.pd_date_range.html">sup3r.utilities.utilities.pd_date_range</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.potential_temperature.html">sup3r.utilities.utilities.potential_temperature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.potential_temperature_average.html">sup3r.utilities.utilities.potential_temperature_average</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.potential_temperature_difference.html">sup3r.utilities.utilities.potential_temperature_difference</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.rotor_area.html">sup3r.utilities.utilities.rotor_area</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.rotor_equiv_ws.html">sup3r.utilities.utilities.rotor_equiv_ws</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.round_array.html">sup3r.utilities.utilities.round_array</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.smooth_data.html">sup3r.utilities.utilities.smooth_data</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.spatial_coarsening.html">sup3r.utilities.utilities.spatial_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.spatial_simple_enhancing.html">sup3r.utilities.utilities.spatial_simple_enhancing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.st_interp.html">sup3r.utilities.utilities.st_interp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.temporal_coarsening.html">sup3r.utilities.utilities.temporal_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.temporal_simple_enhancing.html">sup3r.utilities.utilities.temporal_simple_enhancing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.transform_rotate_wind.html">sup3r.utilities.utilities.transform_rotate_wind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.uniform_box_sampler.html">sup3r.utilities.utilities.uniform_box_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.uniform_time_sampler.html">sup3r.utilities.utilities.uniform_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.vorticity_calc.html">sup3r.utilities.utilities.vorticity_calc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.weighted_box_sampler.html">sup3r.utilities.utilities.weighted_box_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.weighted_time_sampler.html">sup3r.utilities.utilities.weighted_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.windspeed_log_law.html">sup3r.utilities.utilities.windspeed_log_law</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../_cli/cli.html">CLI reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_cli/sup3r.html">sup3r</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-batch">batch</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-bias-calc">bias-calc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-data-collect">data-collect</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-data-extract">data-extract</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-forward-pass">forward-pass</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-pipeline">pipeline</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-qa">qa</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-regrid">regrid</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-solar">solar</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-stats">stats</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-visual-qa">visual-qa</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">sup3r</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="sup3r.html">sup3r</a></li>
+          <li class="breadcrumb-item"><a href="sup3r.preprocessing.html">sup3r.preprocessing</a></li>
+          <li class="breadcrumb-item"><a href="sup3r.preprocessing.data_handling.html">sup3r.preprocessing.data_handling</a></li>
+          <li class="breadcrumb-item"><a href="sup3r.preprocessing.data_handling.mixin.html">sup3r.preprocessing.data_handling.mixin</a></li>
+      <li class="breadcrumb-item active">sup3r.preprocessing.data_handling.mixin.InputMixIn</li>
+      <li class="wy-breadcrumbs-aside">
+              <a href="https://github.com/nrel/sup3r/blob/main/docs/source/_autosummary/sup3r.preprocessing.data_handling.mixin.InputMixIn.rst" class="fa fa-github"> Edit on GitHub</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="sup3r-preprocessing-data-handling-mixin-inputmixin">
+<h1>sup3r.preprocessing.data_handling.mixin.InputMixIn<a class="headerlink" href="#sup3r-preprocessing-data-handling-mixin-inputmixin" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.mixin.InputMixIn">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">InputMixIn</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">target</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shape</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raster_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raster_index</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">temporal_slice</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">slice(None,</span> <span class="pre">None,</span> <span class="pre">1)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">res_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/preprocessing/data_handling/mixin.html#InputMixIn"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="sup3r.preprocessing.data_handling.mixin.CacheHandlingMixIn.html#sup3r.preprocessing.data_handling.mixin.CacheHandlingMixIn" title="sup3r.preprocessing.data_handling.mixin.CacheHandlingMixIn"><code class="xref py py-class docutils literal notranslate"><span class="pre">CacheHandlingMixIn</span></code></a></p>
+<p>MixIn class with properties and methods for handling the spatiotemporal
+data domain to extract from source data.</p>
+<p>Provide properties of the spatiotemporal data domain</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>target</strong> (<em>tuple</em>) – (lat, lon) lower left corner of raster. Either need target+shape or
+raster_file.</p></li>
+<li><p><strong>shape</strong> (<em>tuple</em>) – (rows, cols) grid size. Either need target+shape or raster_file.</p></li>
+<li><p><strong>raster_file</strong> (<em>str | None</em>) – File for raster_index array for the corresponding target and shape.
+If specified the raster_index will be loaded from the file if it
+exists or written to the file if it does not yet exist. If None and
+raster_index is not provided raster_index will be calculated
+directly. Either need target+shape, raster_file, or raster_index
+input.</p></li>
+<li><p><strong>raster_index</strong> (<em>list</em>) – List of tuples or slices. Used as an alternative to computing the
+raster index from target+shape or loading the raster index from
+file</p></li>
+<li><p><strong>temporal_slice</strong> (<em>slice</em>) – Slice specifying extent and step of temporal extraction. e.g.
+slice(start, stop, time_pruning). If equal to slice(None, None, 1)
+the full time dimension is selected.</p></li>
+<li><p><strong>res_kwargs</strong> (<em>dict | None</em>) – Dictionary of kwargs to pass to xarray.open_mfdataset.</p></li>
+</ul>
+</dd>
+</dl>
+<p class="rubric">Methods</p>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.cap_worker_args" title="sup3r.preprocessing.data_handling.mixin.InputMixIn.cap_worker_args"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cap_worker_args</span></code></a>(max_workers)</p></td>
+<td><p>Cap all workers args by max_workers</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.check_cached_features" title="sup3r.preprocessing.data_handling.mixin.InputMixIn.check_cached_features"><code class="xref py py-obj docutils literal notranslate"><span class="pre">check_cached_features</span></code></a>(features[, ...])</p></td>
+<td><p>Check which features have been cached and check flags to determine whether to load or extract this features again</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.get_cache_file_names" title="sup3r.preprocessing.data_handling.mixin.InputMixIn.get_cache_file_names"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_cache_file_names</span></code></a>(cache_pattern[, ...])</p></td>
+<td><p>Get names of cache files from cache_pattern and feature names</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.get_capped_workers" title="sup3r.preprocessing.data_handling.mixin.InputMixIn.get_capped_workers"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_capped_workers</span></code></a>(max_workers_cap, max_workers)</p></td>
+<td><p>Get max number of workers for a given job.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.get_full_domain" title="sup3r.preprocessing.data_handling.mixin.InputMixIn.get_full_domain"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_full_domain</span></code></a>(file_paths)</p></td>
+<td><p>Get full lat/lon grid for when target + shape are not specified</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.get_lat_lon" title="sup3r.preprocessing.data_handling.mixin.InputMixIn.get_lat_lon"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_lat_lon</span></code></a>(file_paths, raster_index[, ...])</p></td>
+<td><p>Get lat/lon grid for requested target and shape</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.get_time_index" title="sup3r.preprocessing.data_handling.mixin.InputMixIn.get_time_index"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_time_index</span></code></a>(file_paths[, max_workers])</p></td>
+<td><p>Get raw time index for source data</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.lats_are_descending" title="sup3r.preprocessing.data_handling.mixin.InputMixIn.lats_are_descending"><code class="xref py py-obj docutils literal notranslate"><span class="pre">lats_are_descending</span></code></a>(lat_lon)</p></td>
+<td><p>Check if latitudes are in descending order (i.e. the target coordinate is already at the bottom left corner).</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.parallel_load" title="sup3r.preprocessing.data_handling.mixin.InputMixIn.parallel_load"><code class="xref py py-obj docutils literal notranslate"><span class="pre">parallel_load</span></code></a>(data, cache_files, features[, ...])</p></td>
+<td><p>Load feature data in parallel</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.time_index_conflict_check" title="sup3r.preprocessing.data_handling.mixin.InputMixIn.time_index_conflict_check"><code class="xref py py-obj docutils literal notranslate"><span class="pre">time_index_conflict_check</span></code></a>()</p></td>
+<td><p>Check if the number of input files and the length of the time index is the same</p></td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Attributes</p>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.cache_files" title="sup3r.preprocessing.data_handling.mixin.InputMixIn.cache_files"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cache_files</span></code></a></p></td>
+<td><p>Cache files for storing extracted data</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.cache_pattern" title="sup3r.preprocessing.data_handling.mixin.InputMixIn.cache_pattern"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cache_pattern</span></code></a></p></td>
+<td><p>Get correct cache file pattern for formatting.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.cached_features" title="sup3r.preprocessing.data_handling.mixin.InputMixIn.cached_features"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cached_features</span></code></a></p></td>
+<td><p>List of features which have been requested but have been determined not to need extraction.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.file_paths" title="sup3r.preprocessing.data_handling.mixin.InputMixIn.file_paths"><code class="xref py py-obj docutils literal notranslate"><span class="pre">file_paths</span></code></a></p></td>
+<td><p>Get file paths for input data</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.full_raw_lat_lon" title="sup3r.preprocessing.data_handling.mixin.InputMixIn.full_raw_lat_lon"><code class="xref py py-obj docutils literal notranslate"><span class="pre">full_raw_lat_lon</span></code></a></p></td>
+<td><p>Get the full lat/lon grid without doing any latitude inversion</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.grid_shape" title="sup3r.preprocessing.data_handling.mixin.InputMixIn.grid_shape"><code class="xref py py-obj docutils literal notranslate"><span class="pre">grid_shape</span></code></a></p></td>
+<td><p>Get shape of raster</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.input_file_info" title="sup3r.preprocessing.data_handling.mixin.InputMixIn.input_file_info"><code class="xref py py-obj docutils literal notranslate"><span class="pre">input_file_info</span></code></a></p></td>
+<td><p>Method to provide info about files in log output.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.invert_lat" title="sup3r.preprocessing.data_handling.mixin.InputMixIn.invert_lat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">invert_lat</span></code></a></p></td>
+<td><p>Whether to invert the latitude axis during data extraction.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.lat_lon" title="sup3r.preprocessing.data_handling.mixin.InputMixIn.lat_lon"><code class="xref py py-obj docutils literal notranslate"><span class="pre">lat_lon</span></code></a></p></td>
+<td><p>Lat lon grid for data in format (spatial_1, spatial_2, 2) Lat/Lon array with same ordering in last dimension.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.latitude" title="sup3r.preprocessing.data_handling.mixin.InputMixIn.latitude"><code class="xref py py-obj docutils literal notranslate"><span class="pre">latitude</span></code></a></p></td>
+<td><p>Flattened list of latitudes</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.longitude" title="sup3r.preprocessing.data_handling.mixin.InputMixIn.longitude"><code class="xref py py-obj docutils literal notranslate"><span class="pre">longitude</span></code></a></p></td>
+<td><p>Flattened list of longitudes</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.meta" title="sup3r.preprocessing.data_handling.mixin.InputMixIn.meta"><code class="xref py py-obj docutils literal notranslate"><span class="pre">meta</span></code></a></p></td>
+<td><p>Meta dataframe with coordinates.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.need_full_domain" title="sup3r.preprocessing.data_handling.mixin.InputMixIn.need_full_domain"><code class="xref py py-obj docutils literal notranslate"><span class="pre">need_full_domain</span></code></a></p></td>
+<td><p>Check whether we need to get the full lat/lon grid to determine target and shape values</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.noncached_features" title="sup3r.preprocessing.data_handling.mixin.InputMixIn.noncached_features"><code class="xref py py-obj docutils literal notranslate"><span class="pre">noncached_features</span></code></a></p></td>
+<td><p>Get list of features needing extraction or derivation</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.raw_lat_lon" title="sup3r.preprocessing.data_handling.mixin.InputMixIn.raw_lat_lon"><code class="xref py py-obj docutils literal notranslate"><span class="pre">raw_lat_lon</span></code></a></p></td>
+<td><p>Lat lon grid for data in format (spatial_1, spatial_2, 2) Lat/Lon array with same ordering in last dimension.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.raw_time_index" title="sup3r.preprocessing.data_handling.mixin.InputMixIn.raw_time_index"><code class="xref py py-obj docutils literal notranslate"><span class="pre">raw_time_index</span></code></a></p></td>
+<td><p>Time index for input data without time pruning.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.raw_tsteps" title="sup3r.preprocessing.data_handling.mixin.InputMixIn.raw_tsteps"><code class="xref py py-obj docutils literal notranslate"><span class="pre">raw_tsteps</span></code></a></p></td>
+<td><p>Get number of time steps for all input files</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.single_ts_files" title="sup3r.preprocessing.data_handling.mixin.InputMixIn.single_ts_files"><code class="xref py py-obj docutils literal notranslate"><span class="pre">single_ts_files</span></code></a></p></td>
+<td><p>Check if there is a file for each time step, in which case we can send a subset of files to the data handler according to ti_pad_slice</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.source_type" title="sup3r.preprocessing.data_handling.mixin.InputMixIn.source_type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">source_type</span></code></a></p></td>
+<td><p>Get data type for source files.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.target" title="sup3r.preprocessing.data_handling.mixin.InputMixIn.target"><code class="xref py py-obj docutils literal notranslate"><span class="pre">target</span></code></a></p></td>
+<td><p>Get lower left corner of raster</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.temporal_slice" title="sup3r.preprocessing.data_handling.mixin.InputMixIn.temporal_slice"><code class="xref py py-obj docutils literal notranslate"><span class="pre">temporal_slice</span></code></a></p></td>
+<td><p>Get temporal range to extract from full dataset</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.ti_workers" title="sup3r.preprocessing.data_handling.mixin.InputMixIn.ti_workers"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ti_workers</span></code></a></p></td>
+<td><p>Get max number of workers for computing time index</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.time_freq_hours" title="sup3r.preprocessing.data_handling.mixin.InputMixIn.time_freq_hours"><code class="xref py py-obj docutils literal notranslate"><span class="pre">time_freq_hours</span></code></a></p></td>
+<td><p>Get the time frequency in hours as a float</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.time_index" title="sup3r.preprocessing.data_handling.mixin.InputMixIn.time_index"><code class="xref py py-obj docutils literal notranslate"><span class="pre">time_index</span></code></a></p></td>
+<td><p>Time index for input data with time pruning.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.time_index_file" title="sup3r.preprocessing.data_handling.mixin.InputMixIn.time_index_file"><code class="xref py py-obj docutils literal notranslate"><span class="pre">time_index_file</span></code></a></p></td>
+<td><p>Get time index file path</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.try_load" title="sup3r.preprocessing.data_handling.mixin.InputMixIn.try_load"><code class="xref py py-obj docutils literal notranslate"><span class="pre">try_load</span></code></a></p></td>
+<td><p>Check if we should try to load cache</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.mixin.InputMixIn.raw_tsteps">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">raw_tsteps</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.raw_tsteps" title="Link to this definition"></a></dt>
+<dd><p>Get number of time steps for all input files</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.mixin.InputMixIn.single_ts_files">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">single_ts_files</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.single_ts_files" title="Link to this definition"></a></dt>
+<dd><p>Check if there is a file for each time step, in which case we can
+send a subset of files to the data handler according to ti_pad_slice</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.mixin.InputMixIn.get_capped_workers">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_capped_workers</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">max_workers_cap</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_workers</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/preprocessing/data_handling/mixin.html#InputMixIn.get_capped_workers"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.get_capped_workers" title="Link to this definition"></a></dt>
+<dd><p>Get max number of workers for a given job. Capped to global max
+workers if specified</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>max_workers_cap</strong> (<em>int | None</em>) – Cap for job specific max_workers</p></li>
+<li><p><strong>max_workers</strong> (<em>int | None</em>) – Job specific max_workers</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>max_workers</strong> (<em>int | None</em>) – job specific max_workers capped by max_workers_cap if provided</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.mixin.InputMixIn.cap_worker_args">
+<span class="sig-name descname"><span class="pre">cap_worker_args</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">max_workers</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/preprocessing/data_handling/mixin.html#InputMixIn.cap_worker_args"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.cap_worker_args" title="Link to this definition"></a></dt>
+<dd><p>Cap all workers args by max_workers</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.mixin.InputMixIn.get_full_domain">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_full_domain</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_paths</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/preprocessing/data_handling/mixin.html#InputMixIn.get_full_domain"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.get_full_domain" title="Link to this definition"></a></dt>
+<dd><p>Get full lat/lon grid for when target + shape are not specified</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.mixin.InputMixIn.get_lat_lon">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_lat_lon</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_paths</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raster_index</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">invert_lat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/preprocessing/data_handling/mixin.html#InputMixIn.get_lat_lon"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.get_lat_lon" title="Link to this definition"></a></dt>
+<dd><p>Get lat/lon grid for requested target and shape</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.mixin.InputMixIn.get_time_index">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_time_index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_paths</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_workers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/preprocessing/data_handling/mixin.html#InputMixIn.get_time_index"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.get_time_index" title="Link to this definition"></a></dt>
+<dd><p>Get raw time index for source data</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.mixin.InputMixIn.input_file_info">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">input_file_info</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.input_file_info" title="Link to this definition"></a></dt>
+<dd><p>Method to provide info about files in log output. Since NETCDF files
+have single time slices printing out all the file paths is just a text
+dump without much info.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>str</em> – message to append to log output that does not include a huge info
+dump of file paths</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.mixin.InputMixIn.temporal_slice">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">temporal_slice</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.temporal_slice" title="Link to this definition"></a></dt>
+<dd><p>Get temporal range to extract from full dataset</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.mixin.InputMixIn.file_paths">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">file_paths</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.file_paths" title="Link to this definition"></a></dt>
+<dd><p>Get file paths for input data</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.mixin.InputMixIn.ti_workers">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">ti_workers</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.ti_workers" title="Link to this definition"></a></dt>
+<dd><p>Get max number of workers for computing time index</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.mixin.InputMixIn.need_full_domain">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">need_full_domain</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.need_full_domain" title="Link to this definition"></a></dt>
+<dd><p>Check whether we need to get the full lat/lon grid to determine
+target and shape values</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.mixin.InputMixIn.full_raw_lat_lon">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">full_raw_lat_lon</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.full_raw_lat_lon" title="Link to this definition"></a></dt>
+<dd><p>Get the full lat/lon grid without doing any latitude inversion</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.mixin.InputMixIn.raw_lat_lon">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">raw_lat_lon</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.raw_lat_lon" title="Link to this definition"></a></dt>
+<dd><p>Lat lon grid for data in format (spatial_1, spatial_2, 2) Lat/Lon
+array with same ordering in last dimension. This returns the gid
+without any lat inversion.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>ndarray</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.mixin.InputMixIn.latitude">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">latitude</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.latitude" title="Link to this definition"></a></dt>
+<dd><p>Flattened list of latitudes</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.mixin.InputMixIn.longitude">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">longitude</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.longitude" title="Link to this definition"></a></dt>
+<dd><p>Flattened list of longitudes</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.mixin.InputMixIn.meta">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">meta</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.meta" title="Link to this definition"></a></dt>
+<dd><p>Meta dataframe with coordinates.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.mixin.InputMixIn.lat_lon">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">lat_lon</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.lat_lon" title="Link to this definition"></a></dt>
+<dd><p>Lat lon grid for data in format (spatial_1, spatial_2, 2) Lat/Lon
+array with same ordering in last dimension. This ensures that the
+lower left hand corner of the domain is given by lat_lon[-1, 0]</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>ndarray</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.mixin.InputMixIn.invert_lat">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">invert_lat</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.invert_lat" title="Link to this definition"></a></dt>
+<dd><p>Whether to invert the latitude axis during data extraction. This is
+to enforce a descending latitude ordering so that the lower left corner
+of the grid is at idx=(-1, 0) instead of idx=(0, 0)</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.mixin.InputMixIn.target">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">target</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.target" title="Link to this definition"></a></dt>
+<dd><p>Get lower left corner of raster</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>_target</strong> (<em>tuple</em>) – (lat, lon) lower left corner of raster.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.mixin.InputMixIn.lats_are_descending">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">lats_are_descending</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lat_lon</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/preprocessing/data_handling/mixin.html#InputMixIn.lats_are_descending"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.lats_are_descending" title="Link to this definition"></a></dt>
+<dd><p>Check if latitudes are in descending order (i.e. the target
+coordinate is already at the bottom left corner)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>lat_lon</strong> (<em>np.ndarray</em>) – Lat/Lon array with shape (n_lats, n_lons, 2)</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>bool</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.mixin.InputMixIn.grid_shape">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">grid_shape</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.grid_shape" title="Link to this definition"></a></dt>
+<dd><p>Get shape of raster</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>_grid_shape</strong> (<em>tuple</em>) – (rows, cols) grid size.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.mixin.InputMixIn.source_type">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">source_type</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.source_type" title="Link to this definition"></a></dt>
+<dd><p>Get data type for source files. Either nc or h5</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.mixin.InputMixIn.raw_time_index">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">raw_time_index</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.raw_time_index" title="Link to this definition"></a></dt>
+<dd><p>Time index for input data without time pruning. This is the base
+time index for the raw input data.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.mixin.InputMixIn.time_index_conflict_check">
+<span class="sig-name descname"><span class="pre">time_index_conflict_check</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/preprocessing/data_handling/mixin.html#InputMixIn.time_index_conflict_check"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.time_index_conflict_check" title="Link to this definition"></a></dt>
+<dd><p>Check if the number of input files and the length of the time index
+is the same</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.mixin.InputMixIn.time_index">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">time_index</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.time_index" title="Link to this definition"></a></dt>
+<dd><p>Time index for input data with time pruning. This is the raw time
+index with a cropped range and time step applied.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.mixin.InputMixIn.time_freq_hours">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">time_freq_hours</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.time_freq_hours" title="Link to this definition"></a></dt>
+<dd><p>Get the time frequency in hours as a float</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.mixin.InputMixIn.time_index_file">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">time_index_file</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.time_index_file" title="Link to this definition"></a></dt>
+<dd><p>Get time index file path</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.mixin.InputMixIn.cache_files">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">cache_files</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.cache_files" title="Link to this definition"></a></dt>
+<dd><p>Cache files for storing extracted data</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.mixin.InputMixIn.cache_pattern">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">cache_pattern</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.cache_pattern" title="Link to this definition"></a></dt>
+<dd><p>Get correct cache file pattern for formatting.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>_cache_pattern</strong> (<em>str</em>) – The cache file pattern with formatting keys included.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.mixin.InputMixIn.cached_features">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">cached_features</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.cached_features" title="Link to this definition"></a></dt>
+<dd><p>List of features which have been requested but have been determined
+not to need extraction. Thus they have been cached already.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.mixin.InputMixIn.check_cached_features">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">check_cached_features</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">features</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache_files</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite_cache</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">load_cached</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.check_cached_features" title="Link to this definition"></a></dt>
+<dd><p>Check which features have been cached and check flags to determine
+whether to load or extract this features again</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>features</strong> (<em>list</em>) – list of features to extract</p></li>
+<li><p><strong>cache_files</strong> (<em>list | None</em>) – Path to files with saved feature data</p></li>
+<li><p><strong>overwrite_cache</strong> (<em>bool</em>) – Whether to overwrite cached files</p></li>
+<li><p><strong>load_cached</strong> (<em>bool</em>) – Whether to load data from cache files</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>list</em> – List of features to extract. Might not include features which have
+cache files.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.mixin.InputMixIn.get_cache_file_names">
+<span class="sig-name descname"><span class="pre">get_cache_file_names</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cache_pattern</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid_shape</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_index</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">features</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.get_cache_file_names" title="Link to this definition"></a></dt>
+<dd><p>Get names of cache files from cache_pattern and feature names</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>cache_pattern</strong> (<em>str</em>) – Pattern to use for cache file names</p></li>
+<li><p><strong>grid_shape</strong> (<em>tuple</em>) – Shape of grid to use for cache file naming</p></li>
+<li><p><strong>time_index</strong> (<em>list | pd.DatetimeIndex</em>) – Time index to use for cache file naming</p></li>
+<li><p><strong>target</strong> (<em>tuple</em>) – Target to use for cache file naming</p></li>
+<li><p><strong>features</strong> (<em>list</em>) – List of features to use for cache file naming</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>list</em> – List of cache file names</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.mixin.InputMixIn.noncached_features">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">noncached_features</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.noncached_features" title="Link to this definition"></a></dt>
+<dd><p>Get list of features needing extraction or derivation</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.mixin.InputMixIn.parallel_load">
+<span class="sig-name descname"><span class="pre">parallel_load</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache_files</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">features</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_workers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.parallel_load" title="Link to this definition"></a></dt>
+<dd><p>Load feature data in parallel</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<em>ndarray</em>) – Array to fill with cached data</p></li>
+<li><p><strong>cache_files</strong> (<em>list</em>) – List of cache files for each feature</p></li>
+<li><p><strong>features</strong> (<em>list</em>) – List of requested features</p></li>
+<li><p><strong>max_workers</strong> (<em>int | None</em>) – Max number of workers to use for parallel data loading. If None
+the max number of available workers will be used.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="sup3r.preprocessing.data_handling.mixin.InputMixIn.try_load">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">try_load</span></span><a class="headerlink" href="#sup3r.preprocessing.data_handling.mixin.InputMixIn.try_load" title="Link to this definition"></a></dt>
+<dd><p>Check if we should try to load cache</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="sup3r.preprocessing.data_handling.mixin.CacheHandlingMixIn.html" class="btn btn-neutral float-left" title="sup3r.preprocessing.data_handling.mixin.CacheHandlingMixIn" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="sup3r.preprocessing.data_handling.mixin.TrainingPrepMixIn.html" class="btn btn-neutral float-right" title="sup3r.preprocessing.data_handling.mixin.TrainingPrepMixIn" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Alliance for Sustainable Energy, LLC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

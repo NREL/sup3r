@@ -1,0 +1,6 @@
+sup3r.utilities.stitching.stitch\_domains
+=========================================
+
+.. currentmodule:: sup3r.utilities.stitching
+
+.. autofunction:: stitch_domains
