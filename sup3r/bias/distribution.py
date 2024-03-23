@@ -70,6 +70,12 @@ class EmpiricalDistribution(BaseDistribution):
 
     @staticmethod
     def from_quantiles(x):
+        """
+
+        Example
+        -------
+        >>> MyDistribution = EmpiricalDistribution.from_quantiles((1,2,3,5))
+        """
         q = np.linspace(0, 1, len(x))
         return EmpiricalDistribution(quantile=tuple(q), cut_point=tuple(x))
 
