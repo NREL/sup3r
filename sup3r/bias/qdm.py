@@ -65,9 +65,9 @@ class QuantileDeltaMapping(DataRetrievalBase):
         logger.debug("Starting linear correction calculation...")
 
         logger.debug('Running serial calculation.')
-        self.NT = 51
+        self.NQ = 51
         keys = ["base_CDF", "bias_CDF", "bias_fut_CDF"]
-        self.out = {k: np.full((*self.bias_gid_raster.shape, self.NT),
+        self.out = {k: np.full((*self.bias_gid_raster.shape, self.NQ),
                                np.nan, np.float32)
                     for k in keys}
 
@@ -84,12 +84,12 @@ class QuantileDeltaMapping(DataRetrievalBase):
                 bias_fut_data = self.get_bias_data(bias_gid, self.bias_fut_dh)
                 base_data = self.get_base_data(base_gid, daily_reduction)
 
-                D_base = EmpiricalDistribution.from_fit(base_data, self.NT)
+                D_base = EmpiricalDistribution.from_fit(base_data, self.NQ)
                 self.out['base_CDF'][raster_loc] = D_base.cut_point
 
-                D_bias = EmpiricalDistribution.from_fit(bias_data, self.NT)
+                D_bias = EmpiricalDistribution.from_fit(bias_data, self.NQ)
                 self.out['bias_CDF'][raster_loc] = D_bias.cut_point
-                D_bias_fut = EmpiricalDistribution.from_fit(bias_fut_data, self.NT)
+                D_bias_fut = EmpiricalDistribution.from_fit(bias_fut_data, self.NQ)
                 self.out['bias_fut_CDF'][raster_loc] = D_bias_fut.cut_point
 
             logger.info('Completed bias calculations for {} out of {} '
