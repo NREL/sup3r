@@ -34,6 +34,16 @@ class QuantileDeltaMapping(DataRetrievalBase):
         assert np.allclose(self.bias_dh.lat_lon, self.bias_fut_dh.lat_lon)
 
 
+    def _init_out(self):
+        """Initialize output arrays"""
+        keys = [f'bias_{self.bias_feature}_CDF',
+                f'bias_fut_{self.bias_feature}_CDF',
+                f'base_{self.base_dset}_CDF',
+                ]
+        self.out = {k: np.full((*self.bias_gid_raster.shape, self.NQ),
+                               np.nan, np.float32)
+                    for k in keys}
+
     def get_base_data(self, base_gid, daily_reduction):
         """Get base data for given GID
 
