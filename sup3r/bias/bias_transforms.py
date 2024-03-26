@@ -68,6 +68,45 @@ def get_spatial_bc_factors(lat_lon, feature_name, bias_fp, threshold=0.1):
         return scalar, adder
 
 
+def get_spatial_bc_quantiles(lat_lon, feature_name, bias_fp, threshold=0.1):
+    dset_base = f'base_{feature_name}_CDF'
+    dset_bias = f'bias_{feature_name}_CDF'
+    dset_bias_fut = f'bias_fut_{feature_name}_CDF'
+    with Resource(bias_fp) as res:
+        lat = np.expand_dims(res['latitude'], axis=-1)
+        lon = np.expand_dims(res['longitude'], axis=-1)
+        lat_lon_bc = np.dstack((lat, lon))
+        diff = lat_lon_bc - lat_lon[:1, :1]
+        diff = np.hypot(diff[..., 0], diff[..., 1])
+        idy, idx = np.where(diff == diff.min())
+        slice_y = slice(idy[0], idy[0] + lat_lon.shape[0])
+        slice_x = slice(idx[0], idx[0] + lat_lon.shape[1])
+
+        if diff.min() > threshold:
+            msg = ('The DataHandler top left coordinate of {} '
+                   'appears to be {} away from the nearest '
+                   'bias correction coordinate of {} from {}. '
+                   'Cannot apply bias correction.'.format(
+                       lat_lon, diff.min(), lat_lon_bc[idy, idx],
+                       os.path.basename(bias_fp),
+                   ))
+            logger.error(msg)
+            raise RuntimeError(msg)
+
+        msg = (f'Either {dset_base} or {dset_bias} or {dset_bias_fut} not found in {bias_fp}.')
+        dsets = [dset.lower() for dset in res.dsets]
+        check = dset_scalar.lower() in dsets and dset_adder.lower() in dsets
+        assert check, msg
+        dset_scalar = res.dsets[dsets.index(dset_scalar.lower())]
+        dset_adder = res.dsets[dsets.index(dset_adder.lower())]
+
+        base = res[dset_base, slice_y, slice_x]
+        bias = res[dset_bias, slice_y, slice_x]
+        bias_fut = res[dset_bias_fut, slice_y, slice_x]
+
+        return base, bias, bias_fut
+
+
 def global_linear_bc(input, scalar, adder, out_range=None):
     """Bias correct data using a simple global *scalar +adder method.
 
