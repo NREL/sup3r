@@ -14,12 +14,12 @@ The Sup3rWind data is also loaded into `HSDS <https://www.hdfgroup.org/solutions
 Example Sup3rWind Data Usage
 -----------------------------
 
-Sup3rWind data can be used in generally the same way as `Sup3rCC <https://nrel.github.io/sup3r/examples/sup3rcc.html>_` data, with the condition that Sup3rWind includes only wind data and ancillary variables for modeling wind energy generation. Refer to the Sup3rCC example notebook `here <https://github.com/NREL/sup3r/tree/main/examples/sup3rcc/using_the_data.ipynb>`_ for usage patterns.
+Sup3rWind data can be used in generally the same way as `Sup3rCC <https://nrel.github.io/sup3r/examples/sup3rcc.html>`_ data, with the condition that Sup3rWind includes only wind data and ancillary variables for modeling wind energy generation. Refer to the Sup3rCC example notebook `here <https://github.com/NREL/sup3r/tree/main/examples/sup3rcc/using_the_data.ipynb>`_ for usage patterns.
 
 Running Sup3rWind Models
 -------------------------
 
-The process for running the Sup3rWind models is much the same as for `Sup3rCC <https://nrel.github.io/sup3r/examples/sup3rcc.html>_`.
+The process for running the Sup3rWind models is much the same as for `Sup3rCC <https://nrel.github.io/sup3r/examples/sup3rcc.html>`_.
 
 #. Download the Sup3rWind models to your hardware using the AWS CLI: ``$ aws s3 cp s3://nrel-pds-wtk/sup3rwind/models/``
 #. Download the ERA5 data that you want to downscale from `ERA5-single-levels <https://cds.climate.copernicus.eu/cdsapp#!/dataset/reanalysis-era5-single-levels?tab=overview/>`_ and/or `ERA5-pressure-levels <https://cds.climate.copernicus.eu/cdsapp#!/dataset/reanalysis-era5-pressure-levels?tab=overview/>`_.
