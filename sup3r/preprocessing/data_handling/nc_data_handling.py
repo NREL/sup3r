@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from rex import Resource
+from scipy.interpolate import interp1d
 from scipy.ndimage import gaussian_filter
 from scipy.spatial import KDTree
 from scipy.stats import mode
@@ -42,6 +43,7 @@ from sup3r.preprocessing.feature_handling import (
     WindspeedNC,
 )
 from sup3r.utilities.interpolation import Interpolator
+from sup3r.utilities.regridder import Regridder
 from sup3r.utilities.utilities import (
     estimate_max_workers,
     get_time_dim_name,
@@ -718,3 +720,87 @@ class DataHandlerNCforCCwithPowerLaw(DataHandlerNCforCC):
 
 class DataHandlerDCforNC(DataHandlerNC, DataHandlerDC):
     """Data centric data handler for NETCDF files"""
+
+
+class DataHandlerNCwithAugmentation(DataHandlerNC):
+    """DataHandler class which takes additional data handler and function type
+    to augment base data. For example, we can use this with function =
+    np.add(x, 2*y) and augment_dh holding EDA spread data to create an
+    augmented ERA5 data array representing the upper bound of the 95%
+    confidence interval."""
+
+    # pylint: disable=W0123
+    def __init__(self, *args, augment_handler_kwargs, augment_func, **kwargs):
+        """
+        Parameters
+        ----------
+        *args : list
+            Same as positional arguments of Parent class
+        augment_handler_kwargs : dict
+            Dictionary of keyword arguments passed to DataHandlerNC used to
+            initialize handler storing data used to augment base data. e.g.
+            DataHandler intialized on EDA data
+        augment_func : function
+            Function used in augmentation operation.
+            e.g. lambda x, y: np.add(x, 2 * y), used to compute upper bound
+            of 95% confidence interval: ERA5 + 2 * EDA
+        **kwargs : dict
+            Same as keyword arguments of Parent class
+        """
+        self.augment_dh = DataHandlerNC(**augment_handler_kwargs)
+        self.augment_func = (
+            augment_func if not isinstance(augment_func, str)
+            else eval(augment_func))
+
+        logger.info(
+            f"Initializing {self.__class__.__name__} with "
+            f"augment_handler_kwargs = {augment_handler_kwargs} and "
+            f"augment_func = {augment_func}"
+        )
+        super().__init__(*args, **kwargs)
+
+    def regrid_augment_data(self):
+        """Regrid augment data to match resolution of base data.
+
+        Returns
+        -------
+        out : ndarray
+            Augment data temporally interpolated and regridded to match the
+            resolution of base data.
+        """
+        time_mask = self.time_index.isin(self.augment_dh.time_index)
+        time_indices = np.arange(len(self.time_index))
+        tinterp_out = self.augment_dh.data
+        if self.augment_dh.data.shape[-2] > 1:
+            interp_func = interp1d(
+                time_indices[time_mask],
+                tinterp_out,
+                axis=-2,
+                fill_value="extrapolate",
+            )
+            tinterp_out = interp_func(time_indices)
+        regridder = Regridder(self.augment_dh.meta, self.meta)
+        out = np.zeros((*self.grid_shape, len(self.augment_dh.features)),
+                       dtype=np.float32)
+        for fidx, _ in enumerate(self.augment_dh.features):
+            out[..., fidx] = regridder(
+                tinterp_out[..., fidx]).reshape(self.grid_shape)
+        logger.info('Finished regridding augment data from '
+                    f'{self.augment_dh.data.shape} to {self.data.shape}')
+        return out
+
+    def run_all_data_init(self):
+        """Modified run_all_data_init function with augmentation operation.
+
+        Returns
+        -------
+        out : ndarray
+            Base data array augmented by data in augment_dh.
+            e.g. ERA5 +/- 2 * EDA
+        """
+        out = super().run_all_data_init()
+        base_indices = [self.features.index(feature)
+                        for feature in self.augment_dh.features]
+        out[..., base_indices] = self.augment_func(out[..., base_indices],
+                                                   self.regrid_augment_data())
+        return out

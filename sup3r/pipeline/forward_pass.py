@@ -861,11 +861,11 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
         """Get initial input handler used for extracting handler features and
         low res grid"""
         if self._init_handler is None:
-            out = self.input_handler_class(self.file_paths[0], [],
-                                           target=self.target,
-                                           shape=self.grid_shape,
-                                           worker_kwargs={"ti_workers": 1})
-            self._init_handler = out
+            kwargs = copy.deepcopy(self._input_handler_kwargs)
+            kwargs.update({'file_paths': self.file_paths[0], 'features': [],
+                           'target': self.target, 'shape': self.grid_shape,
+                           'worker_kwargs': {'ti_workers': 1}})
+            self._init_handler = self.input_handler_class(**kwargs)
         return self._init_handler
 
     @property
