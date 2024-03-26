@@ -84,6 +84,8 @@ class QuantileDeltaMapping(DataRetrievalBase):
                                np.nan, np.float32)
                     for k in keys}
 
+        # Sampling fixed to linear for now
+        self.meta["sampling"] = "linear"
         for i, bias_gid in enumerate(self.bias_meta.index):
             raster_loc = np.where(self.bias_gid_raster == bias_gid)
             _, base_gid = self.get_base_gid(bias_gid)
