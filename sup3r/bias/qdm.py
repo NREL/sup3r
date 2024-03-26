@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 class QuantileDeltaMapping(DataRetrievalBase):
     def __init__(self, base_fps, bias_fps, bias_fut_fps, *args, **kwargs):
+        self.NQ = 51
         super().__init__(base_fps, bias_fps, *args, **kwargs)
 
         self.bias_fut_fps = bias_fps
