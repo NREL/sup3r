@@ -112,7 +112,7 @@ class QuantileDeltaMapping(DataRetrievalBase):
 
             # write_outputs
             filename = 'dist.h5'
-            with h5py.File(fp_out, 'w') as f:
+            with h5py.File(filename, 'w') as f:
                 lat = self.bias_dh.lat_lon[..., 0]
                 lon = self.bias_dh.lat_lon[..., 1]
                 f.create_dataset('latitude', data=lat)
