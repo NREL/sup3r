@@ -94,3 +94,18 @@ class QuantileDeltaMapping(DataRetrievalBase):
 
             logger.info('Completed bias calculations for {} out of {} '
                             'sites'.format(i + 1, len(self.bias_meta)))
+
+            # write_outputs
+            filename = 'dist.h5'
+            with h5py.File(fp_out, 'w') as f:
+                lat = self.bias_dh.lat_lon[..., 0]
+                lon = self.bias_dh.lat_lon[..., 1]
+                f.create_dataset('latitude', data=lat)
+                f.create_dataset('longitude', data=lon)
+                for dset, data in self.out.items():
+                    f.create_dataset(dset, data=data)
+
+                for k, v in self.meta.items():
+                    f.attrs[k] = json.dumps(v)
+                logger.info(
+                    'Wrote quantiles to file: {}'.format(filename))
