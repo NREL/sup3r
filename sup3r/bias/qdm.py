@@ -78,11 +78,6 @@ class QuantileDeltaMapping(DataRetrievalBase):
         logger.debug("Starting linear correction calculation...")
 
         logger.debug('Running serial calculation.')
-        self.NQ = 51
-        keys = ["base_CDF", "bias_CDF", "bias_fut_CDF"]
-        self.out = {k: np.full((*self.bias_gid_raster.shape, self.NQ),
-                               np.nan, np.float32)
-                    for k in keys}
 
         # Sampling fixed to linear for now
         self.meta["sampling"] = "linear"
