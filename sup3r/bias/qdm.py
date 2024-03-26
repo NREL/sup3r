@@ -95,7 +95,8 @@ class QuantileDeltaMapping(DataRetrievalBase):
                 base_data = self.get_base_data(base_gid, daily_reduction)
 
                 D_base = EmpiricalDistribution.from_fit(base_data, self.NQ)
-                self.out[f'base_{self.base_dset}_CDF'][raster_loc] = D_base.cut_point
+                # self.out[f'base_{self.base_dset}_CDF'][raster_loc] = D_base.cut_point
+                self.out[f'base_{self.bias_feature}_CDF'][raster_loc] = D_base.cut_point
 
                 D_bias = EmpiricalDistribution.from_fit(bias_data, self.NQ)
                 self.out[f'bias_{self.bias_feature}_CDF'][raster_loc] = D_bias.cut_point
