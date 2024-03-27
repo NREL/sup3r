@@ -5,19 +5,19 @@ Sup3rCC Examples
 Super-Resolution for Renewable Energy Resource Data with Climate Change Impacts (Sup3rCC) is one application of the sup3r software. In this work, we train generative models to create high-resolution (4km hourly) wind, solar, and temperature data based on coarse (100km daily) global climate model data (GCM). The generative models and high-resolution output data are publicly available via the `Open Energy Data Initiative (OEDI) <https://data.openei.org/submissions/5839>`_ and via HSDS at the bucket ``nrel-pds-hsds`` and path ``/nrel/sup3rcc/``. This set of examples lays out basic ways to use the Sup3rCC models and data.
 
 Sup3rCC Data Access
-===================
+--------------------
 
-The Sup3rCC data and models are publicly available in a public AWS S3 bucket. The data files and models can be downloaded directly from there to your local machine or an EC2 instance using the `OEDI data explorer <https://data.openei.org/s3_viewer?bucket=nrel-pds-sup3rcc>`_ or the `AWS CLI <https://aws.amazon.com/cli/>`_. A word of caution: there's a lot of data here. The smallest Sup3rCC file for just a single variable is 18 GB, and a full year of data is 216 GB.
+The Sup3rCC data and models are publicly available in a public AWS S3 bucket. The data files and models can be downloaded directly from there to your local machine or an EC2 instance using the `OEDI data explorer <https://data.openei.org/s3_viewer?bucket-nrel-pds-sup3rcc>`_ or the `AWS CLI <https://aws.amazon.com/cli/>`_. A word of caution: there's a lot of data here. The smallest Sup3rCC file for just a single variable is 18 GB, and a full year of data is 216 GB.
 
 The Sup3rCC data is also loaded into `HSDS <https://www.hdfgroup.org/solutions/highly-scalable-data-service-hsds/>`_ so that you may stream the data via the `NREL developer API <https://developer.nrel.gov/signup/>`_ or your own HSDS server. This is the best option if you're not going to want the full annual dataset over the whole United States. See these `rex instructions <https://nrel.github.io/rex/misc/examples.hsds.html>`_ for more details on how to access this data with HSDS and rex.
 
 Example Sup3rCC Data Usage
-==========================
+--------------------------
 
 The jupyter notebook in this example shows some basic code to access and explore the data. You can walk through the example notebook `here <https://github.com/NREL/sup3r/tree/main/examples/sup3rcc/using_the_data.ipynb>`_. You can also clone this repo, setup a basic python environment with `rex <https://github.com/NREL/rex>`_, and run the notebook on your own.
 
 Running Sup3rCC Models
-======================
+----------------------
 
 In a first-of-a-kind data product, we have released the pre-trained Sup3rCC generative machine learning models along with the sup3r software so that anyone working at the intersection of energy and climate may create their own high-resolution renewable energy resource data from GCM input. You might want to do this if you have your own GCMs or climate scenarios that you're interested in studying.
 
@@ -37,7 +37,7 @@ To run the Sup3rCC models, follow these instructions:
 
 
 Nuances of Sup3rCC
-==================
+------------------
 
 The Sup3rCC dataset is quite unlike the legacy NREL historical wind and solar datasets. As such, we expect there will be some confusion about how to use the data. There are some nuances of the data enumerated below. If you have any questions about how to apply the Sup3rCC data to your work, please reach out to Grant Buster (Grant.Buster@nrel.gov).
 
@@ -45,13 +45,13 @@ The Sup3rCC dataset is quite unlike the legacy NREL historical wind and solar da
 #. The GCM data was bias-corrected using the NSRDB and WTK data. GCM irradiance, temperature, and humidity are bias corrected using the NSRDB for the years 2015-2021. GCM windspeeds from 2015-2021 are bias corrected using the WTK from 2007-2013 (we don't currently have modern years of high-resolution wind data). Note that temperature and humidity from the NSRDB are actually originally sourced from MERRA2, a reanalysis product. Additional bias may still exist in the high-resolution outputs and a secondary bias correction step may be valuable in downstream applications
 #. Sup3rCC data represents just one possible future climate subject to deep uncertainties. Do not use the Sup3rCC data as an accurate prediction of future weather. Some uncertanties about our future climate can be quantified by exploring a large ensemble of GCM data across multiple climate scenarios and multiple models.
 #. Sup3rCC cannot represent many meteorological events that are not skillfully represented in GCM data (e.g., hurricanes, tornadoes, mesoscale convective storms, wildfires, etc…).
-#. Sup3rCC does not currently use land use data and only understands phenomena like urban heat islands via the bias correction of the GCM data with historical reanalysis data. Application of Sup3rCC to individual cities may benefit from statistical validation using historical ground measurement data. 
+#. Sup3rCC does not currently use land use data and only understands phenomena like urban heat islands via the bias correction of the GCM data with historical reanalysis data. Application of Sup3rCC to individual cities may benefit from statistical validation using historical ground measurement data.
 
 
 Sup3rCC Versions
-================
+----------------
 
-The Sup3rCC data has versions that coincide with the sup3r software versions. Note that not every sup3r software version will have a corresponding Sup3rCC data release, but every Sup3rCC data release will have a corresponding sup3r software version. This table records versions of Sup3rCC data releases. Sup3rCC generative models may have slightly different versions than the data. The version in the Sup3rCC .h5 file attribute can be inspected to verify the actual version of the data you are using. 
+The Sup3rCC data has versions that coincide with the sup3r software versions. Note that not every sup3r software version will have a corresponding Sup3rCC data release, but every Sup3rCC data release will have a corresponding sup3r software version. This table records versions of Sup3rCC data releases. Sup3rCC generative models may have slightly different versions than the data. The version in the Sup3rCC .h5 file attribute can be inspected to verify the actual version of the data you are using.
 
 .. list-table::
     :widths: auto
@@ -65,11 +65,11 @@ The Sup3rCC data has versions that coincide with the sup3r software versions. No
       - Initial release of Sup3rCC including data based on MRI-ESM-2.0 and EC-Earth3 for the contiguous United States.
 
 Recommended Citation
-====================
+--------------------
 
 Grant Buster, Brandon Benton, Andrew Glaws, and Ryan King. "Super-Resolution for Renewable Energy Resource Data with Climate Change Impacts using Generative Machine Learning". Under review (August 2023).
 
 Acknowledgements
-================
+----------------
 
 This work was authored by the National Renewable Energy Laboratory, operated by Alliance for Sustainable Energy, LLC, for the U.S. Department of Energy (DOE) under Contract No. DE-AC36-08GO28308. Funding provided by the DOE Grid Deployment Office (GDO), the DOE Advanced Scientific Computing Research (ASCR) program, the DOE Solar Energy Technologies Office (SETO), and the Laboratory Directed Research and Development (LDRD) program at the National Renewable Energy Laboratory. The research was performed using computational resources sponsored by the DOE Office of Energy Efficiency and Renewable Energy and located at the National Renewable Energy Laboratory. The views expressed in the article do not necessarily represent the views of the DOE or the U.S. Government. The U.S. Government retains and the publisher, by accepting the article for publication, acknowledges that the U.S. Government retains a nonexclusive, paid-up, irrevocable, worldwide license to publish or reproduce the published form of this work, or allow others to do so, for U.S. Government purposes.

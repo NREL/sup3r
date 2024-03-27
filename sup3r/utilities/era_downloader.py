@@ -145,12 +145,12 @@ class EraDownloader:
         self._interp_file = None
         self._combined_file = None
         self._variables = variables
-        self.hours = self.get_hours()
         self.sfc_file_variables = ['geopotential']
         self.level_file_variables = ['geopotential']
         self.prep_var_lists(self.variables)
         self.include_reanalysis = include_reanalysis
         self.include_uncertainty = include_uncertainty
+        self.hours = self.get_hours()
 
         msg = ('Initialized EraDownloader with: '
                f'year={self.year}, month={self.month}, area={self.area}, '
