@@ -362,6 +362,11 @@ class EraDownloader:
             msg = (f'Downloading {variables} to '
                    f'{out_file} with levels = {levels}.')
             logger.info(msg)
+            product_type = []
+            if include_reanalysis:
+                product_type += ['reanalysis']
+            if include_uncertainty:
+                product_type += ['ensemble_mean, ensemble_spread']
             entry = {
                 'product_type': product_type,
                 'format': 'netcdf',
