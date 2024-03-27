@@ -141,7 +141,7 @@ class EraDownloader:
         self._interp_file = None
         self._combined_file = None
         self._variables = variables
-        self.hours = [str(n).zfill(2) + ":00" for n in range(0, 24)]
+        self.hours = self.get_hours()
         self.sfc_file_variables = ['geopotential']
         self.level_file_variables = ['geopotential']
         self.prep_var_lists(self.variables)
