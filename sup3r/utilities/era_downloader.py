@@ -95,7 +95,9 @@ class EraDownloader:
                  run_interp=True,
                  overwrite=False,
                  variables=None,
-                 check_files=False):
+                 check_files=False,
+                 include_reanalysis=True,
+                 include_uncertainty=False):
         """Initialize the class.
 
         Parameters
@@ -124,6 +126,11 @@ class EraDownloader:
             and wind components.
         check_files : bool
             Check existing files. Remove and redownload if checks fail.
+        include_reanalysis : bool
+            Whether to include ERA5 data in download, as opposed to just
+            downloading uncertainty data
+        include_uncertainty : bool
+            Whether to include EDA (ensemble mean/spread) data in download
         """
         self.year = year
         self.month = month
@@ -138,15 +145,37 @@ class EraDownloader:
         self._interp_file = None
         self._combined_file = None
         self._variables = variables
-        self.hours = [str(n).zfill(2) + ":00" for n in range(0, 24)]
+        self.hours = self.get_hours()
         self.sfc_file_variables = ['geopotential']
         self.level_file_variables = ['geopotential']
         self.prep_var_lists(self.variables)
+        self.include_reanalysis = include_reanalysis
+        self.include_uncertainty = include_uncertainty
 
         msg = ('Initialized EraDownloader with: '
                f'year={self.year}, month={self.month}, area={self.area}, '
                f'levels={self.levels}, variables={self.variables}')
         logger.info(msg)
+
+    def get_hours(self):
+        """ERA5 is hourly and EDA is 3-hourly. Check and warn for incompatible
+        requests."""
+        if self.include_reanalysis and not self.include_uncertainty:
+            hours = [str(n).zfill(2) + ":00" for n in range(0, 24)]
+        elif self.include_reanalysis and self.include_uncertainty:
+            hours = [str(n).zfill(2) + ":00" for n in range(0, 24, 3)]
+            msg = ('Uncertainty data (EDA) is 3-hoourly and ERA5 is hourly. '
+                   'Both have been requested so only 3-hourly ERA5 will be '
+                   'downloaded.')
+            logger.warning(msg)
+            warn(msg)
+        elif self.include_uncertainty and not self.include_reanalysis:
+            hours = [str(n).zfill(2) + ":00" for n in range(0, 24, 3)]
+        else:
+            msg = 'Neither ERA5 or EDA was requested.'
+            logger.error(msg)
+            raise OSError(msg)
+        return hours
 
     @property
     def variables(self):
@@ -301,18 +330,23 @@ class EraDownloader:
         if sfc_check:
             self.download_file(self.sfc_file_variables, time_dict=time_dict,
                                area=self.area, out_file=self.surface_file,
-                               level_type='single', overwrite=self.overwrite)
+                               level_type='single', overwrite=self.overwrite,
+                               include_reanalysis=self.include_reanalysis,
+                               include_uncertainty=self.include_uncertainty)
         if level_check:
             self.download_file(self.level_file_variables, time_dict=time_dict,
                                area=self.area, out_file=self.level_file,
                                level_type='pressure', levels=self.levels,
-                               overwrite=self.overwrite)
+                               overwrite=self.overwrite,
+                               include_reanalysis=self.include_reanalysis,
+                               include_uncertainty=self.include_uncertainty)
         if sfc_check or level_check:
             self.process_and_combine()
 
     @classmethod
     def download_file(cls, variables, time_dict, area, out_file, level_type,
-                      levels=None, overwrite=False):
+                      levels=None, include_reanalysis=True,
+                      include_uncertainty=True, overwrite=False):
         """Download either single-level or pressure-level file
 
         Parameters
@@ -330,6 +364,12 @@ class EraDownloader:
             Either 'single' or 'pressure'
         levels : list
             List of pressure levels to download, if level_type == 'pressure'
+        include_reanalysis : bool
+            Whether to include ERA5 data in the download, as opposed to just
+            downloading uncertainty data
+        include_uncertainty : bool
+            Whether to include ensemble mean and spread from Ensemble Data
+            Assimilation (EDA)
         overwrite : bool
             Whether to overwrite existing file
         """
@@ -337,8 +377,13 @@ class EraDownloader:
             msg = (f'Downloading {variables} to '
                    f'{out_file} with levels = {levels}.')
             logger.info(msg)
+            product_type = []
+            if include_reanalysis:
+                product_type += ['reanalysis']
+            if include_uncertainty:
+                product_type += ['ensemble_mean, ensemble_spread']
             entry = {
-                'product_type': 'reanalysis',
+                'product_type': product_type,
                 'format': 'netcdf',
                 'variable': variables,
                 'area': area}
@@ -692,6 +737,8 @@ class EraDownloader:
                   variables=None,
                   prune_variables=None,
                   check_files=False,
+                  include_reanalysis=True,
+                  include_uncertainty=True,
                   **interp_kwargs):
         """Run routine for all months in the requested year.
 
@@ -728,6 +775,11 @@ class EraDownloader:
             pruned.
         check_files : bool
             Check existing files. Remove and redownload if checks fail.
+        include_reanalysis : bool
+            Whether to include ERA5 data in download, as opposed to just
+            downloading uncertainty data
+        include_uncertainty : bool
+            Whether to include EDA (ensemble mean/spread) data in download
         **interp_kwargs : dict
             Keyword args for LogLinInterpolator.run()
         """
@@ -740,7 +792,9 @@ class EraDownloader:
                          run_interp=run_interp,
                          overwrite=overwrite,
                          variables=variables,
-                         check_files=check_files)
+                         check_files=check_files,
+                         include_reanalysis=include_reanalysis,
+                         include_uncertainty=include_uncertainty)
         downloader.get_monthly_file(interp_workers=interp_workers,
                                     prune_variables=prune_variables,
                                     **interp_kwargs)
@@ -761,6 +815,8 @@ class EraDownloader:
                  variables=None,
                  prune_variables=None,
                  check_files=False,
+                 include_reanalysis=True,
+                 include_uncertainty=True,
                  **interp_kwargs):
         """Run routine for all months in the requested year.
 
@@ -800,6 +856,11 @@ class EraDownloader:
             pruned.
         check_files : bool
             Check existing files. Remove and redownload if checks fail.
+        include_reanalysis : bool
+            Whether to include ERA5 data in download, as opposed to just
+            downloading uncertainty data
+        include_uncertainty : bool
+            Whether to include EDA (ensemble mean/spread) data in download
         **interp_kwargs : dict
             Keyword args for LogLinInterpolator.run()
         """
@@ -817,6 +878,8 @@ class EraDownloader:
                               variables=variables,
                               prune_variables=prune_variables,
                               check_files=check_files,
+                              include_reanalysis=include_reanalysis,
+                              include_uncertainty=include_uncertainty,
                               **interp_kwargs)
         else:
             futures = {}
@@ -836,6 +899,8 @@ class EraDownloader:
                         prune_variables=prune_variables,
                         variables=variables,
                         check_files=check_files,
+                        include_reanalysis=include_reanalysis,
+                        include_uncertainty=include_uncertainty,
                         **interp_kwargs)
                     futures[future] = {'year': year, 'month': month}
                     logger.info(f'Submitted future for year {year} and month '
