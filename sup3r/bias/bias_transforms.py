@@ -7,6 +7,7 @@ from warnings import warn
 import numpy as np
 from rex import Resource
 from scipy.ndimage import gaussian_filter
+import xarray as xr
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +67,68 @@ def get_spatial_bc_factors(lat_lon, feature_name, bias_fp, threshold=0.1):
         scalar = res[dset_scalar, slice_y, slice_x]
         adder = res[dset_adder, slice_y, slice_x]
         return scalar, adder
+
+
+def get_spatial_bc_quantiles(lat_lon: np.array,
+                             feature_name: str,
+                             bias_fp: str,
+                             threshold: float = 0.1
+                             ) -> xr.Dataset:
+    dset_base = f'base_{feature_name}_CDF'
+    dset_bias = f'bias_{feature_name}_CDF'
+    dset_bias_fut = f'bias_fut_{feature_name}_CDF'
+    with Resource(bias_fp) as res:
+        lat = np.expand_dims(res['latitude'], axis=-1)
+        lon = np.expand_dims(res['longitude'], axis=-1)
+        lat_lon_bc = np.dstack((lat, lon))
+        diff = lat_lon_bc - lat_lon[:1, :1]
+        diff = np.hypot(diff[..., 0], diff[..., 1])
+        idy, idx = np.where(diff == diff.min())
+        slice_y = slice(idy[0], idy[0] + lat_lon.shape[0])
+        slice_x = slice(idx[0], idx[0] + lat_lon.shape[1])
+
+        if diff.min() > threshold:
+            msg = ('The DataHandler top left coordinate of {} '
+                   'appears to be {} away from the nearest '
+                   'bias correction coordinate of {} from {}. '
+                   'Cannot apply bias correction.'.format(
+                       lat_lon, diff.min(), lat_lon_bc[idy, idx],
+                       os.path.basename(bias_fp),
+                   ))
+            logger.error(msg)
+            raise RuntimeError(msg)
+
+        msg = (f'Either {dset_base} or {dset_bias} or {dset_bias_fut} not found in {bias_fp}.')
+        dsets = [dset.lower() for dset in res.dsets]
+        check = dset_base.lower() in dsets \
+                and dset_bias.lower() in dsets \
+                and dset_bias_fut.lower() in dsets
+        assert check, msg
+        dset_base = res.dsets[dsets.index(dset_base.lower())]
+        dset_bias = res.dsets[dsets.index(dset_bias.lower())]
+        dset_bias_fut = res.dsets[dsets.index(dset_bias_fut.lower())]
+
+        base = res[dset_base, slice_y, slice_x]
+        bias = res[dset_bias, slice_y, slice_x]
+        bias_fut = res[dset_bias_fut, slice_y, slice_x]
+
+        params = xr.Dataset(
+            data_vars=dict(
+                base=(["x", "y", "quantile"], base),
+                bias=(["x", "y", "quantile"], bias),
+                bias_fut=(["x", "y", "quantile"], bias_fut),
+            ),
+            coords=dict(
+                lat=(["y", "x"], lat_lon[..., 0]),
+                lon=(["y", "x"], lat_lon[..., 1]),
+                quantile=(["quantile"], np.linspace(0, 1, 51)),
+            ),
+            attrs=dict(
+                notes="Created on the fly by get_spatial_bc_quantiles()"
+            )
+        )
+
+        return params
 
 
 def global_linear_bc(input, scalar, adder, out_range=None):
@@ -292,3 +355,68 @@ def monthly_local_linear_bc(input,
         out = np.minimum(out, np.max(out_range))
 
     return out
+
+
+def local_qdm_bc_as_nparray(data: np.array,
+                            lat_lon: np.array,
+                            feature_name: str,
+                            *args,
+                            **kwargs):
+    """Interface to local_qdm_bc for np.array
+
+
+    The local_qdm_bc() expects an xr.DataArray, thus data and metadata,
+    including coordinates, are tightly coupled together. Here we provide
+    an interface based in a np.array pattern.
+
+    Notes
+    -----
+    Assuming arguments as described by local_linear_bc(), thus a 3D data
+    (spatial, spatial, temporal), and lat_lon (n_lats, n_lons, [lat, lon]).
+    """
+    da = xr.DataArray(
+        data=data,
+        dims=["y", "x", "time"],
+        coords=dict(
+            lat=(["y", "x"], lat_lon[..., 0]),
+            lon=(["y", "x"], lat_lon[..., 1]),
+        ),
+        name=feature_name,
+        attrs=dict(
+            notes="Created on the fly by local_qdm_bc_from_array()"
+        )
+    )
+    return local_qdm_bc(da, *args, **kwargs).data
+
+
+def _quantile_delta_mapping(ds, varname):
+    Doh = EmpiricalDistribution.from_quantiles(ds.base.data)
+    Dmh = EmpiricalDistribution.from_quantiles(ds.bias.data)
+    Dmf = EmpiricalDistribution.from_quantiles(ds.bias_fut.data)
+
+    q_mf = Doh.cdf(ds[varname])
+    x_oh = Dmf.ppf(q_mf)
+    x_mh_mf = Dmh.ppf(q_mf)
+
+    delta = ds[varname] - x_mh_mf
+    unbiased = x_oh + delta
+
+    unbiased.name = f"{out.name}_unbiased"
+    unbiased.attrs["comments"] = "Unbiased with QDM"
+
+    return unbiased
+
+
+def local_qdm_bc(da: xr.DataArray, bias_fp):
+    params = get_spatial_bc_quantiles(lat_lon, feature_name, bias_fp)
+
+    da_corrected = (xr.merge([da, params])
+                    .stack(location=["x", "y"])
+                    .dropna(dim="location", how="all")
+                    .set_coords(["base", "bias", "bias_fut"])
+                    .groupby("location")
+                    .apply(_quantile_delta_mapping, varname=da.name)
+                    .unstack("location")
+                    )
+
+    return da_corrected
