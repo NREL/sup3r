@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """pytests bias correction calculations"""
 import os
+import shutil
 import tempfile
 
 import h5py
@@ -526,7 +527,46 @@ def test_nc_base_file():
 
     out = calc.run(fill_extend=True, max_workers=1)
 
-    assert (out['rsds_scalar'] == 1).all()
-    assert (out['rsds_adder'] == 0).all()
+    assert np.allclose(out['base_rsds_mean_monthly'],
+                       out['bias_rsds_mean_monthly'])
     assert np.allclose(out['base_rsds_mean'], out['bias_rsds_mean'])
     assert np.allclose(out['base_rsds_std'], out['bias_rsds_std'])
+
+
+def test_match_zero_rate():
+    """Test feature to match the rate of zeros in the bias data based on the
+    zero rate in the base data. Useful for precip where GCMs have a low-precip
+    "drizzle" problem."""
+    bias_data = np.random.uniform(0, 1, 1000)
+    base_data = np.random.uniform(0, 1, 1000)
+    base_data[base_data < 0.1] = 0
+
+    skill = SkillAssessment._run_skill_eval(bias_data, base_data, 'f1', 'f1')
+    assert skill['bias_f1_zero_rate'] != skill['base_f1_zero_rate']
+    assert (bias_data == 0).mean() != (base_data == 0).mean()
+
+    skill = SkillAssessment._run_skill_eval(bias_data, base_data, 'f1', 'f1',
+                                            match_zero_rate=True)
+    assert (bias_data == 0).mean() == (base_data == 0).mean()
+    assert skill['bias_f1_zero_rate'] == skill['base_f1_zero_rate']
+    for p in (1, 5, 25, 50, 75, 95, 99):
+        assert np.allclose(skill[f'base_f1_percentile_{p}'],
+                           np.percentile(base_data, p))
+
+    with tempfile.TemporaryDirectory() as td:
+        fp_nsrdb_temp = os.path.join(td, os.path.basename(FP_NSRDB))
+        shutil.copy(FP_NSRDB, fp_nsrdb_temp)
+        with h5py.File(fp_nsrdb_temp, 'a') as nsrdb_temp:
+            ghi = nsrdb_temp['ghi'][...]
+            ghi[:1000, :] = 0
+            nsrdb_temp['ghi'][...] = ghi
+        calc = SkillAssessment(fp_nsrdb_temp, FP_CC, 'ghi', 'rsds',
+                               target=TARGET, shape=SHAPE,
+                               distance_upper_bound=0.7,
+                               bias_handler='DataHandlerNCforCC',
+                               match_zero_rate=True)
+        out = calc.run(fill_extend=True, max_workers=1)
+
+    bias_rate = out['bias_rsds_zero_rate']
+    base_rate = out['base_ghi_zero_rate']
+    assert np.allclose(bias_rate, base_rate, rtol=0.005)

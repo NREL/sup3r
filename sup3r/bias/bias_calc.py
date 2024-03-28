@@ -44,7 +44,8 @@ class DataRetrievalBase:
                  bias_handler='DataHandlerNCforCC',
                  base_handler_kwargs=None,
                  bias_handler_kwargs=None,
-                 decimals=None):
+                 decimals=None,
+                 match_zero_rate=False):
         """
         Parameters
         ----------
@@ -94,6 +95,15 @@ class DataRetrievalBase:
             decimals, this gets passed to np.around(). If decimals
             is negative, it specifies the number of positions to
             the left of the decimal point.
+        match_zero_rate : bool
+            Option to fix the frequency of zero values in the biased data. The
+            lowest percentile of values in the biased data will be set to zero
+            to match the percentile of zeros in the base data. If
+            SkillAssessment is being run and this is True, the distributions
+            will not be mean-centered. This helps resolve the issue where
+            global climate models produce too many days with small
+            precipitation totals e.g., the "drizzle problem".
+            Ref: Polade et al., 2014 https://doi.org/10.1038/srep04364
         """
 
         logger.info('Initializing DataRetrievalBase for base dset "{}" '
@@ -110,6 +120,7 @@ class DataRetrievalBase:
         self.bias_handler_kwargs = bias_handler_kwargs or {}
         self.bad_bias_gids = []
         self._distance_upper_bound = distance_upper_bound
+        self.match_zero_rate = match_zero_rate
 
         if isinstance(self.base_fps, str):
             self.base_fps = sorted(glob(self.base_fps))
@@ -367,6 +378,7 @@ class DataRetrievalBase:
         bias_data : np.ndarray
             1D array of temporal data at the requested gid.
         """
+
         idx = np.where(self.bias_gid_raster == bias_gid)
         if self.bias_dh.data is None:
             self.bias_dh.load_cached_data()
@@ -485,6 +497,46 @@ class DataRetrievalBase:
             out_data = np.around(out_data, decimals=decimals)
 
         return out_data, out_ti
+
+    @staticmethod
+    def _match_zero_rate(bias_data, base_data):
+        """The lowest percentile of values in the biased data will be set to
+        zero to match the percentile of zeros in the base data. This helps
+        resolve the issue where global climate models produce too many days
+        with small precipitation totals e.g., the "drizzle problem".
+        Ref: Polade et al., 2014 https://doi.org/10.1038/srep04364
+
+        Parameters
+        ----------
+        bias_data : np.ndarray
+            1D array of biased data observations.
+        base_data : np.ndarray
+            1D array of base data observations.
+
+        Returns
+        -------
+        bias_data : np.ndarray
+            1D array of biased data observations. Values below the quantile
+            associated with zeros in base_data will be set to zero
+        """
+
+        q_zero_base_in = np.nanmean(base_data == 0)
+        q_zero_bias_in = np.nanmean(bias_data == 0)
+
+        q_bias = np.linspace(0, 1, len(bias_data))
+        min_value_bias = np.interp(q_zero_base_in, q_bias, sorted(bias_data))
+
+        bias_data[bias_data < min_value_bias] = 0
+
+        q_zero_base_out = np.nanmean(base_data == 0)
+        q_zero_bias_out = np.nanmean(bias_data == 0)
+
+        logger.debug('Input bias/base zero rate is {:.3e}/{:.3e}, '
+                     'output is {:.3e}/{:.3e}'
+                     .format(q_zero_bias_in, q_zero_base_in,
+                             q_zero_bias_out, q_zero_base_out))
+
+        return bias_data
 
     @staticmethod
     def _read_base_sup3r_data(dh, base_dset, base_gid):
@@ -727,7 +779,8 @@ class LinearCorrection(DataRetrievalBase):
                     daily_reduction,
                     bias_ti,
                     decimals,
-                    base_dh_inst=None):
+                    base_dh_inst=None,
+                    match_zero_rate=False):
         """Find the nominal scalar + adder combination to bias correct data
         at a single site"""
 
@@ -738,6 +791,9 @@ class LinearCorrection(DataRetrievalBase):
                                          daily_reduction=daily_reduction,
                                          decimals=decimals,
                                          base_dh_inst=base_dh_inst)
+
+        if match_zero_rate:
+            bias_data = cls._match_zero_rate(bias_data, base_data)
 
         out = cls.get_linear_correction(bias_data, base_data, bias_feature,
                                         base_dset)
@@ -931,6 +987,7 @@ class LinearCorrection(DataRetrievalBase):
                         self.bias_ti,
                         self.decimals,
                         base_dh_inst=self.base_dh,
+                        match_zero_rate=self.match_zero_rate,
                     )
                     for key, arr in single_out.items():
                         self.out[key][raster_loc] = arr
@@ -963,6 +1020,7 @@ class LinearCorrection(DataRetrievalBase):
                             daily_reduction,
                             self.bias_ti,
                             self.decimals,
+                            match_zero_rate=self.match_zero_rate,
                         )
                         futures[future] = raster_loc
 
@@ -1006,7 +1064,8 @@ class MonthlyLinearCorrection(LinearCorrection):
                     daily_reduction,
                     bias_ti,
                     decimals,
-                    base_dh_inst=None):
+                    base_dh_inst=None,
+                    match_zero_rate=False):
         """Find the nominal scalar + adder combination to bias correct data
         at a single site"""
 
@@ -1017,6 +1076,9 @@ class MonthlyLinearCorrection(LinearCorrection):
                                                daily_reduction=daily_reduction,
                                                decimals=decimals,
                                                base_dh_inst=base_dh_inst)
+
+        if match_zero_rate:
+            bias_data = cls._match_zero_rate(bias_data, base_data)
 
         base_arr = np.full(cls.NT, np.nan, dtype=np.float32)
         out = {}
@@ -1117,10 +1179,12 @@ class SkillAssessment(MonthlyLinearCorrection):
                        f'bias_{self.bias_feature}_std',
                        f'bias_{self.bias_feature}_skew',
                        f'bias_{self.bias_feature}_kurtosis',
+                       f'bias_{self.bias_feature}_zero_rate',
                        f'base_{self.base_dset}_mean',
                        f'base_{self.base_dset}_std',
                        f'base_{self.base_dset}_skew',
                        f'base_{self.base_dset}_kurtosis',
+                       f'base_{self.base_dset}_zero_rate',
                        ]
 
         self.out = {k: np.full((*self.bias_gid_raster.shape, self.NT),
@@ -1138,12 +1202,16 @@ class SkillAssessment(MonthlyLinearCorrection):
             self.out[bias_k] = arr.copy()
 
     @classmethod
-    def _run_skill_eval(cls, bias_data, base_data, bias_feature, base_dset):
+    def _run_skill_eval(cls, bias_data, base_data, bias_feature, base_dset,
+                        match_zero_rate=False):
         """Run skill assessment metrics on 1D datasets at a single site.
 
         Note we run the KS test on the mean=0 distributions as per:
         S. Brands et al. 2013 https://doi.org/10.1007/s00382-013-1742-8
         """
+
+        if match_zero_rate:
+            bias_data = cls._match_zero_rate(bias_data, base_data)
 
         out = {}
         bias_mean = np.nanmean(bias_data)
@@ -1154,13 +1222,20 @@ class SkillAssessment(MonthlyLinearCorrection):
         out[f'bias_{bias_feature}_std'] = np.nanstd(bias_data)
         out[f'bias_{bias_feature}_skew'] = stats.skew(bias_data)
         out[f'bias_{bias_feature}_kurtosis'] = stats.kurtosis(bias_data)
+        out[f'bias_{bias_feature}_zero_rate'] = np.nanmean(bias_data == 0)
 
         out[f'base_{base_dset}_mean'] = base_mean
         out[f'base_{base_dset}_std'] = np.nanstd(base_data)
         out[f'base_{base_dset}_skew'] = stats.skew(base_data)
         out[f'base_{base_dset}_kurtosis'] = stats.kurtosis(base_data)
+        out[f'base_{base_dset}_zero_rate'] = np.nanmean(base_data == 0)
 
-        ks_out = stats.ks_2samp(base_data - base_mean, bias_data - bias_mean)
+        if match_zero_rate:
+            ks_out = stats.ks_2samp(base_data, bias_data)
+        else:
+            ks_out = stats.ks_2samp(base_data - base_mean,
+                                    bias_data - bias_mean)
+
         out[f'{bias_feature}_ks_stat'] = ks_out.statistic
         out[f'{bias_feature}_ks_p'] = ks_out.pvalue
 
@@ -1175,7 +1250,7 @@ class SkillAssessment(MonthlyLinearCorrection):
     @classmethod
     def _run_single(cls, bias_data, base_fps, bias_feature, base_dset,
                     base_gid, base_handler, daily_reduction, bias_ti,
-                    decimals, base_dh_inst=None):
+                    decimals, base_dh_inst=None, match_zero_rate=False):
         """Do a skill assessment at a single site"""
 
         base_data, base_ti = cls.get_base_data(base_fps, base_dset,
@@ -1189,12 +1264,11 @@ class SkillAssessment(MonthlyLinearCorrection):
                f'bias_{bias_feature}_std_monthly': arr.copy(),
                f'base_{base_dset}_mean_monthly': arr.copy(),
                f'base_{base_dset}_std_monthly': arr.copy(),
-               f'{bias_feature}_scalar': arr.copy(),
-               f'{bias_feature}_adder': arr.copy(),
                }
 
         out.update(cls._run_skill_eval(bias_data, base_data,
-                                       bias_feature, base_dset))
+                                       bias_feature, base_dset,
+                                       match_zero_rate=match_zero_rate))
 
         for month in range(1, 13):
             bias_mask = bias_ti.month == month
@@ -1208,6 +1282,6 @@ class SkillAssessment(MonthlyLinearCorrection):
                 for k, v in mout.items():
                     if not k.endswith(('_scalar', '_adder')):
                         k += '_monthly'
-                    out[k][month - 1] = v
+                        out[k][month - 1] = v
 
         return out
