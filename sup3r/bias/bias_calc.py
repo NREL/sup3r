@@ -14,6 +14,9 @@ import numpy as np
 import pandas as pd
 import rex
 from rex.utilities.fun_utils import get_fun_call_str
+from rex.utilities.bc_utils import (sample_q_linear,
+                                    sample_q_log,
+                                    sample_q_invlog)
 from scipy import stats
 from scipy.ndimage import gaussian_filter
 from scipy.spatial import KDTree
@@ -1165,6 +1168,237 @@ class MonthlyScalarCorrection(MonthlyLinearCorrection):
         }
 
         return out
+
+
+class QuantileDeltaMappingCorrection(DataRetrievalBase):
+    def __init__(self, base_fps, bias_fps, bias_fut_fps, *args, **kwargs):
+        self.NQ = 51
+        self.dist="empirical"
+        self.sampling = "linear"
+        self.log_base = 10
+        super().__init__(base_fps, bias_fps, *args, **kwargs)
+
+        self.bias_fut_fps = bias_fps
+
+        if isinstance(self.bias_fut_fps, str):
+            self.bias_fut_fps = sorted(glob(self.bias_fut_fps))
+
+        self.bias_fut_dh = self.bias_handler(self.bias_fut_fps,
+                                             [self.bias_feature],
+                                             target=self.target,
+                                             shape=self.shape,
+                                             val_split=0.0,
+                                             **self.bias_handler_kwargs)
+
+
+    def _init_out(self):
+        """Initialize output arrays"""
+        keys = [f'bias_{self.bias_feature}_CDF',
+                f'bias_fut_{self.bias_feature}_CDF',
+                f'base_{self.base_dset}_CDF',
+                ]
+        self.out = {k: np.full((*self.bias_gid_raster.shape, self.NQ),
+                               np.nan, np.float32)
+                    for k in keys}
+
+
+    # pylint: disable=W0613
+    @classmethod
+    def _run_single(cls,
+                    bias_data,
+                    bias_fut_data,
+                    base_fps,
+                    bias_feature,
+                    base_dset,
+                    base_gid,
+                    base_handler,
+                    daily_reduction,
+                    decimals,
+                    sampling,
+                    n_samples,
+                    log_base,
+                    base_dh_inst=None,
+                    ):
+        """Find the nominal scalar + adder combination to bias correct data
+        at a single site"""
+
+        base_data, _ = cls.get_base_data(base_fps,
+                                         base_dset,
+                                         base_gid,
+                                         base_handler,
+                                         daily_reduction=daily_reduction,
+                                         decimals=decimals,
+                                         base_dh_inst=base_dh_inst)
+
+        out = cls.get_qdm_params(bias_data,
+                                  bias_fut_data,
+                                  base_data,
+                                  bias_feature,
+                                  base_dset,
+                                  sampling,
+                                  n_samples,
+                                  log_base)
+        return out
+
+
+    @staticmethod
+    def get_qdm_params(bias_data,
+                       bias_fut_data,
+                       base_data,
+                       bias_feature,
+                       base_dset,
+                       sampling,
+                       n_samples,
+                       log_base):
+
+        if sampling == 'linear':
+            quantiles = sample_q_linear(n_samples)
+        elif sampling == 'log':
+            quantiles = sample_q_log(n_samples, log_base)
+        elif sampling == 'invlog':
+            quantiles = sample_q_invlog(n_samples, log_base)
+        else:
+            msg = ('sampling option must be linear, log, or invlog, but '
+                   'received: {}'.format(sampling))
+            logger.error(msg)
+            raise KeyError(msg)
+
+        out = {
+            f'bias_{bias_feature}_CDF': np.quantile(bias_data, quantiles),
+            f'bias_fut_{bias_feature}_CDF': np.quantile(bias_fut_data, quantiles),
+            f'base_{base_dset}_CDF':  np.quantile(base_data, quantiles),
+        }
+
+        return out
+
+
+    def write_outputs(self, fp_out, out):
+        """Write outputs to an .h5 file.
+
+        Parameters
+        ----------
+        fp_out : str | None
+            Optional .h5 output file to write scalar and adder arrays.
+        out : dict
+        """
+
+        if fp_out is not None:
+            if not os.path.exists(os.path.dirname(fp_out)):
+                os.makedirs(os.path.dirname(fp_out), exist_ok=True)
+
+            with h5py.File(fp_out, 'w') as f:
+                # pylint: disable=E1136
+                lat = self.bias_dh.lat_lon[..., 0]
+                lon = self.bias_dh.lat_lon[..., 1]
+                f.create_dataset('latitude', data=lat)
+                f.create_dataset('longitude', data=lon)
+                for dset, data in out.items():
+                    f.create_dataset(dset, data=data)
+
+                for k, v in self.meta.items():
+                    f.attrs[k] = json.dumps(v)
+                logger.info(
+                    'Wrote quantiles to file: {}'.format(fp_out))
+
+
+    def run(self,
+            fp_out=None,
+            max_workers=None,
+            daily_reduction='avg'):
+
+        logger.debug('Starting QDM correction calculation...')
+
+        logger.info('Initialized params with shape: {}'
+                    .format(self.bias_gid_raster.shape))
+        self.bad_bias_gids = []
+
+        # sup3r DataHandler opening base files will load all data in parallel
+        # during the init and should not be passed in parallel to workers
+        if isinstance(self.base_dh, DataHandler):
+            max_workers = 1
+
+        if max_workers == 1:
+            logger.debug('Running serial calculation.')
+            for i, bias_gid in enumerate(self.bias_meta.index):
+                raster_loc = np.where(self.bias_gid_raster == bias_gid)
+                _, base_gid = self.get_base_gid(bias_gid)
+
+                if not base_gid.any():
+                    self.bad_bias_gids.append(bias_gid)
+                    logger.debug(f"No base data for bias_gid: {bias_gid}. "
+                                 "Adding it to bad_bias_gids")
+                else:
+                    bias_data = self.get_bias_data(bias_gid)
+                    bias_fut_data = self.get_bias_data(bias_gid, self.bias_fut_dh)
+                    single_out = self._run_single(
+                        bias_data,
+                        bias_fut_data,
+                        self.base_fps,
+                        self.bias_feature,
+                        self.base_dset,
+                        base_gid,
+                        self.base_handler,
+                        daily_reduction,
+                        self.decimals,
+                        sampling=self.sampling,
+                        n_samples=self.NQ,
+                        log_base=self.log_base,
+                        base_dh_inst=self.base_dh,
+
+                    )
+                    for key, arr in single_out.items():
+                        self.out[key][raster_loc] = arr
+
+                logger.info('Completed bias calculations for {} out of {} '
+                            'sites'.format(i + 1, len(self.bias_meta)))
+
+        else:
+            logger.debug(
+                'Running parallel calculation with {} workers.'.format(
+                    max_workers))
+            with ProcessPoolExecutor(max_workers=max_workers) as exe:
+                futures = {}
+                for bias_gid in self.bias_meta.index:
+                    raster_loc = np.where(self.bias_gid_raster == bias_gid)
+                    _, base_gid = self.get_base_gid(bias_gid)
+
+                    if not base_gid.any():
+                        self.bad_bias_gids.append(bias_gid)
+                    else:
+                        bias_data = self.get_bias_data(bias_gid)
+                        bias_fut_data = self.get_bias_data(bias_gid, self.bias_fut_dh)
+                        future = exe.submit(
+                            self._run_single,
+                            bias_data,
+                            bias_fut_data,
+                            self.base_fps,
+                            self.bias_feature,
+                            self.base_dset,
+                            base_gid,
+                            self.base_handler,
+                            daily_reduction,
+                            self.decimals,
+                            sampling=self.sampling,
+                            n_samples=self.NQ,
+                            log_base=self.log_base,
+                        )
+                        futures[future] = raster_loc
+
+                logger.debug('Finished launching futures.')
+                for i, future in enumerate(as_completed(futures)):
+                    raster_loc = futures[future]
+                    single_out = future.result()
+                    for key, arr in single_out.items():
+                        self.out[key][raster_loc] = arr
+
+                    logger.info('Completed bias calculations for {} out of {} '
+                                'sites'.format(i + 1, len(futures)))
+
+        logger.info('Finished calculating bias correction factors.')
+
+        self.write_outputs(fp_out, self.out)
+
+        return copy.deepcopy(self.out)
 
 
 class SkillAssessment(MonthlyLinearCorrection):
