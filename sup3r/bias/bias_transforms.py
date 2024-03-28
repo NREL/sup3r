@@ -355,3 +355,35 @@ def monthly_local_linear_bc(input,
         out = np.minimum(out, np.max(out_range))
 
     return out
+
+
+def local_qdm_bc_as_nparray(data: np.array,
+                            lat_lon: np.array,
+                            feature_name: str,
+                            *args,
+                            **kwargs):
+    """Interface to local_qdm_bc for np.array
+
+
+    The local_qdm_bc() expects an xr.DataArray, thus data and metadata,
+    including coordinates, are tightly coupled together. Here we provide
+    an interface based in a np.array pattern.
+
+    Notes
+    -----
+    Assuming arguments as described by local_linear_bc(), thus a 3D data
+    (spatial, spatial, temporal), and lat_lon (n_lats, n_lons, [lat, lon]).
+    """
+    da = xr.DataArray(
+        data=data,
+        dims=["y", "x", "time"],
+        coords=dict(
+            lat=(["y", "x"], lat_lon[..., 0]),
+            lon=(["y", "x"], lat_lon[..., 1]),
+        ),
+        name=feature_name,
+        attrs=dict(
+            notes="Created on the fly by local_qdm_bc_from_array()"
+        )
+    )
+    return local_qdm_bc(da, *args, **kwargs).data
