@@ -387,3 +387,36 @@ def local_qdm_bc_as_nparray(data: np.array,
         )
     )
     return local_qdm_bc(da, *args, **kwargs).data
+
+
+def _quantile_delta_mapping(ds, varname):
+    Doh = EmpiricalDistribution.from_quantiles(ds.base.data)
+    Dmh = EmpiricalDistribution.from_quantiles(ds.bias.data)
+    Dmf = EmpiricalDistribution.from_quantiles(ds.bias_fut.data)
+
+    q_mf = Doh.cdf(ds[varname])
+    x_oh = Dmf.ppf(q_mf)
+    x_mh_mf = Dmh.ppf(q_mf)
+
+    delta = ds[varname] - x_mh_mf
+    unbiased = x_oh + delta
+
+    unbiased.name = f"{out.name}_unbiased"
+    unbiased.attrs["comments"] = "Unbiased with QDM"
+
+    return unbiased
+
+
+def local_qdm_bc(da: xr.DataArray, bias_fp):
+    params = get_spatial_bc_quantiles(lat_lon, feature_name, bias_fp)
+
+    da_corrected = (xr.merge([da, params])
+                    .stack(location=["x", "y"])
+                    .dropna(dim="location", how="all")
+                    .set_coords(["base", "bias", "bias_fut"])
+                    .groupby("location")
+                    .apply(_quantile_delta_mapping, varname=da.name)
+                    .unstack("location")
+                    )
+
+    return da_corrected
