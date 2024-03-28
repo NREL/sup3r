@@ -366,7 +366,7 @@ class EraDownloader:
             if include_reanalysis:
                 product_type += ['reanalysis']
             if include_uncertainty:
-                product_type += ['ensemble_mean, ensemble_spread']
+                product_type += ['ensemble_mean', 'ensemble_spread']
             entry = {
                 'product_type': product_type,
                 'format': 'netcdf',
