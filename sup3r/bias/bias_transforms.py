@@ -7,6 +7,7 @@ from warnings import warn
 import numpy as np
 from rex import Resource
 from scipy.ndimage import gaussian_filter
+import xarray as xr
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +69,11 @@ def get_spatial_bc_factors(lat_lon, feature_name, bias_fp, threshold=0.1):
         return scalar, adder
 
 
-def get_spatial_bc_quantiles(lat_lon, feature_name, bias_fp, threshold=0.1):
+def get_spatial_bc_quantiles(lat_lon: np.array,
+                             feature_name: str,
+                             bias_fp: str,
+                             threshold: float = 0.1
+                             ) -> xr.Dataset:
     dset_base = f'base_{feature_name}_CDF'
     dset_bias = f'bias_{feature_name}_CDF'
     dset_bias_fut = f'bias_fut_{feature_name}_CDF'
@@ -95,16 +100,35 @@ def get_spatial_bc_quantiles(lat_lon, feature_name, bias_fp, threshold=0.1):
 
         msg = (f'Either {dset_base} or {dset_bias} or {dset_bias_fut} not found in {bias_fp}.')
         dsets = [dset.lower() for dset in res.dsets]
-        check = dset_scalar.lower() in dsets and dset_adder.lower() in dsets
+        check = dset_base.lower() in dsets \
+                and dset_bias.lower() in dsets \
+                and dset_bias_fut.lower() in dsets
         assert check, msg
-        dset_scalar = res.dsets[dsets.index(dset_scalar.lower())]
-        dset_adder = res.dsets[dsets.index(dset_adder.lower())]
+        dset_base = res.dsets[dsets.index(dset_base.lower())]
+        dset_bias = res.dsets[dsets.index(dset_bias.lower())]
+        dset_bias_fut = res.dsets[dsets.index(dset_bias_fut.lower())]
 
         base = res[dset_base, slice_y, slice_x]
         bias = res[dset_bias, slice_y, slice_x]
         bias_fut = res[dset_bias_fut, slice_y, slice_x]
 
-        return base, bias, bias_fut
+        params = xr.Dataset(
+            data_vars=dict(
+                base=(["x", "y", "quantile"], base),
+                bias=(["x", "y", "quantile"], bias),
+                bias_fut=(["x", "y", "quantile"], bias_fut),
+            ),
+            coords=dict(
+                lat=(["y", "x"], lat_lon[..., 0]),
+                lon=(["y", "x"], lat_lon[..., 1]),
+                quantile=(["quantile"], np.linspace(0, 1, 51)),
+            ),
+            attrs=dict(
+                notes="Created on the fly by get_spatial_bc_quantiles()"
+            )
+        )
+
+        return params
 
 
 def global_linear_bc(input, scalar, adder, out_range=None):
