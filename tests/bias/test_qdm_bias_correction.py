@@ -5,10 +5,9 @@ import shutil
 import tempfile
 
 import numpy as np
-import pytest
 import xarray as xr
 
-from sup3r import CONFIG_DIR, TEST_DATA_DIR
+from sup3r import TEST_DATA_DIR
 from sup3r.bias.bias_calc import QuantileDeltaMappingCorrection
 
 FP_NSRDB = os.path.join(TEST_DATA_DIR, "test_nsrdb_co_2018.h5")
