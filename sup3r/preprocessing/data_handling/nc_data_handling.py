@@ -730,14 +730,15 @@ class DataHandlerNCwithAugmentation(DataHandlerNC):
     confidence interval."""
 
     # pylint: disable=W0123
-    def __init__(self, *args, augment_dh, augment_func, **kwargs):
+    def __init__(self, *args, augment_handler_kwargs, augment_func, **kwargs):
         """
         Parameters
         ----------
         *args : list
             Same as positional arguments of Parent class
-        augment_dh : DataHandler
-            DataHandler storing data used to augment base data. e.g.
+        augment_handler_kwargs : dict
+            Dictionary of keyword arguments passed to DataHandlerNC used to
+            initialize handler storing data used to augment base data. e.g.
             DataHandler intialized on EDA data
         augment_func : function
             Function used in augmentation operation.
@@ -746,14 +747,15 @@ class DataHandlerNCwithAugmentation(DataHandlerNC):
         **kwargs : dict
             Same as keyword arguments of Parent class
         """
-        self.augment_dh = augment_dh
+        self.augment_dh = DataHandlerNC(**augment_handler_kwargs)
         self.augment_func = (
             augment_func if not isinstance(augment_func, str)
             else eval(augment_func))
 
         logger.info(
-            f"Initializing {self.__class__.__name__} with augment_dh ="
-            f" {augment_dh} and augment_func = {augment_func}"
+            f"Initializing {self.__class__.__name__} with "
+            f"augment_handler_kwargs = {augment_handler_kwargs} and "
+            f"augment_func = {self.augment_func}"
         )
         super().__init__(*args, **kwargs)
 

@@ -316,19 +316,19 @@ def test_data_handler_with_augmentation():
     """Test data handler with augmentation class"""
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
+        augment_handler_kwargs = {"file_paths": input_files,
+                                  "features": features}
+        augment_handler_kwargs.update(dh_kwargs)
         aug_dh = DataHandler(input_files, features, **dh_kwargs)
         dh = DataHandlerNCwithAugmentation(
-            input_files, features, augment_dh=aug_dh,
+            input_files, features,
+            augment_handler_kwargs=augment_handler_kwargs,
             augment_func='lambda x, y: np.add(x, 2 * y)', **dh_kwargs)
         assert np.allclose(3 * aug_dh.data, dh.data)
-
-    with tempfile.TemporaryDirectory() as td:
-        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
-        aug_dh = DataHandler(input_files, features, **dh_kwargs)
-        dh = DataHandlerNCwithAugmentation(input_files, features,
-                                           augment_dh=aug_dh,
-                                           augment_func=np.subtract,
-                                           **dh_kwargs)
+        dh = DataHandlerNCwithAugmentation(
+            input_files, features,
+            augment_handler_kwargs=augment_handler_kwargs,
+            augment_func=np.subtract, **dh_kwargs)
         assert np.allclose(np.zeros(aug_dh.data.shape), dh.data)
 
 
