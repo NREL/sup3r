@@ -173,6 +173,16 @@ class SurfaceSpatialMetModel(LinearInterp):
                 if fnmatch(name, 'relativehumidity_*')]
         return inds
 
+    @property
+    def feature_inds_other(self):
+        """Get the feature index values for the features that are not
+        temperature, pressure, or relativehumidity."""
+        finds_tprh = (self.feature_inds_temp + self.feature_inds_pres
+                      + self.feature_inds_rh)
+        inds = [i for i, name in enumerate(self._lr_features)
+                if i not in finds_tprh]
+        return inds
+
     def _get_temp_rh_ind(self, idf_rh):
         """Get the feature index value for the temperature feature
         corresponding to a relative humidity feature at the same hub height.
@@ -210,8 +220,9 @@ class SurfaceSpatialMetModel(LinearInterp):
 
         return idf_temp
 
-    def _fix_downscaled_bias(self, single_lr, single_hr,
-                             method=Image.Resampling.LANCZOS):
+    @classmethod
+    def fix_downscaled_bias(cls, single_lr, single_hr,
+                            method=Image.Resampling.LANCZOS):
         """Fix any bias introduced by the spatial downscaling with lapse rate.
 
         Parameters
@@ -233,16 +244,18 @@ class SurfaceSpatialMetModel(LinearInterp):
             (lat, lon) matching the high-resolution input data.
         """
 
+        s_enhance = len(single_hr) // len(single_lr)
         re_coarse = spatial_coarsening(np.expand_dims(single_hr, axis=-1),
-                                       s_enhance=self._s_enhance,
+                                       s_enhance=s_enhance,
                                        obs_axis=False)[..., 0]
         bias = re_coarse - single_lr
-        bc = self.downscale_arr(bias, s_enhance=self._s_enhance, method=method)
+        bc = cls.downscale_arr(bias, s_enhance=s_enhance, method=method)
         single_hr -= bc
         return single_hr
 
-    @staticmethod
-    def downscale_arr(arr, s_enhance, method=Image.Resampling.LANCZOS):
+    @classmethod
+    def downscale_arr(cls, arr, s_enhance, method=Image.Resampling.LANCZOS,
+                      fix_bias=False):
         """Downscale a 2D array of data Image.resize() method
 
         Parameters
@@ -256,11 +269,19 @@ class SurfaceSpatialMetModel(LinearInterp):
             An Image.Resampling method (NEAREST, BILINEAR, BICUBIC, LANCZOS).
             LANCZOS is default and has been tested to work best for
             SurfaceSpatialMetModel.
+        fix_bias : bool
+            Some local bias can be introduced by the bilinear interp + lapse
+            rate, this flag will attempt to correct that bias by using the
+            low-resolution deviation from the input data
         """
         im = Image.fromarray(arr)
         im = im.resize((arr.shape[1] * s_enhance, arr.shape[0] * s_enhance),
                        resample=method)
         out = np.array(im)
+
+        if fix_bias:
+            out = cls.fix_downscaled_bias(arr, out, method=method)
+
         return out
 
     def downscale_temp(self, single_lr_temp, topo_lr, topo_hr):
@@ -303,9 +324,9 @@ class SurfaceSpatialMetModel(LinearInterp):
         hi_res_temp -= topo_hr * self._temp_lapse
 
         if self._fix_bias:
-            hi_res_temp = self._fix_downscaled_bias(single_lr_temp,
-                                                    hi_res_temp,
-                                                    method=self._interp_method)
+            hi_res_temp = self.fix_downscaled_bias(single_lr_temp,
+                                                   hi_res_temp,
+                                                   method=self._interp_method)
 
         return hi_res_temp
 
@@ -371,8 +392,8 @@ class SurfaceSpatialMetModel(LinearInterp):
                      + self._w_delta_topo * delta_topo)
 
         if self._fix_bias:
-            hi_res_rh = self._fix_downscaled_bias(single_lr_rh, hi_res_rh,
-                                                  method=self._interp_method)
+            hi_res_rh = self.fix_downscaled_bias(single_lr_rh, hi_res_rh,
+                                                 method=self._interp_method)
 
         return hi_res_rh
 
@@ -433,9 +454,9 @@ class SurfaceSpatialMetModel(LinearInterp):
         hi_res_pres -= const
 
         if self._fix_bias:
-            hi_res_pres = self._fix_downscaled_bias(single_lr_pres,
-                                                    hi_res_pres,
-                                                    method=self._interp_method)
+            hi_res_pres = self.fix_downscaled_bias(single_lr_pres,
+                                                   hi_res_pres,
+                                                   method=self._interp_method)
 
         if np.min(hi_res_pres) < 0.0:
             msg = ('Spatial interpolation of surface pressure '
@@ -583,6 +604,21 @@ class SurfaceSpatialMetModel(LinearInterp):
                                          hi_res[iobs, :, :, idf_temp],
                                          lr_topo, hr_topo)
                 hi_res[iobs, :, :, idf_rh] = _tmp
+
+            for idf_rh in self.feature_inds_rh:
+                idf_temp = self._get_temp_rh_ind(idf_rh)
+                _tmp = self.downscale_rh(low_res[iobs, :, :, idf_rh],
+                                         low_res[iobs, :, :, idf_temp],
+                                         hi_res[iobs, :, :, idf_temp],
+                                         lr_topo, hr_topo)
+                hi_res[iobs, :, :, idf_rh] = _tmp
+
+            for idf_other in self.feature_inds_other:
+                _arr = self.downscale_arr(low_res[iobs, :, :, idf_other],
+                                          self._s_enhance,
+                                          method=self._interp_method,
+                                          fix_bias=self._fix_bias)
+                hi_res[iobs, :, :, idf_other] = _arr
 
         if self._noise_adders is not None:
             for idf, stdev in enumerate(self._noise_adders):
