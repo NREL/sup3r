@@ -15,6 +15,7 @@ from sup3r.preprocessing.batch_handling import (
     SpatialBatchHandler,
 )
 from sup3r.preprocessing.data_handling import DataHandlerNC as DataHandler
+from sup3r.preprocessing.data_handling import DataHandlerNCwithAugmentation
 from sup3r.utilities.interpolation import Interpolator
 from sup3r.utilities.pytest import make_fake_era_files, make_fake_nc_files
 
@@ -309,6 +310,27 @@ def test_data_extraction():
                                   handler.data.shape[2], len(features))
     assert handler.data.dtype == np.dtype(np.float32)
     assert handler.val_data.dtype == np.dtype(np.float32)
+
+
+def test_data_handler_with_augmentation():
+    """Test data handler with augmentation class"""
+    with tempfile.TemporaryDirectory() as td:
+        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
+        aug_dh = DataHandler(input_files, features, **dh_kwargs)
+        dh = DataHandlerNCwithAugmentation(input_files, features,
+                                           augment_dh=aug_dh,
+                                           augment_func=np.add,
+                                           **dh_kwargs)
+        assert np.allclose(2 * aug_dh.data, dh.data)
+
+    with tempfile.TemporaryDirectory() as td:
+        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
+        aug_dh = DataHandler(input_files, features, **dh_kwargs)
+        dh = DataHandlerNCwithAugmentation(input_files, features,
+                                           augment_dh=aug_dh,
+                                           augment_func=np.subtract,
+                                           **dh_kwargs)
+        assert np.allclose(np.zeros(aug_dh.data.shape), dh.data)
 
 
 def test_validation_batching():

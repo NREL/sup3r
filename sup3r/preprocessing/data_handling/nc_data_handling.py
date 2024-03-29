@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from rex import Resource
+from scipy.interpolate import interp1d
 from scipy.ndimage import gaussian_filter
 from scipy.spatial import KDTree
 from scipy.stats import mode
@@ -42,6 +43,7 @@ from sup3r.preprocessing.feature_handling import (
     WindspeedNC,
 )
 from sup3r.utilities.interpolation import Interpolator
+from sup3r.utilities.regridder import Regridder
 from sup3r.utilities.utilities import (
     estimate_max_workers,
     get_time_dim_name,
@@ -718,3 +720,60 @@ class DataHandlerNCforCCwithPowerLaw(DataHandlerNCforCC):
 
 class DataHandlerDCforNC(DataHandlerNC, DataHandlerDC):
     """Data centric data handler for NETCDF files"""
+
+
+class DataHandlerNCwithAugmentation(DataHandlerNC):
+    """DataHandler class which takes additional data handler and function type
+    to augment base data. For example, we can use this with function =
+    np.add(x, 2*y) and augment_dh holding EDA spread data to create an
+    augmented ERA5 data array representing the upper bound of the 95%
+    confidence interval."""
+
+    def __init__(self, *args, augment_dh, augment_func, **kwargs):
+        """
+        Parameters
+        ----------
+        *args : list
+            Same as positional arguments of Parent class
+        augment_dh : DataHandler
+            DataHandler storing data used to augment base data. e.g.
+            DataHandler intialized on EDA data
+        augment_func : function
+            Function used in augmentation operation.
+            e.g. lambda x, y: np.add(x, 2 * y), used to compute upper bound
+            of 95% confidence interval: ERA5 + 2 * EDA
+        **kwargs : dict
+            Same as keyword arguments of Parent class
+        """
+        self.augment_dh = augment_dh
+        self.augment_func = augment_func
+
+        logger.info(
+            f"Initializing {self.__class__.__name__} with augment_dh ="
+            f" {augment_dh} and augment_func = {augment_func}"
+        )
+        super().__init__(*args, **kwargs)
+
+    def regrid_augment_data(self):
+        """Regrid augment data to match resolution of base data"""
+        time_mask = self.time_index.isin(self.augment_dh.time_index)
+        time_indices = np.arange(len(self.time_index))
+        interp_func = interp1d(
+            time_indices[time_mask],
+            self.augment_dh.data,
+            axis=2,
+            fill_value="extrapolate",
+        )
+        tinterp_out = interp_func(time_indices)
+        regridder = Regridder(self.augment_dh.meta, self.meta)
+        out = np.zeros(self.shape, dtype=np.float32)
+        for fidx in range(self.augment_dh.shape[-1]):
+            out[..., fidx] = regridder(tinterp_out[..., fidx]).reshape(
+                self.shape[:-1]
+            )
+        return out
+
+    def run_all_data_init(self):
+        """Modified run_all_data_init function with augmentation operation."""
+        return self.augment_func(super().run_all_data_init(),
+                                 self.regrid_augment_data())
