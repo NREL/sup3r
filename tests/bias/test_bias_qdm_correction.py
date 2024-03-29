@@ -1,5 +1,30 @@
 """pytests QDM bias correction calculations"""
 
+import os
+import shutil
+import tempfile
+
+import numpy as np
+import pytest
+import xarray as xr
+
+from sup3r import CONFIG_DIR, TEST_DATA_DIR
+from sup3r.bias.bias_calc import QuantileDeltaMappingCorrection
+
+FP_NSRDB = os.path.join(TEST_DATA_DIR, "test_nsrdb_co_2018.h5")
+FP_CC = os.path.join(TEST_DATA_DIR, "rsds_test.nc")
+
+# Not ideal but a good start
+tmpdir = tempfile.TemporaryDirectory()
+FP_FUT_CC = os.path.join(tmpdir.name, 'test_mf.nc')
+shutil.copyfile(FP_CC, FP_FUT_CC)
+
+with xr.open_dataset(FP_CC) as fh:
+    MIN_LAT = np.min(fh.lat.values.astype(np.float32))
+    MIN_LON = np.min(fh.lon.values.astype(np.float32)) - 360
+    TARGET = (float(MIN_LAT), float(MIN_LON))
+    SHAPE = (len(fh.lat.values), len(fh.lon.values))
+
 
 def test_qdm_bc():
     """Test QDM bias correction"""
