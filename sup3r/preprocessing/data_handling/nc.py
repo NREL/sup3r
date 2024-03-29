@@ -702,7 +702,13 @@ class DataHandlerNCwithAugmentation(DataHandlerNC):
         **kwargs : dict
             Same as keyword arguments of Parent class
         """
+
+
+<< << << < HEAD: sup3r / preprocessing / data_handling / nc.py
         self.augment_dh = DataHandlerNC(**augment_handler_kwargs)
+== == == =
+        self.augment_dh = augment_dh
+>> >> >> > 632fff78(added eval so augment func can be specified in config file as string): sup3r / preprocessing / data_handling / nc_data_handling.py
         self.augment_func = (
             augment_func if not isinstance(augment_func, str)
             else eval(augment_func))
@@ -713,7 +719,6 @@ class DataHandlerNCwithAugmentation(DataHandlerNC):
             f"augment_func = {augment_func}"
         )
         super().__init__(*args, **kwargs)
-
     def get_temporal_overlap(self):
         """Get augment data that overlaps with time period of base data.
 
