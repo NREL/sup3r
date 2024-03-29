@@ -746,7 +746,9 @@ class DataHandlerNCwithAugmentation(DataHandlerNC):
             Same as keyword arguments of Parent class
         """
         self.augment_dh = augment_dh
-        self.augment_func = augment_func
+        self.augment_func = (
+            augment_func if not isinstance(augment_func, str)
+            else eval(augment_func))
 
         logger.info(
             f"Initializing {self.__class__.__name__} with augment_dh ="
@@ -767,7 +769,7 @@ class DataHandlerNCwithAugmentation(DataHandlerNC):
         tinterp_out = interp_func(time_indices)
         regridder = Regridder(self.augment_dh.meta, self.meta)
         out = np.zeros(self.shape, dtype=np.float32)
-        for fidx in range(self.augment_dh.shape[-1]):
+        for fidx, _ in enumerate(self.augment_dh.features):
             out[..., fidx] = regridder(tinterp_out[..., fidx]).reshape(
                 self.shape[:-1]
             )
