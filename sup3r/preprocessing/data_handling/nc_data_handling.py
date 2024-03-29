@@ -729,6 +729,7 @@ class DataHandlerNCwithAugmentation(DataHandlerNC):
     augmented ERA5 data array representing the upper bound of the 95%
     confidence interval."""
 
+    # pylint: disable=W0123
     def __init__(self, *args, augment_dh, augment_func, **kwargs):
         """
         Parameters
@@ -756,6 +757,7 @@ class DataHandlerNCwithAugmentation(DataHandlerNC):
         )
         super().__init__(*args, **kwargs)
 
+    # pylint: disable=E1136
     def regrid_augment_data(self):
         """Regrid augment data to match resolution of base data"""
         time_mask = self.time_index.isin(self.augment_dh.time_index)
