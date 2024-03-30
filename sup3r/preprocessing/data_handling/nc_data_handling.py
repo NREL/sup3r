@@ -759,24 +759,24 @@ class DataHandlerNCwithAugmentation(DataHandlerNC):
         )
         super().__init__(*args, **kwargs)
 
-    # pylint: disable=E1136
     def regrid_augment_data(self):
         """Regrid augment data to match resolution of base data"""
         time_mask = self.time_index.isin(self.augment_dh.time_index)
         time_indices = np.arange(len(self.time_index))
-        interp_func = interp1d(
-            time_indices[time_mask],
-            self.augment_dh.data,
-            axis=2,
-            fill_value="extrapolate",
-        )
-        tinterp_out = interp_func(time_indices)
+        tinterp_out = self.augment_dh.data
+        if self.augment_dh.data.shape[2] > 1:
+            interp_func = interp1d(
+                time_indices[time_mask],
+                tinterp_out,
+                axis=2,
+                fill_value="extrapolate",
+            )
+            tinterp_out = interp_func(time_indices)
         regridder = Regridder(self.augment_dh.meta, self.meta)
         out = np.zeros(self.shape, dtype=np.float32)
         for fidx, _ in enumerate(self.augment_dh.features):
             out[..., fidx] = regridder(tinterp_out[..., fidx]).reshape(
-                self.shape[:-1]
-            )
+                list(self.shape)[:-1])
         return out
 
     def run_all_data_init(self):
