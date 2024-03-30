@@ -748,7 +748,6 @@ class DataHandlerNCwithAugmentation(DataHandlerNC):
             )
             tinterp_out = interp_func(time_indices)
         regridder = Regridder(self.augment_dh.meta, self.meta)
-
         out = np.zeros((*self.domain_shape, len(self.augment_dh.features)),
                        dtype=np.float32)
         for fidx, _ in enumerate(self.augment_dh.features):
