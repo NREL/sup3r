@@ -810,6 +810,17 @@ class InputMixIn(CacheHandlingMixIn):
             self._grid_shape = self.lat_lon.shape[:-1]
         return self._grid_shape
 
+    @property
+    def domain_shape(self):
+        """Get spatiotemporal domain shape
+
+        Returns
+        -------
+        tuple
+            (rows, cols, timesteps)
+        """
+        return (*self.grid_shape, len(self.time_index))
+
     @grid_shape.setter
     def grid_shape(self, grid_shape):
         """Update grid_shape property"""

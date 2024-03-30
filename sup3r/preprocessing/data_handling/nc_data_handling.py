@@ -759,6 +759,18 @@ class DataHandlerNCwithAugmentation(DataHandlerNC):
         )
         super().__init__(*args, **kwargs)
 
+    def get_temporal_overlap(self):
+        """Get augment data that overlaps with time period of base data.
+
+        Returns
+        -------
+        ndarray
+            Data array of augment data that has an overlapping time period with
+            base data.
+        """
+        aug_time_mask = self.augment_dh.time_index.isin(self.time_index)
+        return self.augment_dh.data[..., aug_time_mask, :]
+
     def regrid_augment_data(self):
         """Regrid augment data to match resolution of base data.
 
@@ -770,7 +782,7 @@ class DataHandlerNCwithAugmentation(DataHandlerNC):
         """
         time_mask = self.time_index.isin(self.augment_dh.time_index)
         time_indices = np.arange(len(self.time_index))
-        tinterp_out = self.augment_dh.data
+        tinterp_out = self.get_temporal_overlap()
         if self.augment_dh.data.shape[-2] > 1:
             interp_func = interp1d(
                 time_indices[time_mask],
@@ -780,11 +792,11 @@ class DataHandlerNCwithAugmentation(DataHandlerNC):
             )
             tinterp_out = interp_func(time_indices)
         regridder = Regridder(self.augment_dh.meta, self.meta)
-        out = np.zeros((*self.grid_shape, len(self.augment_dh.features)),
+        out = np.zeros((*self.domain_shape, len(self.augment_dh.features)),
                        dtype=np.float32)
         for fidx, _ in enumerate(self.augment_dh.features):
             out[..., fidx] = regridder(
-                tinterp_out[..., fidx]).reshape(self.grid_shape)
+                tinterp_out[..., fidx]).reshape(self.domain_shape)
         logger.info('Finished regridding augment data from '
                     f'{self.augment_dh.data.shape} to {self.data.shape}')
         return out
