@@ -748,6 +748,9 @@ class DataHandlerNCwithAugmentation(DataHandlerNC):
             )
             tinterp_out = interp_func(time_indices)
         regridder = Regridder(self.augment_dh.meta, self.meta)
+
+
+<< << << < HEAD: sup3r / preprocessing / data_handling / nc.py
         out = np.zeros((*self.domain_shape, len(self.augment_dh.features)),
                        dtype=np.float32)
         for fidx, _ in enumerate(self.augment_dh.features):
@@ -755,8 +758,13 @@ class DataHandlerNCwithAugmentation(DataHandlerNC):
                 tinterp_out[..., fidx]).reshape(self.domain_shape)
         logger.info('Finished regridding augment data from '
                     f'{self.augment_dh.data.shape} to {self.data.shape}')
+== == == =
+        out = np.zeros(self.shape, dtype=np.float32)
+        for fidx, _ in enumerate(self.augment_dh.features):
+            out[..., fidx] = regridder(tinterp_out[..., fidx]).reshape(
+                list(self.shape)[:-1])
+>> >> >> > 85317444 (temporal interp check for n timesteps > 1): sup3r / preprocessing / data_handling / nc_data_handling.py
         return out
-
     def run_all_data_init(self):
         """Modified run_all_data_init function with augmentation operation.
 
