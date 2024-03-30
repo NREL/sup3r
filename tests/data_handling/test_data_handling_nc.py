@@ -27,16 +27,16 @@ shape = (8, 8)
 sample_shape = (8, 8, 6)
 s_enhance = 2
 t_enhance = 2
-dh_kwargs = dict(target=target,
-                 shape=shape,
-                 max_delta=20,
-                 lr_only_features=('BVF*m', 'topography',),
-                 sample_shape=sample_shape,
-                 temporal_slice=slice(None, None, 1),
-                 worker_kwargs=dict(max_workers=1),
-                 single_ts_files=True)
-bh_kwargs = dict(batch_size=8, n_batches=20, s_enhance=s_enhance,
-                 t_enhance=t_enhance, worker_kwargs=dict(max_workers=1))
+dh_kwargs = {'target': target,
+             'shape': shape,
+             'max_delta': 20,
+             'lr_only_features': ('BVF*m', 'topography',),
+             'sample_shape': sample_shape,
+             'temporal_slice': slice(None, None, 1),
+             'worker_kwargs': {'max_workers': 1},
+             'single_ts_files': True}
+bh_kwargs = {'batch_size': 8, 'n_batches': 20, 's_enhance': s_enhance,
+             't_enhance': t_enhance, 'worker_kwargs': {'max_workers': 1}}
 
 
 def test_topography():
@@ -51,7 +51,7 @@ def test_topography():
         ri = data_handler.raster_index
         with xr.open_mfdataset(input_files, concat_dim='Time',
                                combine='nested') as res:
-            topo = np.array(res['HGT'][tuple([slice(None)] + ri)])
+            topo = np.array(res['HGT'][(slice(None), *ri)])
         topo = np.transpose(topo, (1, 2, 0))[::-1]
         topo_idx = data_handler.features.index('topography')
         assert np.allclose(topo, data_handler.data[..., :, topo_idx])
@@ -195,7 +195,7 @@ def test_feature_handler():
                      'T_top': ['T', 200],
                      'P_bottom': ['P', 100],
                      'P_top': ['P', 200]}
-        for _, v in var_names.items():
+        for v in var_names.values():
             tmp = handler.extract_feature(
                 input_files, handler.raster_index, f'{v[0]}_{v[1]}m')
             assert tmp.dtype == np.dtype(np.float32)
@@ -207,7 +207,7 @@ def test_get_full_domain():
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
         handler = DataHandler(input_files, features,
-                              worker_kwargs=dict(max_workers=1))
+                              worker_kwargs={'max_workers': 1})
         tmp = xr.open_dataset(input_files[0])
         shape = np.array(tmp.XLAT.values).shape[1:]
         target = (tmp.XLAT.values[0, 0, 0], tmp.XLONG.values[0, 0, 0])
@@ -220,7 +220,7 @@ def test_get_target():
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
         handler = DataHandler(input_files, features, shape=(4, 4),
-                              worker_kwargs=dict(max_workers=1))
+                              worker_kwargs={'max_workers': 1})
         tmp = xr.open_dataset(input_files[0])
         target = (tmp.XLAT.values[0, 0, 0], tmp.XLONG.values[0, 0, 0])
         assert handler.grid_shape == (4, 4)
@@ -241,7 +241,7 @@ def test_raster_index_caching():
 
         # loading raster file
         handler = DataHandler(input_files, features, raster_file=raster_file,
-                              worker_kwargs=dict(max_workers=1))
+                              worker_kwargs={'max_workers': 1})
         assert np.allclose(handler.target, target, atol=1)
         assert handler.data.shape == (shape[0], shape[1],
                                       handler.data.shape[2], len(features))
@@ -330,6 +330,17 @@ def test_data_handler_with_augmentation():
             augment_handler_kwargs=augment_handler_kwargs,
             augment_func=np.subtract, **dh_kwargs)
         assert np.allclose(np.zeros(aug_dh.data.shape), dh.data)
+
+        augment_handler_kwargs = {"file_paths": input_files,
+                                  "features": features[-1:]}
+        augment_handler_kwargs.update(dh_kwargs)
+        aug_dh = DataHandler(input_files, features, **dh_kwargs)
+        dh = DataHandlerNCwithAugmentation(
+            input_files, features,
+            augment_handler_kwargs=augment_handler_kwargs,
+            augment_func='lambda x, y: np.add(x, 2 * y)', **dh_kwargs)
+        assert np.allclose(3 * aug_dh.data[..., -1], dh.data[..., -1])
+        assert np.allclose(aug_dh.data[..., :-1], dh.data[..., :-1])
 
 
 def test_validation_batching():
@@ -458,10 +469,8 @@ def test_spatiotemporal_batch_indices(sample_shape):
                 spatial_1_slice = np.arange(index[0].start, index[0].stop)
                 spatial_2_slice = np.arange(index[1].start, index[1].stop)
                 t_slice = np.arange(index[2].start, index[2].stop)
-                spatial_tuples = []
-                for s1 in spatial_1_slice:
-                    for s2 in spatial_2_slice:
-                        spatial_tuples.append((s1, s2))
+                spatial_tuples = [(s1, s2) for s1 in spatial_1_slice
+                                  for s2 in spatial_2_slice]
                 assert len(spatial_tuples) == len(list(set(spatial_tuples)))
 
                 all_spatial_tuples.append(np.array(spatial_tuples))

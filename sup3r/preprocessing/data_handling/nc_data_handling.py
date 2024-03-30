@@ -755,31 +755,52 @@ class DataHandlerNCwithAugmentation(DataHandlerNC):
         logger.info(
             f"Initializing {self.__class__.__name__} with "
             f"augment_handler_kwargs = {augment_handler_kwargs} and "
-            f"augment_func = {self.augment_func}"
+            f"augment_func = {augment_func}"
         )
         super().__init__(*args, **kwargs)
 
     def regrid_augment_data(self):
-        """Regrid augment data to match resolution of base data"""
+        """Regrid augment data to match resolution of base data.
+
+        Returns
+        -------
+        out : ndarray
+            Augment data temporally interpolated and regridded to match the
+            resolution of base data.
+        """
         time_mask = self.time_index.isin(self.augment_dh.time_index)
         time_indices = np.arange(len(self.time_index))
         tinterp_out = self.augment_dh.data
-        if self.augment_dh.data.shape[2] > 1:
+        if self.augment_dh.data.shape[-2] > 1:
             interp_func = interp1d(
                 time_indices[time_mask],
                 tinterp_out,
-                axis=2,
+                axis=-2,
                 fill_value="extrapolate",
             )
             tinterp_out = interp_func(time_indices)
         regridder = Regridder(self.augment_dh.meta, self.meta)
-        out = np.zeros(self.shape, dtype=np.float32)
+        out = np.zeros((*self.grid_shape, len(self.augment_dh.features)),
+                       dtype=np.float32)
         for fidx, _ in enumerate(self.augment_dh.features):
-            out[..., fidx] = regridder(tinterp_out[..., fidx]).reshape(
-                list(self.shape)[:-1])
+            out[..., fidx] = regridder(
+                tinterp_out[..., fidx]).reshape(self.grid_shape)
+        logger.info('Finished regridding augment data from '
+                    f'{self.augment_dh.data.shape} to {self.data.shape}')
         return out
 
     def run_all_data_init(self):
-        """Modified run_all_data_init function with augmentation operation."""
-        return self.augment_func(super().run_all_data_init(),
-                                 self.regrid_augment_data())
+        """Modified run_all_data_init function with augmentation operation.
+
+        Returns
+        -------
+        out : ndarray
+            Base data array augmented by data in augment_dh.
+            e.g. ERA5 +/- 2 * EDA
+        """
+        out = super().run_all_data_init()
+        base_indices = [self.features.index(feature)
+                        for feature in self.augment_dh.features]
+        out[..., base_indices] = self.augment_func(out[..., base_indices],
+                                                   self.regrid_augment_data())
+        return out
