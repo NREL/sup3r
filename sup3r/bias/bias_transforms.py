@@ -7,7 +7,6 @@ from warnings import warn
 import numpy as np
 from rex import Resource
 from scipy.ndimage import gaussian_filter
-import xarray as xr
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +72,7 @@ def get_spatial_bc_quantiles(lat_lon: np.array,
                              feature_name: str,
                              bias_fp: str,
                              threshold: float = 0.1
-                             ) -> xr.Dataset:
+                             ):
     dset_base = f'base_{feature_name}_CDF'
     dset_bias = f'bias_{feature_name}_CDF'
     dset_bias_fut = f'bias_fut_{feature_name}_CDF'
@@ -112,23 +111,7 @@ def get_spatial_bc_quantiles(lat_lon: np.array,
         bias = res[dset_bias, slice_y, slice_x]
         bias_fut = res[dset_bias_fut, slice_y, slice_x]
 
-        params = xr.Dataset(
-            data_vars=dict(
-                base=(["x", "y", "quantile"], base),
-                bias=(["x", "y", "quantile"], bias),
-                bias_fut=(["x", "y", "quantile"], bias_fut),
-            ),
-            coords=dict(
-                lat=(["y", "x"], lat_lon[..., 0]),
-                lon=(["y", "x"], lat_lon[..., 1]),
-                quantile=(["quantile"], np.linspace(0, 1, 51)),
-            ),
-            attrs=dict(
-                notes="Created on the fly by get_spatial_bc_quantiles()"
-            )
-        )
-
-        return params
+        return base, bias, bias_fut
 
 
 def global_linear_bc(input, scalar, adder, out_range=None):
@@ -355,38 +338,6 @@ def monthly_local_linear_bc(input,
         out = np.minimum(out, np.max(out_range))
 
     return out
-
-
-def local_qdm_bc_as_nparray(data: np.array,
-                            lat_lon: np.array,
-                            feature_name: str,
-                            *args,
-                            **kwargs):
-    """Interface to local_qdm_bc for np.array
-
-
-    The local_qdm_bc() expects an xr.DataArray, thus data and metadata,
-    including coordinates, are tightly coupled together. Here we provide
-    an interface based in a np.array pattern.
-
-    Notes
-    -----
-    Assuming arguments as described by local_linear_bc(), thus a 3D data
-    (spatial, spatial, temporal), and lat_lon (n_lats, n_lons, [lat, lon]).
-    """
-    da = xr.DataArray(
-        data=data,
-        dims=["y", "x", "time"],
-        coords=dict(
-            lat=(["y", "x"], lat_lon[..., 0]),
-            lon=(["y", "x"], lat_lon[..., 1]),
-        ),
-        name=feature_name,
-        attrs=dict(
-            notes="Created on the fly by local_qdm_bc_from_array()"
-        )
-    )
-    return local_qdm_bc(da, *args, **kwargs).data
 
 
 def _quantile_delta_mapping(ds, varname):
