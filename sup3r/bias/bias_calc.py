@@ -1,6 +1,7 @@
 """Utilities to calculate the bias correction factors for biased data that is
 going to be fed into the sup3r downscaling models. This is typically used to
 bias correct GCM data vs. some historical record like the WTK or NSRDB."""
+
 import copy
 import json
 import logging
@@ -14,9 +15,7 @@ import numpy as np
 import pandas as pd
 import rex
 from rex.utilities.fun_utils import get_fun_call_str
-from rex.utilities.bc_utils import (sample_q_linear,
-                                    sample_q_log,
-                                    sample_q_invlog)
+from rex.utilities.bc_utils import sample_q_linear, sample_q_log, sample_q_invlog
 from scipy import stats
 from scipy.ndimage import gaussian_filter
 from scipy.spatial import KDTree
@@ -1173,7 +1172,7 @@ class MonthlyScalarCorrection(MonthlyLinearCorrection):
 class QuantileDeltaMappingCorrection(DataRetrievalBase):
     def __init__(self, base_fps, bias_fps, bias_fut_fps, *args, **kwargs):
         self.NQ = 51
-        self.dist="empirical"
+        self.dist = "empirical"
         self.sampling = "linear"
         self.log_base = 10
         super().__init__(base_fps, bias_fps, *args, **kwargs)
@@ -1240,7 +1239,6 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
                                   log_base)
         return out
 
-
     @staticmethod
     def get_qdm_params(bias_data,
                        bias_fut_data,
@@ -1270,7 +1268,6 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
         }
 
         return out
-
 
     def write_outputs(self, fp_out, out):
         """Write outputs to an .h5 file.
