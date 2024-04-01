@@ -359,16 +359,26 @@ def _quantile_delta_mapping(ds, varname):
     return unbiased
 
 
-def local_qdm_bc(da: xr.DataArray, bias_fp):
-    params = get_spatial_bc_quantiles(lat_lon, feature_name, bias_fp)
+def local_qdm_bc(data: np.array,
+                 lat_lon: np.array,
+                 feature_name: str,
+                 bias_fp):
+    """
+    Notes
+    -----
+    Assuming arguments as described by local_linear_bc(), thus a 3D data
+    (spatial, spatial, temporal), and lat_lon (n_lats, n_lons, [lat, lon]).
+    """
+    base, bias, bias_fut = get_spatial_bc_quantiles(lat_lon,
+                                                    feature_name,
+                                                    bias_fp)
 
-    da_corrected = (xr.merge([da, params])
-                    .stack(location=["x", "y"])
-                    .dropna(dim="location", how="all")
-                    .set_coords(["base", "bias", "bias_fut"])
-                    .groupby("location")
-                    .apply(_quantile_delta_mapping, varname=da.name)
-                    .unstack("location")
-                    )
+    QDM = QuantileDeltaMapping(base,
+                               bias,
+                               bias_fut,
+                               dist="empirical",
+                               relative=True,
+                               sampling="linear",
+                               log_base=10)
 
-    return da_corrected
+    return QDM(data)
