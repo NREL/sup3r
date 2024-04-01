@@ -4,6 +4,7 @@ import os
 import shutil
 import tempfile
 
+import h5py
 import numpy as np
 import xarray as xr
 
@@ -63,3 +64,26 @@ def test_parallel():
         assert k in out_p, f"Missing {k} in parallel run"
         assert np.allclose(out_s[k], out_p[k], equal_nan=True), \
             f"Different results for {k}"
+
+
+def test_save_file():
+    """Save valid output
+
+    Confirm it saves the output by creating a valid HDF5 file.
+    """
+
+    calc = QuantileDeltaMappingCorrection(FP_NSRDB, FP_CC, FP_FUT_CC,
+                                          'ghi', 'rsds',
+                                          target=TARGET, shape=SHAPE,
+                                          distance_upper_bound=0.7,
+                                          bias_handler='DataHandlerNCforCC')
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        filename = os.path.join(tmpdir, "demo.hdf")
+        out = calc.run(filename)
+
+        # File was created
+        os.path.isfile(filename)
+        # A valid HDF5, can open and read
+        with h5py.File(filename, "r") as f:
+            assert "latitude" in f.keys()
