@@ -70,11 +70,12 @@ def get_spatial_bc_factors(lat_lon, feature_name, bias_fp, threshold=0.1):
 
 
 def get_spatial_bc_quantiles(lat_lon: np.array,
+                             base_dset: str,
                              feature_name: str,
                              bias_fp: str,
                              threshold: float = 0.1
                              ):
-    dset_base = f'base_{feature_name}_CDF'
+    dset_base = f'base_{base_dset}_CDF'
     dset_bias = f'bias_{feature_name}_CDF'
     dset_bias_fut = f'bias_fut_{feature_name}_CDF'
     with Resource(bias_fp) as res:
