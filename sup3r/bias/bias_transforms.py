@@ -362,24 +362,25 @@ def _quantile_delta_mapping(ds, varname):
 
 def local_qdm_bc(data: np.array,
                  lat_lon: np.array,
+                 base_dset: str,
                  feature_name: str,
                  bias_fp):
-    """
-    Notes
-    -----
-    Assuming arguments as described by local_linear_bc(), thus a 3D data
-    (spatial, spatial, temporal), and lat_lon (n_lats, n_lons, [lat, lon]).
-    """
     base, bias, bias_fut = get_spatial_bc_quantiles(lat_lon,
+                                                    base_dset,
                                                     feature_name,
                                                     bias_fp)
 
-    QDM = QuantileDeltaMapping(base,
-                               bias,
-                               bias_fut,
+    # saved as 3D shape (space, space, N-params)
+    encode = lambda x: x.reshape(-1, base.shape[-1])
+    # params expected 2D arrays with shape (space, N-params)
+    QDM = QuantileDeltaMapping(encode(base),
+                               encode(bias),
+                               encode(bias_fut),
                                dist="empirical",
                                relative=True,
                                sampling="linear",
                                log_base=10)
 
-    return QDM(data)
+    # input 3D shape (spatial, spatial, temporal)
+    # QDM expects input arr with shape (time, space)
+    return QDM(data.reshape(-1, data.shape[-1]).T).T.reshape(data.shape)
