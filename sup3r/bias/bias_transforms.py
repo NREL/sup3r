@@ -344,24 +344,6 @@ def monthly_local_linear_bc(input,
     return out
 
 
-def _quantile_delta_mapping(ds, varname):
-    Doh = EmpiricalDistribution.from_quantiles(ds.base.data)
-    Dmh = EmpiricalDistribution.from_quantiles(ds.bias.data)
-    Dmf = EmpiricalDistribution.from_quantiles(ds.bias_fut.data)
-
-    q_mf = Doh.cdf(ds[varname])
-    x_oh = Dmf.ppf(q_mf)
-    x_mh_mf = Dmh.ppf(q_mf)
-
-    delta = ds[varname] - x_mh_mf
-    unbiased = x_oh + delta
-
-    unbiased.name = f"{out.name}_unbiased"
-    unbiased.attrs["comments"] = "Unbiased with QDM"
-
-    return unbiased
-
-
 def local_qdm_bc(data: np.array,
                  lat_lon: np.array,
                  base_dset: str,
