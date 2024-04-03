@@ -113,7 +113,9 @@ def get_spatial_bc_quantiles(lat_lon: np.array,
         bias = res[dset_bias, slice_y, slice_x]
         bias_fut = res[dset_bias_fut, slice_y, slice_x]
 
-        return base, bias, bias_fut
+        cfg = {k:v for k,v in res.h5.attrs.items() if k in ("dist", "sampling", "log_base")}
+
+        return base, bias, bias_fut, cfg
 
 
 def global_linear_bc(input, scalar, adder, out_range=None):
@@ -364,22 +366,23 @@ def local_qdm_bc(data: np.array,
                  lat_lon: np.array,
                  base_dset: str,
                  feature_name: str,
-                 bias_fp):
-    base, bias, bias_fut = get_spatial_bc_quantiles(lat_lon,
-                                                    base_dset,
-                                                    feature_name,
-                                                    bias_fp)
+                 bias_fp,
+                 relative=True):
+    base, bias, bias_fut, cfg = get_spatial_bc_quantiles(lat_lon,
+                                                         base_dset,
+                                                         feature_name,
+                                                         bias_fp)
 
     # saved as 3D shape (space, space, N-params)
-    encode = lambda x: x.reshape(-1, base.shape[-1])
+    projection = lambda x: x.reshape(-1, base.shape[-1])
     # params expected 2D arrays with shape (space, N-params)
-    QDM = QuantileDeltaMapping(encode(base),
-                               encode(bias),
-                               encode(bias_fut),
-                               dist="empirical",
-                               relative=True,
-                               sampling="linear",
-                               log_base=10)
+    QDM = QuantileDeltaMapping(projection(base),
+                               projection(bias),
+                               projection(bias_fut),
+                               dist=cfg["dist"],
+                               relative=relative,
+                               sampling=cfg["sampling"],
+                               log_base=cfg["log_base"])
 
     # input 3D shape (spatial, spatial, temporal)
     # QDM expects input arr with shape (time, space)

@@ -1294,6 +1294,9 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
 
                 for k, v in self.meta.items():
                     f.attrs[k] = json.dumps(v)
+                f.attrs["dist"] = self.dist
+                f.attrs["sampling"] = self.sampling
+                f.attrs["log_base"] = self.log_base
                 logger.info(
                     'Wrote quantiles to file: {}'.format(fp_out))
 
