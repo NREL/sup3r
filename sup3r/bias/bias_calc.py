@@ -1174,6 +1174,23 @@ class MonthlyScalarCorrection(MonthlyLinearCorrection):
 
 
 class QuantileDeltaMappingCorrection(DataRetrievalBase):
+    """Approximate data distributions required for Quantile Delta Mapping
+
+    The Quantile Delta Mapping (QDM) technique corrects bias and trend by
+    comparing the data distributions of three datasets: a historical reference,
+
+    Attributes
+    ----------
+    dist : str
+        Define the type of distribution, which can be "empirical" or any
+        parametric distribution defined in "scipy".
+    n_quantiles : int
+        Defines the number of quantiles for an empirical distribution.
+    sampling : str
+        Defines the spacing bewteen quantiles for an "empirical" distribution.
+    log_base : int | float
+        Log base value if sampling is "log" or "invlog".
+    """
     def __init__(self,
                  base_fps,
                  bias_fps,
@@ -1184,6 +1201,33 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
                  sampling="linear",
                  log_base=10,
                  **kwargs):
+        """Initialize `QuantileDeltaMappingCorrection`
+
+        Parameters
+        ----------
+        base_fps : list | str
+            One or more baseline .h5 filepaths representing non-biased data to
+            use to correct the biased dataset. This is typically several years
+            of WTK or NSRDB files.
+        bias_fps : list | str
+            One or more biased .nc or .h5 filepaths representing the biased
+            data to be compared with the baseline data. This is typically
+            several years of GCM .nc files.
+        bias_fut_fps : list | str
+            Similar to `bias_fps` but usually for a different time period.
+            This is the dataset that would be corrected, since `bias_fsp` is
+            only used to provide a transformation map with the baseline data.
+        dist : str, default="empirical",
+            Define the type of distribution, which can be "empirical" or any
+            parametric distribution defined in "scipy".
+        n_quantiles : int, default=101
+            Defines the number of quantiles for an empirical distribution.
+        sampling : str, default="linear",
+            Defines the spacing bewteen quantiles for an "empirical"
+            distribution.
+        log_base : int or float, default=10,
+            Log base value if sampling is "log" or "invlog".
+        """
 
         self.n_quantiles = n_quantiles
         self.dist = dist
