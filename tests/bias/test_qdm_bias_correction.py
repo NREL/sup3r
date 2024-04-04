@@ -16,6 +16,7 @@ from sup3r.preprocessing.data_handling import DataHandlerNC
 
 FP_NSRDB = os.path.join(TEST_DATA_DIR, "test_nsrdb_co_2018.h5")
 FP_CC = os.path.join(TEST_DATA_DIR, "rsds_test.nc")
+FP_CC_LAT_LON = DataHandlerNC(FP_CC, "rsds").lat_lon
 
 with xr.open_dataset(FP_CC) as fh:
     MIN_LAT = np.min(fh.lat.values.astype(np.float32))
@@ -143,21 +144,13 @@ def test_save_file(fp_fut_cc):
             assert "latitude" in f.keys()
 
 
-def test_qdm_transform(fp_fut_cc):
+def test_qdm_transform(dist_params):
     """
     WIP: Confirm it runs, but don't verify anything yet.
     """
-    calc = QuantileDeltaMappingCorrection(FP_NSRDB, FP_CC, fp_fut_cc,
-                                          'ghi', 'rsds',
-                                          target=TARGET, shape=SHAPE,
-                                          distance_upper_bound=0.7,
-                                          bias_handler='DataHandlerNCforCC')
-    lat_lon = calc.bias_dh.lat_lon
-    with tempfile.TemporaryDirectory() as td:
-        fp_out = os.path.join(td, 'bc.h5')
-        _ = calc.run(max_workers=1, fp_out=fp_out)
-        data = np.ones((*lat_lon.shape[:-1], 2))
-        _ = local_qdm_bc(data, lat_lon, 'ghi', 'rsds', fp_out)
+    data = np.ones((*FP_CC_LAT_LON.shape[:-1], 2))
+    corrected = local_qdm_bc(data, FP_CC_LAT_LON, "ghi", "rsds", dist_params)
+    assert not np.allclose(data, corrected, equal_nan=False)
 
 
 def test_handler_qdm_bc(fp_fut_cc):
