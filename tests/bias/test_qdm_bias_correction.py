@@ -26,6 +26,11 @@ with xr.open_dataset(FP_CC) as fh:
 
 @pytest.fixture(scope="session")
 def fp_fut_cc(tmpdir_factory):
+    """Sample future CC dataset
+
+    This is currently a copy of FP_CC, but as the tests evolve it might be
+    usefull to think a little here.
+    """
     fn = tmpdir_factory.mktemp("data").join("test_mf.nc")
     shutil.copyfile(FP_CC, fn)
     # DataHandlerNCforCC requires a string
