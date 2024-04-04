@@ -82,7 +82,7 @@ def test_save_file():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         filename = os.path.join(tmpdir, "demo.hdf")
-        out = calc.run(filename)
+        _ = calc.run(filename)
 
         # File was created
         os.path.isfile(filename)
@@ -92,6 +92,9 @@ def test_save_file():
 
 
 def test_qdm_transform():
+    """
+    WIP: Confirm it runs, but don't verify anything yet.
+    """
     calc = QuantileDeltaMappingCorrection(FP_NSRDB, FP_CC, FP_FUT_CC,
                                           'ghi', 'rsds',
                                           target=TARGET, shape=SHAPE,
@@ -102,7 +105,7 @@ def test_qdm_transform():
         fp_out = os.path.join(td, 'bc.h5')
         _ = calc.run(max_workers=1, fp_out=fp_out)
         data = np.ones((*lat_lon.shape[:-1], 2))
-        corrected = local_qdm_bc(data, lat_lon, 'ghi', 'rsds', fp_out)
+        _ = local_qdm_bc(data, lat_lon, 'ghi', 'rsds', fp_out)
 
 
 def test_handler_qdm_bc():
