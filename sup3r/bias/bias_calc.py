@@ -1206,11 +1206,13 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
         keys = [f'bias_{self.bias_feature}_CDF',
                 f'bias_fut_{self.bias_feature}_CDF',
                 f'base_{self.base_dset}_CDF',
-                ]
-        self.out = {k: np.full((*self.bias_gid_raster.shape, self.NQ),
-                               np.nan, np.float32)
-                    for k in keys}
-
+        ]
+        self.out = {
+            k: np.full(
+                (*self.bias_gid_raster.shape, self.n_quantiles), np.nan, np.float32
+            )
+            for k in keys
+        }
 
     # pylint: disable=W0613
     @classmethod
