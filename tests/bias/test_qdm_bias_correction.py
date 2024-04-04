@@ -28,8 +28,25 @@ with xr.open_dataset(FP_CC) as fh:
 def fp_fut_cc(tmpdir_factory):
     """Sample future CC dataset
 
-    This is currently a copy of FP_CC, but as the tests evolve it might be
-    usefull to think a little here.
+    The same CC but with a small offset and negligible noise.
+    """
+    fn = tmpdir_factory.mktemp("data").join("test_mf.nc")
+    ds = xr.open_dataset(FP_CC)
+    # Adding an offset
+    ds['rsds'] += 50.0
+    # adding a noise
+    ds['rsds'] += np.random.random(ds['rsds'].shape)
+    ds.to_netcdf(fn)
+    # DataHandlerNCforCC requires a string
+    fn = str(fn)
+    return fn
+
+
+@pytest.fixture(scope="session")
+def fp_fut_cc_notrend(tmpdir_factory):
+    """Sample future CC dataset
+
+    This is currently a copy of FP_CC, thus no trend on time.
     """
     fn = tmpdir_factory.mktemp("data").join("test_mf.nc")
     shutil.copyfile(FP_CC, fn)
