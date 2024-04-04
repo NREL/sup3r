@@ -18,7 +18,7 @@ from rex import Resource
 from rex.utilities import log_mem
 from rex.utilities.fun_utils import get_fun_call_str
 
-from sup3r.bias.bias_transforms import get_spatial_bc_factors
+from sup3r.bias.bias_transforms import get_spatial_bc_factors, local_qdm_bc
 from sup3r.preprocessing.data_handling.mixin import (
     InputMixIn,
     TrainingPrepMixIn,
@@ -1334,6 +1334,34 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
                     self.data[..., idf] *= scalar
                     self.data[..., idf] += adder
                     completed.append(feature)
+
+
+    def qdm_bc(self, bc_files, reference_feature, relative=True, threshold=0.1):
+        """
+
+        Warning: There is no guarantee that the coefficients from `bc_files`
+        match the resource processed here. Be careful choosing `bc_files`.
+        """
+
+        if isinstance(bc_files, str):
+            bc_files = [bc_files]
+
+        completed = []
+        for idf, feature in enumerate(self.features):
+            for fp in bc_files:
+                logger.info('Bias correcting "{}" with QDM '
+                            'correction from "{}"'.format(
+                                feature, os.path.basename(fp)))
+                self.data[..., idf] = local_qdm_bc(self.data[..., idf],
+                                                   self.lat_lon,
+                                                   reference_feature,
+                                                   feature,
+                                                   fp,
+                                                   relative)
+                completed.append(feature)
+
+
+
 
 
 # pylint: disable=W0223
