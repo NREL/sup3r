@@ -45,7 +45,7 @@ def fp_fut_cc(tmpdir_factory):
 
 @pytest.fixture(scope="session")
 def fp_fut_cc_notrend(tmpdir_factory):
-    """Sample future CC dataset
+    """Sample future CC dataset identical to historical CC
 
     This is currently a copy of FP_CC, thus no trend on time.
     """
@@ -84,12 +84,15 @@ def dist_params(tmpdir_factory, fp_fut_cc):
 
 
 def test_qdm_bc(fp_fut_cc):
-    """Test QDM bias correction"""
+    """Test QDM bias correction
+
+    Basic standard run. Using only required arguments. If this fails,
+    something fundamental is wrong.
+    """
 
     calc = QuantileDeltaMappingCorrection(FP_NSRDB, FP_CC, fp_fut_cc,
                                           'ghi', 'rsds',
                                           target=TARGET, shape=SHAPE,
-                                          distance_upper_bound=0.7,
                                           bias_handler='DataHandlerNCforCC')
 
     out = calc.run()
@@ -101,7 +104,10 @@ def test_qdm_bc(fp_fut_cc):
 
 
 def test_parallel(fp_fut_cc):
-    """Compare bias correction run serial vs in parallel"""
+    """Compare bias correction run serial vs in parallel
+
+    Both modes should give the exact same results.
+    """
 
     s = QuantileDeltaMappingCorrection(FP_NSRDB, FP_CC, fp_fut_cc,
                                        'ghi', 'rsds',
