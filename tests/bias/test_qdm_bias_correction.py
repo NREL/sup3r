@@ -6,6 +6,7 @@ import tempfile
 
 import h5py
 import numpy as np
+import pytest
 import xarray as xr
 
 from sup3r import TEST_DATA_DIR
@@ -16,11 +17,6 @@ from sup3r.preprocessing.data_handling import DataHandlerNC
 FP_NSRDB = os.path.join(TEST_DATA_DIR, "test_nsrdb_co_2018.h5")
 FP_CC = os.path.join(TEST_DATA_DIR, "rsds_test.nc")
 
-# Not ideal but a good start
-tmpdir = tempfile.TemporaryDirectory()
-FP_FUT_CC = os.path.join(tmpdir.name, 'test_mf.nc')
-shutil.copyfile(FP_CC, FP_FUT_CC)
-
 with xr.open_dataset(FP_CC) as fh:
     MIN_LAT = np.min(fh.lat.values.astype(np.float32))
     MIN_LON = np.min(fh.lon.values.astype(np.float32)) - 360
@@ -28,10 +24,19 @@ with xr.open_dataset(FP_CC) as fh:
     SHAPE = (len(fh.lat.values), len(fh.lon.values))
 
 
-def test_qdm_bc():
+@pytest.fixture(scope="session")
+def fp_fut_cc(tmpdir_factory):
+    fn = tmpdir_factory.mktemp("data").join("test_mf.nc")
+    shutil.copyfile(FP_CC, fn)
+    # DataHandlerNCforCC requires a string
+    fn = str(fn)
+    return fn
+
+
+def test_qdm_bc(fp_fut_cc):
     """Test QDM bias correction"""
 
-    calc = QuantileDeltaMappingCorrection(FP_NSRDB, FP_CC, FP_FUT_CC,
+    calc = QuantileDeltaMappingCorrection(FP_NSRDB, FP_CC, fp_fut_cc,
                                           'ghi', 'rsds',
                                           target=TARGET, shape=SHAPE,
                                           distance_upper_bound=0.7,
@@ -45,17 +50,17 @@ def test_qdm_bc():
         assert np.isfinite(out[v]).any()
 
 
-def test_parallel():
+def test_parallel(fp_fut_cc):
     """Compare bias correction run serial vs in parallel"""
 
-    s = QuantileDeltaMappingCorrection(FP_NSRDB, FP_CC, FP_FUT_CC,
+    s = QuantileDeltaMappingCorrection(FP_NSRDB, FP_CC, fp_fut_cc,
                                        'ghi', 'rsds',
                                        target=TARGET, shape=SHAPE,
                                        distance_upper_bound=0.7,
                                        bias_handler='DataHandlerNCforCC')
     out_s = s.run(max_workers=1)
 
-    p = QuantileDeltaMappingCorrection(FP_NSRDB, FP_CC, FP_FUT_CC,
+    p = QuantileDeltaMappingCorrection(FP_NSRDB, FP_CC, fp_fut_cc,
                                        'ghi', 'rsds',
                                        target=TARGET, shape=SHAPE,
                                        distance_upper_bound=0.7,
@@ -64,17 +69,18 @@ def test_parallel():
 
     for k in out_s.keys():
         assert k in out_p, f"Missing {k} in parallel run"
-        assert np.allclose(out_s[k], out_p[k], equal_nan=True), \
-            f"Different results for {k}"
+        assert np.allclose(
+            out_s[k], out_p[k], equal_nan=True
+        ), f"Different results for {k}"
 
 
-def test_save_file():
+def test_save_file(fp_fut_cc):
     """Save valid output
 
     Confirm it saves the output by creating a valid HDF5 file.
     """
 
-    calc = QuantileDeltaMappingCorrection(FP_NSRDB, FP_CC, FP_FUT_CC,
+    calc = QuantileDeltaMappingCorrection(FP_NSRDB, FP_CC, fp_fut_cc,
                                           'ghi', 'rsds',
                                           target=TARGET, shape=SHAPE,
                                           distance_upper_bound=0.7,
@@ -91,11 +97,11 @@ def test_save_file():
             assert "latitude" in f.keys()
 
 
-def test_qdm_transform():
+def test_qdm_transform(fp_fut_cc):
     """
     WIP: Confirm it runs, but don't verify anything yet.
     """
-    calc = QuantileDeltaMappingCorrection(FP_NSRDB, FP_CC, FP_FUT_CC,
+    calc = QuantileDeltaMappingCorrection(FP_NSRDB, FP_CC, fp_fut_cc,
                                           'ghi', 'rsds',
                                           target=TARGET, shape=SHAPE,
                                           distance_upper_bound=0.7,
@@ -108,12 +114,12 @@ def test_qdm_transform():
         _ = local_qdm_bc(data, lat_lon, 'ghi', 'rsds', fp_out)
 
 
-def test_handler_qdm_bc():
+def test_handler_qdm_bc(fp_fut_cc):
     """qdm_bc() method from DataHandler
 
     WIP: Confirm it runs, but don't verify anything yet.
     """
-    calc = QuantileDeltaMappingCorrection(FP_NSRDB, FP_CC, FP_FUT_CC,
+    calc = QuantileDeltaMappingCorrection(FP_NSRDB, FP_CC, fp_fut_cc,
                                           'ghi', 'rsds',
                                           target=TARGET, shape=SHAPE,
                                           distance_upper_bound=0.7,
@@ -122,5 +128,5 @@ def test_handler_qdm_bc():
         fp_out = os.path.join(td, 'bc.h5')
         _ = calc.run(max_workers=1, fp_out=fp_out)
 
-        Handler = DataHandlerNC(FP_FUT_CC, 'rsds')
+        Handler = DataHandlerNC(fp_fut_cc, 'rsds')
         Handler.qdm_bc(fp_out, 'ghi')
