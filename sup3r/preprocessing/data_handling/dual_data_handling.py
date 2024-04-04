@@ -38,6 +38,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
                  regrid_workers=1,
                  load_cached=True,
                  shuffle_time=False,
+                 regrid_lr=True,
                  s_enhance=1,
                  t_enhance=1,
                  val_split=0.0):
@@ -61,6 +62,10 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
             is called.
         shuffle_time : bool
             Whether to shuffle time indices prior to training/validation split
+        regrid_lr : bool
+            Flag to regrid the low-res handler data to the high-res handler
+            grid. This will take care of any minor inconsistencies in different
+            projections. Disable this if the grids are known to be the same.
         s_enhance : int
             Spatial enhancement factor
         t_enhance : int
@@ -95,6 +100,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         self._means = None
         self._stds = None
         self._is_normalized = False
+        self._regrid_lr = regrid_lr
         self._norm_workers = self.lr_dh.norm_workers
 
         if self.try_load and self.load_cached:
@@ -579,16 +585,19 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         """Regrid low_res data for all requested noncached features. Load
         cached features if available and overwrite=False"""
 
-        logger.info('Regridding low resolution feature data.')
-        regridder = self.get_regridder()
+        if self._regrid_lr:
+            logger.info('Regridding low resolution feature data.')
+            regridder = self.get_regridder()
 
-        fnames = set(self.noncached_features)
-        fnames = fnames.intersection(set(self.lr_dh.features))
-        for fname in fnames:
-            fidx = self.lr_dh.features.index(fname)
-            tmp = regridder(self.lr_input_data[..., fidx])
-            tmp = tmp.reshape(self.lr_required_shape)
-            self.lr_data[..., fidx] = tmp
+            fnames = set(self.noncached_features)
+            fnames = fnames.intersection(set(self.lr_dh.features))
+            for fname in fnames:
+                fidx = self.lr_dh.features.index(fname)
+                tmp = regridder(self.lr_input_data[..., fidx])
+                tmp = tmp.reshape(self.lr_required_shape)
+                self.lr_data[..., fidx] = tmp
+        else:
+            self.lr_data = self.lr_input_data
 
         if self.load_cached:
             fnames = set(self.cached_features)
