@@ -15,7 +15,11 @@ import numpy as np
 import pandas as pd
 import rex
 from rex.utilities.fun_utils import get_fun_call_str
-from rex.utilities.bc_utils import sample_q_linear, sample_q_log, sample_q_invlog
+from rex.utilities.bc_utils import (
+    sample_q_linear,
+    sample_q_log,
+    sample_q_invlog,
+)
 from scipy import stats
 from scipy.ndimage import gaussian_filter
 from scipy.spatial import KDTree
@@ -1200,7 +1204,6 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
                                              val_split=0.0,
                                              **self.bias_handler_kwargs)
 
-
     def _init_out(self):
         """Initialize output arrays"""
         keys = [f'bias_{self.bias_feature}_CDF',
@@ -1208,9 +1211,9 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
                 f'base_{self.base_dset}_CDF',
         ]
         self.out = {
-            k: np.full(
-                (*self.bias_gid_raster.shape, self.n_quantiles), np.nan, np.float32
-            )
+            k: np.full((*self.bias_gid_raster.shape, self.n_quantiles),
+                       np.nan,
+                       np.float32)
             for k in keys
         }
 
@@ -1276,8 +1279,9 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
 
         out = {
             f'bias_{bias_feature}_CDF': np.quantile(bias_data, quantiles),
-            f'bias_fut_{bias_feature}_CDF': np.quantile(bias_fut_data, quantiles),
-            f'base_{base_dset}_CDF':  np.quantile(base_data, quantiles),
+            f'bias_fut_{bias_feature}_CDF': np.quantile(bias_fut_data,
+                                                        quantiles),
+            f'base_{base_dset}_CDF': np.quantile(base_data, quantiles),
         }
 
         return out
@@ -1313,7 +1317,6 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
                 logger.info(
                     'Wrote quantiles to file: {}'.format(fp_out))
 
-
     def run(self,
             fp_out=None,
             max_workers=None,
@@ -1342,7 +1345,8 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
                                  "Adding it to bad_bias_gids")
                 else:
                     bias_data = self.get_bias_data(bias_gid)
-                    bias_fut_data = self.get_bias_data(bias_gid, self.bias_fut_dh)
+                    bias_fut_data = self.get_bias_data(bias_gid,
+                                                       self.bias_fut_dh)
                     single_out = self._run_single(
                         bias_data,
                         bias_fut_data,
@@ -1378,7 +1382,8 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
                         self.bad_bias_gids.append(bias_gid)
                     else:
                         bias_data = self.get_bias_data(bias_gid)
-                        bias_fut_data = self.get_bias_data(bias_gid, self.bias_fut_dh)
+                        bias_fut_data = self.get_bias_data(bias_gid,
+                                                           self.bias_fut_dh)
                         future = exe.submit(
                             self._run_single,
                             bias_data,
