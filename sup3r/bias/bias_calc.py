@@ -1278,8 +1278,6 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
                     log_base,
                     base_dh_inst=None,
                     ):
-        """Find the nominal scalar + adder combination to bias correct data
-        at a single site"""
 
         base_data, _ = cls.get_base_data(base_fps,
                                          base_dset,
