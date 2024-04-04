@@ -1249,7 +1249,11 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
                                              **self.bias_handler_kwargs)
 
     def _init_out(self):
-        """Initialize output arrays"""
+        """Initialize output arrays
+
+        Three datasets are saved here with information to reconstruct data
+        distributions.
+        """
         keys = [f'bias_{self.bias_feature}_CDF',
                 f'bias_fut_{self.bias_feature}_CDF',
                 f'base_{self.base_dset}_CDF',
