@@ -259,9 +259,17 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         super().normalize(means=means, stds=stds,
                           features=self.lr_dh.features,
                           max_workers=self.lr_dh.norm_workers)
-        self.lr_dh.normalize(means=means, stds=stds,
-                             features=self.lr_dh.features,
-                             max_workers=self.lr_dh.norm_workers)
+
+        if id(self.lr_dh.data) != id(self.lr_data.base):
+            # self.lr_data is usually a unique regridded array but if
+            # regridding was not performed then it is just a sliced view of
+            # self.lr_dh.data and the super().normalize() operation will have
+            # applied to that data already.
+            self.lr_dh.normalize(means=means, stds=stds,
+                                 features=self.lr_dh.features,
+                                 max_workers=self.lr_dh.norm_workers)
+        else:
+            self.lr_dh._is_normalized = True
 
         logger.info('Normalizing high resolution data features='
                     f'{self.hr_dh.features}')
