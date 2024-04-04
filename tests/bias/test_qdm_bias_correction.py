@@ -168,3 +168,27 @@ def test_handler_qdm_bc(fp_fut_cc, dist_params):
     """
     Handler = DataHandlerNC(fp_fut_cc, 'rsds')
     corrected = Handler.qdm_bc(dist_params, 'ghi')
+
+
+def test_bc_identity(tmp_path, fp_fut_cc, dist_params):
+    """No changes if distributions are identical
+
+    If the three distributions are identical, the QDM shouldn't change
+    anything. Note that NaNs in any component, i.e. any dataset, would
+    propagate into a NaN transformation.
+    """
+    ident_params = os.path.join(tmp_path, "identity.hdf")
+    shutil.copyfile(dist_params, ident_params)
+    with h5py.File(ident_params, 'r+') as f:
+        f['bias_rsds_CDF'][:] = f['base_ghi_CDF'][:]
+        f['bias_fut_rsds_CDF'][:] = f['base_ghi_CDF'][:]
+        f.flush()
+    Handler = DataHandlerNC(fp_fut_cc, 'rsds')
+    original = Handler.data
+    Handler.qdm_bc(ident_params, 'ghi')
+    corrected = Handler.data
+
+    assert not np.isnan(corrected).all(), "Can't compare if only NaN"
+
+    idx = ~(np.isnan(original) | np.isnan(corrected))
+    assert np.allclose(original[idx], corrected[idx])
