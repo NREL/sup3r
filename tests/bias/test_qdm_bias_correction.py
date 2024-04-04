@@ -121,7 +121,7 @@ def test_parallel(fp_fut_cc):
         ), f"Different results for {k}"
 
 
-def test_save_file(fp_fut_cc):
+def test_save_file(tmp_path, fp_fut_cc):
     """Save valid output
 
     Confirm it saves the output by creating a valid HDF5 file.
@@ -133,15 +133,14 @@ def test_save_file(fp_fut_cc):
                                           distance_upper_bound=0.7,
                                           bias_handler='DataHandlerNCforCC')
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        filename = os.path.join(tmpdir, "demo.hdf")
-        _ = calc.run(filename)
+    filename = os.path.join(tmp_path, "test_saving.hdf")
+    _ = calc.run(filename)
 
-        # File was created
-        os.path.isfile(filename)
-        # A valid HDF5, can open and read
-        with h5py.File(filename, "r") as f:
-            assert "latitude" in f.keys()
+    # File was created
+    os.path.isfile(filename)
+    # A valid HDF5, can open and read
+    with h5py.File(filename, "r") as f:
+        assert "latitude" in f.keys()
 
 
 def test_qdm_transform(dist_params):
