@@ -55,6 +55,30 @@ def fp_fut_cc_notrend(tmpdir_factory):
     return fn
 
 
+@pytest.fixture(scope="session")
+def dist_params(tmpdir_factory, fp_fut_cc):
+    """Distribution parameters for standard datasets
+
+    Use the standard datasets to estimate the distributions and save
+    in a temporary place to be re-used
+    """
+    calc = QuantileDeltaMappingCorrection(
+        FP_NSRDB,
+        FP_CC,
+        fp_fut_cc,
+        "ghi",
+        "rsds",
+        target=TARGET,
+        shape=SHAPE,
+        distance_upper_bound=0.7,
+        bias_handler="DataHandlerNCforCC",
+    )
+    fn = tmpdir_factory.mktemp("params").join("standard.h5")
+    _ = calc.run(max_workers=1, fp_out=fn)
+
+    return fn
+
+
 def test_qdm_bc(fp_fut_cc):
     """Test QDM bias correction"""
 
