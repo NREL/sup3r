@@ -1246,13 +1246,13 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
                                          base_dh_inst=base_dh_inst)
 
         out = cls.get_qdm_params(bias_data,
-                                  bias_fut_data,
-                                  base_data,
-                                  bias_feature,
-                                  base_dset,
-                                  sampling,
-                                  n_samples,
-                                  log_base)
+                                 bias_fut_data,
+                                 base_data,
+                                 bias_feature,
+                                 base_dset,
+                                 sampling,
+                                 n_samples,
+                                 log_base)
         return out
 
     @staticmethod
