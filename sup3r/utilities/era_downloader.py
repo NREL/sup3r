@@ -501,33 +501,6 @@ class EraDownloader:
         good_vars, good_shape, good_hgts, _ = out
         return bool(good_vars and good_shape and good_hgts)
 
-    def shape_check(self, required_shape, levels):
-        """Check given required shape"""
-        if required_shape is None or len(required_shape) == 3:
-            self.required_shape = required_shape
-        elif len(required_shape) == 2 and len(levels) != required_shape[0]:
-            self.required_shape = (len(levels), *required_shape)
-        else:
-            msg = f'Received weird required_shape: {required_shape}.'
-            logger.error(msg)
-            raise OSError(msg)
-
-    def check_good_vars(self, variables):
-        """Make sure requested variables are valid.
-
-        Parameters
-        ----------
-        variables : list
-            List of variables to download. Can be any of VALID_VARIABLES
-        """
-        valid_vars = list(self.LEVEL_VARS) + list(self.SFC_VARS)
-        good = all(var in valid_vars for var in variables)
-        if not good:
-            msg = (f'Received variables {variables} not in valid variables '
-                   f'list {valid_vars}')
-            logger.error(msg)
-            raise OSError(msg)
-
     def check_existing_files(self, required_shape=None):
         """If files exist already check them for good shape and required
         variables. Remove them if there was a problem so we can continue with
