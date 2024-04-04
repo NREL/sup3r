@@ -155,19 +155,10 @@ def test_qdm_transform(dist_params):
     assert not np.allclose(data, corrected, equal_nan=False)
 
 
-def test_handler_qdm_bc(fp_fut_cc):
+def test_handler_qdm_bc(fp_fut_cc, dist_params):
     """qdm_bc() method from DataHandler
 
     WIP: Confirm it runs, but don't verify anything yet.
     """
-    calc = QuantileDeltaMappingCorrection(FP_NSRDB, FP_CC, fp_fut_cc,
-                                          'ghi', 'rsds',
-                                          target=TARGET, shape=SHAPE,
-                                          distance_upper_bound=0.7,
-                                          bias_handler='DataHandlerNCforCC')
-    with tempfile.TemporaryDirectory() as td:
-        fp_out = os.path.join(td, 'bc.h5')
-        _ = calc.run(max_workers=1, fp_out=fp_out)
-
-        Handler = DataHandlerNC(fp_fut_cc, 'rsds')
-        Handler.qdm_bc(fp_out, 'ghi')
+    Handler = DataHandlerNC(fp_fut_cc, 'rsds')
+    corrected = Handler.qdm_bc(dist_params, 'ghi')
