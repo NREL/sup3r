@@ -1175,19 +1175,20 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
                  bias_fps,
                  bias_fut_fps,
                  *args,
-                 **kwargs,
                  n_quantiles=101,
                  dist="empirical",
                  sampling="linear",
-                 log_base=10):
-
-        super().__init__(base_fps, bias_fps, *args, **kwargs)
+                 log_base=10,
+                 **kwargs):
 
         self.n_quantiles = n_quantiles
         self.dist = dist
         self.sampling = sampling
         self.log_base = log_base
-        self.bias_fut_fps = bias_fps
+
+        super().__init__(base_fps, bias_fps, *args, **kwargs)
+
+        self.bias_fut_fps = bias_fut_fps
 
         if isinstance(self.bias_fut_fps, str):
             self.bias_fut_fps = sorted(glob(self.bias_fut_fps))
