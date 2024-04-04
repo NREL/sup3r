@@ -77,6 +77,9 @@ def dist_params(tmpdir_factory, fp_fut_cc):
     fn = tmpdir_factory.mktemp("params").join("standard.h5")
     _ = calc.run(max_workers=1, fp_out=fn)
 
+    # DataHandlerNCforCC requires a string
+    fn = str(fn)
+
     return fn
 
 
