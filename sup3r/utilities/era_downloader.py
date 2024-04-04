@@ -352,18 +352,9 @@ class EraDownloader:
             Either 'single' or 'pressure'
         levels : list
             List of pressure levels to download, if level_type == 'pressure'
-        <<<<<<< HEAD
         product_type : str
             Can be 'reanalysis', 'ensemble_mean', 'ensemble_spread',
             'ensemble_members'
-        =======
-        include_reanalysis : bool
-            Whether to include ERA5 data in the download, as opposed to just
-            downloading uncertainty data
-        include_uncertainty : bool
-            Whether to include ensemble_spread from Ensemble Data
-            Assimilation (EDA)
-        >>>>>>> ea4adbab (test fix)
         overwrite : bool
             Whether to overwrite existing file
         """
@@ -371,11 +362,6 @@ class EraDownloader:
             msg = (f'Downloading {variables} to '
                    f'{out_file} with levels = {levels}.')
             logger.info(msg)
-            product_type = []
-            if include_reanalysis:
-                product_type += ['reanalysis']
-            if include_uncertainty:
-                product_type += ['ensemble_spread']
             entry = {
                 'product_type': product_type,
                 'format': 'netcdf',
@@ -758,17 +744,9 @@ class EraDownloader:
             from the final data file.
         check_files : bool
             Check existing files. Remove and redownload if checks fail.
-        <<<<<<< HEAD
         product_type : str
             Can be 'reanalysis', 'ensemble_mean', 'ensemble_spread',
             'ensemble_members'
-        =======
-        include_reanalysis : bool
-            Whether to include ERA5 data in download, as opposed to just
-            downloading uncertainty data
-        include_uncertainty : bool
-            Whether to include EDA (ensemble_spread) data in download
-        >>>>>>> ea4adbab (test fix)
         **interp_kwargs : dict
             Keyword args for LogLinInterpolator.run()
         """
@@ -846,6 +824,7 @@ class EraDownloader:
         check_files : bool
             Check existing files. Remove and redownload if checks fail.
         <<<<<<< HEAD
+        <<<<<<< HEAD
         product_type : str
             Can be 'reanalysis', 'ensemble_mean', 'ensemble_spread',
             'ensemble_members'
@@ -856,6 +835,11 @@ class EraDownloader:
         include_uncertainty : bool
             Whether to include EDA (ensemble_spread) data in download
         >>>>>>> ea4adbab (test fix)
+        =======
+        product_type : str
+            Can be 'reanalysis', 'ensemble_mean', 'ensemble_spread',
+            'ensemble_members'
+        >>>>>>> 13f588b4 (some arg cleaning in era_downloader)
         **interp_kwargs : dict
             Keyword args for LogLinInterpolator.run()
         """
