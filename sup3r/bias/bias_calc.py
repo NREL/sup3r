@@ -1170,13 +1170,23 @@ class MonthlyScalarCorrection(MonthlyLinearCorrection):
 
 
 class QuantileDeltaMappingCorrection(DataRetrievalBase):
-    def __init__(self, base_fps, bias_fps, bias_fut_fps, *args, **kwargs):
-        self.NQ = 51
-        self.dist = "empirical"
-        self.sampling = "linear"
-        self.log_base = 10
+    def __init__(self,
+                 base_fps,
+                 bias_fps,
+                 bias_fut_fps,
+                 *args,
+                 **kwargs,
+                 n_quantiles=101,
+                 dist="empirical",
+                 sampling="linear",
+                 log_base=10):
+
         super().__init__(base_fps, bias_fps, *args, **kwargs)
 
+        self.n_quantiles = n_quantiles
+        self.dist = dist
+        self.sampling = sampling
+        self.log_base = log_base
         self.bias_fut_fps = bias_fps
 
         if isinstance(self.bias_fut_fps, str):
@@ -1341,10 +1351,9 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
                         daily_reduction,
                         self.decimals,
                         sampling=self.sampling,
-                        n_samples=self.NQ,
+                        n_samples=self.n_quantiles,
                         log_base=self.log_base,
                         base_dh_inst=self.base_dh,
-
                     )
                     for key, arr in single_out.items():
                         self.out[key][raster_loc] = arr
@@ -1379,7 +1388,7 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
                             daily_reduction,
                             self.decimals,
                             sampling=self.sampling,
-                            n_samples=self.NQ,
+                            n_samples=self.n_quantiles,
                             log_base=self.log_base,
                         )
                         futures[future] = raster_loc
