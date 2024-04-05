@@ -68,6 +68,12 @@ repository = "https://github.com/NREL/sup3r"
 [tool.black]
 line-length = 79
 
+[tool.ruff]
+line-length = 79
+
+[tool.ruff.pydocstyle]
+convention = "numpy"
+
 [tool.setuptools]
 include-package-data = true
 packages = ["sup3r"]
