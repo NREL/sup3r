@@ -225,9 +225,7 @@ def test_bc_identity_absolute(tmp_path, fp_fut_cc, dist_params):
     assert np.allclose(original[idx], corrected[idx])
 
 def test_bc_trend(tmp_path, fp_fut_cc, dist_params):
-    """An offset on CC between mh and mf should propagate
-
-    """
+    """An offset on CC between mh and mf should propagate"""
     offset_params = os.path.join(tmp_path, "offset.hdf")
     shutil.copyfile(dist_params, offset_params)
     with h5py.File(offset_params, 'r+') as f:
