@@ -273,3 +273,26 @@ def test_bc_trend(tmp_path, fp_fut_cc, dist_params):
 
     idx = ~(np.isnan(original) | np.isnan(corrected))
     assert np.allclose(corrected[idx] - original[idx], 10)
+
+
+def test_bc_trend_same_hist(tmp_path, fp_fut_cc, dist_params):
+    """A trend should propagate
+
+    If there was no bias in historical (obs vs mod), there is nothing to
+    correct, but trust the forecast.
+    """
+    offset_params = os.path.join(tmp_path, "offset.hdf")
+    shutil.copyfile(dist_params, offset_params)
+    with h5py.File(offset_params, 'r+') as f:
+        f['base_ghi_CDF'][:] = f['bias_fut_rsds_CDF'][:] - 10
+        f['bias_rsds_CDF'][:] = f['bias_fut_rsds_CDF'][:] - 10
+        f.flush()
+    Handler = DataHandlerNC(fp_fut_cc, 'rsds')
+    original = Handler.data.copy()
+    Handler.qdm_bc(offset_params, 'ghi', relative=False)
+    corrected = Handler.data
+
+    assert not np.isnan(corrected).all(), "Can't compare if only NaN"
+
+    idx = ~(np.isnan(original) | np.isnan(corrected))
+    assert np.allclose(corrected[idx], original[idx])
