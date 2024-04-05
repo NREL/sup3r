@@ -1452,6 +1452,7 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
             fp_out=None,
             max_workers=None,
             daily_reduction='avg'):
+        """Apply QDM correction to bias dataset"""
 
         logger.debug('Starting QDM correction calculation...')
 
