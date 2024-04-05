@@ -866,6 +866,7 @@ class BatchHandler:
             Batch object with batch.low_res and batch.high_res attributes
             with the appropriate coarsening.
         """
+        start = dt.now()
         self.current_batch_indices = []
         if self._i < self.n_batches:
             handler = self.get_rand_handler()
@@ -873,7 +874,6 @@ class BatchHandler:
                 (self.batch_size, self.sample_shape[0], self.sample_shape[1],
                  self.sample_shape[2], self.shape[-1]),
                 dtype=np.float32)
-
             for i in range(self.batch_size):
                 high_res[i, ...] = handler.get_next()
                 self.current_batch_indices.append(handler.current_obs_index)
@@ -889,6 +889,7 @@ class BatchHandler:
                 smoothing_ignore=self.smoothing_ignore)
 
             self._i += 1
+            logger.debug(f'Built batch in {dt.now() - start}.')
             return batch
         else:
             raise StopIteration
