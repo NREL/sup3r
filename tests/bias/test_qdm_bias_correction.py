@@ -246,8 +246,7 @@ def test_bc_trend(tmp_path, fp_fut_cc, dist_params):
 
 
 def test_bc_model_constant(tmp_path, fp_fut_cc, dist_params):
-    """
-
+    """A constant model will correct difference with reference
     """
     offset_params = os.path.join(tmp_path, "offset.hdf")
     shutil.copyfile(dist_params, offset_params)
