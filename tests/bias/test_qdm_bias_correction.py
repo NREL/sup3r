@@ -49,7 +49,7 @@ def fp_fut_cc_notrend(tmpdir_factory):
 
     This is currently a copy of FP_CC, thus no trend on time.
     """
-    fn = tmpdir_factory.mktemp("data").join("test_mf.nc")
+    fn = tmpdir_factory.mktemp("data").join("test_mf_notrend.nc")
     shutil.copyfile(FP_CC, fn)
     # DataHandlerNCforCC requires a string
     fn = str(fn)
@@ -180,11 +180,11 @@ def test_bc_identity(tmp_path, fp_fut_cc, dist_params):
     ident_params = os.path.join(tmp_path, "identity.hdf")
     shutil.copyfile(dist_params, ident_params)
     with h5py.File(ident_params, 'r+') as f:
-        f['bias_rsds_CDF'][:] = f['base_ghi_CDF'][:]
-        f['bias_fut_rsds_CDF'][:] = f['base_ghi_CDF'][:]
+        f['base_ghi_CDF'][:] = f['bias_fut_rsds_CDF'][:]
+        f['bias_rsds_CDF'][:] = f['bias_fut_rsds_CDF'][:]
         f.flush()
     Handler = DataHandlerNC(fp_fut_cc, 'rsds')
-    original = Handler.data
+    original = Handler.data.copy()
     Handler.qdm_bc(ident_params, 'ghi')
     corrected = Handler.data
 
