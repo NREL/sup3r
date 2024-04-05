@@ -397,9 +397,10 @@ def local_qdm_bc(data: np.array,
     Keeping arguments consistent with `local_linear_bc()`, thus a 3D data
     (spatial, spatial, temporal), and lat_lon (n_lats, n_lons, [lat, lon]).
     But `QuantileDeltaMapping()`, from rex library, operates an array,
-    (time, space), thus we need to re-orinent our input to
-    transpose(spatial * spatial, temporal), and in the end bring it back to
-    (spatial, spatial, temporal).
+    (time, space), thus we need to re-organize our input to match that,
+    and in the end bring it back to (spatial, spatial, temporal). This is
+    still better than maintaining the same functionality consistent in two
+    libraries.
 
     Also, rex's `QuantileDeltaMapping()` expects params to be 2D
     (space, N-params).
