@@ -157,6 +157,8 @@ def test_qdm_transform(dist_params):
     """
     data = np.ones((*FP_CC_LAT_LON.shape[:-1], 2))
     corrected = local_qdm_bc(data, FP_CC_LAT_LON, "ghi", "rsds", dist_params)
+
+    assert not np.isnan(corrected).all(), "Can't compare if only NaN"
     assert not np.allclose(data, corrected, equal_nan=False)
 
 
@@ -178,7 +180,7 @@ def test_handler_qdm_bc(fp_fut_cc, dist_params):
 
 
 def test_bc_identity(tmp_path, fp_fut_cc, dist_params):
-    """No changes if distributions are identical
+    """No (relative) changes if distributions are identical
 
     If the three distributions are identical, the QDM shouldn't change
     anything. Note that NaNs in any component, i.e. any dataset, would
@@ -202,7 +204,7 @@ def test_bc_identity(tmp_path, fp_fut_cc, dist_params):
 
 
 def test_bc_identity_absolute(tmp_path, fp_fut_cc, dist_params):
-    """No changes if distributions are identical
+    """No (absolute) changes if distributions are identical
 
     If the three distributions are identical, the QDM shouldn't change
     anything. Note that NaNs in any component, i.e. any dataset, would
@@ -229,8 +231,8 @@ def test_bc_model_constant(tmp_path, fp_fut_cc, dist_params):
     """A constant model but different than reference
 
     If model is constant, there is no trend. If historical biased
-    has an offset with historical observed, that offset should be
-    corrected in the target (future modeled).
+    has an offset with historical observed, that same offset should
+    be corrected in the target (future modeled).
     """
     offset_params = os.path.join(tmp_path, "offset.hdf")
     shutil.copyfile(dist_params, offset_params)
@@ -250,7 +252,12 @@ def test_bc_model_constant(tmp_path, fp_fut_cc, dist_params):
 
 
 def test_bc_trend(tmp_path, fp_fut_cc, dist_params):
-    """An offset on CC between mh and mf should propagate"""
+    """A trend should propagate
+
+    Even if modeled future is equal to observed historical, if there
+    is a trend between modeled historical vs future, that same trend
+    should be applied to correct
+    """
     offset_params = os.path.join(tmp_path, "offset.hdf")
     shutil.copyfile(dist_params, offset_params)
     with h5py.File(offset_params, 'r+') as f:
