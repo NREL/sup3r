@@ -666,6 +666,7 @@ class BatchHandler(MultiHandlerMixIn, AbstractBatchBuilder):
             Batch object with batch.low_res and batch.high_res attributes
             with the appropriate coarsening.
         """
+        start = dt.now()
         self.current_batch_indices = []
         if self._i < self.n_batches:
             handler = self.get_rand_handler()
@@ -679,6 +680,7 @@ class BatchHandler(MultiHandlerMixIn, AbstractBatchBuilder):
             batch = self.batch_next(high_res)
 
             self._i += 1
+            logger.debug(f'Built batch in {dt.now() - start}.')
             return batch
         else:
             raise StopIteration
