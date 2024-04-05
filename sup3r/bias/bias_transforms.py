@@ -75,9 +75,9 @@ def get_spatial_bc_quantiles(lat_lon: np.array,
                              bias_fp: str,
                              threshold: float = 0.1
                              ):
-    dset_base = f'base_{base_dset}_CDF'
-    dset_bias = f'bias_{feature_name}_CDF'
-    dset_bias_fut = f'bias_fut_{feature_name}_CDF'
+    dset_base = f'base_{base_dset}_params'
+    dset_bias = f'bias_{feature_name}_params'
+    dset_bias_fut = f'bias_fut_{feature_name}_params'
     with Resource(bias_fp) as res:
         lat = np.expand_dims(res['latitude'], axis=-1)
         lon = np.expand_dims(res['longitude'], axis=-1)
@@ -366,17 +366,17 @@ def local_qdm_bc(data: np.array,
         (n_lats, n_lons, 2)
     base_dset :
         Name of feature that is used as (historical) reference. Dataset with
-        names "base_{base_dset}_CDF" will be retrieved.
+        names "base_{base_dset}_params" will be retrieved.
     feature_name : str
         Name of feature that is being corrected. Datasets with names
-        "bias_{feature_name}_CDF" and "bias_fut_{feature_name}_CDF" will be
-        retrieved.
+        "bias_{feature_name}_params" and "bias_fut_{feature_name}_params" will
+        be retrieved.
     bias_fp : str
         Filepath to statistical distributions file from the bias calc module.
-        Must have datasets "bias_{feature_name}_CDF",
-        "bias_fut_{feature_name}_CDF", and "base_{base_dset}_CDF" that are the
-        parameters to define the statistical distributions to be used to
-        correct the given `data`.
+        Must have datasets "bias_{feature_name}_params",
+        "bias_fut_{feature_name}_params", and "base_{base_dset}_params" that
+        are the parameters to define the statistical distributions to be used
+        to correct the given `data`.
 
     Returns
     -------
@@ -392,7 +392,7 @@ def local_qdm_bc(data: np.array,
     Notes
     -----
     Be careful selecting `bias_fp`. Usually, the input `data` used here would
-    be related to the dataset used to estimate "bias_fut_{feature_name}_CDF".
+    be related to the dataset used to estimate "bias_fut_{feature_name}_params".
 
     Keeping arguments consistent with `local_linear_bc()`, thus a 3D data
     (spatial, spatial, temporal), and lat_lon (n_lats, n_lons, [lat, lon]).

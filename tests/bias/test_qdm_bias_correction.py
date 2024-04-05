@@ -189,8 +189,8 @@ def test_bc_identity(tmp_path, fp_fut_cc, dist_params):
     ident_params = os.path.join(tmp_path, "identity.hdf")
     shutil.copyfile(dist_params, ident_params)
     with h5py.File(ident_params, 'r+') as f:
-        f['base_ghi_CDF'][:] = f['bias_fut_rsds_CDF'][:]
-        f['bias_rsds_CDF'][:] = f['bias_fut_rsds_CDF'][:]
+        f['base_ghi_params'][:] = f['bias_fut_rsds_params'][:]
+        f['bias_rsds_params'][:] = f['bias_fut_rsds_params'][:]
         f.flush()
     Handler = DataHandlerNC(fp_fut_cc, 'rsds')
     original = Handler.data.copy()
@@ -213,8 +213,8 @@ def test_bc_identity_absolute(tmp_path, fp_fut_cc, dist_params):
     ident_params = os.path.join(tmp_path, "identity.hdf")
     shutil.copyfile(dist_params, ident_params)
     with h5py.File(ident_params, 'r+') as f:
-        f['base_ghi_CDF'][:] = f['bias_fut_rsds_CDF'][:]
-        f['bias_rsds_CDF'][:] = f['bias_fut_rsds_CDF'][:]
+        f['base_ghi_params'][:] = f['bias_fut_rsds_params'][:]
+        f['bias_rsds_params'][:] = f['bias_fut_rsds_params'][:]
         f.flush()
     Handler = DataHandlerNC(fp_fut_cc, 'rsds')
     original = Handler.data.copy()
@@ -237,8 +237,8 @@ def test_bc_model_constant(tmp_path, fp_fut_cc, dist_params):
     offset_params = os.path.join(tmp_path, "offset.hdf")
     shutil.copyfile(dist_params, offset_params)
     with h5py.File(offset_params, 'r+') as f:
-        f['base_ghi_CDF'][:] = f['bias_fut_rsds_CDF'][:] - 10
-        f['bias_rsds_CDF'][:] = f['bias_fut_rsds_CDF'][:]
+        f['base_ghi_params'][:] = f['bias_fut_rsds_params'][:] - 10
+        f['bias_rsds_params'][:] = f['bias_fut_rsds_params'][:]
         f.flush()
     Handler = DataHandlerNC(fp_fut_cc, 'rsds')
     original = Handler.data.copy()
@@ -261,8 +261,8 @@ def test_bc_trend(tmp_path, fp_fut_cc, dist_params):
     offset_params = os.path.join(tmp_path, "offset.hdf")
     shutil.copyfile(dist_params, offset_params)
     with h5py.File(offset_params, 'r+') as f:
-        f['base_ghi_CDF'][:] = f['bias_fut_rsds_CDF'][:]
-        f['bias_rsds_CDF'][:] = f['bias_fut_rsds_CDF'][:] - 10
+        f['base_ghi_params'][:] = f['bias_fut_rsds_params'][:]
+        f['bias_rsds_params'][:] = f['bias_fut_rsds_params'][:] - 10
         f.flush()
     Handler = DataHandlerNC(fp_fut_cc, 'rsds')
     original = Handler.data.copy()
@@ -284,8 +284,8 @@ def test_bc_trend_same_hist(tmp_path, fp_fut_cc, dist_params):
     offset_params = os.path.join(tmp_path, "offset.hdf")
     shutil.copyfile(dist_params, offset_params)
     with h5py.File(offset_params, 'r+') as f:
-        f['base_ghi_CDF'][:] = f['bias_fut_rsds_CDF'][:] - 10
-        f['bias_rsds_CDF'][:] = f['bias_fut_rsds_CDF'][:] - 10
+        f['base_ghi_params'][:] = f['bias_fut_rsds_params'][:] - 10
+        f['bias_rsds_params'][:] = f['bias_fut_rsds_params'][:] - 10
         f.flush()
     Handler = DataHandlerNC(fp_fut_cc, 'rsds')
     original = Handler.data.copy()

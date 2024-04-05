@@ -1291,9 +1291,9 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
         probability distributions for the three datasets (see class
         documentation).
         """
-        keys = [f'bias_{self.bias_feature}_CDF',
-                f'bias_fut_{self.bias_feature}_CDF',
-                f'base_{self.base_dset}_CDF',
+        keys = [f'bias_{self.bias_feature}_params',
+                f'bias_fut_{self.bias_feature}_params',
+                f'base_{self.base_dset}_params',
         ]
         self.out = {
             k: np.full((*self.bias_gid_raster.shape, self.n_quantiles),
@@ -1363,10 +1363,10 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
             raise KeyError(msg)
 
         out = {
-            f'bias_{bias_feature}_CDF': np.quantile(bias_data, quantiles),
-            f'bias_fut_{bias_feature}_CDF': np.quantile(bias_fut_data,
+            f'bias_{bias_feature}_params': np.quantile(bias_data, quantiles),
+            f'bias_fut_{bias_feature}_params': np.quantile(bias_fut_data,
                                                         quantiles),
-            f'base_{base_dset}_CDF': np.quantile(base_data, quantiles),
+            f'base_{base_dset}_params': np.quantile(base_data, quantiles),
         }
 
         return out
