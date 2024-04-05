@@ -164,10 +164,18 @@ def test_qdm_transform(dist_params):
 def test_handler_qdm_bc(fp_fut_cc, dist_params):
     """qdm_bc() method from DataHandler
 
-    WIP: Confirm it runs, but don't verify anything yet.
+    WIP: Confirm it runs, but don't verify much yet.
     """
     Handler = DataHandlerNC(fp_fut_cc, 'rsds')
-    corrected = Handler.qdm_bc(dist_params, 'ghi')
+    original = Handler.data.copy()
+    Handler.qdm_bc(dist_params, 'ghi')
+    corrected = Handler.data
+
+    assert not np.isnan(corrected).all(), "Can't compare if only NaN"
+
+    idx = ~(np.isnan(original) | np.isnan(corrected))
+    # Where it is not NaN, it must have differences.
+    assert not np.allclose(original[idx], corrected[idx])
 
 
 def test_bc_identity(tmp_path, fp_fut_cc, dist_params):
