@@ -1175,10 +1175,20 @@ class MonthlyScalarCorrection(MonthlyLinearCorrection):
 
 
 class QuantileDeltaMappingCorrection(DataRetrievalBase):
-    """Approximate data distributions required for Quantile Delta Mapping
+    """Estimate probability distributions required by Quantile Delta Mapping
 
-    The Quantile Delta Mapping (QDM) technique corrects bias and trend by
-    comparing the data distributions of three datasets: a historical reference,
+    The main purpose of this class is to estimate the probability
+    distributions required by Quantile Delta Mapping (QDM) ([Cannon2015])
+    technique. Therefore, the name 'Correction' can be misleading since it is
+    not the correction per se, but it was used to keep consistency within this
+    module.
+
+    The QDM technique corrects bias and trend by comparing the data
+    distributions of three datasets: a historical reference, a biased
+    reference, and a biased target (in [Cannon2015] called: historical
+    oberved, historical modeled, and future modeled respectively). The
+    probability distributions provided here can be used by
+    `local_qdm_bc()` to actually correct a dataset.
 
     Attributes
     ----------
@@ -1191,6 +1201,29 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
         Defines the spacing bewteen quantiles for an "empirical" distribution.
     log_base : int | float
         Log base value if sampling is "log" or "invlog".
+
+    See Also
+    --------
+    DataRetrievalBase : Parent class describing more attributes and methods.
+    sup3r.bias.bias_transforms.local_qdm_bc :
+        Bias correction using QDM.
+    sup3r.preprocessing.data_handling.DataHandler :
+        Bias correction using QDM directly from a derived handler.
+
+    Notes
+    -----
+    One way of using this class is by saving the distributions definitions
+    obtained here with the method `write_outputs()` and then use that file
+    with `local_qdm_bc()` or through a derived `DataHandler`. ATTENTION, be
+    careful handling that file of parameters. There is no checking process
+    and one could apply the correction estimated for the wrong dataset.
+
+    References
+    ----------
+    .. [Cannon2015] Cannon, A. J., Sobie, S. R., & Murdock, T. Q. (2015). Bias
+       correction of GCM precipitation by quantile mapping: how well do
+       methods preserve changes in quantiles and extremes?. Journal of
+       Climate, 28(17), 6938-6959.
     """
     def __init__(self,
                  base_fps,
