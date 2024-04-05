@@ -1285,10 +1285,11 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
                                              **self.bias_handler_kwargs)
 
     def _init_out(self):
-        """Initialize output arrays
+        """Initialize output arrays `self.out`
 
-        Three datasets are saved here with information to reconstruct data
-        distributions.
+        Three datasets are saved here with information to reconstruct the
+        probability distributions for the three datasets (see class
+        documentation).
         """
         keys = [f'bias_{self.bias_feature}_CDF',
                 f'bias_fut_{self.bias_feature}_CDF',
@@ -1318,6 +1319,8 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
                     log_base,
                     base_dh_inst=None,
                     ):
+        """Estimate probability distributions at a single site"""
+
 
         base_data, _ = cls.get_base_data(base_fps,
                                          base_dset,
