@@ -1349,6 +1349,52 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
                        sampling,
                        n_samples,
                        log_base):
+        """Get quantiles' cut point for given datasets
+
+        Estimate the quantiles' cut points for each of the three given
+        datasets. Lacking a good analytical approximation, such as one of
+        the parametric distributions, those quantiles can be used to
+        approximate the statistical distribution of those datasets.
+
+        Parameters
+        ----------
+        bias_data : np.ndarray
+            1D array of biased data observations.
+        bias_fut_data : np.ndarray
+            1D array of biased data observations.
+        base_data : np.ndarray
+            1D array of base data observations.
+        bias_feature : str
+            This is the biased feature from bias_fps to retrieve. This should
+            be a single feature name corresponding to base_dset.
+        base_dset : str
+            A single dataset from the base_fps to retrieve. In the case of wind
+            components, this can be U_100m or V_100m which will retrieve
+            windspeed and winddirection and derive the U/V component.
+        sampling : str
+            Defines how the quantiles are sampled. For instance, 'linear' will
+            result in a linearly spaced quantiles. Other options are: 'log'
+            and 'invlog'.
+        n_samples : int
+            Number of points to sample between 0 and 1, i.e. number of
+            quantiles.
+        log_base : int | float
+            Log base value.
+
+        Returns
+        -------
+        out : dict
+            Dictionary of the quantiles' cut points. Note that to make sense
+            of those cut point values, one need to know the given arguments
+            such as `log_base`. For instance, the sequence [-1, 0, 2] are,
+            if sampling was linear, the minimum, median, and maximum values
+            respectively. The expected keys are "bias_{bias_feature}_params",
+            "bias_fut_{bias_feature}_params", and "base_{base_dset}_params".
+
+        See Also
+        --------
+        rex.utilities.bc_utils : Sampling scales, such as `sample_q_linear()`
+        """
 
         if sampling == 'linear':
             quantiles = sample_q_linear(n_samples)
