@@ -1294,7 +1294,7 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
         keys = [f'bias_{self.bias_feature}_params',
                 f'bias_fut_{self.bias_feature}_params',
                 f'base_{self.base_dset}_params',
-        ]
+                ]
         self.out = {
             k: np.full((*self.bias_gid_raster.shape, self.n_quantiles),
                        np.nan,
@@ -1320,7 +1320,6 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
                     base_dh_inst=None,
                     ):
         """Estimate probability distributions at a single site"""
-
 
         base_data, _ = cls.get_base_data(base_fps,
                                          base_dset,
@@ -1411,9 +1410,8 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
         out = {
             f'bias_{bias_feature}_params': np.quantile(bias_data, quantiles),
             f'bias_fut_{bias_feature}_params': np.quantile(bias_fut_data,
-                                                        quantiles),
-            f'base_{base_dset}_params': np.quantile(base_data, quantiles),
-        }
+                                                           quantiles),
+            f'base_{base_dset}_params': np.quantile(base_data, quantiles)}
 
         return out
 
