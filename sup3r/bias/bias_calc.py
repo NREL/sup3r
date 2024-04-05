@@ -384,7 +384,7 @@ class DataRetrievalBase:
             This optional argument allows an alternative handler other than
             the usual `self.bias_dh`. For instance, `QuantileDeltaMapping`
             uses this same `get_bias_data()` to access the historical biased
-            dataset as well as the future biased dataset.
+            dataset as well as the target biased dataset.
 
         Returns
         -------
@@ -394,10 +394,11 @@ class DataRetrievalBase:
 
         idx = np.where(self.bias_gid_raster == bias_gid)
 
-        # This can be confusing. The given argument `bias_dh` can be None,
-        # thus the default value for dh is `self.bias_dh`.
+        # This can be confusing. If the given argument `bias_dh` is None,
+        # the default value for dh is `self.bias_dh`.
         dh = bias_dh or self.bias_dh
-        # And the `data` from the handler `dh` can also be None.
+        # But the `data` attribute from the handler `dh` can also be None,
+        # and in that case, `load_cached_data()`.
         if dh.data is None:
             dh.load_cached_data()
         bias_data = dh.data[idx][0]
