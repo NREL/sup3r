@@ -1261,6 +1261,8 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
             distribution.
         log_base : int or float, default=10,
             Log base value if sampling is "log" or "invlog".
+
+        See the parent `DataRetrievalBase()` for more possible arguments.
         """
 
         self.n_quantiles = n_quantiles
