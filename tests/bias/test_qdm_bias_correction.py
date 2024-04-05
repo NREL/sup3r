@@ -224,6 +224,31 @@ def test_bc_identity_absolute(tmp_path, fp_fut_cc, dist_params):
     idx = ~(np.isnan(original) | np.isnan(corrected))
     assert np.allclose(original[idx], corrected[idx])
 
+
+def test_bc_model_constant(tmp_path, fp_fut_cc, dist_params):
+    """A constant model but different than reference
+
+    If model is constant, there is no trend. If historical biased
+    has an offset with historical observed, that offset should be
+    corrected in the target (future modeled).
+    """
+    offset_params = os.path.join(tmp_path, "offset.hdf")
+    shutil.copyfile(dist_params, offset_params)
+    with h5py.File(offset_params, 'r+') as f:
+        f['base_ghi_CDF'][:] = f['bias_fut_rsds_CDF'][:] - 10
+        f['bias_rsds_CDF'][:] = f['bias_fut_rsds_CDF'][:]
+        f.flush()
+    Handler = DataHandlerNC(fp_fut_cc, 'rsds')
+    original = Handler.data.copy()
+    Handler.qdm_bc(offset_params, 'ghi', relative=False)
+    corrected = Handler.data
+
+    assert not np.isnan(corrected).all(), "Can't compare if only NaN"
+
+    idx = ~(np.isnan(original) | np.isnan(corrected))
+    assert np.allclose(corrected[idx] - original[idx], -10)
+
+
 def test_bc_trend(tmp_path, fp_fut_cc, dist_params):
     """An offset on CC between mh and mf should propagate"""
     offset_params = os.path.join(tmp_path, "offset.hdf")
@@ -241,23 +266,3 @@ def test_bc_trend(tmp_path, fp_fut_cc, dist_params):
 
     idx = ~(np.isnan(original) | np.isnan(corrected))
     assert np.allclose(corrected[idx] - original[idx], 10)
-
-
-def test_bc_model_constant(tmp_path, fp_fut_cc, dist_params):
-    """A constant model will correct difference with reference
-    """
-    offset_params = os.path.join(tmp_path, "offset.hdf")
-    shutil.copyfile(dist_params, offset_params)
-    with h5py.File(offset_params, 'r+') as f:
-        f['base_ghi_CDF'][:] = f['bias_fut_rsds_CDF'][:] - 10
-        f['bias_rsds_CDF'][:] = f['bias_fut_rsds_CDF'][:]
-        f.flush()
-    Handler = DataHandlerNC(fp_fut_cc, 'rsds')
-    original = Handler.data.copy()
-    Handler.qdm_bc(offset_params, 'ghi', relative=False)
-    corrected = Handler.data
-
-    assert not np.isnan(corrected).all(), "Can't compare if only NaN"
-
-    idx = ~(np.isnan(original) | np.isnan(corrected))
-    assert np.allclose(corrected[idx] - original[idx], -10)
