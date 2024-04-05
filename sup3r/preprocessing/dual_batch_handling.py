@@ -1,5 +1,6 @@
 """Batch handling classes for dual data handlers"""
 import logging
+from datetime import datetime as dt
 
 import numpy as np
 
@@ -173,10 +174,9 @@ class DualBatchHandler(BatchHandler):
             with the appropriate subsampling of interpolated ERA.
         """
         self.current_batch_indices = []
+        start = dt.now()
         if self._i < self.n_batches:
-            handler_index = np.random.randint(0, len(self.data_handlers))
-            self.current_handler_index = handler_index
-            handler = self.data_handlers[handler_index]
+            handler = self.get_rand_handler()
             high_res = np.zeros((self.batch_size, self.hr_sample_shape[0],
                                  self.hr_sample_shape[1],
                                  self.hr_sample_shape[2],
@@ -196,6 +196,7 @@ class DualBatchHandler(BatchHandler):
             batch = self.BATCH_CLASS(low_res=low_res, high_res=high_res)
 
             self._i += 1
+            logger.debug(f'Built batch in {dt.now() - start}.')
             return batch
         else:
             raise StopIteration
@@ -223,9 +224,7 @@ class SpatialDualBatchHandler(DualBatchHandler):
         """
         self.current_batch_indices = []
         if self._i < self.n_batches:
-            handler_index = np.random.randint(0, len(self.data_handlers))
-            self.current_handler_index = handler_index
-            handler = self.data_handlers[handler_index]
+            handler = self.get_rand_handler()
             high_res = np.zeros((self.batch_size, self.hr_sample_shape[0],
                                  self.hr_sample_shape[1],
                                  len(self.hr_features)),
