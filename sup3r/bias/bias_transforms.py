@@ -350,6 +350,67 @@ def local_qdm_bc(data: np.array,
                  feature_name: str,
                  bias_fp,
                  relative=True):
+    """Bias correction using QDM
+
+    Apply QDM to correct bias on the given data. It assumes that the required
+    statistical distributions were previously estimated and saved in
+    `bias_fp`.
+
+    Parameters
+    ----------
+    data : np.ndarray
+        Sup3r input data to be bias corrected, assumed to be 3D with shape
+        (spatial, spatial, temporal) for a single feature.
+    lat_lon : ndarray
+        Array of latitudes and longitudes for the domain to bias correct
+        (n_lats, n_lons, 2)
+    base_dset :
+        Name of feature that is used as (historical) reference. Dataset with
+        names "base_{base_dset}_CDF" will be retrieved.
+    feature_name : str
+        Name of feature that is being corrected. Datasets with names
+        "bias_{feature_name}_CDF" and "bias_fut_{feature_name}_CDF" will be
+        retrieved.
+    bias_fp : str
+        Filepath to statistical distributions file from the bias calc module.
+        Must have datasets "bias_{feature_name}_CDF",
+        "bias_fut_{feature_name}_CDF", and "base_{base_dset}_CDF" that are the
+        parameters to define the statistical distributions to be used to
+        correct the given `data`.
+
+    Returns
+    -------
+    out : np.ndarray
+        The input data corrected by QDM. Its shape is the same of the input
+        (spatial, spatial, temporal)
+
+    See Also
+    --------
+    sup3r.bias.bias_calc.QuantileDeltaMappingCorrection :
+        Estimate probability distributions required by QDM method
+
+    Notes
+    -----
+    Be careful selecting `bias_fp`. Usually, the input `data` used here would
+    be related to the dataset used to estimate "bias_fut_{feature_name}_CDF".
+
+    Keeping arguments consistent with `local_linear_bc()`, thus a 3D data
+    (spatial, spatial, temporal), and lat_lon (n_lats, n_lons, [lat, lon]).
+    But `QuantileDeltaMapping()`, from rex library, operates an array,
+    (time, space), thus we need to re-orinent our input to
+    transpose(spatial * spatial, temporal), and in the end bring it back to
+    (spatial, spatial, temporal).
+
+    Also, rex's `QuantileDeltaMapping()` expects params to be 2D
+    (space, N-params).
+
+    See Also
+    --------
+    rex.utilities.bc_utils.QuantileDeltaMapping :
+        Core QDM transformation.
+
+
+    """
     base, bias, bias_fut, cfg = get_spatial_bc_quantiles(lat_lon,
                                                          base_dset,
                                                          feature_name,
