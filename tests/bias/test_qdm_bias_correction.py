@@ -2,7 +2,6 @@
 
 import os
 import shutil
-import tempfile
 
 import h5py
 import numpy as np
