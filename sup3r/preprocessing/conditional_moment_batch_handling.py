@@ -416,7 +416,9 @@ class BatchMom2(BatchMom1):
             HR is high-res and LR is low-res
         """
         # Remove first moment from HR and square it
-        out = model_mom1._tf_generate(low_res).numpy()
+        exo_data = model_mom1.get_high_res_exo_input(high_res)
+        out = model_mom1._tf_generate(low_res, exo_data).numpy()
+        out = model_mom1._combine_loss_input(high_res, out)
         return (high_res - out) ** 2
 
 
@@ -530,7 +532,9 @@ class BatchMom2SF(BatchMom1):
             SF = HR - LR
         """
         # Remove LR and first moment from HR and square it
-        out = model_mom1._tf_generate(low_res).numpy()
+        exo_data = model_mom1.get_high_res_exo_input(high_res)
+        out = model_mom1._tf_generate(low_res, exo_data).numpy()
+        out = model_mom1._combine_loss_input(high_res, out)
         enhanced_lr = spatial_simple_enhancing(low_res, s_enhance=s_enhance)
         enhanced_lr = temporal_simple_enhancing(
             enhanced_lr, t_enhance=t_enhance, mode=t_enhance_mode

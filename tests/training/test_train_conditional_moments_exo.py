@@ -10,21 +10,21 @@ from rex import init_logger
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.models import Sup3rCondMom
-from sup3r.preprocessing.data_handling import DataHandlerH5
-from sup3r.preprocessing.wind_conditional_moment_batch_handling import (
-    WindBatchHandlerMom1,
-    WindBatchHandlerMom1SF,
-    WindBatchHandlerMom2,
-    WindBatchHandlerMom2Sep,
-    WindBatchHandlerMom2SepSF,
-    WindBatchHandlerMom2SF,
-    WindSpatialBatchHandlerMom1,
-    WindSpatialBatchHandlerMom1SF,
-    WindSpatialBatchHandlerMom2,
-    WindSpatialBatchHandlerMom2Sep,
-    WindSpatialBatchHandlerMom2SepSF,
-    WindSpatialBatchHandlerMom2SF,
+from sup3r.preprocessing.conditional_moment_batch_handling import (
+    BatchHandlerMom1,
+    BatchHandlerMom1SF,
+    BatchHandlerMom2,
+    BatchHandlerMom2Sep,
+    BatchHandlerMom2SepSF,
+    BatchHandlerMom2SF,
+    SpatialBatchHandlerMom1,
+    SpatialBatchHandlerMom1SF,
+    SpatialBatchHandlerMom2,
+    SpatialBatchHandlerMom2Sep,
+    SpatialBatchHandlerMom2SepSF,
+    SpatialBatchHandlerMom2SF,
 )
+from sup3r.preprocessing.data_handling import DataHandlerH5
 
 SHAPE = (20, 20)
 
@@ -77,9 +77,9 @@ def make_s_gen_model(custom_layer):
 
 
 @pytest.mark.parametrize('custom_layer, batch_class', [
-                         ('Sup3rAdder', WindSpatialBatchHandlerMom1),
-                         ('Sup3rConcat', WindSpatialBatchHandlerMom1),
-                         ('Sup3rConcat', WindSpatialBatchHandlerMom1SF)])
+                         ('Sup3rAdder', SpatialBatchHandlerMom1),
+                         ('Sup3rConcat', SpatialBatchHandlerMom1),
+                         ('Sup3rConcat', SpatialBatchHandlerMom1SF)])
 def test_wind_non_cc_hi_res_topo_mom1(custom_layer, batch_class,
                                       log=False, out_dir_root=None,
                                       n_epoch=1, n_batches=2, batch_size=2):
@@ -142,8 +142,8 @@ def test_wind_non_cc_hi_res_topo_mom1(custom_layer, batch_class,
 
 
 @pytest.mark.parametrize('batch_class', [
-                         WindBatchHandlerMom1,
-                         WindBatchHandlerMom1SF])
+                         BatchHandlerMom1,
+                         BatchHandlerMom1SF])
 def test_wind_non_cc_hi_res_st_topo_mom1(batch_class, log=False,
                                          out_dir_root=None,
                                          n_epoch=1, n_batches=2, batch_size=2):
@@ -189,10 +189,10 @@ def test_wind_non_cc_hi_res_st_topo_mom1(batch_class, log=False,
 
 
 @pytest.mark.parametrize('custom_layer, batch_class', [
-                         ('Sup3rConcat', WindSpatialBatchHandlerMom2),
-                         ('Sup3rConcat', WindSpatialBatchHandlerMom2Sep),
-                         ('Sup3rConcat', WindSpatialBatchHandlerMom2SF),
-                         ('Sup3rConcat', WindSpatialBatchHandlerMom2SepSF)])
+                         ('Sup3rConcat', SpatialBatchHandlerMom2),
+                         ('Sup3rConcat', SpatialBatchHandlerMom2Sep),
+                         ('Sup3rConcat', SpatialBatchHandlerMom2SF),
+                         ('Sup3rConcat', SpatialBatchHandlerMom2SepSF)])
 def test_wind_non_cc_hi_res_topo_mom2(custom_layer, batch_class,
                                       log=False, out_dir_root=None,
                                       n_epoch=1, n_batches=2, batch_size=2):
@@ -239,10 +239,10 @@ def test_wind_non_cc_hi_res_topo_mom2(custom_layer, batch_class,
 
 
 @pytest.mark.parametrize('batch_class', [
-                         WindBatchHandlerMom2,
-                         WindBatchHandlerMom2Sep,
-                         WindBatchHandlerMom2SF,
-                         WindBatchHandlerMom2SepSF])
+                         BatchHandlerMom2,
+                         BatchHandlerMom2Sep,
+                         BatchHandlerMom2SF,
+                         BatchHandlerMom2SepSF])
 def test_wind_non_cc_hi_res_st_topo_mom2(batch_class, log=False,
                                          out_dir_root=None,
                                          n_epoch=1, n_batches=2, batch_size=2):
