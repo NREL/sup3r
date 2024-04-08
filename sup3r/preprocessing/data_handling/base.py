@@ -709,14 +709,6 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
 
         start = self.temporal_slice.start
         stop = self.temporal_slice.stop
-        n_steps = self.n_tsteps
-        msg = (f'Temporal slice step ({self.temporal_slice.step}) does not '
-               f'evenly divide the number of time steps ({n_steps})')
-        check = self.temporal_slice.step is None
-        check = check or n_steps % self.temporal_slice.step == 0
-        if not check:
-            logger.warning(msg)
-            warnings.warn(msg)
 
         msg = (f'sample_shape[2] ({self.sample_shape[2]}) cannot be larger '
                'than the number of time steps in the raw data '

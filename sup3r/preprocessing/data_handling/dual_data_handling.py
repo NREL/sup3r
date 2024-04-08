@@ -38,6 +38,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
                  regrid_workers=1,
                  load_cached=True,
                  shuffle_time=False,
+                 regrid_lr=True,
                  s_enhance=1,
                  t_enhance=1,
                  val_split=0.0):
@@ -61,6 +62,10 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
             is called.
         shuffle_time : bool
             Whether to shuffle time indices prior to training/validation split
+        regrid_lr : bool
+            Flag to regrid the low-res handler data to the high-res handler
+            grid. This will take care of any minor inconsistencies in different
+            projections. Disable this if the grids are known to be the same.
         s_enhance : int
             Spatial enhancement factor
         t_enhance : int
@@ -95,6 +100,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         self._means = None
         self._stds = None
         self._is_normalized = False
+        self._regrid_lr = regrid_lr
         self._norm_workers = self.lr_dh.norm_workers
 
         if self.try_load and self.load_cached:
@@ -248,14 +254,66 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         if stds is None:
             stds = self.stds
 
+        self._normalize_lr(means, stds)
+        self._normalize_hr(means, stds)
+
+    def _normalize_lr(self, means, stds):
+        """Normalize the low-resolution data features including in the
+        low-res data handler
+
+        Note that self.lr_data is usually a unique regridded array but if
+        regridding was not performed then it is just a sliced *view* of
+        self.lr_dh.data and the super().normalize() operation will have applied
+        to that data already.
+
+        Parameters
+        ----------
+        means : dict | none
+            Dictionary of means for all features with keys: feature names and
+            values: mean values. If this is None, the self.means attribute will
+            be used. If this is not None, this DataHandler object means
+            attribute will be updated.
+        stds : dict | none
+            dictionary of standard deviation values for all features with keys:
+            feature names and values: standard deviations. If this is None, the
+            self.stds attribute will be used. If this is not None, this
+            DataHandler object stds attribute will be updated.
+        """
+
         logger.info('Normalizing low resolution data features='
                     f'{self.lr_dh.features}')
         super().normalize(means=means, stds=stds,
                           features=self.lr_dh.features,
                           max_workers=self.lr_dh.norm_workers)
-        self.lr_dh.normalize(means=means, stds=stds,
-                             features=self.lr_dh.features,
-                             max_workers=self.lr_dh.norm_workers)
+
+        if id(self.lr_dh.data) != id(self.lr_data.base):
+            self.lr_dh.normalize(means=means, stds=stds,
+                                 features=self.lr_dh.features,
+                                 max_workers=self.lr_dh.norm_workers)
+        else:
+            self.lr_dh._is_normalized = True
+
+    def _normalize_hr(self, means, stds):
+        """Normalize the high-resolution data features including in the
+        high-res data handler
+
+        Note that self.hr_data is usually just a sliced *view* of
+        self.hr_dh.data but if the *view* is broken then it will have to be
+        normalized too
+
+        Parameters
+        ----------
+        means : dict | none
+            Dictionary of means for all features with keys: feature names and
+            values: mean values. If this is None, the self.means attribute will
+            be used. If this is not None, this DataHandler object means
+            attribute will be updated.
+        stds : dict | none
+            dictionary of standard deviation values for all features with keys:
+            feature names and values: standard deviations. If this is None, the
+            self.stds attribute will be used. If this is not None, this
+            DataHandler object stds attribute will be updated.
+        """
 
         logger.info('Normalizing high resolution data features='
                     f'{self.hr_dh.features}')
@@ -264,8 +322,6 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
                              max_workers=self.hr_dh.norm_workers)
 
         if id(self.hr_data.base) != id(self.hr_dh.data):
-            # self.hr_data is usually just a sliced view of self.hr_dh.data
-            # but if the view is broken then it will have to be normalized too
             mean_arr = np.array([means[fn] for fn in self.hr_dh.features])
             std_arr = np.array([stds[fn] for fn in self.hr_dh.features])
             self.hr_data = (self.hr_data - mean_arr) / std_arr
@@ -579,16 +635,19 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         """Regrid low_res data for all requested noncached features. Load
         cached features if available and overwrite=False"""
 
-        logger.info('Regridding low resolution feature data.')
-        regridder = self.get_regridder()
+        if self._regrid_lr:
+            logger.info('Regridding low resolution feature data.')
+            regridder = self.get_regridder()
 
-        fnames = set(self.noncached_features)
-        fnames = fnames.intersection(set(self.lr_dh.features))
-        for fname in fnames:
-            fidx = self.lr_dh.features.index(fname)
-            tmp = regridder(self.lr_input_data[..., fidx])
-            tmp = tmp.reshape(self.lr_required_shape)
-            self.lr_data[..., fidx] = tmp
+            fnames = set(self.noncached_features)
+            fnames = fnames.intersection(set(self.lr_dh.features))
+            for fname in fnames:
+                fidx = self.lr_dh.features.index(fname)
+                tmp = regridder(self.lr_input_data[..., fidx])
+                tmp = tmp.reshape(self.lr_required_shape)
+                self.lr_data[..., fidx] = tmp
+        else:
+            self.lr_data = self.lr_input_data
 
         if self.load_cached:
             fnames = set(self.cached_features)
