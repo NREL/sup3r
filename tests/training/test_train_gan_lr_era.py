@@ -29,7 +29,7 @@ FEATURES = ['U_100m', 'V_100m']
 
 
 def test_train_spatial(
-    log=False, full_shape=(20, 20), sample_shape=(10, 10, 1), n_epoch=2
+    log=False, full_shape=(20, 20), sample_shape=(10, 10, 1), n_epoch=3
 ):
     """Test basic spatial model training with only gen content loss."""
     if log:
@@ -40,7 +40,7 @@ def test_train_spatial(
 
     Sup3rGan.seed()
     model = Sup3rGan(
-        fp_gen, fp_disc, learning_rate=2e-5, loss='MeanAbsoluteError'
+        fp_gen, fp_disc, learning_rate=1e-5, loss='MeanAbsoluteError'
     )
 
     # need to reduce the number of temporal examples to test faster
@@ -94,7 +94,7 @@ def test_train_spatial(
 
         # make an un-trained dummy model
         dummy = Sup3rGan(
-            fp_gen, fp_disc, learning_rate=2e-5, loss='MeanAbsoluteError'
+            fp_gen, fp_disc, learning_rate=1e-5, loss='MeanAbsoluteError'
         )
 
         # test save/load functionality
