@@ -1023,7 +1023,11 @@ class AbstractSingleModel(ABC):
         if self._tb_writer is not None:
             with self._tb_writer.as_default():
                 for col in self._history.columns:
-                    tf.summary.scalar(col, self._history.at[epoch, col], epoch)
+                    val = self._history.at[epoch, col]
+                    if isinstance(val, str):
+                        tf.summary.text(col, val, epoch)
+                    else:
+                        tf.summary.scalar(col, val, epoch)
                 for name, value in self._timing_details.items():
                     tf.summary.scalar(name, value, epoch)
                 if extras is not None:
