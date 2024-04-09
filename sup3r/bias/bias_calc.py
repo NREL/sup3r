@@ -1187,7 +1187,8 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
     reference, and a biased target (in [Cannon2015] called: historical
     oberved, historical modeled, and future modeled respectively). The
     probability distributions provided here can be used by
-    `local_qdm_bc()` to actually correct a dataset.
+    :func:`sup3r.bias.bias_transforms.local_qdm_bc()` to actually correct
+    a dataset.
 
     Attributes
     ----------
