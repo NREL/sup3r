@@ -484,6 +484,8 @@ class AbstractSingleModel(ABC):
         self._gen = None
         self._means = None
         self._stdevs = None
+        self._tb_writer = None
+        self._timing_details = {}
 
     def load_network(self, model, name):
         """Load a CustomNetwork object from hidden layers config, .json file
@@ -915,10 +917,9 @@ class AbstractSingleModel(ABC):
         prior_n_obs = loss_details['n_obs']
         new_n_obs = prior_n_obs + batch_len
 
-        for key, new_value in new_data.items():
-            key = key if prefix is None else prefix + key
-            new_value = (new_value if not isinstance(new_value, tf.Tensor) else
-                         new_value.numpy())
+        for k, v in new_data.items():
+            key = k if prefix is None else prefix + k
+            new_value = (v if not isinstance(v, tf.Tensor) else v.numpy())
 
             if key in loss_details:
                 saved_value = loss_details[key]
@@ -1063,7 +1064,6 @@ class AbstractSingleModel(ABC):
         """
 
         self.log_loss_details(loss_details)
-
         self._history.at[epoch, 'elapsed_time'] = time.time() - t0
         for key, value in loss_details.items():
             if key != 'n_obs':
@@ -1089,6 +1089,15 @@ class AbstractSingleModel(ABC):
         if extras is not None:
             for k, v in extras.items():
                 self._history.at[epoch, k] = v
+
+        if self._tb_writer is not None:
+            with self._tb_writer.as_default():
+                for col in self._history.columns:
+                    tf.summary.scalar(col, self._history.at[epoch, col], epoch)
+                for name, value in extras.items():
+                    tf.summary.scalar(name, value, epoch)
+                for name, value in self._timing_details.items():
+                    tf.summary.scalar(name, value, epoch)
 
         return stop
 
@@ -1135,19 +1144,23 @@ class AbstractSingleModel(ABC):
         loss_details : dict
             Namespace of the breakdown of loss components
         """
-
         t0 = time.time()
         if optimizer is None:
             optimizer = self.optimizer
 
         if not multi_gpu or len(self.gpu_list) == 1:
+            start = time.time()
             grad, loss_details = self.get_single_grad(low_res, hi_res_true,
                                                       training_weights,
                                                       **calc_loss_kwargs)
+            self._timing_details['dt:get_single_grad'] = time.time() - start
+            start = time.time()
             optimizer.apply_gradients(zip(grad, training_weights))
+            self._timing_details['dt:apply_gradients'] = time.time() - start
             t1 = time.time()
             logger.debug(f'Finished single gradient descent step '
                          f'in {(t1 - t0):.3f}s')
+            self._timing_details['dt:run_gradient_descent'] = t1 - t0
 
         else:
             futures = []
@@ -1178,6 +1191,7 @@ class AbstractSingleModel(ABC):
             t1 = time.time()
             logger.debug(f'Finished {len(futures)} gradient descent steps on '
                          f'{len(self.gpu_list)} GPUs in {(t1 - t0):.3f}s')
+            self._timing_details['dt:run_gradient_descent'] = t1 - t0
 
         return loss_details
 
@@ -1237,6 +1251,20 @@ class AbstractSingleModel(ABC):
             raise RuntimeError(msg)
 
         return hi_res_exo
+
+    def _init_tensorboard_writer(self, out_dir):
+        """Initialize the ``tf.summary.SummaryWriter`` to use for writing
+        tensorboard compatible log files.
+
+        Parameters
+        ----------
+        out_dir : str
+            Standard out_dir where model epochs are saved. e.g. './gan_{epoch}'
+        """
+        tb_log_dir = os.path.join(
+            os.path.abspath(os.path.join(out_dir, os.pardir)), 'logs')
+        os.makedirs(tb_log_dir, exist_ok=True)
+        self._tb_writer = tf.summary.create_file_writer(tb_log_dir)
 
     def generate(self,
                  low_res,
@@ -1398,16 +1426,24 @@ class AbstractSingleModel(ABC):
         loss_details : dict
             Namespace of the breakdown of loss components
         """
-        with tf.device(device_name):
-            with tf.GradientTape(watch_accessed_variables=False) as tape:
-                tape.watch(training_weights)
-
-                hi_res_exo = self.get_high_res_exo_input(hi_res_true)
-                hi_res_gen = self._tf_generate(low_res, hi_res_exo)
-                loss_out = self.calc_loss(hi_res_true, hi_res_gen,
-                                          **calc_loss_kwargs)
-                loss, loss_details = loss_out
-
-                grad = tape.gradient(loss, training_weights)
+        with tf.device(device_name), tf.GradientTape(
+                watch_accessed_variables=False) as tape:
+            t0 = time.time()
+            tape.watch(training_weights)
+            self._timing_details['dt:tape.watch'] = time.time() - t0
+            t0 = time.time()
+            hi_res_exo = self.get_high_res_exo_input(hi_res_true)
+            self._timing_details['dt:get_high_res_exo_input'] = time.time() - t0
+            t0 = time.time()
+            hi_res_gen = self._tf_generate(low_res, hi_res_exo)
+            self._timing_details['dt:tf.generate'] = time.time() - t0
+            t0 = time.time()
+            loss_out = self.calc_loss(hi_res_true, hi_res_gen,
+                                      **calc_loss_kwargs)
+            self._timing_details['dt:calc_loss'] = time.time() - t0
+            loss, loss_details = loss_out
+            t0 = time.time()
+            grad = tape.gradient(loss, training_weights)
+            self._timing_details['dt:tape.gradient'] = time.time() - t0
 
         return grad, loss_details

@@ -163,7 +163,7 @@ def test_train_st(n_epoch=3, log=False):
         s_enhance=3,
         t_enhance=4,
         n_batches=5,
-        worker_kwargs=dict(max_workers=1),
+        worker_kwargs={'max_workers': 1},
     )
 
     assert batch_handler.norm_workers == 1

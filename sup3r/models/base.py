@@ -794,7 +794,8 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
               early_stop_n_epoch=5,
               adaptive_update_bounds=(0.9, 0.99),
               adaptive_update_fraction=0.0,
-              multi_gpu=False):
+              multi_gpu=False,
+              tensorboard_log=True):
         """Train the GAN model on real low res data and real high res data
 
         Parameters
@@ -856,7 +857,14 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             constitute a single gradient descent step with the nominal learning
             rate that the model was initialized with. If true and multiple gpus
             are found, default_device device should be set to /gpu:0
+        tensorboard_log : bool
+            Whether to write log file for use with tensorboard. Log data can
+            be viewed with ``tensorboard --logdir <logdir>`` where ``<logdir>``
+            is the parent directory of ``out_dir``, and pointing the browser to
+            the printed address.
         """
+        if tensorboard_log:
+            self._init_tensorboard_writer(out_dir)
 
         self.set_norm_stats(batch_handler.means, batch_handler.stds)
         self.set_model_params(
@@ -889,9 +897,10 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
                                             train_disc,
                                             disc_loss_bounds,
                                             multi_gpu=multi_gpu)
-
+            train_n_obs = loss_details['n_obs']
             loss_details = self.calc_val_loss(batch_handler, weight_gen_advers,
                                               loss_details)
+            val_n_obs = loss_details['n_obs']
 
             msg = f'Epoch {epoch} of {epochs[-1]} '
             msg += 'gen/disc train loss: {:.2e}/{:.2e} '.format(
@@ -911,6 +920,8 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
                 self.optimizer_disc)['learning_rate']
 
             extras = {
+                'train_n_obs': train_n_obs,
+                'val_n_obs': val_n_obs,
                 'weight_gen_advers': weight_gen_advers,
                 'disc_loss_bound_0': disc_loss_bounds[0],
                 'disc_loss_bound_1': disc_loss_bounds[1],
