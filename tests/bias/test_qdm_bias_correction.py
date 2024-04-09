@@ -101,9 +101,17 @@ def test_qdm_bc(fp_fut_cc):
     for v in out:
         assert np.isfinite(out[v]).any(), "Something wrong, all CDFs are NaN."
 
+    # Check possible range
     for v in out:
         assert np.nanmin(out[v]) > 0, f"{v} should be all greater than zero."
         assert np.nanmax(out[v]) < 1300, f"{v} should be all less than 1300."
+
+    # Each location can be all finite or all NaN, but not both
+    for v in out:
+        tmp = np.isfinite(out[v].reshape(-1, out[v].shape[-1]))
+        assert np.all(
+            np.all(tmp, axis=1) == ~np.all(~tmp, axis=1)
+        ), f"For each location of {v} it should be all finite or nonte"
 
 
 def test_parallel(fp_fut_cc):
