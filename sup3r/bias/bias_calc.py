@@ -378,7 +378,6 @@ class DataRetrievalBase:
             gid of the data to retrieve in the bias data source raster data.
             The gids for this data source are the enumerated indices of the
             flattened coordinate array.
-
         bias_dh : DataHandler, default=self.bias_dh
             A derived DataHandler from `sup3r.preprocessing.data_handling`.
             This optional argument allows an alternative handler other than
