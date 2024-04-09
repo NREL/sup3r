@@ -99,7 +99,11 @@ def test_qdm_bc(fp_fut_cc):
     # Guarantee that we have some actual values, otherwise most of the
     # remaining tests would be useless
     for v in out:
-        assert np.isfinite(out[v]).any()
+        assert np.isfinite(out[v]).any(), "Something wrong, all CDFs are NaN."
+
+    for v in out:
+        assert np.nanmin(out[v]) > 0, f"{v} should be all greater than zero."
+        assert np.nanmax(out[v]) < 1300, f"{v} should be all less than 1300."
 
 
 def test_parallel(fp_fut_cc):
