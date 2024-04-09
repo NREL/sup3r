@@ -379,11 +379,11 @@ class DataRetrievalBase:
             The gids for this data source are the enumerated indices of the
             flattened coordinate array.
         bias_dh : DataHandler, default=self.bias_dh
-            A derived DataHandler from `sup3r.preprocessing.data_handling`.
+            Any ``DataHandler`` from :mod:`sup3r.preprocessing.data_handling`.
             This optional argument allows an alternative handler other than
-            the usual `self.bias_dh`. For instance, `QuantileDeltaMapping`
-            uses this same `get_bias_data()` to access the historical biased
-            dataset as well as the target biased dataset.
+            the usual :attr:`bias_dh`. For instance, the derived
+            :class:`QuantileDeltaMappingCorrection` uses it to access the
+            reference biased dataset as well as the target biased dataset.
 
         Returns
         -------
