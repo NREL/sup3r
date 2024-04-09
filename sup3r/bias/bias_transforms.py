@@ -417,9 +417,9 @@ def local_qdm_bc(data: np.array,
                                                          feature_name,
                                                          bias_fp)
 
-    # saved as 3D shape (space, space, N-params)
-    projection = lambda x: x.reshape(-1, base.shape[-1])
-    # params expected 2D arrays with shape (space, N-params)
+    # distributions are 3D (space, space, N-params)
+    projection = lambda x: x.reshape(-1, x.shape[-1])
+    # params expected to be 2D arrays (space, N-params)
     QDM = QuantileDeltaMapping(projection(base),
                                projection(bias),
                                projection(bias_fut),
@@ -430,4 +430,8 @@ def local_qdm_bc(data: np.array,
 
     # input 3D shape (spatial, spatial, temporal)
     # QDM expects input arr with shape (time, space)
-    return QDM(data.reshape(-1, data.shape[-1]).T).T.reshape(data.shape)
+    tmp = data.reshape(-1, data.shape[-1]).T
+    # Apply QDM correction
+    tmp = QDM(tmp)
+    # Reorgnize array back from  (time, space) to (spatial, spatial, temporal)
+    return tmp.T.reshape(data.shape)
