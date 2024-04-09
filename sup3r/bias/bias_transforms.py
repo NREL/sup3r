@@ -66,7 +66,7 @@ def get_spatial_bc_factors(lat_lon, feature_name, bias_fp, threshold=0.1):
         dset_adder = res.dsets[dsets.index(dset_adder.lower())]
         scalar = res[dset_scalar, slice_y, slice_x]
         adder = res[dset_adder, slice_y, slice_x]
-        return scalar, adder
+    return scalar, adder
 
 
 def get_spatial_bc_quantiles(lat_lon: np.array,
@@ -115,7 +115,7 @@ def get_spatial_bc_quantiles(lat_lon: np.array,
 
         cfg = {k:v for k,v in res.h5.attrs.items() if k in ("dist", "sampling", "log_base")}
 
-        return base, bias, bias_fut, cfg
+    return base, bias, bias_fut, cfg
 
 
 def global_linear_bc(input, scalar, adder, out_range=None):
