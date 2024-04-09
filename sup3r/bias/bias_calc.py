@@ -1259,7 +1259,7 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
         sampling : str, default="linear",
             Defines the spacing bewteen quantiles for an "empirical"
             distribution.
-        log_base : int or float, default=10,
+        log_base : int or float, default=10
             Log base value if sampling is "log" or "invlog".
 
         See the parent `DataRetrievalBase()` for more possible arguments.
