@@ -1179,29 +1179,16 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
     The main purpose of this class is to estimate the probability
     distributions required by Quantile Delta Mapping (QDM) ([Cannon2015]_)
     technique. Therefore, the name 'Correction' can be misleading since it is
-    not the correction per se, but it was used to keep consistency within this
-    module.
+    not the correction per se, but that was used to keep consistency within
+    this module.
 
     The QDM technique corrects bias and trend by comparing the data
     distributions of three datasets: a historical reference, a biased
     reference, and a biased target (in Cannon et. al. (2015) called:
-    historical oberved, historical modeled, and future modeled
-    respectively). The probability distributions provided here can
-    be used by
-    :func:`sup3r.bias.bias_transforms.local_qdm_bc()` to actually correct
-    a dataset.
-
-    Attributes
-    ----------
-    dist : str
-        Define the type of distribution, which can be "empirical" or any
-        parametric distribution defined in "scipy".
-    n_quantiles : int
-        Defines the number of quantiles for an empirical distribution.
-    sampling : str
-        Defines the spacing bewteen quantiles for an "empirical" distribution.
-    log_base : int | float
-        Log base value if sampling is "log" or "invlog".
+    historical observed, historical modeled, and future modeled
+    respectively). The probability distributions provided here can be used,
+    for instance, by :func:`~sup3r.bias.bias_transforms.local_qdm_bc()` to
+    actually correct a dataset.
 
     See Also
     --------
