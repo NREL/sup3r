@@ -2,14 +2,23 @@
 Sup3rCC Examples
 ################
 
-Super-Resolution for Renewable Energy Resource Data with Climate Change Impacts (Sup3rCC) is one application of the sup3r software. In this work, we train generative models to create high-resolution (4km hourly) wind, solar, and temperature data based on coarse (100km daily) global climate model data (GCM). The generative models and high-resolution output data are publicly available via the `Open Energy Data Initiative (OEDI) <https://data.openei.org/submissions/5839>`_ and via HSDS at the bucket ``nrel-pds-hsds`` and path ``/nrel/sup3rcc/``. This set of examples lays out basic ways to use the Sup3rCC models and data.
+Super-Resolution for Renewable Energy Resource Data with Climate Change Impacts (Sup3rCC) is one application of the sup3r software. In this work, we train generative models to create high-resolution (4km hourly) wind, solar, and temperature data based on coarse (100km daily) global climate model data (GCM). The generative models and high-resolution output data are publicly available via the `Open Energy Data Initiative (OEDI) <https://data.openei.org/submissions/5839>`_ and via HSDS at the bucket ``nrel-pds-hsds`` and HSDS path ``/nrel/sup3rcc/``. This set of examples lays out basic ways to use the Sup3rCC models and data.
 
 Sup3rCC Data Access
 --------------------
 
+For high level details on accessing the NREL renewable energy resource datasets including Sup3rCC, see the rex docs pages `here <https://nrel.github.io/rex/misc/examples.nrel_data.html>`_
+
 The Sup3rCC data and models are publicly available in a public AWS S3 bucket. The data files and models can be downloaded directly from there to your local machine or an EC2 instance using the `OEDI data explorer <https://data.openei.org/s3_viewer?bucket-nrel-pds-sup3rcc>`_ or the `AWS CLI <https://aws.amazon.com/cli/>`_. A word of caution: there's a lot of data here. The smallest Sup3rCC file for just a single variable is 18 GB, and a full year of data is 216 GB.
 
 The Sup3rCC data is also loaded into `HSDS <https://www.hdfgroup.org/solutions/highly-scalable-data-service-hsds/>`_ so that you may stream the data via the `NREL developer API <https://developer.nrel.gov/signup/>`_ or your own HSDS server. This is the best option if you're not going to want the full annual dataset over the whole United States. See these `rex instructions <https://nrel.github.io/rex/misc/examples.hsds.html>`_ for more details on how to access this data with HSDS and rex.
+
+Directory Structure
+-------------------
+
+The Sup3rCC directory contains downscaled data for multiple projections of future climate change. For example, a file from the initial data release ``sup3rcc_conus_ecearth3_ssp585_r1i1p1f1_wind_2015.h5`` is downscaled from the climate model MRI ESM 2.0 for climate change scenario SSP5 8.5 and variant label r1i1p1f1. The file contains wind variables for the year 2015. Note that this will represent the climate from 2015, but not the actual weather we experienced. 
+
+Within the S3 bucket there is also a folder ``models`` providing pre-trained Sup3rCC generative machine learning models.
 
 Example Sup3rCC Data Usage
 --------------------------
@@ -62,12 +71,14 @@ The Sup3rCC data has versions that coincide with the sup3r software versions. No
       - Notes
     * - 0.1.0
       - 6/27/2023
-      - Initial release of Sup3rCC including data based on MRI-ESM-2.0 and EC-Earth3 for the contiguous United States.
+      - Initial Sup3rCC release with two GCMs and one climate scenario. Known issues: few years used for bias correction, simplistic GCM bias correction method, mean bias in high-res output especially in wind and solar data, imperfect wind diurnal cycles when compared to WTK and timing of diurnal peak temperature when compared to observation.
 
 Recommended Citation
 --------------------
 
-Grant Buster, Brandon Benton, Andrew Glaws, and Ryan King. "Super-Resolution for Renewable Energy Resource Data with Climate Change Impacts using Generative Machine Learning". Under review (August 2023).
+Buster, G., Benton, B.N., Glaws, A. et al. High-resolution meteorology with climate change impacts from global climate model data using generative machine learning. Nature Energy (2024). https://doi.org/10.1038/s41560-024-01507-9
+
+Buster, Grant, Benton, Brandon, Glaws, Andrew, & King, Ryan. Super-Resolution for Renewable Energy Resource Data with Climate Change Impacts (Sup3rCC). United States. https://dx.doi.org/10.25984/1970814. https://data.openei.org/submissions/5839.
 
 Acknowledgements
 ----------------
