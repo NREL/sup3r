@@ -1337,10 +1337,35 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
 
 
     def qdm_bc(self, bc_files, reference_feature, relative=True, threshold=0.1):
-        """
+        """Bias Correction using Quantile Delta Mapping
 
-        Warning: There is no guarantee that the coefficients from `bc_files`
-        match the resource processed here. Be careful choosing `bc_files`.
+        Bias correct this DataHandler's data with Quantile Delta Mapping. The
+        required statistical distributions should be pre-calculated using
+        :class:`sup3r.bias.bias_calc.QuantileDeltaMappingCorrection`.
+
+        Warning: There is no guarantee that the coefficients from ``bc_files``
+        match the resource processed here. Be careful choosing ``bc_files``.
+
+        Parameters
+        ----------
+        bc_files : list | tuple | str
+            One or more filepaths to .h5 files output by
+            :class:`bias_calc.QuantileDeltaMappingCorrection`. These should
+            contain datasets named "base_{reference_feature}_params",
+            "bias_{feature}_params", and "bias_fut_{feature}_params" where
+            {feature} is one of the features contained by this DataHandler and
+            the data is a 3D array of shape (lat, lon, time) where time.
+        reference_feature : str
+            Name of the feature used as (historical) reference. Dataset with
+            name "base_{reference_feature}_params" will be retrieved from
+            ``bc_files``.
+        relative : bool, default=True
+            Switcher to apply QDM as a relative (use True) or absolute (use
+            False) correction value.
+        threshold : float, default=0.1
+            Nearest neighbor euclidean distance threshold. If the DataHandler
+            coordinates are more than this value away from the bias correction
+            lat/lon, an error is raised.
         """
 
         if isinstance(bc_files, str):
