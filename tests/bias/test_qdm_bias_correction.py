@@ -24,7 +24,7 @@ with xr.open_dataset(FP_CC) as fh:
     SHAPE = (len(fh.lat.values), len(fh.lon.values))
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def fp_fut_cc(tmpdir_factory):
     """Sample future CC dataset
 
@@ -42,7 +42,7 @@ def fp_fut_cc(tmpdir_factory):
     return fn
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def fp_fut_cc_notrend(tmpdir_factory):
     """Sample future CC dataset identical to historical CC
 
@@ -55,7 +55,7 @@ def fp_fut_cc_notrend(tmpdir_factory):
     return fn
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def dist_params(tmpdir_factory, fp_fut_cc):
     """Distribution parameters for standard datasets
 
