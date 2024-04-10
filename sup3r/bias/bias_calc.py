@@ -1177,16 +1177,17 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
     """Estimate probability distributions required by Quantile Delta Mapping
 
     The main purpose of this class is to estimate the probability
-    distributions required by Quantile Delta Mapping (QDM) ([Cannon2015])
+    distributions required by Quantile Delta Mapping (QDM) ([Cannon2015]_)
     technique. Therefore, the name 'Correction' can be misleading since it is
     not the correction per se, but it was used to keep consistency within this
     module.
 
     The QDM technique corrects bias and trend by comparing the data
     distributions of three datasets: a historical reference, a biased
-    reference, and a biased target (in [Cannon2015] called: historical
-    oberved, historical modeled, and future modeled respectively). The
-    probability distributions provided here can be used by
+    reference, and a biased target (in Cannon et. al. (2015) called:
+    historical oberved, historical modeled, and future modeled
+    respectively). The probability distributions provided here can
+    be used by
     :func:`sup3r.bias.bias_transforms.local_qdm_bc()` to actually correct
     a dataset.
 
