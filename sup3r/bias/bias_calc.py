@@ -1272,7 +1272,6 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
            Climate, 28(17), 6938-6959.
         """
 
-
         self.n_quantiles = n_quantiles
         self.dist = dist
         self.sampling = sampling
@@ -1462,7 +1461,28 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
             fp_out=None,
             max_workers=None,
             daily_reduction='avg'):
-        """Apply QDM correction to bias dataset"""
+        """Estimate the statistical distributions for each location
+
+        Parameters
+        ----------
+        fp_out : str | None
+            Optional .h5 output file to write scalar and adder arrays.
+        max_workers : int, optional
+            Number of workers to run in parallel. 1 is serial and None is all
+            available.
+        daily_reduction : None | str
+            Option to do a reduction of the hourly+ source base data to daily
+            data. Can be None (no reduction, keep source time frequency), "avg"
+            (daily average), "max" (daily max), "min" (daily min),
+            "sum" (daily sum/total)
+
+        Returns
+        -------
+        out : dict
+            Dictionary with parameters defining the statistical distributions
+            for each of the three given datasets. Each value has dimensions
+            (lat, lon, n-parameters).
+        """
 
         logger.debug('Starting QDM correction calculation...')
 
