@@ -7,8 +7,10 @@ import json
 import logging
 import os
 from abc import abstractmethod
+from collections.abc import Sequence
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from glob import glob
+from pathlib import Path
 
 import h5py
 import numpy as np
@@ -31,6 +33,34 @@ from sup3r.utilities.cli import BaseCLI
 from sup3r.utilities.utilities import nn_fill_array
 
 logger = logging.getLogger(__name__)
+
+
+def _expand_paths(fps: str | Sequence[str]) -> list[str]:
+    """Expand path(s)
+
+    Parameter
+    ---------
+    fps : str or pathlib.Path or Sequence
+        One or multiple paths to file
+
+    Returns
+    -------
+    list[str]
+        A list of expanded unique and sorted paths as str
+
+    Examples
+    --------
+    >>> _expand_paths("myfile.h5")
+
+    >>> _expand_paths(["myfile.h5", "*h5"])
+    """
+    if isinstance(fps, str) or isinstance(fps, Path):
+        fps = (fps, )
+
+    out = []
+    for f in fps:
+        out.extend(glob(f))
+    return sorted(set(out))
 
 
 class DataRetrievalBase:
@@ -134,10 +164,8 @@ class DataRetrievalBase:
         self._distance_upper_bound = distance_upper_bound
         self.match_zero_rate = match_zero_rate
 
-        if isinstance(self.base_fps, str):
-            self.base_fps = sorted(glob(self.base_fps))
-        if isinstance(self.bias_fps, str):
-            self.bias_fps = sorted(glob(self.bias_fps))
+        self.base_fps = _expand_paths(self.base_fps)
+        self.bias_fps = _expand_paths(self.bias_fps)
 
         base_sup3r_handler = getattr(sup3r.preprocessing.data_handling,
                                      base_handler, None)
@@ -1281,8 +1309,7 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
 
         self.bias_fut_fps = bias_fut_fps
 
-        if isinstance(self.bias_fut_fps, str):
-            self.bias_fut_fps = sorted(glob(self.bias_fut_fps))
+        self.bias_fut_fps = _expand_paths(self.bias_fut_fps)
 
         self.bias_fut_dh = self.bias_handler(self.bias_fut_fps,
                                              [self.bias_feature],
