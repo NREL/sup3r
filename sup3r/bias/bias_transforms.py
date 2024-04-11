@@ -421,12 +421,17 @@ def local_qdm_bc(data: np.array,
                                                          bias_fp)
 
     # distributions are 3D (space, space, N-params)
-    projection = lambda x: x.reshape(-1, x.shape[-1])
+    def _projection(x):
+        """Project array collapsing all 'space' dimensions
+
+        For instance, collapse a (space, space, N) into (space**2, N)
+        """
+        return x.reshape(-1, x.shape[-1])
     # params expected to be 2D arrays (space, N-params)
-    QDM = QuantileDeltaMapping(projection(base),
-                               projection(bias),
-                               projection(bias_fut),
-                               dist=cfg["dist"],
+    QDM = QuantileDeltaMapping(_projection(base),
+                               _projection(bias),
+                               _projection(bias_fut),
+                               dist=cfg['dist'],
                                relative=relative,
                                sampling=cfg["sampling"],
                                log_base=cfg["log_base"])
