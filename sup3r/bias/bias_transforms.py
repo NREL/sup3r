@@ -410,7 +410,10 @@ def local_qdm_bc(data: np.array,
     rex.utilities.bc_utils.QuantileDeltaMapping :
         Core QDM transformation.
 
-
+    Examples
+    --------
+    >>> unbiased = local_qdm_bc(biased_array, lat_lon_array, "ghi", "rsds",
+    ...                         "./dist_params.hdf")
     """
     base, bias, bias_fut, cfg = get_spatial_bc_quantiles(lat_lon,
                                                          base_dset,
