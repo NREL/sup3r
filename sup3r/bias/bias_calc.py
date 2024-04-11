@@ -1185,39 +1185,17 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
     The main purpose of this class is to estimate the probability
     distributions required by Quantile Delta Mapping (QDM) ([Cannon2015]_)
     technique. Therefore, the name 'Correction' can be misleading since it is
-    not the correction per se, but that was used to keep consistency within
+    not the correction *per se*, but that was used to keep consistency within
     this module.
 
     The QDM technique corrects bias and trend by comparing the data
     distributions of three datasets: a historical reference, a biased
-    reference, and a biased target (in Cannon et. al. (2015) called:
-    historical observed, historical modeled, and future modeled
-    respectively). The probability distributions provided here can be used,
-    for instance, by :func:`~sup3r.bias.bias_transforms.local_qdm_bc()` to
-    actually correct a dataset.
-
-    See Also
-    --------
-    DataRetrievalBase : Parent class describing more attributes and methods.
-    sup3r.bias.bias_transforms.local_qdm_bc :
-        Bias correction using QDM.
-    sup3r.preprocessing.data_handling.DataHandler :
-        Bias correction using QDM directly from a derived handler.
-
-    Notes
-    -----
-    One way of using this class is by saving the distributions definitions
-    obtained here with the method `write_outputs()` and then use that file
-    with `local_qdm_bc()` or through a derived `DataHandler`. ATTENTION, be
-    careful handling that file of parameters. There is no checking process
-    and one could apply the correction estimated for the wrong dataset.
-
-    References
-    ----------
-    .. [Cannon2015] Cannon, A. J., Sobie, S. R., & Murdock, T. Q. (2015). Bias
-       correction of GCM precipitation by quantile mapping: how well do
-       methods preserve changes in quantiles and extremes?. Journal of
-       Climate, 28(17), 6938-6959.
+    reference, and a biased target to correct (in Cannon et. al. (2015)
+    called: historical observed, historical modeled, and future modeled
+    respectively). Those three probability distributions provided here
+    can be, for instance, used by
+    :func:`~sup3r.bias.bias_transforms.local_qdm_bc` to actually correct
+    a dataset.
     """
     def __init__(self,
                  base_fps,
@@ -1229,35 +1207,71 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
                  sampling="linear",
                  log_base=10,
                  **kwargs):
-        """Initialize `QuantileDeltaMappingCorrection`
-
+        """
         Parameters
         ----------
         base_fps : list | str
             One or more baseline .h5 filepaths representing non-biased data to
-            use to correct the biased dataset. This is typically several years
-            of WTK or NSRDB files.
+            use
+            to correct the biased dataset (observed historical in Cannon et.
+            al. (2015)). This is typically several years of WTK or NSRDB files.
         bias_fps : list | str
             One or more biased .nc or .h5 filepaths representing the biased
-            data to be compared with the baseline data. This is typically
-            several years of GCM .nc files.
+            data
+            to be compared with the baseline data (modeled historical in Cannon
+            et. al. (2015)). This is typically several years of GCM .nc files.
         bias_fut_fps : list | str
-            Similar to `bias_fps` but usually for a different time period.
-            This is the dataset that would be corrected, since `bias_fsp` is
-            only used to provide a transformation map with the baseline data.
+            Consistent data to `bias_fps` but for a different time period
+            (modeled
+            future in Cannon et. al. (2015)). This is the dataset that would be
+            corrected, while `bias_fsp` is used to provide a transformation map
+            with the baseline data.
+        *(kw)args :
+            For aditional arguments, check :class:`DataRetrievalBase`.
+            *Note: The following arguments must be keyworded arguments.*
         dist : str, default="empirical",
             Define the type of distribution, which can be "empirical" or any
             parametric distribution defined in "scipy".
         n_quantiles : int, default=101
-            Defines the number of quantiles for an empirical distribution.
-        sampling : str, default="linear",
-            Defines the spacing bewteen quantiles for an "empirical"
+            Defines the number of quantiles (between 0 and 1) for an empirical
             distribution.
+        sampling : str, default="linear",
+            Defines how the quantiles are sampled. For instance, 'linear' will
+            result in a linearly spaced quantiles. Other options are: 'log'
+            and 'invlog'.
         log_base : int or float, default=10
             Log base value if sampling is "log" or "invlog".
 
-        See the parent `DataRetrievalBase()` for more possible arguments.
+        See Also
+        --------
+        sup3r.bias.bias_transforms.local_qdm_bc :
+            Bias correction using QDM.
+        sup3r.preprocessing.data_handling.DataHandler :
+            Bias correction using QDM directly from a derived handler.
+        rex.utilities.bc_utils.QuantileDeltaMapping
+            Quantile Delta Mapping method and support functions. Since
+            :mod:`rex.utilities.bc_utils` is used here, the arguments
+            ``dist``, ``n_quantiles``, ``sampling``, and ``log_base``
+            must be consitent with that package/module.
+
+        Notes
+        -----
+        One way of using this class is by saving the distributions definitions
+        obtained here with the method :meth:`.write_outputs` and then use that
+        file with :func:`~sup3r.bias.bias_transforms.local_qdm_bc` or through
+        a derived :class:`~sup3r.preprocessing.data_handling.base.DataHandler`.
+        **ATTENTION**, be careful handling that file of parameters. There is
+        no checking process and one could missuse the correction estimated for
+        the wrong dataset.
+
+        References
+        ----------
+        .. [Cannon2015] Cannon, A. J., Sobie, S. R., & Murdock, T. Q. (2015).
+           Bias correction of GCM precipitation by quantile mapping: how well
+           do methods preserve changes in quantiles and extremes?. Journal of
+           Climate, 28(17), 6938-6959.
         """
+
 
         self.n_quantiles = n_quantiles
         self.dist = dist
@@ -1409,15 +1423,19 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
 
         return out
 
-    def write_outputs(self, fp_out, out):
+    def write_outputs(self, fp_out, out=None):
         """Write outputs to an .h5 file.
 
         Parameters
         ----------
         fp_out : str | None
-            Optional .h5 output file to write scalar and adder arrays.
-        out : dict
+            An HDF5 filename to write the estimated statistical distributions.
+        out : dict, optional
+            A dictionary with the three statistical distribution parameters.
+            If not given, it uses :attr:`.out`.
         """
+
+        out = out or self.out
 
         if fp_out is not None:
             if not os.path.exists(os.path.dirname(fp_out)):
