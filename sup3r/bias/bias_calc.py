@@ -108,8 +108,14 @@ class DataRetrievalBase:
             SkillAssessment is being run and this is True, the distributions
             will not be mean-centered. This helps resolve the issue where
             global climate models produce too many days with small
-            precipitation totals e.g., the "drizzle problem".
-            Ref: Polade et al., 2014 https://doi.org/10.1038/srep04364
+            precipitation totals e.g., the "drizzle problem" [Polade2014]_.
+
+        References
+        ----------
+        .. [Polade2014] Polade, S. D., Pierce, D. W., Cayan, D. R., Gershunov,
+           A., & Dettineer, M. D. (2014). The key role of dry days in changing
+           regional climate and precipitation regimes. Scientific reports,
+           4(1), 4364. https://doi.org/10.1038/srep04364
         """
 
         logger.info('Initializing DataRetrievalBase for base dset "{}" '
