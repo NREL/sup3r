@@ -2,25 +2,24 @@
 """
 Sup3r command line interface (CLI).
 """
-import click
 import logging
 
+import click
 from gaps import Pipeline
 
 from sup3r import __version__
-from sup3r.utilities import ModuleName
-from sup3r.pipeline.forward_pass_cli import from_config as fwp_cli
-from sup3r.solar.solar_cli import from_config as solar_cli
-from sup3r.preprocessing.data_extract_cli import from_config as dh_cli
-from sup3r.postprocessing.data_collect_cli import from_config as dc_cli
-from sup3r.qa.qa_cli import from_config as qa_cli
-from sup3r.qa.visual_qa_cli import from_config as visual_qa_cli
-from sup3r.qa.stats_cli import from_config as stats_cli
-from sup3r.pipeline.pipeline_cli import from_config as pipe_cli
 from sup3r.batch.batch_cli import from_config as batch_cli
 from sup3r.bias.bias_calc_cli import from_config as bias_calc_cli
+from sup3r.pipeline.forward_pass_cli import from_config as fwp_cli
+from sup3r.pipeline.pipeline_cli import from_config as pipe_cli
+from sup3r.postprocessing.data_collect_cli import from_config as dc_cli
+from sup3r.preprocessing.data_extract_cli import from_config as dh_cli
+from sup3r.qa.qa_cli import from_config as qa_cli
+from sup3r.qa.stats_cli import from_config as stats_cli
+from sup3r.qa.visual_qa_cli import from_config as visual_qa_cli
+from sup3r.solar.solar_cli import from_config as solar_cli
+from sup3r.utilities import ModuleName
 from sup3r.utilities.regridder_cli import from_config as regrid_cli
-
 
 logger = logging.getLogger(__name__)
 
@@ -168,7 +167,7 @@ def solar(ctx, verbose):
             }
         }
 
-   Note that the ``execution_control`` block contains kwargs that would
+    Note that the ``execution_control`` block contains kwargs that would
     be required to distribute the job on multiple nodes on the NREL HPC.
     To run the job locally, use ``execution_control: {"option": "local"}``.
     """

@@ -617,7 +617,7 @@ class EraDownloader:
             logger.info(f'Pruning {infile}.')
             tmp_file = cls.get_tmp_file(infile)
             with xr.open_dataset(infile) as ds:
-                keep_vars = {k: v for k, v in dict(ds.data_vars)
+                keep_vars = {k: v for k, v in dict(ds.data_vars).items()
                              if 'level' not in ds[k].dims}
                 new_coords = {k: v for k, v in dict(ds.coords).items()
                               if 'level' not in k}
@@ -854,7 +854,8 @@ class EraDownloader:
         ]
 
         if not os.path.exists(yearly_file):
-            with xr.open_mfdataset(files, parallel=True) as res:
+            kwargs = {'combine': 'nested', 'concat_dim': 'time'}
+            with xr.open_mfdataset(files, **kwargs) as res:
                 logger.info(f'Combining {files}')
                 os.makedirs(os.path.dirname(yearly_file), exist_ok=True)
                 res.to_netcdf(yearly_file)

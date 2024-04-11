@@ -161,7 +161,9 @@ class LogLinInterpolator:
             if var not in ('u', 'v'):
                 max_log_height = -np.inf
             logger.info(
-                f'Interpolating {var} to heights = {self.new_heights[var]}.')
+                f'Interpolating {var} to heights = {self.new_heights[var]}. '
+                f'Using fixed_level_mask = {arrs["mask"]}, '
+                f'max_log_height = {max_log_height}.')
 
             self.new_data[var] = self.interp_var_to_height(
                 var_array=arrs['data'],
@@ -384,6 +386,28 @@ class LogLinInterpolator:
         return log_ws, good
 
     @classmethod
+    def check_unique_levels(cls, lev_array):
+        """Check for unique level values, in case there are some
+        duplicates. Give a warning if there are duplicates.
+
+        Parameters
+        ----------
+        lev_array : ndarray
+            1D Array of height values corresponding to the wrf source
+            data in the same shape as var_array.
+        """
+        indices = []
+        levels = []
+        for i, lev in enumerate(lev_array):
+            if lev not in levels:
+                levels.append(lev)
+                indices.append(i)
+        if len(indices) < len(lev_array):
+            msg = (f'Received lev_array with duplicate values ({lev_array}).')
+            logger.warning(msg)
+            warn(msg)
+
+    @classmethod
     def _interp_var_to_height(cls,
                               lev_array,
                               var_array,
@@ -419,6 +443,7 @@ class LogLinInterpolator:
         good : bool
             Check if interpolation went without issue.
         """
+        cls.check_unique_levels(lev_array)
         levels = np.array(levels)
 
         log_ws = None
@@ -445,11 +470,16 @@ class LogLinInterpolator:
             elif len(lev_array) > 1:
                 msg = ('Requested interpolation levels are outside the '
                        f'available range: lev_array={lev_array}, '
-                       f'levels={levels}. Using linear extrapolation.')
+                       f'levels={levels}. Using linear extrapolation for '
+                       f'levels={levels[lev_mask]}')
                 lin_ws = interp1d(lev_array,
                                   var_array,
                                   fill_value='extrapolate')(levels[lev_mask])
                 good = False
+                logger.warning(msg)
+                warn(msg)
+                msg = (f'Extrapolated values for levels {levels[lev_mask]} '
+                       f'are {lin_ws}.')
                 logger.warning(msg)
                 warn(msg)
             else:

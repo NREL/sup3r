@@ -17,7 +17,8 @@ class LinearInterp(AbstractInterface):
     """Simple model to do linear interpolation on the spatial and temporal axes
     """
 
-    def __init__(self, lr_features, s_enhance, t_enhance, t_centered=False):
+    def __init__(self, lr_features, s_enhance, t_enhance, t_centered=False,
+                 input_resolution=None):
         """
         Parameters
         ----------
@@ -33,12 +34,17 @@ class LinearInterp(AbstractInterface):
             Flag to switch time axis from time-beginning (Default, e.g.
             interpolate 00:00 01:00 to 00:00 00:30 01:00 01:30) to
             time-centered (e.g. interp 01:00 02:00 to 00:45 01:15 01:45 02:15)
+        input_resolution : dict | None
+            Resolution of the input data. e.g. {'spatial': '30km', 'temporal':
+            '60min'}. This is used to determine how to aggregate
+            high-resolution topography data.
         """
 
         self._lr_features = lr_features
         self._s_enhance = s_enhance
         self._t_enhance = t_enhance
         self._t_centered = t_centered
+        self._input_resolution = input_resolution
 
     @classmethod
     def load(cls, model_dir, verbose=False):
@@ -78,7 +84,8 @@ class LinearInterp(AbstractInterface):
     @property
     def meta(self):
         """Get meta data dictionary that defines the model params"""
-        return {'lr_features': self._lr_features,
+        return {'input_resolution': self._input_resolution,
+                'lr_features': self._lr_features,
                 's_enhance': self._s_enhance,
                 't_enhance': self._t_enhance,
                 't_centered': self._t_centered,
