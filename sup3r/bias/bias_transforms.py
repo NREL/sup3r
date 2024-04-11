@@ -354,7 +354,7 @@ def local_qdm_bc(data: np.array,
 
     Apply QDM to correct bias on the given data. It assumes that the required
     statistical distributions were previously estimated and saved in
-    `bias_fp`.
+    ``bias_fp``.
 
     Parameters
     ----------
