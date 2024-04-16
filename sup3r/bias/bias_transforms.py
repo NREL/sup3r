@@ -100,6 +100,14 @@ def get_spatial_bc_factors(lat_lon, feature_name, bias_fp, threshold=0.1):
         dset_adder = res.dsets[dsets.index(dset_adder.lower())]
         scalar = res[dset_scalar, slice_y, slice_x]
         adder = res[dset_adder, slice_y, slice_x]
+
+    # Validating transition
+    ds = {'scalar': f'{feature_name}_scalar',
+          'adder': f'{feature_name}_adder'}
+    out = _get_factors(lat_lon, ds, bias_fp, threshold)
+    assert np.allclose(scalar, out["scalar"])
+    assert np.allclose(adder, out["adder"])
+
     return scalar, adder
 
 
