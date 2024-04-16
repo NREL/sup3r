@@ -379,10 +379,13 @@ def local_qdm_bc(data: np.array,
         are the parameters to define the statistical distributions to be used
         to correct the given `data`.
     no_trend: bool, default=False
-        Ignores the trend component of the correction, thus resulting in
-        an ordinary Quantile Mapping, i.e. corrects the bias by comparing the
-        distributions of the biased dataset with a reference datasets. See
+        An option to ignore the trend component of the correction, thus
+        resulting in an ordinary Quantile Mapping, i.e. corrects the bias by
+        comparing the distributions of the biased dataset with a reference
+        datasets. See
         ``params_mf`` of :class:`rex.utilities.bc_utils.QuantileDeltaMapping`.
+        Note that this assumes that params_mh is the data distribution
+        representative for the target data.
 
     Returns
     -------
