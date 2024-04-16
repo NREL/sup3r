@@ -1478,6 +1478,9 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
                 f.attrs["dist"] = self.dist
                 f.attrs["sampling"] = self.sampling
                 f.attrs["log_base"] = self.log_base
+                f.attrs["base_fps"] = self.base_fps
+                f.attrs["bias_fps"] = self.bias_fps
+                f.attrs["bias_fut_fps"] = self.bias_fut_fps
                 logger.info(
                     'Wrote quantiles to file: {}'.format(fp_out))
 
