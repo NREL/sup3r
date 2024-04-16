@@ -99,11 +99,14 @@ def get_spatial_bc_quantiles(lat_lon: np.array,
             logger.error(msg)
             raise RuntimeError(msg)
 
-        msg = (f'Either {dset_base} or {dset_bias} or {dset_bias_fut} not found in {bias_fp}.')
+        msg = (f'Either {dset_base} or {dset_bias} or {dset_bias_fut} '
+               'not found in {bias_fp}.')
         dsets = [dset.lower() for dset in res.dsets]
-        check = dset_base.lower() in dsets \
-                and dset_bias.lower() in dsets \
-                and dset_bias_fut.lower() in dsets
+        check = (
+            dset_base.lower() in dsets
+            and dset_bias.lower() in dsets
+            and dset_bias_fut.lower() in dsets
+        )
         assert check, msg
         dset_base = res.dsets[dsets.index(dset_base.lower())]
         dset_bias = res.dsets[dsets.index(dset_bias.lower())]
@@ -113,7 +116,11 @@ def get_spatial_bc_quantiles(lat_lon: np.array,
         bias = res[dset_bias, slice_y, slice_x]
         bias_fut = res[dset_bias_fut, slice_y, slice_x]
 
-        cfg = {k:v for k,v in res.h5.attrs.items() if k in ("dist", "sampling", "log_base")}
+        cfg = {
+            k: v
+            for k, v in res.h5.attrs.items()
+            if k in ("dist", "sampling", "log_base")
+        }
 
     return base, bias, bias_fut, cfg
 
@@ -401,7 +408,8 @@ def local_qdm_bc(data: np.array,
     Notes
     -----
     Be careful selecting `bias_fp`. Usually, the input `data` used here would
-    be related to the dataset used to estimate "bias_fut_{feature_name}_params".
+    be related to the dataset used to estimate
+    "bias_fut_{feature_name}_params".
 
     Keeping arguments consistent with `local_linear_bc()`, thus a 3D data
     (spatial, spatial, temporal), and lat_lon (n_lats, n_lons, [lat, lon]).
