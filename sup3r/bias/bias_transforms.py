@@ -12,6 +12,40 @@ from scipy.ndimage import gaussian_filter
 logger = logging.getLogger(__name__)
 
 
+def _get_factors(lat_lon, ds, bias_fp, threshold = 0.1):
+
+    with Resource(bias_fp) as res:
+        lat = np.expand_dims(res['latitude'], axis=-1)
+        lon = np.expand_dims(res['longitude'], axis=-1)
+        lat_lon_bc = np.dstack((lat, lon))
+        diff = lat_lon_bc - lat_lon[:1, :1]
+        diff = np.hypot(diff[..., 0], diff[..., 1])
+        idy, idx = np.where(diff == diff.min())
+        slice_y = slice(idy[0], idy[0] + lat_lon.shape[0])
+        slice_x = slice(idx[0], idx[0] + lat_lon.shape[1])
+
+        if diff.min() > threshold:
+            msg = ('The DataHandler top left coordinate of {} '
+                   'appears to be {} away from the nearest '
+                   'bias correction coordinate of {} from {}. '
+                   'Cannot apply bias correction.'.format(
+                       lat_lon, diff.min(), lat_lon_bc[idy, idx],
+                       os.path.basename(bias_fp),
+                   ))
+            logger.error(msg)
+            raise RuntimeError(msg)
+
+        res_names = [r.lower() for r in res.dsets]
+        missing = [d for d in ds.values() if d.lower() not in res_names]
+        msg = f'Missing {" and ".join(missing)} in resource: {bias_fp}.'
+        assert missing == [], msg
+
+        varnames = {k : res.dsets[res_names.index(ds[k].lower())] for k in ds}
+        out = {k : res[varnames[k], slice_y, slice_x] for k in ds}
+
+    return out
+
+
 def get_spatial_bc_factors(lat_lon, feature_name, bias_fp, threshold=0.1):
     """Get bc factors (scalar/adder) for the given feature for the given
     domain (specified by lat_lon).
@@ -121,6 +155,15 @@ def get_spatial_bc_quantiles(lat_lon: np.array,
             for k, v in res.h5.attrs.items()
             if k in ("dist", "sampling", "log_base")
         }
+
+    # Validating transition
+    ds = {'base': f'base_{base_dset}_params',
+          'bias': f'bias_{feature_name}_params',
+          'bias_fut': f'bias_fut_{feature_name}_params'}
+    out = _get_factors(lat_lon, ds, bias_fp, threshold)
+    assert np.allclose(base, out["base"])
+    assert np.allclose(bias, out["bias"])
+    assert np.allclose(bias_fut, out["bias_fut"])
 
     return base, bias, bias_fut, cfg
 
