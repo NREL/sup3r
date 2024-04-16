@@ -1511,7 +1511,7 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
             (lat, lon, n-parameters).
         """
 
-        logger.debug('Starting QDM correction calculation...')
+        logger.debug('Calculate CDF parameters for QDM')
 
         logger.info('Initialized params with shape: {}'
                     .format(self.bias_gid_raster.shape))
