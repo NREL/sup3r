@@ -174,6 +174,36 @@ def test_qdm_transform(dist_params):
     assert not np.allclose(data, corrected, equal_nan=False)
 
 
+def test_qdm_transform_notrend(tmp_path, dist_params):
+    """The no_trend option is equal to a dataset without trend
+
+    The no_trend flag ignores the trend component, thus it must give the
+    same result of a full correction based on data distributions that
+    modeled historical is equal to modeled future.
+
+    Note: One possible point of confusion here is that the mf is ignored,
+    so it is assumed that mo is the distribution to be representative of the
+    target data.
+    """
+    # Run the standard pipeline with flag 'no_trend'
+    corrected = local_qdm_bc(np.ones((*FP_CC_LAT_LON.shape[:-1], 2)),
+                             FP_CC_LAT_LON, "ghi", "rsds", dist_params,
+                             no_trend=True)
+
+    # Creates a new distribution with mo == mf
+    notrend_params = os.path.join(tmp_path, "notrend.hdf")
+    shutil.copyfile(dist_params, notrend_params)
+    with h5py.File(notrend_params, 'r+') as f:
+        f['bias_fut_rsds_params'][:] = f['bias_rsds_params'][:]
+        f.flush()
+
+    unbiased = local_qdm_bc(np.ones((*FP_CC_LAT_LON.shape[:-1], 2)),
+                            FP_CC_LAT_LON, "ghi", "rsds", notrend_params)
+
+    assert not np.isnan(corrected).all(), "Can't compare if only NaN"
+    assert np.allclose(corrected, unbiased, equal_nan=True)
+
+
 def test_handler_qdm_bc(fp_fut_cc, dist_params):
     """qdm_bc() method from DataHandler
 
