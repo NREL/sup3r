@@ -12,7 +12,7 @@ from scipy.ndimage import gaussian_filter
 logger = logging.getLogger(__name__)
 
 
-def _get_factors(lat_lon, ds, bias_fp, threshold = 0.1):
+def _get_factors(lat_lon, ds, bias_fp, threshold=0.1):
 
     with Resource(bias_fp) as res:
         lat = np.expand_dims(res['latitude'], axis=-1)
@@ -40,8 +40,8 @@ def _get_factors(lat_lon, ds, bias_fp, threshold = 0.1):
         msg = f'Missing {" and ".join(missing)} in resource: {bias_fp}.'
         assert missing == [], msg
 
-        varnames = {k : res.dsets[res_names.index(ds[k].lower())] for k in ds}
-        out = {k : res[varnames[k], slice_y, slice_x] for k in ds}
+        varnames = {k: res.dsets[res_names.index(ds[k].lower())] for k in ds}
+        out = {k: res[varnames[k], slice_y, slice_x] for k in ds}
 
     return out
 
