@@ -7,7 +7,6 @@ import json
 import logging
 import os
 from abc import abstractmethod
-from collections.abc import Sequence
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from glob import glob
 from pathlib import Path
@@ -35,7 +34,7 @@ from sup3r.utilities.utilities import nn_fill_array
 logger = logging.getLogger(__name__)
 
 
-def _expand_paths(fps) -> list[str]:
+def _expand_paths(fps):
     """Expand path(s)
 
     Parameter
