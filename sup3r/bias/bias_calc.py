@@ -52,7 +52,7 @@ def _expand_paths(fps: str | Sequence[str]) -> list[str]:
     --------
     >>> _expand_paths("myfile.h5")
 
-    >>> _expand_paths(["myfile.h5", "*h5"])
+    >>> _expand_paths(["myfile.h5", "*.hdf"])
     """
     if isinstance(fps, str) or isinstance(fps, Path):
         fps = (fps, )
