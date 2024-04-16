@@ -35,12 +35,12 @@ from sup3r.utilities.utilities import nn_fill_array
 logger = logging.getLogger(__name__)
 
 
-def _expand_paths(fps: str | Sequence[str]) -> list[str]:
+def _expand_paths(fps) -> list[str]:
     """Expand path(s)
 
     Parameter
     ---------
-    fps : str or pathlib.Path or Sequence
+    fps : str or pathlib.Path or any Sequence of those
         One or multiple paths to file
 
     Returns
