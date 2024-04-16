@@ -28,7 +28,7 @@ with xr.open_dataset(FP_CC) as fh:
 def fp_fut_cc(tmpdir_factory):
     """Sample future CC dataset
 
-    The same CC but with a small offset and negligible noise.
+    The same CC but with an offset (75.0) and negligible noise.
     """
     fn = tmpdir_factory.mktemp("data").join("test_mf.nc")
     ds = xr.open_dataset(FP_CC)
