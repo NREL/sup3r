@@ -33,9 +33,9 @@ def fp_fut_cc(tmpdir_factory):
     fn = tmpdir_factory.mktemp("data").join("test_mf.nc")
     ds = xr.open_dataset(FP_CC)
     # Adding an offset
-    ds['rsds'] += 50.0
+    ds['rsds'] += 75.0
     # adding a noise
-    ds['rsds'] += np.random.random(ds['rsds'].shape)
+    ds['rsds'] += 5*np.random.random(ds['rsds'].shape)
     ds.to_netcdf(fn)
     # DataHandlerNCforCC requires a string
     fn = str(fn)
