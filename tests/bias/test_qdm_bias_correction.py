@@ -35,7 +35,7 @@ def fp_fut_cc(tmpdir_factory):
     # Adding an offset
     ds['rsds'] += 75.0
     # adding a noise
-    ds['rsds'] += 5*np.random.random(ds['rsds'].shape)
+    ds['rsds'] += np.random.randn(*ds['rsds'].shape)
     ds.to_netcdf(fn)
     # DataHandlerNCforCC requires a string
     fn = str(fn)
