@@ -349,7 +349,8 @@ def local_qdm_bc(data: np.array,
                  base_dset: str,
                  feature_name: str,
                  bias_fp,
-                 relative=True):
+                 relative=True,
+                 no_trend=False):
     """Bias correction using QDM
 
     Apply QDM to correct bias on the given data. It assumes that the required
@@ -377,6 +378,11 @@ def local_qdm_bc(data: np.array,
         "bias_fut_{feature_name}_params", and "base_{base_dset}_params" that
         are the parameters to define the statistical distributions to be used
         to correct the given `data`.
+    no_trend: bool, default=False
+        Ignores the trend component of the correction, thus resulting in
+        an ordinary Quantile Mapping, i.e. corrects the bias by comparing the
+        distributions of the biased dataset with a reference datasets. See
+        ``params_mf`` of :class:`rex.utilities.bc_utils.QuantileDeltaMapping`.
 
     Returns
     -------
@@ -396,14 +402,14 @@ def local_qdm_bc(data: np.array,
 
     Keeping arguments consistent with `local_linear_bc()`, thus a 3D data
     (spatial, spatial, temporal), and lat_lon (n_lats, n_lons, [lat, lon]).
-    But `QuantileDeltaMapping()`, from rex library, operates an array,
+    But `QuantileDeltaMapping()`, from rex library, expects an array,
     (time, space), thus we need to re-organize our input to match that,
     and in the end bring it back to (spatial, spatial, temporal). This is
     still better than maintaining the same functionality consistent in two
     libraries.
 
-    Also, rex's `QuantileDeltaMapping()` expects params to be 2D
-    (space, N-params).
+    Also, :class:`rex.utilities.bc_utils.QuantileDeltaMapping` expects params
+    to be 2D (space, N-params).
 
     See Also
     --------
@@ -420,17 +426,15 @@ def local_qdm_bc(data: np.array,
                                                          feature_name,
                                                          bias_fp)
 
-    # distributions are 3D (space, space, N-params)
-    def _projection(x):
-        """Project array collapsing all 'space' dimensions
-
-        For instance, collapse a (space, space, N) into (space**2, N)
-        """
-        return x.reshape(-1, x.shape[-1])
-    # params expected to be 2D arrays (space, N-params)
-    QDM = QuantileDeltaMapping(_projection(base),
-                               _projection(bias),
-                               _projection(bias_fut),
+    if no_trend:
+        mf = None
+    else:
+        mf = bias_fut.reshape(-1, bias_fut.shape[-1])
+    # The distributions are 3D (space, space, N-params)
+    # Collapse 3D (space, space, N) into 2D (space**2, N)
+    QDM = QuantileDeltaMapping(base.reshape(-1, base.shape[-1]),
+                               bias.reshape(-1, bias.shape[-1]),
+                               mf,
                                dist=cfg['dist'],
                                relative=relative,
                                sampling=cfg["sampling"],
