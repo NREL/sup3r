@@ -53,7 +53,7 @@ def _expand_paths(fps):
 
     >>> _expand_paths(["myfile.h5", "*.hdf"])
     """
-    if isinstance(fps, str) or isinstance(fps, Path):
+    if isinstance(fps, (str, Path)):
         fps = (fps, )
 
     out = []
