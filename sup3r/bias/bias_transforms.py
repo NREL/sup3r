@@ -69,44 +69,9 @@ def get_spatial_bc_factors(lat_lon, feature_name, bias_fp, threshold=0.1):
         more than this value away from the bias correction lat/lon, an error is
         raised.
     """
-    dset_scalar = f'{feature_name}_scalar'
-    dset_adder = f'{feature_name}_adder'
-    with Resource(bias_fp) as res:
-        lat = np.expand_dims(res['latitude'], axis=-1)
-        lon = np.expand_dims(res['longitude'], axis=-1)
-        lat_lon_bc = np.dstack((lat, lon))
-        diff = lat_lon_bc - lat_lon[:1, :1]
-        diff = np.hypot(diff[..., 0], diff[..., 1])
-        idy, idx = np.where(diff == diff.min())
-        slice_y = slice(idy[0], idy[0] + lat_lon.shape[0])
-        slice_x = slice(idx[0], idx[0] + lat_lon.shape[1])
-
-        if diff.min() > threshold:
-            msg = ('The DataHandler top left coordinate of {} '
-                   'appears to be {} away from the nearest '
-                   'bias correction coordinate of {} from {}. '
-                   'Cannot apply bias correction.'.format(
-                       lat_lon, diff.min(), lat_lon_bc[idy, idx],
-                       os.path.basename(bias_fp),
-                   ))
-            logger.error(msg)
-            raise RuntimeError(msg)
-
-        msg = (f'Either {dset_scalar} or {dset_adder} not found in {bias_fp}.')
-        dsets = [dset.lower() for dset in res.dsets]
-        check = dset_scalar.lower() in dsets and dset_adder.lower() in dsets
-        assert check, msg
-        dset_scalar = res.dsets[dsets.index(dset_scalar.lower())]
-        dset_adder = res.dsets[dsets.index(dset_adder.lower())]
-        scalar = res[dset_scalar, slice_y, slice_x]
-        adder = res[dset_adder, slice_y, slice_x]
-
-    # Validating transition
     ds = {'scalar': f'{feature_name}_scalar',
           'adder': f'{feature_name}_adder'}
     out = _get_factors(lat_lon, ds, bias_fp, threshold)
-    assert np.allclose(scalar, out["scalar"], equal_nan=True)
-    assert np.allclose(adder, out["adder"], equal_nan=True)
 
     return out["scalar"], out["adder"]
 
