@@ -159,61 +159,17 @@ def get_spatial_bc_quantiles(lat_lon: np.array,
     >>> params = get_spatial_bc_quantiles(
     ...            lat_lon, "ghi", "rsds", "./dist_params.hdf")
     """
-    dset_base = f'base_{base_dset}_params'
-    dset_bias = f'bias_{feature_name}_params'
-    dset_bias_fut = f'bias_fut_{feature_name}_params'
+    ds = {'base': f'base_{base_dset}_params',
+          'bias': f'bias_{feature_name}_params',
+          'bias_fut': f'bias_fut_{feature_name}_params'}
+    out = _get_factors(lat_lon, ds, bias_fp, threshold)
+
     with Resource(bias_fp) as res:
-        lat = np.expand_dims(res['latitude'], axis=-1)
-        lon = np.expand_dims(res['longitude'], axis=-1)
-        lat_lon_bc = np.dstack((lat, lon))
-        diff = lat_lon_bc - lat_lon[:1, :1]
-        diff = np.hypot(diff[..., 0], diff[..., 1])
-        idy, idx = np.where(diff == diff.min())
-        slice_y = slice(idy[0], idy[0] + lat_lon.shape[0])
-        slice_x = slice(idx[0], idx[0] + lat_lon.shape[1])
-
-        if diff.min() > threshold:
-            msg = ('The DataHandler top left coordinate of {} '
-                   'appears to be {} away from the nearest '
-                   'bias correction coordinate of {} from {}. '
-                   'Cannot apply bias correction.'.format(
-                       lat_lon, diff.min(), lat_lon_bc[idy, idx],
-                       os.path.basename(bias_fp),
-                   ))
-            logger.error(msg)
-            raise RuntimeError(msg)
-
-        msg = (f'Either {dset_base} or {dset_bias} or {dset_bias_fut} '
-               'not found in {bias_fp}.')
-        dsets = [dset.lower() for dset in res.dsets]
-        check = (
-            dset_base.lower() in dsets
-            and dset_bias.lower() in dsets
-            and dset_bias_fut.lower() in dsets
-        )
-        assert check, msg
-        dset_base = res.dsets[dsets.index(dset_base.lower())]
-        dset_bias = res.dsets[dsets.index(dset_bias.lower())]
-        dset_bias_fut = res.dsets[dsets.index(dset_bias_fut.lower())]
-
-        base = res[dset_base, slice_y, slice_x]
-        bias = res[dset_bias, slice_y, slice_x]
-        bias_fut = res[dset_bias_fut, slice_y, slice_x]
-
         cfg = {
             k: v
             for k, v in res.h5.attrs.items()
             if k in ("dist", "sampling", "log_base")
         }
-
-    # Validating transition
-    ds = {'base': f'base_{base_dset}_params',
-          'bias': f'bias_{feature_name}_params',
-          'bias_fut': f'bias_fut_{feature_name}_params'}
-    out = _get_factors(lat_lon, ds, bias_fp, threshold)
-    assert np.allclose(base, out["base"], equal_nan=True)
-    assert np.allclose(bias, out["bias"], equal_nan=True)
-    assert np.allclose(bias_fut, out["bias_fut"], equal_nan=True)
 
     return out["base"], out["bias"], out["bias_fut"], cfg
 
