@@ -115,8 +115,58 @@ def get_spatial_bc_quantiles(lat_lon: np.array,
                              base_dset: str,
                              feature_name: str,
                              bias_fp: str,
-                             threshold: float = 0.1
-                             ):
+                             threshold: float = 0.1):
+    """Statistical distributions for given lat/lon locations
+
+    Recover the parameters that describe the statistical distribution of three
+    datasets: base (historical reference), bias (historical biased reference),
+    and bias_fut (the biased dataset to be corrected).
+
+    Parameters
+    ----------
+    lat_lon : ndarray
+        Array of latitudes and longitudes for the domain to bias correct
+        (n_lats, n_lons, 2)
+    base_dset : str
+        Name of feature used as historical reference. A Dataset with with name
+        "base_{base_dset}_params" will be retrieved from bias_fp.
+    feature_name : str
+        Name of feature that is being corrected. Datasets with names
+        "bias_{feature_name}_params" and "bias_fut_{feature_name}_params" will
+        be retrieved from bias_fp.
+    bias_fp : str
+        Filepath to bias correction file from the bias calc module. Must have
+        datasets "base_{base_dset}_params", "bias_{feature_name}_params", and
+        "bias_fut_{feature_name}_params" that define the statistical
+        distributions.
+    threshold : float
+        Nearest neighbor euclidean distance threshold. If the coordinates are
+        more than this value away from the bias correction lat/lon, an error is
+        raised.
+
+    Notes
+    -----
+    Some extra metadata is loaded from `bias_fp` and used to reconstruct the
+    statistical distributions, such as the distribution type.
+
+    Warnings
+    --------
+    Be careful selecting the `bias_fp` since one could read the parameters
+    estimated for a different dataset.
+
+    See Also
+    --------
+    sup3r.bias.bias_calcQuantileDeltaMappingCorrection
+        Estimate the statistical distributions loaded here.
+
+    Examples
+    --------
+    >>> lat_lon = np.array([
+    ...              [39.649033, -105.46875 ],
+    ...              [39.649033, -104.765625]])
+    >>> params = get_spatial_bc_quantiles(
+    ...            lat_lon, "ghi", "./dist_params.hdf")
+    """
     dset_base = f'base_{base_dset}_params'
     dset_bias = f'bias_{feature_name}_params'
     dset_bias_fut = f'bias_fut_{feature_name}_params'
