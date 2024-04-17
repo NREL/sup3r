@@ -138,7 +138,9 @@ def get_spatial_bc_quantiles(lat_lon: np.array,
     cfg : dict
         Metadata used to guide how to use of the previous parameters on
         reconstructing the statistical distributions. For instance,
-        `cfg['dist']` defines the type of distribution.
+        `cfg['dist']` defines the type of distribution. See
+        :class:`~sup3r.bias.bias_calc.QuantileDeltaMappingCorrection` for more
+        details, including which metadata is saved.
 
     Warnings
     --------
@@ -165,11 +167,7 @@ def get_spatial_bc_quantiles(lat_lon: np.array,
     out = _get_factors(lat_lon, ds, bias_fp, threshold)
 
     with Resource(bias_fp) as res:
-        cfg = {
-            k: v
-            for k, v in res.h5.attrs.items()
-            if k in ("dist", "sampling", "log_base")
-        }
+        cfg = res.global_attrs
 
     return out["base"], out["bias"], out["bias_fut"], cfg
 
