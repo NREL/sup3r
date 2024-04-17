@@ -108,7 +108,7 @@ def get_spatial_bc_factors(lat_lon, feature_name, bias_fp, threshold=0.1):
     assert np.allclose(scalar, out["scalar"], equal_nan=True)
     assert np.allclose(adder, out["adder"], equal_nan=True)
 
-    return scalar, adder
+    return out["scalar"], out["adder"]
 
 
 def get_spatial_bc_quantiles(lat_lon: np.array,
@@ -173,7 +173,7 @@ def get_spatial_bc_quantiles(lat_lon: np.array,
     assert np.allclose(bias, out["bias"], equal_nan=True)
     assert np.allclose(bias_fut, out["bias_fut"], equal_nan=True)
 
-    return base, bias, bias_fut, cfg
+    return out["base"], out["bias"], out["bias_fut"], cfg
 
 
 def global_linear_bc(input, scalar, adder, out_range=None):
