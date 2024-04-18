@@ -1376,8 +1376,9 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
                                                    self.lat_lon,
                                                    reference_feature,
                                                    feature,
-                                                   fp,
-                                                   relative)
+                                                   bias_fp=fp,
+                                                   threshold=threshold,
+                                                   relative=relative)
                 completed.append(feature)
 
 
