@@ -77,7 +77,10 @@ fixable = ["ALL"]
 preview = true
 select = [
   "E", # pycodestyle
+  "F", # Pyflakes
+  "W", # Warning
   ]
+
 ignore = [
   "B008", # function-call-in-default-argument
   "B024", # abstract-base-class-without-abstract-method
@@ -98,6 +101,14 @@ ignore = [
   "UP009", # utf8-encoding-declaration
   "UP032", # f-string
   "UP038" # non-pep604-isinstance
+  ]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = [
+  "F401", # unused-import
+  ]
+"docs/source/conf.py" = [
+  "E402", # unused-import
   ]
 
 [tool.ruff.format]
