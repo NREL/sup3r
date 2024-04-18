@@ -403,6 +403,7 @@ def local_qdm_bc(data: np.array,
                  base_dset: str,
                  feature_name: str,
                  bias_fp,
+                 threshold=0.1,
                  relative=True,
                  no_trend=False):
     """Bias correction using QDM
@@ -482,7 +483,8 @@ def local_qdm_bc(data: np.array,
     base, bias, bias_fut, cfg = get_spatial_bc_quantiles(lat_lon,
                                                          base_dset,
                                                          feature_name,
-                                                         bias_fp)
+                                                         bias_fp,
+                                                         threshold)
 
     if no_trend:
         mf = None

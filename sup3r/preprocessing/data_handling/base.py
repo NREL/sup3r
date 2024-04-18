@@ -1327,8 +1327,11 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
                     self.data[..., idf] += adder
                     completed.append(feature)
 
-
-    def qdm_bc(self, bc_files, reference_feature, relative=True, threshold=0.1):
+    def qdm_bc(self,
+               bc_files,
+               reference_feature,
+               relative=True,
+               threshold=0.1):
         """Bias Correction using Quantile Delta Mapping
 
         Bias correct this DataHandler's data with Quantile Delta Mapping. The
@@ -1373,12 +1376,10 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
                                                    self.lat_lon,
                                                    reference_feature,
                                                    feature,
-                                                   fp,
-                                                   relative)
+                                                   bias_fp=fp,
+                                                   threshold=threshold,
+                                                   relative=relative)
                 completed.append(feature)
-
-
-
 
 
 # pylint: disable=W0223
