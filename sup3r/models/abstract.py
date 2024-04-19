@@ -34,6 +34,7 @@ class TensorboardMixIn:
         self._tb_log_dir = None
         self._write_tb_profile = False
         self._total_batches = None
+        self._history = None
         self.timer = Timer()
 
     @property
@@ -1469,11 +1470,11 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         """
         with tf.device(device_name), tf.GradientTape(
                 watch_accessed_variables=False) as tape:
-            self.timer(tape.watch(training_weights))
-            hi_res_exo = self.timer(self.get_high_res_exo_input(hi_res_true))
-            hi_res_gen = self.timer(self._tf_generate(low_res, hi_res_exo))
-            loss_out = self.timer(self.calc_loss(hi_res_true, hi_res_gen,
-                                  **calc_loss_kwargs))
+            self.timer(tape.watch, training_weights)
+            hi_res_exo = self.timer(self.get_high_res_exo_input, hi_res_true)
+            hi_res_gen = self.timer(self._tf_generate, low_res, hi_res_exo)
+            loss_out = self.timer(self.calc_loss, hi_res_true, hi_res_gen,
+                                  **calc_loss_kwargs)
             loss, loss_details = loss_out
-            grad = self.timer(tape.gradient(loss, training_weights))
+            grad = self.timer(tape.gradient, loss, training_weights)
         return grad, loss_details

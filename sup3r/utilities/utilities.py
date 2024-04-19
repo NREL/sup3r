@@ -37,15 +37,16 @@ class Timer:
 
         Parameters
         ----------
-        func : function
+        fun : function
+            Function to time
         *args : list
-            positional arguments for func
+            positional arguments for fun
         **kwargs : dict
-            keyword arguments for func
+            keyword arguments for fun
 
         Returns
         -------
-        output of func
+        output of fun
         """
         t0 = time.time()
         out = fun(*args, **kwargs)
