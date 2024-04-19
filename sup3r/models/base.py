@@ -713,7 +713,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             b_loss_details['gen_trained_frac'] = float(trained_gen)
             b_loss_details['disc_trained_frac'] = float(trained_disc)
             self.dict_to_tensorboard(b_loss_details)
-            self.dict_to_tensorboard(self._timing_details)
+            self.dict_to_tensorboard(self.timer.log)
             loss_details = self.update_loss_details(loss_details,
                                                     b_loss_details,
                                                     len(batch),

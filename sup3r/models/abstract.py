@@ -21,8 +21,80 @@ from tensorflow.keras import optimizers
 import sup3r.utilities.loss_metrics
 from sup3r.preprocessing.data_handling.exogenous_data_handling import ExoData
 from sup3r.utilities import VERSION_RECORD
+from sup3r.utilities.utilities import Timer
 
 logger = logging.getLogger(__name__)
+
+
+class TensorboardMixIn:
+    """MixIn class for tensorboard logging and profiling."""
+
+    def __init__(self):
+        self._tb_writer = None
+        self._tb_log_dir = None
+        self._write_tb_profile = False
+        self._total_batches = None
+        self.timer = Timer()
+
+    @property
+    def total_batches(self):
+        """Record of total number of batches for logging."""
+        if self._total_batches is None and self._history is None:
+            self._total_batches = 0
+        elif self._history is None and 'total_batches' in self._history:
+            self._total_batches = self._history['total_batches'].values[-1]
+        elif self._total_batches is None and self._history is not None:
+            self._total_batches = 0
+        return self._total_batches
+
+    @total_batches.setter
+    def total_batches(self, value):
+        """Set total number of batches."""
+        self._total_batches = value
+
+    def dict_to_tensorboard(self, entry):
+        """Write data to tensorboard log file. This is usually a loss_details
+        dictionary.
+
+        Parameters
+        ----------
+        entry: dict
+            Dictionary of values to write to tensorboard log file
+        """
+        if self._tb_writer is not None:
+            with self._tb_writer.as_default():
+                for name, value in entry.items():
+                    if isinstance(value, str):
+                        tf.summary.text(name, value, self.total_batches)
+                    else:
+                        tf.summary.scalar(name, value, self.total_batches)
+
+    def profile_to_tensorboard(self, name):
+        """Write profile data to tensorboard log file.
+
+        Parameters
+        ----------
+        name : str
+            Tag name to use for profile info
+        """
+        if self._tb_writer is not None and self._write_tb_profile:
+            with self._tb_writer.as_default():
+                tf.summary.trace_export(name=name, step=self.total_batches,
+                                        profiler_outdir=self._tb_log_dir)
+
+    def _init_tensorboard_writer(self, out_dir):
+        """Initialize the ``tf.summary.SummaryWriter`` to use for writing
+        tensorboard compatible log files.
+
+        Parameters
+        ----------
+        out_dir : str
+            Standard out_dir where model epochs are saved. e.g. './gan_{epoch}'
+        """
+        tb_log_pardir = os.path.abspath(os.path.join(out_dir, os.pardir))
+        self._tb_log_dir = os.path.join(tb_log_pardir, 'logs')
+        os.makedirs(self._tb_log_dir, exist_ok=True)
+        self._tb_writer = tf.summary.create_file_writer(self._tb_log_dir)
 
 
 class AbstractInterface(ABC):
@@ -462,13 +534,14 @@ class AbstractInterface(ABC):
 
 
 # pylint: disable=E1101,W0201,E0203
-class AbstractSingleModel(ABC):
+class AbstractSingleModel(ABC, TensorboardMixIn):
     """
     Abstract class to define the required training interface
     for Sup3r model subclasses
     """
 
     def __init__(self):
+        super().__init__()
         self.gpu_list = tf.config.list_physical_devices('GPU')
         self.default_device = '/cpu:0'
         self._version_record = VERSION_RECORD
@@ -481,27 +554,6 @@ class AbstractSingleModel(ABC):
         self._gen = None
         self._means = None
         self._stdevs = None
-        self._tb_writer = None
-        self._tb_log_dir = None
-        self._write_tb_profile = False
-        self._total_batches = None
-        self._timing_details = {}
-
-    @property
-    def total_batches(self):
-        """Record of total number of batches for logging."""
-        if self._total_batches is None and self._history is None:
-            self._total_batches = 0
-        elif self._history is None and 'total_batches' in self._history:
-            self._total_batches = self._history['total_batches'].values[-1]
-        elif self._total_batches is None and self._history is not None:
-            self._total_batches = 0
-        return self._total_batches
-
-    @total_batches.setter
-    def total_batches(self, value):
-        """Set total number of batches."""
-        self._total_batches = value
 
     def load_network(self, model, name):
         """Load a CustomNetwork object from hidden layers config, .json file
@@ -1025,36 +1077,6 @@ class AbstractSingleModel(ABC):
             if it does not already exist.
         """
 
-    def dict_to_tensorboard(self, entry):
-        """Write data to tensorboard log file. This is usually a loss_details
-        dictionary.
-
-        Parameters
-        ----------
-        entry: dict
-            Dictionary of values to write to tensorboard log file
-        """
-        if self._tb_writer is not None:
-            with self._tb_writer.as_default():
-                for name, value in entry.items():
-                    if isinstance(value, str):
-                        tf.summary.text(name, value, self.total_batches)
-                    else:
-                        tf.summary.scalar(name, value, self.total_batches)
-
-    def profile_to_tensorboard(self, name):
-        """Write profile data to tensorboard log file.
-
-        Parameters
-        ----------
-        name : str
-            Tag name to use for profile info
-        """
-        if self._tb_writer is not None and self._write_tb_profile:
-            with self._tb_writer.as_default():
-                tf.summary.trace_export(name=name, step=self.total_batches,
-                                        profiler_outdir=self._tb_log_dir)
-
     def finish_epoch(self,
                      epoch,
                      epochs,
@@ -1222,7 +1244,6 @@ class AbstractSingleModel(ABC):
             t1 = time.time()
             logger.debug(f'Finished {len(futures)} gradient descent steps on '
                          f'{len(self.gpu_list)} GPUs in {(t1 - t0):.3f}s')
-        self._timing_details['dt:run_gradient_descent'] = t1 - t0
         return loss_details
 
     def _reshape_norm_exo(self, hi_res, hi_res_exo, exo_name, norm_in=True):
@@ -1281,20 +1302,6 @@ class AbstractSingleModel(ABC):
             raise RuntimeError(msg)
 
         return hi_res_exo
-
-    def _init_tensorboard_writer(self, out_dir):
-        """Initialize the ``tf.summary.SummaryWriter`` to use for writing
-        tensorboard compatible log files.
-
-        Parameters
-        ----------
-        out_dir : str
-            Standard out_dir where model epochs are saved. e.g. './gan_{epoch}'
-        """
-        self._tb_log_dir = os.path.join(
-            os.path.abspath(os.path.join(out_dir, os.pardir)), 'logs')
-        os.makedirs(self._tb_log_dir, exist_ok=True)
-        self._tb_writer = tf.summary.create_file_writer(self._tb_log_dir)
 
     def generate(self,
                  low_res,
@@ -1462,22 +1469,11 @@ class AbstractSingleModel(ABC):
         """
         with tf.device(device_name), tf.GradientTape(
                 watch_accessed_variables=False) as tape:
-            t0 = time.time()
-            tape.watch(training_weights)
-            self._timing_details['dt:tape.watch'] = time.time() - t0
-            t0 = time.time()
-            hi_res_exo = self.get_high_res_exo_input(hi_res_true)
-            self._timing_details[
-                'dt:get_high_res_exo_input'] = time.time() - t0
-            t0 = time.time()
-            hi_res_gen = self._tf_generate(low_res, hi_res_exo)
-            self._timing_details['dt:_tf_generate'] = time.time() - t0
-            t0 = time.time()
-            loss_out = self.calc_loss(hi_res_true, hi_res_gen,
-                                      **calc_loss_kwargs)
-            self._timing_details['dt:calc_loss'] = time.time() - t0
-            t0 = time.time()
+            self.timer(tape.watch(training_weights))
+            hi_res_exo = self.timer(self.get_high_res_exo_input(hi_res_true))
+            hi_res_gen = self.timer(self._tf_generate(low_res, hi_res_exo))
+            loss_out = self.timer(self.calc_loss(hi_res_true, hi_res_gen,
+                                  **calc_loss_kwargs))
             loss, loss_details = loss_out
-            grad = tape.gradient(loss, training_weights)
-            self._timing_details['dt:tape.gradient'] = time.time() - t0
+            grad = self.timer(tape.gradient(loss, training_weights))
         return grad, loss_details
