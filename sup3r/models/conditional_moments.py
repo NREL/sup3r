@@ -347,7 +347,8 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
               early_stop_on=None,
               early_stop_threshold=0.005,
               early_stop_n_epoch=5,
-              multi_gpu=False):
+              multi_gpu=False,
+              tensorboard_log=True):
         """Train the model on real low res data and real high res data
 
         Parameters
@@ -388,7 +389,15 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
             between the GPUs and the resulting gradient from each GPU will
             constitute a single gradient descent step with the nominal learning
             rate that the model was initialized with.
+        tensorboard_log : bool
+            Whether to write log file for use with tensorboard. Log data can
+            be viewed with ``tensorboard --logdir <logdir>`` where ``<logdir>``
+            is the parent directory of ``out_dir``, and pointing the browser to
+            the printed address.
         """
+        if tensorboard_log:
+            self._init_tensorboard_writer(out_dir)
+
         self.set_norm_stats(batch_handler.means, batch_handler.stds)
         self.set_model_params(
             input_resolution=input_resolution,

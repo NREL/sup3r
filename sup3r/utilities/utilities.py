@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
-"""Utilities module for preparing training data
-
-@author: bbenton
-"""
+"""Miscellaneous utilities for computing features, preparing training data,
+timing functions, etc """
 
 import glob
 import logging
@@ -10,6 +8,7 @@ import os
 import random
 import re
 import string
+import time
 from fnmatch import fnmatch
 from warnings import warn
 
@@ -20,12 +19,40 @@ import xarray as xr
 from packaging import version
 from scipy import ndimage as nd
 from scipy.interpolate import RegularGridInterpolator, interp1d
-from scipy.ndimage import zoom
-from scipy.ndimage import gaussian_filter
+from scipy.ndimage import gaussian_filter, zoom
 
 np.random.seed(42)
 
 logger = logging.getLogger(__name__)
+
+
+class Timer:
+    """Timer class for timing and storing function call times."""
+
+    def __init__(self):
+        self.log = {}
+
+    def __call__(self, fun, *args, **kwargs):
+        """Time function call and store elapsed time in self.log.
+
+        Parameters
+        ----------
+        fun : function
+            Function to time
+        *args : list
+            positional arguments for fun
+        **kwargs : dict
+            keyword arguments for fun
+
+        Returns
+        -------
+        output of fun
+        """
+        t0 = time.time()
+        out = fun(*args, **kwargs)
+        t_elap = time.time() - t0
+        self.log[f'elapsed:{fun.__name__}'] = t_elap
+        return out
 
 
 def generate_random_string(length):

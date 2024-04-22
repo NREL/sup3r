@@ -233,14 +233,16 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             hi_res = (hi_res - mean_arr) / std_arr
 
         out = self.discriminator.layers[0](hi_res)
-        for i, layer in enumerate(self.discriminator.layers[1:]):
-            try:
+        layer_num = 1
+        try:
+            for i, layer in enumerate(self.discriminator.layers[1:]):
                 out = layer(out)
-            except Exception as e:
-                msg = ('Could not run layer #{} "{}" on tensor of shape {}'.
-                       format(i + 1, layer, out.shape))
-                logger.error(msg)
-                raise RuntimeError(msg) from e
+                layer_num = i + 1
+        except Exception as e:
+            msg = ('Could not run layer #{} "{}" on tensor of shape {}'.
+                   format(layer_num, layer, out.shape))
+            logger.error(msg)
+            raise RuntimeError(msg) from e
 
         out = out.numpy()
 
@@ -263,16 +265,17 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         out : np.ndarray
             Discriminator output logits
         """
-
         out = self.discriminator.layers[0](hi_res)
-        for i, layer in enumerate(self.discriminator.layers[1:]):
-            try:
+        layer_num = 1
+        try:
+            for i, layer in enumerate(self.discriminator.layers[1:]):
+                layer_num = i + 1
                 out = layer(out)
-            except Exception as e:
-                msg = ('Could not run layer #{} "{}" on tensor of shape {}'.
-                       format(i + 1, layer, out.shape))
-                logger.error(msg)
-                raise RuntimeError(msg) from e
+        except Exception as e:
+            msg = ('Could not run layer #{} "{}" on tensor of shape {}'.
+                   format(layer_num, layer, out.shape))
+            logger.error(msg)
+            raise RuntimeError(msg) from e
 
         return out
 
@@ -302,14 +305,14 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         if 'gen' in option.lower() or 'all' in option.lower():
             conf = self.get_optimizer_config(self.optimizer)
             conf.update(**kwargs)
-            OptimizerClass = getattr(optimizers, conf['name'])
-            self._optimizer = OptimizerClass.from_config(conf)
+            optimizer_class = getattr(optimizers, conf['name'])
+            self._optimizer = optimizer_class.from_config(conf)
 
         if 'disc' in option.lower() or 'all' in option.lower():
             conf = self.get_optimizer_config(self.optimizer_disc)
             conf.update(**kwargs)
-            OptimizerClass = getattr(optimizers, conf['name'])
-            self._optimizer_disc = OptimizerClass.from_config(conf)
+            optimizer_class = getattr(optimizers, conf['name'])
+            self._optimizer_disc = optimizer_class.from_config(conf)
 
     @property
     def meta(self):
@@ -669,6 +672,8 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         only_gen = train_gen and not train_disc
         only_disc = train_disc and not train_gen
 
+        if self._write_tb_profile:
+            tf.summary.trace_on(graph=True, profiler=True)
         for ib, batch in enumerate(batch_handler):
             trained_gen = False
             trained_disc = False
@@ -707,26 +712,29 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
 
             b_loss_details['gen_trained_frac'] = float(trained_gen)
             b_loss_details['disc_trained_frac'] = float(trained_disc)
+            self.dict_to_tensorboard(b_loss_details)
+            self.dict_to_tensorboard(self.timer.log)
             loss_details = self.update_loss_details(loss_details,
                                                     b_loss_details,
                                                     len(batch),
                                                     prefix='train_')
-
             logger.debug('Batch {} out of {} has epoch-average '
                          '(gen / disc) loss of: ({:.2e} / {:.2e}). '
                          'Trained (gen / disc): ({} / {})'.format(
-                             ib, len(batch_handler),
+                             ib + 1, len(batch_handler),
                              loss_details['train_loss_gen'],
                              loss_details['train_loss_disc'], trained_gen,
                              trained_disc))
-
             if all([not trained_gen, not trained_disc]):
                 msg = ('For some reason none of the GAN networks trained '
                        'during batch {} out of {}!'.format(
                            ib, len(batch_handler)))
                 logger.warning(msg)
                 warn(msg)
+            self.total_batches += 1
 
+        loss_details['total_batches'] = int(self.total_batches)
+        self.profile_to_tensorboard('training_epoch')
         return loss_details
 
     def update_adversarial_weights(self, history, adaptive_update_fraction,
@@ -794,7 +802,9 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
               early_stop_n_epoch=5,
               adaptive_update_bounds=(0.9, 0.99),
               adaptive_update_fraction=0.0,
-              multi_gpu=False):
+              multi_gpu=False,
+              tensorboard_log=True,
+              tensorboard_profile=False):
         """Train the GAN model on real low res data and real high res data
 
         Parameters
@@ -856,7 +866,19 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             constitute a single gradient descent step with the nominal learning
             rate that the model was initialized with. If true and multiple gpus
             are found, default_device device should be set to /gpu:0
+        tensorboard_log : bool
+            Whether to write log file for use with tensorboard. Log data can
+            be viewed with ``tensorboard --logdir <logdir>`` where ``<logdir>``
+            is the parent directory of ``out_dir``, and pointing the browser to
+            the printed address.
+        tensorboard_profile : bool
+            Whether to export profiling information to tensorboard. This can
+            then be viewed in the tensorboard dashboard under the profile tab
         """
+        if tensorboard_log:
+            self._init_tensorboard_writer(out_dir)
+        if tensorboard_profile:
+            self._write_tb_profile = True
 
         self.set_norm_stats(batch_handler.means, batch_handler.stds)
         self.set_model_params(
@@ -889,9 +911,11 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
                                             train_disc,
                                             disc_loss_bounds,
                                             multi_gpu=multi_gpu)
-
-            loss_details = self.calc_val_loss(batch_handler, weight_gen_advers,
+            train_n_obs = loss_details['n_obs']
+            loss_details = self.calc_val_loss(batch_handler,
+                                              weight_gen_advers,
                                               loss_details)
+            val_n_obs = loss_details['n_obs']
 
             msg = f'Epoch {epoch} of {epochs[-1]} '
             msg += 'gen/disc train loss: {:.2e}/{:.2e} '.format(
@@ -906,11 +930,14 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
 
             logger.info(msg)
 
-            lr_g = self.get_optimizer_config(self.optimizer)['learning_rate']
+            lr_g = self.get_optimizer_config(
+                self.optimizer)['learning_rate']
             lr_d = self.get_optimizer_config(
                 self.optimizer_disc)['learning_rate']
 
             extras = {
+                'train_n_obs': train_n_obs,
+                'val_n_obs': val_n_obs,
                 'weight_gen_advers': weight_gen_advers,
                 'disc_loss_bound_0': disc_loss_bounds[0],
                 'disc_loss_bound_1': disc_loss_bounds[1],
@@ -919,8 +946,8 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             }
 
             weight_gen_advers = self.update_adversarial_weights(
-                loss_details, adaptive_update_fraction, adaptive_update_bounds,
-                weight_gen_advers, train_disc)
+                loss_details, adaptive_update_fraction,
+                adaptive_update_bounds, weight_gen_advers, train_disc)
 
             stop = self.finish_epoch(epoch,
                                      epochs,
