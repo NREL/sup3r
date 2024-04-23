@@ -1092,6 +1092,21 @@ class MonthlyScalarCorrection(MonthlyLinearCorrection):
         return out
 
 
+class PresRat(DataRetrievalBase):
+    """PresRat bias correction method (precipitation)
+
+    The PresRat correction is defined as the combination of using the
+    model-predicted change ratio, the treatment of zero-precipitation days,
+    and the final correction factor (K) [Pierce2015]_.
+
+    References
+    ----------
+    .. [Pierce2015] Pierce, D. W., Cayan, D. R., Maurer, E. P., Abatzoglou, J.
+       T., & Hegewisch, K. C. (2015). Improved bias correction techniques for
+       hydrological simulations of climate change. Journal of Hydrometeorology,
+       16(6), 2421-2442.
+    """
+
 class SkillAssessment(MonthlyLinearCorrection):
     """Calculate historical skill of one dataset compared to another."""
 
