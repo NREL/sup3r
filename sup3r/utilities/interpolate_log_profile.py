@@ -179,7 +179,7 @@ class LogLinInterpolator:
         logger.info(f'Creating {self.outfile}.')
         with xr.open_dataset(self.infile) as ds:
             for var, data in self.new_data.items():
-                for i, height in enumerate(self.new_heights[var]):
+                for height in self.new_heights[var]:
                     name = f'{var}_{height}m'
                     logger.info(f'Adding {name} to {self.outfile}.')
                     if name not in ds.data_vars:
