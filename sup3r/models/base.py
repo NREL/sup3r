@@ -688,7 +688,8 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
 
             if only_gen or (train_gen and not gen_too_good):
                 trained_gen = True
-                b_loss_details = self.run_gradient_descent(
+                b_loss_details = self.timer(
+                    self.run_gradient_descent,
                     batch.low_res,
                     batch.high_res,
                     self.generator_weights,
@@ -700,7 +701,8 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
 
             if only_disc or (train_disc and not disc_too_good):
                 trained_disc = True
-                b_loss_details = self.run_gradient_descent(
+                b_loss_details = self.timer(
+                    self.run_gradient_descent,
                     batch.low_res,
                     batch.high_res,
                     self.discriminator_weights,

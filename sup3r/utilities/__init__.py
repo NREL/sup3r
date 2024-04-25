@@ -3,6 +3,7 @@ import sys
 from enum import Enum
 
 import dask
+import h5netcdf
 import numpy as np
 import pandas as pd
 import phygnn
@@ -22,6 +23,7 @@ VERSION_RECORD = {'sup3r': __version__,
                   'nrel-rex': rex.__version__,
                   'python': sys.version,
                   'xarray': xarray.__version__,
+                  'h5netcdf': h5netcdf.__version__,
                   'dask': dask.__version__,
                   }
 

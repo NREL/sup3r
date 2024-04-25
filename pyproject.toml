@@ -32,6 +32,7 @@ dependencies = [
   "NREL-farms>=1.0.4",
   "dask>=2022.0",
   "google-auth-oauthlib==0.5.3",
+  "h5netcdf",
   "matplotlib>=3.1",
   "numpy>=1.7.0",
   "pandas>=2.0",
