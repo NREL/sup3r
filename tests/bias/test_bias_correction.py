@@ -11,8 +11,11 @@ import xarray as xr
 from scipy import stats
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
-from sup3r.bias.bias_calc import (LinearCorrection, MonthlyLinearCorrection,
-                                  SkillAssessment)
+from sup3r.bias.bias_calc import (
+    LinearCorrection,
+    MonthlyLinearCorrection,
+    SkillAssessment,
+)
 from sup3r.bias.bias_transforms import local_linear_bc, monthly_local_linear_bc
 from sup3r.models import Sup3rGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
@@ -327,7 +330,8 @@ def test_fwp_integration():
                    os.path.join(TEST_DATA_DIR, 'zg_test.nc')]
 
     lat_lon = DataHandlerNCforCC(input_files, features=[], target=target,
-                                 shape=shape).lat_lon
+                                 shape=shape,
+                                 worker_kwargs={'max_workers': 1}).lat_lon
 
     Sup3rGan.seed()
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
