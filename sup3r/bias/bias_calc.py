@@ -1204,12 +1204,21 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                  base_fps,
                  bias_fps,
                  bias_fut_fps,
-                 *args,
+                 base_dset,
+                 bias_feature,
+                 distance_upper_bound=None,
+                 target=None,
+                 shape=None,
+                 base_handler='Resource',
+                 bias_handler='DataHandlerNCforCC',
+                 base_handler_kwargs=None,
+                 bias_handler_kwargs=None,
+                 decimals=None,
+                 match_zero_rate=False,
                  n_quantiles=101,
                  dist="empirical",
                  sampling="linear",
-                 log_base=10,
-                 **kwargs):
+                 log_base=10):
         """
         Parameters
         ----------
@@ -1229,9 +1238,52 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
             future in Cannon et. al. (2015)). This is the dataset that would be
             corrected, while `bias_fsp` is used to provide a transformation map
             with the baseline data.
-        *(kw)args :
-            For aditional arguments, check :class:`DataRetrievalBase`.
-            *Note: The following arguments must be keyworded arguments.*
+        base_dset : str
+            A single dataset from the base_fps to retrieve. In the case of wind
+            components, this can be U_100m or V_100m which will retrieve
+            windspeed and winddirection and derive the U/V component.
+        bias_feature : str
+            This is the biased feature from bias_fps to retrieve. This should
+            be a single feature name corresponding to base_dset
+        distance_upper_bound : float
+            Upper bound on the nearest neighbor distance in decimal degrees.
+            This should be the approximate resolution of the low-resolution
+            bias data. None (default) will calculate this based on the median
+            distance between points in bias_fps
+        target : tuple
+            (lat, lon) lower left corner of raster to retrieve from bias_fps.
+            If None then the lower left corner of the full domain will be used.
+        shape : tuple
+            (rows, cols) grid size to retrieve from bias_fps. If None then the
+            full domain shape will be used.
+        base_handler : str
+            Name of rex resource handler or sup3r.preprocessing.data_handling
+            class to be retrieved from the rex/sup3r library. If a
+            sup3r.preprocessing.data_handling class is used, all data will be
+            loaded in this class' initialization and the subsequent bias
+            calculation will be done in serial
+        bias_handler : str
+            Name of the bias data handler class to be retrieved from the
+            sup3r.preprocessing.data_handling library.
+        base_handler_kwargs : dict | None
+            Optional kwargs to send to the initialization of the base_handler
+            class
+        bias_handler_kwargs : dict | None
+            Optional kwargs to send to the initialization of the bias_handler
+            class
+        decimals : int | None
+            Option to round bias and base data to this number of
+            decimals, this gets passed to np.around(). If decimals
+            is negative, it specifies the number of positions to
+            the left of the decimal point.
+        match_zero_rate : bool
+            Option to fix the frequency of zero values in the biased data. The
+            lowest percentile of values in the biased data will be set to zero
+            to match the percentile of zeros in the base data. If
+            SkillAssessment is being run and this is True, the distributions
+            will not be mean-centered. This helps resolve the issue where
+            global climate models produce too many days with small
+            precipitation totals e.g., the "drizzle problem" [Polade2014]_.
         dist : str, default="empirical",
             Define the type of distribution, which can be "empirical" or any
             parametric distribution defined in "scipy".
@@ -1280,7 +1332,19 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
         self.sampling = sampling
         self.log_base = log_base
 
-        super().__init__(base_fps, bias_fps, *args, **kwargs)
+        super().__init__(base_fps=base_fps,
+                         bias_fps=bias_fps,
+                         base_dset=base_dset,
+                         bias_feature=bias_feature,
+                         distance_upper_bound=distance_upper_bound,
+                         target=target,
+                         shape=shape,
+                         base_handler=base_handler,
+                         bias_handler=bias_handler,
+                         base_handler_kwargs=base_handler_kwargs,
+                         bias_handler_kwargs=bias_handler_kwargs,
+                         decimals=decimals,
+                         match_zero_rate=match_zero_rate)
 
         self.bias_fut_fps = bias_fut_fps
 
