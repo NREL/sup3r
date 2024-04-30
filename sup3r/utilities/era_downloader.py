@@ -623,9 +623,9 @@ class EraDownloader:
             logger.info(f'Pruning {infile}.')
             tmp_file = cls.get_tmp_file(infile)
             with xr.Dataset(infile) as ds:
-                keep_vars = {k:v for k, v in dict(ds.data_vars)
+                keep_vars = {k: v for k, v in dict(ds.data_vars)
                              if 'level' not in ds[k].dims}
-                new_coords = {k:v for k, v in dict(ds.coords).items()
+                new_coords = {k: v for k, v in dict(ds.coords).items()
                               if 'level' not in k}
                 new_ds = xr.Dataset(coords=new_coords, data_vars=keep_vars)
                 new_ds.to_netcdf(tmp_file)
@@ -676,7 +676,7 @@ class EraDownloader:
         variables : list | None
             Variables to download. If None this defaults to just gepotential
             and wind components.
-        prune_variables : list | None
+        prune_variables : bool | None
             Variables to remove from final files. This is usually the multi
             pressure level array of a variable which has since been
             interpolated to specific heights.
