@@ -330,10 +330,10 @@ class EraDownloader:
     def process_surface_file(self):
         """Rename variables and convert geopotential to geopotential height."""
         tmp_file = self.get_tmp_file(self.surface_file)
-        with xr.open_dataset(self.surface_file) as ds:
-            ds = self.convert_z(ds, name='orog')
-            ds = self.map_vars(ds)
-            ds.to_netcdf(tmp_file)
+        with xr.open_dataset(self.surface_file, mode='a') as ds:
+            new_ds = self.convert_z(ds, name='orog')
+            new_ds = self.map_vars(new_ds)
+            new_ds.to_netcdf(tmp_file)
         os.system(f'mv {tmp_file} {self.surface_file}')
         logger.info(f'Finished processing {self.surface_file}. Moved '
                     f'{tmp_file} to {self.surface_file}.')
@@ -348,15 +348,12 @@ class EraDownloader:
 
         Returns
         -------
-        ds : Dataset
+        new_ds : Dataset
             xr.Dataset() object with new variables written.
         """
         for old_name in ds.data_vars:
             new_name = self.NAME_MAP.get(old_name, old_name)
-            ds.rename({old_name: new_name})
-            if 'temperature' in new_name:
-                ds[new_name] = (ds[new_name].dims,
-                                ds[new_name].values - 273.15)
+            ds = ds.rename({old_name: new_name})
         return ds
 
     def shift_temp(self, ds):
@@ -372,8 +369,9 @@ class EraDownloader:
         ds : Dataset
         """
         for var in ds.data_vars:
-            if 'temperature' in var:
+            if 'units' in ds[var].attrs and ds[var].attrs['units'] == 'K':
                 ds[var] = (ds[var].dims, ds[var].values - 273.15)
+                ds[var].attrs['units'] = 'C'
         return ds
 
     def add_pressure(self, ds):
@@ -390,16 +388,14 @@ class EraDownloader:
         """
         if ('pressure' in self.variables
                 and 'pressure' not in ds.data_vars):
-            tmp = np.zeros(ds['zg'].shape)
-
-            if 'number' in ds.dimensions:
-                tmp[:] = 100 * ds['level'].values[
-                    None, None, :, None, None]
-            else:
-                tmp[:] = 100 * ds['level'].values[
-                    None, :, None, None]
-
-            ds['pressure'] = (ds['zg'].dims, tmp)
+            expand_axes = (0, 2, 3)
+            pres = np.zeros(ds['zg'].values.shape)
+            if 'number' in ds.dims:
+                expand_axes = (0, 1, 3, 4)
+            pres[:] = np.expand_dims(100 * ds['level'].values,
+                                     axis=expand_axes)
+            ds['pressure'] = (ds['zg'].dims, pres)
+            ds['pressure'].attrs['units'] = 'Pa'
         return ds
 
     def convert_z(self, ds, name):
@@ -417,19 +413,20 @@ class EraDownloader:
         ds : Dataset
             xr.Dataset() object for new file with new height variable written.
         """
-        ds['z'] = (ds['z'].dims, ds['z'].values / 9.81)
-        ds.rename({'z': name})
+        if name not in ds.data_vars:
+            ds['z'] = (ds['z'].dims, ds['z'].values / 9.81)
+            ds = ds.rename({'z': name})
         return ds
 
     def process_level_file(self):
         """Convert geopotential to geopotential height."""
         tmp_file = self.get_tmp_file(self.level_file)
-        with xr.open_dataset(self.level_file) as ds:
-            ds = self.convert_z(ds, name='zg')
-            ds = self.map_vars(ds)
-            ds = self.shift_temp(ds)
-            ds = self.add_pressure(ds)
-            ds.to_netcdf(tmp_file)
+        with xr.open_dataset(self.level_file, mode='a') as ds:
+            new_ds = self.convert_z(ds, name='zg')
+            new_ds = self.map_vars(new_ds)
+            new_ds = self.shift_temp(new_ds)
+            new_ds = self.add_pressure(new_ds)
+            new_ds.to_netcdf(tmp_file)
 
         os.system(f'mv {tmp_file} {self.level_file}')
         logger.info(f'Finished processing {self.level_file}. Moved '
