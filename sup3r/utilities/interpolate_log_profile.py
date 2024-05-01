@@ -183,7 +183,7 @@ class LogLinInterpolator:
                     name = f'{var}_{height}m'
                     logger.info(f'Adding {name} to {self.outfile}.')
                     if name not in ds.data_vars:
-                        ds[name] = (('time', 'latitude', 'longitude'), data)
+                        ds[name] = (('time', 'latitude', 'longitude'), data[0])
 
         ds.to_netcdf(self.outfile)
         logger.info(f'Saved interpolated output to {self.outfile}.')

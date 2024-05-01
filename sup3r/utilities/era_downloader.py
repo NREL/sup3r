@@ -94,7 +94,8 @@ class EraDownloader:
                  run_interp=True,
                  overwrite=False,
                  variables=None,
-                 check_files=False):
+                 check_files=False,
+                 product_type='reanalysis'):
         """Initialize the class.
 
         Parameters
@@ -123,6 +124,9 @@ class EraDownloader:
             and wind components.
         check_files : bool
             Check existing files. Remove and redownload if checks fail.
+        product_type : str
+            Can be 'reanalysis', 'ensemble_mean', 'ensemble_spread',
+            'ensemble_members'
         """
         self.year = year
         self.month = month
@@ -141,11 +145,22 @@ class EraDownloader:
         self.sfc_file_variables = ['geopotential']
         self.level_file_variables = ['geopotential']
         self.prep_var_lists(self.variables)
+        self.product_type = product_type
+        self.hours = self.get_hours()
 
         msg = ('Initialized EraDownloader with: '
                f'year={self.year}, month={self.month}, area={self.area}, '
                f'levels={self.levels}, variables={self.variables}')
         logger.info(msg)
+
+    def get_hours(self):
+        """ERA5 is hourly and EDA is 3-hourly. Check and warn for incompatible
+        requests."""
+        if self.product_type == 'reanalysis':
+            hours = [str(n).zfill(2) + ":00" for n in range(0, 24)]
+        else:
+            hours = [str(n).zfill(2) + ":00" for n in range(0, 24, 3)]
+        return hours
 
     @property
     def variables(self):
@@ -275,18 +290,20 @@ class EraDownloader:
         if sfc_check:
             self.download_file(self.sfc_file_variables, time_dict=time_dict,
                                area=self.area, out_file=self.surface_file,
-                               level_type='single', overwrite=self.overwrite)
+                               level_type='single', overwrite=self.overwrite,
+                               product_type=self.product_type)
         if level_check:
             self.download_file(self.level_file_variables, time_dict=time_dict,
                                area=self.area, out_file=self.level_file,
                                level_type='pressure', levels=self.levels,
-                               overwrite=self.overwrite)
+                               overwrite=self.overwrite,
+                               product_type=self.product_type)
         if sfc_check or level_check:
             self.process_and_combine()
 
     @classmethod
     def download_file(cls, variables, time_dict, area, out_file, level_type,
-                      levels=None, overwrite=False):
+                      levels=None, product_type='reanalysis', overwrite=False):
         """Download either single-level or pressure-level file
 
         Parameters
@@ -304,6 +321,9 @@ class EraDownloader:
             Either 'single' or 'pressure'
         levels : list
             List of pressure levels to download, if level_type == 'pressure'
+        product_type : str
+            Can be 'reanalysis', 'ensemble_mean', 'ensemble_spread',
+            'ensemble_members'
         overwrite : bool
             Whether to overwrite existing file
         """
@@ -330,10 +350,10 @@ class EraDownloader:
     def process_surface_file(self):
         """Rename variables and convert geopotential to geopotential height."""
         tmp_file = self.get_tmp_file(self.surface_file)
-        with xr.open_dataset(self.surface_file) as ds:
-            ds = self.convert_z(ds, name='orog')
-            ds = self.map_vars(ds)
-            ds.to_netcdf(tmp_file)
+        with xr.open_dataset(self.surface_file, mode='a') as ds:
+            new_ds = self.convert_z(ds, name='orog')
+            new_ds = self.map_vars(new_ds)
+            new_ds.to_netcdf(tmp_file)
         os.system(f'mv {tmp_file} {self.surface_file}')
         logger.info(f'Finished processing {self.surface_file}. Moved '
                     f'{tmp_file} to {self.surface_file}.')
@@ -348,15 +368,12 @@ class EraDownloader:
 
         Returns
         -------
-        ds : Dataset
+        new_ds : Dataset
             xr.Dataset() object with new variables written.
         """
         for old_name in ds.data_vars:
             new_name = self.NAME_MAP.get(old_name, old_name)
-            ds.rename({old_name: new_name})
-            if 'temperature' in new_name:
-                ds[new_name] = (ds[new_name].dims,
-                                ds[new_name].values - 273.15)
+            ds = ds.rename({old_name: new_name})
         return ds
 
     def shift_temp(self, ds):
@@ -372,8 +389,9 @@ class EraDownloader:
         ds : Dataset
         """
         for var in ds.data_vars:
-            if 'temperature' in var:
+            if 'units' in ds[var].attrs and ds[var].attrs['units'] == 'K':
                 ds[var] = (ds[var].dims, ds[var].values - 273.15)
+                ds[var].attrs['units'] = 'C'
         return ds
 
     def add_pressure(self, ds):
@@ -390,16 +408,14 @@ class EraDownloader:
         """
         if ('pressure' in self.variables
                 and 'pressure' not in ds.data_vars):
-            tmp = np.zeros(ds['zg'].shape)
-
-            if 'number' in ds.dimensions:
-                tmp[:] = 100 * ds['level'].values[
-                    None, None, :, None, None]
-            else:
-                tmp[:] = 100 * ds['level'].values[
-                    None, :, None, None]
-
-            ds['pressure'] = (ds['zg'].dims, tmp)
+            expand_axes = (0, 2, 3)
+            pres = np.zeros(ds['zg'].values.shape)
+            if 'number' in ds.dims:
+                expand_axes = (0, 1, 3, 4)
+            pres[:] = np.expand_dims(100 * ds['level'].values,
+                                     axis=expand_axes)
+            ds['pressure'] = (ds['zg'].dims, pres)
+            ds['pressure'].attrs['units'] = 'Pa'
         return ds
 
     def convert_z(self, ds, name):
@@ -417,19 +433,20 @@ class EraDownloader:
         ds : Dataset
             xr.Dataset() object for new file with new height variable written.
         """
-        ds['z'] = (ds['z'].dims, ds['z'].values / 9.81)
-        ds.rename({'z': name})
+        if name not in ds.data_vars:
+            ds['z'] = (ds['z'].dims, ds['z'].values / 9.81)
+            ds = ds.rename({'z': name})
         return ds
 
     def process_level_file(self):
         """Convert geopotential to geopotential height."""
         tmp_file = self.get_tmp_file(self.level_file)
-        with xr.open_dataset(self.level_file) as ds:
-            ds = self.convert_z(ds, name='zg')
-            ds = self.map_vars(ds)
-            ds = self.shift_temp(ds)
-            ds = self.add_pressure(ds)
-            ds.to_netcdf(tmp_file)
+        with xr.open_dataset(self.level_file, mode='a') as ds:
+            new_ds = self.convert_z(ds, name='zg')
+            new_ds = self.map_vars(new_ds)
+            new_ds = self.shift_temp(new_ds)
+            new_ds = self.add_pressure(new_ds)
+            new_ds.to_netcdf(tmp_file)
 
         os.system(f'mv {tmp_file} {self.level_file}')
         logger.info(f'Finished processing {self.level_file}. Moved '
@@ -558,7 +575,7 @@ class EraDownloader:
                                overwrite=self.overwrite,
                                **kwargs)
 
-    def get_monthly_file(self, interp_workers=None, prune_variables=None,
+    def get_monthly_file(self, interp_workers=None, prune_variables=False,
                          **interp_kwargs):
         """Download level and surface files, process variables, and combine
         processed files. Includes checks for shape and variables and option to
@@ -607,8 +624,8 @@ class EraDownloader:
     @classmethod
     def already_pruned(cls, infile, prune_variables):
         """Check if file has been pruned already."""
-        if prune_variables is None:
-            logger.info('Received prune_variables=None. Skipping pruning.')
+        if not prune_variables:
+            logger.info('Received prune_variables=False. Skipping pruning.')
             return
         with xr.open_dataset(infile) as ds:
             check_variables = [var for var in ds.data_vars
@@ -617,18 +634,18 @@ class EraDownloader:
         return pruned
 
     @classmethod
-    def prune_output(cls, infile, prune_variables=None):
+    def prune_output(cls, infile, prune_variables=False):
         """Prune output file to keep just single level variables"""
-        if prune_variables is None:
-            logger.info('Received prune_variables=None. Skipping pruning.')
+        if not prune_variables:
+            logger.info('Received prune_variables=False. Skipping pruning.')
             return
         else:
             logger.info(f'Pruning {infile}.')
             tmp_file = cls.get_tmp_file(infile)
-            with xr.Dataset(infile) as ds:
-                keep_vars = {k:v for k, v in dict(ds.data_vars)
+            with xr.open_dataset(infile) as ds:
+                keep_vars = {k: v for k, v in dict(ds.data_vars)
                              if 'level' not in ds[k].dims}
-                new_coords = {k:v for k, v in dict(ds.coords).items()
+                new_coords = {k: v for k, v in dict(ds.coords).items()
                               if 'level' not in k}
                 new_ds = xr.Dataset(coords=new_coords, data_vars=keep_vars)
                 new_ds.to_netcdf(tmp_file)
@@ -648,8 +665,9 @@ class EraDownloader:
                   overwrite=False,
                   interp_workers=None,
                   variables=None,
-                  prune_variables=None,
+                  prune_variables=False,
                   check_files=False,
+                  product_type='reanalysis',
                   **interp_kwargs):
         """Run routine for all months in the requested year.
 
@@ -679,13 +697,16 @@ class EraDownloader:
         variables : list | None
             Variables to download. If None this defaults to just gepotential
             and wind components.
-        prune_variables : list | None
-            Variables to remove from final files. This is usually the multi
-            pressure level array of a variable which has since been
-            interpolated to specific heights.
-            pruned.
+        prune_variables : bool
+            Whether to remove 4D variables from data after interpolation. e.g.
+            height interpolation could give u_10m, u_100m, u_120m from a 4D u
+            array. If we only need these heights we could remove the 4D u array
+            from the final data file.
         check_files : bool
             Check existing files. Remove and redownload if checks fail.
+        product_type : str
+            Can be 'reanalysis', 'ensemble_mean', 'ensemble_spread',
+            'ensemble_members'
         **interp_kwargs : dict
             Keyword args for LogLinInterpolator.run()
         """
@@ -698,7 +719,8 @@ class EraDownloader:
                          run_interp=run_interp,
                          overwrite=overwrite,
                          variables=variables,
-                         check_files=check_files)
+                         check_files=check_files,
+                         product_type=product_type)
         downloader.get_monthly_file(interp_workers=interp_workers,
                                     prune_variables=prune_variables,
                                     **interp_kwargs)
@@ -709,7 +731,7 @@ class EraDownloader:
                  area,
                  levels,
                  combined_out_pattern,
-                 combined_yearly_file,
+                 combined_yearly_file=None,
                  interp_out_pattern=None,
                  interp_yearly_file=None,
                  run_interp=True,
@@ -717,8 +739,9 @@ class EraDownloader:
                  max_workers=None,
                  interp_workers=None,
                  variables=None,
-                 prune_variables=None,
+                 prune_variables=False,
                  check_files=False,
+                 product_type='reanalysis',
                  **interp_kwargs):
         """Run routine for all months in the requested year.
 
@@ -753,11 +776,16 @@ class EraDownloader:
         variables : list | None
             Variables to download. If None this defaults to just gepotential
             and wind components.
-        prune_variables : list | None
-            Variables to keep in final files. All other variables will be
-            pruned.
+        prune_variables : bool
+            Whether to remove 4D variables from data after interpolation. e.g.
+            height interpolation could give u_10m, u_100m, u_120m from a 4D u
+            array. If we only need these heights we could remove the 4D u array
+            from the final data file.
         check_files : bool
             Check existing files. Remove and redownload if checks fail.
+        product_type : str
+            Can be 'reanalysis', 'ensemble_mean', 'ensemble_spread',
+            'ensemble_members'
         **interp_kwargs : dict
             Keyword args for LogLinInterpolator.run()
         """
@@ -775,6 +803,7 @@ class EraDownloader:
                               variables=variables,
                               prune_variables=prune_variables,
                               check_files=check_files,
+                              product_type=product_type,
                               **interp_kwargs)
         else:
             futures = {}
@@ -794,6 +823,7 @@ class EraDownloader:
                         prune_variables=prune_variables,
                         variables=variables,
                         check_files=check_files,
+                        product_type=product_type,
                         **interp_kwargs)
                     futures[future] = {'year': year, 'month': month}
                     logger.info(f'Submitted future for year {year} and month '
@@ -804,10 +834,13 @@ class EraDownloader:
                 logger.info(f'Finished future for year {v["year"]} and month '
                             f'{v["month"]}.')
 
-        cls.make_yearly_file(year, combined_out_pattern, combined_yearly_file)
+            if combined_yearly_file is not None:
+                cls.make_yearly_file(year, combined_out_pattern,
+                                     combined_yearly_file)
 
-        if run_interp:
-            cls.make_yearly_file(year, interp_out_pattern, interp_yearly_file)
+            if run_interp and interp_yearly_file is not None:
+                cls.make_yearly_file(year, interp_out_pattern,
+                                     interp_yearly_file)
 
     @classmethod
     def make_yearly_file(cls, year, file_pattern, yearly_file):
@@ -833,7 +866,7 @@ class EraDownloader:
         ]
 
         if not os.path.exists(yearly_file):
-            with xr.open_mfdataset(files) as res:
+            with xr.open_mfdataset(files, parallel=True) as res:
                 logger.info(f'Combining {files}')
                 os.makedirs(os.path.dirname(yearly_file), exist_ok=True)
                 res.to_netcdf(yearly_file)

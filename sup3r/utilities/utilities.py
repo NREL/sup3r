@@ -10,6 +10,7 @@ import re
 import string
 import time
 from fnmatch import fnmatch
+from pathlib import Path
 from warnings import warn
 
 import numpy as np
@@ -53,6 +54,34 @@ class Timer:
         t_elap = time.time() - t0
         self.log[f'elapsed:{fun.__name__}'] = t_elap
         return out
+
+
+def expand_paths(fps):
+    """Expand path(s)
+
+    Parameter
+    ---------
+    fps : str or pathlib.Path or any Sequence of those
+        One or multiple paths to file
+
+    Returns
+    -------
+    list[str]
+        A list of expanded unique and sorted paths as str
+
+    Examples
+    --------
+    >>> expand_paths("myfile.h5")
+
+    >>> expand_paths(["myfile.h5", "*.hdf"])
+    """
+    if isinstance(fps, (str, Path)):
+        fps = (fps, )
+
+    out = []
+    for f in fps:
+        out.extend(glob(f))
+    return sorted(set(out))
 
 
 def generate_random_string(length):
