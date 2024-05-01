@@ -80,7 +80,7 @@ def expand_paths(fps):
 
     out = []
     for f in fps:
-        out.extend(glob(f))
+        out.extend(glob.glob(f))
     return sorted(set(out))
 
 
