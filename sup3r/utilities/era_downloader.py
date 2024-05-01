@@ -731,7 +731,7 @@ class EraDownloader:
                  area,
                  levels,
                  combined_out_pattern,
-                 combined_yearly_file,
+                 combined_yearly_file=None,
                  interp_out_pattern=None,
                  interp_yearly_file=None,
                  run_interp=True,
@@ -834,10 +834,13 @@ class EraDownloader:
                 logger.info(f'Finished future for year {v["year"]} and month '
                             f'{v["month"]}.')
 
-        cls.make_yearly_file(year, combined_out_pattern, combined_yearly_file)
+            if combined_yearly_file is not None:
+                cls.make_yearly_file(year, combined_out_pattern,
+                                     combined_yearly_file)
 
-        if run_interp:
-            cls.make_yearly_file(year, interp_out_pattern, interp_yearly_file)
+            if run_interp and interp_yearly_file is not None:
+                cls.make_yearly_file(year, interp_out_pattern,
+                                     interp_yearly_file)
 
     @classmethod
     def make_yearly_file(cls, year, file_pattern, yearly_file):
@@ -863,7 +866,7 @@ class EraDownloader:
         ]
 
         if not os.path.exists(yearly_file):
-            with xr.open_mfdataset(files) as res:
+            with xr.open_mfdataset(files, parallel=True) as res:
                 logger.info(f'Combining {files}')
                 os.makedirs(os.path.dirname(yearly_file), exist_ok=True)
                 res.to_netcdf(yearly_file)

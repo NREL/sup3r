@@ -2,7 +2,6 @@
 @author: bbenton
 """
 
-import glob
 import logging
 import os
 import pickle
@@ -18,6 +17,7 @@ from scipy.stats import mode
 
 from sup3r.utilities.utilities import (
     estimate_max_workers,
+    expand_paths,
     get_source_type,
     ignore_case_path_fetch,
     uniform_box_sampler,
@@ -644,21 +644,14 @@ class InputMixIn(CacheHandlingMixIn):
         ----------
         file_paths : str | list
             A list of files to extract raster data from. Each file must have
-            the same number of timesteps. Can also pass a string with a
-            unix-style file path which will be passed through glob.glob
+            the same number of timesteps. Can also pass a string or list of
+            strings with a unix-style file path which will be passed through
+            glob.glob
         """
-        self._file_paths = file_paths
-        if isinstance(self._file_paths, str):
-            if '*' in file_paths:
-                self._file_paths = glob.glob(self._file_paths)
-            else:
-                self._file_paths = [self._file_paths]
-
+        self._file_paths = expand_paths(file_paths)
         msg = ('No valid files provided to DataHandler. '
                f'Received file_paths={file_paths}. Aborting.')
         assert file_paths is not None and len(self._file_paths) > 0, msg
-
-        self._file_paths = sorted(self._file_paths)
 
     @property
     def ti_workers(self):

@@ -199,6 +199,7 @@ class Regridder:
         else:
             logger.info('Querying all coordinates in parallel.')
             self._parallel_queries(max_workers=max_workers)
+        logger.info('Finished querying all coordinates.')
 
     def _serial_queries(self):
         """Get indices and distances for all points in target_meta, in
