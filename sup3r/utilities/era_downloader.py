@@ -823,23 +823,9 @@ class EraDownloader:
             from the final data file.
         check_files : bool
             Check existing files. Remove and redownload if checks fail.
-        <<<<<<< HEAD
-        <<<<<<< HEAD
         product_type : str
             Can be 'reanalysis', 'ensemble_mean', 'ensemble_spread',
             'ensemble_members'
-        =======
-        include_reanalysis : bool
-            Whether to include ERA5 data in download, as opposed to just
-            downloading uncertainty data
-        include_uncertainty : bool
-            Whether to include EDA (ensemble_spread) data in download
-        >>>>>>> ea4adbab (test fix)
-        =======
-        product_type : str
-            Can be 'reanalysis', 'ensemble_mean', 'ensemble_spread',
-            'ensemble_members'
-        >>>>>>> 13f588b4 (some arg cleaning in era_downloader)
         **interp_kwargs : dict
             Keyword args for LogLinInterpolator.run()
         """
