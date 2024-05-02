@@ -141,7 +141,6 @@ class EraDownloader:
         self._interp_file = None
         self._combined_file = None
         self._variables = variables
-        self.hours = self.get_hours()
         self.sfc_file_variables = ['geopotential']
         self.level_file_variables = ['geopotential']
         self.prep_var_lists(self.variables)
@@ -390,9 +389,11 @@ class EraDownloader:
         ds : Dataset
         """
         for var in ds.data_vars:
+            attrs = ds[var].attrs
             if 'units' in ds[var].attrs and ds[var].attrs['units'] == 'K':
                 ds[var] = (ds[var].dims, ds[var].values - 273.15)
-                ds[var].attrs['units'] = 'C'
+                attrs['units'] = 'C'
+            ds[var].attrs = attrs
         return ds
 
     def add_pressure(self, ds):
@@ -757,23 +758,9 @@ class EraDownloader:
             from the final data file.
         check_files : bool
             Check existing files. Remove and redownload if checks fail.
-        <<<<<<< HEAD
-        <<<<<<< HEAD
         product_type : str
             Can be 'reanalysis', 'ensemble_mean', 'ensemble_spread',
             'ensemble_members'
-        =======
-        include_reanalysis : bool
-            Whether to include ERA5 data in download, as opposed to just
-            downloading uncertainty data
-        include_uncertainty : bool
-            Whether to include EDA (ensemble_spread) data in download
-        >>>>>>> ea4adbab (test fix)
-        =======
-        product_type : str
-            Can be 'reanalysis', 'ensemble_mean', 'ensemble_spread',
-            'ensemble_members'
-        >>>>>>> 13f588b4 (some arg cleaning in era_downloader)
         **interp_kwargs : dict
             Keyword args for LogLinInterpolator.run()
         """
