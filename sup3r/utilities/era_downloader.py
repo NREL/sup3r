@@ -150,7 +150,8 @@ class EraDownloader:
 
         msg = ('Initialized EraDownloader with: '
                f'year={self.year}, month={self.month}, area={self.area}, '
-               f'levels={self.levels}, variables={self.variables}')
+               f'levels={self.levels}, variables={self.variables}, '
+               f'product_type={self.product_type}')
         logger.info(msg)
 
     def get_hours(self):
@@ -332,7 +333,7 @@ class EraDownloader:
                    f'{out_file} with levels = {levels}.')
             logger.info(msg)
             entry = {
-                'product_type': 'reanalysis',
+                'product_type': product_type,
                 'format': 'netcdf',
                 'variable': variables,
                 'area': area}
