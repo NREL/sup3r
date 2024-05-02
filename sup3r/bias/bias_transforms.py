@@ -403,6 +403,7 @@ def local_qdm_bc(data: np.array,
                  base_dset: str,
                  feature_name: str,
                  bias_fp,
+                 lr_padded_slice,
                  threshold=0.1,
                  relative=True,
                  no_trend=False):
@@ -433,6 +434,13 @@ def local_qdm_bc(data: np.array,
         "bias_fut_{feature_name}_params", and "base_{base_dset}_params" that
         are the parameters to define the statistical distributions to be used
         to correct the given `data`.
+    lr_padded_slice : tuple | None
+        Tuple of length four that slices (spatial_1, spatial_2, temporal,
+        features) where each tuple entry is a slice object for that axes.
+        Note that if this method is called as part of a sup3r forward pass, the
+        lr_padded_slice will be included automatically in the kwargs for the
+        active chunk. If this is None, no slicing will be done and the full
+        bias correction source shape will be used.
     no_trend: bool, default=False
         An option to ignore the trend component of the correction, thus
         resulting in an ordinary Quantile Mapping, i.e. corrects the bias by
@@ -485,6 +493,11 @@ def local_qdm_bc(data: np.array,
                                                          feature_name,
                                                          bias_fp,
                                                          threshold)
+    if lr_padded_slice is not None:
+        spatial_slice = (lr_padded_slice[0], lr_padded_slice[1])
+        base = base[spatial_slice]
+        bias = bias[spatial_slice]
+        bias_fut = bias[spatial_slice]
 
     if no_trend:
         mf = None
