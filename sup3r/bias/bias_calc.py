@@ -8,19 +8,17 @@ import logging
 import os
 from abc import abstractmethod
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from glob import glob
-from pathlib import Path
 
 import h5py
 import numpy as np
 import pandas as pd
 import rex
-from rex.utilities.fun_utils import get_fun_call_str
 from rex.utilities.bc_utils import (
+    sample_q_invlog,
     sample_q_linear,
     sample_q_log,
-    sample_q_invlog,
 )
+from rex.utilities.fun_utils import get_fun_call_str
 from scipy import stats
 from scipy.ndimage import gaussian_filter
 from scipy.spatial import KDTree
@@ -29,37 +27,9 @@ import sup3r.preprocessing.data_handling
 from sup3r.preprocessing.data_handling.base import DataHandler
 from sup3r.utilities import VERSION_RECORD, ModuleName
 from sup3r.utilities.cli import BaseCLI
-from sup3r.utilities.utilities import nn_fill_array
+from sup3r.utilities.utilities import expand_paths, nn_fill_array
 
 logger = logging.getLogger(__name__)
-
-
-def _expand_paths(fps):
-    """Expand path(s)
-
-    Parameter
-    ---------
-    fps : str or pathlib.Path or any Sequence of those
-        One or multiple paths to file
-
-    Returns
-    -------
-    list[str]
-        A list of expanded unique and sorted paths as str
-
-    Examples
-    --------
-    >>> _expand_paths("myfile.h5")
-
-    >>> _expand_paths(["myfile.h5", "*.hdf"])
-    """
-    if isinstance(fps, (str, Path)):
-        fps = (fps, )
-
-    out = []
-    for f in fps:
-        out.extend(glob(f))
-    return sorted(set(out))
 
 
 class DataRetrievalBase:
@@ -163,8 +133,8 @@ class DataRetrievalBase:
         self._distance_upper_bound = distance_upper_bound
         self.match_zero_rate = match_zero_rate
 
-        self.base_fps = _expand_paths(self.base_fps)
-        self.bias_fps = _expand_paths(self.bias_fps)
+        self.base_fps = expand_paths(self.base_fps)
+        self.bias_fps = expand_paths(self.bias_fps)
 
         base_sup3r_handler = getattr(sup3r.preprocessing.data_handling,
                                      base_handler, None)
@@ -1224,6 +1194,7 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
     :func:`~sup3r.bias.bias_transforms.local_qdm_bc` to actually correct
     a dataset.
     """
+
     def __init__(self,
                  base_fps,
                  bias_fps,
@@ -1308,7 +1279,7 @@ class QuantileDeltaMappingCorrection(DataRetrievalBase):
 
         self.bias_fut_fps = bias_fut_fps
 
-        self.bias_fut_fps = _expand_paths(self.bias_fut_fps)
+        self.bias_fut_fps = expand_paths(self.bias_fut_fps)
 
         self.bias_fut_dh = self.bias_handler(self.bias_fut_fps,
                                              [self.bias_feature],

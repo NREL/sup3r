@@ -13,7 +13,6 @@ from warnings import warn
 
 import numpy as np
 import xarray as xr
-from netCDF4 import Dataset
 from rex import init_logger
 from scipy.interpolate import interp1d
 from scipy.optimize import curve_fit
@@ -177,60 +176,17 @@ class LogLinInterpolator:
         """Save interpolated data to outfile"""
         dirname = os.path.dirname(self.outfile)
         os.makedirs(dirname, exist_ok=True)
-        os.system(f'cp {self.infile} {self.outfile}')
-        ds = Dataset(self.outfile, 'a')
         logger.info(f'Creating {self.outfile}.')
-        for var, data in self.new_data.items():
-            for i, height in enumerate(self.new_heights[var]):
-                name = f'{var}_{height}m'
-                logger.info(f'Adding {name} to {self.outfile}.')
-                if name not in ds.variables:
-                    _ = ds.createVariable(
-                        name,
-                        np.float32,
-                        dimensions=('time', 'latitude', 'longitude'),
-                    )
-                ds.variables[name][:] = data[i, ...]
-                ds.variables[name].long_name = f'{height} meter {var}'
+        with xr.open_dataset(self.infile) as ds:
+            for var, data in self.new_data.items():
+                for height in self.new_heights[var]:
+                    name = f'{var}_{height}m'
+                    logger.info(f'Adding {name} to {self.outfile}.')
+                    if name not in ds.data_vars:
+                        ds[name] = (('time', 'latitude', 'longitude'), data[0])
 
-                units = None
-                if 'u_' in var or 'v_' in var:
-                    units = 'm s**-1'
-                if 'pressure' in var:
-                    units = 'Pa'
-                if 'temperature' in var:
-                    units = 'C'
-
-                if units is not None:
-                    ds.variables[name].units = units
-
-        ds.close()
+        ds.to_netcdf(self.outfile)
         logger.info(f'Saved interpolated output to {self.outfile}.')
-
-    @classmethod
-    def init_dims(cls, old_ds, new_ds, dims):
-        """Initialize dimensions in new dataset from old dataset
-
-        Parameters
-        ----------
-        old_ds : Dataset
-            Dataset() object from old file
-        new_ds : Dataset
-            Dataset() object for new file
-        dims : tuple
-            Tuple of dimensions. e.g. ('time', 'latitude', 'longitude')
-
-        Returns
-        -------
-        new_ds : Dataset
-            Dataset() object for new file with dimensions initialized.
-        """
-        for var in dims:
-            new_ds.createDimension(var, len(old_ds[var]))
-            _ = new_ds.createVariable(var, old_ds[var].dtype, dimensions=var)
-            new_ds[var][:] = old_ds[var][:]
-            new_ds[var].units = old_ds[var].units
-        return new_ds
 
     @classmethod
     def get_tmp_file(cls, file):
