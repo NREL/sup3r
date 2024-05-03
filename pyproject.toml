@@ -144,3 +144,10 @@ doc = { features = ["doc"], solve-group = "default" }
 test = { features = ["test"], solve-group = "default" }
 
 [tool.pixi.tasks]
+
+[tool.pixi.feature.doc.dependencies]
+sphinx = ">=7.0"
+sphinx_rtd_theme = ">=2.0"
+
+[tool.pixi.feature.test.dependencies]
+pytest = ">=5.2"
