@@ -73,6 +73,11 @@ indent-width = 4
 target-version = "py38"
 
 [tool.ruff.lint]
+fixable = ["ALL"]
+preview = true
+select = [
+  "E", # pycodestyle
+  ]
 ignore = [
   "B008", # function-call-in-default-argument
   "B024", # abstract-base-class-without-abstract-method
