@@ -7736,9 +7736,9 @@ packages:
   requires_python: '>=3.8'
 - kind: pypi
   name: nrel-sup3r
-  version: 0.1.3.dev114+g21a8bf52.d20240502
+  version: 0.1.3.dev117+g50f57013.d20240503
   path: .
-  sha256: b0982ff5e8253b1e2fcf5884ec6647a6f1da516bd8ec12db64f31ec9518e5401
+  sha256: 251fe8c651a7fb84f4e6ef9e3072976efba85acfa516c9793e818b49a9861fe6
   requires_dist:
   - nrel-rex>=0.2.84
   - nrel-phygnn>=0.0.23
