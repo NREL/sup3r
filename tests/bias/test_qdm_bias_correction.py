@@ -141,6 +141,27 @@ def test_parallel(fp_fut_cc):
         ), f"Different results for {k}"
 
 
+def test_fill_nan(fp_fut_cc):
+    """No NaN when running with fill_extend"""
+
+    c = QuantileDeltaMappingCorrection(FP_NSRDB, FP_CC, fp_fut_cc,
+                                       'ghi', 'rsds',
+                                       target=TARGET, shape=SHAPE,
+                                       distance_upper_bound=0.7,
+                                       bias_handler='DataHandlerNCforCC')
+
+    # Without filling, at least one NaN or this test is useless.
+    out = c.run(fill_extend=False)
+    assert np.all([np.isnan(v).any() for v in out.values()]), (
+        "Assume at least one NaN value for each param"
+    )
+
+    out = c.run()
+    assert ~np.any([np.isnan(v) for v in out.values()]), (
+        "All NaN values where supposed to be filled"
+    )
+
+
 def test_save_file(tmp_path, fp_fut_cc):
     """Save valid output
 
