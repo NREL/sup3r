@@ -2,25 +2,27 @@
 Welcome to SUP3R!
 #################
 
-.. image:: https://github.com/NREL/sup3r/workflows/Documentation/badge.svg
+|Docs| |Tests| |Linter| |PyPi| |PythonV| |Codecov| |Zenodo|
+
+.. |Docs| image:: https://github.com/NREL/sup3r/workflows/Documentation/badge.svg
     :target: https://nrel.github.io/sup3r/
 
-.. image:: https://github.com/NREL/sup3r/workflows/Pytests/badge.svg
+.. |Tests| image:: https://github.com/NREL/sup3r/workflows/Pytests/badge.svg
     :target: https://github.com/NREL/sup3r/actions?query=workflow%3A%22Pytests%22
 
-.. image:: https://github.com/NREL/sup3r/workflows/Lint%20Code%20Base/badge.svg
+.. |Linter| image:: https://github.com/NREL/sup3r/workflows/Lint%20Code%20Base/badge.svg
     :target: https://github.com/NREL/sup3r/actions?query=workflow%3A%22Lint+Code+Base%22
 
-.. image:: https://img.shields.io/pypi/pyversions/NREL-sup3r.svg
+.. |PyPi| image:: https://img.shields.io/pypi/pyversions/NREL-sup3r.svg
     :target: https://pypi.org/project/NREL-sup3r/
 
-.. image:: https://badge.fury.io/py/NREL-sup3r.svg
+.. |PythonV| image:: https://badge.fury.io/py/NREL-sup3r.svg
     :target: https://badge.fury.io/py/NREL-sup3r
 
-.. image:: https://codecov.io/gh/nrel/sup3r/branch/main/graph/badge.svg
+.. |Codecov| image:: https://codecov.io/gh/nrel/sup3r/branch/main/graph/badge.svg
     :target: https://codecov.io/gh/nrel/sup3r
 
-.. image:: https://zenodo.org/badge/422324608.svg
+.. |Zenodo| image:: https://zenodo.org/badge/422324608.svg
     :target: https://zenodo.org/badge/latestdoi/422324608
 
 .. inclusion-intro
