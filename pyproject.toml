@@ -126,9 +126,6 @@ pandas = ">=2.0"
 scipy = ">=1.0.0"
 tensorflow = ">2.4,<2.16"
 xarray = ">=2023.0"
-pytest = ">=5.2"
-sphinx = ">=7.0"
-sphinx_rtd_theme = ">=2.0"
 
 [tool.pixi.pypi-dependencies]
 NREL-sup3r = { path = ".", editable = true }
@@ -151,3 +148,8 @@ sphinx_rtd_theme = ">=2.0"
 
 [tool.pixi.feature.test.dependencies]
 pytest = ">=5.2"
+
+[tool.pixi.feature.dev.dependencies]
+build = ">=0.6"
+twine = ">=5.0"
+ruff = ">=0.2"
