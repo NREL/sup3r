@@ -115,3 +115,7 @@ ENV/
 # vim
 *.swp
 tags
+
+# pixi environments
+.pixi
+*.egg-info
