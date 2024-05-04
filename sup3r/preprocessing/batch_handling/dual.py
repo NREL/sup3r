@@ -160,7 +160,6 @@ class DualBatchHandler(BatchHandler, MultiDualMixIn):
                 high_res=tf.concat(hr_list, axis=0))
 
             self._i += 1
-            logger.debug(f'Built batch in {dt.now() - start}.')
             return batch
         else:
             raise StopIteration
