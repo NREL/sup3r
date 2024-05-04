@@ -684,6 +684,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             tf.summary.trace_on(graph=True, profiler=True)
 
         for ib, batch in enumerate(batch_handler):
+            low_res, high_res = batch
             trained_gen = False
             trained_disc = False
             b_loss_details = {}
@@ -693,14 +694,14 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             gen_too_good = disc_too_bad
 
             if not self.generator_weights:
-                self.init_weights(batch.low_res.shape, batch.high_res.shape)
+                self.init_weights(low_res.shape, high_res.shape)
 
             if only_gen or (train_gen and not gen_too_good):
                 trained_gen = True
                 b_loss_details = self.timer(
                     self.run_gradient_descent,
-                    batch.low_res,
-                    batch.high_res,
+                    low_res,
+                    high_res,
                     self.generator_weights,
                     weight_gen_advers=weight_gen_advers,
                     optimizer=self.optimizer,
@@ -712,8 +713,8 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
                 trained_disc = True
                 b_loss_details = self.timer(
                     self.run_gradient_descent,
-                    batch.low_res,
-                    batch.high_res,
+                    low_res,
+                    high_res,
                     self.discriminator_weights,
                     weight_gen_advers=weight_gen_advers,
                     optimizer=self.optimizer_disc,
