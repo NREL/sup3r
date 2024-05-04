@@ -164,6 +164,27 @@ def test_spatiotemporal_batch_caching(sample_shape):
                                                    t_slice, :-1])
 
 
+def test_netcdf_data_caching():
+    """Test caching of extracted data to netcdf files"""
+
+    with tempfile.TemporaryDirectory() as td:
+        nc_cache_file = os.path.join(td, 'nc_cache_file.nc')
+        if os.path.exists(nc_cache_file):
+            os.system(f'rm {nc_cache_file}')
+        handler = DataHandler(INPUT_FILE, features, **dh_kwargs, val_split=0.0)
+        target = tuple(handler.lat_lon[-1, 0, :])
+        shape = handler.shape
+        handler.to_netcdf(nc_cache_file)
+
+        with xr.open_dataset(nc_cache_file) as res:
+            assert all(f in res for f in features)
+
+        nc_dh = DataHandler(nc_cache_file, features)
+
+        assert nc_dh.target == target
+        assert nc_dh.shape == shape
+
+
 def test_data_caching():
     """Test data extraction class"""
 

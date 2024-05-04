@@ -56,6 +56,13 @@ class Timer:
         return out
 
 
+def check_mem_usage():
+    """Frequently used memory check."""
+    mem = psutil.virtual_memory()
+    logger.info(f'Current memory usage is {mem.used / 1e9:.3f} GB out of '
+                f'{mem.total / 1e9:.3f} GB total.')
+
+
 def expand_paths(fps):
     """Expand path(s)
 
@@ -275,17 +282,15 @@ def get_wrf_date_range(files):
     return date_start, date_end
 
 
-def uniform_box_sampler(data, shape):
-    """Extracts a sample cut from data.
+def uniform_box_sampler(data_shape, sample_shape):
+    """Returns a 2D spatial slice used to extract a sample from a data array.
 
     Parameters
     ----------
-    data : np.ndarray
-        Data array with dimensions
-        (spatial_1, spatial_2, temporal, features)
-    shape : tuple
-        (rows, cols) Size of grid to sample
-        from data
+    data_shape : tuple
+        (rows, cols) Size of full grid available for sampling
+    sample_shape : tuple
+        (rows, cols) Size of grid to sample from data
 
     Returns
     -------
@@ -293,28 +298,29 @@ def uniform_box_sampler(data, shape):
         List of slices corresponding to row and col extent of arr sample
     """
 
-    shape_1 = data.shape[0] if data.shape[0] < shape[0] else shape[0]
-    shape_2 = data.shape[1] if data.shape[1] < shape[1] else shape[1]
+    shape_1 = (data_shape[0] if data_shape[0] < sample_shape[0]
+               else sample_shape[0])
+    shape_2 = (data_shape[1] if data_shape[1] < sample_shape[1]
+               else sample_shape[1])
     shape = (shape_1, shape_2)
-    start_row = np.random.randint(0, data.shape[0] - shape[0] + 1)
-    start_col = np.random.randint(0, data.shape[1] - shape[1] + 1)
+    start_row = np.random.randint(0, data_shape[0] - sample_shape[0] + 1)
+    start_col = np.random.randint(0, data_shape[1] - sample_shape[1] + 1)
     stop_row = start_row + shape[0]
     stop_col = start_col + shape[1]
 
     return [slice(start_row, stop_row), slice(start_col, stop_col)]
 
 
-def weighted_box_sampler(data, shape, weights):
+def weighted_box_sampler(data_shape, sample_shape, weights):
     """Extracts a temporal slice from data with selection weighted based on
     provided weights
 
     Parameters
     ----------
-    data : np.ndarray
-        Data array with dimensions
-        (spatial_1, spatial_2, temporal, features)
-    shape : tuple
-        (spatial_1, spatial_2) Size of box to sample from data
+    data_shape : tuple
+        (rows, cols) Size of full spatial grid available for sampling
+    sample_shape : tuple
+        (rows, cols) Size of grid to sample from data
     weights : ndarray
         Array of weights used to specify selection strategy. e.g. If weights is
         [0.2, 0.4, 0.1, 0.3] then the upper left quadrant of the spatial
@@ -326,10 +332,12 @@ def weighted_box_sampler(data, shape, weights):
     slices : list
         List of spatial slices [spatial_1, spatial_2]
     """
-    max_cols = data.shape[1] if data.shape[1] < shape[1] else shape[1]
-    max_rows = data.shape[0] if data.shape[0] < shape[0] else shape[0]
-    max_cols = data.shape[1] - max_cols + 1
-    max_rows = data.shape[0] - max_rows + 1
+    max_cols = (data_shape[1] if data_shape[1] < sample_shape[1]
+                else sample_shape[1])
+    max_rows = (data_shape[0] if data_shape[0] < sample_shape[0]
+                else sample_shape[0])
+    max_cols = data_shape[1] - max_cols + 1
+    max_rows = data_shape[0] - max_rows + 1
     indices = np.arange(0, max_rows * max_cols)
     chunks = np.array_split(indices, len(weights))
     weight_list = []
@@ -344,8 +352,8 @@ def weighted_box_sampler(data, shape, weights):
     start = np.random.choice(indices, p=weight_list)
     row = start // max_cols
     col = start % max_cols
-    stop_1 = row + np.min([shape[0], data.shape[0]])
-    stop_2 = col + np.min([shape[1], data.shape[1]])
+    stop_1 = row + np.min([sample_shape[0], data_shape[0]])
+    stop_2 = col + np.min([sample_shape[1], data_shape[1]])
 
     slice_1 = slice(row, stop_1)
     slice_2 = slice(col, stop_2)
@@ -353,15 +361,15 @@ def weighted_box_sampler(data, shape, weights):
     return [slice_1, slice_2]
 
 
-def weighted_time_sampler(data, shape, weights):
-    """Extracts a temporal slice from data with selection weighted based on
-    provided weights
+def weighted_time_sampler(data_shape, sample_shape, weights):
+    """Returns a temporal slice with selection weighted based on
+    provided weights used to extract temporal chunk from data
 
     Parameters
     ----------
-    data : np.ndarray
-        Data array with dimensions
-        (spatial_1, spatial_2, temporal, features)
+    data_shape : tuple
+        (rows, cols, n_steps) Size of full spatialtemporal data grid available
+        for sampling
     shape : tuple
         (time_steps) Size of time slice to sample from data
     weights : list
@@ -376,11 +384,11 @@ def weighted_time_sampler(data, shape, weights):
         time slice with size shape
     """
 
-    shape = data.shape[2] if data.shape[2] < shape else shape
+    shape = data_shape[2] if data_shape[2] < sample_shape else sample_shape
     t_indices = (
-        np.arange(0, data.shape[2])
-        if shape == 1
-        else np.arange(0, data.shape[2] - shape + 1)
+        np.arange(0, data_shape[2])
+        if sample_shape == 1
+        else np.arange(0, data_shape[2] - sample_shape + 1)
     )
     t_chunks = np.array_split(t_indices, len(weights))
 
@@ -395,25 +403,24 @@ def weighted_time_sampler(data, shape, weights):
     return slice(start, stop)
 
 
-def uniform_time_sampler(data, shape):
-    """Extracts a temporal slice from data.
+def uniform_time_sampler(data_shape, sample_shape):
+    """Returns temporal slice used to extract temporal chunk from data.
 
     Parameters
     ----------
-    data : np.ndarray
-        Data array with dimensions
-        (spatial_1, spatial_2, temporal, features)
-    shape : int
-        (time_steps) Size of time slice to sample
-        from data
+    data_shape : tuple
+        (rows, cols, n_steps) Size of full spatialtemporal data grid available
+        for sampling
+    sample_shape : int
+        (time_steps) Size of time slice to sample from data grid
 
     Returns
     -------
     slice : slice
         time slice with size shape
     """
-    shape = data.shape[2] if data.shape[2] < shape else shape
-    start = np.random.randint(0, data.shape[2] - shape + 1)
+    shape = data_shape[2] if data_shape[2] < sample_shape else sample_shape
+    start = np.random.randint(0, data_shape[2] - sample_shape + 1)
     stop = start + shape
     return slice(start, stop)
 

@@ -247,6 +247,7 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         self.data = None
         self.val_data = None
         self.res_kwargs = res_kwargs or {}
+        self._shape = None
         self._single_ts_files = single_ts_files
         self._cache_pattern = cache_pattern
         self._lr_only_features = lr_only_features
@@ -967,7 +968,9 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
             Full data shape
             (spatial_1, spatial_2, temporal, features)
         """
-        return self.data.shape
+        if self._shape is None:
+            self._shape = self.data.shape
+        return self._shape
 
     @property
     def size(self):
@@ -1437,18 +1440,18 @@ class DataHandlerDC(DataHandler):
             Used to get single observation like self.data[observation_index]
         """
         if spatial_weights is not None:
-            spatial_slice = weighted_box_sampler(self.data,
+            spatial_slice = weighted_box_sampler(self.data.shape,
                                                  self.sample_shape[:2],
                                                  weights=spatial_weights)
         else:
-            spatial_slice = uniform_box_sampler(self.data,
+            spatial_slice = uniform_box_sampler(self.data.shape,
                                                 self.sample_shape[:2])
         if temporal_weights is not None:
-            temporal_slice = weighted_time_sampler(self.data,
+            temporal_slice = weighted_time_sampler(self.data.shape,
                                                    self.sample_shape[2],
                                                    weights=temporal_weights)
         else:
-            temporal_slice = uniform_time_sampler(self.data,
+            temporal_slice = uniform_time_sampler(self.data.shape,
                                                   self.sample_shape[2])
 
         return (*spatial_slice, temporal_slice, np.arange(len(self.features)))

@@ -18,8 +18,8 @@ from sup3r.utilities.regridder import RegridOutput
 from sup3r.utilities.utilities import (
     get_chunk_slices,
     spatial_coarsening,
-    temporal_coarsening,
     st_interp,
+    temporal_coarsening,
     transform_rotate_wind,
     uniform_box_sampler,
     uniform_time_sampler,
@@ -158,13 +158,13 @@ def test_weighted_box_sampler():
     weights_3[5] = 0.5
 
     for _ in range(100):
-        slice_1, _ = weighted_box_sampler(data, shape, weights_1)
+        slice_1, _ = weighted_box_sampler(data.shape, shape, weights_1)
         assert chunks[0][0] <= slice_1.start <= chunks[0][-1]
 
-        slice_2, _ = weighted_box_sampler(data, shape, weights_2)
+        slice_2, _ = weighted_box_sampler(data.shape, shape, weights_2)
         assert chunks[-1][0] <= slice_2.start <= chunks[-1][-1]
 
-        slice_3, _ = weighted_box_sampler(data, shape, weights_3)
+        slice_3, _ = weighted_box_sampler(data.shape, shape, weights_3)
         assert (chunks[2][0] <= slice_3.start <= chunks[2][-1]
                 or chunks[5][0] <= slice_3.start <= chunks[5][-1])
 
@@ -184,13 +184,13 @@ def test_weighted_box_sampler():
     weights_3[5] = 0.5
 
     for _ in range(100):
-        _, slice_1 = weighted_box_sampler(data, shape, weights_1)
+        _, slice_1 = weighted_box_sampler(data.shape, shape, weights_1)
         assert chunks[0][0] <= slice_1.start <= chunks[0][-1]
 
-        _, slice_2 = weighted_box_sampler(data, shape, weights_2)
+        _, slice_2 = weighted_box_sampler(data.shape, shape, weights_2)
         assert chunks[-1][0] <= slice_2.start <= chunks[-1][-1]
 
-        _, slice_3 = weighted_box_sampler(data, shape, weights_3)
+        _, slice_3 = weighted_box_sampler(data.shape, shape, weights_3)
         assert (chunks[2][0] <= slice_3.start <= chunks[2][-1]
                 or chunks[5][0] <= slice_3.start <= chunks[5][-1])
 
@@ -199,7 +199,7 @@ def test_weighted_box_sampler():
     weights_4 = weights.copy()
     weights_4[5] = 1
 
-    _, slice_4 = weighted_box_sampler(data, shape, weights_4)
+    _, slice_4 = weighted_box_sampler(data.shape, shape, weights_4)
     assert weights_4[slice_4.start] == 1
 
 
@@ -221,13 +221,13 @@ def test_weighted_time_sampler():
     weights_3[5] = 0.5
 
     for _ in range(100):
-        slice_1 = weighted_time_sampler(data, shape, weights_1)
+        slice_1 = weighted_time_sampler(data.shape, shape, weights_1)
         assert chunks[0][0] <= slice_1.start <= chunks[0][-1]
 
-        slice_2 = weighted_time_sampler(data, shape, weights_2)
+        slice_2 = weighted_time_sampler(data.shape, shape, weights_2)
         assert chunks[-1][0] <= slice_2.start <= chunks[-1][-1]
 
-        slice_3 = weighted_time_sampler(data, 10, weights_3)
+        slice_3 = weighted_time_sampler(data.shape, 10, weights_3)
         assert (chunks[2][0] <= slice_3.start <= chunks[2][-1]
                 or chunks[5][0] <= slice_3.start <= chunks[5][-1])
 
@@ -236,7 +236,7 @@ def test_weighted_time_sampler():
     weights_4 = weights.copy()
     weights_4[5] = 1
 
-    slice_4 = weighted_time_sampler(data, shape, weights_4)
+    slice_4 = weighted_time_sampler(data.shape, shape, weights_4)
     assert weights_4[slice_4.start] == 1
 
 
@@ -245,7 +245,7 @@ def test_uniform_time_sampler():
 
     data = np.zeros((1, 1, 10))
     shape = 10
-    t_slice = uniform_time_sampler(data, shape)
+    t_slice = uniform_time_sampler(data.shape, shape)
     assert t_slice.start == 0
     assert t_slice.stop == data.shape[2]
 
@@ -255,7 +255,7 @@ def test_uniform_box_sampler():
 
     data = np.zeros((10, 10, 1))
     shape = (10, 10)
-    [s1, s2] = uniform_box_sampler(data, shape)
+    [s1, s2] = uniform_box_sampler(data.shape, shape)
     assert s1.start == s2.start == 0
     assert s1.stop == data.shape[0]
     assert s2.stop == data.shape[1]

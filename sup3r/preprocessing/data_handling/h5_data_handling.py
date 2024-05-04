@@ -309,7 +309,8 @@ class DataHandlerH5WindCC(DataHandlerH5):
             Same as obs_ind_hourly but the temporal index (i=2) is a slice of
             the daily data (self.daily_data) with day integers.
         """
-        spatial_slice = uniform_box_sampler(self.data, self.sample_shape[:2])
+        spatial_slice = uniform_box_sampler(self.data.shape,
+                                            self.sample_shape[:2])
 
         n_days = int(self.sample_shape[2] / 24)
         rand_day_ind = np.random.choice(len(self.daily_data_slices) - n_days)

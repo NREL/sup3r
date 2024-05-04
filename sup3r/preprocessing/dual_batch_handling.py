@@ -1,8 +1,8 @@
 """Batch handling classes for dual data handlers"""
 import logging
-from datetime import datetime as dt
 
 import numpy as np
+import tensorflow as tf
 
 from sup3r.preprocessing.batch_handling import (
     Batch,
@@ -37,9 +37,9 @@ class DualValidationData(ValidationData):
             if h.hr_val_data is not None:
                 for _ in range(h.hr_val_data.shape[2]):
                     spatial_slice = uniform_box_sampler(
-                        h.lr_val_data, self.lr_sample_shape[:2])
+                        h.lr_val_data.shape, self.lr_sample_shape[:2])
                     temporal_slice = uniform_time_sampler(
-                        h.lr_val_data, self.lr_sample_shape[2])
+                        h.lr_val_data.shape, self.lr_sample_shape[2])
                     lr_index = (*spatial_slice, temporal_slice,
                                 np.arange(h.lr_val_data.shape[-1]))
                     hr_index = [slice(s.start * self.s_enhance,
@@ -160,12 +160,9 @@ class DualBatchHandler(BatchHandler):
         """Get sample shape for low_res data"""
         return self.data_handlers[0].lr_dh.sample_shape
 
-    def __iter__(self):
-        self._i = 0
-        return self
-
+    @tf.function
     def __next__(self):
-        """Get the next iterator output.
+        """Get the next batch of observations.
 
         Returns
         -------
@@ -174,26 +171,18 @@ class DualBatchHandler(BatchHandler):
             with the appropriate subsampling of interpolated ERA.
         """
         self.current_batch_indices = []
-        start = dt.now()
         if self._i < self.n_batches:
             handler = self.get_rand_handler()
-            high_res = np.zeros((self.batch_size, self.hr_sample_shape[0],
-                                 self.hr_sample_shape[1],
-                                 self.hr_sample_shape[2],
-                                 len(self.hr_features)),
-                                dtype=np.float32)
-            low_res = np.zeros((self.batch_size, self.lr_sample_shape[0],
-                                self.lr_sample_shape[1],
-                                self.lr_sample_shape[2],
-                                len(self.lr_features)),
-                               dtype=np.float32)
-
+            hr_list = []
+            lr_list = []
             for i in range(self.batch_size):
+                logger.debug(f'Making batch, observation: {i + 1} / '
+                             f'{self.batch_size}.')
                 hr_sample, lr_sample = handler.get_next()
-                high_res[i, ...], low_res[i, ...] = hr_sample, lr_sample
-                self.current_batch_indices.append(handler.current_obs_index)
+                hr_list.append(tf.expand_dims(hr_sample, axis=0))
+                lr_list.append(tf.expand_dims(lr_sample, axis=0))
 
-            batch = self.BATCH_CLASS(low_res=low_res, high_res=high_res)
+            batch = (tf.concat(lr_list, axis=0), tf.concat(hr_list, axis=0))
 
             self._i += 1
             return batch
@@ -208,10 +197,6 @@ class SpatialDualBatchHandler(DualBatchHandler):
     BATCH_CLASS = Batch
     VAL_CLASS = DualValidationData
 
-    def __iter__(self):
-        self._i = 0
-        return self
-
     def __next__(self):
         """Get the next iterator output.
 
@@ -224,22 +209,19 @@ class SpatialDualBatchHandler(DualBatchHandler):
         self.current_batch_indices = []
         if self._i < self.n_batches:
             handler = self.get_rand_handler()
-            high_res = np.zeros((self.batch_size, self.hr_sample_shape[0],
-                                 self.hr_sample_shape[1],
-                                 len(self.hr_features)),
-                                dtype=np.float32)
-            low_res = np.zeros((self.batch_size, self.lr_sample_shape[0],
-                                self.lr_sample_shape[1],
-                                len(self.lr_features)),
-                               dtype=np.float32)
-
+            hr_list = []
+            lr_list = []
             for i in range(self.batch_size):
-                hr, lr = handler.get_next()
-                high_res[i, ...] = hr[..., 0, :]
-                low_res[i, ...] = lr[..., 0, :]
+                logger.debug(f'Making batch, observation: {i + 1} / '
+                             f'{self.batch_size}.')
+                hr_sample, lr_sample = handler.get_next()
+                hr_list.append(np.expand_dims(hr_sample[..., 0, :], axis=0))
+                lr_list.append(np.expand_dims(lr_sample[..., 0, :], axis=0))
                 self.current_batch_indices.append(handler.current_obs_index)
 
-            batch = self.BATCH_CLASS(low_res=low_res, high_res=high_res)
+            batch = self.BATCH_CLASS(
+                low_res=np.concatenate(lr_list, axis=0, dtype=np.float32),
+                high_res=np.concatenate(hr_list, axis=0, dtype=np.float32))
 
             self._i += 1
             return batch

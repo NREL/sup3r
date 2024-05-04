@@ -7,6 +7,7 @@ import tempfile
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
+import xarray as xr
 from rex import Resource
 from scipy.ndimage.filters import gaussian_filter
 
@@ -16,6 +17,7 @@ from sup3r.preprocessing.batch_handling import (
     SpatialBatchHandler,
 )
 from sup3r.preprocessing.data_handling import DataHandlerH5 as DataHandler
+from sup3r.preprocessing.data_handling import DataHandlerNC
 from sup3r.utilities import utilities
 
 input_files = [os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5'),
@@ -139,6 +141,30 @@ def test_data_caching():
         assert handler.data.dtype == np.dtype(np.float32)
 
 
+def test_netcdf_data_caching():
+    """Test caching of extracted data to netcdf files"""
+
+    with tempfile.TemporaryDirectory() as td:
+        nc_cache_file = os.path.join(td, 'nc_cache_file.nc')
+        if os.path.exists(nc_cache_file):
+            os.system(f'rm {nc_cache_file}')
+        handler = DataHandler(input_files[0], features,
+                              overwrite_cache=True, load_cached=True,
+                              val_split=0.0,
+                              **dh_kwargs)
+        target = tuple(handler.lat_lon[-1, 0, :])
+        shape = handler.shape
+        handler.to_netcdf(nc_cache_file)
+
+        with xr.open_dataset(nc_cache_file) as res:
+            assert all(f in res for f in features)
+
+        nc_dh = DataHandlerNC(nc_cache_file, features)
+
+        assert nc_dh.target == target
+        assert nc_dh.shape == shape
+
+
 def test_feature_handler():
     """Make sure compute feature is returing float32"""
 
@@ -225,9 +251,9 @@ def test_stats_caching():
         assert os.path.exists(means_file)
         assert os.path.exists(stdevs_file)
 
-        with open(means_file, 'r') as fh:
+        with open(means_file) as fh:
             means = json.load(fh)
-        with open(stdevs_file, 'r') as fh:
+        with open(stdevs_file) as fh:
             stds = json.load(fh)
 
         assert all(batch_handler.means[f] == means[f] for f in features)

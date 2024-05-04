@@ -204,11 +204,11 @@ class ValidationData:
         self.max = np.ceil(len(self.val_indices) / (batch_size))
         self._remaining_observations = len(self.val_indices)
         self.temporal_coarsening_method = temporal_coarsening_method
-        self._i = 0
         self.hr_features_ind = hr_features_ind
         self.smoothing = smoothing
         self.smoothing_ignore = smoothing_ignore
         self.current_batch_indices = []
+        self._i = 0
 
     def _get_val_indices(self):
         """List of dicts to index each validation data observation across all
@@ -227,9 +227,9 @@ class ValidationData:
             if h.val_data is not None:
                 for _ in range(h.val_data.shape[2]):
                     spatial_slice = uniform_box_sampler(
-                        h.val_data, self.sample_shape[:2])
+                        h.val_data.shape, self.sample_shape[:2])
                     temporal_slice = uniform_time_sampler(
-                        h.val_data, self.sample_shape[2])
+                        h.val_data.shape, self.sample_shape[2])
                     tuple_index = (
                         *spatial_slice, temporal_slice,
                         np.arange(h.val_data.shape[-1]),
@@ -303,7 +303,7 @@ class ValidationData:
         -------
         batch : Batch
         """
-        return self.BATCH_CLASS.get_coarse_batch(
+        batch = self.BATCH_CLASS.get_coarse_batch(
             high_res,
             self.s_enhance,
             t_enhance=self.t_enhance,
@@ -311,6 +311,7 @@ class ValidationData:
             hr_features_ind=self.hr_features_ind,
             smoothing=self.smoothing,
             smoothing_ignore=self.smoothing_ignore)
+        return batch
 
     def __next__(self):
         """Get validation data batch
@@ -343,7 +344,7 @@ class ValidationData:
                 high_res = high_res[..., 0, :]
             batch = self.batch_next(high_res)
             self._i += 1
-            return batch
+            return (batch.low_res, batch.high_res)
         else:
             raise StopIteration
 
@@ -866,7 +867,6 @@ class BatchHandler:
             Batch object with batch.low_res and batch.high_res attributes
             with the appropriate coarsening.
         """
-        start = dt.now()
         self.current_batch_indices = []
         if self._i < self.n_batches:
             handler = self.get_rand_handler()
@@ -889,7 +889,7 @@ class BatchHandler:
                 smoothing_ignore=self.smoothing_ignore)
 
             self._i += 1
-            return batch
+            return (batch.low_res, batch.high_res)
         else:
             raise StopIteration
 
@@ -976,7 +976,7 @@ class BatchHandlerCC(BatchHandler):
         batch = self.BATCH_CLASS(low_res, high_res)
 
         self._i += 1
-        return batch
+        return (batch.low_res, batch.high_res)
 
     def reduce_high_res_sub_daily(self, high_res):
         """Take an hourly high-res observation and reduce the temporal axis
@@ -1107,7 +1107,7 @@ class SpatialBatchHandler(BatchHandler):
                 smoothing_ignore=self.smoothing_ignore)
 
             self._i += 1
-            return batch
+            return (batch.low_res, batch.high_res)
         else:
             raise StopIteration
 
@@ -1136,11 +1136,11 @@ class ValidationDataDC(ValidationData):
             h_idx = self.get_handler_index()
             h = self.data_handlers[h_idx]
             for _ in range(self.batch_size):
-                spatial_slice = uniform_box_sampler(h.data,
+                spatial_slice = uniform_box_sampler(h.data.shape,
                                                     self.sample_shape[:2])
                 weights = np.zeros(self.N_TIME_BINS)
                 weights[t] = 1
-                temporal_slice = weighted_time_sampler(h.data,
+                temporal_slice = weighted_time_sampler(h.data.shape,
                                                        self.sample_shape[2],
                                                        weights)
                 tuple_index = (
@@ -1158,10 +1158,10 @@ class ValidationDataDC(ValidationData):
             for _ in range(self.batch_size):
                 weights = np.zeros(self.N_SPACE_BINS)
                 weights[s] = 1
-                spatial_slice = weighted_box_sampler(h.data,
+                spatial_slice = weighted_box_sampler(h.data.shape,
                                                      self.sample_shape[:2],
                                                      weights)
-                temporal_slice = uniform_time_sampler(h.data,
+                temporal_slice = uniform_time_sampler(h.data.shape,
                                                       self.sample_shape[2])
                 tuple_index = (
                     *spatial_slice, temporal_slice,
@@ -1193,7 +1193,7 @@ class ValidationDataDC(ValidationData):
                 smoothing=self.smoothing,
                 smoothing_ignore=self.smoothing_ignore)
             self._i += 1
-            return batch
+            return (batch.low_res, batch.high_res)
         else:
             raise StopIteration
 
@@ -1227,7 +1227,7 @@ class ValidationDataSpatialDC(ValidationDataDC):
                 smoothing=self.smoothing,
                 smoothing_ignore=self.smoothing_ignore)
             self._i += 1
-            return batch
+            return (batch.low_res, batch.high_res)
         else:
             raise StopIteration
 
@@ -1303,7 +1303,7 @@ class BatchHandlerDC(BatchHandler):
                 smoothing_ignore=self.smoothing_ignore)
 
             self._i += 1
-            return batch
+            return (batch.low_res, batch.high_res)
         else:
             total_count = self.n_batches * self.batch_size
             self.norm_temporal_record = [
@@ -1390,7 +1390,7 @@ class BatchHandlerSpatialDC(BatchHandler):
             )
 
             self._i += 1
-            return batch
+            return (batch.low_res, batch.high_res)
         else:
             total_count = self.n_batches * self.batch_size
             self.norm_spatial_record = [

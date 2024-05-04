@@ -13,6 +13,7 @@ from datetime import datetime as dt
 import numpy as np
 import pandas as pd
 import psutil
+import xarray as xr
 from scipy.stats import mode
 
 from sup3r.utilities.utilities import (
@@ -44,6 +45,40 @@ class CacheHandlingMixIn:
         self.time_index = None
         self.grid_shape = None
         self.target = None
+        self.data = None
+        self.lat_lon = None
+
+    def to_netcdf(self, out_file, data=None, lat_lon=None, features=None):
+        """Save data to netcdf file with appropriate lat/lon/time.
+
+        Parameters
+        ----------
+        out_file : str
+            Name of file to save data to. Should have .nc file extension.
+        data : ndarray
+            Array of data to write to netcdf. If None self.data will be used.
+        lat_lon : ndarray
+            Array of lat/lon to write to netcdf. If None self.lat_lon will be
+            used.
+        features : list
+            List of features corresponding to last dimension of data. If None
+            self.features will be used.
+        """
+        os.makedirs(os.path.dirname(out_file), exist_ok=True)
+        data = data if data is not None else self.data
+        lat_lon = lat_lon if lat_lon is not None else self.lat_lon
+        features = features if features is not None else self.features
+        data_vars = {
+            f: (('time', 'south_north', 'west_east'),
+                np.transpose(data[..., fidx], axes=(2, 0, 1)))
+            for fidx, f in enumerate(features)}
+        coords = {
+            'latitude': (('south_north', 'west_east'), lat_lon[..., 0]),
+            'longitude': (('south_north', 'west_east'), lat_lon[..., 1]),
+            'time': self.time_index}
+        out = xr.Dataset(data_vars=data_vars, coords=coords)
+        out.to_netcdf(out_file)
+        logger.info(f'Saved {features} to {out_file}.')
 
     @property
     def cache_pattern(self):
@@ -1003,8 +1038,8 @@ class TrainingPrepMixIn:
             Tuple of sampled spatial grid, time slice, and features indices.
             Used to get single observation like self.data[observation_index]
         """
-        spatial_slice = uniform_box_sampler(data, sample_shape[:2])
-        temporal_slice = uniform_time_sampler(data, sample_shape[2])
+        spatial_slice = uniform_box_sampler(data.shape, sample_shape[:2])
+        temporal_slice = uniform_time_sampler(data.shape, sample_shape[2])
         return (*spatial_slice, temporal_slice, np.arange(data.shape[-1]))
 
     def _normalize_data(self, data, val_data, feature_index, mean, std):
@@ -1087,14 +1122,14 @@ class TrainingPrepMixIn:
                                         self.stds[feature])
                     futures.append(future)
 
-                for future in as_completed(futures):
-                    try:
+                try:
+                    for future in as_completed(futures):
                         future.result()
-                    except Exception as e:
-                        msg = ('Error while normalizing future number '
-                               f'{futures[future]}.')
-                        logger.exception(msg)
-                        raise RuntimeError(msg) from e
+                except Exception as e:
+                    msg = ('Error while normalizing future number '
+                           f'{futures[future]}.')
+                    logger.exception(msg)
+                    raise RuntimeError(msg) from e
 
     @property
     def means(self):
