@@ -1,6 +1,5 @@
 """Batch handling classes for dual data handlers"""
 import logging
-from datetime import datetime as dt
 
 import numpy as np
 
@@ -174,7 +173,6 @@ class DualBatchHandler(BatchHandler):
             with the appropriate subsampling of interpolated ERA.
         """
         self.current_batch_indices = []
-        start = dt.now()
         if self._i < self.n_batches:
             handler = self.get_rand_handler()
             high_res = np.zeros((self.batch_size, self.hr_sample_shape[0],

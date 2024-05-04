@@ -866,7 +866,6 @@ class BatchHandler:
             Batch object with batch.low_res and batch.high_res attributes
             with the appropriate coarsening.
         """
-        start = dt.now()
         self.current_batch_indices = []
         if self._i < self.n_batches:
             handler = self.get_rand_handler()
