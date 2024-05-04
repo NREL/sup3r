@@ -90,6 +90,7 @@ class ValidationData(AbstractBatchBuilder):
         self.smoothing = smoothing
         self.smoothing_ignore = smoothing_ignore
         self.current_batch_indices = []
+        self._i = 0
 
     def _get_val_indices(self):
         """List of dicts to index each validation data observation across all
@@ -170,7 +171,7 @@ class ValidationData(AbstractBatchBuilder):
         -------
         batch : Batch
         """
-        return self.BATCH_CLASS.get_coarse_batch(
+        batch = self.BATCH_CLASS.get_coarse_batch(
             high_res,
             self.s_enhance,
             t_enhance=self.t_enhance,
@@ -178,6 +179,7 @@ class ValidationData(AbstractBatchBuilder):
             hr_features_ind=self.hr_features_ind,
             smoothing=self.smoothing,
             smoothing_ignore=self.smoothing_ignore)
+        return batch
 
     def __next__(self):
         """Get validation data batch
@@ -207,7 +209,7 @@ class ValidationData(AbstractBatchBuilder):
                 high_res = high_res[..., 0, :]
             batch = self.batch_next(high_res)
             self._i += 1
-            return batch
+            return (batch.low_res, batch.high_res)
         else:
             raise StopIteration
 
@@ -666,7 +668,6 @@ class BatchHandler(MultiHandlerMixIn, AbstractBatchBuilder):
             Batch object with batch.low_res and batch.high_res attributes
             with the appropriate coarsening.
         """
-        start = dt.now()
         self.current_batch_indices = []
         if self._i < self.n_batches:
             handler = self.get_rand_handler()
@@ -680,7 +681,7 @@ class BatchHandler(MultiHandlerMixIn, AbstractBatchBuilder):
             batch = self.batch_next(high_res)
 
             self._i += 1
-            return batch
+            return (batch.low_res, batch.high_res)
         else:
             raise StopIteration
 
@@ -767,7 +768,7 @@ class BatchHandlerCC(BatchHandler):
         batch = self.BATCH_CLASS(low_res, high_res)
 
         self._i += 1
-        return batch
+        return (batch.low_res, batch.high_res)
 
     def reduce_high_res_sub_daily(self, high_res):
         """Take an hourly high-res observation and reduce the temporal axis
@@ -914,6 +915,6 @@ class SpatialBatchHandler(BatchHandler):
             batch = self.batch_next(high_res)
 
             self._i += 1
-            return batch
+            return (batch.low_res, batch.high_res)
         else:
             raise StopIteration

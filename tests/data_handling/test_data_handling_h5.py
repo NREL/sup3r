@@ -223,8 +223,8 @@ def test_raster_index_caching():
 def test_normalization_input():
     """Test correct normalization input"""
 
-    means = {f: 10 for f in features}
-    stds = {f: 20 for f in features}
+    means = dict.fromkeys(features, 10)
+    stds = dict.fromkeys(features, 20)
     data_handlers = []
     for input_file in input_files:
         data_handler = DataHandler(input_file, features, **dh_kwargs)
