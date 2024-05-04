@@ -595,6 +595,15 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         self._set_hr_data()
         self._val_split_check()
 
+    def to_netcdf(self, lr_file, hr_file):
+        """Write lr_data and hr_data to netcdf files."""
+        self.lr_dh.to_netcdf(lr_file, data=self.lr_data,
+                             lat_lon=self.lr_lat_lon,
+                             features=self.lr_dh.features)
+        self.hr_dh.to_netcdf(hr_file, data=self.hr_data,
+                             lat_lon=self.hr_lat_lon,
+                             features=self.hr_dh.features)
+
     def check_clear_data(self):
         """Check if data was cached and free memory if load_cached is False"""
         if self.cache_pattern is not None and not self.load_cached:

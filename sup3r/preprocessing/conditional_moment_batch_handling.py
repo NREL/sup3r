@@ -979,7 +979,7 @@ class BatchHandlerMom1(BatchHandler):
             )
 
             self._i += 1
-            return batch
+            return (batch.low_res, batch.high_res)
         else:
             raise StopIteration
 
@@ -1017,7 +1017,7 @@ class SpatialBatchHandlerMom1(BatchHandlerMom1):
             )
 
             self._i += 1
-            return batch
+            return (batch.low_res, batch.high_res)
         else:
             raise StopIteration
 
