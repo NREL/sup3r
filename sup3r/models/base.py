@@ -657,7 +657,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             between the GPUs and the resulting gradient from each GPU will
             constitute a single gradient descent step with the nominal learning
             rate that the model was initialized with. If true and multiple gpus
-            are found, default_device device should be set to /gpu:0
+            are found, default_device device should be set to /cpu:0
 
         Returns
         -------
@@ -867,7 +867,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             between the GPUs and the resulting gradient from each GPU will
             constitute a single gradient descent step with the nominal learning
             rate that the model was initialized with. If true and multiple gpus
-            are found, default_device device should be set to /gpu:0
+            are found, default_device device should be set to /cpu:0
         tensorboard_log : bool
             Whether to write log file for use with tensorboard. Log data can
             be viewed with ``tensorboard --logdir <logdir>`` where ``<logdir>``

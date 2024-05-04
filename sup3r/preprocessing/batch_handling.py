@@ -889,7 +889,6 @@ class BatchHandler:
                 smoothing_ignore=self.smoothing_ignore)
 
             self._i += 1
-            logger.debug(f'Built batch in {dt.now() - start}.')
             return batch
         else:
             raise StopIteration

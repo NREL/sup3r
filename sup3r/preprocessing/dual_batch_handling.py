@@ -196,7 +196,6 @@ class DualBatchHandler(BatchHandler):
             batch = self.BATCH_CLASS(low_res=low_res, high_res=high_res)
 
             self._i += 1
-            logger.debug(f'Built batch in {dt.now() - start}.')
             return batch
         else:
             raise StopIteration
