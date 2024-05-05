@@ -923,45 +923,7 @@ class EraDownloader:
             year=year, month=str(month).zfill(2))
 
         if not os.path.exists(outfile):
-            with xr.open_mfdataset(files, chunks=cls.CHUNKS) as res:
-                logger.info(f'Combining {files}')
-                os.makedirs(os.path.dirname(outfile), exist_ok=True)
-                res.to_netcdf(outfile)
-                logger.info(f'Saved {outfile}')
-        else:
-            logger.info(f'{outfile} already exists.')
-
-    @classmethod
-    def make_monthly_file(cls, year, month, file_pattern, variables):
-        """Combine monthly variable files into a single monthly file.
-
-        Parameters
-        ----------
-        year : int
-            Year used to download data
-        month : int
-            Month used to download data
-        file_pattern : str
-            File pattern for monthly variable files. Must have year, month, and
-            var format keys. e.g. './era_{year}_{month}_{var}_combined.nc'
-        variables : list
-            List of variables downloaded.
-        """
-        msg = (f'Not all variable files with file_patten {file_pattern} for '
-               f'year {year} and month {month} exist.')
-        assert cls.all_vars_exist(year, month, file_pattern, variables), msg
-
-        files = [
-            file_pattern.format(year=year, month=str(month).zfill(2), var=var)
-            for var in variables
-        ]
-
-        outfile = file_pattern.replace('_{var}', '').format(
-            year=year, month=str(month).zfill(2))
-
-        if not os.path.exists(outfile):
-            kwargs = {'combine': 'nested', 'concat_dim': 'time'}
-            with xr.open_mfdataset(files, **kwargs) as res:
+            with xr.open_mfdataset(files) as res:
                 logger.info(f'Combining {files}')
                 os.makedirs(os.path.dirname(outfile), exist_ok=True)
                 res.to_netcdf(outfile)
