@@ -16,7 +16,6 @@ from sup3r.preprocessing.data_handling.h5_data_handling import (
     DataHandlerDCforH5,
 )
 from sup3r.utilities.utilities import (
-    estimate_max_workers,
     nn_fill_array,
     nsrdb_reduce_daily_data,
     smooth_data,
@@ -208,7 +207,6 @@ class ValidationData:
         self.smoothing = smoothing
         self.smoothing_ignore = smoothing_ignore
         self.current_batch_indices = []
-        self._i = 0
 
     def _get_val_indices(self):
         """List of dicts to index each validation data observation across all
@@ -303,7 +301,7 @@ class ValidationData:
         -------
         batch : Batch
         """
-        batch = self.BATCH_CLASS.get_coarse_batch(
+        return self.BATCH_CLASS.get_coarse_batch(
             high_res,
             self.s_enhance,
             t_enhance=self.t_enhance,
@@ -311,7 +309,6 @@ class ValidationData:
             hr_features_ind=self.hr_features_ind,
             smoothing=self.smoothing,
             smoothing_ignore=self.smoothing_ignore)
-        return batch
 
     def __next__(self):
         """Get validation data batch
@@ -344,7 +341,7 @@ class ValidationData:
                 high_res = high_res[..., 0, :]
             batch = self.batch_next(high_res)
             self._i += 1
-            return (batch.low_res, batch.high_res)
+            return batch
         else:
             raise StopIteration
 
@@ -443,9 +440,9 @@ class BatchHandler:
         norm_workers = stats_workers = load_workers = None
         if max_workers is not None:
             norm_workers = stats_workers = load_workers = max_workers
-        self._stats_workers = worker_kwargs.get('stats_workers', stats_workers)
-        self._norm_workers = worker_kwargs.get('norm_workers', norm_workers)
-        self._load_workers = worker_kwargs.get('load_workers', load_workers)
+        self.stats_workers = worker_kwargs.get('stats_workers', stats_workers)
+        self.norm_workers = worker_kwargs.get('norm_workers', norm_workers)
+        self.load_workers = worker_kwargs.get('load_workers', load_workers)
 
         data_handlers = (data_handlers
                          if isinstance(data_handlers, (list, tuple))
@@ -528,36 +525,6 @@ class BatchHandler:
         """Get random handler based on handler weights"""
         self.current_handler_index = self.get_handler_index()
         return self.data_handlers[self.current_handler_index]
-
-    @property
-    def feature_mem(self):
-        """Get memory used by each feature in data handlers"""
-        return self.data_handlers[0].feature_mem
-
-    @property
-    def stats_workers(self):
-        """Get max workers for calculating stats based on memory usage"""
-        proc_mem = self.feature_mem
-        stats_workers = estimate_max_workers(self._stats_workers, proc_mem,
-                                             len(self.data_handlers))
-        return stats_workers
-
-    @property
-    def load_workers(self):
-        """Get max workers for loading data handler based on memory usage"""
-        proc_mem = len(self.data_handlers[0].features) * self.feature_mem
-        max_workers = estimate_max_workers(self._load_workers, proc_mem,
-                                           len(self.data_handlers))
-        return max_workers
-
-    @property
-    def norm_workers(self):
-        """Get max workers used for calculating and normalization across
-        features"""
-        proc_mem = 2 * self.feature_mem
-        norm_workers = estimate_max_workers(self._norm_workers, proc_mem,
-                                            len(self.features))
-        return norm_workers
 
     @property
     def features(self):
@@ -889,7 +856,7 @@ class BatchHandler:
                 smoothing_ignore=self.smoothing_ignore)
 
             self._i += 1
-            return (batch.low_res, batch.high_res)
+            return batch
         else:
             raise StopIteration
 
@@ -976,7 +943,7 @@ class BatchHandlerCC(BatchHandler):
         batch = self.BATCH_CLASS(low_res, high_res)
 
         self._i += 1
-        return (batch.low_res, batch.high_res)
+        return batch
 
     def reduce_high_res_sub_daily(self, high_res):
         """Take an hourly high-res observation and reduce the temporal axis
@@ -1107,7 +1074,7 @@ class SpatialBatchHandler(BatchHandler):
                 smoothing_ignore=self.smoothing_ignore)
 
             self._i += 1
-            return (batch.low_res, batch.high_res)
+            return batch
         else:
             raise StopIteration
 
@@ -1193,7 +1160,7 @@ class ValidationDataDC(ValidationData):
                 smoothing=self.smoothing,
                 smoothing_ignore=self.smoothing_ignore)
             self._i += 1
-            return (batch.low_res, batch.high_res)
+            return batch
         else:
             raise StopIteration
 
@@ -1227,7 +1194,7 @@ class ValidationDataSpatialDC(ValidationDataDC):
                 smoothing=self.smoothing,
                 smoothing_ignore=self.smoothing_ignore)
             self._i += 1
-            return (batch.low_res, batch.high_res)
+            return batch
         else:
             raise StopIteration
 
@@ -1303,7 +1270,7 @@ class BatchHandlerDC(BatchHandler):
                 smoothing_ignore=self.smoothing_ignore)
 
             self._i += 1
-            return (batch.low_res, batch.high_res)
+            return batch
         else:
             total_count = self.n_batches * self.batch_size
             self.norm_temporal_record = [
@@ -1390,7 +1357,7 @@ class BatchHandlerSpatialDC(BatchHandler):
             )
 
             self._i += 1
-            return (batch.low_res, batch.high_res)
+            return batch
         else:
             total_count = self.n_batches * self.batch_size
             self.norm_spatial_record = [

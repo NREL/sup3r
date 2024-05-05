@@ -17,7 +17,6 @@ import xarray as xr
 from scipy.stats import mode
 
 from sup3r.utilities.utilities import (
-    estimate_max_workers,
     expand_paths,
     get_source_type,
     ignore_case_path_fetch,
@@ -969,7 +968,6 @@ class TrainingPrepMixIn:
         self.features = None
         self.data = None
         self.val_data = None
-        self.feature_mem = None
         self.shape = None
         self._means = None
         self._stds = None
@@ -1122,14 +1120,14 @@ class TrainingPrepMixIn:
                                         self.stds[feature])
                     futures.append(future)
 
-                try:
-                    for future in as_completed(futures):
+                for future in as_completed(futures):
+                    try:
                         future.result()
-                except Exception as e:
-                    msg = ('Error while normalizing future number '
-                           f'{futures[future]}.')
-                    logger.exception(msg)
-                    raise RuntimeError(msg) from e
+                    except Exception as e:
+                        msg = ('Error while normalizing future number '
+                               f'{futures[future]}.')
+                        logger.exception(msg)
+                        raise RuntimeError(msg) from e
 
     @property
     def means(self):
@@ -1204,14 +1202,3 @@ class TrainingPrepMixIn:
                             features=features,
                             max_workers=max_workers)
             self._is_normalized = True
-
-    @property
-    def norm_workers(self):
-        """Get upper bound on workers used for normalization."""
-        if self.data is not None:
-            norm_workers = estimate_max_workers(self._norm_workers,
-                                                2 * self.feature_mem,
-                                                self.shape[-1])
-        else:
-            norm_workers = self._norm_workers
-        return norm_workers

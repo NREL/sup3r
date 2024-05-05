@@ -431,32 +431,6 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
             assert id(self.hr_data.base) == id(hr_handler.data)
 
     @property
-    def grid_mem(self):
-        """Get memory used by a feature at a single time step
-
-        Returns
-        -------
-        int
-            Number of bytes for a single feature array at a single time step
-        """
-        grid_mem = np.prod(self.lr_grid_shape)
-        # assuming feature arrays are float32 (4 bytes)
-        return 4 * grid_mem
-
-    @property
-    def feature_mem(self):
-        """Number of bytes for a single feature array. Used to estimate
-        max_workers.
-
-        Returns
-        -------
-        int
-            Number of bytes for a single feature array
-        """
-        feature_mem = self.grid_mem * self.lr_data.shape[-2]
-        return feature_mem
-
-    @property
     def sample_shape(self):
         """Get lr sample shape"""
         return self.lr_dh.sample_shape

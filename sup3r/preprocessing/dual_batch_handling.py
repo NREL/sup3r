@@ -150,16 +150,6 @@ class DualBatchHandler(BatchHandler):
         """Features in high res batch."""
         return self.data_handlers[0].hr_dh.features
 
-    @property
-    def hr_sample_shape(self):
-        """Get sample shape for high_res data"""
-        return self.data_handlers[0].hr_dh.sample_shape
-
-    @property
-    def lr_sample_shape(self):
-        """Get sample shape for low_res data"""
-        return self.data_handlers[0].lr_dh.sample_shape
-
     @tf.function
     def __next__(self):
         """Get the next batch of observations.
@@ -175,17 +165,17 @@ class DualBatchHandler(BatchHandler):
             handler = self.get_rand_handler()
             hr_list = []
             lr_list = []
-            for i in range(self.batch_size):
-                logger.debug(f'Making batch, observation: {i + 1} / '
-                             f'{self.batch_size}.')
+            for _ in range(self.batch_size):
                 hr_sample, lr_sample = handler.get_next()
                 hr_list.append(tf.expand_dims(hr_sample, axis=0))
                 lr_list.append(tf.expand_dims(lr_sample, axis=0))
 
-            batch = (tf.concat(lr_list, axis=0), tf.concat(hr_list, axis=0))
+            batch = self.BATCH_CLASS(
+                low_res=tf.concat(lr_list, axis=0),
+                high_res=tf.concat(hr_list, axis=0))
 
             self._i += 1
-            return batch
+            return (batch.low_res, batch.high_res)
         else:
             raise StopIteration
 
