@@ -45,7 +45,6 @@ from sup3r.preprocessing.feature_handling import (
 from sup3r.utilities.interpolation import Interpolator
 from sup3r.utilities.regridder import Regridder
 from sup3r.utilities.utilities import (
-    estimate_max_workers,
     get_time_dim_name,
     np_to_pd_times,
 )
@@ -87,20 +86,6 @@ class DataHandlerNC(DataHandler):
     """CHUNKS sets the chunk sizes to extract from the data in each dimension.
     Chunk sizes that approximately match the data volume being extracted
     typically results in the most efficient IO."""
-
-    @property
-    def extract_workers(self):
-        """Get upper bound for extract workers based on memory limits. Used to
-        extract data from source dataset"""
-        # This large multiplier is due to the height interpolation allocating
-        # multiple arrays with up to 60 vertical levels
-        proc_mem = 6 * 64 * self.grid_mem * len(self.time_index)
-        proc_mem /= len(self.time_chunks)
-        n_procs = len(self.time_chunks) * len(self.extract_features)
-        n_procs = int(np.ceil(n_procs))
-        extract_workers = estimate_max_workers(self._extract_workers, proc_mem,
-                                               n_procs)
-        return extract_workers
 
     @classmethod
     def source_handler(cls, file_paths, **kwargs):

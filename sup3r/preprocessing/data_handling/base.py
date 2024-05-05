@@ -43,7 +43,6 @@ from sup3r.preprocessing.feature_handling import (
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
 from sup3r.utilities.utilities import (
-    estimate_max_workers,
     get_chunk_slices,
     get_raster_shape,
     nn_fill_array,
@@ -410,50 +409,6 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         return desc
 
     @property
-    def extract_workers(self):
-        """Get upper bound for extract workers based on memory limits. Used to
-        extract data from source dataset. The max number of extract workers
-        is number of time chunks * number of features"""
-        proc_mem = 4 * self.grid_mem * len(self.time_index)
-        proc_mem /= len(self.time_chunks)
-        n_procs = len(self.time_chunks) * len(self.extract_features)
-        n_procs = int(np.ceil(n_procs))
-        extract_workers = estimate_max_workers(self._extract_workers,
-                                               proc_mem,
-                                               n_procs)
-        return extract_workers
-
-    @property
-    def compute_workers(self):
-        """Get upper bound for compute workers based on memory limits. Used to
-        compute derived features from source dataset."""
-        proc_mem = int(
-            np.ceil(
-                len(self.extract_features)
-                / np.maximum(len(self.derive_features), 1)))
-        proc_mem *= 4 * self.grid_mem * len(self.time_index)
-        proc_mem /= len(self.time_chunks)
-        n_procs = len(self.time_chunks) * len(self.derive_features)
-        n_procs = int(np.ceil(n_procs))
-        compute_workers = estimate_max_workers(self._compute_workers,
-                                               proc_mem,
-                                               n_procs)
-        return compute_workers
-
-    @property
-    def load_workers(self):
-        """Get upper bound on load workers based on memory limits. Used to load
-        cached data."""
-        proc_mem = 2 * self.feature_mem
-        n_procs = 1
-        if self.cache_files is not None:
-            n_procs = len(self.cache_files)
-        load_workers = estimate_max_workers(self._load_workers,
-                                            proc_mem,
-                                            n_procs)
-        return load_workers
-
-    @property
     def time_chunks(self):
         """Get time chunks which will be extracted from source data
 
@@ -484,21 +439,6 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
             return 1
         else:
             return len(self.raw_time_index[self.temporal_slice])
-
-    @property
-    def time_chunk_size(self):
-        """Get upper bound on time chunk size based on memory limits"""
-        if self._time_chunk_size is None:
-            step_mem = self.feature_mem * len(self.extract_features)
-            step_mem /= len(self.time_index)
-            if step_mem == 0:
-                self._time_chunk_size = self.n_tsteps
-            else:
-                self._time_chunk_size = np.min(
-                    [int(1e9 / step_mem), self.n_tsteps])
-            logger.info('time_chunk_size arg not specified. Using '
-                        f'{self._time_chunk_size}.')
-        return self._time_chunk_size
 
     @property
     def cache_files(self):
@@ -670,32 +610,6 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
             raise RuntimeError(msg)
 
         return out
-
-    @property
-    def grid_mem(self):
-        """Get memory used by a feature at a single time step
-
-        Returns
-        -------
-        int
-            Number of bytes for a single feature array at a single time step
-        """
-        grid_mem = np.prod(self.grid_shape)
-        # assuming feature arrays are float32 (4 bytes)
-        return 4 * grid_mem
-
-    @property
-    def feature_mem(self):
-        """Number of bytes for a single feature array. Used to estimate
-        max_workers.
-
-        Returns
-        -------
-        int
-            Number of bytes for a single feature array
-        """
-        feature_mem = self.grid_mem * len(self.time_index)
-        return feature_mem
 
     def preflight(self):
         """Run some preflight checks and verify that the inputs are valid"""

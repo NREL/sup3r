@@ -505,6 +505,8 @@ class EraDownloader:
                 os.remove(self.level_file)
             if os.path.exists(self.surface_file):
                 os.remove(self.surface_file)
+        else:
+            logger.info(f'{self.combined_file} already exists.')
 
     def good_file(self, file, required_shape=None):
         """Check if file has the required shape and variables.
@@ -875,17 +877,17 @@ class EraDownloader:
                 logger.info(f'Finished future for year {v["year"]} and month '
                             f'{v["month"]} and variable {v["var"]}.')
 
-            for month in range(1, 13):
-                cls.make_monthly_file(year, month, combined_out_pattern,
-                                      variables)
+        for month in range(1, 13):
+            cls.make_monthly_file(year, month, combined_out_pattern,
+                                  variables)
 
-            if combined_yearly_file is not None:
-                cls.make_yearly_file(year, combined_out_pattern,
-                                     combined_yearly_file)
+        if combined_yearly_file is not None:
+            cls.make_yearly_file(year, combined_out_pattern,
+                                 combined_yearly_file)
 
-            if run_interp and interp_yearly_file is not None:
-                cls.make_yearly_file(year, interp_out_pattern,
-                                     interp_yearly_file)
+        if run_interp and interp_yearly_file is not None:
+            cls.make_yearly_file(year, interp_out_pattern,
+                                 interp_yearly_file)
 
     @classmethod
     def make_monthly_file(cls, year, month, file_pattern, variables):
@@ -916,8 +918,7 @@ class EraDownloader:
             year=year, month=str(month).zfill(2))
 
         if not os.path.exists(outfile):
-            kwargs = {'combine': 'nested', 'concat_dim': 'time'}
-            with xr.open_mfdataset(files, **kwargs) as res:
+            with xr.open_mfdataset(files) as res:
                 logger.info(f'Combining {files}')
                 os.makedirs(os.path.dirname(outfile), exist_ok=True)
                 res.to_netcdf(outfile)
