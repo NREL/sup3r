@@ -684,7 +684,11 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             tf.summary.trace_on(graph=True, profiler=True)
 
         for ib, batch in enumerate(batch_handler):
-            low_res, high_res = batch
+            if isinstance(batch, tuple):
+                low_res, high_res = batch
+            else:
+                low_res, high_res = batch.low_res, batch.high_res
+
             trained_gen = False
             trained_disc = False
             b_loss_details = {}
@@ -728,7 +732,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             self.dict_to_tensorboard(self.timer.log)
             loss_details = self.update_loss_details(loss_details,
                                                     b_loss_details,
-                                                    len(batch),
+                                                    low_res.shape[0],
                                                     prefix='train_')
             logger.debug('Batch {} out of {} has epoch-average '
                          '(gen / disc) loss of: ({:.2e} / {:.2e}). '

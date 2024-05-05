@@ -158,7 +158,7 @@ class DualBatchHandler(BatchHandler, MultiDualMixIn):
                 high_res=tf.concat(hr_list, axis=0))
 
             self._i += 1
-            return batch
+            return (batch.low_res, batch.high_res)
         else:
             raise StopIteration
 

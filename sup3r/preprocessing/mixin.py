@@ -1486,14 +1486,14 @@ class TrainingPrep:
                                         self.stds[feature])
                     futures.append(future)
 
-                try:
-                    for future in as_completed(futures):
+                for future in as_completed(futures):
+                    try:
                         future.result()
-                except Exception as e:
-                    msg = ('Error while normalizing future number '
-                           f'{futures[future]}.')
-                    logger.exception(msg)
-                    raise RuntimeError(msg) from e
+                    except Exception as e:
+                        msg = ('Error while normalizing future number '
+                               f'{futures[future]}.')
+                        logger.exception(msg)
+                        raise RuntimeError(msg) from e
 
     @property
     def means(self):
