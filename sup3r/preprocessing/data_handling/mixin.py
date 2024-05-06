@@ -530,7 +530,6 @@ class InputMixIn(CacheHandlingMixIn):
         self.lat_lon = None
         self.overwrite_ti_cache = False
         self.max_workers = None
-        self._ti_workers = None
         self._raw_time_index = None
         self._raw_tsteps = None
         self._time_index = None
@@ -541,7 +540,6 @@ class InputMixIn(CacheHandlingMixIn):
         self._raw_lat_lon = None
         self._full_raw_lat_lon = None
         self._single_ts_files = None
-        self._worker_attrs = ['ti_workers']
         self.res_kwargs = res_kwargs or {}
 
     @property
@@ -560,7 +558,7 @@ class InputMixIn(CacheHandlingMixIn):
         send a subset of files to the data handler according to ti_pad_slice"""
         if self._single_ts_files is None:
             logger.debug('Checking if input files are single timestep.')
-            t_steps = self.get_time_index(self.file_paths[:1], max_workers=1)
+            t_steps = self.get_time_index(self.file_paths[:1])
             check = (len(self._file_paths) == len(self.raw_time_index)
                      and t_steps is not None and len(t_steps) == 1)
             self._single_ts_files = check
@@ -609,7 +607,7 @@ class InputMixIn(CacheHandlingMixIn):
         """Get lat/lon grid for requested target and shape"""
 
     @abstractmethod
-    def get_time_index(self, file_paths, max_workers=None, **kwargs):
+    def get_time_index(self, file_paths, **kwargs):
         """Get raw time index for source data"""
 
     @property
@@ -686,18 +684,6 @@ class InputMixIn(CacheHandlingMixIn):
         msg = ('No valid files provided to DataHandler. '
                f'Received file_paths={file_paths}. Aborting.')
         assert file_paths is not None and len(self._file_paths) > 0, msg
-
-    @property
-    def ti_workers(self):
-        """Get max number of workers for computing time index"""
-        if self._ti_workers is None:
-            self._ti_workers = len(self._file_paths)
-        return self._ti_workers
-
-    @ti_workers.setter
-    def ti_workers(self, val):
-        """Set max number of workers for computing time index"""
-        self._ti_workers = val
 
     @property
     def need_full_domain(self):
@@ -944,10 +930,8 @@ class InputMixIn(CacheHandlingMixIn):
         """Build time index and cache if time_index_file is not None"""
         now = dt.now()
         logger.debug(f'Getting time index for {len(self.file_paths)} '
-                     f'input files. Using ti_workers={self.ti_workers}'
-                     f' and res_kwargs={self.res_kwargs}')
+                     f'input files. Using res_kwargs={self.res_kwargs}')
         self._raw_time_index = self.get_time_index(self.file_paths,
-                                                   max_workers=self.ti_workers,
                                                    **self.res_kwargs)
 
         if self.time_index_file is not None:
@@ -972,7 +956,7 @@ class TrainingPrepMixIn:
         self._means = None
         self._stds = None
         self._is_normalized = False
-        self._norm_workers = None
+        self.norm_workers = None
 
     @classmethod
     def _split_data_indices(cls,

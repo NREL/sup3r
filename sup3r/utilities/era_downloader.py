@@ -497,7 +497,9 @@ class EraDownloader:
                 files.append(self.surface_file)
 
             logger.info(f'Combining {files} to {self.combined_file}.')
-            with xr.open_mfdataset(files, compat='override') as ds:
+            kwargs = {'compat': 'override',
+                      'chunks': {'latitude': 10, 'longitude': 10, 'time': 10}}
+            with xr.open_mfdataset(files, **kwargs) as ds:
                 ds.to_netcdf(self.combined_file)
             logger.info(f'Finished writing {self.combined_file}')
 
@@ -624,7 +626,8 @@ class EraDownloader:
         """
         return all(
             os.path.exists(
-                file_pattern.format(year=year, month=str(month).zfill(2)))
+                file_pattern.replace('_{var}', '').format(
+                    year=year, month=str(month).zfill(2)))
             for month in range(1, 13))
 
     @classmethod
@@ -945,12 +948,15 @@ class EraDownloader:
         assert cls.all_months_exist(year, file_pattern), msg
 
         files = [
-            file_pattern.format(year=year, month=str(month).zfill(2))
+            file_pattern.replace('_{var}', '').format(
+                year=year, month=str(month).zfill(2))
             for month in range(1, 13)
         ]
 
         if not os.path.exists(yearly_file):
-            kwargs = {'combine': 'nested', 'concat_dim': 'time'}
+            kwargs = {'combine': 'nested', 'concat_dim': 'time',
+                      'chunks': {'latitude': 10, 'longitude': 10, 'time': 10},
+                      'compat': 'override'}
             with xr.open_mfdataset(files, **kwargs) as res:
                 logger.info(f'Combining {files}')
                 os.makedirs(os.path.dirname(yearly_file), exist_ok=True)

@@ -98,7 +98,7 @@ def test_wind_non_cc_hi_res_topo_mom1(custom_layer, batch_class,
                             val_split=0.1,
                             sample_shape=(20, 20),
                             worker_kwargs=dict(max_workers=1),
-                            lr_only_features=tuple(),
+                            lr_only_features=(),
                             hr_exo_features=('topography',))
 
     batcher = batch_class([handler],
@@ -161,7 +161,7 @@ def test_wind_non_cc_hi_res_st_topo_mom1(batch_class, log=False,
                             val_split=0.1,
                             sample_shape=(12, 12, 24),
                             worker_kwargs=dict(max_workers=1),
-                            lr_only_features=tuple(),
+                            lr_only_features=(),
                             hr_exo_features=('topography',))
 
     fp_gen = os.path.join(CONFIG_DIR,
@@ -212,7 +212,7 @@ def test_wind_non_cc_hi_res_topo_mom2(custom_layer, batch_class,
                             val_split=0.1,
                             sample_shape=(20, 20),
                             worker_kwargs=dict(max_workers=1),
-                            lr_only_features=tuple(),
+                            lr_only_features=(),
                             hr_exo_features=('topography',))
 
     gen_model = make_s_gen_model(custom_layer)
@@ -261,7 +261,7 @@ def test_wind_non_cc_hi_res_st_topo_mom2(batch_class, log=False,
                             val_split=0.1,
                             sample_shape=(12, 12, 24),
                             worker_kwargs=dict(max_workers=1),
-                            lr_only_features=tuple(),
+                            lr_only_features=(),
                             hr_exo_features=('topography',))
 
     fp_gen = os.path.join(CONFIG_DIR,

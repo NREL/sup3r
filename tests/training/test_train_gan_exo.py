@@ -240,7 +240,7 @@ def test_wind_non_cc_hi_res_topo(CustomLayer, log=False):
                             val_split=0.1,
                             sample_shape=(20, 20),
                             worker_kwargs=dict(max_workers=1),
-                            lr_only_features=tuple(),
+                            lr_only_features=(),
                             hr_exo_features=('topography',))
 
     batcher = SpatialBatchHandler([handler], batch_size=2, n_batches=2,
@@ -334,7 +334,7 @@ def test_wind_dc_hi_res_topo(CustomLayer, log=False):
                                  val_split=0.0,
                                  sample_shape=(20, 20, 8),
                                  worker_kwargs=dict(max_workers=1),
-                                 lr_only_features=tuple(),
+                                 lr_only_features=(),
                                  hr_exo_features=('topography',))
 
     batcher = BatchHandlerDC([handler], batch_size=2, n_batches=2,

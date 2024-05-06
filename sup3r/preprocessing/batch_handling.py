@@ -456,7 +456,6 @@ class BatchHandler:
         self.low_res = None
         self.high_res = None
         self.batch_size = batch_size
-        self._val_data = None
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
         self.sample_shape = handler_shapes[0]
