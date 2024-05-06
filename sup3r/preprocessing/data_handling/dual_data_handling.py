@@ -101,7 +101,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         self._stds = None
         self._is_normalized = False
         self._regrid_lr = regrid_lr
-        self._norm_workers = self.lr_dh.norm_workers
+        self.norm_workers = self.lr_dh.norm_workers
 
         if self.try_load and self.load_cached:
             self.load_cached_data()

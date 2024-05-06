@@ -106,8 +106,7 @@ def forward_pass(ctx, verbose):
             "worker_kwargs": {
                 "max_workers": null,
                 "output_workers": 1,
-                "pass_workers": 8,
-                "ti_workers": 1
+                "pass_workers": 8
             },
             "input_handler_kwargs": {
                 "worker_kwargs": {

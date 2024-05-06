@@ -7,8 +7,8 @@ import shutil
 from abc import ABC, abstractmethod
 from warnings import warn
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 from rex import Resource
 from rex.utilities.solar_position import SolarPosition
 from scipy.spatial import KDTree
@@ -17,8 +17,11 @@ import sup3r.preprocessing.data_handling
 from sup3r.postprocessing.file_handling import OutputHandler
 from sup3r.preprocessing.data_handling.h5_data_handling import DataHandlerH5
 from sup3r.preprocessing.data_handling.nc_data_handling import DataHandlerNC
-from sup3r.utilities.utilities import (generate_random_string, get_source_type,
-                                       nn_fill_array)
+from sup3r.utilities.utilities import (
+    generate_random_string,
+    get_source_type,
+    nn_fill_array,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +47,6 @@ class ExoExtract(ABC):
                  input_handler=None,
                  cache_data=True,
                  cache_dir='./exo_cache/',
-                 ti_workers=1,
                  distance_upper_bound=None,
                  res_kwargs=None):
         """Parameters
@@ -113,13 +115,6 @@ class ExoExtract(ABC):
             data is time independent.
         cache_dir : str
             Directory for storing cache data. Default is './exo_cache'
-        ti_workers : int | None
-            max number of workers to use to get full time index. Useful when
-            there are many input files each with a single time step. If this is
-            greater than one, time indices for input files will be extracted in
-            parallel and then concatenated to get the full time index. If input
-            files do not all have time indices or if there are few input files
-            this should be set to one.
         distance_upper_bound : float | None
             Maximum distance to map high-resolution data from exo_source to the
             low-resolution file_paths input. None (default) will calculate this
@@ -130,7 +125,6 @@ class ExoExtract(ABC):
         """
         logger.info(f'Initializing {self.__class__.__name__} utility.')
 
-        self.ti_workers = ti_workers
         self._exo_source = exo_source
         self._s_enhance = s_enhance
         self._t_enhance = t_enhance
@@ -179,7 +173,6 @@ class ExoExtract(ABC):
             temporal_slice=temporal_slice,
             raster_file=raster_file,
             max_delta=max_delta,
-            worker_kwargs={'ti_workers': ti_workers},
             res_kwargs=self.res_kwargs
         )
 
@@ -579,7 +572,6 @@ class TopoExtractNC(TopoExtractH5):
             self._source_handler = DataHandlerNC(
                 self._exo_source,
                 features=['topography'],
-                worker_kwargs={'ti_workers': self.ti_workers},
                 val_split=0.0,
             )
         return self._source_handler

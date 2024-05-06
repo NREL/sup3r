@@ -756,8 +756,8 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
             be guessed based on file type and time series properties.
         worker_kwargs : dict | None
             Dictionary of worker values. Can include max_workers,
-            extract_workers, compute_workers, load_workers, norm_workers,
-            and ti_workers. Each argument needs to be an integer or None.
+            extract_workers, compute_workers, load_workers, norm_workers.
+            Each argument needs to be an integer or None.
 
             The value of `max workers` will set the value of all other worker
             args. If max_workers == 1 then all processes will be serialized. If
@@ -771,13 +771,7 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
             derived features from raw features in source data. `load_workers`
             is the max number of workers to use for loading cached feature
             data. `norm_workers` is the max number of workers to use for
-            normalizing feature data. `ti_workers` is the max number of
-            workers to use to get full time index. Useful when there are many
-            input files each with a single time step. If this is greater than
-            one, time indices for input files will be extracted in parallel
-            and then concatenated to get the full time index. If input files
-            do not all have time indices or if there are few input files this
-            should be set to one.
+            normalizing feature data.
         get_interp : bool
             Whether to include interpolated baseline stats in output
         include_stats : list | None
@@ -817,16 +811,13 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
 
         worker_kwargs = worker_kwargs or {}
         max_workers = worker_kwargs.get('max_workers', None)
-        extract_workers = compute_workers = load_workers = ti_workers = None
+        extract_workers = compute_workers = load_workers = None
         if max_workers is not None:
             extract_workers = compute_workers = load_workers = max_workers
-            ti_workers = max_workers
         extract_workers = worker_kwargs.get('extract_workers', extract_workers)
         compute_workers = worker_kwargs.get('compute_workers', compute_workers)
         load_workers = worker_kwargs.get('load_workers', load_workers)
-        ti_workers = worker_kwargs.get('ti_workers', ti_workers)
 
-        self.ti_workers = ti_workers
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
         self.smoothing = smoothing
@@ -1198,8 +1189,8 @@ class Sup3rStatsMulti(Sup3rStatsBase):
             be guessed based on file type and time series properties.
         worker_kwargs : dict | None
             Dictionary of worker values. Can include max_workers,
-            extract_workers, compute_workers, load_workers, norm_workers,
-            and ti_workers. Each argument needs to be an integer or None.
+            extract_workers, compute_workers, load_workers, norm_workers.
+            Each argument needs to be an integer or None.
 
             The value of `max workers` will set the value of all other worker
             args. If max_workers == 1 then all processes will be serialized. If
@@ -1213,13 +1204,7 @@ class Sup3rStatsMulti(Sup3rStatsBase):
             derived features from raw features in source data. `load_workers`
             is the max number of workers to use for loading cached feature
             data. `norm_workers` is the max number of workers to use for
-            normalizing feature data. `ti_workers` is the max number of
-            workers to use to get full time index. Useful when there are many
-            input files each with a single time step. If this is greater than
-            one, time indices for input files will be extracted in parallel
-            and then concatenated to get the full time index. If input files
-            do not all have time indices or if there are few input files this
-            should be set to one.
+            normalizing feature data.
         get_interp : bool
             Whether to include interpolated baseline stats in output
         include_stats : list | None

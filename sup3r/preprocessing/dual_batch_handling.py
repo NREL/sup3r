@@ -150,7 +150,16 @@ class DualBatchHandler(BatchHandler):
         """Features in high res batch."""
         return self.data_handlers[0].hr_dh.features
 
-    @tf.function
+    @property
+    def lr_sample_shape(self):
+        """Spatiotemporal shape of low res samples. (lats, lons, time)"""
+        return self.data_handlers[0].lr_dh.sample_shape
+
+    @property
+    def hr_sample_shape(self):
+        """Spatiotemporal shape of high res samples. (lats, lons, time)"""
+        return self.data_handlers[0].hr_dh.sample_shape
+
     def __next__(self):
         """Get the next batch of observations.
 
@@ -175,7 +184,7 @@ class DualBatchHandler(BatchHandler):
                 high_res=tf.concat(hr_list, axis=0))
 
             self._i += 1
-            return (batch.low_res, batch.high_res)
+            return batch
         else:
             raise StopIteration
 

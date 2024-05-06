@@ -153,7 +153,7 @@ class Sup3rQa:
             be guessed based on file type and time series properties.
         worker_kwargs : dict | None
             Dictionary of worker values. Can include max_workers,
-            extract_workers, compute_workers, load_workers, and ti_workers.
+            extract_workers, compute_workers, load_workers.
             Each argument needs to be an integer or None.
 
             The value of `max workers` will set the value of all other worker
@@ -167,12 +167,7 @@ class Sup3rQa:
             `compute_workers` is the max number of workers to use for computing
             derived features from raw features in source data. `load_workers`
             is the max number of workers to use for loading cached feature
-            data. `ti_workers` is the max number of workers to use to get full
-            time index. Useful when there are many input files each with a
-            single time step. If this is greater than one, time indices for
-            input files will be extracted in parallel and then concatenated to
-            get the full time index. If input files do not all have time
-            indices or if there are few input files this should be set to one.
+            data.
         """
 
         logger.info('Initializing Sup3rQa and retrieving source data...')

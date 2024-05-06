@@ -5,8 +5,6 @@
 import logging
 import os
 import warnings
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime as dt
 from typing import ClassVar
 
 import numpy as np
@@ -159,15 +157,13 @@ class DataHandlerNC(DataHandler):
         return time_index
 
     @classmethod
-    def get_time_index(cls, file_paths, max_workers=None, **kwargs):
+    def get_time_index(cls, file_paths, **kwargs):
         """Get time index from data files
 
         Parameters
         ----------
         file_paths : list
             path to data file
-        max_workers : int | None
-            Max number of workers to use for parallel time index building
         kwargs : dict
             kwargs passed to source handler for data extraction. e.g. This
             could be {'parallel': True,
@@ -179,34 +175,7 @@ class DataHandlerNC(DataHandler):
         time_index : pd.Datetimeindex
             List of times as a Datetimeindex
         """
-        max_workers = (len(file_paths) if max_workers is None else np.min(
-            (max_workers, len(file_paths))))
-        if max_workers == 1:
-            return cls.get_file_times(file_paths, **kwargs)
-        ti = {}
-        with ThreadPoolExecutor(max_workers=max_workers) as exe:
-            futures = {}
-            now = dt.now()
-            for i, f in enumerate(file_paths):
-                future = exe.submit(cls.get_file_times, [f], **kwargs)
-                futures[future] = {'idx': i, 'file': f}
-
-            logger.info(f'Started building time index from {len(file_paths)} '
-                        f'files in {dt.now() - now}.')
-
-            for i, future in enumerate(as_completed(futures)):
-                try:
-                    val = future.result()
-                    if val is not None:
-                        ti[futures[future]['idx']] = list(val)
-                except Exception as e:
-                    msg = ('Error while getting time index from file '
-                           f'{futures[future]["file"]}.')
-                    logger.exception(msg)
-                    raise RuntimeError(msg) from e
-                logger.debug(f'Stored {i+1} out of {len(futures)} file times')
-        times = np.concatenate(list(ti.values()))
-        return pd.DatetimeIndex(sorted(set(times)))
+        return cls.get_file_times(file_paths, **kwargs)
 
     @classmethod
     def extract_feature(cls,

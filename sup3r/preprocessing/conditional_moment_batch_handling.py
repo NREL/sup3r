@@ -867,7 +867,6 @@ class BatchHandlerMom1(BatchHandler):
         self.high_res = None
         self.output = None
         self.batch_size = batch_size
-        self._val_data = None
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
         self.s_padding = s_padding
@@ -889,9 +888,9 @@ class BatchHandlerMom1(BatchHandler):
         self.smoothed_features = [
             f for f in self.lr_features if f not in self.smoothing_ignore
         ]
-        self._stats_workers = stats_workers
-        self._norm_workers = norm_workers
-        self._load_workers = load_workers
+        self.stats_workers = stats_workers
+        self.norm_workers = norm_workers
+        self.load_workers = load_workers
         self.model_mom1 = model_mom1
 
         logger.info(

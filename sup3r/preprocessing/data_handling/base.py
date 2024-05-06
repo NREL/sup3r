@@ -83,11 +83,9 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
                  time_chunk_size=None,
                  cache_pattern=None,
                  overwrite_cache=False,
-                 overwrite_ti_cache=False,
                  load_cached=False,
-                 lr_only_features=tuple(),
-                 hr_exo_features=tuple(),
-                 handle_features=None,
+                 lr_only_features=(),
+                 hr_exo_features=(),
                  single_ts_files=None,
                  mask_nan=False,
                  fill_nan=False,
@@ -159,10 +157,6 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
             files for complex problems.
         overwrite_cache : bool
             Whether to overwrite any previously saved cache files.
-        overwrite_ti_cache : bool
-            Whether to overwrite any previously saved time index cache files.
-        overwrite_ti_cache : bool
-            Whether to overwrite saved time index cache files.
         load_cached : bool
             Whether to load data from cache files
         lr_only_features : list | tuple
@@ -173,10 +167,6 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
             high-resolution observation but not expected to be output from the
             generative model. An example is high-res topography that is to be
             injected mid-network.
-        handle_features : list | None
-            Optional list of features which are available in the provided data.
-            Providing this eliminates the need for an initial search of
-            available features prior to data extraction.
         single_ts_files : bool | None
             Whether input files are single time steps or not. If they are this
             enables some reduced computation. If None then this will be
@@ -191,8 +181,8 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
             hide bad datasets that should be identified by the user.
         worker_kwargs : dict | None
             Dictionary of worker values. Can include max_workers,
-            extract_workers, compute_workers, load_workers, norm_workers,
-            and ti_workers. Each argument needs to be an integer or None.
+            extract_workers, compute_workers, load_workers, norm_workers. Each
+            argument needs to be an integer or None.
 
             The value of `max workers` will set the value of all other worker
             args. If max_workers == 1 then all processes will be serialized. If
@@ -200,19 +190,13 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
             provided values.
 
             `extract_workers` is the max number of workers to use for
-            extracting features from source data. If None it will be estimated
-            based on memory limits. If 1 processes will be serialized.
-            `compute_workers` is the max number of workers to use for computing
-            derived features from raw features in source data. `load_workers`
-            is the max number of workers to use for loading cached feature
-            data. `norm_workers` is the max number of workers to use for
-            normalizing feature data. `ti_workers` is the max number of
-            workers to use to get full time index. Useful when there are many
-            input files each with a single time step. If this is greater than
-            one, time indices for input files will be extracted in parallel
-            and then concatenated to get the full time index. If input files
-            do not all have time indices or if there are few input files this
-            should be set to one.
+            extracting features from source data. If 1, processes will be
+            serialized.  `compute_workers` is the max number of workers to use
+            for computing derived features from raw features in source data.
+            `load_workers` is the max number of workers to use for loading
+            cached feature data. `norm_workers` is the max number of workers to
+            use for normalizing feature data.
+
         res_kwargs : dict | None
             kwargs passed to source handler for data extraction. e.g. This
             could be {'parallel': True,
@@ -239,9 +223,9 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         self.hr_spatial_coarsen = hr_spatial_coarsen or 1
         self.time_roll = time_roll
         self.shuffle_time = shuffle_time
+        self.time_chunk_size = time_chunk_size
         self.current_obs_index = None
         self.overwrite_cache = overwrite_cache
-        self.overwrite_ti_cache = overwrite_ti_cache
         self.load_cached = load_cached
         self.data = None
         self.val_data = None
@@ -251,8 +235,6 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         self._cache_pattern = cache_pattern
         self._lr_only_features = lr_only_features
         self._hr_exo_features = hr_exo_features
-        self._time_chunk_size = time_chunk_size
-        self._handle_features = handle_features
         self._cache_files = None
         self._extract_features = None
         self._noncached_features = None
@@ -264,17 +246,15 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         self._is_normalized = False
         self.worker_kwargs = worker_kwargs or {}
         self.max_workers = self.worker_kwargs.get('max_workers', None)
-        self._ti_workers = self.worker_kwargs.get('ti_workers', None)
-        self._extract_workers = self.worker_kwargs.get('extract_workers', None)
-        self._norm_workers = self.worker_kwargs.get('norm_workers', None)
-        self._load_workers = self.worker_kwargs.get('load_workers', None)
-        self._compute_workers = self.worker_kwargs.get('compute_workers', None)
-        self._worker_attrs = [
-            '_ti_workers',
-            '_norm_workers',
-            '_compute_workers',
-            '_extract_workers',
-            '_load_workers'
+        self.extract_workers = self.worker_kwargs.get('extract_workers', None)
+        self.norm_workers = self.worker_kwargs.get('norm_workers', None)
+        self.load_workers = self.worker_kwargs.get('load_workers', None)
+        self.compute_workers = self.worker_kwargs.get('compute_workers', None)
+        self.worker_attrs = [
+            'norm_workers',
+            'compute_workers',
+            'extract_workers',
+            'load_workers'
         ]
 
         self.preflight()
@@ -654,8 +634,7 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
                     f'norm_workers={self.norm_workers}, '
                     f'extract_workers={self.extract_workers}, '
                     f'compute_workers={self.compute_workers}, '
-                    f'load_workers={self.load_workers}, '
-                    f'ti_workers={self.ti_workers}')
+                    f'load_workers={self.load_workers}')
 
     @staticmethod
     def get_closest_lat_lon(lat_lon, target):

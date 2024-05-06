@@ -452,8 +452,7 @@ def test_fwp_chunking(log=False, plot=False):
                                   FEATURES,
                                   target=target,
                                   val_split=0.0,
-                                  shape=shape,
-                                  worker_kwargs=dict(ti_workers=1))
+                                  shape=shape)
         pad_width = ((spatial_pad, spatial_pad), (spatial_pad, spatial_pad),
                      (temporal_pad, temporal_pad), (0, 0))
         hr_crop = (slice(s_enhance * spatial_pad, -s_enhance * spatial_pad),
