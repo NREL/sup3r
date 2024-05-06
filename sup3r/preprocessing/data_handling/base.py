@@ -1331,7 +1331,8 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
                bc_files,
                reference_feature,
                relative=True,
-               threshold=0.1):
+               threshold=0.1,
+               no_trend=False):
         """Bias Correction using Quantile Delta Mapping
 
         Bias correct this DataHandler's data with Quantile Delta Mapping. The
@@ -1361,6 +1362,15 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
             Nearest neighbor euclidean distance threshold. If the DataHandler
             coordinates are more than this value away from the bias correction
             lat/lon, an error is raised.
+        no_trend: bool, default=False
+            An option to ignore the trend component of the correction, thus
+            resulting in an ordinary Quantile Mapping, i.e. corrects the bias
+            by comparing the distributions of the biased dataset with a
+            reference datasets. See ``params_mf`` of
+            :class:`rex.utilities.bc_utils.QuantileDeltaMapping`.
+            Note that this assumes that "bias_{feature}_params"
+            (``params_mh``) is the data distribution representative for the
+            target data.
         """
 
         if isinstance(bc_files, str):
@@ -1378,7 +1388,8 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
                                                    feature,
                                                    bias_fp=fp,
                                                    threshold=threshold,
-                                                   relative=relative)
+                                                   relative=relative,
+                                                   no_trend=no_trend)
                 completed.append(feature)
 
 
