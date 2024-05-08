@@ -1,21 +1,17 @@
 """Batch handling classes for queued batch loads"""
 import logging
 import threading
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import numpy as np
 import tensorflow as tf
 import xarray as xr
 from rex import safe_json_load
-from tqdm import tqdm
 
 from sup3r.preprocessing.data_handling import DualDataHandler
 from sup3r.preprocessing.data_handling.base import DataHandler
 from sup3r.preprocessing.dual_batch_handling import DualBatchHandler
 from sup3r.utilities.utilities import (
     Timer,
-    uniform_box_sampler,
-    uniform_time_sampler,
 )
 
 logger = logging.getLogger(__name__)
@@ -27,73 +23,69 @@ class LazyDataHandler(DataHandler):
     batches on the fly during training without previously loading to memory."""
 
     def __init__(
-        self, files, features, sample_shape, lr_only_features=(),
-        hr_exo_features=(), chunk_kwargs=None
+        self, file_paths, features, sample_shape, lr_only_features=(),
+        hr_exo_features=(), res_kwargs=None, mode='lazy'
     ):
+        self.file_paths = file_paths
         self.features = features
         self.sample_shape = sample_shape
+        self.res_kwargs = (
+            res_kwargs if res_kwargs is not None
+            else {'chunks': {'south_north': 10, 'west_east': 10, 'time': 3}})
+        self.mode = mode
         self._lr_only_features = lr_only_features
         self._hr_exo_features = hr_exo_features
-        self.chunk_kwargs = (
-            chunk_kwargs if chunk_kwargs is not None
-            else {'south_north': 10, 'west_east': 10, 'time': 3})
-        self.data = xr.open_mfdataset(files, chunks=chunk_kwargs)
+        self._data = None
         self._shape = (*self.data["latitude"].shape, len(self.data["time"]))
-        self._i = 0
 
         logger.info(f'Initialized {self.__class__.__name__} with '
-                    f'files = {files}, features = {features}, '
+                    f'file_paths = {file_paths}, features = {features}, '
                     f'sample_shape = {sample_shape}.')
 
-    def _get_observation_index(self):
-        spatial_slice = uniform_box_sampler(
-            self.shape, self.sample_shape[:2]
-        )
-        temporal_slice = uniform_time_sampler(
-            self.shape, self.sample_shape[2]
-        )
-        return (*spatial_slice, temporal_slice)
+    @property
+    def data(self):
+        """Dataset for the given file_paths. Either lazily loaded (mode =
+        'lazy') or loaded into memory right away (mode = 'eager')"""
 
-    def _get_observation(self, obs_index):
+        if self._data is None:
+            self._data = xr.open_mfdataset(self.file_paths, **self.res_kwargs)
+        if self.mode == 'eager':
+            logger.info(f'Loading {self.file_paths} in eager mode.')
+            self._data = self._data.compute()
+        return self._data
+
+    def get_observation(self, obs_index):
+        """Get observation/sample array for the given obs_index
+        (spatial_1 slice, spatial_2 slice, temporal slice, slice(None))"""
         out = self.data[self.features].isel(
             south_north=obs_index[0],
             west_east=obs_index[1],
             time=obs_index[2],
         )
-        out = tf.convert_to_tensor(out.to_dataarray())
-        return tf.transpose(out, perm=[2, 3, 1, 0])
+        if self.mode == 'lazy':
+            out = out.compute()
+
+        out = out.to_dataarray().values
+        out = np.transpose(out, axes=(2, 3, 1, 0))
+        return out
 
     def get_next(self):
         """Get next observation sample."""
-        obs_index = self._get_observation_index()
-        return self._get_observation(obs_index)
-
-    def __getitem__(self, index):
-        return self.get_next()
-
-    def __next__(self):
-        if self._i < self.epoch_samples:
-            out = self.get_next()
-            self._i += 1
-            return out
-        else:
-            raise StopIteration
+        obs_index = self.get_observation_index(self.shape, self.sample_shape)
+        return self.get_observation(obs_index)
 
 
 class LazyDualDataHandler(DualDataHandler):
     """Lazy loading dual data handler. Matches sample regions for low res and
     high res lazy data handlers."""
 
-    def __init__(self, lr_dh, hr_dh, s_enhance=1, t_enhance=1,
-                 epoch_samples=1024):
+    def __init__(self, lr_dh, hr_dh, s_enhance=1, t_enhance=1):
         self.lr_dh = lr_dh
         self.hr_dh = hr_dh
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
-        self.current_obs_index = None
         self._means = None
         self._stds = None
-        self.epoch_samples = epoch_samples
         self.check_shapes()
 
         logger.info(f'Finished initializing {self.__class__.__name__}.')
@@ -106,10 +98,12 @@ class LazyDualDataHandler(DualDataHandler):
             lr_features = self.lr_dh.features
             hr_only_features = [f for f in self.hr_dh.features
                                 if f not in lr_features]
-            self._means = dict(zip(lr_features,
-                                   self.lr_dh.data[lr_features].mean(axis=0)))
-            hr_means = dict(zip(hr_only_features,
-                                self.hr_dh[hr_only_features].mean(axis=0)))
+            self._means = dict(zip(
+                lr_features,
+                self.lr_dh.data[lr_features].mean(axis=0)))
+            hr_means = dict(zip(
+                hr_only_features,
+                self.hr_dh.data[hr_only_features].mean(axis=0)))
             self._means.update(hr_means)
         return self._means
 
@@ -124,16 +118,9 @@ class LazyDualDataHandler(DualDataHandler):
             self._stds = dict(zip(lr_features,
                               self.lr_dh.data[lr_features].std(axis=0)))
             hr_stds = dict(zip(hr_only_features,
-                               self.hr_dh[hr_only_features].std(axis=0)))
+                               self.hr_dh.data[hr_only_features].std(axis=0)))
             self._stds.update(hr_stds)
         return self._stds
-
-    def __iter__(self):
-        self._i = 0
-        return self
-
-    def __len__(self):
-        return self.epoch_samples
 
     @property
     def size(self):
@@ -160,42 +147,96 @@ class LazyDualDataHandler(DualDataHandler):
         Returns
         -------
         tuple
-            (high_res, low_res) pair
+            (low_res, high_res) pair
         """
-        lr_obs_idx = self.lr_dh._get_observation_index()
+        lr_obs_idx = self.lr_dh.get_observation_index()
         hr_obs_idx = [slice(s.start * self.s_enhance, s.stop * self.s_enhance)
                       for s in lr_obs_idx[:2]]
         hr_obs_idx += [slice(s.start * self.t_enhance, s.stop * self.t_enhance)
                        for s in lr_obs_idx[2:]]
-        out = (self.hr_dh._get_observation(hr_obs_idx).numpy(),
-               self.lr_dh._get_observation(lr_obs_idx).numpy())
+        out = (self.lr_dh.get_observation(lr_obs_idx),
+               self.hr_dh.get_observation(hr_obs_idx))
         return out
 
-    def __getitem__(self, index):
-        return self.get_next()
 
-    def __next__(self):
-        if self._i < self.epoch_samples:
-            out = self.get_next()
-            self._i += 1
-            return out
-        else:
-            raise StopIteration
+class BatchBuilder:
+    """Class to create dataset generator and build batches using samples from
+    multiple DataHandler instances. The main requirement for the DataHandler
+    instances is that they have a get_next() method which returns a tuple
+    (low_res, high_res) of arrays."""
 
-    def __call__(self):
-        """Call method to enable Dataset.from_generator() call."""
-        for _ in range(self.epoch_samples):
-            yield self.get_next()
+    def __init__(self, data_handlers, batch_size, buffer_size=None,
+                 max_workers=None):
+        self.data_handlers = data_handlers
+        self.batch_size = batch_size
+        self.buffer_size = buffer_size or 10 * batch_size
+        self.handler_index = self.get_handler_index()
+        self.max_workers = max_workers or batch_size
+        self.sample_counter = 0
+        self.batches = None
+        self.prefetch()
+
+    @property
+    def handler_weights(self):
+        """Get weights used to sample from different data handlers based on
+        relative sizes"""
+        sizes = [dh.size for dh in self.data_handlers]
+        weights = sizes / np.sum(sizes)
+        weights = weights.astype(np.float32)
+        return weights
+
+    def get_handler_index(self):
+        """Get random handler index based on handler weights"""
+        indices = np.arange(0, len(self.data_handlers))
+        return np.random.choice(indices, p=self.handler_weights)
+
+    def get_rand_handler(self):
+        """Get random handler based on handler weights"""
+        if self.sample_counter % self.batch_size == 0:
+            self.handler_index = self.get_handler_index()
+        return self.data_handlers[self.handler_index]
 
     @property
     def data(self):
         """Return tensorflow dataset generator."""
-        lr_shape = (*self.lr_dh.sample_shape, len(self.lr_dh.features))
-        hr_shape = (*self.hr_dh.sample_shape, len(self.hr_dh.features))
-        return tf.data.Dataset.from_generator(
-            self.__call__,
-            output_signature=(tf.TensorSpec(hr_shape, tf.float32),
-                              tf.TensorSpec(lr_shape, tf.float32)))
+        lr_sample_shape = self.data_handlers[0].lr_sample_shape
+        hr_sample_shape = self.data_handlers[0].hr_sample_shape
+        lr_features = self.data_handlers[0].lr_features
+        hr_features = (self.data_handlers[0].hr_out_features
+                       + self.data_handlers[0].hr_exo_features)
+        lr_shape = (*lr_sample_shape, len(lr_features))
+        hr_shape = (*hr_sample_shape, len(hr_features))
+        data = tf.data.Dataset.from_generator(
+            self.gen,
+            output_signature=(tf.TensorSpec(lr_shape, tf.float32,
+                                            name='low_resolution'),
+                              tf.TensorSpec(hr_shape, tf.float32,
+                                            name='high_resolution')))
+        data = data.map(lambda x,y : (x,y),
+                        num_parallel_calls=self.max_workers)
+        return data
+
+    def __next__(self):
+        if self.sample_counter % self.buffer_size == 0:
+            self.prefetch()
+        return next(self.batches)
+
+    def __getitem__(self, index):
+        """Get single sample. Batches are built from self.batch_size
+        samples."""
+        return self.get_rand_handler().get_next()
+
+    def gen(self):
+        """Generator method to enable Dataset.from_generator() call."""
+        while True:
+            idx = self.sample_counter
+            self.sample_counter += 1
+            yield self[idx]
+
+    def prefetch(self):
+        """Prefetch set of batches for an epoch."""
+        data = self.data.prefetch(buffer_size=self.buffer_size)
+        self.batches = iter(data.batch(self.batch_size))
 
 
 class LazyDualBatchHandler(DualBatchHandler):
@@ -219,14 +260,12 @@ class LazyDualBatchHandler(DualBatchHandler):
     """
 
     def __init__(self, data_handlers, means_file=None, stdevs_file=None,
-                 batch_size=32, n_batches=100, n_epochs=100, max_workers=1):
+                 batch_size=32, n_batches=100, queue_size=100,
+                 max_workers=None):
         self.data_handlers = data_handlers
         self.batch_size = batch_size
-        self.n_epochs = n_epochs
         self.n_batches = n_batches
-        self.epoch_samples = batch_size * n_batches
-        self.queue_samples = self.epoch_samples * n_epochs
-        self.total_obs = self.epoch_samples * self.n_epochs
+        self.queue_capacity = queue_size
         self._means = (None if means_file is None
                        else safe_json_load(means_file))
         self._stds = (None if stdevs_file is None
@@ -235,17 +274,14 @@ class LazyDualBatchHandler(DualBatchHandler):
         self.val_data = []
         self.timer = Timer()
         self._queue = None
-        self.enqueue_thread = None
-        self.max_workers = max_workers
-
+        self.enqueue_thread = threading.Thread(target=self.callback)
+        self.batch_pool = BatchBuilder(data_handlers,
+                                       batch_size=batch_size,
+                                       max_workers=max_workers)
         logger.info(f'Initialized {self.__class__.__name__} with '
                     f'{len(self.data_handlers)} data_handlers, '
                     f'means_file = {means_file}, stdevs_file = {stdevs_file}, '
-                    f'batch_size = {batch_size}, n_batches = {n_batches}, '
-                    f'epoch_samples = {self.epoch_samples}')
-
-        self.preflight(n_samples=(self.batch_size),
-                       max_workers=max_workers)
+                    f'batch_size = {batch_size}, max_workers = {max_workers}.')
 
     @property
     def s_enhance(self):
@@ -281,14 +317,6 @@ class LazyDualBatchHandler(DualBatchHandler):
                      in zip(self.handler_weights, self.data_handlers)]))
         return self._stds
 
-    def preflight(self, n_samples, max_workers=1):
-        """Load samples for first epoch."""
-        logger.info(f'Loading {n_samples} samples to initialize queue.')
-        self.enqueue_samples(n_samples, max_workers=max_workers)
-        self.enqueue_thread = threading.Thread(
-            target=self.callback, args=(self.max_workers))
-        self.start()
-
     def start(self):
         """Start thread to keep sample queue full for batches."""
         self._is_training = True
@@ -311,113 +339,53 @@ class LazyDualBatchHandler(DualBatchHandler):
         return self.n_batches
 
     def __iter__(self):
-        self._i = 0
+        self.batch_counter = 0
         return self
 
     @property
     def queue(self):
-        """Queue of (hr, lr) samples to use for building batches."""
+        """Queue of (lr, hr) batches."""
         if self._queue is None:
-            lr_shape = (*self.lr_sample_shape, len(self.lr_features))
-            hr_shape = (*self.hr_sample_shape, len(self.hr_features))
+            lr_shape = (
+                self.batch_size, *self.lr_sample_shape, len(self.lr_features))
+            hr_shape = (
+                self.batch_size, *self.hr_sample_shape, len(self.hr_features))
             self._queue = tf.queue.FIFOQueue(
-                self.queue_samples,
+                self.queue_capacity,
                 dtypes=[tf.float32, tf.float32],
-                shapes=[hr_shape, lr_shape])
+                shapes=[lr_shape, hr_shape])
         return self._queue
-
-    def enqueue_samples(self, n_samples, max_workers=None):
-        """Fill queue with enough samples for an epoch."""
-        empty = self.queue_samples - self.queue.size()
-        msg = (f'Requested number of samples {n_samples} exceeds the number '
-               f'of empty spots in the queue {empty}')
-        assert n_samples <= empty, msg
-        logger.info(f'Loading {n_samples} samples into queue.')
-        if max_workers == 1:
-            for _ in tqdm(range(n_samples)):
-                hr, lr = self.get_next()
-                self.queue.enqueue((hr, lr))
-        else:
-            futures = []
-            with ThreadPoolExecutor(max_workers=max_workers) as exe:
-                for i in range(n_samples):
-                    futures.append(exe.submit(self.get_next))
-                    logger.info(f'Submitted {i + 1} futures.')
-            for i, future in enumerate(as_completed(futures)):
-                hr, lr = future.result()
-                self.queue.enqueue((hr, lr))
-                logger.info(f'Completed {i + 1} / {len(futures)} futures.')
-
-    def callback(self, max_workers=None):
-        """Callback function for enqueue thread."""
-        while self._is_training:
-            logger.info(f'{self.queue_size} samples in queue.')
-            while self.queue_size < (self.queue_samples - self.batch_size):
-                self.queue_next_batch(max_workers=max_workers)
-
-    def queue_next_batch(self, max_workers=None):
-        """Add N = batch_size samples to queue."""
-        self.enqueue_samples(n_samples=self.batch_size,
-                             max_workers=max_workers)
 
     @property
     def queue_size(self):
-        """Get number of samples in queue."""
+        """Get number of batches in queue."""
         return self.queue.size().numpy()
 
-    @property
-    def missing_samples(self):
-        """Get number of empty spots in queue."""
-        return self.queue_samples - self.queue_size
+    def callback(self):
+        """Callback function for enqueue thread."""
+        while self._is_training:
+            while self.queue_size < self.queue_capacity:
+                logger.info(f'{self.queue_size} batches in queue.')
+                self.queue.enqueue(next(self.batch_pool))
 
     @property
     def is_empty(self):
         """Check if queue is empty."""
         return self.queue_size == 0
 
-    def take(self, n):
-        """Take n samples from queue to build a batch."""
-        logger.info(f'{self.queue.size().numpy()} samples in queue.')
-        logger.info(f'Taking {n} samples.')
-        return self.queue.dequeue_many(n)
+    def take_batch(self):
+        """Take batch from queue."""
+        if self.is_empty:
+            return next(self.batch_pool)
+        else:
+            return self.queue.dequeue()
 
-    def _get_next_batch(self):
-        """Take samples from queue and build batch class."""
-        samples = self.take(self.batch_size)
-        batch = self.BATCH_CLASS(
-            high_res=samples[0], low_res=samples[1])
+    def get_next_batch(self):
+        """Take batch from queue and build batch class."""
+        lr, hr = self.take_batch()
+        batch = self.BATCH_CLASS(low_res=lr, high_res=hr)
         return batch
 
-    def get_next(self):
-        """Get next pair of low-res / high-res samples from randomly selected
-        data handler
-
-        Returns
-        -------
-        tuple
-            (high_res, low_res) pair
-        """
-        handler = self.get_rand_handler()
-        return handler.get_next()
-
-    def __getitem__(self, index):
-        return self.get_next()
-
-    def __call__(self):
-        """Call method to enable Dataset.from_generator() call."""
-        for _ in range(self.total_obs):
-            yield self.get_next()
-
-    def prefetch(self):
-        """Return tensorflow dataset generator."""
-        lr_shape = (*self.lr_sample_shape, len(self.lr_features))
-        hr_shape = (*self.hr_sample_shape, len(self.hr_features))
-        data = tf.data.Dataset.from_generator(
-            self.__call__,
-            output_signature=(tf.TensorSpec(hr_shape, tf.float32),
-                              tf.TensorSpec(lr_shape, tf.float32)))
-        data = data.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
-        return data
 
     def __next__(self):
         """Get the next batch of observations.
@@ -428,14 +396,32 @@ class LazyDualBatchHandler(DualBatchHandler):
             Batch object with batch.low_res and batch.high_res attributes
             with the appropriate subsampling of interpolated ERA.
         """
-        if self._i < self.n_batches:
+        if self.batch_counter < self.n_batches:
+            logger.info(f'Getting next batch: {self.batch_counter + 1} / '
+                        f'{self.n_batches}')
+            batch = self.timer(self.get_next_batch)
             logger.info(
-                f'Getting next batch: {self._i + 1} / {self.n_batches}')
-            batch = self.timer(self._get_next_batch)
-            logger.info(
-                f'Built batch in {self.timer.log["elapsed:_get_next_batch"]}')
-            self._i += 1
+                f'Built batch in {self.timer.log["elapsed:get_next_batch"]}')
+            self.batch_counter += 1
         else:
             raise StopIteration
 
         return batch
+
+
+class TrainingSession:
+    """Simple wrapper around batch handler and model to enable threads for
+    batching and training separately."""
+
+    def __init__(self, batch_handler, model, kwargs):
+        self.model = model
+        self.batch_handler = batch_handler
+        self.kwargs = kwargs
+        self.train_thread = threading.Thread(
+            target=model.train, args=(batch_handler,), kwargs=kwargs)
+
+        self.batch_handler.start()
+        self.train_thread.start()
+
+        self.train_thread.join()
+        self.batch_handler.stop()

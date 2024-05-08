@@ -143,12 +143,12 @@ class DualBatchHandler(BatchHandler):
     @property
     def lr_features(self):
         """Features in low res batch."""
-        return self.data_handlers[0].lr_dh.features
+        return self.data_handlers[0].lr_features
 
     @property
-    def hr_features(self):
+    def hr_out_features(self):
         """Features in high res batch."""
-        return self.data_handlers[0].hr_dh.features
+        return self.data_handlers[0].hr_out_features
 
     @property
     def lr_sample_shape(self):
@@ -175,9 +175,9 @@ class DualBatchHandler(BatchHandler):
             hr_list = []
             lr_list = []
             for _ in range(self.batch_size):
-                hr_sample, lr_sample = handler.get_next()
-                hr_list.append(tf.expand_dims(hr_sample, axis=0))
+                lr_sample, hr_sample = handler.get_next()
                 lr_list.append(tf.expand_dims(lr_sample, axis=0))
+                hr_list.append(tf.expand_dims(hr_sample, axis=0))
 
             batch = self.BATCH_CLASS(
                 low_res=tf.concat(lr_list, axis=0),

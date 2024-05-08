@@ -669,7 +669,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
             Array of low resolution data with each feature equal in shape to
             lr_sample_shape
         """
-        lr_obs_idx = self._get_observation_index(self.lr_data,
+        lr_obs_idx = self.get_observation_index(self.lr_data.shape,
                                                  self.lr_sample_shape)
         hr_obs_idx = [slice(s.start * self.s_enhance, s.stop * self.s_enhance)
                       for s in lr_obs_idx[:2]]
@@ -679,7 +679,7 @@ class DualDataHandler(CacheHandlingMixIn, TrainingPrepMixIn):
         hr_obs_idx.append(np.arange(len(self.hr_dh.features)))
         hr_obs_idx = tuple(hr_obs_idx)
         self.current_obs_index = {
-            'hr_index': hr_obs_idx,
-            'lr_index': lr_obs_idx
+            'lr_index': lr_obs_idx,
+            'hr_index': hr_obs_idx
         }
-        return self.hr_data[hr_obs_idx], self.lr_data[lr_obs_idx]
+        return self.lr_data[lr_obs_idx], self.hr_data[hr_obs_idx]
