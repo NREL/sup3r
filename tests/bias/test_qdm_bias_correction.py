@@ -359,3 +359,20 @@ def test_bc_trend_same_hist(tmp_path, fp_fut_cc, dist_params):
 
     idx = ~(np.isnan(original) | np.isnan(corrected))
     assert np.allclose(corrected[idx], original[idx])
+
+
+def test_fwd_integration():
+
+    bc_strat = ForwardPassStrategy(
+            input_files,
+            model_kwargs={'model_dir': out_dir},
+            fwp_chunk_shape=fwp_chunk_shape,
+            spatial_pad=0, temporal_pad=0,
+            input_handler_kwargs=dict(target=target, shape=shape,
+                                      temporal_slice=temporal_slice,
+                                      worker_kwargs=dict(max_workers=1)),
+            out_pattern=os.path.join(td, 'out_{file_id}.nc'),
+            worker_kwargs=dict(max_workers=1),
+            input_handler='DataHandlerNCforCC',
+            bias_correct_method='local_linear_bc',
+            bias_correct_kwargs=bias_correct_kwargs)
