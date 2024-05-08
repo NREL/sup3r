@@ -978,4 +978,3 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
                                      extras=extras)
             if stop:
                 break
-        batch_handler.enqueue_thread.join()
