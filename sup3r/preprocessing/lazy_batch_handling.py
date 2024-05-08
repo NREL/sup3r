@@ -23,40 +23,28 @@ class LazyDataHandler(DataHandler):
     batches on the fly during training without previously loading to memory."""
 
     def __init__(
-        self, file_paths, features, sample_shape, lr_only_features=(),
-        hr_exo_features=(), res_kwargs=None, mode='lazy'
+        self, files, features, sample_shape, lr_only_features=(),
+        hr_exo_features=(), chunk_kwargs=None, mode='lazy'
     ):
-        self.file_paths = file_paths
         self.features = features
         self.sample_shape = sample_shape
-        self.res_kwargs = (
-            res_kwargs if res_kwargs is not None
-            else {'chunks': {'south_north': 10, 'west_east': 10, 'time': 3}})
-        self.mode = mode
         self._lr_only_features = lr_only_features
         self._hr_exo_features = hr_exo_features
-        self._data = None
+        self.chunk_kwargs = (
+            chunk_kwargs if chunk_kwargs is not None
+            else {'south_north': 10, 'west_east': 10, 'time': 3})
+        self.data = xr.open_mfdataset(files, chunks=chunk_kwargs)
         self._shape = (*self.data["latitude"].shape, len(self.data["time"]))
+        self.mode = mode
+        if mode == 'eager':
+            logger.info(f'Loading {files} in eager mode.')
+            self.data = self.data.compute()
 
         logger.info(f'Initialized {self.__class__.__name__} with '
-                    f'file_paths = {file_paths}, features = {features}, '
+                    f'files = {files}, features = {features}, '
                     f'sample_shape = {sample_shape}.')
 
-    @property
-    def data(self):
-        """Dataset for the given file_paths. Either lazily loaded (mode =
-        'lazy') or loaded into memory right away (mode = 'eager')"""
-
-        if self._data is None:
-            self._data = xr.open_mfdataset(self.file_paths, **self.res_kwargs)
-        if self.mode == 'eager':
-            logger.info(f'Loading {self.file_paths} in eager mode.')
-            self._data = self._data.compute()
-        return self._data
-
-    def get_observation(self, obs_index):
-        """Get observation/sample array for the given obs_index
-        (spatial_1 slice, spatial_2 slice, temporal slice, slice(None))"""
+    def _get_observation(self, obs_index):
         out = self.data[self.features].isel(
             south_north=obs_index[0],
             west_east=obs_index[1],
@@ -67,12 +55,13 @@ class LazyDataHandler(DataHandler):
 
         out = out.to_dataarray().values
         out = np.transpose(out, axes=(2, 3, 1, 0))
+        #out = tf.convert_to_tensor(out)
         return out
 
     def get_next(self):
         """Get next observation sample."""
         obs_index = self.get_observation_index(self.shape, self.sample_shape)
-        return self.get_observation(obs_index)
+        return self._get_observation(obs_index)
 
 
 class LazyDualDataHandler(DualDataHandler):
@@ -149,13 +138,15 @@ class LazyDualDataHandler(DualDataHandler):
         tuple
             (low_res, high_res) pair
         """
-        lr_obs_idx = self.lr_dh.get_observation_index()
+        lr_obs_idx = self.lr_dh.get_observation_index(self.lr_dh.shape,
+                                                      self.lr_dh.sample_shape)
+        lr_obs_idx = lr_obs_idx[:-1]
         hr_obs_idx = [slice(s.start * self.s_enhance, s.stop * self.s_enhance)
                       for s in lr_obs_idx[:2]]
         hr_obs_idx += [slice(s.start * self.t_enhance, s.stop * self.t_enhance)
                        for s in lr_obs_idx[2:]]
-        out = (self.lr_dh.get_observation(lr_obs_idx),
-               self.hr_dh.get_observation(hr_obs_idx))
+        out = (self.lr_dh._get_observation(lr_obs_idx),
+               self.hr_dh._get_observation(hr_obs_idx))
         return out
 
 
