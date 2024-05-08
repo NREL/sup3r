@@ -962,7 +962,5 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
                                      early_stop_threshold,
                                      early_stop_n_epoch,
                                      extras=extras)
-
             if stop:
                 break
-        batch_handler.enqueue_thread.join()

@@ -1002,17 +1002,18 @@ class TrainingPrepMixIn:
 
         return training_indices, val_indices
 
-    def _get_observation_index(self, data, sample_shape):
+    @classmethod
+    def get_observation_index(cls, data_shape, sample_shape):
         """Randomly gets spatial sample and time sample
 
         Parameters
         ----------
-        data : ndarray
-            Array of data to sample
-            (spatial_1, spatial_2, temporal, n_features)
+        data_shape : tuple
+            Size of available region for sampling
+            (spatial_1, spatial_2, temporal)
         sample_shape : tuple
             Size of observation to sample
-            (n_lats, n_lons, n_timesteps)
+            (spatial_1, spatial_2, temporal)
 
         Returns
         -------
@@ -1020,9 +1021,9 @@ class TrainingPrepMixIn:
             Tuple of sampled spatial grid, time slice, and features indices.
             Used to get single observation like self.data[observation_index]
         """
-        spatial_slice = uniform_box_sampler(data.shape, sample_shape[:2])
-        temporal_slice = uniform_time_sampler(data.shape, sample_shape[2])
-        return (*spatial_slice, temporal_slice, np.arange(data.shape[-1]))
+        spatial_slice = uniform_box_sampler(data_shape, sample_shape[:2])
+        temporal_slice = uniform_time_sampler(data_shape, sample_shape[2])
+        return (*spatial_slice, temporal_slice, slice(None))
 
     def _normalize_data(self, data, val_data, feature_index, mean, std):
         """Normalize data with initialized mean and standard deviation for a

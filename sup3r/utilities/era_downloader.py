@@ -955,8 +955,7 @@ class EraDownloader:
 
         if not os.path.exists(yearly_file):
             kwargs = {'combine': 'nested', 'concat_dim': 'time',
-                      'chunks': {'latitude': 10, 'longitude': 10, 'time': 10},
-                      'compat': 'override'}
+                      'chunks': {'latitude': 10, 'longitude': 10, 'time': 10}}
             with xr.open_mfdataset(files, **kwargs) as res:
                 logger.info(f'Combining {files}')
                 os.makedirs(os.path.dirname(yearly_file), exist_ok=True)
