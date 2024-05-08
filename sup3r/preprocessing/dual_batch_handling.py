@@ -146,9 +146,9 @@ class DualBatchHandler(BatchHandler):
         return self.data_handlers[0].lr_features
 
     @property
-    def hr_out_features(self):
+    def hr_features(self):
         """Features in high res batch."""
-        return self.data_handlers[0].hr_out_features
+        return self.data_handlers[0].hr_dh.features
 
     @property
     def lr_sample_shape(self):

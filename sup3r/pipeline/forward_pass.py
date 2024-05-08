@@ -744,7 +744,6 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
         self._hr_lat_lon = None
         self._lr_lat_lon = None
         self._init_handler = None
-        self._handle_features = None
         self.allowed_const = allowed_const
 
         self._single_ts_files = self._input_handler_kwargs.get(
@@ -754,7 +753,7 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
         self.max_workers = self.worker_kwargs.get('max_workers', None)
         self.output_workers = self.worker_kwargs.get('output_workers', None)
         self.pass_workers = self.worker_kwargs.get('pass_workers', None)
-        self._worker_attrs = ['pass_workers', 'output_workers']
+        self.worker_attrs = ['pass_workers', 'output_workers']
         self.cap_worker_args(self.max_workers)
 
         model_class = getattr(sup3r.models, self.model_class, None)
@@ -872,18 +871,6 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
             logger.info('Getting low-resolution grid for full input domain.')
             self._lr_lat_lon = self.init_handler.lat_lon
         return self._lr_lat_lon
-
-    @property
-    def handle_features(self):
-        """Get list of features available in the source data"""
-        if self._handle_features is None:
-            if self.single_ts_files:
-                self._handle_features = self.init_handler.handle_features
-            else:
-                hf = self.input_handler_class.get_handle_features(
-                    self.file_paths)
-                self._handle_features = hf
-        return self._handle_features
 
     @property
     def hr_lat_lon(self):
@@ -1184,7 +1171,6 @@ class ForwardPass:
             "raster_file": self.raster_file,
             "cache_pattern": self.cache_pattern,
             "single_ts_files": self.single_ts_files,
-            "handle_features": strategy.handle_features,
             "val_split": 0.0}
         input_handler_kwargs.update(fwp_input_handler_kwargs)
         return input_handler_kwargs
