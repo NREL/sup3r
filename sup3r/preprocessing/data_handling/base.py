@@ -19,10 +19,7 @@ from rex.utilities import log_mem
 from rex.utilities.fun_utils import get_fun_call_str
 
 from sup3r.bias.bias_transforms import get_spatial_bc_factors, local_qdm_bc
-from sup3r.preprocessing.data_handling.mixin import (
-    InputMixIn,
-    TrainingPrepMixIn,
-)
+from sup3r.preprocessing.data_handling.abstract import AbstractDataHandler
 from sup3r.preprocessing.feature_handling import (
     BVFreqMon,
     BVFreqSquaredNC,
@@ -39,6 +36,10 @@ from sup3r.preprocessing.feature_handling import (
     VWind,
     WinddirectionNC,
     WindspeedNC,
+)
+from sup3r.preprocessing.mixin import (
+    InputMixIn,
+    TrainingPrep,
 )
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
@@ -58,7 +59,30 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
-class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
+class LazyDataHandler(AbstractDataHandler):
+    """Lazy loading data handler. Uses precomputed netcdf files (usually from
+    a DataHandler.to_netcdf() call after populating DataHandler.data) to create
+    batches on the fly during training without previously loading to memory."""
+
+    def get_observation(self, obs_index):
+        """Get observation/sample. Should return a single sample from the
+        underlying data with shape (spatial_1, spatial_2, temporal,
+        features)."""
+
+        out = self.data[self.features].isel(
+            south_north=obs_index[0],
+            west_east=obs_index[1],
+            time=obs_index[2],
+        )
+
+        if self.mode == 'lazy':
+            out = out.compute()
+
+        out = out.to_dataarray().values
+        return np.transpose(out, axes=(2, 3, 1, 0))
+
+
+class DataHandler(FeatureHandler, InputMixIn, TrainingPrep):
     """Sup3r data handling and extraction for low-res source data or for
     artificially coarsened high-res source data for training.
 

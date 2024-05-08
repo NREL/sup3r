@@ -12,9 +12,11 @@ import numpy as np
 from rex.utilities import log_mem
 from scipy.ndimage import gaussian_filter
 
-from sup3r.preprocessing.data_handling.h5_data_handling import (
+from sup3r.preprocessing.batch_handling.abstract import AbstractBatchBuilder
+from sup3r.preprocessing.data_handling.h5 import (
     DataHandlerDCforH5,
 )
+from sup3r.preprocessing.mixin import FeatureSets
 from sup3r.utilities.utilities import (
     nn_fill_array,
     nsrdb_reduce_daily_data,
@@ -142,6 +144,27 @@ class Batch:
         batch = cls(low_res, high_res)
 
         return batch
+
+
+class BatchBuilder(AbstractBatchBuilder):
+    """BatchBuilder implementation for DataHandler instances with
+    lr_sample_shape and hr_sample_shape attributes."""
+
+    @property
+    def lr_shape(self):
+        lr_sample_shape = self.data_handlers[0].lr_sample_shape
+        lr_features = self.data_handlers[0].lr_features
+        lr_shape = (*lr_sample_shape, len(lr_features))
+        return lr_shape
+
+    @property
+    def hr_shape(self):
+        hr_sample_shape = self.data_handlers[0].hr_sample_shape
+        hr_features = (self.data_handlers[0].hr_out_features
+                       + self.data_handlers[0].hr_exo_features)
+        hr_shape = (*hr_sample_shape, len(hr_features))
+        return hr_shape
+
 
 
 class ValidationData:
@@ -346,7 +369,7 @@ class ValidationData:
             raise StopIteration
 
 
-class BatchHandler:
+class BatchHandler(FeatureSets):
     """Sup3r base batch handling class"""
 
     # Classes to use for handling an individual batch obj.
@@ -434,7 +457,6 @@ class BatchHandler:
             for normalizing data handlers. `stats_workers` is the max number
             of workers to use for computing stats across data handlers.
         """
-
         worker_kwargs = worker_kwargs or {}
         max_workers = worker_kwargs.get('max_workers', None)
         norm_workers = stats_workers = load_workers = None
@@ -473,6 +495,7 @@ class BatchHandler:
         self.smoothed_features = [
             f for f in self.features if f not in self.smoothing_ignore
         ]
+        FeatureSets.__init__(self, data_handlers)
 
         logger.info(f'Initializing BatchHandler with '
                     f'{len(self.data_handlers)} data handlers with handler '
@@ -524,44 +547,6 @@ class BatchHandler:
         """Get random handler based on handler weights"""
         self.current_handler_index = self.get_handler_index()
         return self.data_handlers[self.current_handler_index]
-
-    @property
-    def features(self):
-        """Get the ordered list of feature names held in this object's
-        data handlers"""
-        return self.data_handlers[0].features
-
-    @property
-    def lr_features(self):
-        """Get a list of low-resolution features. All low-resolution features
-        are used for training."""
-        return self.data_handlers[0].features
-
-    @property
-    def hr_exo_features(self):
-        """Get a list of high-resolution features that are only used for
-        training e.g., mid-network high-res topo injection."""
-        return self.data_handlers[0].hr_exo_features
-
-    @property
-    def hr_out_features(self):
-        """Get a list of low-resolution features that are intended to be output
-        by the GAN."""
-        return self.data_handlers[0].hr_out_features
-
-    @property
-    def hr_features_ind(self):
-        """Get the high-resolution feature channel indices that should be
-        included for training. Any high-resolution features that are only
-        included in the data handler to be coarsened for the low-res input are
-        removed"""
-        hr_features = list(self.hr_out_features) + list(self.hr_exo_features)
-        if list(self.features) == hr_features:
-            return np.arange(len(self.features))
-        else:
-            out = [i for i, feature in enumerate(self.features)
-                   if feature in hr_features]
-            return out
 
     @property
     def shape(self):

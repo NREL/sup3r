@@ -10,7 +10,7 @@ import numpy as np
 import sup3r.models
 from sup3r.models.abstract import AbstractInterface
 from sup3r.models.base import Sup3rGan
-from sup3r.preprocessing.data_handling.exogenous_data_handling import ExoData
+from sup3r.preprocessing.data_handling.exogenous import ExoData
 
 logger = logging.getLogger(__name__)
 
