@@ -623,4 +623,5 @@ class DualDataHandler(CacheHandling, TrainingPrep, DualMixIn):
             'lr_index': lr_obs_idx,
             'hr_index': hr_obs_idx
         }
+
         return self.lr_data[lr_obs_idx], self.hr_data[hr_obs_idx]
