@@ -1002,8 +1002,7 @@ class TrainingPrepMixIn:
 
         return training_indices, val_indices
 
-    @classmethod
-    def get_observation_index(cls, data_shape, sample_shape):
+    def get_observation_index(self, data_shape, sample_shape):
         """Randomly gets spatial sample and time sample
 
         Parameters

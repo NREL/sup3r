@@ -236,6 +236,7 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
         self._lr_only_features = lr_only_features
         self._hr_exo_features = hr_exo_features
         self._cache_files = None
+        self._handle_features = None
         self._extract_features = None
         self._noncached_features = None
         self._raw_features = None
@@ -808,8 +809,8 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
             4D array
             (spatial_1, spatial_2, temporal, features)
         """
-        self.current_obs_index = self._get_observation_index(
-            self.data, self.sample_shape)
+        self.current_obs_index = self.get_observation_index(
+            self.data.shape, self.sample_shape)
         observation = self.data[self.current_obs_index]
         return observation
 
