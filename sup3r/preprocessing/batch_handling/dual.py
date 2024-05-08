@@ -1,11 +1,14 @@
 """Batch handling classes for dual data handlers"""
 import logging
+import threading
+import time
 
 import numpy as np
 import tensorflow as tf
 
 from sup3r.preprocessing.batch_handling.base import (
     Batch,
+    BatchBuilder,
     BatchHandler,
     ValidationData,
 )
@@ -161,6 +164,138 @@ class DualBatchHandler(BatchHandler, MultiDualMixIn):
             return batch
         else:
             raise StopIteration
+
+
+class LazyDualBatchHandler(MultiHandlerStats, FeatureSets):
+    """Dual batch handler which uses lazy data handlers to load data as
+    needed rather than all in memory at once.
+
+    NOTE: This can be initialized from data extracted and written to netcdf
+    from "non-lazy" data handlers.
+
+    Example
+    -------
+    >>> for lr_handler, hr_handler in zip(lr_handlers, hr_handlers):
+    >>>     dh = DualDataHandler(lr_handler, hr_handler)
+    >>>     dh.to_netcdf(lr_file, hr_file)
+    >>> lazy_dual_handlers = []
+    >>> for lr_file, hr_file in zip(lr_files, hr_files):
+    >>>     lazy_lr = LazyDataHandler(lr_file, lr_features, lr_sample_shape)
+    >>>     lazy_hr = LazyDataHandler(hr_file, hr_features, hr_sample_shape)
+    >>>     lazy_dual_handlers.append(LazyDualDataHandler(lazy_lr, lazy_hr))
+    >>> lazy_batch_handler = LazyDualBatchHandler(lazy_dual_handlers)
+    """
+
+    BATCH_CLASS = Batch
+    VAL_CLASS = DualValidationData
+
+    def __init__(self, data_handlers, means_file, stdevs_file,
+                 batch_size=32, n_batches=100, max_workers=None):
+        self.data_handlers = data_handlers
+        self.batch_size = batch_size
+        self.n_batches = n_batches
+        self.queue_capacity = n_batches
+        lr_shape = (
+            self.batch_size, *self.lr_sample_shape, len(self.lr_features))
+        hr_shape = (
+            self.batch_size, *self.hr_sample_shape, len(self.hr_features))
+        self.queue = tf.queue.FIFOQueue(self.queue_capacity,
+                                        dtypes=[tf.float32, tf.float32],
+                                        shapes=[lr_shape, hr_shape])
+        self.val_data = []
+        self._batch_counter = 0
+        self._queue = None
+        self._is_training = False
+        self._enqueue_thread = None
+        self.batch_pool = BatchBuilder(data_handlers,
+                                       batch_size=batch_size,
+                                       buffer_size=(n_batches * batch_size),
+                                       max_workers=max_workers)
+        MultiHandlerStats.__init__(
+            self, data_handlers, means_file=means_file,
+            stdevs_file=stdevs_file)
+        FeatureSets.__init__(self, data_handlers)
+        logger.info(f'Initialized {self.__class__.__name__} with '
+                    f'{len(self.data_handlers)} data_handlers, '
+                    f'means_file = {means_file}, stdevs_file = {stdevs_file}, '
+                    f'batch_size = {batch_size}, n_batches = {n_batches}, '
+                    f'max_workers = {max_workers}.')
+
+    @property
+    def lr_sample_shape(self):
+        """Spatiotemporal shape of low res samples. (lats, lons, time)"""
+        return self.data_handlers[0].lr_dh.sample_shape
+
+    @property
+    def hr_sample_shape(self):
+        """Spatiotemporal shape of high res samples. (lats, lons, time)"""
+        return self.data_handlers[0].hr_dh.sample_shape
+
+    @property
+    def s_enhance(self):
+        """Get spatial enhancement factor of first (and all) data handlers."""
+        return self.data_handlers[0].s_enhance
+
+    @property
+    def t_enhance(self):
+        """Get temporal enhancement factor of first (and all) data handlers."""
+        return self.data_handlers[0].t_enhance
+
+    def start(self):
+        """Start thread to keep sample queue full for batches."""
+        logger.info(
+            f'Running {self.__class__.__name__}.enqueue_thread.start()')
+        self._is_training = True
+        self._enqueue_thread = threading.Thread(target=self.enqueue_batches)
+        self._enqueue_thread.start()
+
+    def join(self):
+        """Join thread to exit gracefully."""
+        logger.info(
+            f'Running {self.__class__.__name__}.enqueue_thread.join()')
+        self._enqueue_thread.join()
+
+    def stop(self):
+        """Stop loading batches."""
+        self._is_training = False
+        self.join()
+
+    def __len__(self):
+        return self.n_batches
+
+    def __iter__(self):
+        self._batch_counter = 0
+        return self
+
+    def enqueue_batches(self):
+        """Callback function for enqueue thread."""
+        while self._is_training:
+            queue_size = self.queue.size().numpy()
+            if queue_size < self.queue_capacity:
+                logger.info(f'{queue_size} batches in queue.')
+                self.queue.enqueue(next(self.batch_pool))
+
+    def __next__(self):
+        """Get the next batch of observations.
+
+        Returns
+        -------
+        batch : Batch
+            Batch object with batch.low_res and batch.high_res attributes
+            with the appropriate subsampling of interpolated ERA.
+        """
+        if self._batch_counter < self.n_batches:
+            logger.info(f'Getting next batch: {self._batch_counter + 1} / '
+                        f'{self.n_batches}')
+            start = time.time()
+            lr, hr = self.queue.dequeue()
+            batch = self.BATCH_CLASS(low_res=lr, high_res=hr)
+            logger.info(f'Built batch in {time.time() - start}.')
+            self._batch_counter += 1
+        else:
+            raise StopIteration
+
+        return batch
 
 
 class SpatialDualBatchHandler(DualBatchHandler):
