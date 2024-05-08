@@ -338,6 +338,7 @@ class BatchHandler(MultiHandlerMixIn, AbstractBatchBuilder):
         self.smoothed_features = [
             f for f in self.features if f not in self.smoothing_ignore
         ]
+        FeatureSets.__init__(self, data_handlers)
 
         logger.info(f'Initializing BatchHandler with '
                     f'{len(self.data_handlers)} data handlers with handler '
