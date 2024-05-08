@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 import psutil
 import xarray as xr
+from rex import safe_json_load
 from scipy.stats import mode
 
 from sup3r.utilities.utilities import (
@@ -29,7 +30,102 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
-class CacheHandlingMixIn:
+class FeatureSets:
+    """Collection of the different feature sets used across preprocessing
+    modules."""
+
+    def __init__(self, data_handlers):
+        """
+        Parameters
+        ----------
+        data_handlers : list[DataHandler]
+            list of DataHandler instances each with `.features`,
+            `.hr_exo_features`, `.hr_out_features` attributes
+        """
+        self.data_handlers = data_handlers
+
+    @property
+    def features(self):
+        """Get the ordered list of feature names held in this object's
+        data handlers"""
+        return self.data_handlers[0].features
+
+    @property
+    def lr_features(self):
+        """Get a list of low-resolution features. All low-resolution features
+        are used for training."""
+        return self.data_handlers[0].lr_features
+
+    @property
+    def hr_exo_features(self):
+        """Get a list of high-resolution features that are only used for
+        training e.g., mid-network high-res topo injection."""
+        return self.data_handlers[0].hr_exo_features
+
+    @property
+    def hr_out_features(self):
+        """Get a list of low-resolution features that are intended to be output
+        by the GAN."""
+        return self.data_handlers[0].hr_out_features
+
+    @property
+    def hr_features_ind(self):
+        """Get the high-resolution feature channel indices that should be
+        included for training. Any high-resolution features that are only
+        included in the data handler to be coarsened for the low-res input are
+        removed"""
+        hr_features = list(self.hr_out_features) + list(self.hr_exo_features)
+        if list(self.features) == hr_features:
+            return np.arange(len(self.features))
+        else:
+            out = [i for i, feature in enumerate(self.features)
+                   if feature in hr_features]
+            return out
+
+    @property
+    def hr_features(self):
+        """Get the high-resolution features corresponding to
+        `hr_features_ind`"""
+        return [self.features[ind] for ind in self.hr_features_ind]
+
+
+
+class MultiHandlerStats:
+    """Compute means and stdevs across multiple data handlers."""
+
+    def __init__(self, data_handlers, means_file=None, stdevs_file=None):
+        self.data_handlers = data_handlers
+        self._means = (None if means_file is None
+                       else safe_json_load(means_file))
+        self._stds = (None if stdevs_file is None
+                      else safe_json_load(stdevs_file))
+
+    @property
+    def means(self):
+        """Dictionary of means for each feature, computed across all data
+        handlers."""
+        if self._means is None:
+            self._means = {}
+            for k in self.data_handlers[0].features:
+                self._means[k] = np.sum(
+                    [dh.means[k] * wgt for (wgt, dh)
+                     in zip(self.handler_weights, self.data_handlers)])
+        return self._means
+
+    @property
+    def stds(self):
+        """Dictionary of standard deviations for each feature, computed across
+        all data handlers."""
+        if self._stds is None:
+            self._stds = {}
+            for k in self.data_handlers[0].features:
+                self._stds[k] = np.sqrt(np.sum(
+                    [dh.stds[k]**2 * wgt for (wgt, dh)
+                     in zip(self.handler_weights, self.data_handlers)]))
+        return self._stds
+
+
+class CacheHandling:
     """Collection of methods for handling data caching and loading"""
 
     def __init__(self):
@@ -483,7 +579,7 @@ class CacheHandlingMixIn:
         return extract_features
 
 
-class InputMixIn(CacheHandlingMixIn):
+class InputMixIn(CacheHandling):
     """MixIn class with properties and methods for handling the spatiotemporal
     data domain to extract from source data."""
 
@@ -592,7 +688,7 @@ class InputMixIn(CacheHandlingMixIn):
 
     def cap_worker_args(self, max_workers):
         """Cap all workers args by max_workers"""
-        for v in self._worker_attrs:
+        for v in self.worker_attrs:
             capped_val = self.get_capped_workers(getattr(self, v), max_workers)
             setattr(self, v, capped_val)
 
@@ -943,7 +1039,7 @@ class InputMixIn(CacheHandlingMixIn):
         return self._raw_time_index
 
 
-class TrainingPrepMixIn:
+class TrainingPrep:
     """Collection of training related methods. e.g. Training + Validation
     splitting, normalization"""
 

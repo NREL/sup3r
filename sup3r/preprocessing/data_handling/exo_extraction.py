@@ -15,8 +15,8 @@ from scipy.spatial import KDTree
 
 import sup3r.preprocessing.data_handling
 from sup3r.postprocessing.file_handling import OutputHandler
-from sup3r.preprocessing.data_handling.h5_data_handling import DataHandlerH5
-from sup3r.preprocessing.data_handling.nc_data_handling import DataHandlerNC
+from sup3r.preprocessing.data_handling.h5 import DataHandlerH5
+from sup3r.preprocessing.data_handling.nc import DataHandlerNC
 from sup3r.utilities.utilities import (
     generate_random_string,
     get_source_type,

@@ -19,7 +19,7 @@ from rex.utilities.utilities import safe_json_load
 from tensorflow.keras import optimizers
 
 import sup3r.utilities.loss_metrics
-from sup3r.preprocessing.data_handling.exogenous_data_handling import ExoData
+from sup3r.preprocessing.data_handling.exogenous import ExoData
 from sup3r.utilities import VERSION_RECORD
 from sup3r.utilities.utilities import Timer
 

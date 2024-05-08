@@ -26,7 +26,7 @@ from sup3r.postprocessing.file_handling import (
     OutputHandlerNC,
 )
 from sup3r.preprocessing.data_handling.base import InputMixIn
-from sup3r.preprocessing.data_handling.exogenous_data_handling import (
+from sup3r.preprocessing.data_handling.exogenous import (
     ExoData,
     ExogenousDataHandler,
 )
