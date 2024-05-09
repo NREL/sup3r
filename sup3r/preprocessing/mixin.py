@@ -2,6 +2,8 @@
 @author: bbenton
 """
 
+import copy
+import fnmatch
 import logging
 import os
 import pickle
@@ -19,6 +21,7 @@ from scipy.stats import mode
 
 from sup3r.utilities.utilities import (
     expand_paths,
+    get_handler_weights,
     get_source_type,
     ignore_case_path_fetch,
     uniform_box_sampler,
@@ -30,9 +33,188 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
-class FeatureSets:
-    """Collection of the different feature sets used across preprocessing
-    modules."""
+class DualMixIn:
+    """Properties shared by dual data handlers."""
+
+    def __init__(self, lr_handler, hr_handler):
+        self.lr_dh = lr_handler
+        self.hr_dh = hr_handler
+
+    @property
+    def features(self):
+        """Get a list of data features including features from both the lr and
+        hr data handlers"""
+        out = list(copy.deepcopy(self.lr_dh.features))
+        out += [fn for fn in self.hr_dh.features if fn not in out]
+        return out
+
+    @property
+    def lr_only_features(self):
+        """Features to use for training only and not output"""
+        tof = [fn for fn in self.lr_dh.features
+               if fn not in self.hr_out_features
+               and fn not in self.hr_exo_features]
+        return tof
+
+    @property
+    def lr_features(self):
+        """Get a list of low-resolution features. All low-resolution features
+        are used for training."""
+        return self.lr_dh.features
+
+    @property
+    def hr_exo_features(self):
+        """Get a list of high-resolution features that are only used for
+        training e.g., mid-network high-res topo injection. These must come at
+        the end of the high-res feature set."""
+        return self.hr_dh.hr_exo_features
+
+    @property
+    def hr_out_features(self):
+        """Get a list of high-resolution features that are intended to be
+        output by the GAN. Does not include high-resolution exogenous features
+        """
+        return self.hr_dh.hr_out_features
+
+    @property
+    def sample_shape(self):
+        """Get lr sample shape"""
+        return self.lr_dh.sample_shape
+
+    @property
+    def lr_sample_shape(self):
+        """Get lr sample shape"""
+        return self.lr_dh.sample_shape
+
+    @property
+    def hr_sample_shape(self):
+        """Get hr sample shape"""
+        return self.hr_dh.sample_shape
+
+    def get_index_pair(self, lr_data_shape, lr_sample_shape, s_enhance,
+                       t_enhance):
+        """Get pair of observation indices for low-res and high-res
+
+        Returns
+        -------
+        (lr_index, hr_index) : tuple
+            Pair of slice lists for low-res and high-res. Each list consists
+            of [spatial_1 slice, spatial_2 slice, temporal slice, slice(None)]
+        """
+        lr_obs_idx = self.lr_dh.get_observation_index(lr_data_shape,
+                                                      lr_sample_shape)
+        hr_obs_idx = [slice(s.start * s_enhance, s.stop * s_enhance)
+                      for s in lr_obs_idx[:2]]
+        hr_obs_idx += [slice(s.start * t_enhance, s.stop * t_enhance)
+                       for s in lr_obs_idx[2:-1]]
+        hr_obs_idx += [slice(None)]
+        return (lr_obs_idx, hr_obs_idx)
+
+
+class HandlerFeatureSets:
+    """Features sets used by single-handler classes."""
+
+    def __init__(self, features, lr_only_features, hr_exo_features):
+        """
+        Parameters
+        ----------
+        features : list
+            list of all features extracted or to extract.
+        lr_only_features : list | tuple
+            List of feature names or patt*erns that should only be included in
+            the low-res training set and not the high-res observations.
+        hr_exo_features : list | tuple
+            List of feature names or patt*erns that should be included in the
+            high-resolution observation but not expected to be output from the
+            generative model. An example is high-res topography that is to be
+            injected mid-network.
+        """
+        self.features = features
+        self._lr_only_features = lr_only_features
+        self._hr_exo_features = hr_exo_features
+
+    @property
+    def lr_only_features(self):
+        """List of feature names or patt*erns that should only be included in
+        the low-res training set and not the high-res observations."""
+        if isinstance(self._lr_only_features, str):
+            self._lr_only_features = [self._lr_only_features]
+
+        elif isinstance(self._lr_only_features, tuple):
+            self._lr_only_features = list(self._lr_only_features)
+
+        elif self._lr_only_features is None:
+            self._lr_only_features = []
+
+        return self._lr_only_features
+
+    @property
+    def lr_features(self):
+        """Get a list of low-resolution features. It is assumed that all
+        features are used in the low-resolution observations. If you want to
+        use high-res-only features, use the DualDataHandler class."""
+        return self.features
+
+    @property
+    def hr_exo_features(self):
+        """Get a list of exogenous high-resolution features that are only used
+        for training e.g., mid-network high-res topo injection. These must come
+        at the end of the high-res feature set. These can also be input to the
+        model as low-res features."""
+
+        if isinstance(self._hr_exo_features, str):
+            self._hr_exo_features = [self._hr_exo_features]
+
+        elif isinstance(self._hr_exo_features, tuple):
+            self._hr_exo_features = list(self._hr_exo_features)
+
+        elif self._hr_exo_features is None:
+            self._hr_exo_features = []
+
+        if any('*' in fn for fn in self._hr_exo_features):
+            hr_exo_features = []
+            for feature in self.features:
+                match = any(fnmatch(feature.lower(), pattern.lower())
+                            for pattern in self._hr_exo_features)
+                if match:
+                    hr_exo_features.append(feature)
+            self._hr_exo_features = hr_exo_features
+
+        if len(self._hr_exo_features) > 0:
+            msg = (f'High-res train-only features "{self._hr_exo_features}" '
+                   f'do not come at the end of the full high-res feature set: '
+                   f'{self.features}')
+            last_feat = self.features[-len(self._hr_exo_features):]
+            assert list(self._hr_exo_features) == list(last_feat), msg
+
+        return self._hr_exo_features
+
+    @property
+    def hr_out_features(self):
+        """Get a list of high-resolution features that are intended to be
+        output by the GAN. Does not include high-resolution exogenous
+        features"""
+
+        out = []
+        for feature in self.features:
+            lr_only = any(fnmatch(feature.lower(), pattern.lower())
+                          for pattern in self.lr_only_features)
+            ignore = lr_only or feature in self.hr_exo_features
+            if not ignore:
+                out.append(feature)
+
+        if len(out) == 0:
+            msg = (f'It appears that all handler features "{self.features}" '
+                   'were specified as `hr_exo_features` or `lr_only_features` '
+                   'and therefore there are no output features!')
+            logger.error(msg)
+            raise RuntimeError(msg)
+
+        return out
+
+
+class MultiHandlerMixIn:
+    """Collection of the feature sets used by multi-handler classes."""
 
     def __init__(self, data_handlers):
         """
@@ -55,6 +237,23 @@ class FeatureSets:
         """Get a list of low-resolution features. All low-resolution features
         are used for training."""
         return self.data_handlers[0].lr_features
+
+    @property
+    def lr_shape(self):
+        """Shape of low resolution sample in a low-res / high-res pair.  (e.g.
+        (spatial_1, spatial_2, temporal, features)) """
+        lr_sample_shape = self.data_handlers[0].lr_sample_shape
+        lr_features = self.data_handlers[0].lr_features
+        return (*lr_sample_shape, len(lr_features))
+
+    @property
+    def hr_shape(self):
+        """Shape of high resolution sample in a low-res / high-res pair.  (e.g.
+        (spatial_1, spatial_2, temporal, features)) """
+        hr_sample_shape = self.data_handlers[0].hr_sample_shape
+        hr_features = (self.data_handlers[0].hr_out_features
+                       + self.data_handlers[0].hr_exo_features)
+        return (*hr_sample_shape, len(hr_features))
 
     @property
     def hr_exo_features(self):
@@ -88,41 +287,69 @@ class FeatureSets:
         `hr_features_ind`"""
         return [self.features[ind] for ind in self.hr_features_ind]
 
+    @property
+    def s_enhance(self):
+        """Get spatial enhancement factor of first (and all) data handlers."""
+        return self.data_handlers[0].s_enhance
+
+    @property
+    def t_enhance(self):
+        """Get temporal enhancement factor of first (and all) data handlers."""
+        return self.data_handlers[0].t_enhance
 
 
-class MultiHandlerStats:
-    """Compute means and stdevs across multiple data handlers."""
+class MultiDualMixIn(MultiHandlerMixIn):
+    """Properties shared by objects operating on multiple dual handlers."""
+
+    @property
+    def lr_sample_shape(self):
+        """Get lr sample shape"""
+        return self.data_handlers[0].lr_dh.sample_shape
+
+    @property
+    def hr_sample_shape(self):
+        """Get hr sample shape"""
+        return self.data_handlers[0].hr_dh.sample_shape
+
+
+class HandlerStats(MultiHandlerMixIn):
+    """Compute means and stdevs across one or more data handlers."""
 
     def __init__(self, data_handlers, means_file=None, stdevs_file=None):
+        self.handler_weights = get_handler_weights(data_handlers)
         self.data_handlers = data_handlers
-        self._means = (None if means_file is None
-                       else safe_json_load(means_file))
-        self._stds = (None if stdevs_file is None
-                      else safe_json_load(stdevs_file))
+        self.means = self.get_means(means_file)
+        self.stds = self.get_stds(stdevs_file)
+        self.lr_means = np.array([self.means[k] for k in self.lr_features])
+        self.lr_stds = np.array([self.stds[k] for k in self.lr_features])
+        self.hr_means = np.array([self.means[k] for k in self.hr_features])
+        self.hr_stds = np.array([self.stds[k] for k in self.hr_features])
 
-    @property
-    def means(self):
+    def get_means(self, means_file):
         """Dictionary of means for each feature, computed across all data
         handlers."""
-        if self._means is None:
-            self._means = {}
+        if means_file is None:
+            means = {}
             for k in self.data_handlers[0].features:
-                self._means[k] = np.sum(
+                means[k] = np.sum(
                     [dh.means[k] * wgt for (wgt, dh)
                      in zip(self.handler_weights, self.data_handlers)])
-        return self._means
+        else:
+            means = safe_json_load(means_file)
+        return means
 
-    @property
-    def stds(self):
+    def get_stds(self, stdevs_file):
         """Dictionary of standard deviations for each feature, computed across
         all data handlers."""
-        if self._stds is None:
-            self._stds = {}
+        if stdevs_file is None:
+            stds = {}
             for k in self.data_handlers[0].features:
-                self._stds[k] = np.sqrt(np.sum(
+                stds[k] = np.sqrt(np.sum(
                     [dh.stds[k]**2 * wgt for (wgt, dh)
                      in zip(self.handler_weights, self.data_handlers)]))
-        return self._stds
+        else:
+            stds = safe_json_load(stdevs_file)
+        return stds
 
 
 class CacheHandling:

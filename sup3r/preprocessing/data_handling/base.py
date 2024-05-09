@@ -9,7 +9,6 @@ import warnings
 from abc import abstractmethod
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime as dt
-from fnmatch import fnmatch
 from typing import ClassVar
 
 import numpy as np
@@ -38,6 +37,7 @@ from sup3r.preprocessing.feature_handling import (
     WindspeedNC,
 )
 from sup3r.preprocessing.mixin import (
+    HandlerFeatureSets,
     InputMixIn,
     TrainingPrep,
 )
@@ -75,14 +75,15 @@ class LazyDataHandler(AbstractDataHandler):
             time=obs_index[2],
         )
 
-        if self.mode == 'lazy':
+        if self._mode == 'lazy':
             out = out.compute()
 
         out = out.to_dataarray().values
         return np.transpose(out, axes=(2, 3, 1, 0))
 
 
-class DataHandler(FeatureHandler, InputMixIn, TrainingPrep):
+class DataHandler(HandlerFeatureSets, FeatureHandler, InputMixIn,
+                  TrainingPrep):
     """Sup3r data handling and extraction for low-res source data or for
     artificially coarsened high-res source data for training.
 
@@ -536,85 +537,6 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrep):
                 self.noncached_features, self.handle_features)
 
         return self._raw_features
-
-    @property
-    def lr_only_features(self):
-        """List of feature names or patt*erns that should only be included in
-        the low-res training set and not the high-res observations."""
-        if isinstance(self._lr_only_features, str):
-            self._lr_only_features = [self._lr_only_features]
-
-        elif isinstance(self._lr_only_features, tuple):
-            self._lr_only_features = list(self._lr_only_features)
-
-        elif self._lr_only_features is None:
-            self._lr_only_features = []
-
-        return self._lr_only_features
-
-    @property
-    def lr_features(self):
-        """Get a list of low-resolution features. It is assumed that all
-        features are used in the low-resolution observations. If you want to
-        use high-res-only features, use the DualDataHandler class."""
-        return self.features
-
-    @property
-    def hr_exo_features(self):
-        """Get a list of exogenous high-resolution features that are only used
-        for training e.g., mid-network high-res topo injection. These must come
-        at the end of the high-res feature set. These can also be input to the
-        model as low-res features."""
-
-        if isinstance(self._hr_exo_features, str):
-            self._hr_exo_features = [self._hr_exo_features]
-
-        elif isinstance(self._hr_exo_features, tuple):
-            self._hr_exo_features = list(self._hr_exo_features)
-
-        elif self._hr_exo_features is None:
-            self._hr_exo_features = []
-
-        if any('*' in fn for fn in self._hr_exo_features):
-            hr_exo_features = []
-            for feature in self.features:
-                match = any(fnmatch(feature.lower(), pattern.lower())
-                            for pattern in self._hr_exo_features)
-                if match:
-                    hr_exo_features.append(feature)
-            self._hr_exo_features = hr_exo_features
-
-        if len(self._hr_exo_features) > 0:
-            msg = (f'High-res train-only features "{self._hr_exo_features}" '
-                   f'do not come at the end of the full high-res feature set: '
-                   f'{self.features}')
-            last_feat = self.features[-len(self._hr_exo_features):]
-            assert list(self._hr_exo_features) == list(last_feat), msg
-
-        return self._hr_exo_features
-
-    @property
-    def hr_out_features(self):
-        """Get a list of high-resolution features that are intended to be
-        output by the GAN. Does not include high-resolution exogenous
-        features"""
-
-        out = []
-        for feature in self.features:
-            lr_only = any(fnmatch(feature.lower(), pattern.lower())
-                          for pattern in self.lr_only_features)
-            ignore = lr_only or feature in self.hr_exo_features
-            if not ignore:
-                out.append(feature)
-
-        if len(out) == 0:
-            msg = (f'It appears that all handler features "{self.features}" '
-                   'were specified as `hr_exo_features` or `lr_only_features` '
-                   'and therefore there are no output features!')
-            logger.error(msg)
-            raise RuntimeError(msg)
-
-        return out
 
     def preflight(self):
         """Run some preflight checks and verify that the inputs are valid"""

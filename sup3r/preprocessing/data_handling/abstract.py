@@ -4,12 +4,16 @@ from abc import abstractmethod
 
 import xarray as xr
 
-from sup3r.preprocessing.mixin import InputMixIn
+from sup3r.preprocessing.mixin import (
+    HandlerFeatureSets,
+    InputMixIn,
+    TrainingPrep,
+)
 
 logger = logging.getLogger(__name__)
 
 
-class AbstractDataHandler(InputMixIn):
+class AbstractDataHandler(InputMixIn, TrainingPrep, HandlerFeatureSets):
     """Abstract DataHandler blueprint."""
 
     def __init__(
@@ -17,13 +21,13 @@ class AbstractDataHandler(InputMixIn):
         hr_exo_features=(), res_kwargs=None, mode='lazy'
     ):
         self.features = features
-        self._file_paths = file_paths
         self.sample_shape = sample_shape
+        self._file_paths = file_paths
         self._lr_only_features = lr_only_features
         self._hr_exo_features = hr_exo_features
-        self._res_kwargs = res_kwargs
+        self._res_kwargs = res_kwargs or {}
         self._data = None
-        self.mode = mode
+        self._mode = mode
         self.shape = (*self.data["latitude"].shape, len(self.data["time"]))
 
         logger.info(f'Initialized {self.__class__.__name__} with '
@@ -35,15 +39,12 @@ class AbstractDataHandler(InputMixIn):
         """Xarray dataset either lazily loaded (mode = 'lazy') or loaded into
         memory right away (mode = 'eager')."""
         if self._data is None:
-            default_kwargs = {
-                'chunks': {'south_north': 10, 'west_east': 10, 'time': 3}}
-            res_kwargs = (self._res_kwargs if self._res_kwargs is not None
-                          else default_kwargs)
-            self._data = xr.open_mfdataset(self.file_paths, **res_kwargs)
+            self._data = xr.open_mfdataset(self.file_paths, **self._res_kwargs)
 
-            if self.mode == 'eager':
+            if self._mode == 'eager':
                 logger.info(f'Loading {self.file_paths} in eager mode.')
-            self._data = self._data.compute()
+                self._data = self._data.compute()
+
         return self._data
 
     @abstractmethod
