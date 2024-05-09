@@ -12,12 +12,12 @@ from rex import Resource
 from scipy.ndimage.filters import gaussian_filter
 
 from sup3r import TEST_DATA_DIR
-from sup3r.preprocessing.batch_handling import (
+from sup3r.preprocessing import (
     BatchHandler,
+    DataHandlerNC,
     SpatialBatchHandler,
 )
-from sup3r.preprocessing.data_handling import DataHandlerH5 as DataHandler
-from sup3r.preprocessing.data_handling import DataHandlerNC
+from sup3r.preprocessing import DataHandlerH5 as DataHandler
 from sup3r.utilities import utilities
 
 input_files = [os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5'),

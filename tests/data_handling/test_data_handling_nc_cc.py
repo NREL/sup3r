@@ -8,7 +8,7 @@ from rex import Resource
 from scipy.spatial import KDTree
 
 from sup3r import TEST_DATA_DIR
-from sup3r.preprocessing.data_handling import (
+from sup3r.preprocessing import (
     DataHandlerNCforCC,
     DataHandlerNCforCCwithPowerLaw,
 )

@@ -10,7 +10,8 @@ from typing import ClassVar
 import numpy as np
 from rex import MultiFileNSRDBX, MultiFileWindX
 
-from sup3r.preprocessing.data_handling.base import DataHandler, DataHandlerDC
+from sup3r.preprocessing.data_handling.base import DataHandler
+from sup3r.preprocessing.data_handling.data_centric import DataHandlerDC
 from sup3r.preprocessing.feature_handling import (
     BVFreqMon,
     BVFreqSquaredH5,

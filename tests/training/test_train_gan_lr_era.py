@@ -12,7 +12,7 @@ from tensorflow.python.framework.errors_impl import InvalidArgumentError
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.models import Sup3rGan
-from sup3r.preprocessing.data_handling import (
+from sup3r.preprocessing import (
     DataHandlerH5,
     DataHandlerNC,
     DualDataHandler,

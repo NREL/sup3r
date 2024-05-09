@@ -151,7 +151,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         logger.info('Saved GAN to disk in directory: {}'.format(out_dir))
 
     @classmethod
-    def load(cls, model_dir, verbose=True):
+    def load(cls, model_dir, default_device=None, verbose=True):
         """Load the GAN with its sub-networks from a previously saved-to output
         directory.
 
@@ -159,6 +159,13 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         ----------
         model_dir : str
             Directory to load GAN model files from.
+        default_device : str | None
+            Option for default device placement of model weights. If None and a
+            single GPU exists, that GPU will be the default device. If None and
+            multiple GPUs exist, the CPU will be the default device (this was
+            tested as most efficient given the custom multi-gpu strategy
+            developed in self.run_gradient_descent()). Examples: "/gpu:0" or
+            "/cpu:0"
         verbose : bool
             Flag to log information about the loaded model.
 
@@ -178,7 +185,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         fp_disc = os.path.join(model_dir, 'model_disc.pkl')
         params = cls.load_saved_params(model_dir, verbose=verbose)
 
-        return cls(fp_gen, fp_disc, **params)
+        return cls(fp_gen, fp_disc, **params, default_device=default_device)
 
     @property
     def discriminator(self):

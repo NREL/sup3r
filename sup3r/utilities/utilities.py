@@ -1493,7 +1493,7 @@ def get_input_handler_class(file_paths, input_handler_name):
     Returns
     -------
     HandlerClass : DataHandlerH5 | DataHandlerNC
-        DataHandler subclass from sup3r.preprocessing.data_handling.
+        DataHandler subclass from sup3r.preprocessing.
     """
 
     HandlerClass = None
@@ -1514,16 +1514,16 @@ def get_input_handler_class(file_paths, input_handler_name):
         )
 
     if isinstance(input_handler_name, str):
-        import sup3r.preprocessing.data_handling
+        import sup3r.preprocessing
 
         HandlerClass = getattr(
-            sup3r.preprocessing.data_handling, input_handler_name, None
+            sup3r.preprocessing, input_handler_name, None
         )
 
     if HandlerClass is None:
         msg = (
             'Could not find requested data handler class '
-            f'"{input_handler_name}" in sup3r.preprocessing.data_handling.'
+            f'"{input_handler_name}" in sup3r.preprocessing.'
         )
         logger.error(msg)
         raise KeyError(msg)

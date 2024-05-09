@@ -13,13 +13,14 @@ from tensorflow.python.framework.errors_impl import InvalidArgumentError
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.models import Sup3rGan
 from sup3r.models.data_centric import Sup3rGanDC, Sup3rGanSpatialDC
-from sup3r.preprocessing.batch_handling import (
+from sup3r.preprocessing import (
     BatchHandler,
     BatchHandlerDC,
     BatchHandlerSpatialDC,
+    DataHandlerDCforH5,
+    DataHandlerH5,
     SpatialBatchHandler,
 )
-from sup3r.preprocessing.data_handling import DataHandlerDCforH5, DataHandlerH5
 from sup3r.utilities.loss_metrics import MmdMseLoss
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')

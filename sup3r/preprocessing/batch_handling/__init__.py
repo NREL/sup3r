@@ -1,4 +1,18 @@
 """Sup3r Batch Handling module."""
 
 from .base import BatchBuilder
-from .dual import DualBatchHandler
+from .conditional_moments import (
+    BatchHandlerMom1,
+    BatchHandlerMom1SF,
+    BatchHandlerMom2,
+    BatchHandlerMom2Sep,
+    BatchHandlerMom2SepSF,
+    BatchHandlerMom2SF,
+    BatchMom1,
+    BatchMom1SF,
+    BatchMom2,
+    BatchMom2Sep,
+    BatchMom2SepSF,
+    BatchMom2SF,
+)
+from .dual import DualBatchHandler, LazyDualBatchHandler

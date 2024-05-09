@@ -1,15 +1,19 @@
 # -*- coding: utf-8 -*-
 """pytests for feature handling / parsing"""
 
-from sup3r.preprocessing.feature_handling import (UWind, BVFreqMon,
-                                                  BVFreqSquaredH5,
-                                                  BVFreqSquaredNC,
-                                                  ClearSkyRatioH5)
-from sup3r.preprocessing.data_handling import (DataHandlerH5,
-                                               DataHandlerNC,
-                                               DataHandlerH5SolarCC,
-                                               DataHandlerNCforCC)
-
+from sup3r.preprocessing import (
+    DataHandlerH5,
+    DataHandlerH5SolarCC,
+    DataHandlerNC,
+    DataHandlerNCforCC,
+)
+from sup3r.preprocessing.feature_handling import (
+    BVFreqMon,
+    BVFreqSquaredH5,
+    BVFreqSquaredNC,
+    ClearSkyRatioH5,
+    UWind,
+)
 
 WTK_FEAT = ['windspeed_100m', 'winddirection_100m',
             'windspeed_200m', 'winddirection_200m',

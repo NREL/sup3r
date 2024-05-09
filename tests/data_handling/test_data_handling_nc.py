@@ -10,12 +10,12 @@ import pytest
 import xarray as xr
 
 from sup3r import TEST_DATA_DIR
-from sup3r.preprocessing.batch_handling import (
+from sup3r.preprocessing import (
     BatchHandler,
+    DataHandlerNCwithAugmentation,
     SpatialBatchHandler,
 )
-from sup3r.preprocessing.data_handling import DataHandlerNC as DataHandler
-from sup3r.preprocessing.data_handling import DataHandlerNCwithAugmentation
+from sup3r.preprocessing import DataHandlerNC as DataHandler
 from sup3r.utilities.interpolation import Interpolator
 from sup3r.utilities.pytest import make_fake_era_files, make_fake_nc_files
 
