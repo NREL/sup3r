@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime as dt
 
 import numpy as np
+import tensorflow as tf
 from rex.utilities import log_mem
 from scipy.ndimage import gaussian_filter
 
@@ -16,7 +17,7 @@ from sup3r.preprocessing.batch_handling.abstract import AbstractBatchBuilder
 from sup3r.preprocessing.data_handling.h5 import (
     DataHandlerDCforH5,
 )
-from sup3r.preprocessing.mixin import FeatureSets
+from sup3r.preprocessing.mixin import MultiHandlerMixIn
 from sup3r.utilities.utilities import (
     nn_fill_array,
     nsrdb_reduce_daily_data,
@@ -147,27 +148,73 @@ class Batch:
 
 
 class BatchBuilder(AbstractBatchBuilder):
-    """BatchBuilder implementation for DataHandler instances with
-    lr_sample_shape and hr_sample_shape attributes."""
+    """Base batch builder class"""
+
+    def __init__(self, data_handlers, batch_size, buffer_size=None,
+                 max_workers=None):
+        """
+        Parameters
+        ----------
+        data_handlers : list[DataHandler]
+            List of DataHandler instances each with a `.size` property and a
+            `.get_next` method to return the next (low_res, high_res) sample.
+        batch_size : int
+            Number of samples/observations to use for each batch. e.g. Batches
+            will be (batch_size, spatial_1, spatial_2, temporal, features)
+        buffer_size : int
+            Number of samples to prefetch
+        """
+        self._handler_weights = None
+        self._sample_counter = 0
+        self.data_handlers = data_handlers
+        self.batch_size = batch_size
+        self.buffer_size = buffer_size or 10 * batch_size
+        self.max_workers = max_workers or self.batch_size
+        self.handler_index = self.get_handler_index()
+        self.batches = self.prefetch()
+
+        logger.info(f'Initialized {self.__class__.__name__} with '
+                    f'{len(data_handlers)} data handlers, '
+                    f'batch_size = {batch_size}, buffer_size = {buffer_size}, '
+                    f'max_workers = {max_workers}.')
+
+    @property
+    def data(self):
+        """Return tensorflow dataset generator."""
+        data = tf.data.Dataset.from_generator(
+            self.gen,
+            output_signature=(tf.TensorSpec(self.lr_shape, tf.float32,
+                                            name='low_resolution'),
+                              tf.TensorSpec(self.hr_shape, tf.float32,
+                                            name='high_resolution')))
+        return data
+
+    def gen(self):
+        """Generator method to enable Dataset.from_generator() call."""
+        while True:
+            idx = self._sample_counter
+            self._sample_counter += 1
+            yield self[idx]
 
     @property
     def lr_shape(self):
+        """Shape of low resolution sample in a low-res / high-res pair.  (e.g.
+        (spatial_1, spatial_2, temporal, features)) """
         lr_sample_shape = self.data_handlers[0].lr_sample_shape
         lr_features = self.data_handlers[0].lr_features
-        lr_shape = (*lr_sample_shape, len(lr_features))
-        return lr_shape
+        return (*lr_sample_shape, len(lr_features))
 
     @property
     def hr_shape(self):
+        """Shape of high resolution sample in a low-res / high-res pair.  (e.g.
+        (spatial_1, spatial_2, temporal, features)) """
         hr_sample_shape = self.data_handlers[0].hr_sample_shape
         hr_features = (self.data_handlers[0].hr_out_features
                        + self.data_handlers[0].hr_exo_features)
-        hr_shape = (*hr_sample_shape, len(hr_features))
-        return hr_shape
+        return (*hr_sample_shape, len(hr_features))
 
 
-
-class ValidationData:
+class ValidationData(AbstractBatchBuilder):
     """Iterator for validation data"""
 
     # Classes to use for handling an individual batch obj.
@@ -242,7 +289,6 @@ class ValidationData:
             is used to get validation data observation with
         data[tuple_index]
         """
-
         val_indices = []
         for i, h in enumerate(self.data_handlers):
             if h.val_data is not None:
@@ -260,19 +306,6 @@ class ValidationData:
                         'tuple_index': tuple_index
                     })
         return val_indices
-
-    @property
-    def handler_weights(self):
-        """Get weights used to sample from different data handlers based on
-        relative sizes"""
-        sizes = [dh.size for dh in self.data_handlers]
-        weights = sizes / np.sum(sizes)
-        return weights
-
-    def get_handler_index(self):
-        """Get random handler index based on handler weights"""
-        indices = np.arange(0, len(self.data_handlers))
-        return np.random.choice(indices, p=self.handler_weights)
 
     def any(self):
         """Return True if any validation data exists"""
@@ -369,7 +402,7 @@ class ValidationData:
             raise StopIteration
 
 
-class BatchHandler(FeatureSets):
+class BatchHandler(MultiHandlerMixIn, AbstractBatchBuilder):
     """Sup3r base batch handling class"""
 
     # Classes to use for handling an individual batch obj.
@@ -486,7 +519,7 @@ class BatchHandler(FeatureSets):
         self.n_batches = n_batches
         self.temporal_coarsening_method = temporal_coarsening_method
         self.current_batch_indices = None
-        self.current_handler_index = None
+        self.handler_index = self.get_handler_index()
         self.stdevs_file = stdevs_file
         self.means_file = means_file
         self.overwrite_stats = overwrite_stats
@@ -495,7 +528,6 @@ class BatchHandler(FeatureSets):
         self.smoothed_features = [
             f for f in self.features if f not in self.smoothing_ignore
         ]
-        FeatureSets.__init__(self, data_handlers)
 
         logger.info(f'Initializing BatchHandler with '
                     f'{len(self.data_handlers)} data handlers with handler '
@@ -528,25 +560,6 @@ class BatchHandler(FeatureSets):
 
         logger.info('Finished initializing BatchHandler.')
         log_mem(logger, log_level='INFO')
-
-    @property
-    def handler_weights(self):
-        """Get weights used to sample from different data handlers based on
-        relative sizes"""
-        sizes = [dh.size for dh in self.data_handlers]
-        weights = sizes / np.sum(sizes)
-        weights = weights.astype(np.float32)
-        return weights
-
-    def get_handler_index(self):
-        """Get random handler index based on handler weights"""
-        indices = np.arange(0, len(self.data_handlers))
-        return np.random.choice(indices, p=self.handler_weights)
-
-    def get_rand_handler(self):
-        """Get random handler based on handler weights"""
-        self.current_handler_index = self.get_handler_index()
-        return self.data_handlers[self.current_handler_index]
 
     @property
     def shape(self):
@@ -1217,7 +1230,7 @@ class BatchHandlerDC(BatchHandler):
 
     def update_training_sample_record(self):
         """Keep track of number of observations from each temporal bin"""
-        handler = self.data_handlers[self.current_handler_index]
+        handler = self.data_handlers[self.handler_index]
         t_start = handler.current_obs_index[2].start
         t_bin_number = np.digitize(t_start, self.temporal_bins)
         self.temporal_sample_record[t_bin_number - 1] += 1
@@ -1302,7 +1315,7 @@ class BatchHandlerSpatialDC(BatchHandler):
 
     def update_training_sample_record(self):
         """Keep track of number of observations from each temporal bin"""
-        handler = self.data_handlers[self.current_handler_index]
+        handler = self.data_handlers[self.handler_index]
         row = handler.current_obs_index[0].start
         col = handler.current_obs_index[1].start
         s_start = self.max_rows * row + col

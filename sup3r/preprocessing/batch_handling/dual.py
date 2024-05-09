@@ -1,24 +1,28 @@
 """Batch handling classes for dual data handlers"""
 import logging
-import threading
 import time
 
 import numpy as np
 import tensorflow as tf
 
+from sup3r.preprocessing.batch_handling.abstract import AbstractBatchHandler
 from sup3r.preprocessing.batch_handling.base import (
     Batch,
     BatchBuilder,
     BatchHandler,
     ValidationData,
 )
-from sup3r.preprocessing.mixin import FeatureSets, MultiHandlerStats
+from sup3r.preprocessing.mixin import (
+    HandlerStats,
+    MultiDualMixIn,
+    MultiHandlerMixIn,
+)
 from sup3r.utilities.utilities import uniform_box_sampler, uniform_time_sampler
 
 logger = logging.getLogger(__name__)
 
 
-class DualValidationData(ValidationData):
+class DualValidationData(ValidationData, MultiHandlerMixIn):
     """Iterator for validation data for training with dual data handler"""
 
     # Classes to use for handling an individual batch obj.
@@ -72,22 +76,11 @@ class DualValidationData(ValidationData):
             With temporal extent equal to the sum across all data handlers time
             dimension
         """
-        time_steps = 0
-        for h in self.data_handlers:
-            time_steps += h.hr_val_data.shape[2]
+        time_steps = np.sum([h.hr_val_data.shape[2]
+                             for h in self.data_handlers])
         return (self.data_handlers[0].hr_val_data.shape[0],
                 self.data_handlers[0].hr_val_data.shape[1], time_steps,
                 self.data_handlers[0].hr_val_data.shape[3])
-
-    @property
-    def hr_sample_shape(self):
-        """Get sample shape for high_res data"""
-        return self.data_handlers[0].hr_dh.sample_shape
-
-    @property
-    def lr_sample_shape(self):
-        """Get sample shape for low_res data"""
-        return self.data_handlers[0].lr_dh.sample_shape
 
     def __next__(self):
         """Get validation data batch
@@ -138,21 +131,11 @@ class DualValidationData(ValidationData):
             raise StopIteration
 
 
-class DualBatchHandler(BatchHandler, FeatureSets):
+class DualBatchHandler(BatchHandler, MultiDualMixIn):
     """Batch handling class for dual data handlers"""
 
     BATCH_CLASS = Batch
     VAL_CLASS = DualValidationData
-
-    @property
-    def lr_sample_shape(self):
-        """Spatiotemporal shape of low res samples. (lats, lons, time)"""
-        return self.data_handlers[0].lr_dh.sample_shape
-
-    @property
-    def hr_sample_shape(self):
-        """Spatiotemporal shape of high res samples. (lats, lons, time)"""
-        return self.data_handlers[0].hr_dh.sample_shape
 
     def __next__(self):
         """Get the next batch of observations.
@@ -183,7 +166,7 @@ class DualBatchHandler(BatchHandler, FeatureSets):
             raise StopIteration
 
 
-class LazyDualBatchHandler(MultiHandlerStats, FeatureSets):
+class LazyDualBatchHandler(HandlerStats, MultiDualMixIn, AbstractBatchHandler):
     """Dual batch handler which uses lazy data handlers to load data as
     needed rather than all in memory at once.
 
@@ -212,13 +195,6 @@ class LazyDualBatchHandler(MultiHandlerStats, FeatureSets):
         self.batch_size = batch_size
         self.n_batches = n_batches
         self.queue_capacity = n_batches
-        lr_shape = (
-            self.batch_size, *self.lr_sample_shape, len(self.lr_features))
-        hr_shape = (
-            self.batch_size, *self.hr_sample_shape, len(self.hr_features))
-        self.queue = tf.queue.FIFOQueue(self.queue_capacity,
-                                        dtypes=[tf.float32, tf.float32],
-                                        shapes=[lr_shape, hr_shape])
         self.val_data = []
         self._batch_counter = 0
         self._queue = None
@@ -228,10 +204,8 @@ class LazyDualBatchHandler(MultiHandlerStats, FeatureSets):
                                        batch_size=batch_size,
                                        buffer_size=(n_batches * batch_size),
                                        max_workers=max_workers)
-        MultiHandlerStats.__init__(
-            self, data_handlers, means_file=means_file,
-            stdevs_file=stdevs_file)
-        FeatureSets.__init__(self, data_handlers)
+        HandlerStats.__init__(self, data_handlers, means_file=means_file,
+                              stdevs_file=stdevs_file)
         logger.info(f'Initialized {self.__class__.__name__} with '
                     f'{len(self.data_handlers)} data_handlers, '
                     f'means_file = {means_file}, stdevs_file = {stdevs_file}, '
@@ -239,79 +213,34 @@ class LazyDualBatchHandler(MultiHandlerStats, FeatureSets):
                     f'max_workers = {max_workers}.')
 
     @property
-    def lr_sample_shape(self):
-        """Spatiotemporal shape of low res samples. (lats, lons, time)"""
-        return self.data_handlers[0].lr_dh.sample_shape
+    def queue(self):
+        """Initialize FIFO queue for storing batches."""
+        if self._queue is None:
+            lr_shape = (self.batch_size, *self.lr_sample_shape,
+                        len(self.lr_features))
+            hr_shape = (self.batch_size, *self.hr_sample_shape,
+                        len(self.hr_features))
+            self._queue = tf.queue.FIFOQueue(self.queue_capacity,
+                                             dtypes=[tf.float32, tf.float32],
+                                             shapes=[lr_shape, hr_shape])
+        return self._queue
 
-    @property
-    def hr_sample_shape(self):
-        """Spatiotemporal shape of high res samples. (lats, lons, time)"""
-        return self.data_handlers[0].hr_dh.sample_shape
+    def normalize(self, lr, hr):
+        """Normalize a low-res / high-res pair with the stored means and
+        stdevs."""
+        lr = (lr - self.lr_means) / self.lr_stds
+        hr = (hr - self.hr_means) / self.hr_stds
+        return (lr, hr)
 
-    @property
-    def s_enhance(self):
-        """Get spatial enhancement factor of first (and all) data handlers."""
-        return self.data_handlers[0].s_enhance
-
-    @property
-    def t_enhance(self):
-        """Get temporal enhancement factor of first (and all) data handlers."""
-        return self.data_handlers[0].t_enhance
-
-    def start(self):
-        """Start thread to keep sample queue full for batches."""
-        logger.info(
-            f'Running {self.__class__.__name__}.enqueue_thread.start()')
-        self._is_training = True
-        self._enqueue_thread = threading.Thread(target=self.enqueue_batches)
-        self._enqueue_thread.start()
-
-    def join(self):
-        """Join thread to exit gracefully."""
-        logger.info(
-            f'Running {self.__class__.__name__}.enqueue_thread.join()')
-        self._enqueue_thread.join()
-
-    def stop(self):
-        """Stop loading batches."""
-        self._is_training = False
-        self.join()
-
-    def __len__(self):
-        return self.n_batches
-
-    def __iter__(self):
-        self._batch_counter = 0
-        return self
-
-    def enqueue_batches(self):
-        """Callback function for enqueue thread."""
-        while self._is_training:
-            queue_size = self.queue.size().numpy()
-            if queue_size < self.queue_capacity:
-                logger.info(f'{queue_size} batches in queue.')
-                self.queue.enqueue(next(self.batch_pool))
-
-    def __next__(self):
-        """Get the next batch of observations.
-
-        Returns
-        -------
-        batch : Batch
-            Batch object with batch.low_res and batch.high_res attributes
-            with the appropriate subsampling of interpolated ERA.
-        """
-        if self._batch_counter < self.n_batches:
-            logger.info(f'Getting next batch: {self._batch_counter + 1} / '
-                        f'{self.n_batches}')
-            start = time.time()
-            lr, hr = self.queue.dequeue()
-            batch = self.BATCH_CLASS(low_res=lr, high_res=hr)
-            logger.info(f'Built batch in {time.time() - start}.')
-            self._batch_counter += 1
-        else:
-            raise StopIteration
-
+    def get_next(self):
+        """Get next batch of samples."""
+        logger.info(f'Getting next batch: {self._batch_counter + 1} / '
+                    f'{self.n_batches}')
+        start = time.time()
+        lr, hr = self.queue.dequeue()
+        lr, hr = self.normalize(lr, hr)
+        batch = self.BATCH_CLASS(low_res=lr, high_res=hr)
+        logger.info(f'Built batch in {time.time() - start}.')
         return batch
 
 

@@ -41,7 +41,7 @@ class DualMixIn:
     def lr_features(self):
         """Get a list of low-resolution features. All low-resolution features
         are used for training."""
-        return self.lr_dh.lr_features
+        return self.lr_dh.features
 
     @property
     def hr_exo_features(self):
@@ -72,7 +72,8 @@ class DualMixIn:
         """Get hr sample shape"""
         return self.hr_dh.sample_shape
 
-    def get_index_pair(self, lr_data_shape, lr_sample_shape):
+    def get_index_pair(self, lr_data_shape, lr_sample_shape, s_enhance,
+                       t_enhance):
         """Get pair of observation indices for low-res and high-res
 
         Returns
@@ -83,9 +84,9 @@ class DualMixIn:
         """
         lr_obs_idx = self.lr_dh.get_observation_index(lr_data_shape,
                                                       lr_sample_shape)
-        hr_obs_idx = [slice(s.start * self.s_enhance, s.stop * self.s_enhance)
+        hr_obs_idx = [slice(s.start * s_enhance, s.stop * s_enhance)
                       for s in lr_obs_idx[:2]]
-        hr_obs_idx += [slice(s.start * self.t_enhance, s.stop * self.t_enhance)
+        hr_obs_idx += [slice(s.start * t_enhance, s.stop * t_enhance)
                        for s in lr_obs_idx[2:-1]]
         hr_obs_idx += [slice(None)]
         return (lr_obs_idx, hr_obs_idx)
@@ -173,12 +174,13 @@ class LazyDualDataHandler(DualMixIn):
             (low_res, high_res) pair
         """
         lr_obs_idx, hr_obs_idx = self.get_index_pair(self.lr_dh.shape,
-                                                     self.lr_sample_shape)
+                                                     self.lr_sample_shape,
+                                                     s_enhance=self.s_enhance,
+                                                     t_enhance=self.t_enhance)
 
         out = (self.lr_dh.get_observation(lr_obs_idx[:-1]),
                self.hr_dh.get_observation(hr_obs_idx[:-1]))
         return out
-
 
 
 # pylint: disable=unsubscriptable-object
