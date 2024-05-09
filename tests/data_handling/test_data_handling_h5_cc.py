@@ -10,13 +10,11 @@ import pytest
 from rex import Outputs, Resource
 
 from sup3r import TEST_DATA_DIR
-from sup3r.preprocessing.batch_handling import (
+from sup3r.preprocessing import (
     BatchHandlerCC,
-    SpatialBatchHandlerCC,
-)
-from sup3r.preprocessing.data_handling import (
     DataHandlerH5SolarCC,
     DataHandlerH5WindCC,
+    SpatialBatchHandlerCC,
 )
 from sup3r.utilities.utilities import nsrdb_sub_daily_sampler, pd_date_range
 

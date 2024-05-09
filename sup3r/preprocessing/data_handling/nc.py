@@ -16,7 +16,8 @@ from scipy.ndimage import gaussian_filter
 from scipy.spatial import KDTree
 from scipy.stats import mode
 
-from sup3r.preprocessing.data_handling.base import DataHandler, DataHandlerDC
+from sup3r.preprocessing.data_handling.base import DataHandler
+from sup3r.preprocessing.data_handling.data_centric import DataHandlerDC
 from sup3r.preprocessing.feature_handling import (
     BVFreqMon,
     BVFreqSquaredNC,

@@ -10,15 +10,13 @@ import pytest
 from rex import init_logger
 
 from sup3r import TEST_DATA_DIR
-from sup3r.preprocessing.batch_handling.dual import (
+from sup3r.preprocessing import (
+    DataHandlerH5,
+    DataHandlerNC,
     DualBatchHandler,
+    DualDataHandler,
     SpatialDualBatchHandler,
 )
-from sup3r.preprocessing.data_handling.dual import (
-    DualDataHandler,
-)
-from sup3r.preprocessing.data_handling.h5 import DataHandlerH5
-from sup3r.preprocessing.data_handling.nc import DataHandlerNC
 from sup3r.utilities.utilities import spatial_coarsening
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')

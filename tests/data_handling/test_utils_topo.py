@@ -4,15 +4,14 @@ import os
 import shutil
 import tempfile
 
-import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import pytest
-from rex import Resource
-from rex import Outputs
+from rex import Outputs, Resource
 
 from sup3r import TEST_DATA_DIR
-from sup3r.preprocessing.data_handling.exo_extraction import (
+from sup3r.preprocessing.exo_extraction import (
     TopoExtractH5,
     TopoExtractNC,
 )

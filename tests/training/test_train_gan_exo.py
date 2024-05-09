@@ -10,15 +10,13 @@ from rex import init_logger
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.models import Sup3rGan
 from sup3r.models.data_centric import Sup3rGanDC
-from sup3r.preprocessing.batch_handling import (
+from sup3r.preprocessing import (
     BatchHandlerDC,
-    SpatialBatchHandler,
-    SpatialBatchHandlerCC,
-)
-from sup3r.preprocessing.data_handling import (
     DataHandlerDCforH5,
     DataHandlerH5,
     DataHandlerH5WindCC,
+    SpatialBatchHandler,
+    SpatialBatchHandlerCC,
 )
 
 SHAPE = (20, 20)

@@ -1347,6 +1347,21 @@ class TrainingPrep:
         temporal_slice = uniform_time_sampler(data_shape, sample_shape[2])
         return (*spatial_slice, temporal_slice, slice(None))
 
+    def get_next(self):
+        """Get data for observation using random observation index. Loops
+        repeatedly over randomized time index
+
+        Returns
+        -------
+        observation : np.ndarray
+            4D array
+            (spatial_1, spatial_2, temporal, features)
+        """
+        self.current_obs_index = self.get_observation_index(
+            self.data.shape, self.sample_shape)
+        observation = self.data[self.current_obs_index]
+        return observation
+
     def _normalize_data(self, data, val_data, feature_index, mean, std):
         """Normalize data with initialized mean and standard deviation for a
         specific feature

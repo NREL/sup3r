@@ -10,11 +10,11 @@ from tensorflow.keras.losses import MeanAbsoluteError
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.models import SolarCC, Sup3rGan
-from sup3r.preprocessing.batch_handling import (
+from sup3r.preprocessing import (
     BatchHandlerCC,
+    DataHandlerH5SolarCC,
     SpatialBatchHandlerCC,
 )
-from sup3r.preprocessing.data_handling import DataHandlerH5SolarCC
 
 SHAPE = (20, 20)
 

@@ -20,16 +20,16 @@ from rex.utilities.fun_utils import get_fun_call_str
 
 import sup3r.bias.bias_transforms
 import sup3r.models
-from sup3r.postprocessing.file_handling import (
+from sup3r.postprocessing import (
     OutputHandler,
     OutputHandlerH5,
     OutputHandlerNC,
 )
-from sup3r.preprocessing.data_handling.base import InputMixIn
-from sup3r.preprocessing.data_handling.exogenous import (
+from sup3r.preprocessing import (
     ExoData,
     ExogenousDataHandler,
 )
+from sup3r.preprocessing.mixin import InputMixIn
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
 from sup3r.utilities.execution import DistributedProcess
@@ -666,7 +666,7 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
             be guessed based on file type and time series properties.
         input_handler_kwargs : dict | None
             Any kwargs for initializing the input_handler class
-            :class:`sup3r.preprocessing.data_handling.DataHandler`.
+            :class:`sup3r.preprocessing.DataHandler`.
         incremental : bool
             Allow the forward pass iteration to skip spatiotemporal chunks that
             already have an output file (True, default) or iterate through all

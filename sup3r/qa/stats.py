@@ -925,7 +925,7 @@ class Sup3rStatsSingle(Sup3rStatsCompute):
             unix-style file path which will be passed through glob.glob
         handler_kwargs : dict
             Dictionary of keyword arguments passed to
-            `sup3r.preprocessing.data_handling.DataHandler`
+            `sup3r.preprocessing.DataHandler`
 
         Returns
         -------

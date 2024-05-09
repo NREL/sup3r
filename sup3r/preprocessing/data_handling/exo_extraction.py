@@ -162,7 +162,7 @@ class ExoExtract(ABC):
             if input_handler is None:
                 msg = ('Could not find requested data handler class '
                        f'"{input_handler}" in '
-                       'sup3r.preprocessing.data_handling.')
+                       'sup3r.preprocessing.')
                 logger.error(msg)
                 raise KeyError(msg)
 

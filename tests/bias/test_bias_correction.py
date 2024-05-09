@@ -19,7 +19,7 @@ from sup3r.bias.bias_calc import (
 from sup3r.bias.bias_transforms import local_linear_bc, monthly_local_linear_bc
 from sup3r.models import Sup3rGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
-from sup3r.preprocessing.data_handling import DataHandlerNCforCC
+from sup3r.preprocessing import DataHandlerNCforCC
 from sup3r.qa.qa import Sup3rQa
 
 FP_NSRDB = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')

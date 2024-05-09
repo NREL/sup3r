@@ -12,6 +12,7 @@ from tensorflow.python.framework.errors_impl import InvalidArgumentError
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.models import Sup3rCondMom
+from sup3r.preprocessing import DataHandlerH5
 from sup3r.preprocessing.conditional_moment_batch_handling import (
     BatchHandlerMom1,
     BatchHandlerMom1SF,
@@ -26,7 +27,6 @@ from sup3r.preprocessing.conditional_moment_batch_handling import (
     SpatialBatchHandlerMom2SepSF,
     SpatialBatchHandlerMom2SF,
 )
-from sup3r.preprocessing.data_handling import DataHandlerH5
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)

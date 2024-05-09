@@ -8,7 +8,7 @@ from datetime import datetime as dt
 import numpy as np
 from rex.utilities import log_mem
 
-from sup3r.preprocessing.batch_handling import (
+from sup3r.preprocessing.batch_handling.base import (
     Batch,
     BatchHandler,
     ValidationData,

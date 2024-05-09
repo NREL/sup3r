@@ -5,11 +5,10 @@ from tempfile import TemporaryDirectory
 
 import numpy as np
 import pytest
+from test_utils_topo import make_topo_file
 
 from sup3r import TEST_DATA_DIR
-from sup3r.preprocessing.data_handling import ExogenousDataHandler
-
-from test_utils_topo import make_topo_file
+from sup3r.preprocessing import ExogenousDataHandler
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 

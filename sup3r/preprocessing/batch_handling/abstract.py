@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 
+from sup3r.preprocessing.mixin import HandlerStats
 from sup3r.utilities.utilities import get_handler_weights
 
 logger = logging.getLogger(__name__)
@@ -13,11 +14,26 @@ logger = logging.getLogger(__name__)
 class AbstractBatchBuilder(ABC):
     """Abstract batch builder class. Need to implement data and gen methods"""
 
-    def __init__(self, data_handlers):
+    def __init__(self, data_handlers, batch_size):
+        """
+        Parameters
+        ----------
+        data_handlers : list[DataHandler]
+            List of DataHandler instances each with a `.size` property and a
+            `.get_next` method to return the next (low_res, high_res) sample.
+        batch_size : int
+            Number of samples/observations to use for each batch. e.g. Batches
+            will be (batch_size, spatial_1, spatial_2, temporal, features)
+        """
         self.data_handlers = data_handlers
-        self.batch_size = None
-        self.batches = None
+        self.batch_size = batch_size
+        self.max_workers = None
+        self.buffer_size = None
+        self._data = None
+        self._batches = None
         self._handler_weights = None
+        self._lr_shape = None
+        self._hr_shape = None
         self._sample_counter = 0
 
     def __iter__(self):
@@ -43,14 +59,14 @@ class AbstractBatchBuilder(ABC):
             self.handler_index = self.get_handler_index()
         return self.data_handlers[self.handler_index]
 
-    def __next__(self):
-        return next(self.batches)
-
     def __getitem__(self, index):
         """Get single observation / sample. Batches are built from
         self.batch_size samples."""
         handler = self.get_rand_handler()
         return handler.get_next()
+
+    def __next__(self):
+        return next(self.batches)
 
     @property
     @abstractmethod
@@ -73,43 +89,40 @@ class AbstractBatchBuilder(ABC):
     def gen(self):
         """Generator method to enable Dataset.from_generator() call."""
 
-    def prefetch(self):
+    @property
+    @abstractmethod
+    def batches(self):
         """Prefetch set of batches from dataset generator."""
-        data = self.data.map(lambda x,y : (x,y),
-                             num_parallel_calls=self.max_workers)
-        data = data.prefetch(buffer_size=self.buffer_size)
-        data = data.batch(self.batch_size)
-        return data.as_numpy_iterator()
 
 
-class AbstractBatchHandler(ABC):
+class AbstractBatchHandler(HandlerStats, ABC):
     """Abstract batch handler class. Need to implement queue, get_next,
     normalize, and specify BATCH_CLASS and VAL_CLASS."""
 
     BATCH_CLASS = None
     VAL_CLASS = None
 
-    def __init__(self, data_handlers, means_file, stdevs_file,
-                 batch_size=32, n_batches=100, max_workers=None):
+    def __init__(self, data_handlers, batch_size, n_batches, means_file,
+                 stdevs_file):
         self.data_handlers = data_handlers
         self.batch_size = batch_size
         self.n_batches = n_batches
         self.queue_capacity = n_batches
+        self.means_file = means_file
+        self.stdevs_file = stdevs_file
         self.val_data = []
-        self.batch_pool = None
+        self._batch_pool = None
         self._batch_counter = 0
         self._queue = None
         self._is_training = False
         self._enqueue_thread = None
-
         HandlerStats.__init__(self, data_handlers, means_file=means_file,
                               stdevs_file=stdevs_file)
 
-        logger.info(f'Initialized {self.__class__.__name__} with '
-                    f'{len(self.data_handlers)} data_handlers, '
-                    f'means_file = {means_file}, stdevs_file = {stdevs_file}, '
-                    f'batch_size = {batch_size}, n_batches = {n_batches}, '
-                    f'max_workers = {max_workers}.')
+    @property
+    @abstractmethod
+    def batch_pool(self):
+        """Iterable set of batches. Can be implemented with BatchBuilder."""
 
     @property
     @abstractmethod

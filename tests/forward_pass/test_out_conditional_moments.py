@@ -1,30 +1,33 @@
 # -*- coding: utf-8 -*-
 """Test the basic training of super resolution GAN"""
-import os
-import pytest
 import json
+import os
+
 import numpy as np
+import pytest
 from pandas import read_csv
 
-from sup3r import TEST_DATA_DIR
-from sup3r import CONFIG_DIR
+from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.models import Sup3rCondMom
-from sup3r.preprocessing.data_handling import DataHandlerH5
+from sup3r.preprocessing import DataHandlerH5
 from sup3r.preprocessing.conditional_moment_batch_handling import (
-    SpatialBatchHandlerMom1,
-    SpatialBatchHandlerMom1SF,
-    SpatialBatchHandlerMom2,
-    SpatialBatchHandlerMom2Sep,
-    SpatialBatchHandlerMom2SF,
-    SpatialBatchHandlerMom2SepSF,
     BatchHandlerMom1,
     BatchHandlerMom1SF,
     BatchHandlerMom2,
     BatchHandlerMom2Sep,
+    BatchHandlerMom2SepSF,
     BatchHandlerMom2SF,
-    BatchHandlerMom2SepSF)
-from sup3r.utilities.utilities import (spatial_simple_enhancing,
-                                       temporal_simple_enhancing)
+    SpatialBatchHandlerMom1,
+    SpatialBatchHandlerMom1SF,
+    SpatialBatchHandlerMom2,
+    SpatialBatchHandlerMom2Sep,
+    SpatialBatchHandlerMom2SepSF,
+    SpatialBatchHandlerMom2SF,
+)
+from sup3r.utilities.utilities import (
+    spatial_simple_enhancing,
+    temporal_simple_enhancing,
+)
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)
@@ -86,8 +89,8 @@ def test_out_s_mom1(FEATURES, TRAIN_FEATURES,
         break
     if plot:
         import matplotlib.pyplot as plt
-        from sup3r.utilities.plotting import (plot_multi_contour,
-                                              make_movie)
+
+        from sup3r.utilities.plotting import make_movie, plot_multi_contour
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         movieFolder = os.path.join(figureFolder, 'Movie')
@@ -161,7 +164,8 @@ def test_out_s_mom1_sf(FEATURES, TRAIN_FEATURES,
 
     if plot:
         import matplotlib.pyplot as plt
-        from sup3r.utilities.plotting import plot_multi_contour, make_movie
+
+        from sup3r.utilities.plotting import make_movie, plot_multi_contour
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         movieFolder = os.path.join(figureFolder, 'Movie')
@@ -265,7 +269,8 @@ def test_out_s_mom2(FEATURES, TRAIN_FEATURES,
 
     if plot:
         import matplotlib.pyplot as plt
-        from sup3r.utilities.plotting import plot_multi_contour, make_movie
+
+        from sup3r.utilities.plotting import make_movie, plot_multi_contour
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         movieFolder = os.path.join(figureFolder, 'Movie')
@@ -355,7 +360,8 @@ def test_out_s_mom2_sf(FEATURES, TRAIN_FEATURES,
 
     if plot:
         import matplotlib.pyplot as plt
-        from sup3r.utilities.plotting import plot_multi_contour, make_movie
+
+        from sup3r.utilities.plotting import make_movie, plot_multi_contour
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         movieFolder = os.path.join(figureFolder, 'Movie')
@@ -461,7 +467,8 @@ def test_out_s_mom2_sep(FEATURES, TRAIN_FEATURES,
 
     if plot:
         import matplotlib.pyplot as plt
-        from sup3r.utilities.plotting import plot_multi_contour, make_movie
+
+        from sup3r.utilities.plotting import make_movie, plot_multi_contour
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         movieFolder = os.path.join(figureFolder, 'Movie')
@@ -564,7 +571,8 @@ def test_out_s_mom2_sep_sf(FEATURES, TRAIN_FEATURES,
 
     if plot:
         import matplotlib.pyplot as plt
-        from sup3r.utilities.plotting import plot_multi_contour, make_movie
+
+        from sup3r.utilities.plotting import make_movie, plot_multi_contour
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         movieFolder = os.path.join(figureFolder, 'Movie')
@@ -654,7 +662,7 @@ def test_out_loss(plot=False, model_dirs=None,
         model_names_tmp = model_names
 
     def get_num_params(param_file):
-        with open(param_file, 'r') as f:
+        with open(param_file) as f:
             model_params = json.load(f)
         return model_params['num_par']
 
@@ -667,9 +675,10 @@ def test_out_loss(plot=False, model_dirs=None,
     # Read csv
     histories = [read_csv(file) for file in history_files]
     if plot:
-        import matplotlib.pyplot as plt
         import matplotlib.pylab as pl
-        from sup3r.utilities.plotting import pretty_labels, plot_legend
+        import matplotlib.pyplot as plt
+
+        from sup3r.utilities.plotting import plot_legend, pretty_labels
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         if figureDir is None:
@@ -772,7 +781,8 @@ def test_out_st_mom1(plot=False, full_shape=(20, 20),
         break
     if plot:
         import matplotlib.pyplot as plt
-        from sup3r.utilities.plotting import plot_multi_contour, make_movie
+
+        from sup3r.utilities.plotting import make_movie, plot_multi_contour
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         movieFolder = os.path.join(figureFolder, 'Movie')
@@ -859,7 +869,8 @@ def test_out_st_mom1_sf(plot=False, full_shape=(20, 20),
 
     if plot:
         import matplotlib.pyplot as plt
-        from sup3r.utilities.plotting import plot_multi_contour, make_movie
+
+        from sup3r.utilities.plotting import make_movie, plot_multi_contour
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         movieFolder = os.path.join(figureFolder, 'Movie')
@@ -983,8 +994,12 @@ def test_out_st_mom2(plot=False, full_shape=(20, 20),
 
     if plot:
         import matplotlib.pyplot as plt
-        from sup3r.utilities.plotting import (plot_multi_contour,
-                                              pretty_labels, make_movie)
+
+        from sup3r.utilities.plotting import (
+            make_movie,
+            plot_multi_contour,
+            pretty_labels,
+        )
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         movieFolder = os.path.join(figureFolder, 'Movie')
@@ -1114,8 +1129,12 @@ def test_out_st_mom2_sf(plot=False, full_shape=(20, 20),
 
     if plot:
         import matplotlib.pyplot as plt
-        from sup3r.utilities.plotting import (plot_multi_contour,
-                                              pretty_labels, make_movie)
+
+        from sup3r.utilities.plotting import (
+            make_movie,
+            plot_multi_contour,
+            pretty_labels,
+        )
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         movieFolder = os.path.join(figureFolder, 'Movie')
@@ -1256,8 +1275,12 @@ def test_out_st_mom2_sep(plot=False, full_shape=(20, 20),
 
     if plot:
         import matplotlib.pyplot as plt
-        from sup3r.utilities.plotting import (plot_multi_contour,
-                                              pretty_labels, make_movie)
+
+        from sup3r.utilities.plotting import (
+            make_movie,
+            plot_multi_contour,
+            pretty_labels,
+        )
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         movieFolder = os.path.join(figureFolder, 'Movie')
@@ -1397,8 +1420,12 @@ def test_out_st_mom2_sep_sf(plot=False, full_shape=(20, 20),
 
     if plot:
         import matplotlib.pyplot as plt
-        from sup3r.utilities.plotting import (plot_multi_contour,
-                                              pretty_labels, make_movie)
+
+        from sup3r.utilities.plotting import (
+            make_movie,
+            plot_multi_contour,
+            pretty_labels,
+        )
         figureFolder = 'Figures'
         os.makedirs(figureFolder, exist_ok=True)
         movieFolder = os.path.join(figureFolder, 'Movie')

@@ -9,7 +9,6 @@ import warnings
 from abc import abstractmethod
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime as dt
-from typing import ClassVar
 
 import numpy as np
 import pandas as pd
@@ -18,23 +17,9 @@ from rex.utilities import log_mem
 from rex.utilities.fun_utils import get_fun_call_str
 
 from sup3r.bias.bias_transforms import get_spatial_bc_factors, local_qdm_bc
-from sup3r.preprocessing.data_handling.abstract import AbstractDataHandler
 from sup3r.preprocessing.feature_handling import (
-    BVFreqMon,
-    BVFreqSquaredNC,
     Feature,
     FeatureHandler,
-    InverseMonNC,
-    LatLonNC,
-    PotentialTempNC,
-    PressureNC,
-    Rews,
-    Shear,
-    TempNC,
-    UWind,
-    VWind,
-    WinddirectionNC,
-    WindspeedNC,
 )
 from sup3r.preprocessing.mixin import (
     HandlerFeatureSets,
@@ -48,38 +33,11 @@ from sup3r.utilities.utilities import (
     get_raster_shape,
     nn_fill_array,
     spatial_coarsening,
-    uniform_box_sampler,
-    uniform_time_sampler,
-    weighted_box_sampler,
-    weighted_time_sampler,
 )
 
 np.random.seed(42)
 
 logger = logging.getLogger(__name__)
-
-
-class LazyDataHandler(AbstractDataHandler):
-    """Lazy loading data handler. Uses precomputed netcdf files (usually from
-    a DataHandler.to_netcdf() call after populating DataHandler.data) to create
-    batches on the fly during training without previously loading to memory."""
-
-    def get_observation(self, obs_index):
-        """Get observation/sample. Should return a single sample from the
-        underlying data with shape (spatial_1, spatial_2, temporal,
-        features)."""
-
-        out = self.data[self.features].isel(
-            south_north=obs_index[0],
-            west_east=obs_index[1],
-            time=obs_index[2],
-        )
-
-        if self._mode == 'lazy':
-            out = out.compute()
-
-        out = out.to_dataarray().values
-        return np.transpose(out, axes=(2, 3, 1, 0))
 
 
 class DataHandler(HandlerFeatureSets, FeatureHandler, InputMixIn,
@@ -745,21 +703,6 @@ class DataHandler(HandlerFeatureSets, FeatureHandler, InputMixIn,
                                           target,
                                           features)
 
-    def get_next(self):
-        """Get data for observation using random observation index. Loops
-        repeatedly over randomized time index
-
-        Returns
-        -------
-        observation : np.ndarray
-            4D array
-            (spatial_1, spatial_2, temporal, features)
-        """
-        self.current_obs_index = self.get_observation_index(
-            self.data.shape, self.sample_shape)
-        observation = self.data[self.current_obs_index]
-        return observation
-
     def split_data(self, data=None, val_split=0.0, shuffle_time=False):
         """Split time dimension into set of training indices and validation
         indices
@@ -1236,86 +1179,3 @@ class DataHandler(HandlerFeatureSets, FeatureHandler, InputMixIn,
                                                    no_trend=no_trend)
                 completed.append(feature)
 
-
-# pylint: disable=W0223
-class DataHandlerDC(DataHandler):
-    """Data-centric data handler"""
-
-    FEATURE_REGISTRY: ClassVar[dict] = {
-        'BVF2_(.*)m': BVFreqSquaredNC,
-        'BVF_MO_(.*)m': BVFreqMon,
-        'RMOL': InverseMonNC,
-        'U_(.*)': UWind,
-        'V_(.*)': VWind,
-        'Windspeed_(.*)m': WindspeedNC,
-        'Winddirection_(.*)m': WinddirectionNC,
-        'lat_lon': LatLonNC,
-        'Shear_(.*)m': Shear,
-        'REWS_(.*)m': Rews,
-        'Temperature_(.*)m': TempNC,
-        'Pressure_(.*)m': PressureNC,
-        'PotentialTemp_(.*)m': PotentialTempNC,
-        'PT_(.*)m': PotentialTempNC,
-        'topography': ['HGT', 'orog']
-    }
-
-    def get_observation_index(self,
-                              temporal_weights=None,
-                              spatial_weights=None):
-        """Randomly gets weighted spatial sample and time sample
-
-        Parameters
-        ----------
-        temporal_weights : array
-            Weights used to select time slice
-            (n_time_chunks)
-        spatial_weights : array
-            Weights used to select spatial chunks
-            (n_lat_chunks * n_lon_chunks)
-
-        Returns
-        -------
-        observation_index : tuple
-            Tuple of sampled spatial grid, time slice, and features indices.
-            Used to get single observation like self.data[observation_index]
-        """
-        if spatial_weights is not None:
-            spatial_slice = weighted_box_sampler(self.data.shape,
-                                                 self.sample_shape[:2],
-                                                 weights=spatial_weights)
-        else:
-            spatial_slice = uniform_box_sampler(self.data.shape,
-                                                self.sample_shape[:2])
-        if temporal_weights is not None:
-            temporal_slice = weighted_time_sampler(self.data.shape,
-                                                   self.sample_shape[2],
-                                                   weights=temporal_weights)
-        else:
-            temporal_slice = uniform_time_sampler(self.data.shape,
-                                                  self.sample_shape[2])
-
-        return (*spatial_slice, temporal_slice, np.arange(len(self.features)))
-
-    def get_next(self, temporal_weights=None, spatial_weights=None):
-        """Get data for observation using weighted random observation index.
-        Loops repeatedly over randomized time index.
-
-        Parameters
-        ----------
-        temporal_weights : array
-            Weights used to select time slice
-            (n_time_chunks)
-        spatial_weights : array
-            Weights used to select spatial chunks
-            (n_lat_chunks * n_lon_chunks)
-
-        Returns
-        -------
-        observation : np.ndarray
-            4D array
-            (spatial_1, spatial_2, temporal, features)
-        """
-        self.current_obs_index = self.get_observation_index(
-            temporal_weights=temporal_weights, spatial_weights=spatial_weights)
-        observation = self.data[self.current_obs_index]
-        return observation
