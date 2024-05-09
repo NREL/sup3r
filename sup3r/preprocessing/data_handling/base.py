@@ -1098,3 +1098,9 @@ class DataHandler(HandlerFeatureSets, FeatureHandler, InputMixIn,
                                                    relative=relative,
                                                    no_trend=no_trend)
                 completed.append(feature)
+
+
+<< << << < HEAD
+== == == =
+
+>> >> >> > f2d8f73e(collected imports in preprocessing top level init. default_device args added to model load. split up data_handling.base a little. data_loading module for new lazy loading classes.)

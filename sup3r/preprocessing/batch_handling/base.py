@@ -26,6 +26,13 @@ np.random.seed(42)
 
 logger = logging.getLogger(__name__)
 
+AUTO = tf.data.experimental.AUTOTUNE  # used in tf.data.Dataset API
+option_no_order = tf.data.Options()
+option_no_order.experimental_deterministic = False
+
+option_no_order.experimental_optimization.noop_elimination = True
+option_no_order.experimental_optimization.apply_default_optimizations = True
+
 
 class ValidationData(AbstractBatchBuilder):
     """Iterator for validation data"""

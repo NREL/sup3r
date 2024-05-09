@@ -166,7 +166,7 @@ class DualBatchHandler(BatchHandler, MultiDualMixIn):
             raise StopIteration
 
 
-class LazyDualBatchHandler(HandlerStats, MultiDualMixIn, AbstractBatchHandler):
+class LazyDualBatchHandler(AbstractBatchHandler, MultiDualMixIn):
     """Dual batch handler which uses lazy data handlers to load data as
     needed rather than all in memory at once.
 
@@ -190,27 +190,29 @@ class LazyDualBatchHandler(HandlerStats, MultiDualMixIn, AbstractBatchHandler):
     VAL_CLASS = DualValidationData
 
     def __init__(self, data_handlers, means_file, stdevs_file,
-                 batch_size=32, n_batches=100, max_workers=None):
-        self.data_handlers = data_handlers
-        self.batch_size = batch_size
-        self.n_batches = n_batches
-        self.queue_capacity = n_batches
-        self.val_data = []
-        self._batch_counter = 0
-        self._queue = None
-        self._is_training = False
-        self._enqueue_thread = None
-        self.batch_pool = BatchBuilder(data_handlers,
-                                       batch_size=batch_size,
-                                       buffer_size=(n_batches * batch_size),
-                                       max_workers=max_workers)
-        HandlerStats.__init__(self, data_handlers, means_file=means_file,
-                              stdevs_file=stdevs_file)
+                 batch_size=32, n_batches=100, max_workers=None,
+                 default_device='/gpu:0'):
+        super().__init__(data_handlers=data_handlers, means_file=means_file,
+                         stdevs_file=stdevs_file, batch_size=batch_size,
+                         n_batches=n_batches)
+        self.default_device = default_device
+        self.max_workers = max_workers
+
         logger.info(f'Initialized {self.__class__.__name__} with '
-                    f'{len(self.data_handlers)} data_handlers, '
+                    f'{len(data_handlers)} data_handlers, '
                     f'means_file = {means_file}, stdevs_file = {stdevs_file}, '
                     f'batch_size = {batch_size}, n_batches = {n_batches}, '
                     f'max_workers = {max_workers}.')
+
+    @property
+    def batch_pool(self):
+        """Iterable over batches."""
+        if self._batch_pool is None:
+            self._batch_pool = BatchBuilder(self.data_handlers,
+                                            batch_size=self.batch_size,
+                                            max_workers=self.max_workers,
+                                            default_device=self.default_device)
+        return self._batch_pool
 
     @property
     def queue(self):
