@@ -9,6 +9,7 @@ from warnings import warn
 
 import xarray as xr
 
+from sup3r.postprocessing.file_handling import H5_ATTRS, RexOutputs
 from sup3r.preprocessing.feature_handling import Feature
 
 logger = logging.getLogger(__name__)

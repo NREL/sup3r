@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Abstract class defining the required interface for Sup3r model subclasses"""
 import json
+import locale
 import logging
 import os
 import pprint
@@ -529,7 +530,7 @@ class AbstractInterface(ABC):
             os.makedirs(out_dir, exist_ok=True)
 
         fp_params = os.path.join(out_dir, 'model_params.json')
-        with open(fp_params, 'w') as f:
+        with open(fp_params, 'w', encoding=locale.getpreferredencoding(False)) as f:
             params = self.model_params
             json.dump(params, f, sort_keys=True, indent=2)
 

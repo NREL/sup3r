@@ -3,7 +3,6 @@
 """
 
 import copy
-import fnmatch
 import logging
 import os
 import pickle
@@ -11,6 +10,7 @@ import warnings
 from abc import abstractmethod
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime as dt
+from fnmatch import fnmatch
 
 import numpy as np
 import pandas as pd
@@ -21,8 +21,8 @@ from scipy.stats import mode
 
 from sup3r.utilities.utilities import (
     expand_paths,
+    get_chunk_slices,
     get_handler_weights,
-    get_source_type,
     ignore_case_path_fetch,
     uniform_box_sampler,
     uniform_time_sampler,
@@ -711,7 +711,7 @@ class CacheHandling:
                            f'{cache_files[futures[future]["idx"]]}')
                     logger.exception(msg)
                     raise RuntimeError(msg) from e
-                logger.debug(f'{i+1} out of {len(futures)} cache files '
+                logger.debug(f'{i + 1} out of {len(futures)} cache files '
                              f'loaded: {futures[future]["fp"]}')
 
     def _load_cached_data(self, data, cache_files, features, max_workers=None):
@@ -806,15 +806,11 @@ class CacheHandling:
         return extract_features
 
 
-class InputMixIn(CacheHandling):
-    """MixIn class with properties and methods for handling the spatiotemporal
+class TimePeriodMixIn(CacheHandling):
+    """MixIn class with properties and methods for handling the temporal
     data domain to extract from source data."""
 
     def __init__(self,
-                 target,
-                 shape,
-                 raster_file=None,
-                 raster_index=None,
                  temporal_slice=slice(None, None, 1),
                  res_kwargs=None,
                  ):
@@ -845,25 +841,45 @@ class InputMixIn(CacheHandling):
         res_kwargs : dict | None
             Dictionary of kwargs to pass to xarray.open_mfdataset.
         """
-        self.raster_file = raster_file
-        self.target = target
-        self.grid_shape = shape
-        self.raster_index = raster_index
         self.temporal_slice = temporal_slice
-        self.lat_lon = None
-        self.overwrite_ti_cache = False
-        self.max_workers = None
         self._raw_time_index = None
         self._raw_tsteps = None
         self._time_index = None
-        self._time_index_file = None
         self._file_paths = None
-        self._cache_pattern = None
-        self._invert_lat = None
-        self._raw_lat_lon = None
-        self._full_raw_lat_lon = None
         self._single_ts_files = None
         self.res_kwargs = res_kwargs or {}
+
+    @property
+    def is_time_independent(self):
+        """Get whether source data files are time independent"""
+        return self.raw_time_index[0] is None
+
+    @property
+    def n_tsteps(self):
+        """Get number of time steps to extract"""
+        if self.is_time_independent:
+            return 1
+        else:
+            return len(self.raw_time_index[self.temporal_slice])
+
+    @property
+    def time_chunks(self):
+        """Get time chunks which will be extracted from source data
+
+        Returns
+        -------
+        _time_chunks : list
+            List of time chunks used to split up source data time dimension
+            so that each chunk can be extracted individually
+        """
+        if self._time_chunks is None:
+            if self.is_time_independent:
+                self._time_chunks = [slice(None)]
+            else:
+                self._time_chunks = get_chunk_slices(len(self.raw_time_index),
+                                                     self.time_chunk_size,
+                                                     self.temporal_slice)
+        return self._time_chunks
 
     @property
     def raw_tsteps(self):
@@ -887,67 +903,9 @@ class InputMixIn(CacheHandling):
             self._single_ts_files = check
         return self._single_ts_files
 
-    @staticmethod
-    def get_capped_workers(max_workers_cap, max_workers):
-        """Get max number of workers for a given job. Capped to global max
-        workers if specified
-
-        Parameters
-        ----------
-        max_workers_cap : int | None
-            Cap for job specific max_workers
-        max_workers : int | None
-            Job specific max_workers
-
-        Returns
-        -------
-        max_workers : int | None
-            job specific max_workers capped by max_workers_cap if provided
-        """
-        if max_workers is None and max_workers_cap is None:
-            return max_workers
-        elif max_workers_cap is not None and max_workers is None:
-            return max_workers_cap
-        elif max_workers is not None and max_workers_cap is None:
-            return max_workers
-        else:
-            return np.min((max_workers_cap, max_workers))
-
-    def cap_worker_args(self, max_workers):
-        """Cap all workers args by max_workers"""
-        for v in self.worker_attrs:
-            capped_val = self.get_capped_workers(getattr(self, v), max_workers)
-            setattr(self, v, capped_val)
-
-    @classmethod
-    @abstractmethod
-    def get_full_domain(cls, file_paths):
-        """Get full lat/lon grid for when target + shape are not specified"""
-
-    @classmethod
-    @abstractmethod
-    def get_lat_lon(cls, file_paths, raster_index, invert_lat=False):
-        """Get lat/lon grid for requested target and shape"""
-
     @abstractmethod
     def get_time_index(self, file_paths, **kwargs):
         """Get raw time index for source data"""
-
-    @property
-    def input_file_info(self):
-        """Method to provide info about files in log output. Since NETCDF files
-        have single time slices printing out all the file paths is just a text
-        dump without much info.
-
-        Returns
-        -------
-        str
-            message to append to log output that does not include a huge info
-            dump of file paths
-        """
-        msg = (f'source files with dates from {self.raw_time_index[0]} to '
-               f'{self.raw_time_index[-1]}')
-        return msg
 
     @property
     def temporal_slice(self):
@@ -987,26 +945,97 @@ class InputMixIn(CacheHandling):
                                          self._temporal_slice.step)
 
     @property
-    def file_paths(self):
-        """Get file paths for input data"""
-        return self._file_paths
+    def raw_time_index(self):
+        """Time index for input data without time pruning. This is the base
+        time index for the raw input data."""
 
-    @file_paths.setter
-    def file_paths(self, file_paths):
-        """Set file paths attr and do initial glob / sort
+        if self._raw_time_index is None:
+            self._raw_time_index = self.get_time_index(self.file_paths,
+                                                       **self.res_kwargs)
+        if self._single_ts_files:
+            self.time_index_conflict_check()
+        return self._raw_time_index
+
+    def time_index_conflict_check(self):
+        """Check if the number of input files and the length of the time index
+        is the same"""
+        msg = (f'Number of time steps ({len(self._raw_time_index)}) and files '
+               f'({self.raw_tsteps}) conflict!')
+        check = len(self._raw_time_index) == self.raw_tsteps
+        assert check, msg
+
+    @property
+    def time_index(self):
+        """Time index for input data with time pruning. This is the raw time
+        index with a cropped range and time step applied."""
+        if self._time_index is None:
+            self._time_index = self.raw_time_index[self.temporal_slice]
+        return self._time_index
+
+    @time_index.setter
+    def time_index(self, time_index):
+        """Update time index"""
+        self._time_index = time_index
+
+    @property
+    def time_freq_hours(self):
+        """Get the time frequency in hours as a float"""
+        ti_deltas = self.raw_time_index - np.roll(self.raw_time_index, 1)
+        ti_deltas_hours = pd.Series(ti_deltas).dt.total_seconds()[1:-1] / 3600
+        time_freq = float(mode(ti_deltas_hours).mode)
+        return time_freq
+
+
+class SpatialRegionMixIn(CacheHandling):
+    """MixIn class with properties and methods for handling the spatial
+    data domain to extract from source data."""
+
+    def __init__(self,
+                 target,
+                 shape,
+                 raster_file=None,
+                 res_kwargs=None,
+                 ):
+        """Provide properties of the spatiotemporal data domain
 
         Parameters
         ----------
-        file_paths : str | list
-            A list of files to extract raster data from. Each file must have
-            the same number of timesteps. Can also pass a string or list of
-            strings with a unix-style file path which will be passed through
-            glob.glob
+        target : tuple
+            (lat, lon) lower left corner of raster. Either need target+shape or
+            raster_file.
+        shape : tuple
+            (rows, cols) grid size. Either need target+shape or raster_file.
+        raster_file : str | None
+            File for raster_index array for the corresponding target and shape.
+            If specified the raster_index will be loaded from the file if it
+            exists or written to the file if it does not yet exist. If None and
+            raster_index is not provided raster_index will be calculated
+            directly. Either need target+shape, raster_file, or raster_index
+            input.
+        res_kwargs : dict | None
+            Dictionary of kwargs to pass to xarray.open_mfdataset.
         """
-        self._file_paths = expand_paths(file_paths)
-        msg = ('No valid files provided to DataHandler. '
-               f'Received file_paths={file_paths}. Aborting.')
-        assert file_paths is not None and len(self._file_paths) > 0, msg
+        self.raster_file = raster_file
+        self.target = target
+        self.grid_shape = shape
+        self.lat_lon = None
+        self.max_workers = None
+        self._file_paths = None
+        self._cache_pattern = None
+        self._invert_lat = None
+        self._raw_lat_lon = None
+        self._full_raw_lat_lon = None
+        self.res_kwargs = res_kwargs or {}
+
+    @classmethod
+    @abstractmethod
+    def get_full_domain(cls, file_paths):
+        """Get full lat/lon grid for when target + shape are not specified"""
+
+    @classmethod
+    @abstractmethod
+    def get_lat_lon(cls, file_paths, raster_index, invert_lat=False):
+        """Get lat/lon grid for requested target and shape"""
 
     @property
     def need_full_domain(self):
@@ -1169,101 +1198,116 @@ class InputMixIn(CacheHandling):
         """Update grid_shape property"""
         self._grid_shape = grid_shape
 
-    @property
-    def source_type(self):
-        """Get data type for source files. Either nc or h5"""
-        return get_source_type(self.file_paths)
+
+class InputMixIn(TimePeriodMixIn, SpatialRegionMixIn):
+    """MixIn class with properties and methods for handling the spatiotemporal
+    data domain to extract from source data."""
+
+    def __init__(self,
+                 target,
+                 shape,
+                 raster_file=None,
+                 temporal_slice=slice(None, None, 1),
+                 res_kwargs=None,
+                 ):
+        """Provide properties of the spatiotemporal data domain
+
+        Parameters
+        ----------
+        target : tuple
+            (lat, lon) lower left corner of raster. Either need target+shape or
+            raster_file.
+        shape : tuple
+            (rows, cols) grid size. Either need target+shape or raster_file.
+        raster_file : str | None
+            File for raster_index array for the corresponding target and shape.
+            If specified the raster_index will be loaded from the file if it
+            exists or written to the file if it does not yet exist. If None and
+            raster_index is not provided raster_index will be calculated
+            directly. Either need target+shape, raster_file, or raster_index
+            input.
+        temporal_slice : slice
+            Slice specifying extent and step of temporal extraction. e.g.
+            slice(start, stop, time_pruning). If equal to slice(None, None, 1)
+            the full time dimension is selected.
+        res_kwargs : dict | None
+            Dictionary of kwargs to pass to xarray.open_mfdataset.
+        """
+        SpatialRegionMixIn.__init__(self, target=target, shape=shape,
+                                    raster_file=raster_file,
+                                    res_kwargs=res_kwargs)
+        TimePeriodMixIn.__init__(self, temporal_slice=temporal_slice,
+                                 res_kwargs=res_kwargs)
+
+    @staticmethod
+    def get_capped_workers(max_workers_cap, max_workers):
+        """Get max number of workers for a given job. Capped to global max
+        workers if specified
+
+        Parameters
+        ----------
+        max_workers_cap : int | None
+            Cap for job specific max_workers
+        max_workers : int | None
+            Job specific max_workers
+
+        Returns
+        -------
+        max_workers : int | None
+            job specific max_workers capped by max_workers_cap if provided
+        """
+        if max_workers is None and max_workers_cap is None:
+            return max_workers
+        elif max_workers_cap is not None and max_workers is None:
+            return max_workers_cap
+        elif max_workers is not None and max_workers_cap is None:
+            return max_workers
+        else:
+            return np.min((max_workers_cap, max_workers))
+
+    def cap_worker_args(self, max_workers):
+        """Cap all workers args by max_workers"""
+        for v in self.worker_attrs:
+            capped_val = self.get_capped_workers(getattr(self, v), max_workers)
+            setattr(self, v, capped_val)
 
     @property
-    def raw_time_index(self):
-        """Time index for input data without time pruning. This is the base
-        time index for the raw input data."""
+    def input_file_info(self):
+        """Method to provide info about files in log output. Since NETCDF files
+        have single time slices printing out all the file paths is just a text
+        dump without much info.
 
-        if self._raw_time_index is None:
-            check = (self.time_index_file is not None
-                     and os.path.exists(self.time_index_file)
-                     and not self.overwrite_ti_cache)
-            if check:
-                logger.debug('Loading raw_time_index from '
-                             f'{self.time_index_file}')
-                with open(self.time_index_file, 'rb') as f:
-                    self._raw_time_index = pd.DatetimeIndex(pickle.load(f))
-            else:
-                self._raw_time_index = self._build_and_cache_time_index()
-
-            check = (self._raw_time_index is not None
-                     and (self._raw_time_index.hour == 12).all())
-            if check:
-                self._raw_time_index -= pd.Timedelta(12, 'h')
-            elif self._raw_time_index is None:
-                self._raw_time_index = [None, None]
-
-        if self._single_ts_files:
-            self.time_index_conflict_check()
-        return self._raw_time_index
-
-    def time_index_conflict_check(self):
-        """Check if the number of input files and the length of the time index
-        is the same"""
-        msg = (f'Number of time steps ({len(self._raw_time_index)}) and files '
-               f'({self.raw_tsteps}) conflict!')
-        check = len(self._raw_time_index) == self.raw_tsteps
-        assert check, msg
+        Returns
+        -------
+        str
+            message to append to log output that does not include a huge info
+            dump of file paths
+        """
+        msg = (f'source files with dates from {self.raw_time_index[0]} to '
+               f'{self.raw_time_index[-1]}')
+        return msg
 
     @property
-    def time_index(self):
-        """Time index for input data with time pruning. This is the raw time
-        index with a cropped range and time step applied."""
-        if self._time_index is None:
-            self._time_index = self.raw_time_index[self.temporal_slice]
-        return self._time_index
+    def file_paths(self):
+        """Get file paths for input data"""
+        return self._file_paths
 
-    @time_index.setter
-    def time_index(self, time_index):
-        """Update time index"""
-        self._time_index = time_index
+    @file_paths.setter
+    def file_paths(self, file_paths):
+        """Set file paths attr and do initial glob / sort
 
-    @property
-    def time_freq_hours(self):
-        """Get the time frequency in hours as a float"""
-        ti_deltas = self.raw_time_index - np.roll(self.raw_time_index, 1)
-        ti_deltas_hours = pd.Series(ti_deltas).dt.total_seconds()[1:-1] / 3600
-        time_freq = float(mode(ti_deltas_hours).mode)
-        return time_freq
-
-    @property
-    def time_index_file(self):
-        """Get time index file path"""
-        if self.source_type == 'h5':
-            return None
-
-        if self.cache_pattern is not None and self._time_index_file is None:
-            basename = self.cache_pattern.replace('_{times}', '')
-            basename = basename.replace('{times}', '')
-            basename = basename.replace('{shape}', str(len(self.file_paths)))
-            basename = basename.replace('_{target}', '')
-            basename = basename.replace('{feature}', 'time_index')
-            tmp = basename.split('_')
-            if tmp[-2].isdigit() and tmp[-1].strip('.pkl').isdigit():
-                basename = '_'.join(tmp[:-1]) + '.pkl'
-            self._time_index_file = basename
-        return self._time_index_file
-
-    def _build_and_cache_time_index(self):
-        """Build time index and cache if time_index_file is not None"""
-        now = dt.now()
-        logger.debug(f'Getting time index for {len(self.file_paths)} '
-                     f'input files. Using res_kwargs={self.res_kwargs}')
-        self._raw_time_index = self.get_time_index(self.file_paths,
-                                                   **self.res_kwargs)
-
-        if self.time_index_file is not None:
-            os.makedirs(os.path.dirname(self.time_index_file), exist_ok=True)
-            logger.debug(f'Saving raw_time_index to {self.time_index_file}')
-            with open(self.time_index_file, 'wb') as f:
-                pickle.dump(self._raw_time_index, f)
-        logger.debug(f'Built full time index in {dt.now() - now} seconds.')
-        return self._raw_time_index
+        Parameters
+        ----------
+        file_paths : str | list
+            A list of files to extract raster data from. Each file must have
+            the same number of timesteps. Can also pass a string or list of
+            strings with a unix-style file path which will be passed through
+            glob.glob
+        """
+        self._file_paths = expand_paths(file_paths)
+        msg = ('No valid files provided to DataHandler. '
+               f'Received file_paths={file_paths}. Aborting.')
+        assert file_paths is not None and len(self._file_paths) > 0, msg
 
 
 class TrainingPrep:

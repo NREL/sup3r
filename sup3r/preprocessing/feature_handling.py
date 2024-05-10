@@ -1442,7 +1442,7 @@ class FeatureHandler:
             for f in input_features:
                 data[t][f] = cls.extract_feature(file_paths, raster_index, f,
                                                  t_slice, **kwargs)
-            logger.debug(f'{t+1} out of {len(time_chunks)} feature '
+            logger.debug(f'{t + 1} out of {len(time_chunks)} feature '
                          'chunks extracted.')
         return data
 
@@ -1515,7 +1515,7 @@ class FeatureHandler:
                     logger.error(msg)
                     raise RuntimeError(msg) from e
                 mem = psutil.virtual_memory()
-                logger.info(f'{i+1} out of {len(futures)} feature '
+                logger.info(f'{i + 1} out of {len(futures)} feature '
                             'chunks extracted. Current memory usage is '
                             f'{mem.used / 1e9:.3f} GB out of '
                             f'{mem.total / 1e9:.3f} GB total.')
@@ -1619,7 +1619,7 @@ class FeatureHandler:
                     file_paths=file_paths,
                     raster_index=raster_index)
             cls.pop_old_data(data, t, all_features)
-            logger.debug(f'{t+1} out of {len(time_chunks)} feature '
+            logger.debug(f'{t + 1} out of {len(time_chunks)} feature '
                          'chunks computed.')
 
         return data
@@ -1704,7 +1704,7 @@ class FeatureHandler:
                 data[chunk_idx] = data.get(chunk_idx, {})
                 data[chunk_idx][v['feature']] = future.result()
                 mem = psutil.virtual_memory()
-                logger.info(f'{i+1} out of {len(futures)} feature '
+                logger.info(f'{i + 1} out of {len(futures)} feature '
                             'chunks computed. Current memory usage is '
                             f'{mem.used / 1e9:.3f} GB out of '
                             f'{mem.total / 1e9:.3f} GB total.')

@@ -154,6 +154,7 @@ class DualBatchHandler(BatchHandler, MultiDualMixIn):
                 lr_sample, hr_sample = handler.get_next()
                 lr_list.append(tf.expand_dims(lr_sample, axis=0))
                 hr_list.append(tf.expand_dims(hr_sample, axis=0))
+                self.current_batch_indices.append(handler.current_obs_idx)
 
             batch = self.BATCH_CLASS(
                 low_res=tf.concat(lr_list, axis=0),
@@ -166,39 +167,46 @@ class DualBatchHandler(BatchHandler, MultiDualMixIn):
 
 
 class LazyDualBatchHandler(AbstractBatchHandler, MultiDualMixIn):
-    """Dual batch handler which uses lazy data handlers to load data as
+    """Dual batch handler which uses lazy loaders to load data as
     needed rather than all in memory at once.
 
     NOTE: This can be initialized from data extracted and written to netcdf
-    from "non-lazy" data handlers.
+    from DataHandler objects.
 
     Example
     -------
     >>> for lr_handler, hr_handler in zip(lr_handlers, hr_handlers):
     >>>     dh = DualDataHandler(lr_handler, hr_handler)
     >>>     dh.to_netcdf(lr_file, hr_file)
-    >>> lazy_dual_handlers = []
+    >>> lazy_loaders = []
     >>> for lr_file, hr_file in zip(lr_files, hr_files):
-    >>>     lazy_lr = LazyDataHandler(lr_file, lr_features, lr_sample_shape)
-    >>>     lazy_hr = LazyDataHandler(hr_file, hr_features, hr_sample_shape)
-    >>>     lazy_dual_handlers.append(LazyDualDataHandler(lazy_lr, lazy_hr))
-    >>> lazy_batch_handler = LazyDualBatchHandler(lazy_dual_handlers)
+    >>>     lazy_lr = LazyLoader(lr_file, lr_features, lr_sample_shape)
+    >>>     lazy_hr = LazyLoader(hr_file, hr_features, hr_sample_shape)
+    >>>     lazy_loaders.append(LazyDualLoader(lazy_lr, lazy_hr))
+    >>> lazy_batch_handler = LazyDualBatchHandler(lazy_loaders)
     """
 
     BATCH_CLASS = Batch
     VAL_CLASS = DualValidationData
 
-    def __init__(self, data_handlers, means_file, stdevs_file,
-                 batch_size=32, n_batches=100, max_workers=None,
-                 default_device='/gpu:0'):
-        super().__init__(data_handlers=data_handlers, means_file=means_file,
+    def __init__(self, data_containers, means_file, stdevs_file,
+                 batch_size=32, n_batches=100, queue_cap=1000,
+                 max_workers=None, default_device='/gpu:0'):
+        """
+        Parameters
+        ----------
+        data_handlers : list[DataHandler]
+            List of DataHandler objects
+        """
+        super().__init__(data_containers=data_containers, means_file=means_file,
                          stdevs_file=stdevs_file, batch_size=batch_size,
-                         n_batches=n_batches)
+                         n_batches=n_batches,
+                         queue_cap=queue_cap)
         self.default_device = default_device
         self.max_workers = max_workers
 
         logger.info(f'Initialized {self.__class__.__name__} with '
-                    f'{len(data_handlers)} data_handlers, '
+                    f'{len(data_containers)} data_containers, '
                     f'means_file = {means_file}, stdevs_file = {stdevs_file}, '
                     f'batch_size = {batch_size}, n_batches = {n_batches}, '
                     f'max_workers = {max_workers}.')
@@ -221,7 +229,7 @@ class LazyDualBatchHandler(AbstractBatchHandler, MultiDualMixIn):
                         len(self.lr_features))
             hr_shape = (self.batch_size, *self.hr_sample_shape,
                         len(self.hr_features))
-            self._queue = tf.queue.FIFOQueue(self.queue_capacity,
+            self._queue = tf.queue.FIFOQueue(self.queue_cap,
                                              dtypes=[tf.float32, tf.float32],
                                              shapes=[lr_shape, hr_shape])
         return self._queue
