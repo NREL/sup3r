@@ -378,6 +378,18 @@ def test_fwp_integration(tmp_path, fp_fut_cc):
                    os.path.join(TEST_DATA_DIR, 'orog_test.nc'),
                    os.path.join(TEST_DATA_DIR, 'zg_test.nc')]
 
+    n_samples = 101
+    quantiles = np.linspace(0, 1, n_samples)
+    params = {}
+    with xr.open_dataset(os.path.join(TEST_DATA_DIR, 'ua_test.nc')) as ds:
+        params['bias_U_100m_params'] = ds['ua'].quantile(quantiles).to_numpy()
+    params['base_Uref_100m_params'] = params['bias_U_100m_params']
+    params['bias_fut_U_100m_params'] = params['bias_U_100m_params']
+    with xr.open_dataset(os.path.join(TEST_DATA_DIR, 'va_test.nc')) as ds:
+        params['bias_V_100m_params'] = ds['va'].quantile(quantiles).to_numpy()
+    params['base_Vref_100m_params'] = params['bias_V_100m_params']
+    params['bias_fut_V_100m_params'] = params['bias_V_100m_params']
+
     lat_lon = DataHandlerNCforCC(input_files, features=[], target=target,
                                  shape=shape,
                                  worker_kwargs={'max_workers': 1}).lat_lon
@@ -405,9 +417,19 @@ def test_fwp_integration(tmp_path, fp_fut_cc):
         f.create_dataset('latitude', data=lat_lon[..., 0])
         f.create_dataset('longitude', data=lat_lon[..., 1])
 
+        s = lat_lon.shape[:2]
+        for k,v in params.items():
+            f.create_dataset(k, data=np.broadcast_to(v, (*s, v.size )))
+        f.attrs["dist"] = "empirical"
+        f.attrs["sampling"] = "linear"
+        f.attrs["log_base"] = 10
+
+
     bias_correct_kwargs = {'U_100m': {'feature_name': 'U_100m',
+                                      'base_dset': 'Uref_100m',
                                       'bias_fp': bias_fp},
                            'V_100m': {'feature_name': 'V_100m',
+                                      'base_dset': 'Vref_100m',
                                       'bias_fp': bias_fp}}
 
     strat = ForwardPassStrategy(
@@ -432,7 +454,7 @@ def test_fwp_integration(tmp_path, fp_fut_cc):
         out_pattern=os.path.join(tmp_path, 'out_{file_id}.nc'),
         worker_kwargs=dict(max_workers=1),
         input_handler='DataHandlerNCforCC',
-        bias_correct_method='local_linear_bc',
+        bias_correct_method='local_qdm_bc',
         bias_correct_kwargs=bias_correct_kwargs)
 
     for ichunk in range(strat.chunks):
