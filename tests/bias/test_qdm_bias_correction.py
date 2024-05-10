@@ -364,8 +364,12 @@ def test_bc_trend_same_hist(tmp_path, fp_fut_cc, dist_params):
 
 
 def test_fwp_integration(tmp_path, fp_fut_cc):
-    """Test the integration of the bias correction method into the forward pass
-    framework"""
+    """Integration of the bias correction method into the forward pass
+
+    Validate two aspects:
+    - We should be able to run a forward pass with unbiased data.
+    - The bias trend should be observed in the predicted output.
+    """
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
     features = ['U_100m', 'V_100m']
@@ -383,11 +387,11 @@ def test_fwp_integration(tmp_path, fp_fut_cc):
     params = {}
     with xr.open_dataset(os.path.join(TEST_DATA_DIR, 'ua_test.nc')) as ds:
         params['bias_U_100m_params'] = ds['ua'].quantile(quantiles).to_numpy()
-    params['base_Uref_100m_params'] = params['bias_U_100m_params'] - 1
+    params['base_Uref_100m_params'] = params['bias_U_100m_params'] - 2.72
     params['bias_fut_U_100m_params'] = params['bias_U_100m_params']
     with xr.open_dataset(os.path.join(TEST_DATA_DIR, 'va_test.nc')) as ds:
         params['bias_V_100m_params'] = ds['va'].quantile(quantiles).to_numpy()
-    params['base_Vref_100m_params'] = params['bias_V_100m_params'] + 1
+    params['base_Vref_100m_params'] = params['bias_V_100m_params'] + 2.72
     params['bias_fut_V_100m_params'] = params['bias_V_100m_params']
 
     lat_lon = DataHandlerNCforCC(input_files, features=[], target=target,
@@ -458,10 +462,13 @@ def test_fwp_integration(tmp_path, fp_fut_cc):
         bias_correct_kwargs=bias_correct_kwargs)
 
     for ichunk in range(strat.chunks):
-
         fwp = ForwardPass(strat, chunk_index=ichunk)
         bc_fwp = ForwardPass(bc_strat, chunk_index=ichunk)
 
         delta = bc_fwp.input_data - fwp.input_data
-        assert np.allclose(delta[..., 0], -1, atol=1e-03), "U reference offset is -1"
-        assert np.allclose(delta[..., 1], 1, atol=1e-03), "V reference offset is 1"
+        assert np.allclose(delta[..., 0], -2.72, atol=1e-03), "U reference offset is -1"
+        assert np.allclose(delta[..., 1], 2.72, atol=1e-03), "V reference offset is 1"
+
+        delta = bc_fwp.run_chunk() - fwp.run_chunk()
+        assert delta[..., 0].mean() < 0, "Predicted U should trend <0"
+        assert delta[..., 1].mean() > 0, "Predicted V should trend >0"
