@@ -923,7 +923,7 @@ class EraDownloader:
             year=year, month=str(month).zfill(2))
 
         if not os.path.exists(outfile):
-            with xr.open_mfdataset(files) as res:
+            with xr.open_mfdataset(files, chunks=cls.CHUNKS) as res:
                 logger.info(f'Combining {files}')
                 os.makedirs(os.path.dirname(outfile), exist_ok=True)
                 res.to_netcdf(outfile)
