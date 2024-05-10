@@ -383,11 +383,11 @@ def test_fwp_integration(tmp_path, fp_fut_cc):
     params = {}
     with xr.open_dataset(os.path.join(TEST_DATA_DIR, 'ua_test.nc')) as ds:
         params['bias_U_100m_params'] = ds['ua'].quantile(quantiles).to_numpy()
-    params['base_Uref_100m_params'] = params['bias_U_100m_params']
+    params['base_Uref_100m_params'] = params['bias_U_100m_params'] - 1
     params['bias_fut_U_100m_params'] = params['bias_U_100m_params']
     with xr.open_dataset(os.path.join(TEST_DATA_DIR, 'va_test.nc')) as ds:
         params['bias_V_100m_params'] = ds['va'].quantile(quantiles).to_numpy()
-    params['base_Vref_100m_params'] = params['bias_V_100m_params']
+    params['base_Vref_100m_params'] = params['bias_V_100m_params'] + 1
     params['bias_fut_V_100m_params'] = params['bias_V_100m_params']
 
     lat_lon = DataHandlerNCforCC(input_files, features=[], target=target,
@@ -462,12 +462,6 @@ def test_fwp_integration(tmp_path, fp_fut_cc):
         fwp = ForwardPass(strat, chunk_index=ichunk)
         bc_fwp = ForwardPass(bc_strat, chunk_index=ichunk)
 
-        i_scalar = np.expand_dims(scalar, axis=-1)
-        i_adder = np.expand_dims(adder, axis=-1)
-        i_scalar = i_scalar[bc_fwp.lr_padded_slice[0],
-                            bc_fwp.lr_padded_slice[1]]
-        i_adder = i_adder[bc_fwp.lr_padded_slice[0],
-                          bc_fwp.lr_padded_slice[1]]
-        truth = fwp.input_data * i_scalar + i_adder
-
-        assert np.allclose(bc_fwp.input_data, truth, equal_nan=True)
+        delta = bc_fwp.input_data - fwp.input_data
+        assert np.allclose(delta[..., 0], -1, atol=1e-03), "U reference offset is -1"
+        assert np.allclose(delta[..., 1], 1, atol=1e-03), "V reference offset is 1"
