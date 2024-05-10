@@ -746,8 +746,6 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
         self._init_handler = None
         self.allowed_const = allowed_const
 
-        self._single_ts_files = self._input_handler_kwargs.get(
-            'single_ts_files', None)
         self.cache_pattern = self._input_handler_kwargs.get(
             'cache_pattern', None)
         self.max_workers = self.worker_kwargs.get('max_workers', None)
@@ -797,7 +795,6 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
         target = self._input_handler_kwargs.get('target', None)
         grid_shape = self._input_handler_kwargs.get('shape', None)
         raster_file = self._input_handler_kwargs.get('raster_file', None)
-        raster_index = self._input_handler_kwargs.get('raster_index', None)
         temporal_slice = self._input_handler_kwargs.get(
             'temporal_slice', slice(None, None, 1))
         res_kwargs = self._input_handler_kwargs.get('res_kwargs', None)
@@ -805,7 +802,6 @@ class ForwardPassStrategy(InputMixIn, DistributedProcess):
                             target=target,
                             shape=grid_shape,
                             raster_file=raster_file,
-                            raster_index=raster_index,
                             temporal_slice=temporal_slice,
                             res_kwargs=res_kwargs)
 
@@ -1170,7 +1166,6 @@ class ForwardPass:
             "temporal_slice": self.temporal_pad_slice,
             "raster_file": self.raster_file,
             "cache_pattern": self.cache_pattern,
-            "single_ts_files": self.single_ts_files,
             "val_split": 0.0}
         input_handler_kwargs.update(fwp_input_handler_kwargs)
         return input_handler_kwargs

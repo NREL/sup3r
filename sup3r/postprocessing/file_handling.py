@@ -17,6 +17,7 @@ import xarray as xr
 from rex.outputs import Outputs as BaseRexOutputs
 from scipy.interpolate import griddata
 
+from sup3r import __version__
 from sup3r.preprocessing.feature_handling import Feature
 from sup3r.utilities import VERSION_RECORD
 from sup3r.utilities.utilities import (
@@ -25,10 +26,8 @@ from sup3r.utilities.utilities import (
     invert_uv,
     pd_date_range,
 )
-from sup3r import __version__
 
 logger = logging.getLogger(__name__)
-
 
 H5_ATTRS = {'windspeed': {'scale_factor': 100.0,
                           'units': 'm s-1',
@@ -130,8 +129,7 @@ class RexOutputs(BaseRexOutputs):
 
 
 class OutputMixIn:
-    """MixIn class with methods used by various Output and Collection classes
-    """
+    """Methods used by various Output and Collection classes"""
 
     @staticmethod
     def get_time_dim_name(filepath):
@@ -736,7 +734,7 @@ class OutputHandlerH5(OutputHandler):
                                f'{futures[future]}')
                         logger.exception(msg)
                         raise RuntimeError(msg) from e
-                    logger.debug(f'{i+1} out of {len(futures)} inverse '
+                    logger.debug(f'{i + 1} out of {len(futures)} inverse '
                                  'transforms completed.')
 
     @staticmethod

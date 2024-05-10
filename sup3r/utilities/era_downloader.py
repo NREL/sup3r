@@ -84,6 +84,8 @@ class EraDownloader:
         'v_component_of_wind': 'v'
     }
 
+    CHUNKS = {'latitude': 100, 'longitude': 100, 'time': 20}
+
     def __init__(self,
                  year,
                  month,
@@ -498,7 +500,7 @@ class EraDownloader:
 
             logger.info(f'Combining {files} to {self.combined_file}.')
             kwargs = {'compat': 'override',
-                      'chunks': {'latitude': 10, 'longitude': 10, 'time': 10}}
+                      'chunks': self.CHUNKS}
             with xr.open_mfdataset(files, **kwargs) as ds:
                 ds.to_netcdf(self.combined_file)
             logger.info(f'Finished writing {self.combined_file}')
@@ -921,7 +923,7 @@ class EraDownloader:
             year=year, month=str(month).zfill(2))
 
         if not os.path.exists(outfile):
-            with xr.open_mfdataset(files) as res:
+            with xr.open_mfdataset(files, chunks=cls.CHUNKS) as res:
                 logger.info(f'Combining {files}')
                 os.makedirs(os.path.dirname(outfile), exist_ok=True)
                 res.to_netcdf(outfile)
@@ -955,7 +957,7 @@ class EraDownloader:
 
         if not os.path.exists(yearly_file):
             kwargs = {'combine': 'nested', 'concat_dim': 'time',
-                      'chunks': {'latitude': 10, 'longitude': 10, 'time': 10}}
+                      'chunks': cls.CHUNKS}
             with xr.open_mfdataset(files, **kwargs) as res:
                 logger.info(f'Combining {files}')
                 os.makedirs(os.path.dirname(yearly_file), exist_ok=True)

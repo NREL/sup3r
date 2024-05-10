@@ -97,4 +97,3 @@ class LazyDualLoader(DualMixIn):
         out = (self.lr_dh.get_observation(lr_obs_idx[:-1]),
                self.hr_dh.get_observation(hr_obs_idx[:-1]))
         return out
-

@@ -33,8 +33,7 @@ dh_kwargs = {'target': target,
              'lr_only_features': ('BVF*m', 'topography',),
              'sample_shape': sample_shape,
              'temporal_slice': slice(None, None, 1),
-             'worker_kwargs': {'max_workers': 1},
-             'single_ts_files': True}
+             'worker_kwargs': {'max_workers': 1}}
 bh_kwargs = {'batch_size': 8, 'n_batches': 20, 's_enhance': s_enhance,
              't_enhance': t_enhance, 'worker_kwargs': {'max_workers': 1}}
 
@@ -272,8 +271,8 @@ def test_raster_index_caching():
 def test_normalization_input():
     """Test correct normalization input"""
 
-    means = {f: 10 for f in features}
-    stds = {f: 20 for f in features}
+    means = dict.fromkeys(features, 10)
+    stds = dict.fromkeys(features, 20)
     with tempfile.TemporaryDirectory() as td:
         input_files = make_fake_nc_files(td, INPUT_FILE, 8)
         data_handler = DataHandler(input_files, features, **dh_kwargs)

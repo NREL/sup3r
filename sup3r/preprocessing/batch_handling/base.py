@@ -29,7 +29,7 @@ np.random.seed(42)
 
 logger = logging.getLogger(__name__)
 
-AUTO = tf.data.experimental.AUTOTUNE # used in tf.data.Dataset API
+AUTO = tf.data.experimental.AUTOTUNE  # used in tf.data.Dataset API
 option_no_order = tf.data.Options()
 option_no_order.experimental_deterministic = False
 
@@ -152,13 +152,13 @@ class Batch:
 class BatchBuilder(AbstractBatchBuilder):
     """Base batch builder class"""
 
-    def __init__(self, data_handlers, batch_size, buffer_size=None,
+    def __init__(self, data_containers, batch_size, buffer_size=None,
                  max_workers=None, default_device='/gpu:0'):
         """
         Parameters
         ----------
-        data_handlers : list[DataHandler]
-            List of DataHandler instances each with a `.size` property and a
+        data_containers : list[Container]
+            List of data containers each with a `.size` property and a
             `.get_next` method to return the next (low_res, high_res) sample.
         batch_size : int
             Number of samples/observations to use for each batch. e.g. Batches
@@ -170,14 +170,15 @@ class BatchBuilder(AbstractBatchBuilder):
         default_device : str
             Default target device for batches.
         """
-        super().__init__(data_handlers=data_handlers, batch_size=batch_size)
+        super().__init__(data_containers=data_containers,
+                         batch_size=batch_size)
         self.buffer_size = buffer_size or 10 * batch_size
         self.max_workers = max_workers or self.batch_size
         self.default_device = default_device
         self.handler_index = self.get_handler_index()
 
         logger.info(f'Initialized {self.__class__.__name__} with '
-                    f'{len(data_handlers)} data handlers, '
+                    f'{len(data_containers)} data_containers, '
                     f'batch_size = {batch_size}, buffer_size = {buffer_size}, '
                     f'max_workers = {max_workers}.')
 
@@ -191,11 +192,8 @@ class BatchBuilder(AbstractBatchBuilder):
                                                 name='low_resolution'),
                                   tf.TensorSpec(self.hr_shape, tf.float32,
                                                 name='high_resolution')))
-            data = data.apply(tf.data.experimental.prefetch_to_device(
-                self.default_device))
-            self._data = data.map(lambda x,y : (x,y),
+            self._data = data.map(lambda x, y: (x, y),
                                   num_parallel_calls=self.max_workers)
-
         return self._data
 
     def __next__(self):
@@ -213,8 +211,8 @@ class BatchBuilder(AbstractBatchBuilder):
         """Shape of low resolution sample in a low-res / high-res pair.  (e.g.
         (spatial_1, spatial_2, temporal, features)) """
         if self._lr_shape is None:
-            lr_sample_shape = self.data_handlers[0].lr_sample_shape
-            lr_features = self.data_handlers[0].lr_features
+            lr_sample_shape = self.data_containers[0].lr_sample_shape
+            lr_features = self.data_containers[0].lr_features
             self._lr_shape = (*lr_sample_shape, len(lr_features))
         return self._lr_shape
 
@@ -223,22 +221,26 @@ class BatchBuilder(AbstractBatchBuilder):
         """Shape of high resolution sample in a low-res / high-res pair.  (e.g.
         (spatial_1, spatial_2, temporal, features)) """
         if self._hr_shape is None:
-            hr_sample_shape = self.data_handlers[0].hr_sample_shape
-            hr_features = (self.data_handlers[0].hr_out_features
-                           + self.data_handlers[0].hr_exo_features)
+            hr_sample_shape = self.data_containers[0].hr_sample_shape
+            hr_features = (self.data_containers[0].hr_out_features
+                           + self.data_containers[0].hr_exo_features)
             self._hr_shape = (*hr_sample_shape, len(hr_features))
         return self._hr_shape
 
     @property
     def batches(self):
         """Prefetch set of batches from dataset generator."""
-        if (self._batches is None
-                or self._sample_counter % self.buffer_size == 0):
+        if self._batches is None:
             logger.info('Prefetching batches with buffer_size = '
                         f'{self.buffer_size}, batch_size = {self.batch_size}.')
-            #tf.data.experimental.AUTOTUNE) #self.buffer_size)
-            data = self.data.prefetch(AUTO)#buffer_size=self.buffer_size)
+            # tf.data.experimental.AUTOTUNE) #self.buffer_size)
+            # data = self.data.apply(tf.data.experimental.prefetch_to_device(
+            #    self.default_device))
+            data = self.data.prefetch(AUTO)  # buffer_size=self.buffer_size)
             self._batches = data.batch(self.batch_size)
+            # strategy = tf.distribute.MirroredStrategy()  # ["GPU:0", "GPU:1"])
+            # self._batches = strategy.experimental_distribute_dataset(
+            #    self._batches)
             self._batches = self._batches.as_numpy_iterator()
         return self._batches
 
@@ -406,22 +408,19 @@ class ValidationData(AbstractBatchBuilder):
         """
         self.current_batch_indices = []
         if self._remaining_observations > 0:
+            n_obs = self._remaining_observations
             if self._remaining_observations > self.batch_size:
                 n_obs = self.batch_size
-            else:
-                n_obs = self._remaining_observations
-
-            high_res = np.zeros(
-                (n_obs, self.sample_shape[0], self.sample_shape[1],
-                 self.sample_shape[2], self.data_handlers[0].shape[-1]),
-                dtype=np.float32)
-            for i in range(high_res.shape[0]):
-                val_index = self.val_indices[self._i + i]
-                high_res[i, ...] = self.data_handlers[val_index[
-                    'handler_index']].val_data[val_index['tuple_index']]
+            hr_list = []
+            for i in range(n_obs):
+                val_idx = self.val_indices[self._i + i]
+                h_idx = val_idx['handler_index']
+                tuple_idx = val_idx['tuple_index']
+                hr_sample = self.data_handlers[h_idx].val_data[tuple_idx]
+                hr_list.append(np.expand_dims(hr_sample, axis=0))
                 self._remaining_observations -= 1
-                self.current_batch_indices.append(val_index['handler_index'])
-
+                self.current_batch_indices.append(h_idx)
+            high_res = np.concatenate(hr_list, axis=0)
             if self.sample_shape[2] == 1:
                 high_res = high_res[..., 0, :]
             batch = self.batch_next(high_res)
@@ -635,7 +634,7 @@ class BatchHandler(MultiHandlerMixIn, AbstractBatchBuilder):
                                f'{futures[future]}')
                         logger.exception(msg)
                         raise RuntimeError(msg) from e
-                    logger.debug(f'{i+1} out of {len(futures)} data handlers'
+                    logger.debug(f'{i + 1} out of {len(futures)} data handlers'
                                  ' normalized.')
 
     def load_handler_data(self):
@@ -666,7 +665,7 @@ class BatchHandler(MultiHandlerMixIn, AbstractBatchBuilder):
                                f'{futures[future]}')
                         logger.exception(msg)
                         raise RuntimeError(msg) from e
-                    logger.debug(f'{i+1} out of {len(futures)} handlers '
+                    logger.debug(f'{i + 1} out of {len(futures)} handlers '
                                  'loaded.')
 
     def _get_stats(self):
@@ -689,8 +688,9 @@ class BatchHandler(MultiHandlerMixIn, AbstractBatchBuilder):
 
                     for i, future in enumerate(as_completed(futures)):
                         _ = future.result()
-                        logger.debug(f'{i+1} out of {len(self.data_handlers)} '
-                                     'means calculated.')
+                        logger.debug(
+                            f'{i + 1} out of {len(self.data_handlers)} '
+                            'means calculated.')
 
             self.means[feature] = self._get_feature_means(feature)
             self.stds[feature] = self._get_feature_stdev(feature)
@@ -851,6 +851,30 @@ class BatchHandler(MultiHandlerMixIn, AbstractBatchBuilder):
         self._i = 0
         return self
 
+    def batch_next(self, high_res):
+        """Assemble the next batch
+
+        Parameters
+        ----------
+        high_res : np.ndarray
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+
+        Returns
+        -------
+        batch : Batch
+        """
+        return self.BATCH_CLASS.get_coarse_batch(
+                high_res=high_res,
+                s_enhance=self.s_enhance,
+                t_enhance=self.t_enhance,
+                temporal_coarsening_method=self.temporal_coarsening_method,
+                hr_features_ind=self.hr_features_ind,
+                features=self.features,
+                smoothing=self.smoothing,
+                smoothing_ignore=self.smoothing_ignore)
+
     def __next__(self):
         """Get the next iterator output.
 
@@ -863,23 +887,14 @@ class BatchHandler(MultiHandlerMixIn, AbstractBatchBuilder):
         self.current_batch_indices = []
         if self._i < self.n_batches:
             handler = self.get_rand_handler()
-            high_res = np.zeros(
-                (self.batch_size, self.sample_shape[0], self.sample_shape[1],
-                 self.sample_shape[2], self.shape[-1]),
-                dtype=np.float32)
-            for i in range(self.batch_size):
-                high_res[i, ...] = handler.get_next()
+            hr_list = []
+            for _ in range(self.batch_size):
+                hr_sample = handler.get_next()
+                hr_list.append(np.expand_dims(hr_sample, axis=0))
                 self.current_batch_indices.append(handler.current_obs_index)
 
-            batch = self.BATCH_CLASS.get_coarse_batch(
-                high_res,
-                self.s_enhance,
-                t_enhance=self.t_enhance,
-                temporal_coarsening_method=self.temporal_coarsening_method,
-                hr_features_ind=self.hr_features_ind,
-                features=self.features,
-                smoothing=self.smoothing,
-                smoothing_ignore=self.smoothing_ignore)
+            high_res = np.concatenate(hr_list, axis=0)
+            batch = self.batch_next(high_res)
 
             self._i += 1
             return batch
@@ -1082,22 +1097,38 @@ class SpatialBatchHandlerCC(BatchHandler):
 class SpatialBatchHandler(BatchHandler):
     """Sup3r spatial batch handling class"""
 
-    def __next__(self):
-        if self._i < self.n_batches:
-            handler = self.get_rand_handler()
-            high_res = np.zeros((self.batch_size, self.sample_shape[0],
-                                 self.sample_shape[1], self.shape[-1]),
-                                dtype=np.float32)
-            for i in range(self.batch_size):
-                high_res[i, ...] = handler.get_next()[..., 0, :]
+    def batch_next(self, high_res):
+        """Assemble the next batch
 
-            batch = self.BATCH_CLASS.get_coarse_batch(
+        Parameters
+        ----------
+        high_res : np.ndarray
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+
+        Returns
+        -------
+        batch : Batch
+        """
+        return self.BATCH_CLASS.get_coarse_batch(
                 high_res,
                 self.s_enhance,
                 hr_features_ind=self.hr_features_ind,
                 features=self.features,
                 smoothing=self.smoothing,
                 smoothing_ignore=self.smoothing_ignore)
+
+    def __next__(self):
+        if self._i < len(self):
+            handler = self.get_rand_handler()
+
+            hr_list = []
+            for _ in range(self.batch_size):
+                hr_sample = handler.get_next()[..., 0, :]
+                hr_list.append(np.expand_dims(hr_sample, axis=0))
+            high_res = np.concatenate(hr_list, axis=0)
+            batch = self.batch_next(high_res)
 
             self._i += 1
             return batch

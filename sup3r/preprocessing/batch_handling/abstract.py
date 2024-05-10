@@ -14,18 +14,18 @@ logger = logging.getLogger(__name__)
 class AbstractBatchBuilder(ABC):
     """Abstract batch builder class. Need to implement data and gen methods"""
 
-    def __init__(self, data_handlers, batch_size):
+    def __init__(self, data_containers, batch_size):
         """
         Parameters
         ----------
-        data_handlers : list[DataHandler]
-            List of DataHandler instances each with a `.size` property and a
+        data_containers : list[DataContainer]
+            List of DataContainer instances each with a `.size` property and a
             `.get_next` method to return the next (low_res, high_res) sample.
         batch_size : int
             Number of samples/observations to use for each batch. e.g. Batches
             will be (batch_size, spatial_1, spatial_2, temporal, features)
         """
-        self.data_handlers = data_handlers
+        self.data_containers = data_containers
         self.batch_size = batch_size
         self.max_workers = None
         self.buffer_size = None
@@ -45,19 +45,19 @@ class AbstractBatchBuilder(ABC):
         """Get weights used to sample from different data handlers based on
         relative sizes"""
         if self._handler_weights is None:
-            self._handler_weights = get_handler_weights(self.data_handlers)
+            self._handler_weights = get_handler_weights(self.data_containers)
         return self._handler_weights
 
     def get_handler_index(self):
         """Get random handler index based on handler weights"""
-        indices = np.arange(0, len(self.data_handlers))
+        indices = np.arange(0, len(self.data_containers))
         return np.random.choice(indices, p=self.handler_weights)
 
     def get_rand_handler(self):
         """Get random handler based on handler weights"""
         if self._sample_counter % self.batch_size == 0:
             self.handler_index = self.get_handler_index()
-        return self.data_handlers[self.handler_index]
+        return self.data_containers[self.handler_index]
 
     def __getitem__(self, index):
         """Get single observation / sample. Batches are built from
@@ -102,12 +102,12 @@ class AbstractBatchHandler(HandlerStats, ABC):
     BATCH_CLASS = None
     VAL_CLASS = None
 
-    def __init__(self, data_handlers, batch_size, n_batches, means_file,
-                 stdevs_file):
-        self.data_handlers = data_handlers
+    def __init__(self, data_containers, batch_size, n_batches, means_file,
+                 stdevs_file, queue_cap):
+        self.data_containers = data_containers
         self.batch_size = batch_size
         self.n_batches = n_batches
-        self.queue_capacity = n_batches
+        self.queue_cap = queue_cap
         self.means_file = means_file
         self.stdevs_file = stdevs_file
         self.val_data = []
@@ -116,7 +116,7 @@ class AbstractBatchHandler(HandlerStats, ABC):
         self._queue = None
         self._is_training = False
         self._enqueue_thread = None
-        HandlerStats.__init__(self, data_handlers, means_file=means_file,
+        HandlerStats.__init__(self, data_containers, means_file=means_file,
                               stdevs_file=stdevs_file)
 
     @property
@@ -159,7 +159,7 @@ class AbstractBatchHandler(HandlerStats, ABC):
         """Callback function for enqueue thread."""
         while self._is_training:
             queue_size = self.queue.size().numpy()
-            if queue_size < self.queue_capacity:
+            if queue_size < self.queue_cap:
                 logger.info(f'{queue_size} batches in queue.')
                 self.queue.enqueue(next(self.batch_pool))
 

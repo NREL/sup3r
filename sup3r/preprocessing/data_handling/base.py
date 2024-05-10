@@ -61,7 +61,6 @@ class DataHandler(HandlerFeatureSets, FeatureHandler, InputMixIn,
                  val_split=0.0,
                  sample_shape=(10, 10, 1),
                  raster_file=None,
-                 raster_index=None,
                  shuffle_time=False,
                  time_chunk_size=None,
                  cache_pattern=None,
@@ -69,7 +68,6 @@ class DataHandler(HandlerFeatureSets, FeatureHandler, InputMixIn,
                  load_cached=False,
                  lr_only_features=(),
                  hr_exo_features=(),
-                 single_ts_files=None,
                  mask_nan=False,
                  fill_nan=False,
                  worker_kwargs=None,
@@ -150,10 +148,6 @@ class DataHandler(HandlerFeatureSets, FeatureHandler, InputMixIn,
             high-resolution observation but not expected to be output from the
             generative model. An example is high-res topography that is to be
             injected mid-network.
-        single_ts_files : bool | None
-            Whether input files are single time steps or not. If they are this
-            enables some reduced computation. If None then this will be
-            determined from file_paths directly.
         mask_nan : bool
             Flag to mask out (remove) any timesteps with NaN data from the
             source dataset. This is False by default because it can create
@@ -192,7 +186,6 @@ class DataHandler(HandlerFeatureSets, FeatureHandler, InputMixIn,
                             target=target,
                             shape=shape,
                             raster_file=raster_file,
-                            raster_index=raster_index,
                             temporal_slice=temporal_slice)
 
         self.file_paths = file_paths
@@ -214,7 +207,7 @@ class DataHandler(HandlerFeatureSets, FeatureHandler, InputMixIn,
         self.val_data = None
         self.res_kwargs = res_kwargs or {}
         self._shape = None
-        self._single_ts_files = single_ts_files
+        self._single_ts_files = None
         self._cache_pattern = cache_pattern
         self._lr_only_features = lr_only_features
         self._hr_exo_features = hr_exo_features
@@ -222,6 +215,7 @@ class DataHandler(HandlerFeatureSets, FeatureHandler, InputMixIn,
         self._handle_features = None
         self._extract_features = None
         self._noncached_features = None
+        self._raster_index = None
         self._raw_features = None
         self._raw_data = {}
         self._time_chunks = None
@@ -339,11 +333,6 @@ class DataHandler(HandlerFeatureSets, FeatureHandler, InputMixIn,
                 logger.warning(msg)
                 warnings.warn(msg)
 
-    @classmethod
-    @abstractmethod
-    def get_full_domain(cls, file_paths):
-        """Get target and shape for full domain"""
-
     def clear_data(self):
         """Free memory used for data arrays"""
         self.data = None
@@ -371,38 +360,6 @@ class DataHandler(HandlerFeatureSets, FeatureHandler, InputMixIn,
         handle = self.source_handler(self.file_paths)
         desc = handle.attrs
         return desc
-
-    @property
-    def time_chunks(self):
-        """Get time chunks which will be extracted from source data
-
-        Returns
-        -------
-        _time_chunks : list
-            List of time chunks used to split up source data time dimension
-            so that each chunk can be extracted individually
-        """
-        if self._time_chunks is None:
-            if self.is_time_independent:
-                self._time_chunks = [slice(None)]
-            else:
-                self._time_chunks = get_chunk_slices(len(self.raw_time_index),
-                                                     self.time_chunk_size,
-                                                     self.temporal_slice)
-        return self._time_chunks
-
-    @property
-    def is_time_independent(self):
-        """Get whether source data files are time independent"""
-        return self.raw_time_index[0] is None
-
-    @property
-    def n_tsteps(self):
-        """Get number of time steps to extract"""
-        if self.is_time_independent:
-            return 1
-        else:
-            return len(self.raw_time_index[self.temporal_slice])
 
     @property
     def cache_files(self):
@@ -665,43 +622,6 @@ class DataHandler(HandlerFeatureSets, FeatureHandler, InputMixIn,
         cmd = BaseCLI.add_status_cmd(config, pipeline_step, cmd)
         cmd += ";\'\n"
         return cmd.replace('\\', '/')
-
-    def get_cache_file_names(self,
-                             cache_pattern,
-                             grid_shape=None,
-                             time_index=None,
-                             target=None,
-                             features=None):
-        """Get names of cache files from cache_pattern and feature names
-
-        Parameters
-        ----------
-        cache_pattern : str
-            Pattern to use for cache file names
-        grid_shape : tuple
-            Shape of grid to use for cache file naming
-        time_index : list | pd.DatetimeIndex
-            Time index to use for cache file naming
-        target : tuple
-            Target to use for cache file naming
-        features : list
-            List of features to use for cache file naming
-
-        Returns
-        -------
-        list
-            List of cache file names
-        """
-        grid_shape = grid_shape if grid_shape is not None else self.grid_shape
-        time_index = time_index if time_index is not None else self.time_index
-        target = target if target is not None else self.target
-        features = features if features is not None else self.features
-
-        return self._get_cache_file_names(cache_pattern,
-                                          grid_shape,
-                                          time_index,
-                                          target,
-                                          features)
 
     def split_data(self, data=None, val_split=0.0, shuffle_time=False):
         """Split time dimension into set of training indices and validation
@@ -1035,7 +955,7 @@ class DataHandler(HandlerFeatureSets, FeatureHandler, InputMixIn,
                                'final data array.')
                         logger.exception(msg)
                         raise RuntimeError(msg) from e
-                    logger.debug(f'Added {i+1} out of {len(futures)} '
+                    logger.debug(f'Added {i + 1} out of {len(futures)} '
                                  'chunks to final data array')
         logger.info('Finished building data array')
 
@@ -1178,4 +1098,3 @@ class DataHandler(HandlerFeatureSets, FeatureHandler, InputMixIn,
                                                    relative=relative,
                                                    no_trend=no_trend)
                 completed.append(feature)
-
