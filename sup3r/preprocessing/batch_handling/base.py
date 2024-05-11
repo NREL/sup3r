@@ -12,8 +12,7 @@ import numpy as np
 from rex.utilities import log_mem
 from scipy.ndimage import gaussian_filter
 
-from sup3r.containers.batchers.base import SingleBatch
-from sup3r.preprocessing.batch_handling.abstract import AbstractBatchBuilder
+from sup3r.containers.batchers.abstract import AbstractBatchBuilder, Batch
 from sup3r.preprocessing.mixin import MultiHandlerMixIn
 from sup3r.utilities.utilities import (
     nn_fill_array,
@@ -32,7 +31,7 @@ class ValidationData(AbstractBatchBuilder):
     """Iterator for validation data"""
 
     # Classes to use for handling an individual batch obj.
-    BATCH_CLASS = SingleBatch
+    BATCH_CLASS = Batch
 
     def __init__(self,
                  data_handlers,
@@ -218,7 +217,7 @@ class BatchHandler(MultiHandlerMixIn, AbstractBatchBuilder):
 
     # Classes to use for handling an individual batch obj.
     VAL_CLASS = ValidationData
-    BATCH_CLASS = SingleBatch
+    BATCH_CLASS = Batch
     DATA_HANDLER_CLASS = None
 
     def __init__(self,

@@ -2,15 +2,15 @@
 interface with models."""
 
 import logging
-from typing import Tuple, Union
+from typing import Dict, List, Tuple, Union
 
 import numpy as np
 import tensorflow as tf
-from rex import safe_json_load
 
 from sup3r.containers.batchers.abstract import (
     AbstractNormedBatchQueue,
 )
+from sup3r.containers.samplers import Sampler
 from sup3r.utilities.utilities import (
     smooth_data,
     spatial_coarsening,
@@ -28,46 +28,106 @@ option_no_order.experimental_optimization.noop_elimination = True
 option_no_order.experimental_optimization.apply_default_optimizations = True
 
 
-class SingleBatch:
-    """Single Batch of low_res and high_res data"""
+class BatchQueue(AbstractNormedBatchQueue):
+    """Base BatchQueue class for single data object containers."""
 
-    def __init__(self, low_res, high_res):
-        """Store low and high res data
-
+    def __init__(
+        self,
+        containers: List[Sampler],
+        s_enhance,
+        t_enhance,
+        batch_size,
+        n_batches,
+        queue_cap,
+        means: Union[Dict, str],
+        stds: Union[Dict, str],
+        max_workers=None,
+        coarsen_kwargs=None,
+    ):
+        """
         Parameters
         ----------
-        low_res : np.ndarray
-            4D | 5D array
-            (batch_size, spatial_1, spatial_2, features)
-            (batch_size, spatial_1, spatial_2, temporal, features)
-        high_res : np.ndarray
-            4D | 5D array
-            (batch_size, spatial_1, spatial_2, features)
-            (batch_size, spatial_1, spatial_2, temporal, features)
+        containers : List[Sampler]
+            List of Sampler instances
+        batch_size : int
+            Number of observations / samples in a batch
+        n_batches : int
+            Number of batches in an epoch, this sets the iteration limit for
+            this object.
+        queue_cap : int
+            Maximum number of batches the batch queue can store.
+        means : Union[Dict, str]
+            Either a .json path containing a dictionary or a dictionary of
+            means which will be used to normalize batches as they are built.
+        stds : Union[Dict, str]
+            Either a .json path containing a dictionary or a dictionary of
+            standard deviations which will be used to normalize batches as they
+            are built.
+        s_enhance : int
+            Integer factor by which the spatial axes is to be enhanced.
+        t_enhance : int
+            Integer factor by which the temporal axes is to be enhanced.
+        max_workers : int
+            Number of workers / threads to use for getting samples used to
+            build batches.
+        coarsen_kwargs : Union[Dict, None]
+            Dictionary of kwargs to be passed to `self.coarsen`.
         """
-        self.low_res = low_res
-        self.high_res = high_res
-        self.shape = (low_res.shape, high_res.shape)
+        super().__init__(
+            containers,
+            s_enhance,
+            t_enhance,
+            batch_size,
+            n_batches,
+            queue_cap,
+            means,
+            stds,
+            max_workers,
+        )
+        self.coarsen_kwargs = coarsen_kwargs
+        logger.info(
+            f'Initialized {self.__class__.__name__} with '
+            f'{len(self.containers)} samplers, s_enhance = {self.s_enhance}, '
+            f't_enhance = {self.t_enhance}, batch_size = {self.batch_size}, '
+            f'n_batches = {self.n_batches}, queue_cap = {self.queue_cap}, '
+            f'means = {self.means}, stds = {self.stds}, '
+            f'max_workers = {self.max_workers}, '
+            f'coarsen_kwargs = {self.coarsen_kwargs}.')
 
-    def __len__(self):
-        """Get the number of samples in this batch."""
-        return len(self.low_res)
+    def get_output_signature(self):
+        """Get tensorflow dataset output signature for single data object
+        containers."""
 
-    # pylint: disable=W0613
-    @classmethod
-    def get_coarse_batch(
-        cls,
+        output_signature = tf.TensorSpec(
+            (*self.sample_shape, len(self.features)),
+            tf.float32,
+            name='high_res',
+        )
+        return output_signature
+
+    def batch_next(self, samples):
+        """Returns wrapped collection of samples / observations."""
+        lr, hr = self.coarsen(high_res=samples, **self.coarsen_kwargs)
+        return self.BATCH_CLASS(
+            low_res=lr, high_res=hr)
+
+    def normalize(
+        self, samples
+    ) -> Union[Tuple[np.ndarray, np.ndarray], np.ndarray]:
+        """Normalize a low-res / high-res pair with the stored means and
+        stdevs."""
+        means = np.array([self.means[k] for k in self.features])
+        stds = np.array([self.stds[k] for k in self.features])
+        return self._normalize(samples, means, stds)
+
+    def coarsen(
+        self,
         high_res,
-        s_enhance,
-        t_enhance=1,
-        temporal_coarsening_method='subsample',
-        hr_features_ind=None,
-        features=None,
         smoothing=None,
         smoothing_ignore=None,
+        temporal_coarsening_method='subsample',
     ):
-        """Coarsen high res data and return Batch with high res and
-        low res data
+        """Coarsen high res data to get corresponding low res batch.
 
         Parameters
         ----------
@@ -75,20 +135,6 @@ class SingleBatch:
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
-        s_enhance : int
-            Factor by which to coarsen spatial dimensions of the high
-            resolution data
-        t_enhance : int
-            Factor by which to coarsen temporal dimension of the high
-            resolution data
-        temporal_coarsening_method : str
-            Method to use for temporal coarsening. Can be subsample, average,
-            min, max, or total
-        hr_features_ind : list | np.ndarray | None
-            List/array of feature channel indices that are used for generative
-            output, without any feature indices used only for training.
-        features : list | None
-            Ordered list of training features input to the generative model
         smoothing : float | None
             Standard deviation to use for gaussian filtering of the coarse
             data. This can be tuned by matching the kinetic energy of a low
@@ -98,186 +144,128 @@ class SingleBatch:
         smoothing_ignore : list | None
             List of features to ignore for the smoothing filter. None will
             smooth all features if smoothing kwarg is not None
+        temporal_coarsening_method : str
+            Method to use for temporal coarsening. Can be subsample, average,
+            min, max, or total
 
         Returns
         -------
-        Batch
-            Batch instance with low and high res data
+        low_res : np.ndarray
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
         """
-        low_res = spatial_coarsening(high_res, s_enhance)
-
-        features = (
-            features if features is not None else [None] * low_res.shape[-1]
+        low_res = spatial_coarsening(high_res, self.s_enhance)
+        low_res = (
+            low_res
+            if self.t_enhance == 1
+            else temporal_coarsening(
+                low_res, self.t_enhance, temporal_coarsening_method
+            )
         )
-
-        hr_features_ind = (
-            hr_features_ind
-            if hr_features_ind is not None
-            else np.arange(high_res.shape[-1])
-        )
-
         smoothing_ignore = (
             smoothing_ignore if smoothing_ignore is not None else []
         )
+        low_res = smooth_data(
+            low_res, self.features, smoothing_ignore, smoothing
+        )
+        high_res = high_res.numpy()[..., self.hr_features_ind]
+        return low_res, high_res
 
-        low_res = (
-            low_res
-            if t_enhance == 1
-            else temporal_coarsening(
-                low_res, t_enhance, temporal_coarsening_method
-            )
+
+class PairBatchQueue(AbstractNormedBatchQueue):
+    """Base BatchQueue for SamplerPair containers."""
+
+    def __init__(
+        self,
+        containers: List[Sampler],
+        s_enhance,
+        t_enhance,
+        batch_size,
+        n_batches,
+        queue_cap,
+        means: Union[Dict, str],
+        stds: Union[Dict, str],
+        max_workers=None,
+    ):
+        super().__init__(
+            containers,
+            s_enhance,
+            t_enhance,
+            batch_size,
+            n_batches,
+            queue_cap,
+            means,
+            stds,
+            max_workers,
+        )
+        self.check_for_consistent_enhancement_factors()
+
+        logger.info(
+            f'Initialized {self.__class__.__name__} with '
+            f'{len(self.containers)} samplers, s_enhance = {self.s_enhance}, '
+            f't_enhance = {self.t_enhance}, batch_size = {self.batch_size}, '
+            f'n_batches = {self.n_batches}, queue_cap = {self.queue_cap}, '
+            f'means = {self.means}, stds = {self.stds}, '
+            f'max_workers = {self.max_workers}.'
         )
 
-        low_res = smooth_data(low_res, features, smoothing_ignore, smoothing)
-        high_res = high_res[..., hr_features_ind]
-        batch = cls(low_res, high_res)
-
-        return batch
-
-
-class BatchQueue(AbstractNormedBatchQueue):
-    """Base BatchQueue class."""
-
-    BATCH_CLASS = SingleBatch
-
-    def __init__(self, containers, batch_size, n_batches, queue_cap,
-                 means_file, stdevs_file, max_workers=None):
-        super().__init__(containers, batch_size, n_batches, queue_cap)
-        self.means = safe_json_load(means_file)
-        self.stds = safe_json_load(stdevs_file)
-        self.container_index = self.get_container_index()
-        self.container_weights = self.get_container_weights()
-        self.max_workers = max_workers or self.batch_size
-
-    @property
-    def batches(self):
-        """Return iterable of batches prefetched from the data generator."""
-        if self._batches is None:
-            self._batches = self.prefetch()
-        return self._batches
+    def check_for_consistent_enhancement_factors(self):
+        """Make sure each SamplerPair has the same enhancment factors and that
+        they match those provided to the BatchQueue."""
+        s_factors = [c.s_enhance for c in self.containers]
+        msg = (f'Recived s_enhance = {self.s_enhance} but not all '
+               f'SamplerPairs in the collection have the same value.')
+        assert all(self.s_enhance == s for s in s_factors), msg
+        t_factors = [c.t_enhance for c in self.containers]
+        msg = (f'Recived t_enhance = {self.t_enhance} but not all '
+               f'SamplerPairs in the collection have the same value.')
+        assert all(self.t_enhance == t for t in t_factors), msg
 
     def get_output_signature(self):
         """Get tensorflow dataset output signature. If we are sampling from
         container pairs then this is a tuple for low / high res batches.
         Otherwise we are just getting high res batches and coarsening to get
         the corresponding low res batches."""
-
-        if self.all_container_pairs:
-            output_signature = (
-                tf.TensorSpec(self.lr_shape, tf.float32, name='low_res'),
-                tf.TensorSpec(self.hr_shape, tf.float32, name='high_res'),
-            )
-        else:
-            output_signature = tf.TensorSpec(
-                (*self.sample_shape, len(self.features)), tf.float32,
-                 name='high_res')
-
-        return output_signature
-
-    def prefetch(self):
-        """Prefetch set of batches from dataset generator."""
-        logger.info(
-            f'Prefetching batches with batch_size = {self.batch_size}.'
+        return (
+            tf.TensorSpec(self.lr_shape, tf.float32, name='low_res'),
+            tf.TensorSpec(self.hr_shape, tf.float32, name='high_res'),
         )
-        data = self.data.map(lambda x, y: (x, y),
-                             num_parallel_calls=self.max_workers)
-        data = self.data.prefetch(tf.data.experimental.AUTOTUNE)
-        batches = data.batch(self.batch_size)
-        return batches.as_numpy_iterator()
 
-    def _get_batch_shape(self, sample_shape, features):
-        """Get shape of full batch array. (n_obs, spatial_1, spatial_2,
-        temporal, n_features)"""
-        return (self.batch_size, *sample_shape, len(features))
-
-    def get_queue(self):
-        """Initialize FIFO queue for storing batches."""
-        if self.all_container_pairs:
-            shapes = [
-                self._get_batch_shape(self.lr_sample_shape, self.lr_features),
-                self._get_batch_shape(self.hr_sample_shape, self.hr_features),
-            ]
-            queue = tf.queue.FIFOQueue(
-                self.queue_cap,
-                dtypes=[tf.float32, tf.float32],
-                shapes=shapes,
-            )
-        else:
-            shapes = [self._get_batch_shape(self.sample_shape, self.features)]
-            queue = tf.queue.FIFOQueue(
-                self.queue_cap, dtypes=[tf.float32], shapes=shapes
-            )
-        return queue
-
-    def batch_next(self, samples, **kwargs):
+    def batch_next(self, samples):
         """Returns wrapped collection of samples / observations."""
-        if self.all_container_pairs:
-            low_res, high_res = samples
-            batch = self.BATCH_CLASS(low_res=low_res, high_res=high_res)
-        else:
-            batch = self.BATCH_CLASS.get_coarse_batch(
-                high_res=samples, **kwargs
-            )
+        low_res, high_res = samples
+        batch = self.BATCH_CLASS(low_res=low_res, high_res=high_res)
         return batch
-
-    def enqueue_batches(self):
-        """Callback function for enqueue thread."""
-        while self._is_training:
-            queue_size = self.queue.size().numpy()
-            if queue_size < self.queue_cap:
-                logger.info(f'{queue_size} batches in queue.')
-                self.queue.enqueue(next(self.batches))
-
-    @ staticmethod
-    def _normalize(array, means, stds):
-        """Normalize an array with given means and stds."""
-        return (array - means) / stds
 
     def normalize(
         self, samples
     ) -> Union[Tuple[np.ndarray, np.ndarray], np.ndarray]:
         """Normalize a low-res / high-res pair with the stored means and
         stdevs."""
-        means, stds = self.get_means(), self.get_stds()
-        if self.all_container_pairs:
-            lr, hr = samples
-            lr_means, hr_means = means
-            lr_stds, hr_stds = stds
-            out = (
-                self._normalize(lr, lr_means, lr_stds),
-                self._normalize(hr, hr_means, hr_stds),
-            )
-
-        else:
-            out = self._normalize(samples, means, stds)
-
+        lr, hr = samples
+        out = (
+            self._normalize(lr, self.lr_means, self.lr_stds),
+            self._normalize(hr, self.hr_means, self.hr_stds),
+        )
         return out
 
-    def get_next(self, **kwargs):
-        """Get next batch of observations."""
-        samples = self.queue.dequeue()
-        samples = self.normalize(samples)
-        batch = self.batch_next(samples, **kwargs)
-        return batch
+    @property
+    def lr_means(self):
+        """Means specific the low-res objects in the ContainerPairs."""
+        return np.array([self.means[k] for k in self.lr_features])
 
-    def get_means(self) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
-        """Get array of means or a tuple of arrays, if containers are
-        ContainerPairs."""
-        if self.all_container_pairs:
-            lr_means = np.array([self.means[k] for k in self.lr_features])
-            hr_means = np.array([self.means[k] for k in self.hr_features])
-            means = (lr_means, hr_means)
-        else:
-            means = np.array([self.means[k] for k in self.features])
-        return means
+    @property
+    def hr_means(self):
+        """Means specific the high-res objects in the ContainerPairs."""
+        return np.array([self.means[k] for k in self.hr_features])
 
-    def get_stds(self) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
-        """Get array of stdevs or a tuple of arrays, if containers are
-        ContainerPairs."""
-        if self.all_container_pairs:
-            lr_stds = np.array([self.stds[k] for k in self.lr_features])
-            hr_stds = np.array([self.stds[k] for k in self.hr_features])
-            stds = (lr_stds, hr_stds)
-        else:
-            stds = np.array([self.stds[k] for k in self.features])
-        return stds
+    @property
+    def lr_stds(self):
+        """Stdevs specific the low-res objects in the ContainerPairs."""
+        return np.array([self.stds[k] for k in self.lr_features])
+
+    @property
+    def hr_stds(self):
+        """Stdevs specific the high-res objects in the ContainerPairs."""
+        return np.array([self.stds[k] for k in self.hr_features])

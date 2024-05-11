@@ -1,3 +1,6 @@
+"""Collection objects which contain sets of containers. Batch handlers are the
+main examples."""
+
 from abc import ABC, abstractmethod
 from typing import List
 
@@ -8,7 +11,6 @@ class AbstractCollection(ABC):
     """Object consisting of a set of containers."""
 
     def __init__(self, containers: List[Container]):
-        super().__init__()
         self._containers = containers
 
     @property

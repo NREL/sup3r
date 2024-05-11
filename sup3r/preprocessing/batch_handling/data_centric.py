@@ -6,6 +6,7 @@ import logging
 
 import numpy as np
 
+from sup3r.containers.batchers.abstract import Batch
 from sup3r.preprocessing.batch_handling.base import (
     BatchHandler,
     ValidationData,
