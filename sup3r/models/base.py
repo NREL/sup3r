@@ -802,7 +802,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
     def check_batch_handler_attrs(batch_handler):
         """Not all batch handlers have the following attributes. So we perform
         some sanitation before sending to `set_model_params`"""
-        params = {k: getattr(batch_handler, None) for k in
+        params = {k: getattr(batch_handler, k, None) for k in
                   ['smoothing', 'lr_features', 'hr_exo_features',
                    'hr_out_features', 'smoothed_features']
                   if hasattr(batch_handler, k)}

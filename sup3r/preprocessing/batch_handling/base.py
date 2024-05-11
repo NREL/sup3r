@@ -9,18 +9,16 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime as dt
 
 import numpy as np
-import tensorflow as tf
 from rex.utilities import log_mem
 from scipy.ndimage import gaussian_filter
 
+from sup3r.containers.batchers.base import SingleBatch
 from sup3r.preprocessing.batch_handling.abstract import AbstractBatchBuilder
 from sup3r.preprocessing.mixin import MultiHandlerMixIn
 from sup3r.utilities.utilities import (
     nn_fill_array,
     nsrdb_reduce_daily_data,
-    smooth_data,
     spatial_coarsening,
-    temporal_coarsening,
     uniform_box_sampler,
     uniform_time_sampler,
 )
@@ -29,227 +27,12 @@ np.random.seed(42)
 
 logger = logging.getLogger(__name__)
 
-AUTO = tf.data.experimental.AUTOTUNE  # used in tf.data.Dataset API
-option_no_order = tf.data.Options()
-option_no_order.experimental_deterministic = False
-
-option_no_order.experimental_optimization.noop_elimination = True
-option_no_order.experimental_optimization.apply_default_optimizations = True
-
-
-class Batch:
-    """Batch of low_res and high_res data"""
-
-    def __init__(self, low_res, high_res):
-        """Store low and high res data
-
-        Parameters
-        ----------
-        low_res : np.ndarray
-            4D | 5D array
-            (batch_size, spatial_1, spatial_2, features)
-            (batch_size, spatial_1, spatial_2, temporal, features)
-        high_res : np.ndarray
-            4D | 5D array
-            (batch_size, spatial_1, spatial_2, features)
-            (batch_size, spatial_1, spatial_2, temporal, features)
-        """
-        self._low_res = low_res
-        self._high_res = high_res
-
-    def __len__(self):
-        """Get the number of observations in this batch."""
-        return len(self._low_res)
-
-    @property
-    def shape(self):
-        """Get the (low_res_shape, high_res_shape) shapes."""
-        return (self._low_res.shape, self._high_res.shape)
-
-    @property
-    def low_res(self):
-        """Get the low-resolution data for the batch."""
-        return self._low_res
-
-    @property
-    def high_res(self):
-        """Get the high-resolution data for the batch."""
-        return self._high_res
-
-    # pylint: disable=W0613
-    @classmethod
-    def get_coarse_batch(cls,
-                         high_res,
-                         s_enhance,
-                         t_enhance=1,
-                         temporal_coarsening_method='subsample',
-                         hr_features_ind=None,
-                         features=None,
-                         smoothing=None,
-                         smoothing_ignore=None,
-                         ):
-        """Coarsen high res data and return Batch with high res and
-        low res data
-
-        Parameters
-        ----------
-        high_res : np.ndarray
-            4D | 5D array
-            (batch_size, spatial_1, spatial_2, features)
-            (batch_size, spatial_1, spatial_2, temporal, features)
-        s_enhance : int
-            Factor by which to coarsen spatial dimensions of the high
-            resolution data
-        t_enhance : int
-            Factor by which to coarsen temporal dimension of the high
-            resolution data
-        temporal_coarsening_method : str
-            Method to use for temporal coarsening. Can be subsample, average,
-            min, max, or total
-        hr_features_ind : list | np.ndarray | None
-            List/array of feature channel indices that are used for generative
-            output, without any feature indices used only for training.
-        features : list | None
-            Ordered list of training features input to the generative model
-        smoothing : float | None
-            Standard deviation to use for gaussian filtering of the coarse
-            data. This can be tuned by matching the kinetic energy of a low
-            resolution simulation with the kinetic energy of a coarsened and
-            smoothed high resolution simulation. If None no smoothing is
-            performed.
-        smoothing_ignore : list | None
-            List of features to ignore for the smoothing filter. None will
-            smooth all features if smoothing kwarg is not None
-
-        Returns
-        -------
-        Batch
-            Batch instance with low and high res data
-        """
-        low_res = spatial_coarsening(high_res, s_enhance)
-
-        if features is None:
-            features = [None] * low_res.shape[-1]
-
-        if hr_features_ind is None:
-            hr_features_ind = np.arange(high_res.shape[-1])
-
-        if smoothing_ignore is None:
-            smoothing_ignore = []
-
-        if t_enhance != 1:
-            low_res = temporal_coarsening(low_res, t_enhance,
-                                          temporal_coarsening_method)
-
-        low_res = smooth_data(low_res, features, smoothing_ignore,
-                              smoothing)
-        high_res = high_res[..., hr_features_ind]
-        batch = cls(low_res, high_res)
-
-        return batch
-
-
-class BatchBuilder(AbstractBatchBuilder):
-    """Base batch builder class"""
-
-    def __init__(self, data_containers, batch_size, buffer_size=None,
-                 max_workers=None, default_device='/gpu:0'):
-        """
-        Parameters
-        ----------
-        data_containers : list[Container]
-            List of data containers each with a `.size` property and a
-            `.get_next` method to return the next (low_res, high_res) sample.
-        batch_size : int
-            Number of samples/observations to use for each batch. e.g. Batches
-            will be (batch_size, spatial_1, spatial_2, temporal, features)
-        buffer_size : int
-            Number of samples to prefetch
-        max_workers : int | None
-            Number of threads to use to get batch samples
-        default_device : str
-            Default target device for batches.
-        """
-        super().__init__(data_containers=data_containers,
-                         batch_size=batch_size)
-        self.buffer_size = buffer_size or 10 * batch_size
-        self.max_workers = max_workers or self.batch_size
-        self.default_device = default_device
-        self.handler_index = self.get_handler_index()
-
-        logger.info(f'Initialized {self.__class__.__name__} with '
-                    f'{len(data_containers)} data_containers, '
-                    f'batch_size = {batch_size}, buffer_size = {buffer_size}, '
-                    f'max_workers = {max_workers}.')
-
-    @property
-    def data(self):
-        """Return tensorflow dataset generator."""
-        if self._data is None:
-            data = tf.data.Dataset.from_generator(
-                self.gen,
-                output_signature=(tf.TensorSpec(self.lr_shape, tf.float32,
-                                                name='low_resolution'),
-                                  tf.TensorSpec(self.hr_shape, tf.float32,
-                                                name='high_resolution')))
-            self._data = data.map(lambda x, y: (x, y),
-                                  num_parallel_calls=self.max_workers)
-        return self._data
-
-    def __next__(self):
-        return next(self.batches)
-
-    def gen(self):
-        """Generator method to enable Dataset.from_generator() call."""
-        while True:
-            idx = self._sample_counter
-            self._sample_counter += 1
-            yield self[idx]
-
-    @property
-    def lr_shape(self):
-        """Shape of low resolution sample in a low-res / high-res pair.  (e.g.
-        (spatial_1, spatial_2, temporal, features)) """
-        if self._lr_shape is None:
-            lr_sample_shape = self.data_containers[0].lr_sample_shape
-            lr_features = self.data_containers[0].lr_features
-            self._lr_shape = (*lr_sample_shape, len(lr_features))
-        return self._lr_shape
-
-    @property
-    def hr_shape(self):
-        """Shape of high resolution sample in a low-res / high-res pair.  (e.g.
-        (spatial_1, spatial_2, temporal, features)) """
-        if self._hr_shape is None:
-            hr_sample_shape = self.data_containers[0].hr_sample_shape
-            hr_features = (self.data_containers[0].hr_out_features
-                           + self.data_containers[0].hr_exo_features)
-            self._hr_shape = (*hr_sample_shape, len(hr_features))
-        return self._hr_shape
-
-    @property
-    def batches(self):
-        """Prefetch set of batches from dataset generator."""
-        if self._batches is None:
-            logger.info('Prefetching batches with buffer_size = '
-                        f'{self.buffer_size}, batch_size = {self.batch_size}.')
-            # tf.data.experimental.AUTOTUNE) #self.buffer_size)
-            # data = self.data.apply(tf.data.experimental.prefetch_to_device(
-            #    self.default_device))
-            data = self.data.prefetch(AUTO)  # buffer_size=self.buffer_size)
-            self._batches = data.batch(self.batch_size)
-            # strategy = tf.distribute.MirroredStrategy()  # ["GPU:0", "GPU:1"])
-            # self._batches = strategy.experimental_distribute_dataset(
-            #    self._batches)
-            self._batches = self._batches.as_numpy_iterator()
-        return self._batches
-
 
 class ValidationData(AbstractBatchBuilder):
     """Iterator for validation data"""
 
     # Classes to use for handling an individual batch obj.
-    BATCH_CLASS = Batch
+    BATCH_CLASS = SingleBatch
 
     def __init__(self,
                  data_handlers,
@@ -435,7 +218,7 @@ class BatchHandler(MultiHandlerMixIn, AbstractBatchBuilder):
 
     # Classes to use for handling an individual batch obj.
     VAL_CLASS = ValidationData
-    BATCH_CLASS = Batch
+    BATCH_CLASS = SingleBatch
     DATA_HANDLER_CLASS = None
 
     def __init__(self,

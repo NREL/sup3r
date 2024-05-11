@@ -44,6 +44,7 @@ class SamplerPair(ContainerPair, AbstractSampler):
     resolution."""
 
     def __init__(self, lr_container: Sampler, hr_container: Sampler):
+        super().__init__(lr_container, hr_container)
         self.lr_container = lr_container
         self.hr_container = hr_container
         self.s_enhance, self.t_enhance = self.get_enhancement_factors()
@@ -51,15 +52,15 @@ class SamplerPair(ContainerPair, AbstractSampler):
     def get_enhancement_factors(self):
         """Compute spatial / temporal enhancement factors based on relative
         shapes of the low / high res containers."""
-        lr_shape, hr_shape = self.sample_shape
-        s_enhance = hr_shape[0] / lr_shape[0]
-        t_enhance = hr_shape[2] / lr_shape[2]
+        lr_shape, hr_shape = self.lr_sample_shape, self.hr_sample_shape
+        s_enhance = hr_shape[0] // lr_shape[0]
+        t_enhance = hr_shape[2] // lr_shape[2]
         return s_enhance, t_enhance
 
     @property
     def sample_shape(self) -> Tuple[tuple, tuple]:
         """Shape of the data sample to select when `get_next()` is called."""
-        return (self.lr_container.sample_shape, self.hr_container.sample_shape)
+        return (self.lr_sample_shape, self.hr_sample_shape)
 
     def get_sample_index(self) -> Tuple[tuple, tuple]:
         """Get paired sample index, consisting of index for the low res sample
@@ -78,6 +79,16 @@ class SamplerPair(ContainerPair, AbstractSampler):
     def size(self):
         """Return size used to compute container weights."""
         return np.prod(self.shape)
+
+    @property
+    def lr_sample_shape(self):
+        """Get lr sample shape"""
+        return self.lr_container.sample_shape
+
+    @property
+    def hr_sample_shape(self):
+        """Get hr sample shape"""
+        return self.hr_container.sample_shape
 
 
 class CollectionSampler(AbstractCollectionSampler):
