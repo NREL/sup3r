@@ -38,7 +38,7 @@ class ValidationData(AbstractBatchBuilder):
     """Iterator for validation data"""
 
     # Classes to use for handling an individual batch obj.
-    BATCH_CLASS = SingleBatch
+    BATCH_CLASS = Batch
 
     def __init__(self,
                  data_handlers,
@@ -224,7 +224,7 @@ class BatchHandler(MultiHandlerMixIn, AbstractBatchBuilder):
 
     # Classes to use for handling an individual batch obj.
     VAL_CLASS = ValidationData
-    BATCH_CLASS = SingleBatch
+    BATCH_CLASS = Batch
     DATA_HANDLER_CLASS = None
 
     def __init__(self,
