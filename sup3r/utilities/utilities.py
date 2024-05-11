@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Miscellaneous utilities for computing features, preparing training data,
-timing functions, etc """
+timing functions, etc"""
 
 import glob
 import logging
@@ -68,8 +68,10 @@ class Timer:
 def check_mem_usage():
     """Frequently used memory check."""
     mem = psutil.virtual_memory()
-    logger.info(f'Current memory usage is {mem.used / 1e9:.3f} GB out of '
-                f'{mem.total / 1e9:.3f} GB total.')
+    logger.info(
+        f'Current memory usage is {mem.used / 1e9:.3f} GB out of '
+        f'{mem.total / 1e9:.3f} GB total.'
+    )
 
 
 def expand_paths(fps):
@@ -92,7 +94,7 @@ def expand_paths(fps):
     >>> expand_paths(["myfile.h5", "*.hdf"])
     """
     if isinstance(fps, (str, Path)):
-        fps = (fps, )
+        fps = (fps,)
 
     out = []
     for f in fps:
@@ -307,10 +309,12 @@ def uniform_box_sampler(data_shape, sample_shape):
         List of slices corresponding to row and col extent of arr sample
     """
 
-    shape_1 = (data_shape[0] if data_shape[0] < sample_shape[0]
-               else sample_shape[0])
-    shape_2 = (data_shape[1] if data_shape[1] < sample_shape[1]
-               else sample_shape[1])
+    shape_1 = (
+        data_shape[0] if data_shape[0] < sample_shape[0] else sample_shape[0]
+    )
+    shape_2 = (
+        data_shape[1] if data_shape[1] < sample_shape[1] else sample_shape[1]
+    )
     shape = (shape_1, shape_2)
     start_row = np.random.randint(0, data_shape[0] - sample_shape[0] + 1)
     start_col = np.random.randint(0, data_shape[1] - sample_shape[1] + 1)
@@ -341,10 +345,12 @@ def weighted_box_sampler(data_shape, sample_shape, weights):
     slices : list
         List of spatial slices [spatial_1, spatial_2]
     """
-    max_cols = (data_shape[1] if data_shape[1] < sample_shape[1]
-                else sample_shape[1])
-    max_rows = (data_shape[0] if data_shape[0] < sample_shape[0]
-                else sample_shape[0])
+    max_cols = (
+        data_shape[1] if data_shape[1] < sample_shape[1] else sample_shape[1]
+    )
+    max_rows = (
+        data_shape[0] if data_shape[0] < sample_shape[0] else sample_shape[0]
+    )
     max_cols = data_shape[1] - max_cols + 1
     max_rows = data_shape[0] - max_rows + 1
     indices = np.arange(0, max_rows * max_cols)
@@ -717,7 +723,8 @@ def temporal_coarsening(data, t_enhance=4, method='subsample'):
 
         elif method == 'average':
             coarse_data = np.nansum(
-                data.reshape(
+                np.reshape(
+                    data,
                     (
                         data.shape[0],
                         data.shape[1],
@@ -725,7 +732,7 @@ def temporal_coarsening(data, t_enhance=4, method='subsample'):
                         -1,
                         t_enhance,
                         data.shape[4],
-                    )
+                    ),
                 ),
                 axis=4,
             )
@@ -733,7 +740,8 @@ def temporal_coarsening(data, t_enhance=4, method='subsample'):
 
         elif method == 'max':
             coarse_data = np.max(
-                data.reshape(
+                np.reshape(
+                    data,
                     (
                         data.shape[0],
                         data.shape[1],
@@ -741,14 +749,15 @@ def temporal_coarsening(data, t_enhance=4, method='subsample'):
                         -1,
                         t_enhance,
                         data.shape[4],
-                    )
+                    ),
                 ),
                 axis=4,
             )
 
         elif method == 'min':
             coarse_data = np.min(
-                data.reshape(
+                np.reshape(
+                    data,
                     (
                         data.shape[0],
                         data.shape[1],
@@ -756,14 +765,15 @@ def temporal_coarsening(data, t_enhance=4, method='subsample'):
                         -1,
                         t_enhance,
                         data.shape[4],
-                    )
+                    ),
                 ),
                 axis=4,
             )
 
         elif method == 'total':
             coarse_data = np.nansum(
-                data.reshape(
+                np.reshape(
+                    data,
                     (
                         data.shape[0],
                         data.shape[1],
@@ -771,7 +781,7 @@ def temporal_coarsening(data, t_enhance=4, method='subsample'):
                         -1,
                         t_enhance,
                         data.shape[4],
-                    )
+                    ),
                 ),
                 axis=4,
             )
@@ -963,46 +973,58 @@ def spatial_coarsening(data, s_enhance=2, obs_axis=True):
             raise ValueError(msg)
 
         if obs_axis and len(data.shape) == 5:
-            data = data.reshape(
-                data.shape[0],
-                data.shape[1] // s_enhance,
-                s_enhance,
-                data.shape[2] // s_enhance,
-                s_enhance,
-                data.shape[3],
-                data.shape[4],
+            data = np.reshape(
+                data,
+                (
+                    data.shape[0],
+                    data.shape[1] // s_enhance,
+                    s_enhance,
+                    data.shape[2] // s_enhance,
+                    s_enhance,
+                    data.shape[3],
+                    data.shape[4],
+                ),
             )
             data = data.sum(axis=(2, 4)) / s_enhance**2
 
         elif obs_axis and len(data.shape) == 4:
-            data = data.reshape(
-                data.shape[0],
-                data.shape[1] // s_enhance,
-                s_enhance,
-                data.shape[2] // s_enhance,
-                s_enhance,
-                data.shape[3],
+            data = np.reshape(
+                data,
+                (
+                    data.shape[0],
+                    data.shape[1] // s_enhance,
+                    s_enhance,
+                    data.shape[2] // s_enhance,
+                    s_enhance,
+                    data.shape[3],
+                ),
             )
             data = data.sum(axis=(2, 4)) / s_enhance**2
 
         elif not obs_axis and len(data.shape) == 4:
-            data = data.reshape(
-                data.shape[0] // s_enhance,
-                s_enhance,
-                data.shape[1] // s_enhance,
-                s_enhance,
-                data.shape[2],
-                data.shape[3],
+            data = np.reshape(
+                data,
+                (
+                    data.shape[0] // s_enhance,
+                    s_enhance,
+                    data.shape[1] // s_enhance,
+                    s_enhance,
+                    data.shape[2],
+                    data.shape[3],
+                ),
             )
             data = data.sum(axis=(1, 3)) / s_enhance**2
 
         elif not obs_axis and len(data.shape) == 3:
-            data = data.reshape(
-                data.shape[0] // s_enhance,
-                s_enhance,
-                data.shape[1] // s_enhance,
-                s_enhance,
-                data.shape[2],
+            data = np.reshape(
+                data,
+                (
+                    data.shape[0] // s_enhance,
+                    s_enhance,
+                    data.shape[1] // s_enhance,
+                    s_enhance,
+                    data.shape[2],
+                ),
             )
             data = data.sum(axis=(1, 3)) / s_enhance**2
 
@@ -1516,9 +1538,7 @@ def get_input_handler_class(file_paths, input_handler_name):
     if isinstance(input_handler_name, str):
         import sup3r.preprocessing
 
-        HandlerClass = getattr(
-            sup3r.preprocessing, input_handler_name, None
-        )
+        HandlerClass = getattr(sup3r.preprocessing, input_handler_name, None)
 
     if HandlerClass is None:
         msg = (
