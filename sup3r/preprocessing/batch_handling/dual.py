@@ -1,6 +1,5 @@
 """Batch handling classes for dual data handlers"""
 import logging
-import time
 
 import numpy as np
 import tensorflow as tf
@@ -198,8 +197,10 @@ class LazyDualBatchHandler(AbstractBatchHandler, MultiDualMixIn):
         data_handlers : list[DataHandler]
             List of DataHandler objects
         """
-        super().__init__(data_containers=data_containers, means_file=means_file,
-                         stdevs_file=stdevs_file, batch_size=batch_size,
+        super().__init__(data_containers=data_containers,
+                         means_file=means_file,
+                         stdevs_file=stdevs_file,
+                         batch_size=batch_size,
                          n_batches=n_batches,
                          queue_cap=queue_cap)
         self.default_device = default_device
@@ -243,13 +244,9 @@ class LazyDualBatchHandler(AbstractBatchHandler, MultiDualMixIn):
 
     def get_next(self):
         """Get next batch of samples."""
-        logger.info(f'Getting next batch: {self._batch_counter + 1} / '
-                    f'{self.n_batches}')
-        start = time.time()
         lr, hr = self.queue.dequeue()
         lr, hr = self.normalize(lr, hr)
         batch = self.BATCH_CLASS(low_res=lr, high_res=hr)
-        logger.info(f'Built batch in {time.time() - start}.')
         return batch
 
 
