@@ -4,10 +4,8 @@ import logging
 import numpy as np
 import tensorflow as tf
 
-from sup3r.preprocessing.batch_handling.abstract import AbstractBatchHandler
 from sup3r.preprocessing.batch_handling.base import (
     Batch,
-    BatchBuilder,
     BatchHandler,
     ValidationData,
 )
@@ -163,91 +161,6 @@ class DualBatchHandler(BatchHandler, MultiDualMixIn):
             return batch
         else:
             raise StopIteration
-
-
-class LazyDualBatchHandler(AbstractBatchHandler, MultiDualMixIn):
-    """Dual batch handler which uses lazy loaders to load data as
-    needed rather than all in memory at once.
-
-    NOTE: This can be initialized from data extracted and written to netcdf
-    from DataHandler objects.
-
-    Example
-    -------
-    >>> for lr_handler, hr_handler in zip(lr_handlers, hr_handlers):
-    >>>     dh = DualDataHandler(lr_handler, hr_handler)
-    >>>     dh.to_netcdf(lr_file, hr_file)
-    >>> lazy_loaders = []
-    >>> for lr_file, hr_file in zip(lr_files, hr_files):
-    >>>     lazy_lr = LazyLoader(lr_file, lr_features, lr_sample_shape)
-    >>>     lazy_hr = LazyLoader(hr_file, hr_features, hr_sample_shape)
-    >>>     lazy_loaders.append(LazyDualLoader(lazy_lr, lazy_hr))
-    >>> lazy_batch_handler = LazyDualBatchHandler(lazy_loaders)
-    """
-
-    BATCH_CLASS = Batch
-    VAL_CLASS = DualValidationData
-
-    def __init__(self, data_containers, means_file, stdevs_file,
-                 batch_size=32, n_batches=100, queue_cap=1000,
-                 max_workers=None, default_device='/gpu:0'):
-        """
-        Parameters
-        ----------
-        data_handlers : list[DataHandler]
-            List of DataHandler objects
-        """
-        super().__init__(data_containers=data_containers,
-                         means_file=means_file,
-                         stdevs_file=stdevs_file,
-                         batch_size=batch_size,
-                         n_batches=n_batches,
-                         queue_cap=queue_cap)
-        self.default_device = default_device
-        self.max_workers = max_workers
-
-        logger.info(f'Initialized {self.__class__.__name__} with '
-                    f'{len(data_containers)} data_containers, '
-                    f'means_file = {means_file}, stdevs_file = {stdevs_file}, '
-                    f'batch_size = {batch_size}, n_batches = {n_batches}, '
-                    f'max_workers = {max_workers}.')
-
-    @property
-    def batch_pool(self):
-        """Iterable over batches."""
-        if self._batch_pool is None:
-            self._batch_pool = BatchBuilder(self.data_handlers,
-                                            batch_size=self.batch_size,
-                                            max_workers=self.max_workers,
-                                            default_device=self.default_device)
-        return self._batch_pool
-
-    @property
-    def queue(self):
-        """Initialize FIFO queue for storing batches."""
-        if self._queue is None:
-            lr_shape = (self.batch_size, *self.lr_sample_shape,
-                        len(self.lr_features))
-            hr_shape = (self.batch_size, *self.hr_sample_shape,
-                        len(self.hr_features))
-            self._queue = tf.queue.FIFOQueue(self.queue_cap,
-                                             dtypes=[tf.float32, tf.float32],
-                                             shapes=[lr_shape, hr_shape])
-        return self._queue
-
-    def normalize(self, lr, hr):
-        """Normalize a low-res / high-res pair with the stored means and
-        stdevs."""
-        lr = (lr - self.lr_means) / self.lr_stds
-        hr = (hr - self.hr_means) / self.hr_stds
-        return (lr, hr)
-
-    def get_next(self):
-        """Get next batch of samples."""
-        lr, hr = self.queue.dequeue()
-        lr, hr = self.normalize(lr, hr)
-        batch = self.BATCH_CLASS(low_res=lr, high_res=hr)
-        return batch
 
 
 class SpatialDualBatchHandler(DualBatchHandler):
