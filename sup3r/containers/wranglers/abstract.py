@@ -1,3 +1,6 @@
+"""Basic container objects can perform transformations / extractions on the
+contained data."""
+
 from abc import ABC, abstractmethod
 
 from sup3r.containers.loaders.abstract import AbstractLoader
