@@ -1,13 +1,15 @@
 from abc import ABC, abstractmethod
 from typing import Tuple
 
-from sup3r.containers.base import Collection, Container
+from sup3r.containers.base import Container
+from sup3r.containers.collections.base import Collection
 
 
 class AbstractSampler(Container, ABC):
     """Sampler class for iterating through contained things."""
 
-    def __init__(self):
+    def __init__(self, features=(), lr_only_features=(), hr_exo_features=()):
+        super().__init__(features, lr_only_features, hr_exo_features)
         self._counter = 0
         self._size = None
 
@@ -73,3 +75,25 @@ class AbstractCollectionSampler(Collection, ABC):
     def get_enhancement_factors(self):
         """Get enhancement factors from container properties."""
         return self.containers[0].get_enhancement_factors()
+
+    @property
+    def lr_sample_shape(self):
+        """Get shape of low resolution samples"""
+        return self.containers[0].lr_sample_shape
+
+    @property
+    def hr_sample_shape(self):
+        """Get shape of high resolution samples"""
+        return self.containers[0].hr_sample_shape
+
+    @property
+    def lr_shape(self):
+        """Shape of low resolution sample in a low-res / high-res pair.  (e.g.
+        (spatial_1, spatial_2, temporal, features)) """
+        return (*self.lr_sample_shape, len(self.lr_features))
+
+    @property
+    def hr_shape(self):
+        """Shape of high resolution sample in a low-res / high-res pair.  (e.g.
+        (spatial_1, spatial_2, temporal, features)) """
+        return (*self.hr_sample_shape, len(self.hr_features))

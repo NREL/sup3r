@@ -1,5 +1,7 @@
+"""Base objects which generate, build, and operate on batches. Also can
+interface with models."""
+
 import logging
-import time
 from typing import Tuple, Union
 
 import numpy as np
@@ -16,6 +18,14 @@ from sup3r.utilities.utilities import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+AUTO = tf.data.experimental.AUTOTUNE
+option_no_order = tf.data.Options()
+option_no_order.experimental_deterministic = False
+
+option_no_order.experimental_optimization.noop_elimination = True
+option_no_order.experimental_optimization.apply_default_optimizations = True
 
 
 class SingleBatch:
@@ -41,7 +51,7 @@ class SingleBatch:
 
     def __len__(self):
         """Get the number of samples in this batch."""
-        return len(self._low_res)
+        return len(self.low_res)
 
     # pylint: disable=W0613
     @classmethod
@@ -146,11 +156,6 @@ class BatchQueue(AbstractNormedBatchQueue):
             self._batches = self.prefetch()
         return self._batches
 
-    def _get_output_signature(self, sample_shape, name=None):
-        return tf.TensorSpec(
-            (self.batch_size, *sample_shape), tf.float32, name=name
-        )
-
     def get_output_signature(self):
         """Get tensorflow dataset output signature. If we are sampling from
         container pairs then this is a tuple for low / high res batches.
@@ -158,15 +163,14 @@ class BatchQueue(AbstractNormedBatchQueue):
         the corresponding low res batches."""
 
         if self.all_container_pairs:
-            lr_shape, hr_shape = self.sample_shape
             output_signature = (
-                self._get_output_signature(lr_shape, name='low_resolution'),
-                self._get_output_signature(hr_shape, name='high_resolution'),
+                tf.TensorSpec(self.lr_shape, tf.float32, name='low_res'),
+                tf.TensorSpec(self.hr_shape, tf.float32, name='high_res'),
             )
         else:
-            output_signature = self._get_output_signature(
-                self.sample_shape, name='high_resolution'
-            )
+            output_signature = tf.TensorSpec(
+                (*self.sample_shape, len(self.features)), tf.float32,
+                 name='high_res')
 
         return output_signature
 
@@ -189,11 +193,9 @@ class BatchQueue(AbstractNormedBatchQueue):
     def get_queue(self):
         """Initialize FIFO queue for storing batches."""
         if self.all_container_pairs:
-            lr_sample_shape, hr_sample_shape = self.sample_shape
-            lr_features, hr_features = self.features
             shapes = [
-                self._get_batch_shape(lr_sample_shape, lr_features),
-                self._get_batch_shape(hr_sample_shape, hr_features),
+                self._get_batch_shape(self.lr_sample_shape, self.lr_features),
+                self._get_batch_shape(self.hr_sample_shape, self.hr_features),
             ]
             queue = tf.queue.FIFOQueue(
                 self.queue_cap,
@@ -226,7 +228,7 @@ class BatchQueue(AbstractNormedBatchQueue):
                 logger.info(f'{queue_size} batches in queue.')
                 self.queue.enqueue(next(self.batches))
 
-    @staticmethod
+    @ staticmethod
     def _normalize(array, means, stds):
         """Normalize an array with given means and stds."""
         return (array - means) / stds
@@ -253,24 +255,17 @@ class BatchQueue(AbstractNormedBatchQueue):
 
     def get_next(self, **kwargs):
         """Get next batch of observations."""
-        logger.info(
-            f'Getting next batch: {self._batch_counter + 1} / '
-            f'{self.n_batches}'
-        )
-        start = time.time()
         samples = self.queue.dequeue()
         samples = self.normalize(samples)
         batch = self.batch_next(samples, **kwargs)
-        logger.info(f'Built batch in {time.time() - start}.')
         return batch
 
     def get_means(self) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
         """Get array of means or a tuple of arrays, if containers are
         ContainerPairs."""
         if self.all_container_pairs:
-            lr_features, hr_features = self.features
-            lr_means = np.array([self.means[k] for k in lr_features])
-            hr_means = np.array([self.means[k] for k in hr_features])
+            lr_means = np.array([self.means[k] for k in self.lr_features])
+            hr_means = np.array([self.means[k] for k in self.hr_features])
             means = (lr_means, hr_means)
         else:
             means = np.array([self.means[k] for k in self.features])
@@ -280,9 +275,8 @@ class BatchQueue(AbstractNormedBatchQueue):
         """Get array of stdevs or a tuple of arrays, if containers are
         ContainerPairs."""
         if self.all_container_pairs:
-            lr_features, hr_features = self.features
-            lr_stds = np.array([self.stds[k] for k in lr_features])
-            hr_stds = np.array([self.stds[k] for k in hr_features])
+            lr_stds = np.array([self.stds[k] for k in self.lr_features])
+            hr_stds = np.array([self.stds[k] for k in self.hr_features])
             stds = (lr_stds, hr_stds)
         else:
             stds = np.array([self.stds[k] for k in self.features])

@@ -2,6 +2,7 @@
 wranglers, data samplers, data loaders, batch handlers, etc are all
 containers."""
 
+import copy
 import logging
 from fnmatch import fnmatch
 from typing import Tuple
@@ -53,8 +54,8 @@ class Container(AbstractContainer):
     @property
     def lr_features(self):
         """Get a list of low-resolution features. It is assumed that all
-        features are used in the low-resolution observations. If you want to
-        use high-res-only features, use the DualDataHandler class."""
+        features are used in the low-resolution observations for single
+        container objects. For container pairs this is overridden."""
         return self.features
 
     @property
@@ -122,8 +123,6 @@ class ContainerPair(Container):
     def __init__(self, lr_container: Container, hr_container: Container):
         self.lr_container = lr_container
         self.hr_container = hr_container
-        self._lr_only_features = self.lr_container.lr_only_features
-        self._hr_exo_features = self.hr_container.hr_only_features
 
     @property
     def data(self) -> Tuple[Container, Container]:
@@ -142,5 +141,42 @@ class ContainerPair(Container):
 
     @property
     def features(self):
-        """Return tuple of features for lr / hr containers."""
-        return (self.lr_container.features, self.hr_container.features)
+        """Get a list of data features including features from both the lr and
+        hr data handlers"""
+        out = list(copy.deepcopy(self.lr_container.features))
+        out += [fn for fn in self.hr_container.features if fn not in out]
+        return out
+
+    @property
+    def lr_only_features(self):
+        """Features to use for training only and not output"""
+        tof = [fn for fn in self.lr_container.features
+               if fn not in self.hr_out_features
+               and fn not in self.hr_exo_features]
+        return tof
+
+    @property
+    def lr_features(self):
+        """Get a list of low-resolution features. All low-resolution features
+        are used for training."""
+        return self.lr_container.features
+
+    @property
+    def hr_features(self):
+        """Get a list of high-resolution features. This is hr_exo_features plus
+        hr_out_features."""
+        return self.hr_container.features
+
+    @property
+    def hr_exo_features(self):
+        """Get a list of high-resolution features that are only used for
+        training e.g., mid-network high-res topo injection. These must come at
+        the end of the high-res feature set."""
+        return self.hr_container.hr_exo_features
+
+    @property
+    def hr_out_features(self):
+        """Get a list of high-resolution features that are intended to be
+        output by the GAN. Does not include high-resolution exogenous features
+        """
+        return self.hr_container.hr_out_features

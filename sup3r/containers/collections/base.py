@@ -6,10 +6,10 @@ from typing import List
 
 import numpy as np
 
-from sup3r.containers.abstract import (
+from sup3r.containers.base import Container, ContainerPair
+from sup3r.containers.collections.abstract import (
     AbstractCollection,
 )
-from sup3r.containers.base import Container, ContainerPair
 
 
 class Collection(AbstractCollection):
@@ -43,23 +43,6 @@ class Collection(AbstractCollection):
         return self.containers[0].lr_features
 
     @property
-    def lr_shape(self):
-        """Shape of low resolution sample in a low-res / high-res pair.  (e.g.
-        (spatial_1, spatial_2, temporal, features)) """
-        lr_sample_shape = self.containers[0].lr_sample_shape
-        lr_features = self.containers[0].lr_features
-        return (*lr_sample_shape, len(lr_features))
-
-    @property
-    def hr_shape(self):
-        """Shape of high resolution sample in a low-res / high-res pair.  (e.g.
-        (spatial_1, spatial_2, temporal, features)) """
-        hr_sample_shape = self.containers[0].hr_sample_shape
-        hr_features = (self.containers[0].hr_out_features
-                       + self.containers[0].hr_exo_features)
-        return (*hr_sample_shape, len(hr_features))
-
-    @property
     def hr_exo_features(self):
         """Get a list of high-resolution features that are only used for
         training e.g., mid-network high-res topo injection."""
@@ -90,13 +73,3 @@ class Collection(AbstractCollection):
         """Get the high-resolution features corresponding to
         `hr_features_ind`"""
         return [self.features[ind] for ind in self.hr_features_ind]
-
-    @property
-    def s_enhance(self):
-        """Get spatial enhancement factor of first (and all) data handlers."""
-        return self.containers[0].s_enhance
-
-    @property
-    def t_enhance(self):
-        """Get temporal enhancement factor of first (and all) data handlers."""
-        return self.containers[0].t_enhance

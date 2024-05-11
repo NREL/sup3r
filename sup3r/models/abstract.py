@@ -530,7 +530,8 @@ class AbstractInterface(ABC):
             os.makedirs(out_dir, exist_ok=True)
 
         fp_params = os.path.join(out_dir, 'model_params.json')
-        with open(fp_params, 'w', encoding=locale.getpreferredencoding(False)) as f:
+        with open(fp_params, 'w',
+                  encoding=locale.getpreferredencoding(False)) as f:
             params = self.model_params
             json.dump(params, f, sort_keys=True, indent=2)
 
