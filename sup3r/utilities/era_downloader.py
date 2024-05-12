@@ -549,13 +549,12 @@ class EraDownloader:
                     msg = f'Bad file: {self.combined_file}'
                     logger.error(msg)
                     raise OSError(msg)
-                else:
-                    if os.path.exists(self.level_file):
-                        os.remove(self.level_file)
-                    if os.path.exists(self.surface_file):
-                        os.remove(self.surface_file)
-                    logger.info(f'{self.combined_file} already exists and '
-                                f'overwrite={self.overwrite}. Skipping.')
+                if os.path.exists(self.level_file):
+                    os.remove(self.level_file)
+                if os.path.exists(self.surface_file):
+                    os.remove(self.surface_file)
+                logger.info(f'{self.combined_file} already exists and '
+                            f'overwrite={self.overwrite}. Skipping.')
             except Exception as e:
                 logger.info(f'Something wrong with {self.combined_file}. {e}')
                 if os.path.exists(self.combined_file):
@@ -666,7 +665,7 @@ class EraDownloader:
         """Check if file has been pruned already."""
         if not prune_variables:
             logger.info('Received prune_variables=False. Skipping pruning.')
-            return
+            return None
         with xr.open_dataset(infile) as ds:
             check_variables = [var for var in ds.data_vars
                                if 'level' in ds[var].dims]
@@ -679,17 +678,16 @@ class EraDownloader:
         if not prune_variables:
             logger.info('Received prune_variables=False. Skipping pruning.')
             return
-        else:
-            logger.info(f'Pruning {infile}.')
-            tmp_file = cls.get_tmp_file(infile)
-            with xr.open_dataset(infile) as ds:
-                keep_vars = {k: v for k, v in dict(ds.data_vars).items()
-                             if 'level' not in ds[k].dims}
-                new_coords = {k: v for k, v in dict(ds.coords).items()
-                              if 'level' not in k}
-                new_ds = xr.Dataset(coords=new_coords, data_vars=keep_vars)
-                new_ds.to_netcdf(tmp_file)
-            os.system(f'mv {tmp_file} {infile}')
+        logger.info(f'Pruning {infile}.')
+        tmp_file = cls.get_tmp_file(infile)
+        with xr.open_dataset(infile) as ds:
+            keep_vars = {k: v for k, v in dict(ds.data_vars).items()
+                         if 'level' not in ds[k].dims}
+            new_coords = {k: v for k, v in dict(ds.coords).items()
+                          if 'level' not in k}
+            new_ds = xr.Dataset(coords=new_coords, data_vars=keep_vars)
+            new_ds.to_netcdf(tmp_file)
+        os.system(f'mv {tmp_file} {infile}')
         logger.info(f'Finished pruning variables in {infile}. Moved '
                     f'{tmp_file} to {infile}.')
 
@@ -923,8 +921,8 @@ class EraDownloader:
             year=year, month=str(month).zfill(2))
 
         if not os.path.exists(outfile):
+            logger.info(f'Combining {files} into {outfile}.')
             with xr.open_mfdataset(files, chunks=cls.CHUNKS) as res:
-                logger.info(f'Combining {files}')
                 os.makedirs(os.path.dirname(outfile), exist_ok=True)
                 res.to_netcdf(outfile)
                 logger.info(f'Saved {outfile}')

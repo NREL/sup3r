@@ -151,8 +151,7 @@ class OutputMixIn:
         time_key = list({'time', 'Time'}.intersection(valid_vars))
         if len(time_key) > 0:
             return time_key[0]
-        else:
-            return 'time'
+        return 'time'
 
     @staticmethod
     def get_dset_attrs(feature):
@@ -314,9 +313,7 @@ class OutputHandler(OutputMixIn):
             mins.append(min)
 
         data = np.maximum(data, mins)
-        data = np.minimum(data, maxs)
-
-        return data
+        return np.minimum(data, maxs)
 
     @staticmethod
     def pad_lat_lon(lat_lon):

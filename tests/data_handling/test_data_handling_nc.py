@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 import xarray as xr
+from helpers.utils import make_fake_era_files, make_fake_nc_files
 
 from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing import (
@@ -17,7 +18,6 @@ from sup3r.preprocessing import (
 )
 from sup3r.preprocessing import DataHandlerNC as DataHandler
 from sup3r.utilities.interpolation import Interpolator
-from sup3r.utilities.pytest import make_fake_era_files, make_fake_nc_files
 
 INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
 features = ['U_100m', 'V_100m', 'BVF_MO_200m']

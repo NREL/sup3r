@@ -6,12 +6,12 @@ import tempfile
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+from helpers.utils import make_fake_h5_chunks
 from rex import ResourceX, init_logger
 
 from sup3r import __version__
 from sup3r.postprocessing.collection import CollectorH5
 from sup3r.postprocessing.file_handling import OutputHandlerH5, OutputHandlerNC
-from sup3r.utilities.pytest import make_fake_h5_chunks
 from sup3r.utilities.utilities import invert_uv, transform_rotate_wind
 
 

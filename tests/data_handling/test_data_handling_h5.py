@@ -501,10 +501,8 @@ def test_spatiotemporal_batch_indices(sample_shape):
             spatial_1_slice = np.arange(index[0].start, index[0].stop)
             spatial_2_slice = np.arange(index[1].start, index[1].stop)
             t_slice = np.arange(index[2].start, index[2].stop)
-            spatial_tuples = []
-            for s1 in spatial_1_slice:
-                for s2 in spatial_2_slice:
-                    spatial_tuples.append((s1, s2))
+            spatial_tuples = [(s1, s2) for s1 in spatial_1_slice
+                              for s2 in spatial_2_slice]
             assert len(spatial_tuples) == len(list(set(spatial_tuples)))
 
             all_spatial_tuples.append(np.array(spatial_tuples))
@@ -754,7 +752,7 @@ def test_feature_errors(features, lr_only_features, hr_exo_features):
                           shape=(20, 20),
                           sample_shape=(5, 5, 4),
                           temporal_slice=slice(None, None, 1),
-                          worker_kwargs=dict(max_workers=1),
+                          worker_kwargs={'max_workers': 1},
                           )
     with pytest.raises(Exception):
         _ = handler.lr_features

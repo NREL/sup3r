@@ -9,12 +9,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 import tensorflow as tf
+from helpers.utils import make_fake_nc_files
 from rex import ResourceX, init_logger
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR, __version__
 from sup3r.models import LinearInterp, Sup3rGan, SurfaceSpatialMetModel
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
-from sup3r.utilities.pytest import make_fake_nc_files
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)

@@ -12,29 +12,137 @@ import numpy as np
 from rex.utilities import log_mem
 from scipy.ndimage import gaussian_filter
 
-from sup3r.containers.batchers.abstract import AbstractBatchBuilder, Batch
-from sup3r.preprocessing.mixin import MultiHandlerMixIn
+from sup3r.preprocessing.data_handling.h5 import (
+    DataHandlerDCforH5,
+)
 from sup3r.utilities.utilities import (
     nn_fill_array,
     nsrdb_reduce_daily_data,
+    smooth_data,
     spatial_coarsening,
+    temporal_coarsening,
     uniform_box_sampler,
     uniform_time_sampler,
+    weighted_box_sampler,
+    weighted_time_sampler,
 )
 
 np.random.seed(42)
 
 logger = logging.getLogger(__name__)
 
-AUTO = tf.data.experimental.AUTOTUNE  # used in tf.data.Dataset API
-option_no_order = tf.data.Options()
-option_no_order.experimental_deterministic = False
 
-option_no_order.experimental_optimization.noop_elimination = True
-option_no_order.experimental_optimization.apply_default_optimizations = True
+class Batch:
+    """Batch of low_res and high_res data"""
+
+    def __init__(self, low_res, high_res):
+        """Store low and high res data
+
+        Parameters
+        ----------
+        low_res : np.ndarray
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+        high_res : np.ndarray
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+        """
+        self._low_res = low_res
+        self._high_res = high_res
+
+    def __len__(self):
+        """Get the number of observations in this batch."""
+        return len(self._low_res)
+
+    @property
+    def shape(self):
+        """Get the (low_res_shape, high_res_shape) shapes."""
+        return (self._low_res.shape, self._high_res.shape)
+
+    @property
+    def low_res(self):
+        """Get the low-resolution data for the batch."""
+        return self._low_res
+
+    @property
+    def high_res(self):
+        """Get the high-resolution data for the batch."""
+        return self._high_res
+
+    # pylint: disable=W0613
+    @classmethod
+    def get_coarse_batch(cls,
+                         high_res,
+                         s_enhance,
+                         t_enhance=1,
+                         temporal_coarsening_method='subsample',
+                         hr_features_ind=None,
+                         features=None,
+                         smoothing=None,
+                         smoothing_ignore=None,
+                         ):
+        """Coarsen high res data and return Batch with high res and
+        low res data
+
+        Parameters
+        ----------
+        high_res : np.ndarray
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+        s_enhance : int
+            Factor by which to coarsen spatial dimensions of the high
+            resolution data
+        t_enhance : int
+            Factor by which to coarsen temporal dimension of the high
+            resolution data
+        temporal_coarsening_method : str
+            Method to use for temporal coarsening. Can be subsample, average,
+            min, max, or total
+        hr_features_ind : list | np.ndarray | None
+            List/array of feature channel indices that are used for generative
+            output, without any feature indices used only for training.
+        features : list | None
+            Ordered list of training features input to the generative model
+        smoothing : float | None
+            Standard deviation to use for gaussian filtering of the coarse
+            data. This can be tuned by matching the kinetic energy of a low
+            resolution simulation with the kinetic energy of a coarsened and
+            smoothed high resolution simulation. If None no smoothing is
+            performed.
+        smoothing_ignore : list | None
+            List of features to ignore for the smoothing filter. None will
+            smooth all features if smoothing kwarg is not None
+
+        Returns
+        -------
+        Batch
+            Batch instance with low and high res data
+        """
+        low_res = spatial_coarsening(high_res, s_enhance)
+
+        if features is None:
+            features = [None] * low_res.shape[-1]
+
+        if hr_features_ind is None:
+            hr_features_ind = np.arange(high_res.shape[-1])
+
+        if smoothing_ignore is None:
+            smoothing_ignore = []
+
+        if t_enhance != 1:
+            low_res = temporal_coarsening(low_res, t_enhance,
+                                          temporal_coarsening_method)
+
+        low_res = smooth_data(low_res, features, smoothing_ignore,
+                              smoothing)
+        high_res = high_res[..., hr_features_ind]
+        return cls(low_res, high_res)
 
 
-class ValidationData(AbstractBatchBuilder):
+class ValidationData:
     """Iterator for validation data"""
 
     # Classes to use for handling an individual batch obj.
@@ -93,6 +201,7 @@ class ValidationData(AbstractBatchBuilder):
         self.max = np.ceil(len(self.val_indices) / (batch_size))
         self._remaining_observations = len(self.val_indices)
         self.temporal_coarsening_method = temporal_coarsening_method
+        self._i = 0
         self.hr_features_ind = hr_features_ind
         self.smoothing = smoothing
         self.smoothing_ignore = smoothing_ignore
@@ -109,6 +218,7 @@ class ValidationData(AbstractBatchBuilder):
             is used to get validation data observation with
         data[tuple_index]
         """
+
         val_indices = []
         for i, h in enumerate(self.data_handlers):
             if h.val_data is not None:
@@ -126,6 +236,19 @@ class ValidationData(AbstractBatchBuilder):
                         'tuple_index': tuple_index
                     })
         return val_indices
+
+    @property
+    def handler_weights(self):
+        """Get weights used to sample from different data handlers based on
+        relative sizes"""
+        sizes = [dh.size for dh in self.data_handlers]
+        weights = sizes / np.sum(sizes)
+        return weights
+
+    def get_handler_index(self):
+        """Get random handler index based on handler weights"""
+        indices = np.arange(0, len(self.data_handlers))
+        return np.random.choice(indices, p=self.handler_weights)
 
     def any(self):
         """Return True if any validation data exists"""
@@ -197,29 +320,31 @@ class ValidationData(AbstractBatchBuilder):
         """
         self.current_batch_indices = []
         if self._remaining_observations > 0:
-            n_obs = self._remaining_observations
             if self._remaining_observations > self.batch_size:
                 n_obs = self.batch_size
-            hr_list = []
-            for i in range(n_obs):
-                val_idx = self.val_indices[self._i + i]
-                h_idx = val_idx['handler_index']
-                tuple_idx = val_idx['tuple_index']
-                hr_sample = self.data_handlers[h_idx].val_data[tuple_idx]
-                hr_list.append(np.expand_dims(hr_sample, axis=0))
+            else:
+                n_obs = self._remaining_observations
+
+            high_res = np.zeros(
+                (n_obs, self.sample_shape[0], self.sample_shape[1],
+                 self.sample_shape[2], self.data_handlers[0].shape[-1]),
+                dtype=np.float32)
+            for i in range(high_res.shape[0]):
+                val_index = self.val_indices[self._i + i]
+                high_res[i, ...] = self.data_handlers[val_index[
+                    'handler_index']].val_data[val_index['tuple_index']]
                 self._remaining_observations -= 1
-                self.current_batch_indices.append(h_idx)
-            high_res = np.concatenate(hr_list, axis=0)
+                self.current_batch_indices.append(val_index['handler_index'])
+
             if self.sample_shape[2] == 1:
                 high_res = high_res[..., 0, :]
             batch = self.batch_next(high_res)
             self._i += 1
             return batch
-        else:
-            raise StopIteration
+        raise StopIteration
 
 
-class BatchHandler(MultiHandlerMixIn, AbstractBatchBuilder):
+class BatchHandler:
     """Sup3r base batch handling class"""
 
     # Classes to use for handling an individual batch obj.
@@ -307,14 +432,15 @@ class BatchHandler(MultiHandlerMixIn, AbstractBatchBuilder):
             for normalizing data handlers. `stats_workers` is the max number
             of workers to use for computing stats across data handlers.
         """
+
         worker_kwargs = worker_kwargs or {}
         max_workers = worker_kwargs.get('max_workers', None)
         norm_workers = stats_workers = load_workers = None
         if max_workers is not None:
             norm_workers = stats_workers = load_workers = max_workers
-        self.stats_workers = worker_kwargs.get('stats_workers', stats_workers)
-        self.norm_workers = worker_kwargs.get('norm_workers', norm_workers)
-        self.load_workers = worker_kwargs.get('load_workers', load_workers)
+        self._stats_workers = worker_kwargs.get('stats_workers', stats_workers)
+        self._norm_workers = worker_kwargs.get('norm_workers', norm_workers)
+        self._load_workers = worker_kwargs.get('load_workers', load_workers)
 
         data_handlers = (data_handlers
                          if isinstance(data_handlers, (list, tuple))
@@ -328,6 +454,7 @@ class BatchHandler(MultiHandlerMixIn, AbstractBatchBuilder):
         self.low_res = None
         self.high_res = None
         self.batch_size = batch_size
+        self._val_data = None
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
         self.sample_shape = handler_shapes[0]
@@ -336,7 +463,7 @@ class BatchHandler(MultiHandlerMixIn, AbstractBatchBuilder):
         self.n_batches = n_batches
         self.temporal_coarsening_method = temporal_coarsening_method
         self.current_batch_indices = None
-        self.handler_index = self.get_handler_index()
+        self.current_handler_index = None
         self.stdevs_file = stdevs_file
         self.means_file = means_file
         self.overwrite_stats = overwrite_stats
@@ -377,6 +504,61 @@ class BatchHandler(MultiHandlerMixIn, AbstractBatchBuilder):
 
         logger.info('Finished initializing BatchHandler.')
         log_mem(logger, log_level='INFO')
+
+    @property
+    def handler_weights(self):
+        """Get weights used to sample from different data handlers based on
+        relative sizes"""
+        sizes = [dh.size for dh in self.data_handlers]
+        weights = sizes / np.sum(sizes)
+        return weights.astype(np.float32)
+
+    def get_handler_index(self):
+        """Get random handler index based on handler weights"""
+        indices = np.arange(0, len(self.data_handlers))
+        return np.random.choice(indices, p=self.handler_weights)
+
+    def get_rand_handler(self):
+        """Get random handler based on handler weights"""
+        self.current_handler_index = self.get_handler_index()
+        return self.data_handlers[self.current_handler_index]
+
+    @property
+    def features(self):
+        """Get the ordered list of feature names held in this object's
+        data handlers"""
+        return self.data_handlers[0].features
+
+    @property
+    def lr_features(self):
+        """Get a list of low-resolution features. All low-resolution features
+        are used for training."""
+        return self.data_handlers[0].features
+
+    @property
+    def hr_exo_features(self):
+        """Get a list of high-resolution features that are only used for
+        training e.g., mid-network high-res topo injection."""
+        return self.data_handlers[0].hr_exo_features
+
+    @property
+    def hr_out_features(self):
+        """Get a list of low-resolution features that are intended to be output
+        by the GAN."""
+        return self.data_handlers[0].hr_out_features
+
+    @property
+    def hr_features_ind(self):
+        """Get the high-resolution feature channel indices that should be
+        included for training. Any high-resolution features that are only
+        included in the data handler to be coarsened for the low-res input are
+        removed"""
+        hr_features = list(self.hr_out_features) + list(self.hr_exo_features)
+        if list(self.features) == hr_features:
+            return np.arange(len(self.features))
+        out = [i for i, feature in enumerate(self.features)
+               if feature in hr_features]
+        return out
 
     @property
     def shape(self):
@@ -477,9 +659,8 @@ class BatchHandler(MultiHandlerMixIn, AbstractBatchBuilder):
 
                     for i, future in enumerate(as_completed(futures)):
                         _ = future.result()
-                        logger.debug(
-                            f'{i + 1} out of {len(self.data_handlers)} '
-                            'means calculated.')
+                        logger.debug(f'{i + 1} out of {len(self.data_handlers)} '
+                                     'means calculated.')
 
             self.means[feature] = self._get_feature_means(feature)
             self.stds[feature] = self._get_feature_stdev(feature)
@@ -626,9 +807,8 @@ class BatchHandler(MultiHandlerMixIn, AbstractBatchBuilder):
                        f'dont match previous values: {means0}/{stds0}')
                 logger.info(msg)
                 raise ValueError(msg)
-            else:
-                self.means = means
-                self.stds = stds
+            self.means = means
+            self.stds = stds
 
         now = dt.now()
         logger.info('Normalizing data in each data handler.')
@@ -639,30 +819,6 @@ class BatchHandler(MultiHandlerMixIn, AbstractBatchBuilder):
     def __iter__(self):
         self._i = 0
         return self
-
-    def batch_next(self, high_res):
-        """Assemble the next batch
-
-        Parameters
-        ----------
-        high_res : np.ndarray
-            4D | 5D array
-            (batch_size, spatial_1, spatial_2, features)
-            (batch_size, spatial_1, spatial_2, temporal, features)
-
-        Returns
-        -------
-        batch : Batch
-        """
-        return self.BATCH_CLASS.get_coarse_batch(
-                high_res=high_res,
-                s_enhance=self.s_enhance,
-                t_enhance=self.t_enhance,
-                temporal_coarsening_method=self.temporal_coarsening_method,
-                hr_features_ind=self.hr_features_ind,
-                features=self.features,
-                smoothing=self.smoothing,
-                smoothing_ignore=self.smoothing_ignore)
 
     def __next__(self):
         """Get the next iterator output.
@@ -676,19 +832,28 @@ class BatchHandler(MultiHandlerMixIn, AbstractBatchBuilder):
         self.current_batch_indices = []
         if self._i < self.n_batches:
             handler = self.get_rand_handler()
-            hr_list = []
-            for _ in range(self.batch_size):
-                hr_sample = handler.get_next()
-                hr_list.append(np.expand_dims(hr_sample, axis=0))
+            high_res = np.zeros(
+                (self.batch_size, self.sample_shape[0], self.sample_shape[1],
+                 self.sample_shape[2], self.shape[-1]),
+                dtype=np.float32)
+
+            for i in range(self.batch_size):
+                high_res[i, ...] = handler.get_next()
                 self.current_batch_indices.append(handler.current_obs_index)
 
-            high_res = np.concatenate(hr_list, axis=0)
-            batch = self.batch_next(high_res)
+            batch = self.BATCH_CLASS.get_coarse_batch(
+                high_res,
+                self.s_enhance,
+                t_enhance=self.t_enhance,
+                temporal_coarsening_method=self.temporal_coarsening_method,
+                hr_features_ind=self.hr_features_ind,
+                features=self.features,
+                smoothing=self.smoothing,
+                smoothing_ignore=self.smoothing_ignore)
 
             self._i += 1
             return batch
-        else:
-            raise StopIteration
+        raise StopIteration
 
 
 class BatchHandlerCC(BatchHandler):
@@ -886,21 +1051,16 @@ class SpatialBatchHandlerCC(BatchHandler):
 class SpatialBatchHandler(BatchHandler):
     """Sup3r spatial batch handling class"""
 
-    def batch_next(self, high_res):
-        """Assemble the next batch
+    def __next__(self):
+        if self._i < self.n_batches:
+            handler = self.get_rand_handler()
+            high_res = np.zeros((self.batch_size, self.sample_shape[0],
+                                 self.sample_shape[1], self.shape[-1]),
+                                dtype=np.float32)
+            for i in range(self.batch_size):
+                high_res[i, ...] = handler.get_next()[..., 0, :]
 
-        Parameters
-        ----------
-        high_res : np.ndarray
-            4D | 5D array
-            (batch_size, spatial_1, spatial_2, features)
-            (batch_size, spatial_1, spatial_2, temporal, features)
-
-        Returns
-        -------
-        batch : Batch
-        """
-        return self.BATCH_CLASS.get_coarse_batch(
+            batch = self.BATCH_CLASS.get_coarse_batch(
                 high_res,
                 self.s_enhance,
                 hr_features_ind=self.hr_features_ind,
@@ -908,18 +1068,290 @@ class SpatialBatchHandler(BatchHandler):
                 smoothing=self.smoothing,
                 smoothing_ignore=self.smoothing_ignore)
 
-    def __next__(self):
-        if self._i < len(self):
-            handler = self.get_rand_handler()
+            self._i += 1
+            return batch
+        raise StopIteration
 
-            hr_list = []
+
+class ValidationDataDC(ValidationData):
+    """Iterator for data-centric validation data"""
+
+    N_TIME_BINS = 12
+    N_SPACE_BINS = 4
+
+    def _get_val_indices(self):
+        """List of dicts to index each validation data observation across all
+        handlers
+
+        Returns
+        -------
+        val_indices : list[dict]
+            List of dicts with handler_index and tuple_index. The tuple index
+            is used to get validation data observation with
+        data[tuple_index]
+        """
+
+        val_indices = {}
+        for t in range(self.N_TIME_BINS):
+            val_indices[t] = []
+            h_idx = self.get_handler_index()
+            h = self.data_handlers[h_idx]
             for _ in range(self.batch_size):
-                hr_sample = handler.get_next()[..., 0, :]
-                hr_list.append(np.expand_dims(hr_sample, axis=0))
-            high_res = np.concatenate(hr_list, axis=0)
-            batch = self.batch_next(high_res)
+                spatial_slice = uniform_box_sampler(h.data,
+                                                    self.sample_shape[:2])
+                weights = np.zeros(self.N_TIME_BINS)
+                weights[t] = 1
+                temporal_slice = weighted_time_sampler(h.data,
+                                                       self.sample_shape[2],
+                                                       weights)
+                tuple_index = (
+                    *spatial_slice, temporal_slice,
+                    np.arange(h.data.shape[-1])
+                )
+                val_indices[t].append({
+                    'handler_index': h_idx,
+                    'tuple_index': tuple_index
+                })
+        for s in range(self.N_SPACE_BINS):
+            val_indices[s + self.N_TIME_BINS] = []
+            h_idx = self.get_handler_index()
+            h = self.data_handlers[h_idx]
+            for _ in range(self.batch_size):
+                weights = np.zeros(self.N_SPACE_BINS)
+                weights[s] = 1
+                spatial_slice = weighted_box_sampler(h.data,
+                                                     self.sample_shape[:2],
+                                                     weights)
+                temporal_slice = uniform_time_sampler(h.data,
+                                                      self.sample_shape[2])
+                tuple_index = (
+                    *spatial_slice, temporal_slice,
+                    np.arange(h.data.shape[-1])
+                )
+                val_indices[s + self.N_TIME_BINS].append({
+                    'handler_index': h_idx,
+                    'tuple_index': tuple_index
+                })
+        return val_indices
+
+    def __next__(self):
+        if self._i < len(self.val_indices.keys()):
+            high_res = np.zeros(
+                (self.batch_size, self.sample_shape[0], self.sample_shape[1],
+                 self.sample_shape[2], self.data_handlers[0].shape[-1]),
+                dtype=np.float32)
+            val_indices = self.val_indices[self._i]
+            for i, idx in enumerate(val_indices):
+                high_res[i, ...] = self.data_handlers[
+                    idx['handler_index']].data[idx['tuple_index']]
+
+            batch = self.BATCH_CLASS.get_coarse_batch(
+                high_res,
+                self.s_enhance,
+                t_enhance=self.t_enhance,
+                temporal_coarsening_method=self.temporal_coarsening_method,
+                hr_features_ind=self.hr_features_ind,
+                smoothing=self.smoothing,
+                smoothing_ignore=self.smoothing_ignore)
+            self._i += 1
+            return batch
+        raise StopIteration
+
+
+class ValidationDataTemporalDC(ValidationDataDC):
+    """Iterator for data-centric temporal validation data"""
+
+    N_SPACE_BINS = 0
+
+
+class ValidationDataSpatialDC(ValidationDataDC):
+    """Iterator for data-centric spatial validation data"""
+
+    N_TIME_BINS = 0
+
+    def __next__(self):
+        if self._i < len(self.val_indices.keys()):
+            high_res = np.zeros(
+                (self.batch_size, self.sample_shape[0], self.sample_shape[1],
+                 self.data_handlers[0].shape[-1]),
+                dtype=np.float32)
+            val_indices = self.val_indices[self._i]
+            for i, idx in enumerate(val_indices):
+                high_res[i, ...] = self.data_handlers[
+                    idx['handler_index']].data[idx['tuple_index']][..., 0, :]
+
+            batch = self.BATCH_CLASS.get_coarse_batch(
+                high_res,
+                self.s_enhance,
+                hr_features_ind=self.hr_features_ind,
+                smoothing=self.smoothing,
+                smoothing_ignore=self.smoothing_ignore)
+            self._i += 1
+            return batch
+        raise StopIteration
+
+
+class BatchHandlerDC(BatchHandler):
+    """Data-centric batch handler"""
+
+    VAL_CLASS = ValidationDataTemporalDC
+    BATCH_CLASS = Batch
+    DATA_HANDLER_CLASS = DataHandlerDCforH5
+
+    def __init__(self, *args, **kwargs):
+        """
+        Parameters
+        ----------
+        *args : list
+            Same positional args as BatchHandler
+        **kwargs : dict
+            Same keyword args as BatchHandler
+        """
+        super().__init__(*args, **kwargs)
+
+        self.temporal_weights = np.ones(self.val_data.N_TIME_BINS)
+        self.temporal_weights /= np.sum(self.temporal_weights)
+        self.old_temporal_weights = [0] * self.val_data.N_TIME_BINS
+        bin_range = self.data_handlers[0].data.shape[2]
+        bin_range -= self.sample_shape[2] - 1
+        self.temporal_bins = np.array_split(np.arange(0, bin_range),
+                                            self.val_data.N_TIME_BINS)
+        self.temporal_bins = [b[0] for b in self.temporal_bins]
+
+        logger.info('Using temporal weights: '
+                    f'{[round(w, 3) for w in self.temporal_weights]}')
+        self.temporal_sample_record = [0] * self.val_data.N_TIME_BINS
+        self.norm_temporal_record = [0] * self.val_data.N_TIME_BINS
+
+    def update_training_sample_record(self):
+        """Keep track of number of observations from each temporal bin"""
+        handler = self.data_handlers[self.current_handler_index]
+        t_start = handler.current_obs_index[2].start
+        t_bin_number = np.digitize(t_start, self.temporal_bins)
+        self.temporal_sample_record[t_bin_number - 1] += 1
+
+    def __iter__(self):
+        self._i = 0
+        self.temporal_sample_record = [0] * self.val_data.N_TIME_BINS
+        return self
+
+    def __next__(self):
+        self.current_batch_indices = []
+        if self._i < self.n_batches:
+            handler = self.get_rand_handler()
+            high_res = np.zeros(
+                (self.batch_size, self.sample_shape[0], self.sample_shape[1],
+                 self.sample_shape[2], self.shape[-1]),
+                dtype=np.float32)
+
+            for i in range(self.batch_size):
+                high_res[i, ...] = handler.get_next(
+                    temporal_weights=self.temporal_weights)
+                self.current_batch_indices.append(handler.current_obs_index)
+
+                self.update_training_sample_record()
+
+            batch = self.BATCH_CLASS.get_coarse_batch(
+                high_res,
+                self.s_enhance,
+                t_enhance=self.t_enhance,
+                temporal_coarsening_method=self.temporal_coarsening_method,
+                hr_features_ind=self.hr_features_ind,
+                features=self.features,
+                smoothing=self.smoothing,
+                smoothing_ignore=self.smoothing_ignore)
 
             self._i += 1
             return batch
-        else:
-            raise StopIteration
+        total_count = self.n_batches * self.batch_size
+        self.norm_temporal_record = [
+            c / total_count for c in self.temporal_sample_record.copy()
+        ]
+        self.old_temporal_weights = self.temporal_weights.copy()
+        raise StopIteration
+
+
+class BatchHandlerSpatialDC(BatchHandler):
+    """Data-centric batch handler"""
+
+    VAL_CLASS = ValidationDataSpatialDC
+    BATCH_CLASS = Batch
+    DATA_HANDLER_CLASS = DataHandlerDCforH5
+
+    def __init__(self, *args, **kwargs):
+        """
+        Parameters
+        ----------
+        *args : list
+            Same positional args as BatchHandler
+        **kwargs : dict
+            Same keyword args as BatchHandler
+        """
+        super().__init__(*args, **kwargs)
+
+        self.spatial_weights = np.ones(self.val_data.N_SPACE_BINS)
+        self.spatial_weights /= np.sum(self.spatial_weights)
+        self.old_spatial_weights = [0] * self.val_data.N_SPACE_BINS
+        self.max_rows = self.data_handlers[0].data.shape[0] + 1
+        self.max_rows -= self.sample_shape[0]
+        self.max_cols = self.data_handlers[0].data.shape[1] + 1
+        self.max_cols -= self.sample_shape[1]
+        bin_range = self.max_rows * self.max_cols
+        self.spatial_bins = np.array_split(np.arange(0, bin_range),
+                                           self.val_data.N_SPACE_BINS)
+        self.spatial_bins = [b[0] for b in self.spatial_bins]
+
+        logger.info('Using spatial weights: '
+                    f'{[round(w, 3) for w in self.spatial_weights]}')
+
+        self.spatial_sample_record = [0] * self.val_data.N_SPACE_BINS
+        self.norm_spatial_record = [0] * self.val_data.N_SPACE_BINS
+
+    def update_training_sample_record(self):
+        """Keep track of number of observations from each temporal bin"""
+        handler = self.data_handlers[self.current_handler_index]
+        row = handler.current_obs_index[0].start
+        col = handler.current_obs_index[1].start
+        s_start = self.max_rows * row + col
+        s_bin_number = np.digitize(s_start, self.spatial_bins)
+        self.spatial_sample_record[s_bin_number - 1] += 1
+
+    def __iter__(self):
+        self._i = 0
+        self.spatial_sample_record = [0] * self.val_data.N_SPACE_BINS
+        return self
+
+    def __next__(self):
+        self.current_batch_indices = []
+        if self._i < self.n_batches:
+            handler = self.get_rand_handler()
+            high_res = np.zeros((self.batch_size, self.sample_shape[0],
+                                 self.sample_shape[1], self.shape[-1],
+                                 ),
+                                dtype=np.float32,
+                                )
+
+            for i in range(self.batch_size):
+                high_res[i, ...] = handler.get_next(
+                    spatial_weights=self.spatial_weights)[..., 0, :]
+                self.current_batch_indices.append(handler.current_obs_index)
+
+                self.update_training_sample_record()
+
+            batch = self.BATCH_CLASS.get_coarse_batch(
+                high_res,
+                self.s_enhance,
+                hr_features_ind=self.hr_features_ind,
+                features=self.features,
+                smoothing=self.smoothing,
+                smoothing_ignore=self.smoothing_ignore,
+            )
+
+            self._i += 1
+            return batch
+        total_count = self.n_batches * self.batch_size
+        self.norm_spatial_record = [
+            c / total_count for c in self.spatial_sample_record
+        ]
+        self.old_spatial_weights = self.spatial_weights.copy()
+        raise StopIteration

@@ -294,8 +294,7 @@ class Sup3rQa:
 
         if self._source_features is None or self._source_features == [None]:
             return self.features
-        else:
-            return self._source_features
+        return self._source_features
 
     @property
     def source_features_flat(self):
@@ -320,8 +319,7 @@ class Sup3rQa:
 
         if self._out_names is None or self._out_names == [None]:
             return self.features
-        else:
-            return self._out_names
+        return self._out_names
 
     @property
     def output_type(self):
@@ -349,7 +347,7 @@ class Sup3rQa:
         """
         if self.output_type == 'nc':
             return xr.open_dataset
-        elif self.output_type == 'h5':
+        if self.output_type == 'h5':
             return Resource
 
     def bias_correct_source_data(self, data, lat_lon, source_feature):

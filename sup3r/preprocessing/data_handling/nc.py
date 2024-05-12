@@ -18,7 +18,7 @@ from scipy.stats import mode
 
 from sup3r.preprocessing.data_handling.base import DataHandler
 from sup3r.preprocessing.data_handling.data_centric import DataHandlerDC
-from sup3r.preprocessing.feature_handling import (
+from sup3r.preprocessing.derived_features import (
     BVFreqMon,
     BVFreqSquaredNC,
     ClearSkyRatioCC,
@@ -27,8 +27,6 @@ from sup3r.preprocessing.feature_handling import (
     LatLonNC,
     PotentialTempNC,
     PressureNC,
-    Rews,
-    Shear,
     Tas,
     TasMax,
     TasMin,
@@ -65,8 +63,6 @@ class DataHandlerNC(DataHandler):
         'Windspeed_(.*)': WindspeedNC,
         'Winddirection_(.*)': WinddirectionNC,
         'lat_lon': LatLonNC,
-        'Shear_(.*)': Shear,
-        'REWS_(.*)': Rews,
         'Temperature_(.*)': TempNC,
         'Pressure_(.*)': PressureNC,
         'PotentialTemp_(.*)': PotentialTempNC,

@@ -23,7 +23,7 @@ class Container(AbstractContainer):
     @property
     def data(self):
         """Returns the contained data."""
-        return self.obj.data
+        return self.obj
 
     @property
     def size(self):
@@ -37,7 +37,7 @@ class Container(AbstractContainer):
 
     @property
     def features(self):
-        """List of all features in data."""
+        """Features in this container."""
         return self.obj.features
 
     def __getitem__(self, key):

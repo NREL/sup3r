@@ -8,6 +8,7 @@ import tempfile
 import numpy as np
 import pytest
 from click.testing import CliRunner
+from helpers.utils import make_fake_h5_chunks, make_fake_nc_files
 from rex import ResourceX, init_logger
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
@@ -17,7 +18,6 @@ from sup3r.pipeline.pipeline_cli import from_config as pipe_main
 from sup3r.postprocessing.data_collect_cli import from_config as dc_main
 from sup3r.preprocessing.data_extract_cli import from_config as dh_main
 from sup3r.qa.visual_qa_cli import from_config as vqa_main
-from sup3r.utilities.pytest import make_fake_h5_chunks, make_fake_nc_files
 from sup3r.utilities.utilities import correct_path
 
 INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')

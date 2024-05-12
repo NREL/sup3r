@@ -1,12 +1,67 @@
-# -*- coding: utf-8 -*-
-"""Utilities used for pytests"""
+"""Batcher testing."""
+
 import os
 
 import numpy as np
+import pandas as pd
 import xarray as xr
 
+from sup3r.containers.samplers import CroppedSampler, Sampler
 from sup3r.postprocessing.file_handling import OutputHandlerH5
 from sup3r.utilities.utilities import pd_date_range
+
+
+class DummyData:
+    """Dummy container with random data."""
+
+    def __init__(self, features, data_shape):
+        self.features = features
+        self.shape = data_shape
+        self._data = None
+
+    @property
+    def data(self):
+        """Dummy data property."""
+        if self._data is None:
+            lons, lats = np.meshgrid(
+                np.linspace(0, 1, self.shape[1]),
+                np.linspace(0, 1, self.shape[0]),
+            )
+            times = pd.date_range('2024-01-01', periods=self.shape[2])
+            dim_names = ['time', 'south_north', 'west_east']
+            coords = {'time': times,
+                      'latitude': (dim_names[1:], lats),
+                      'longitude': (dim_names[1:], lons)}
+            ws = np.zeros((len(times), *lats.shape))
+            self._data = xr.Dataset(
+                data_vars={'windspeed': (dim_names, ws)}, coords=coords
+            )
+        return self._data
+
+    def __getitem__(self, key):
+        out = self.data.isel(
+            south_north=key[0],
+            west_east=key[1],
+            time=key[2],
+        )
+        out = out.to_dataarray().values
+        return np.transpose(out, axes=(2, 3, 1, 0))
+
+
+class DummySampler(Sampler):
+    """Dummy container with random data."""
+
+    def __init__(self, sample_shape, data_shape):
+        data = DummyData(features=['windspeed'], data_shape=data_shape)
+        super().__init__(data, sample_shape)
+
+
+class DummyCroppedSampler(CroppedSampler):
+    """Dummy container with random data."""
+
+    def __init__(self, sample_shape, data_shape):
+        data = DummyData(features=['windspeed'], data_shape=data_shape)
+        super().__init__(data, sample_shape)
 
 
 def make_fake_nc_files(td, input_file, n_files):
@@ -36,12 +91,12 @@ def make_fake_nc_files(td, input_file, n_files):
     for i in range(n_files):
         if os.path.exists(fake_files[i]):
             os.remove(fake_files[i])
-        with xr.open_dataset(input_file) as input_dset:
-            with xr.Dataset(input_dset) as dset:
-                dset['Times'][:] = np.array(
-                    [fake_times[i].encode('ASCII')], dtype='|S19')
-                dset['XTIME'][:] = i
-                dset.to_netcdf(fake_files[i])
+        with (xr.open_dataset(input_file) as input_dset,
+                xr.Dataset(input_dset) as dset):
+            dset['Times'][:] = np.array(
+                [fake_times[i].encode('ASCII')], dtype='|S19')
+            dset['XTIME'][:] = i
+            dset.to_netcdf(fake_files[i])
     return fake_files
 
 
@@ -201,7 +256,7 @@ def make_fake_h5_chunks(td):
                     gids=gids[s1_hr, s2_hr],
                 )
 
-    out = (
+    return (
         out_files,
         data,
         ws_true,
@@ -214,8 +269,6 @@ def make_fake_h5_chunks(td):
         low_res_lat_lon,
         low_res_times,
     )
-
-    return out
 
 
 def make_fake_cs_ratio_files(td, low_res_times, low_res_lat_lon, gan_meta):

@@ -51,10 +51,9 @@ class DualMixIn:
     @property
     def lr_only_features(self):
         """Features to use for training only and not output"""
-        tof = [fn for fn in self.lr_dh.features
-               if fn not in self.hr_out_features
-               and fn not in self.hr_exo_features]
-        return tof
+        return [fn for fn in self.lr_dh.features
+                if fn not in self.hr_out_features
+                and fn not in self.hr_exo_features]
 
     @property
     def lr_features(self):
@@ -276,10 +275,8 @@ class MultiHandlerMixIn:
         hr_features = list(self.hr_out_features) + list(self.hr_exo_features)
         if list(self.features) == hr_features:
             return np.arange(len(self.features))
-        else:
-            out = [i for i, feature in enumerate(self.features)
-                   if feature in hr_features]
-            return out
+        return [i for i, feature in enumerate(self.features)
+                if feature in hr_features]
 
     @property
     def hr_features(self):
@@ -454,8 +451,7 @@ class CacheHandling:
         hh = str(time_stamp.hour).zfill(2)
         min = str(time_stamp.minute).zfill(2)
         ss = str(time_stamp.second).zfill(2)
-        ts0 = yyyy + mm + dd + hh + min + ss
-        return ts0
+        return yyyy + mm + dd + hh + min + ss
 
     def _get_timestamp_1(self, time_index):
         """Get a string timestamp for the last time index value with the
@@ -468,8 +464,7 @@ class CacheHandling:
         hh = str(time_stamp.hour).zfill(2)
         min = str(time_stamp.minute).zfill(2)
         ss = str(time_stamp.second).zfill(2)
-        ts1 = yyyy + mm + dd + hh + min + ss
-        return ts1
+        return yyyy + mm + dd + hh + min + ss
 
     def _get_cache_pattern(self, cache_pattern):
         """Get correct cache file pattern for formatting.
@@ -667,9 +662,8 @@ class CacheHandling:
                            cache_files,
                            overwrite_cache=False):
         """Check if we should load cached data"""
-        try_load = (cache_pattern is not None and not overwrite_cache
-                    and all(os.path.exists(fp) for fp in cache_files))
-        return try_load
+        return (cache_pattern is not None and not overwrite_cache
+                and all(os.path.exists(fp) for fp in cache_files))
 
     def parallel_load(self, data, cache_files, features, max_workers=None):
         """Load feature data in parallel
@@ -842,12 +836,21 @@ class TimePeriodMixIn(CacheHandling):
             Dictionary of kwargs to pass to xarray.open_mfdataset.
         """
         self.temporal_slice = temporal_slice
+        self._time_chunk_size = None
         self._raw_time_index = None
         self._raw_tsteps = None
         self._time_index = None
         self._file_paths = None
         self._single_ts_files = None
         self.res_kwargs = res_kwargs or {}
+
+    @property
+    def time_chunk_size(self):
+        """Size of chunk to split the time dimension into for parallel
+        extraction."""
+        if self._time_chunk_size is None:
+            self._time_chunk_size = self.n_tsteps
+        return self._time_chunk_size
 
     @property
     def is_time_independent(self):
@@ -859,8 +862,7 @@ class TimePeriodMixIn(CacheHandling):
         """Get number of time steps to extract"""
         if self.is_time_independent:
             return 1
-        else:
-            return len(self.raw_time_index[self.temporal_slice])
+        return len(self.raw_time_index[self.temporal_slice])
 
     @property
     def time_chunks(self):
@@ -982,8 +984,7 @@ class TimePeriodMixIn(CacheHandling):
         """Get the time frequency in hours as a float"""
         ti_deltas = self.raw_time_index - np.roll(self.raw_time_index, 1)
         ti_deltas_hours = pd.Series(ti_deltas).dt.total_seconds()[1:-1] / 3600
-        time_freq = float(mode(ti_deltas_hours).mode)
-        return time_freq
+        return float(mode(ti_deltas_hours).mode)
 
 
 class SpatialRegionMixIn(CacheHandling):
@@ -1258,12 +1259,11 @@ class InputMixIn(TimePeriodMixIn, SpatialRegionMixIn):
         """
         if max_workers is None and max_workers_cap is None:
             return max_workers
-        elif max_workers_cap is not None and max_workers is None:
+        if max_workers_cap is not None and max_workers is None:
             return max_workers_cap
-        elif max_workers is not None and max_workers_cap is None:
+        if max_workers is not None and max_workers_cap is None:
             return max_workers
-        else:
-            return np.min((max_workers_cap, max_workers))
+        return np.min((max_workers_cap, max_workers))
 
     def cap_worker_args(self, max_workers):
         """Cap all workers args by max_workers"""
@@ -1283,9 +1283,8 @@ class InputMixIn(TimePeriodMixIn, SpatialRegionMixIn):
             message to append to log output that does not include a huge info
             dump of file paths
         """
-        msg = (f'source files with dates from {self.raw_time_index[0]} to '
-               f'{self.raw_time_index[-1]}')
-        return msg
+        return (f'source files with dates from {self.raw_time_index[0]} to '
+                f'{self.raw_time_index[-1]}')
 
     @property
     def file_paths(self):
@@ -1403,8 +1402,7 @@ class TrainingPrep:
         """
         self.current_obs_index = self.get_observation_index(
             self.data.shape, self.sample_shape)
-        observation = self.data[self.current_obs_index]
-        return observation
+        return self.data[self.current_obs_index]
 
     def _normalize_data(self, data, val_data, feature_index, mean, std):
         """Normalize data with initialized mean and standard deviation for a

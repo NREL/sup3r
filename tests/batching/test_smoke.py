@@ -1,65 +1,19 @@
 """Smoke tests for batcher objects. Just make sure things run without errors"""
 
-import numpy as np
-import pandas as pd
+import os
+
 import pytest
-import xarray as xr
 from rex import init_logger
 
 from sup3r.containers.batchers import (
     BatchQueue,
     PairBatchQueue,
-    SpatialBatchQueue,
+    SplitBatchQueue,
 )
-from sup3r.containers.samplers import Sampler, SamplerPair
+from sup3r.containers.samplers import SamplerPair
+from sup3r.utilities.pytest.helpers import DummyCroppedSampler, DummySampler
 
 init_logger('sup3r', log_level='DEBUG')
-
-
-class DummyData:
-    """Dummy container with random data."""
-
-    def __init__(self, features, data_shape):
-        self.features = features
-        self.shape = data_shape
-        self._data = None
-
-    @property
-    def data(self):
-        """Dummy data property."""
-        if self._data is None:
-            lons, lats = np.meshgrid(
-                np.linspace(0, 1, self.shape[1]),
-                np.linspace(0, 1, self.shape[0]),
-            )
-            times = pd.date_range('2024-01-01', periods=self.shape[2])
-            dim_names = ['time', 'south_north', 'west_east']
-            coords = {'time': times,
-                      'latitude': (dim_names[1:], lats),
-                      'longitude': (dim_names[1:], lons)}
-            ws = np.zeros((len(times), *lats.shape))
-            self._data = xr.Dataset(
-                data_vars={'windspeed': (dim_names, ws)}, coords=coords
-            )
-        return self._data
-
-    def __getitem__(self, key):
-        out = self.data.isel(
-            south_north=key[0],
-            west_east=key[1],
-            time=key[2],
-        )
-        out = out.to_dataarray().values
-        out = np.transpose(out, axes=(2, 3, 1, 0))
-        return out
-
-
-class DummySampler(Sampler):
-    """Dummy container with random data."""
-
-    def __init__(self, sample_shape, data_shape):
-        data = DummyData(features=['windspeed'], data_shape=data_shape)
-        super().__init__(data, sample_shape)
 
 
 def test_batch_queue():
@@ -72,15 +26,15 @@ def test_batch_queue():
     coarsen_kwargs = {'smoothing_ignore': [], 'smoothing': None}
     batcher = BatchQueue(
         containers=samplers,
-        s_enhance=2,
-        t_enhance=2,
         n_batches=3,
         batch_size=4,
-        queue_cap=10,
+        s_enhance=2,
+        t_enhance=2,
         means={'windspeed': 4},
         stds={'windspeed': 2},
+        queue_cap=10,
         max_workers=1,
-        coarsen_kwargs=coarsen_kwargs
+        coarsen_kwargs=coarsen_kwargs,
     )
     batcher.start()
     assert len(batcher) == 3
@@ -91,13 +45,14 @@ def test_batch_queue():
 
 
 def test_spatial_batch_queue():
-    """Smoke test for spatial batch queue."""
+    """Smoke test for spatial batch queue. A batch queue returns batches for
+    spatial models if the sample shapes have 1 for the time axis"""
     samplers = [
         DummySampler(sample_shape=(8, 8, 1), data_shape=(10, 10, 20)),
         DummySampler(sample_shape=(8, 8, 1), data_shape=(12, 12, 15)),
     ]
     coarsen_kwargs = {'smoothing_ignore': [], 'smoothing': None}
-    batcher = SpatialBatchQueue(
+    batcher = BatchQueue(
         containers=samplers,
         s_enhance=2,
         t_enhance=1,
@@ -107,7 +62,7 @@ def test_spatial_batch_queue():
         means={'windspeed': 4},
         stds={'windspeed': 2},
         max_workers=1,
-        coarsen_kwargs=coarsen_kwargs
+        coarsen_kwargs=coarsen_kwargs,
     )
     batcher.start()
     assert len(batcher) == 3
@@ -166,7 +121,6 @@ def test_bad_enhancement_factors():
 
     for s_enhance, t_enhance in zip([2, 4], [2, 6]):
         with pytest.raises(AssertionError):
-
             sampler_pairs = [
                 SamplerPair(lr, hr, s_enhance=s_enhance, t_enhance=t_enhance)
                 for lr, hr in zip(lr_samplers, hr_samplers)
@@ -207,6 +161,65 @@ def test_bad_sample_shapes():
         )
 
 
+def test_split_batch_queue():
+    """Smoke test for batch queue."""
+
+    samplers = [
+        DummyCroppedSampler(
+            sample_shape=(8, 8, 4), data_shape=(10, 10, 100)
+        ),
+        DummyCroppedSampler(
+            sample_shape=(8, 8, 4), data_shape=(12, 12, 100)
+        ),
+    ]
+    coarsen_kwargs = {'smoothing_ignore': [], 'smoothing': None}
+    batcher = SplitBatchQueue(
+        containers=samplers,
+        val_split=0.2,
+        batch_size=4,
+        n_batches=3,
+        s_enhance=2,
+        t_enhance=1,
+        queue_cap=10,
+        means={'windspeed': 4},
+        stds={'windspeed': 2},
+        max_workers=1,
+        coarsen_kwargs=coarsen_kwargs,
+    )
+    test_train_slices = batcher.get_test_train_slices()
+
+    for i, (test_s, train_s) in enumerate(test_train_slices):
+        assert batcher.containers[i].crop_slice == train_s
+        assert batcher.val_data.containers[i].crop_slice == test_s
+
+    batcher.start()
+    assert len(batcher) == 3
+    for b in batcher:
+        assert b.low_res.shape == (4, 4, 4, 4, 1)
+        assert b.high_res.shape == (4, 8, 8, 4, 1)
+
+    assert len(batcher.val_data) == 3
+    for b in batcher.val_data:
+        assert b.low_res.shape == (4, 4, 4, 4, 1)
+        assert b.high_res.shape == (4, 8, 8, 4, 1)
+    batcher.stop()
+
+
+def execute_pytest(capture='all', flags='-rapP'):
+    """Execute module as pytest with detailed summary report.
+
+    Parameters
+    ----------
+    capture : str
+        Log or stdout/stderr capture option. ex: log (only logger),
+        all (includes stdout/stderr)
+    flags : str
+        Which tests to show logs and results for.
+    """
+
+    fname = os.path.basename(__file__)
+    pytest.main(['-q', '--show-capture={}'.format(capture), fname, flags])
+
+
 if __name__ == '__main__':
-    test_batch_queue()
-    test_bad_enhancement_factors()
+    execute_pytest()
