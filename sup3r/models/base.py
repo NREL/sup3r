@@ -251,9 +251,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             logger.error(msg)
             raise RuntimeError(msg) from e
 
-        out = out.numpy()
-
-        return out
+        return out.numpy()
 
     @tf.function
     def _tf_discriminate(self, hi_res):
@@ -349,7 +347,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         config_optm_g = self.get_optimizer_config(self.optimizer)
         config_optm_d = self.get_optimizer_config(self.optimizer_disc)
 
-        model_params = {
+        return {
             'name': self.name,
             'loss': self.loss_name,
             'version_record': self.version_record,
@@ -360,8 +358,6 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             'meta': self.meta,
             'default_device': self.default_device,
         }
-
-        return model_params
 
     @property
     def weights(self):
@@ -442,10 +438,9 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
 
         if val < update_bounds[0]:
             return 1 + update_frac
-        elif val > update_bounds[1]:
+        if val > update_bounds[1]:
             return 1 / (1 + update_frac)
-        else:
-            return 1
+        return 1
 
     @tf.function
     def calc_loss_gen_content(self, hi_res_true, hi_res_gen):
@@ -466,9 +461,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             hi res ground truth to the hi res synthetically generated output.
         """
         hi_res_gen = self._combine_loss_input(hi_res_true, hi_res_gen)
-        loss_gen_content = self.loss_fun(hi_res_true, hi_res_gen)
-
-        return loss_gen_content
+        return self.loss_fun(hi_res_true, hi_res_gen)
 
     @staticmethod
     @tf.function
@@ -493,9 +486,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         # loss because of the opposite optimization goal
         loss_gen_advers = tf.nn.sigmoid_cross_entropy_with_logits(
             logits=disc_out_gen, labels=tf.ones_like(disc_out_gen))
-        loss_gen_advers = tf.reduce_mean(loss_gen_advers)
-
-        return loss_gen_advers
+        return tf.reduce_mean(loss_gen_advers)
 
     @staticmethod
     @tf.function
@@ -528,9 +519,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
 
         loss_disc = tf.nn.sigmoid_cross_entropy_with_logits(logits=logits,
                                                             labels=labels)
-        loss_disc = tf.reduce_mean(loss_disc)
-
-        return loss_disc
+        return tf.reduce_mean(loss_disc)
 
     @tf.function
     def calc_loss(self,
@@ -802,11 +791,10 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
     def check_batch_handler_attrs(batch_handler):
         """Not all batch handlers have the following attributes. So we perform
         some sanitation before sending to `set_model_params`"""
-        params = {k: getattr(batch_handler, k, None) for k in
-                  ['smoothing', 'lr_features', 'hr_exo_features',
-                   'hr_out_features', 'smoothed_features']
-                  if hasattr(batch_handler, k)}
-        return params
+        return {k: getattr(batch_handler, k, None) for k in
+                ['smoothing', 'lr_features', 'hr_exo_features',
+                 'hr_out_features', 'smoothed_features']
+                if hasattr(batch_handler, k)}
 
     def train(self,
               batch_handler,

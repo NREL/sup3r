@@ -4,8 +4,9 @@ import logging
 import threading
 import time
 from abc import ABC, abstractmethod
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
+import numpy as np
 import tensorflow as tf
 from rex import safe_json_load
 
@@ -40,25 +41,85 @@ class Batch:
         return len(self.low_res)
 
 
-class AbstractBatchBuilder(SamplerCollection, ABC):
-    """Collection with additional methods for collecting sampler data into
-    batches and preparing batches for training."""
+class AbstractBatchQueue(SamplerCollection, ABC):
+    """Abstract BatchQueue class. This class gets batches from a dataset
+    generator and maintains a queue of normalized batches in a dedicated thread
+    so the training routine can proceed as soon as batches as available."""
+
+    BATCH_CLASS = Batch
 
     def __init__(
         self,
         containers: List[Sampler],
+        batch_size,
+        n_batches,
         s_enhance,
         t_enhance,
-        batch_size,
-        max_workers,
+        means: Union[Dict, str],
+        stds: Union[Dict, str],
+        queue_cap: Optional[int] = None,
+        max_workers: Optional[int] = None,
+        default_device: Optional[str] = None,
     ):
-        super().__init__(containers, s_enhance, t_enhance)
+        """
+        Parameters
+        ----------
+        containers : List[Sampler]
+            List of Sampler instances
+        batch_size : int
+            Number of observations / samples in a batch
+        n_batches : int
+            Number of batches in an epoch, this sets the iteration limit for
+            this object.
+        s_enhance : int
+            Integer factor by which the spatial axes is to be enhanced.
+        t_enhance : int
+            Integer factor by which the temporal axes is to be enhanced.
+        means : Union[Dict, str]
+            Either a .json path containing a dictionary or a dictionary of
+            means which will be used to normalize batches as they are built.
+            Provide a dictionary of zeros to run without normalization.
+        stds : Union[Dict, str]
+            Either a .json path containing a dictionary or a dictionary of
+            standard deviations which will be used to normalize batches as they
+            are built. Provide a dictionary of ones to run without
+            normalization.
+        queue_cap : int
+            Maximum number of batches the batch queue can store.
+        max_workers : int
+            Number of workers / threads to use for getting samples used to
+            build batches.
+        default_device : str
+            Default device to use for batch queue (e.g. /cpu:0, /gpu:0). If
+            None this will use the first GPU if GPUs are available otherwise
+            the CPU.
+        """
+        super().__init__(
+            containers=containers, s_enhance=s_enhance, t_enhance=t_enhance
+        )
         self._sample_counter = 0
         self._batch_counter = 0
         self._data = None
         self._batches = None
+        self._stopped = threading.Event()
+        self.means = (
+            means if isinstance(means, dict) else safe_json_load(means)
+        )
+        self.stds = stds if isinstance(stds, dict) else safe_json_load(stds)
+        self.container_index = self.get_container_index()
+        self.container_weights = self.get_container_weights()
         self.batch_size = batch_size
-        self.max_workers = max_workers
+        self.n_batches = n_batches
+        self.queue_cap = queue_cap or n_batches
+        self.queue_thread = threading.Thread(target=self.enqueue_batches)
+        self.queue = self.get_queue()
+        self.max_workers = max_workers or batch_size
+        self.gpu_list = tf.config.list_physical_devices('GPU')
+        self.default_device = (
+            default_device or '/cpu:0'
+            if len(self.gpu_list) == 0
+            else self.gpu_list[0]
+        )
 
     @property
     def batches(self):
@@ -69,7 +130,7 @@ class AbstractBatchBuilder(SamplerCollection, ABC):
 
     def generator(self):
         """Generator over batches, which are composed of data samples."""
-        while True:
+        while True and not self._stopped.is_set():
             idx = self._sample_counter
             self._sample_counter += 1
             yield self[idx]
@@ -78,7 +139,10 @@ class AbstractBatchBuilder(SamplerCollection, ABC):
     def get_output_signature(
         self,
     ) -> Union[Tuple[tf.TensorSpec, tf.TensorSpec], tf.TensorSpec]:
-        """Get output signature used to define tensorflow dataset."""
+        """Get tensorflow dataset output signature. If we are sampling from
+        container pairs then this is a tuple for low / high res batches.
+        Otherwise we are just getting high res batches and coarsening to get
+        the corresponding low res batches."""
 
     @property
     def data(self):
@@ -103,61 +167,13 @@ class AbstractBatchBuilder(SamplerCollection, ABC):
 
     def prefetch(self):
         """Prefetch set of batches from dataset generator."""
-        logger.info(
-            f'Prefetching batches with batch_size = {self.batch_size}.'
-        )
-        data = self._parallel_map()
-        data = data.prefetch(tf.data.experimental.AUTOTUNE)
-        batches = data.batch(self.batch_size)
+        logger.info(f'Prefetching {self.queue.name} batches with '
+                    f'batch_size = {self.batch_size}.')
+        with tf.device(self.default_device):
+            data = self._parallel_map()
+            data = data.prefetch(tf.data.experimental.AUTOTUNE)
+            batches = data.batch(self.batch_size)
         return batches.as_numpy_iterator()
-
-
-class AbstractBatchQueue(AbstractBatchBuilder, ABC):
-    """Abstract BatchQueue class. This class gets batches from a dataset
-    generator and maintains a queue of normalized batches in a dedicated thread
-    so the training routine can proceed as soon as batches as available."""
-
-    BATCH_CLASS = Batch
-
-    def __init__(
-        self,
-        containers: List[Sampler],
-        s_enhance,
-        t_enhance,
-        batch_size,
-        n_batches,
-        queue_cap,
-        max_workers,
-    ):
-        """
-        Parameters
-        ----------
-        containers : List[Sampler]
-            List of Sampler instances
-        s_enhance : int
-            Integer factor by which the spatial axes is to be enhanced.
-        t_enhance : int
-            Integer factor by which the temporal axes is to be enhanced.
-        batch_size : int
-            Number of observations / samples in a batch
-        n_batches : int
-            Number of batches in an epoch, this sets the iteration limit for
-            this object.
-        queue_cap : int
-            Maximum number of batches the batch queue can store.
-        max_workers : int
-            Number of workers / threads to use for getting samples used to
-            build batches.
-        """
-        super().__init__(
-            containers, s_enhance, t_enhance, batch_size, max_workers
-        )
-        self._batch_counter = 0
-        self._training = False
-        self.n_batches = n_batches
-        self.queue_cap = queue_cap
-        self.queue_thread = threading.Thread(target=self.enqueue_batches)
-        self.queue = self.get_queue()
 
     def _get_queue_shape(self) -> List[tuple]:
         """Get shape for queue. For SamplerPair containers shape is a list of
@@ -173,7 +189,7 @@ class AbstractBatchQueue(AbstractBatchBuilder, ABC):
             shape = [(self.batch_size, *self.sample_shape, len(self.features))]
         return shape
 
-    def get_queue(self):
+    def get_queue(self, name='training'):
         """Initialize FIFO queue for storing batches.
 
         Returns
@@ -183,14 +199,15 @@ class AbstractBatchQueue(AbstractBatchBuilder, ABC):
         """
         shapes = self._get_queue_shape()
         dtypes = [tf.float32] * len(shapes)
-        queue = tf.queue.FIFOQueue(
+        out = tf.queue.FIFOQueue(
             self.queue_cap, dtypes=dtypes, shapes=self._get_queue_shape()
         )
-        return queue
+        out._name = name
+        return out
 
     @abstractmethod
     def batch_next(self, samples):
-        """Returns wrapped collection of samples / observations. Performs
+        """Returns normalized collection of samples / observations. Performs
         coarsening on high-res data if Collection objects are Samplers and not
         SamplerPairs
 
@@ -203,7 +220,7 @@ class AbstractBatchQueue(AbstractBatchBuilder, ABC):
     def start(self) -> None:
         """Start thread to keep sample queue full for batches."""
         logger.info(f'Running {self.__class__.__name__}.queue_thread.start()')
-        self._is_training = True
+        self._stopped.clear()
         self.queue_thread.start()
 
     def join(self) -> None:
@@ -213,7 +230,7 @@ class AbstractBatchQueue(AbstractBatchBuilder, ABC):
 
     def stop(self) -> None:
         """Stop loading batches."""
-        self._is_training = False
+        self._stopped.set()
         self.join()
 
     def __len__(self):
@@ -227,10 +244,12 @@ class AbstractBatchQueue(AbstractBatchBuilder, ABC):
         """Callback function for queue thread. While training the queue is
         checked for empty spots and filled. In the training thread, batches are
         removed from the queue."""
-        while self._is_training:
-            queue_size = self.queue.size().numpy()
-            if queue_size < self.queue_cap:
-                logger.info(f'{queue_size} batches in queue.')
+        while not self._stopped.is_set():
+            if self.queue.size().numpy() < self.queue_cap:
+                logger.info(
+                    f'{self.queue.size().numpy()} batch(es) in '
+                    f'{self.queue.name} queue.'
+                )
                 self.queue.enqueue(next(self.batches))
 
     def get_next(self) -> Batch:
@@ -243,8 +262,12 @@ class AbstractBatchQueue(AbstractBatchBuilder, ABC):
             Batch object with batch.low_res and batch.high_res attributes
         """
         samples = self.queue.dequeue()
-        batch = self.batch_next(samples)
-        return batch
+
+        # batches for spatial model have no time dimension
+        if self.hr_sample_shape[2] == 1:
+            samples = samples[..., 0, :]
+
+        return self.batch_next(samples)
 
     def __next__(self) -> Batch:
         """
@@ -255,99 +278,49 @@ class AbstractBatchQueue(AbstractBatchBuilder, ABC):
         """
         if self._batch_counter < self.n_batches:
             logger.info(
-                f'Getting next batch: {self._batch_counter + 1} / '
-                f'{self.n_batches}'
+                f'Getting next {self.queue.name} batch: '
+                f'{self._batch_counter + 1} / {self.n_batches}.'
             )
             start = time.time()
             batch = self.get_next()
-            logger.info(f'Built batch in {time.time() - start}.')
+            logger.info(
+                f'Built {self.queue.name} batch in ' f'{time.time() - start}.'
+            )
             self._batch_counter += 1
         else:
             raise StopIteration
 
         return batch
 
-    @abstractmethod
-    def get_output_signature(self):
-        """Get tensorflow dataset output signature. If we are sampling from
-        container pairs then this is a tuple for low / high res batches.
-        Otherwise we are just getting high res batches and coarsening to get
-        the corresponding low res batches."""
+    @property
+    def lr_means(self):
+        """Means specific to the low-res objects in the Containers."""
+        return np.array([self.means[k] for k in self.lr_features])
 
+    @property
+    def hr_means(self):
+        """Means specific the high-res objects in the Containers."""
+        return np.array([self.means[k] for k in self.hr_features])
 
-class AbstractNormedBatchQueue(AbstractBatchQueue):
-    """Abstract NormedBatchQueue class. This extends the BatchQueue class to
-    require implementation of `normalize` and `means`, `stds` constructor
-    args."""
+    @property
+    def lr_stds(self):
+        """Stdevs specific the low-res objects in the Containers."""
+        return np.array([self.stds[k] for k in self.lr_features])
 
-    def __init__(
-        self,
-        containers: List[Sampler],
-        s_enhance,
-        t_enhance,
-        batch_size,
-        n_batches,
-        queue_cap,
-        means: Union[Dict, str],
-        stds: Union[Dict, str],
-        max_workers=None,
-    ):
-        """
-        Parameters
-        ----------
-        containers : List[Sampler]
-            List of Sampler instances
-        s_enhance : int
-            Integer factor by which the spatial axes is to be enhanced.
-        t_enhance : int
-            Integer factor by which the temporal axes is to be enhanced.
-        batch_size : int
-            Number of observations / samples in a batch
-        n_batches : int
-            Number of batches in an epoch, this sets the iteration limit for
-            this object.
-        queue_cap : int
-            Maximum number of batches the batch queue can store.
-        means : Union[Dict, str]
-            Either a .json path containing a dictionary or a dictionary of
-            means which will be used to normalize batches as they are built.
-        stds : Union[Dict, str]
-            Either a .json path containing a dictionary or a dictionary of
-            standard deviations which will be used to normalize batches as they
-            are built.
-        max_workers : int
-            Number of workers / threads to use for getting samples used to
-            build batches.
-        """
-        super().__init__(
-            containers,
-            s_enhance,
-            t_enhance,
-            batch_size,
-            n_batches,
-            queue_cap,
-            max_workers,
-        )
-        self.means = (
-            means if isinstance(means, dict) else safe_json_load(means)
-        )
-        self.stds = stds if isinstance(stds, dict) else safe_json_load(stds)
-        self.container_index = self.get_container_index()
-        self.container_weights = self.get_container_weights()
-        self.max_workers = max_workers or self.batch_size
+    @property
+    def hr_stds(self):
+        """Stdevs specific the high-res objects in the Containers."""
+        return np.array([self.stds[k] for k in self.hr_features])
 
     @staticmethod
     def _normalize(array, means, stds):
         """Normalize an array with given means and stds."""
         return (array - means) / stds
 
-    @abstractmethod
-    def normalize(self, samples):
-        """Normalize batch before sending out for training."""
-
-    def get_next(self, **kwargs):
-        """Get next batch of samples."""
-        samples = self.queue.dequeue()
-        samples = self.normalize(samples)
-        batch = self.batch_next(samples, **kwargs)
-        return batch
+    def normalize(self, lr, hr) -> Tuple[np.ndarray, np.ndarray]:
+        """Normalize a low-res / high-res pair with the stored means and
+        stdevs."""
+        return (
+            self._normalize(lr, self.lr_means, self.lr_stds),
+            self._normalize(hr, self.hr_means, self.hr_stds),
+        )

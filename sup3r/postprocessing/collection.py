@@ -424,7 +424,7 @@ class CollectorH5(BaseCollector):
         if max_workers == 1:
             for i, fn in enumerate(file_paths):
                 meta[i], time_index[i] = self._get_file_attrs(fn)
-                logger.debug(f'{i+1} / {len(file_paths)} files finished')
+                logger.debug(f'{i + 1} / {len(file_paths)} files finished')
         else:
             futures = {}
             with ThreadPoolExecutor(max_workers=max_workers) as exe:

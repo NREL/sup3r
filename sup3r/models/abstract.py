@@ -163,10 +163,9 @@ class AbstractInterface(ABC):
         # pylint: disable=E1101
         if hasattr(self, '_gen'):
             return self._gen.layers[0].rank
-        elif hasattr(self, 'models'):
+        if hasattr(self, 'models'):
             return self.models[0].input_dims
-        else:
-            return 5
+        return 5
 
     @property
     def is_5d(self):
@@ -468,8 +467,7 @@ class AbstractInterface(ABC):
         -------
         dict
         """
-        model_params = {'meta': self.meta}
-        return model_params
+        return {'meta': self.meta}
 
     @property
     def version_record(self):
@@ -1380,9 +1378,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         if un_norm_out and self._means is not None:
             hi_res = self.un_norm_output(hi_res)
 
-        hi_res = self._combine_fwp_output(hi_res, exogenous_data)
-
-        return hi_res
+        return self._combine_fwp_output(hi_res, exogenous_data)
 
     @tf.function
     def _tf_generate(self, low_res, hi_res_exo=None):

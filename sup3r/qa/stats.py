@@ -413,7 +413,7 @@ class Sup3rStatsCompute(Sup3rStatsBase):
                 )
                 mem = psutil.virtual_memory()
                 logger.info(
-                    f'Finished interpolating {i+1} / {len(slices)} '
+                    f'Finished interpolating {i + 1} / {len(slices)} '
                     'chunks. Current memory usage is '
                     f'{mem.used / 1e9:.3f} GB out of '
                     f'{mem.total / 1e9:.3f} GB total.'

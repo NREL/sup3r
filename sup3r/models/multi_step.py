@@ -188,11 +188,8 @@ class MultiStepGan(AbstractInterface):
 
         hi_res = low_res.copy()
         for i, model in enumerate(self.models):
-            # pylint: disable=R1719
-            i_norm_in = False if (i == 0 and not norm_in) else True
-            i_un_norm_out = (False
-                             if (i + 1 == len(self.models) and not un_norm_out)
-                             else True)
+            i_norm_in = not (i == 0 and not norm_in)
+            i_un_norm_out = not (i + 1 == len(self.models) and not un_norm_out)
 
             i_exo_data = (None if exogenous_data is None
                           else exogenous_data.get_model_step_exo(i))

@@ -32,8 +32,7 @@ def get_handler_weights(data_handlers):
     relative sizes"""
     sizes = [dh.size for dh in data_handlers]
     weights = sizes / np.sum(sizes)
-    weights = weights.astype(np.float32)
-    return weights
+    return weights.astype(np.float32)
 
 
 class Timer:
@@ -106,8 +105,7 @@ def generate_random_string(length):
     """Generate random string with given length. Used for naming temporary
     files to avoid collisions."""
     letters = string.ascii_letters
-    random_string = ''.join(random.choice(letters) for i in range(length))
-    return random_string
+    return ''.join(random.choice(letters) for i in range(length))
 
 
 def windspeed_log_law(z, a, b, c):
@@ -153,8 +151,7 @@ def get_time_dim_name(filepath):
         time_key = list({'time', 'Time'}.intersection(valid_vars))
     if len(time_key) > 0:
         return time_key[0]
-    else:
-        return 'time'
+    return 'time'
 
 
 def correct_path(path):
@@ -190,8 +187,7 @@ def estimate_max_workers(max_workers, process_mem, n_processes):
         max_workers = np.min([max_workers, n_processes, cpu_count])
     else:
         max_workers = 1
-    max_workers = int(np.max([max_workers, 1]))
-    return max_workers
+    return int(np.max([max_workers, 1]))
 
 
 def round_array(arr, digits=3):
@@ -418,7 +414,7 @@ def weighted_time_sampler(data_shape, sample_shape, weights):
     return slice(start, stop)
 
 
-def uniform_time_sampler(data_shape, sample_shape):
+def uniform_time_sampler(data_shape, sample_shape, crop_slice=slice(None)):
     """Returns temporal slice used to extract temporal chunk from data.
 
     Parameters
@@ -428,6 +424,8 @@ def uniform_time_sampler(data_shape, sample_shape):
         for sampling
     sample_shape : int
         (time_steps) Size of time slice to sample from data grid
+    crop_slice : slice
+        Optional slice used to restrict the sampling window.
 
     Returns
     -------
@@ -435,7 +433,8 @@ def uniform_time_sampler(data_shape, sample_shape):
         time slice with size shape
     """
     shape = data_shape[2] if data_shape[2] < sample_shape else sample_shape
-    start = np.random.randint(0, data_shape[2] - sample_shape + 1)
+    indices = np.arange(data_shape[2] + 1)[crop_slice]
+    start = np.random.randint(indices[0], indices[-1] - sample_shape + 1)
     stop = start + shape
     return slice(start, stop)
 
@@ -483,9 +482,7 @@ def daily_time_sampler(data, shape, time_index):
     start = midnight_ilocs[start]
     stop = start + shape
 
-    tslice = slice(start, stop)
-
-    return tslice
+    return slice(start, stop)
 
 
 def nsrdb_sub_daily_sampler(data, shape, time_index, csr_ind=0):
@@ -528,14 +525,12 @@ def nsrdb_sub_daily_sampler(data, shape, time_index, csr_ind=0):
         warn(msg)
         return tslice
 
-    else:
-        day_ilocs = np.where(~night_mask)[0]
-        padding = shape - len(day_ilocs)
-        half_pad = int(np.round(padding / 2))
-        new_start = tslice.start + day_ilocs[0] - half_pad
-        new_end = new_start + shape
-        tslice = slice(new_start, new_end)
-        return tslice
+    day_ilocs = np.where(~night_mask)[0]
+    padding = shape - len(day_ilocs)
+    half_pad = int(np.round(padding / 2))
+    new_start = tslice.start + day_ilocs[0] - half_pad
+    new_end = new_start + shape
+    return slice(new_start, new_end)
 
 
 def nsrdb_reduce_daily_data(data, shape, csr_ind=0):
@@ -572,14 +567,13 @@ def nsrdb_reduce_daily_data(data, shape, csr_ind=0):
         warn(msg)
         return data
 
-    else:
-        day_ilocs = np.where(~night_mask)[0]
-        padding = shape - len(day_ilocs)
-        half_pad = int(np.round(padding / 2))
-        start = day_ilocs[0] - half_pad
-        end = start + shape
-        tslice = slice(start, end)
-        return data[:, :, :, tslice, :]
+    day_ilocs = np.where(~night_mask)[0]
+    padding = shape - len(day_ilocs)
+    half_pad = int(np.round(padding / 2))
+    start = day_ilocs[0] - half_pad
+    end = start + shape
+    tslice = slice(start, end)
+    return data[:, :, :, tslice, :]
 
 
 def transform_rotate_wind(ws, wd, lat_lon):
@@ -871,8 +865,7 @@ def daily_temporal_coarsening(data, temporal_axis=3):
         temporal dimension is size 1
     """
     coarse_data = np.nansum(data, axis=temporal_axis) / 24
-    coarse_data = np.expand_dims(coarse_data, axis=temporal_axis)
-    return coarse_data
+    return np.expand_dims(coarse_data, axis=temporal_axis)
 
 
 def smooth_data(low_res, training_features, smoothing_ignore, smoothing=None):
@@ -1370,8 +1363,7 @@ def nn_fill_array(array):
     indices = nd.distance_transform_edt(
         nan_mask, return_distances=False, return_indices=True
     )
-    array = array[tuple(indices)]
-    return array
+    return array[tuple(indices)]
 
 
 def ignore_case_path_fetch(fp):
@@ -1462,8 +1454,7 @@ def rotor_equiv_ws(data, heights):
         ws_cos_1 = np.cos(np.radians(wd_1)) * ws_1
         rews += areas[i] * (ws_cos_0 + ws_cos_1) ** 3
 
-    rews = 0.5 * np.cbrt(rews)
-    return rews
+    return 0.5 * np.cbrt(rews)
 
 
 def get_source_type(file_paths):
@@ -1494,8 +1485,7 @@ def get_source_type(file_paths):
 
     if source_type == '.h5':
         return 'h5'
-    else:
-        return 'nc'
+    return 'nc'
 
 
 def get_input_handler_class(file_paths, input_handler_name):
@@ -1566,8 +1556,7 @@ def np_to_pd_times(times):
     """
     tmp = [t.decode('utf-8') for t in times.flatten()]
     tmp = [' '.join(t.split('_')) for t in tmp]
-    tmp = pd.DatetimeIndex(tmp)
-    return tmp
+    return pd.DatetimeIndex(tmp)
 
 
 def pd_date_range(*args, **kwargs):
@@ -1636,9 +1625,7 @@ def st_interp(low, s_enhance, t_enhance, t_centered=False):
 
     # perform interp
     X, Y, T = np.meshgrid(new_x, new_y, new_t)
-    out = interp((Y, X, T))
-
-    return out
+    return interp((Y, X, T))
 
 
 def vorticity_calc(u, v, scale=1):

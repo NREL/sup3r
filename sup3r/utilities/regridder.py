@@ -274,16 +274,14 @@ class Regridder:
         """Get name of cache indices file"""
         if self.cache_pattern is not None:
             return self.cache_pattern.format(array_name='indices')
-        else:
-            return None
+        return None
 
     @property
     def distance_file(self):
         """Get name of cache distances file"""
         if self.cache_pattern is not None:
             return self.cache_pattern.format(array_name='distances')
-        else:
-            return None
+        return None
 
     def get_spatial_chunk(self, s_slice):
         """Get list of coordinates in target_meta specified by the given

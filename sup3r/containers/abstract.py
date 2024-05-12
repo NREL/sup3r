@@ -6,9 +6,28 @@ from abc import ABC, abstractmethod
 
 class DataObject(ABC):
     """Lowest level object. This is the thing contained by Container
-    classes."""
+    classes. It just has `__getitem__`, `.shape`, and `.features` methods"""
 
-    def __init__(self):
+    @abstractmethod
+    def __getitem__(self, key):
+        """Method for accessing self.data."""
+
+    @property
+    @abstractmethod
+    def shape(self):
+        """Shape of raw data"""
+
+    @property
+    @abstractmethod
+    def features(self):
+        """Features in raw data"""
+
+
+class AbstractContainer(DataObject, ABC):
+    """Very basic thing _containing_ a data object."""
+
+    def __init__(self, obj: DataObject):
+        self.obj = obj
         self._data = None
         self._features = None
         self._shape = None
@@ -45,15 +64,3 @@ class DataObject(ABC):
     def features(self, features):
         """Set the features in the data object."""
         self._features = features
-
-    @abstractmethod
-    def __getitem__(self, key):
-        """Method for accessing self.data."""
-
-
-class AbstractContainer(DataObject, ABC):
-    """Very basic thing _containing_ a data object."""
-
-    def __init__(self, obj: DataObject):
-        super().__init__()
-        self.obj = obj

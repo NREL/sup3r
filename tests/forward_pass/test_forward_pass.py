@@ -8,16 +8,16 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 import xarray as xr
+from helpers.utils import (
+    make_fake_multi_time_nc_files,
+    make_fake_nc_files,
+)
 from rex import ResourceX, init_logger
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR, __version__
 from sup3r.models import Sup3rGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.preprocessing import DataHandlerNC
-from sup3r.utilities.pytest import (
-    make_fake_multi_time_nc_files,
-    make_fake_nc_files,
-)
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)

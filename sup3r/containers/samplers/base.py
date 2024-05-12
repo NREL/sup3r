@@ -95,10 +95,9 @@ class SamplerPair(ContainerPair, AbstractSampler):
     @property
     def lr_only_features(self):
         """Features to use for training only and not output"""
-        tof = [fn for fn in self.lr_container.features
+        return [fn for fn in self.lr_container.features
                if fn not in self.hr_out_features
                and fn not in self.hr_exo_features]
-        return tof
 
     @property
     def lr_features(self):

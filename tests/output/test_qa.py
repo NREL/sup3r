@@ -7,6 +7,7 @@ import tempfile
 import numpy as np
 import pandas as pd
 import xarray as xr
+from helpers.utils import make_fake_nc_files
 from rex import Resource, init_logger
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
@@ -15,7 +16,6 @@ from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.qa.qa import Sup3rQa
 from sup3r.qa.stats import Sup3rStatsMulti
 from sup3r.qa.utilities import continuous_dist
-from sup3r.utilities.pytest import make_fake_nc_files
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)

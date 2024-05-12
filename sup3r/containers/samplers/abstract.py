@@ -6,6 +6,7 @@ import logging
 from abc import ABC, abstractmethod
 from fnmatch import fnmatch
 from typing import List, Tuple
+from warnings import warn
 
 from sup3r.containers.base import Container
 from sup3r.containers.collections.base import Collection
@@ -40,12 +41,37 @@ class AbstractSampler(Container, ABC):
         self._lr_only_features = lr_only_features
         self._hr_exo_features = hr_exo_features
         self._counter = 0
-        self._sample_shape = sample_shape
+        self.sample_shape = sample_shape
+        self.preflight()
 
     @abstractmethod
     def get_sample_index(self):
         """Get index used to select sample from contained data. e.g.
         self[index]."""
+
+    def preflight(self):
+        """Check if the sample_shape is larger than the requested raster
+        size"""
+        bad_shape = (self.sample_shape[0] > self.shape[0]
+                     and self.sample_shape[1] > self.shape[1])
+        if bad_shape:
+            msg = (f'spatial_sample_shape {self.sample_shape[:2]} is '
+                   f'larger than the raster size {self.shape[:2]}')
+            logger.warning(msg)
+            warn(msg)
+
+        if len(self.sample_shape) == 2:
+            logger.info(
+                'Found 2D sample shape of {}. Adding temporal dim of 1'.format(
+                    self.sample_shape))
+            self.sample_shape = (*self.sample_shape, 1)
+
+        msg = (f'sample_shape[2] ({self.sample_shape[2]}) cannot be larger '
+               'than the number of time steps in the raw data '
+               f'({self.shape[2]}).')
+        if self.shape[2] < self.sample_shape[2]:
+            logger.warning(msg)
+            warn(msg)
 
     def get_next(self):
         """Get "next" thing in the container. e.g. data observation or batch of
@@ -55,6 +81,18 @@ class AbstractSampler(Container, ABC):
     @property
     def sample_shape(self) -> Tuple:
         """Shape of the data sample to select when `get_next()` is called."""
+        return self._sample_shape
+
+    @sample_shape.setter
+    def sample_shape(self, sample_shape):
+        """Set the shape of the data sample to select when `get_next()` is
+        called."""
+        self._sample_shape = sample_shape
+
+    @property
+    def hr_sample_shape(self) -> Tuple:
+        """Shape of the data sample to select when `get_next()` is called. Same
+        as sample_shape"""
         return self._sample_shape
 
     def __next__(self):

@@ -7,15 +7,13 @@ from typing import ClassVar
 import numpy as np
 
 from sup3r.preprocessing.data_handling.base import DataHandler
-from sup3r.preprocessing.feature_handling import (
+from sup3r.preprocessing.derived_features import (
     BVFreqMon,
     BVFreqSquaredNC,
     InverseMonNC,
     LatLonNC,
     PotentialTempNC,
     PressureNC,
-    Rews,
-    Shear,
     TempNC,
     UWind,
     VWind,
@@ -33,6 +31,7 @@ np.random.seed(42)
 
 logger = logging.getLogger(__name__)
 
+
 # pylint: disable=W0223
 class DataHandlerDC(DataHandler):
     """Data-centric data handler"""
@@ -46,8 +45,6 @@ class DataHandlerDC(DataHandler):
         'Windspeed_(.*)m': WindspeedNC,
         'Winddirection_(.*)m': WinddirectionNC,
         'lat_lon': LatLonNC,
-        'Shear_(.*)m': Shear,
-        'REWS_(.*)m': Rews,
         'Temperature_(.*)m': TempNC,
         'Pressure_(.*)m': PressureNC,
         'PotentialTemp_(.*)m': PotentialTempNC,
@@ -113,5 +110,4 @@ class DataHandlerDC(DataHandler):
         """
         self.current_obs_index = self.get_observation_index(
             temporal_weights=temporal_weights, spatial_weights=spatial_weights)
-        observation = self.data[self.current_obs_index]
-        return observation
+        return self.data[self.current_obs_index]
