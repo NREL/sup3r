@@ -24,6 +24,7 @@ classifiers=[
   "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
 ]
 dependencies = [
   "NREL-rex>=0.2.84",
@@ -31,7 +32,6 @@ dependencies = [
   "NREL-gaps>=0.6.0",
   "NREL-farms>=1.0.4",
   "dask>=2022.0",
-  "google-auth-oauthlib==0.5.3",
   "h5netcdf>=1.1.0",
   "cftime>=1.6.2",
   "matplotlib>=3.1",
@@ -113,3 +113,47 @@ packages = ["sup3r"]
 
 [tool.setuptools_scm]
 version_file = "sup3r/_version.py"
+
+[tool.pixi.project]
+channels = ["conda-forge", "anaconda", "main"]
+platforms = ["osx-arm64", "linux-64"]
+
+[tool.pixi.dependencies]
+python = "==3.11"
+cftime = ">=1.6.2"
+dask = ">=2022.0"
+h5netcdf = ">=1.1.0"
+pillow = ">=10.0"
+matplotlib = ">=3.1"
+numpy = ">=1.7.0"
+pandas = ">=2.0"
+scipy = ">=1.0.0"
+tensorflow = ">2.4,<2.16"
+xarray = ">=2023.0"
+
+[tool.pixi.pypi-dependencies]
+NREL-sup3r = { path = ".", editable = true }
+NREL-rex = { version = ">=0.2.84" }
+NREL-phygnn = { version = ">=0.0.23" }
+NREL-gaps = { version = ">=0.6.0" }
+NREL-farms = { version = ">=1.0.4" }
+
+[tool.pixi.environments]
+default = { solve-group = "default" }
+dev = { features = ["dev", "doc", "test"], solve-group = "default" }
+doc = { features = ["doc"], solve-group = "default" }
+test = { features = ["test"], solve-group = "default" }
+
+[tool.pixi.tasks]
+
+[tool.pixi.feature.doc.dependencies]
+sphinx = ">=7.0"
+sphinx_rtd_theme = ">=2.0"
+
+[tool.pixi.feature.test.dependencies]
+pytest = ">=5.2"
+
+[tool.pixi.feature.dev.dependencies]
+build = ">=0.6"
+twine = ">=5.0"
+ruff = ">=0.2"
