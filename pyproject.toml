@@ -115,7 +115,6 @@ platforms = ["osx-arm64", "linux-64"]
 
 [tool.pixi.dependencies]
 python = "==3.11"
-netcdf4 = ">=1.5.8"
 cftime = ">=1.6.2"
 dask = ">=2022.0"
 h5netcdf = ">=1.1.0"
