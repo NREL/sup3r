@@ -497,7 +497,7 @@ def local_qdm_bc(data: np.array,
         spatial_slice = (lr_padded_slice[0], lr_padded_slice[1])
         base = base[spatial_slice]
         bias = bias[spatial_slice]
-        bias_fut = bias[spatial_slice]
+        bias_fut = bias_fut[spatial_slice]
 
     if no_trend:
         mf = None

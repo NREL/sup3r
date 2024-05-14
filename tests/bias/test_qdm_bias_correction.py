@@ -8,10 +8,12 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from sup3r import TEST_DATA_DIR
+from sup3r import CONFIG_DIR, TEST_DATA_DIR
+from sup3r.models import Sup3rGan
+from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.bias.bias_calc import QuantileDeltaMappingCorrection
 from sup3r.bias.bias_transforms import local_qdm_bc
-from sup3r.preprocessing.data_handling import DataHandlerNC
+from sup3r.preprocessing.data_handling import DataHandlerNC, DataHandlerNCforCC
 
 FP_NSRDB = os.path.join(TEST_DATA_DIR, "test_nsrdb_co_2018.h5")
 FP_CC = os.path.join(TEST_DATA_DIR, "rsds_test.nc")
@@ -359,3 +361,110 @@ def test_bc_trend_same_hist(tmp_path, fp_fut_cc, dist_params):
 
     idx = ~(np.isnan(original) | np.isnan(corrected))
     assert np.allclose(corrected[idx], original[idx])
+
+
+def test_fwp_integration(tmp_path):
+    """Integration of the bias correction method into the forward pass
+
+    Validate two aspects:
+    - We should be able to run a forward pass with unbiased data.
+    - The bias trend should be observed in the predicted output.
+    """
+    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
+    features = ['U_100m', 'V_100m']
+    target = (13.67, 125.0)
+    shape = (8, 8)
+    temporal_slice = slice(None, None, 1)
+    fwp_chunk_shape = (4, 4, 150)
+    input_files = [os.path.join(TEST_DATA_DIR, 'ua_test.nc'),
+                   os.path.join(TEST_DATA_DIR, 'va_test.nc'),
+                   os.path.join(TEST_DATA_DIR, 'orog_test.nc'),
+                   os.path.join(TEST_DATA_DIR, 'zg_test.nc')]
+
+    n_samples = 101
+    quantiles = np.linspace(0, 1, n_samples)
+    params = {}
+    with xr.open_dataset(os.path.join(TEST_DATA_DIR, 'ua_test.nc')) as ds:
+        params['bias_U_100m_params'] = ds['ua'].quantile(quantiles).to_numpy()
+    params['base_Uref_100m_params'] = params['bias_U_100m_params'] - 2.72
+    params['bias_fut_U_100m_params'] = params['bias_U_100m_params']
+    with xr.open_dataset(os.path.join(TEST_DATA_DIR, 'va_test.nc')) as ds:
+        params['bias_V_100m_params'] = ds['va'].quantile(quantiles).to_numpy()
+    params['base_Vref_100m_params'] = params['bias_V_100m_params'] + 2.72
+    params['bias_fut_V_100m_params'] = params['bias_V_100m_params']
+
+    lat_lon = DataHandlerNCforCC(input_files, features=[], target=target,
+                                 shape=shape,
+                                 worker_kwargs={'max_workers': 1}).lat_lon
+
+    Sup3rGan.seed()
+    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+    _ = model.generate(np.ones((4, 10, 10, 6, len(features))))
+    model.meta['lr_features'] = features
+    model.meta['hr_out_features'] = features
+    model.meta['s_enhance'] = 3
+    model.meta['t_enhance'] = 4
+
+    bias_fp = os.path.join(tmp_path, 'bc.h5')
+    out_dir = os.path.join(tmp_path, 'st_gan')
+    model.save(out_dir)
+
+    with h5py.File(bias_fp, "w") as f:
+        f.create_dataset("latitude", data=lat_lon[..., 0])
+        f.create_dataset("longitude", data=lat_lon[..., 1])
+
+        s = lat_lon.shape[:2]
+        for k, v in params.items():
+            f.create_dataset(k, data=np.broadcast_to(v, (*s, v.size)))
+        f.attrs["dist"] = "empirical"
+        f.attrs["sampling"] = "linear"
+        f.attrs["log_base"] = 10
+
+    bias_correct_kwargs = {'U_100m': {'feature_name': 'U_100m',
+                                      'base_dset': 'Uref_100m',
+                                      'bias_fp': bias_fp},
+                           'V_100m': {'feature_name': 'V_100m',
+                                      'base_dset': 'Vref_100m',
+                                      'bias_fp': bias_fp}}
+
+    strat = ForwardPassStrategy(
+        input_files,
+        model_kwargs={'model_dir': out_dir},
+        fwp_chunk_shape=fwp_chunk_shape,
+        spatial_pad=0, temporal_pad=0,
+        input_handler_kwargs=dict(target=target, shape=shape,
+                                  temporal_slice=temporal_slice,
+                                  worker_kwargs=dict(max_workers=1)),
+        out_pattern=os.path.join(tmp_path, 'out_{file_id}.nc'),
+        worker_kwargs=dict(max_workers=1),
+        input_handler='DataHandlerNCforCC')
+    bc_strat = ForwardPassStrategy(
+        input_files,
+        model_kwargs={'model_dir': out_dir},
+        fwp_chunk_shape=fwp_chunk_shape,
+        spatial_pad=0, temporal_pad=0,
+        input_handler_kwargs=dict(target=target, shape=shape,
+                                  temporal_slice=temporal_slice,
+                                  worker_kwargs=dict(max_workers=1)),
+        out_pattern=os.path.join(tmp_path, 'out_{file_id}.nc'),
+        worker_kwargs=dict(max_workers=1),
+        input_handler='DataHandlerNCforCC',
+        bias_correct_method='local_qdm_bc',
+        bias_correct_kwargs=bias_correct_kwargs)
+
+    for ichunk in range(strat.chunks):
+        fwp = ForwardPass(strat, chunk_index=ichunk)
+        bc_fwp = ForwardPass(bc_strat, chunk_index=ichunk)
+
+        delta = bc_fwp.input_data - fwp.input_data
+        assert np.allclose(
+            delta[..., 0], -2.72, atol=1e-03
+        ), "U reference offset is -1"
+        assert np.allclose(
+            delta[..., 1], 2.72, atol=1e-03
+        ), "V reference offset is 1"
+
+        delta = bc_fwp.run_chunk() - fwp.run_chunk()
+        assert delta[..., 0].mean() < 0, "Predicted U should trend <0"
+        assert delta[..., 1].mean() > 0, "Predicted V should trend >0"
