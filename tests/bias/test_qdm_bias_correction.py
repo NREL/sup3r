@@ -250,7 +250,9 @@ def test_qdm_transform_notrend(tmp_path, dist_params):
     same result of a full correction based on data distributions that
     modeled historical is equal to modeled future.
 
-    Note: One possible point of confusion here is that the mf is ignored,
+    Notes
+    -----
+    One possible point of confusion here is that the mf is ignored,
     so it is assumed that mo is the distribution to be representative of the
     target data.
     """

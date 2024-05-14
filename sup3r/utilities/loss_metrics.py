@@ -129,8 +129,9 @@ class MaterialDerivativeLoss(tf.keras.losses.Loss):
     def _derivative(self, x, axis=1):
         """Custom derivative function for compatibility with tensorflow.
 
-        NOTE: Matches np.gradient by using the central difference
-        approximation.
+        Notes
+        -----
+        Matches np.gradient by using the central difference approximation.
 
         Parameters
         ----------
@@ -143,21 +144,20 @@ class MaterialDerivativeLoss(tf.keras.losses.Loss):
             return tf.concat([x[:, 1:2] - x[:, 0:1],
                               (x[:, 2:] - x[:, :-2]) / 2,
                               x[:, -1:] - x[:, -2:-1]], axis=1)
-        elif axis == 2:
+        if axis == 2:
             return tf.concat([x[..., 1:2, :] - x[..., 0:1, :],
                               (x[..., 2:, :] - x[..., :-2, :]) / 2,
                               x[..., -1:, :] - x[..., -2:-1, :]], axis=2)
-        elif axis == 3:
+        if axis == 3:
             return tf.concat([x[..., 1:2] - x[..., 0:1],
                               (x[..., 2:] - x[..., :-2]) / 2,
                               x[..., -1:] - x[..., -2:-1]], axis=3)
 
-        else:
-            msg = (f'{self.__class__.__name__}._derivative received '
-                   f'axis={axis}. This is meant to compute only temporal '
-                   '(axis=3) or spatial (axis=1/2) derivatives for tensors '
-                   'of shape (n_obs, spatial_1, spatial_2, temporal)')
-            raise ValueError(msg)
+        msg = (f'{self.__class__.__name__}._derivative received '
+               f'axis={axis}. This is meant to compute only temporal '
+               '(axis=3) or spatial (axis=1/2) derivatives for tensors '
+               'of shape (n_obs, spatial_1, spatial_2, temporal)')
+        raise ValueError(msg)
 
     def _compute_md(self, x, fidx):
         """Compute material derivative the feature given by the index fidx.

@@ -63,10 +63,8 @@ class Collection(AbstractCollection):
         hr_features = list(self.hr_out_features) + list(self.hr_exo_features)
         if list(self.features) == hr_features:
             return np.arange(len(self.features))
-        else:
-            out = [i for i, feature in enumerate(self.features)
-                   if feature in hr_features]
-            return out
+        return [i for i, feature in enumerate(self.features)
+                if feature in hr_features]
 
     @property
     def hr_features(self):

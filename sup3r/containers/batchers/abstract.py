@@ -245,11 +245,13 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         checked for empty spots and filled. In the training thread, batches are
         removed from the queue."""
         while not self._stopped.is_set():
-            if self.queue.size().numpy() < self.queue_cap:
-                logger.info(
-                    f'{self.queue.size().numpy()} batch(es) in '
-                    f'{self.queue.name} queue.'
-                )
+            queue_size = self.queue.size().numpy()
+            if queue_size < self.queue_cap:
+                if queue_size == 1:
+                    msg = f'1 batch in {self.queue.name} queue'
+                else:
+                    msg = f'{queue_size} batches in {self.queue.name} queue.'
+                logger.info(msg)
                 self.queue.enqueue(next(self.batches))
 
     def get_next(self) -> Batch:

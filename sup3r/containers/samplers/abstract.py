@@ -22,7 +22,7 @@ class AbstractSampler(Container, ABC):
         """
         Parameters
         ----------
-        data : DataObject
+        data : Container
             Object with data that will be sampled from.
         data_shape : tuple
             Size of extent available for sampling

@@ -581,10 +581,7 @@ def local_qdm_bc(data: np.ndarray,
         mf = bias_fut[:, :, window_idx]
 
         # This satisfies the rex's QDM design
-        if no_trend:
-            mf = None
-        else:
-            mf = mf.reshape(-1, mf.shape[-1])
+        mf = None if no_trend else mf.reshape(-1, mf.shape[-1])
         # The distributions at this point, after selected the respective
         # time window with `window_idx`, are 3D (space, space, N-params)
         # Collapse 3D (space, space, N) into 2D (space**2, N)

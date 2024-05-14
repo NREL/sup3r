@@ -23,6 +23,25 @@ FEATURES = ['U_100m', 'V_100m']
 np.random.seed(42)
 
 
+def get_val_queue_params(handler, sample_shape):
+    """Get train / test samplers and means / stds for batch queue inputs."""
+    val_split = 0.1
+    split_index = int(val_split * handler.data.shape[2])
+    val_slice = slice(0, split_index)
+    train_slice = slice(split_index, handler.data.shape[2])
+    train_sampler = CroppedSampler(
+        handler, sample_shape, crop_slice=train_slice
+    )
+    val_sampler = CroppedSampler(handler, sample_shape, crop_slice=val_slice)
+    means = {
+        FEATURES[i]: handler.data[..., i].mean() for i in range(len(FEATURES))
+    }
+    stds = {
+        FEATURES[i]: handler.data[..., i].std() for i in range(len(FEATURES))
+    }
+    return train_sampler, val_sampler, means, stds
+
+
 def test_train_spatial(
     log=True, full_shape=(20, 20), sample_shape=(10, 10, 1), n_epoch=5
 ):
@@ -49,20 +68,9 @@ def test_train_spatial(
         val_split=0.0,
     )
 
-    val_split = 0.1
-    split_index = int(val_split * handler.data.shape[2])
-    val_slice = slice(0, split_index)
-    train_slice = slice(split_index, handler.data.shape[2])
-    train_sampler = CroppedSampler(
-        handler, sample_shape, crop_slice=train_slice
+    train_sampler, val_sampler, means, stds = get_val_queue_params(
+        handler, sample_shape
     )
-    val_sampler = CroppedSampler(handler, sample_shape, crop_slice=val_slice)
-    means = {
-        FEATURES[i]: handler.data[..., i].mean() for i in range(len(FEATURES))
-    }
-    stds = {
-        FEATURES[i]: handler.data[..., i].std() for i in range(len(FEATURES))
-    }
     batch_handler = BatchQueueWithValidation(
         [train_sampler],
         [val_sampler],
@@ -86,7 +94,7 @@ def test_train_spatial(
             weight_gen_advers=0.0,
             train_gen=True,
             train_disc=False,
-            out_dir=os.path.join(td, 'gan_{epoch}')
+            out_dir=os.path.join(td, 'gan_{epoch}'),
         )
 
     assert len(model.history) == n_epoch
@@ -126,20 +134,9 @@ def test_train_st(
         val_split=0.0,
     )
 
-    val_split = 0.1
-    split_index = int(val_split * handler.data.shape[2])
-    val_slice = slice(0, split_index)
-    train_slice = slice(split_index, handler.data.shape[2])
-    train_sampler = CroppedSampler(
-        handler, sample_shape, crop_slice=train_slice
+    train_sampler, val_sampler, means, stds = get_val_queue_params(
+        handler, sample_shape
     )
-    val_sampler = CroppedSampler(handler, sample_shape, crop_slice=val_slice)
-    means = {
-        FEATURES[i]: handler.data[..., i].mean() for i in range(len(FEATURES))
-    }
-    stds = {
-        FEATURES[i]: handler.data[..., i].std() for i in range(len(FEATURES))
-    }
     batch_handler = BatchQueueWithValidation(
         [train_sampler],
         [val_sampler],
@@ -163,7 +160,7 @@ def test_train_st(
                 weight_gen_advers=0.0,
                 train_gen=True,
                 train_disc=False,
-                out_dir=os.path.join(td, 'gan_{epoch}')
+                out_dir=os.path.join(td, 'gan_{epoch}'),
             )
 
         model = Sup3rGan(
@@ -178,7 +175,7 @@ def test_train_st(
             weight_gen_advers=1e-6,
             train_gen=True,
             train_disc=True,
-            out_dir=os.path.join(td, 'gan_{epoch}')
+            out_dir=os.path.join(td, 'gan_{epoch}'),
         )
 
     assert len(model.history) == n_epoch

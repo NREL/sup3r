@@ -11,12 +11,15 @@ logger = logging.getLogger(__name__)
 
 class BatchQueueWithValidation(BatchQueue):
     """BatchQueue object built from list of samplers containing training data
-    and a list of samplers containing validation data. These list of samplers
-    can sample from the same underlying data source (by using `CropSampler(...,
-    crop_slice=crop_slice)` with `crop_slice` selecting different time periods
-    to prevent cross-contamination), or they can sample from completely
-    different data sources (e.g. train on CONUS while validating on
-    Ukraine)."""
+    and a list of samplers containing validation data.
+
+    Notes
+    -----
+    These list of samplers can sample from the same underlying data source
+    (e.g. CONUS WTK) (by using `CroppedSampler(..., crop_slice=crop_slice)`
+    with `crop_slice` selecting different time periods to prevent
+    cross-contamination), or they can sample from completely different data
+    sources (e.g. train on CONUS WTK while validating on Canada WTK)."""
 
     def __init__(
         self,
@@ -59,11 +62,13 @@ class BatchQueueWithValidation(BatchQueue):
         self.val_data.queue._name = 'validation'
 
     def start(self):
-        """Start the test batch queue in addition to the train batch queue."""
+        """Start the val data batch queue in addition to the train batch
+        queue."""
         self.val_data.start()
         super().start()
 
     def stop(self):
-        """Stop the test batch queue in addition to the train batch queue."""
+        """Stop the val data batch queue in addition to the train batch
+        queue."""
         self.val_data.stop()
         super().stop()

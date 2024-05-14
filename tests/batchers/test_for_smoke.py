@@ -7,8 +7,8 @@ from rex import init_logger
 
 from sup3r.containers.batchers import (
     BatchQueue,
+    BatchQueueWithValidation,
     PairBatchQueue,
-    SplitBatchQueue,
 )
 from sup3r.containers.samplers import SamplerPair
 from sup3r.utilities.pytest.helpers import DummyCroppedSampler, DummySampler
@@ -47,18 +47,24 @@ def test_batch_queue():
 def test_spatial_batch_queue():
     """Smoke test for spatial batch queue. A batch queue returns batches for
     spatial models if the sample shapes have 1 for the time axis"""
-    samplers = [
-        DummySampler(sample_shape=(8, 8, 1), data_shape=(10, 10, 20)),
-        DummySampler(sample_shape=(8, 8, 1), data_shape=(12, 12, 15)),
-    ]
+    sample_shape = (8, 8)
+    s_enhance = 2
+    t_enhance = 1
+    batch_size = 4
+    queue_cap = 10
+    n_batches = 3
     coarsen_kwargs = {'smoothing_ignore': [], 'smoothing': None}
+    samplers = [
+        DummySampler(sample_shape, data_shape=(10, 10, 20)),
+        DummySampler(sample_shape, data_shape=(12, 12, 15)),
+    ]
     batcher = BatchQueue(
         containers=samplers,
-        s_enhance=2,
-        t_enhance=1,
-        n_batches=3,
-        batch_size=4,
-        queue_cap=10,
+        s_enhance=s_enhance,
+        t_enhance=t_enhance,
+        n_batches=n_batches,
+        batch_size=batch_size,
+        queue_cap=queue_cap,
         means={'windspeed': 4},
         stds={'windspeed': 2},
         max_workers=1,
@@ -67,20 +73,27 @@ def test_spatial_batch_queue():
     batcher.start()
     assert len(batcher) == 3
     for b in batcher:
-        assert b.low_res.shape == (4, 4, 4, 1)
-        assert b.high_res.shape == (4, 8, 8, 1)
+        assert b.low_res.shape == (
+            batch_size,
+            sample_shape[0] // s_enhance,
+            sample_shape[1] // s_enhance,
+            1,
+        )
+        assert b.high_res.shape == (batch_size, *sample_shape)
     batcher.stop()
 
 
 def test_pair_batch_queue():
     """Smoke test for paired batch queue."""
+    lr_sample_shape = (4, 4, 5)
+    hr_sample_shape = (8, 8, 10)
     lr_samplers = [
-        DummySampler(sample_shape=(4, 4, 5), data_shape=(10, 10, 20)),
-        DummySampler(sample_shape=(4, 4, 5), data_shape=(12, 12, 15)),
+        DummySampler(sample_shape=lr_sample_shape, data_shape=(10, 10, 20)),
+        DummySampler(sample_shape=lr_sample_shape, data_shape=(12, 12, 15)),
     ]
     hr_samplers = [
-        DummySampler(sample_shape=(8, 8, 10), data_shape=(20, 20, 40)),
-        DummySampler(sample_shape=(8, 8, 10), data_shape=(24, 24, 30)),
+        DummySampler(sample_shape=hr_sample_shape, data_shape=(20, 20, 40)),
+        DummySampler(sample_shape=hr_sample_shape, data_shape=(24, 24, 30)),
     ]
     sampler_pairs = [
         SamplerPair(lr, hr, s_enhance=2, t_enhance=2)
@@ -100,8 +113,8 @@ def test_pair_batch_queue():
     batcher.start()
     assert len(batcher) == 3
     for b in batcher:
-        assert b.low_res.shape == (4, 4, 4, 5, 1)
-        assert b.high_res.shape == (4, 8, 8, 10, 1)
+        assert b.low_res.shape == (4, *lr_sample_shape, 1)
+        assert b.high_res.shape == (4, *hr_sample_shape, 1)
     batcher.stop()
 
 
@@ -164,18 +177,20 @@ def test_bad_sample_shapes():
 def test_split_batch_queue():
     """Smoke test for batch queue."""
 
-    samplers = [
-        DummyCroppedSampler(
-            sample_shape=(8, 8, 4), data_shape=(10, 10, 100)
-        ),
-        DummyCroppedSampler(
-            sample_shape=(8, 8, 4), data_shape=(12, 12, 100)
-        ),
-    ]
+    train_sampler = DummyCroppedSampler(
+        sample_shape=(8, 8, 4),
+        data_shape=(10, 10, 100),
+        crop_slice=slice(0, 90),
+    )
+    val_sampler = DummyCroppedSampler(
+        sample_shape=(8, 8, 4),
+        data_shape=(10, 10, 100),
+        crop_slice=slice(90, 100),
+    )
     coarsen_kwargs = {'smoothing_ignore': [], 'smoothing': None}
-    batcher = SplitBatchQueue(
-        containers=samplers,
-        val_split=0.2,
+    batcher = BatchQueueWithValidation(
+        train_containers=[train_sampler],
+        val_containers=[val_sampler],
         batch_size=4,
         n_batches=3,
         s_enhance=2,
@@ -186,11 +201,6 @@ def test_split_batch_queue():
         max_workers=1,
         coarsen_kwargs=coarsen_kwargs,
     )
-    test_train_slices = batcher.get_test_train_slices()
-
-    for i, (test_s, train_s) in enumerate(test_train_slices):
-        assert batcher.containers[i].crop_slice == train_s
-        assert batcher.val_data.containers[i].crop_slice == test_s
 
     batcher.start()
     assert len(batcher) == 3

@@ -24,7 +24,7 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
-class FeatureHandler:
+class FeatureDeriver:
     """Collection of methods used for computing / deriving features from
     available raw features.  """
 

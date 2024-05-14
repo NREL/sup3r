@@ -92,15 +92,6 @@ class BatchQueue(AbstractBatchQueue):
             'smoothing_ignore': [],
             'smoothing': None,
         }
-        logger.info(
-            f'Initialized {self.__class__.__name__} with '
-            f'{len(self.containers)} samplers, s_enhance = {self.s_enhance}, '
-            f't_enhance = {self.t_enhance}, batch_size = {self.batch_size}, '
-            f'n_batches = {self.n_batches}, queue_cap = {self.queue_cap}, '
-            f'means = {self.means}, stds = {self.stds}, '
-            f'max_workers = {self.max_workers}, '
-            f'coarsen_kwargs = {self.coarsen_kwargs}.'
-        )
 
     def get_output_signature(self):
         """Get tensorflow dataset output signature for single data object
@@ -184,7 +175,7 @@ class PairBatchQueue(AbstractBatchQueue):
         t_enhance,
         means: Union[Dict, str],
         stds: Union[Dict, str],
-        queue_cap,
+        queue_cap=None,
         max_workers=None,
     ):
         super().__init__(
@@ -199,15 +190,6 @@ class PairBatchQueue(AbstractBatchQueue):
             max_workers=max_workers,
         )
         self.check_for_consistent_enhancement_factors()
-
-        logger.info(
-            f'Initialized {self.__class__.__name__} with '
-            f'{len(self.containers)} samplers, s_enhance = {self.s_enhance}, '
-            f't_enhance = {self.t_enhance}, batch_size = {self.batch_size}, '
-            f'n_batches = {self.n_batches}, queue_cap = {self.queue_cap}, '
-            f'means = {self.means}, stds = {self.stds}, '
-            f'max_workers = {self.max_workers}.'
-        )
 
     def check_for_consistent_enhancement_factors(self):
         """Make sure each SamplerPair has the same enhancment factors and that
