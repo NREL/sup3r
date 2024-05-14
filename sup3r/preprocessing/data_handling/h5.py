@@ -81,15 +81,13 @@ class DataHandlerH5(DataHandler):
         raise ValueError(msg)
 
     @classmethod
-    def get_time_index(cls, file_paths, max_workers=None, **kwargs):
+    def get_time_index(cls, file_paths, **kwargs):
         """Get time index from data files
 
         Parameters
         ----------
         file_paths : list
             path to data file
-        max_workers : int | None
-            placeholder to match signature
         kwargs : dict
             placeholder to match signature
 

@@ -6,37 +6,34 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+from sup3r.containers.abstract import AbstractContainer
 from sup3r.containers.samplers import CroppedSampler, Sampler
 from sup3r.postprocessing.file_handling import OutputHandlerH5
 from sup3r.utilities.utilities import pd_date_range
 
 
-class DummyData:
+class DummyData(AbstractContainer):
     """Dummy container with random data."""
 
     def __init__(self, features, data_shape):
-        self.features = features
+        super().__init__()
         self.shape = data_shape
-        self._data = None
-
-    @property
-    def data(self):
-        """Dummy data property."""
-        if self._data is None:
-            lons, lats = np.meshgrid(
-                np.linspace(0, 1, self.shape[1]),
-                np.linspace(0, 1, self.shape[0]),
-            )
-            times = pd.date_range('2024-01-01', periods=self.shape[2])
-            dim_names = ['time', 'south_north', 'west_east']
-            coords = {'time': times,
-                      'latitude': (dim_names[1:], lats),
-                      'longitude': (dim_names[1:], lons)}
-            ws = np.zeros((len(times), *lats.shape))
-            self._data = xr.Dataset(
-                data_vars={'windspeed': (dim_names, ws)}, coords=coords
-            )
-        return self._data
+        self.features = features
+        lons, lats = np.meshgrid(
+            np.linspace(0, 1, data_shape[1]),
+            np.linspace(0, 1, data_shape[0]),
+        )
+        times = pd.date_range('2024-01-01', periods=data_shape[2])
+        dim_names = ['time', 'south_north', 'west_east']
+        coords = {
+            'time': times,
+            'latitude': (dim_names[1:], lats),
+            'longitude': (dim_names[1:], lons),
+        }
+        ws = np.zeros((len(times), *lats.shape))
+        self.data = xr.Dataset(
+            data_vars={'windspeed': (dim_names, ws)}, coords=coords
+        )
 
     def __getitem__(self, key):
         out = self.data.isel(
@@ -59,9 +56,9 @@ class DummySampler(Sampler):
 class DummyCroppedSampler(CroppedSampler):
     """Dummy container with random data."""
 
-    def __init__(self, sample_shape, data_shape):
+    def __init__(self, sample_shape, data_shape, crop_slice=slice(None)):
         data = DummyData(features=['windspeed'], data_shape=data_shape)
-        super().__init__(data, sample_shape)
+        super().__init__(data, sample_shape, crop_slice=crop_slice)
 
 
 def make_fake_nc_files(td, input_file, n_files):
@@ -91,10 +88,13 @@ def make_fake_nc_files(td, input_file, n_files):
     for i in range(n_files):
         if os.path.exists(fake_files[i]):
             os.remove(fake_files[i])
-        with (xr.open_dataset(input_file) as input_dset,
-                xr.Dataset(input_dset) as dset):
+        with (
+            xr.open_dataset(input_file) as input_dset,
+            xr.Dataset(input_dset) as dset,
+        ):
             dset['Times'][:] = np.array(
-                [fake_times[i].encode('ASCII')], dtype='|S19')
+                [fake_times[i].encode('ASCII')], dtype='|S19'
+            )
             dset['XTIME'][:] = i
             dset.to_netcdf(fake_files[i])
     return fake_files
@@ -124,12 +124,14 @@ def make_fake_multi_time_nc_files(td, input_file, n_steps, n_files):
     dummy_files = []
     for i, files in enumerate(fake_files):
         dummy_file = os.path.join(
-            td, f'multi_timestep_file_{str(i).zfill(3)}.nc')
+            td, f'multi_timestep_file_{str(i).zfill(3)}.nc'
+        )
         if os.path.exists(dummy_file):
             os.remove(dummy_file)
         dummy_files.append(dummy_file)
         with xr.open_mfdataset(
-                files, combine='nested', concat_dim='Time') as dset:
+            files, combine='nested', concat_dim='Time'
+        ) as dset:
             dset.to_netcdf(dummy_file)
     return dummy_files
 
@@ -162,13 +164,16 @@ def make_fake_era_files(td, input_file, n_files):
     for i in range(n_files):
         if os.path.exists(fake_files[i]):
             os.remove(fake_files[i])
-        with xr.open_dataset(input_file) as input_dset:
-            with xr.Dataset(input_dset) as dset:
-                dset['Times'][:] = np.array(
-                    [fake_times[i].encode('ASCII')], dtype='|S19')
-                dset['XTIME'][:] = i
-                dset = dset.rename({'U': 'u', 'V': 'v'})
-                dset.to_netcdf(fake_files[i])
+        with (
+            xr.open_dataset(input_file) as input_dset,
+            xr.Dataset(input_dset) as dset,
+        ):
+            dset['Times'][:] = np.array(
+                [fake_times[i].encode('ASCII')], dtype='|S19'
+            )
+            dset['XTIME'][:] = i
+            dset = dset.rename({'U': 'u', 'V': 'v'})
+            dset.to_netcdf(fake_files[i])
     return fake_files
 
 

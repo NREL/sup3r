@@ -756,7 +756,9 @@ class BatchHandler:
     def _get_feature_stdev(self, feature):
         """Get stdev for requested feature
 
-        NOTE: We compute the variance across all handlers as a pooled variance
+        Notes
+        -----
+        We compute the variance across all handlers as a pooled variance
         of the variances for each handler. We also assume that the number of
         samples in each handler is much greater than 1, so N - 1 ~ N.
 

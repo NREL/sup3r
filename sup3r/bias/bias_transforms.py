@@ -499,10 +499,7 @@ def local_qdm_bc(data: np.array,
         bias = bias[spatial_slice]
         bias_fut = bias_fut[spatial_slice]
 
-    if no_trend:
-        mf = None
-    else:
-        mf = bias_fut.reshape(-1, bias_fut.shape[-1])
+    mf = None if no_trend else bias_fut.reshape(-1, bias_fut.shape[-1])
     # The distributions are 3D (space, space, N-params)
     # Collapse 3D (space, space, N) into 2D (space**2, N)
     QDM = QuantileDeltaMapping(base.reshape(-1, base.shape[-1]),

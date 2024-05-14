@@ -1,31 +1,25 @@
-"""Base data handling classes.
-@author: bbenton
-"""
-import copy
+"""Basic container objects can perform transformations / extractions on the
+contained data."""
+
 import logging
 import os
+import pickle
 import warnings
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime as dt
 
 import numpy as np
-from rex import Resource
-from rex.utilities import log_mem
+import pandas as pd
+import psutil
+import xarray as xr
+from scipy.stats import mode
 
-from sup3r.bias.bias_transforms import get_spatial_bc_factors, local_qdm_bc
 from sup3r.containers.wranglers.abstract import AbstractWrangler
-from sup3r.preprocessing.feature_handling import (
-    Feature,
-)
-from sup3r.preprocessing.mixin import (
-    InputMixIn,
-)
+from sup3r.containers.wranglers.derivers import FeatureDeriver
 from sup3r.utilities.utilities import (
     get_chunk_slices,
-    get_raster_shape,
-    nn_fill_array,
-    spatial_coarsening,
+    ignore_case_path_fetch,
 )
 
 np.random.seed(42)
@@ -33,665 +27,646 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
-class Wrangler(AbstractWrangler):
-    """Sup3r data extraction and processing in preparation for downstream
-    containers like Sampler objects or BatchQueue objects."""
+class Wrangler(AbstractWrangler, FeatureDeriver, ABC):
+    """Loader subclass with additional methods for wrangling data. e.g.
+    Extracting specific spatiotemporal extents and features and deriving new
+    features."""
 
     def __init__(self,
                  file_paths,
                  features,
-                 target=None,
-                 shape=None,
-                 max_delta=20,
-                 temporal_slice=slice(None, None, 1),
-                 hr_spatial_coarsen=None,
-                 time_roll=0,
+                 target,
+                 shape,
                  raster_file=None,
-                 time_chunk_size=None,
-                 mask_nan=False,
-                 fill_nan=False,
-                 max_workers=None):
+                 temporal_slice=slice(None, None, 1),
+                 res_kwargs=None,
+                 ):
         """
         Parameters
         ----------
-        file_paths : str | list
-            A single source h5 wind file to extract raster data from or a list
-            of netcdf files with identical grid. The string can be a unix-style
-            file path which will be passed through glob.glob
+        file_paths : str | pathlib.Path | list
+            Globbable path str(s) or pathlib.Path for file locations.
         features : list
-            list of features to extract from the provided data
+            List of feature names to extract from file_paths.
         target : tuple
             (lat, lon) lower left corner of raster. Either need target+shape or
             raster_file.
         shape : tuple
             (rows, cols) grid size. Either need target+shape or raster_file.
-        max_delta : int, optional
-            Optional maximum limit on the raster shape that is retrieved at
-            once. If shape is (20, 20) and max_delta=10, the full raster will
-            be retrieved in four chunks of (10, 10). This helps adapt to
-            non-regular grids that curve over large distances, by default 20
+        raster_file : str | None
+            File for raster_index array for the corresponding target and shape.
+            If specified the raster_index will be loaded from the file if it
+            exists or written to the file if it does not yet exist. If None and
+            raster_index is not provided raster_index will be calculated
+            directly. Either need target+shape, raster_file, or raster_index
+            input.
         temporal_slice : slice
             Slice specifying extent and step of temporal extraction. e.g.
             slice(start, stop, time_pruning). If equal to slice(None, None, 1)
             the full time dimension is selected.
-        hr_spatial_coarsen : int | None
-            Optional input to coarsen the high-resolution spatial field. This
-            can be used if (for example) you have 2km source data, but you want
-            the final high res prediction target to be 4km resolution, then
-            hr_spatial_coarsen would be 2 so that the GAN is trained on
-            aggregated 4km high-res data.
-        time_roll : int
-            The number of places by which elements are shifted in the time
-            axis. Can be used to convert data to different timezones. This is
-            passed to np.roll(a, time_roll, axis=2) and happens AFTER the
-            temporal_slice operation.
-        raster_file : str | None
-            .txt file for raster_index array for the corresponding target and
-            shape. If specified the raster_index will be loaded from the file
-            if it exists or written to the file if it does not yet exist. If
-            None and raster_index is not provided raster_index will be
-            calculated directly. Either need target+shape, raster_file, or
-            raster_index input.
-        time_chunk_size : int
-            Size of chunks to split time dimension into for parallel data
-            extraction. If running in serial this can be set to the size of the
-            full time index for best performance.
-        mask_nan : bool
-            Flag to mask out (remove) any timesteps with NaN data from the
-            source dataset. This is False by default because it can create
-            discontinuities in the timeseries.
-        fill_nan : bool
-            Flag to gap-fill any NaN data from the source dataset using a
-            nearest neighbor algorithm. This is False by default because it can
-            hide bad datasets that should be identified by the user.
-        max_workers : int | None
-            Max number of workers to use for parallel processes involved in
-            extracting / wrangling data.
+        res_kwargs : dict | None
+            Dictionary of kwargs to pass to xarray.open_mfdataset.
         """
-        InputMixIn.__init__(self,
-                            target=target,
-                            shape=shape,
-                            raster_file=raster_file,
-                            temporal_slice=temporal_slice)
-
-        self.file_paths = file_paths
-        self.features = (features if isinstance(features, (list, tuple))
-                         else [features])
-        self.features = copy.deepcopy(self.features)
-        self.max_delta = max_delta
-        self.hr_spatial_coarsen = hr_spatial_coarsen or 1
-        self.time_roll = time_roll
-        self.time_chunk_size = time_chunk_size
+        self.res_kwargs = res_kwargs or {}
+        self.raster_file = raster_file
+        self.temporal_slice = temporal_slice
+        self.target = target
+        self.grid_shape = shape
+        self.features = None
+        self.cache_files = None
+        self.overwrite_cache = None
+        self.load_cached = None
+        self.time_index = None
         self.data = None
-        self._shape = None
+        self.lat_lon = None
+        self.max_workers = None
+        self._noncached_features = None
+        self._cache_pattern = None
+        self._cache_files = None
+        self._time_chunk_size = None
+        self._raw_time_index = None
+        self._raw_tsteps = None
+        self._time_index = None
+        self._file_paths = None
         self._single_ts_files = None
-        self._handle_features = None
-        self._extract_features = None
-        self._raster_index = None
-        self._raw_features = None
-        self._raw_data = {}
-        self._time_chunks = None
-        self.max_workers = max_workers
+        self._invert_lat = None
+        self._raw_lat_lon = None
+        self._full_raw_lat_lon = None
 
-        self.preflight()
+    @abstractmethod
+    def get_raster_index(self):
+        """Get array of indices used to select the spatial region of
+        interest."""
 
-        self._run_data_init_if_needed()
+    @abstractmethod
+    def get_time_index(self):
+        """Get the time index for the time period of interest."""
 
-        if fill_nan and self.data is not None:
-            self.run_nn_fill()
-        elif mask_nan and self.data is not None:
-            self.mask_nan()
+    def to_netcdf(self, out_file, data=None, lat_lon=None, features=None):
+        """Save data to netcdf file with appropriate lat/lon/time.
 
-        if (self.hr_spatial_coarsen > 1
-                and self.lat_lon.shape == self.raw_lat_lon.shape):
-            self.lat_lon = spatial_coarsening(
-                self.lat_lon,
-                s_enhance=self.hr_spatial_coarsen,
-                obs_axis=False)
+        Parameters
+        ----------
+        out_file : str
+            Name of file to save data to. Should have .nc file extension.
+        data : ndarray
+            Array of data to write to netcdf. If None self.data will be used.
+        lat_lon : ndarray
+            Array of lat/lon to write to netcdf. If None self.lat_lon will be
+            used.
+        features : list
+            List of features corresponding to last dimension of data. If None
+            self.features will be used.
+        """
+        os.makedirs(os.path.dirname(out_file), exist_ok=True)
+        data = data if data is not None else self.data
+        lat_lon = lat_lon if lat_lon is not None else self.lat_lon
+        features = features if features is not None else self.features
+        data_vars = {
+            f: (('time', 'south_north', 'west_east'),
+                np.transpose(data[..., fidx], axes=(2, 0, 1)))
+            for fidx, f in enumerate(features)}
+        coords = {
+            'latitude': (('south_north', 'west_east'), lat_lon[..., 0]),
+            'longitude': (('south_north', 'west_east'), lat_lon[..., 1]),
+            'time': self.time_index.values}
+        out = xr.Dataset(data_vars=data_vars, coords=coords)
+        out.to_netcdf(out_file)
+        logger.info(f'Saved {features} to {out_file}.')
 
-        logger.info('Finished intializing DataHandler.')
-        log_mem(logger, log_level='INFO')
+    @property
+    def try_load(self):
+        """Check if we should try to load cache"""
+        return self._should_load_cache(self.cache_pattern, self.cache_files,
+                                       self.overwrite_cache)
 
-    def __getitem__(self, key):
-        """Interface for sampler objects."""
-        return self.data[key]
+    @property
+    def noncached_features(self):
+        """Get list of features needing extraction or derivation"""
+        if self._noncached_features is None:
+            self._noncached_features = self.check_cached_features(
+                self.features,
+                cache_files=self.cache_files,
+                overwrite_cache=self.overwrite_cache,
+                load_cached=self.load_cached,
+            )
+        return self._noncached_features
 
-    def _run_data_init_if_needed(self):
-        """Check if any features need to be extracted and proceed with data
-        extraction"""
-        if any(self.features):
-            self.data = self.run_all_data_init()
-            mask = np.isinf(self.data)
-            self.data[mask] = np.nan
-            nan_perc = 100 * np.isnan(self.data).sum() / self.data.size
-            if nan_perc > 0:
-                msg = 'Data has {:.3f}% NaN values!'.format(nan_perc)
+    @property
+    def cached_features(self):
+        """List of features which have been requested but have been determined
+        not to need extraction. Thus they have been cached already."""
+        return [f for f in self.features if f not in self.noncached_features]
+
+    def _get_timestamp_0(self, time_index):
+        """Get a string timestamp for the first time index value with the
+        format YYYYMMDDHHMMSS"""
+
+        time_stamp = time_index[0]
+        yyyy = str(time_stamp.year)
+        mm = str(time_stamp.month).zfill(2)
+        dd = str(time_stamp.day).zfill(2)
+        hh = str(time_stamp.hour).zfill(2)
+        min = str(time_stamp.minute).zfill(2)
+        ss = str(time_stamp.second).zfill(2)
+        return yyyy + mm + dd + hh + min + ss
+
+    def _get_timestamp_1(self, time_index):
+        """Get a string timestamp for the last time index value with the
+        format YYYYMMDDHHMMSS"""
+
+        time_stamp = time_index[-1]
+        yyyy = str(time_stamp.year)
+        mm = str(time_stamp.month).zfill(2)
+        dd = str(time_stamp.day).zfill(2)
+        hh = str(time_stamp.hour).zfill(2)
+        min = str(time_stamp.minute).zfill(2)
+        ss = str(time_stamp.second).zfill(2)
+        return yyyy + mm + dd + hh + min + ss
+
+    @property
+    def cache_pattern(self):
+        """Check for correct cache file pattern."""
+        if self._cache_pattern is not None:
+            msg = ('Cache pattern must have {feature} format key.')
+            assert '{feature}' in self._cache_pattern, msg
+        return self._cache_pattern
+
+    @property
+    def cache_files(self):
+        """Cache files for storing extracted data"""
+        if self.cache_pattern is not None:
+            return [self.cache_pattern.format(feature=f)
+                    for f in self.features]
+        return None
+
+    def _cache_data(self, data, features, cache_file_paths, overwrite=False):
+        """Cache feature data to files
+
+        Parameters
+        ----------
+        data : ndarray
+            Array of feature data to save to cache files
+        features : list
+            List of feature names.
+        cache_file_paths : str | None
+            Path to file for saving feature data
+        overwrite : bool
+            Whether to overwrite exisiting files.
+        """
+        for i, fp in enumerate(cache_file_paths):
+            os.makedirs(os.path.dirname(fp), exist_ok=True)
+            if not os.path.exists(fp) or overwrite:
+                if overwrite and os.path.exists(fp):
+                    logger.info(f'Overwriting {features[i]} with shape '
+                                f'{data[..., i].shape} to {fp}')
+                else:
+                    logger.info(f'Saving {features[i]} with shape '
+                                f'{data[..., i].shape} to {fp}')
+
+                tmp_file = fp.replace('.pkl', '.pkl.tmp')
+                with open(tmp_file, 'wb') as fh:
+                    pickle.dump(data[..., i], fh, protocol=4)
+                os.replace(tmp_file, fp)
+            else:
+                msg = (f'Called cache_data but {fp} already exists. Set to '
+                       'overwrite_cache to True to overwrite.')
                 logger.warning(msg)
                 warnings.warn(msg)
 
-    @classmethod
-    @abstractmethod
-    def source_handler(cls, file_paths, **kwargs):
-        """Handle for source data. Uses xarray, ResourceX, etc.
-
-        NOTE: that xarray appears to treat open file handlers as singletons
-        within a threadpool, so its okay to open this source_handler without a
-        context handler or a .close() statement.
-        """
-
-    @property
-    def attrs(self):
-        """Get atttributes of input data
-
-        Returns
-        -------
-        dict
-            Dictionary of attributes
-        """
-        return self.source_handler(self.file_paths).attrs
-
-    @property
-    def raster_index(self):
-        """Raster index property"""
-        if self._raster_index is None:
-            self._raster_index = self.get_raster_index()
-        return self._raster_index
-
-    @raster_index.setter
-    def raster_index(self, raster_index):
-        """Update raster index property"""
-        self._raster_index = raster_index
-
-    @classmethod
-    def get_handle_features(cls, file_paths):
-        """Get all available features in input data
+    def _load_single_cached_feature(self, fp, cache_files, features,
+                                    required_shape):
+        """Load single feature from given file
 
         Parameters
         ----------
-        file_paths : list
-            List of input file paths
+        fp : string
+            File path for feature cache file
+        cache_files : list
+            List of cache files for each feature
+        features : list
+            List of requested features
+        required_shape : tuple
+            Required shape for full array of feature data
 
         Returns
         -------
-        handle_features : list
-            List of available input features
+        out : ndarray
+            Array of data for given feature file.
+
+        Raises
+        ------
+        RuntimeError
+            Error raised if shape conflicts with requested shape
         """
-        handle_features = []
-        for f in file_paths:
-            handle = cls.source_handler([f])
-            handle_features += [Feature.get_basename(r) for r in handle]
-        return list(set(handle_features))
+        idx = cache_files.index(fp)
+        msg = f'{features[idx].lower()} not found in {fp.lower()}.'
+        assert features[idx].lower() in fp.lower(), msg
+        fp = ignore_case_path_fetch(fp)
+        mem = psutil.virtual_memory()
+        logger.info(f'Loading {features[idx]} from {fp}. Current memory '
+                    f'usage is {mem.used / 1e9:.3f} GB out of '
+                    f'{mem.total / 1e9:.3f} GB total.')
 
-    @property
-    def handle_features(self):
-        """All features available in raw input"""
-        if self._handle_features is None:
-            self._handle_features = self.get_handle_features(self.file_paths)
-        return self._handle_features
+        out = None
+        with open(fp, 'rb') as fh:
+            out = np.array(pickle.load(fh), dtype=np.float32)
+            msg = ('Data loaded from from cache file "{}" '
+                   'could not be written to feature channel {} '
+                   'of full data array of shape {}. '
+                   'The cached data has the wrong shape {}.'.format(
+                       fp, idx, required_shape, out.shape))
+            assert out.shape == required_shape, msg
+        return out
 
-    @property
-    def extract_features(self):
-        """Features to extract directly from the source handler"""
-        lower_features = [f.lower() for f in self.handle_features]
-        return [
-            f for f in self.raw_features if self.lookup(f, 'compute') is None
-            or Feature.get_basename(f.lower()) in lower_features
-        ]
+    def _should_load_cache(self,
+                           cache_pattern,
+                           cache_files,
+                           overwrite_cache=False):
+        """Check if we should load cached data"""
+        return (cache_pattern is not None and not overwrite_cache
+                and all(os.path.exists(fp) for fp in cache_files))
 
-    @property
-    def derive_features(self):
-        """List of features which need to be derived from other features"""
-        return [
-            f for f in set(
-                list(self.noncached_features) + list(self.extract_features))
-            if f not in self.extract_features
-        ]
+    def parallel_load(self, data, cache_files, features, max_workers=None):
+        """Load feature data in parallel
 
-    @property
-    def raw_features(self):
-        """Get list of features needed for computations"""
-        if self._raw_features is None:
-            self._raw_features = self.get_raw_feature_list(
-                self.noncached_features, self.handle_features)
+        Parameters
+        ----------
+        data : ndarray
+            Array to fill with cached data
+        cache_files : list
+            List of cache files for each feature
+        features : list
+            List of requested features
+        max_workers : int | None
+            Max number of workers to use for parallel data loading. If None
+            the max number of available workers will be used.
+        """
+        logger.info(f'Loading {len(cache_files)} cache files with '
+                    f'max_workers={max_workers}.')
+        with ThreadPoolExecutor(max_workers=max_workers) as exe:
+            futures = {}
+            now = dt.now()
+            for i, fp in enumerate(cache_files):
+                future = exe.submit(self._load_single_cached_feature,
+                                    fp=fp,
+                                    cache_files=cache_files,
+                                    features=features,
+                                    required_shape=data.shape[:-1],
+                                    )
+                futures[future] = {'idx': i, 'fp': os.path.basename(fp)}
 
-        return self._raw_features
+            logger.info(f'Started loading all {len(cache_files)} cache '
+                        f'files in {dt.now() - now}.')
 
-    def preflight(self):
-        """Run some preflight checks and verify that the inputs are valid"""
+            for i, future in enumerate(as_completed(futures)):
+                try:
+                    data[..., futures[future]['idx']] = future.result()
+                except Exception as e:
+                    msg = ('Error while loading '
+                           f'{cache_files[futures[future]["idx"]]}')
+                    logger.exception(msg)
+                    raise RuntimeError(msg) from e
+                logger.debug(f'{i + 1} out of {len(futures)} cache files '
+                             f'loaded: {futures[future]["fp"]}')
 
-        start = self.temporal_slice.start
-        stop = self.temporal_slice.stop
+    def _load_cached_data(self, data, cache_files, features, max_workers=None):
+        """Load cached data to provided array
 
-        msg = (f'The requested time slice {self.temporal_slice} conflicts '
-               f'with the number of time steps ({len(self.raw_time_index)}) '
-               'in the raw data')
-        t_slice_is_subset = start is not None and stop is not None
-        good_subset = (t_slice_is_subset
-                       and (stop - start <= len(self.raw_time_index))
-                       and stop <= len(self.raw_time_index)
-                       and start <= len(self.raw_time_index))
-        if t_slice_is_subset and not good_subset:
-            logger.error(msg)
-            raise RuntimeError(msg)
+        Parameters
+        ----------
+        data : ndarray
+            Array to fill with cached data
+        cache_files : list
+            List of cache files for each feature
+        features : list
+            List of requested features
+        required_shape : tuple
+            Required shape for full array of feature data
+        max_workers : int | None
+            Max number of workers to use for parallel data loading. If None
+            the max number of available workers will be used.
+        """
+        if max_workers == 1:
+            for i, fp in enumerate(cache_files):
+                out = self._load_single_cached_feature(fp, cache_files,
+                                                       features,
+                                                       data.shape[:-1])
+                msg = ('Data loaded from from cache file "{}" '
+                       'could not be written to feature channel {} '
+                       'of full data array of shape {}. '
+                       'The cached data has the wrong shape {}.'.format(
+                           fp, i, data[..., i].shape, out.shape))
+                assert data[..., i].shape == out.shape, msg
+                data[..., i] = out
 
-        msg = (f'Initializing DataHandler {self.input_file_info}. '
-               f'Getting temporal range {self.time_index[0]!s} to '
-               f'{self.time_index[-1]!s} (inclusive) '
-               f'based on temporal_slice {self.temporal_slice}')
-        logger.info(msg)
-
-        logger.info(f'Using max_workers={self.max_workers}')
+        else:
+            self.parallel_load(data,
+                               cache_files,
+                               features,
+                               max_workers=max_workers)
 
     @staticmethod
-    def get_closest_lat_lon(lat_lon, target):
-        """Get closest indices to target lat lon
+    def check_cached_features(features,
+                              cache_files=None,
+                              overwrite_cache=False,
+                              load_cached=False):
+        """Check which features have been cached and check flags to determine
+        whether to load or extract this features again
 
         Parameters
         ----------
-        lat_lon : ndarray
-            Array of lat/lon
-            (spatial_1, spatial_2, 2)
-            Last dimension in order of (lat, lon)
-        target : tuple
-            (lat, lon) for target coordinate
+        features : list
+            list of features to extract
+        cache_files : list | None
+            Path to files with saved feature data
+        overwrite_cache : bool
+            Whether to overwrite cached files
+        load_cached : bool
+            Whether to load data from cache files
 
         Returns
         -------
-        row : int
-            row index for closest lat/lon to target lat/lon
-        col : int
-            col index for closest lat/lon to target lat/lon
+        list
+            List of features to extract. Might not include features which have
+            cache files.
         """
-        dist = np.hypot(lat_lon[..., 0] - target[0],
-                        lat_lon[..., 1] - target[1])
-        row, col = np.where(dist == np.min(dist))
-        row = row[0]
-        col = col[0]
-        return row, col
+        extract_features = []
+        # check if any features can be loaded from cache
+        if cache_files is not None:
+            for i, f in enumerate(features):
+                check = (os.path.exists(cache_files[i])
+                         and f.lower() in cache_files[i].lower())
+                if check:
+                    if not overwrite_cache:
+                        if load_cached:
+                            msg = (f'{f} found in cache file {cache_files[i]}.'
+                                   ' Loading from cache instead of extracting '
+                                   'from source files')
+                            logger.info(msg)
+                        else:
+                            msg = (f'{f} found in cache file {cache_files[i]}.'
+                                   ' Call load_cached_data() or use '
+                                   'load_cached=True to load this data.')
+                            logger.info(msg)
+                    else:
+                        msg = (f'{cache_files[i]} exists but overwrite_cache '
+                               'is set to True. Proceeding with extraction.')
+                        logger.info(msg)
+                        extract_features.append(f)
+                else:
+                    extract_features.append(f)
+        else:
+            extract_features = features
+
+        return extract_features
+
+    @property
+    def time_chunk_size(self):
+        """Size of chunk to split the time dimension into for parallel
+        extraction."""
+        if self._time_chunk_size is None:
+            self._time_chunk_size = self.n_tsteps
+        return self._time_chunk_size
+
+    @property
+    def is_time_independent(self):
+        """Get whether source data files are time independent"""
+        return self.raw_time_index[0] is None
+
+    @property
+    def n_tsteps(self):
+        """Get number of time steps to extract"""
+        if self.is_time_independent:
+            return 1
+        return len(self.raw_time_index[self.temporal_slice])
+
+    @property
+    def time_chunks(self):
+        """Get time chunks which will be extracted from source data
+
+        Returns
+        -------
+        _time_chunks : list
+            List of time chunks used to split up source data time dimension
+            so that each chunk can be extracted individually
+        """
+        if self._time_chunks is None:
+            if self.is_time_independent:
+                self._time_chunks = [slice(None)]
+            else:
+                self._time_chunks = get_chunk_slices(len(self.raw_time_index),
+                                                     self.time_chunk_size,
+                                                     self.temporal_slice)
+        return self._time_chunks
+
+    @property
+    def raw_tsteps(self):
+        """Get number of time steps for all input files"""
+        if self._raw_tsteps is None:
+            if self.single_ts_files:
+                self._raw_tsteps = len(self.file_paths)
+            else:
+                self._raw_tsteps = len(self.raw_time_index)
+        return self._raw_tsteps
+
+    @property
+    def single_ts_files(self):
+        """Check if there is a file for each time step, in which case we can
+        send a subset of files to the data handler according to ti_pad_slice"""
+        if self._single_ts_files is None:
+            logger.debug('Checking if input files are single timestep.')
+            t_steps = self.get_time_index(self.file_paths[:1])
+            check = (len(self._file_paths) == len(self.raw_time_index)
+                     and t_steps is not None and len(t_steps) == 1)
+            self._single_ts_files = check
+        return self._single_ts_files
+
+    @property
+    def temporal_slice(self):
+        """Get temporal range to extract from full dataset"""
+        if self._temporal_slice is None:
+            self._temporal_slice = slice(None)
+        msg = 'temporal_slice must be tuple, list, or slice'
+        assert isinstance(self._temporal_slice, (tuple, list, slice)), msg
+        if not isinstance(self._temporal_slice, slice):
+            check = len(self._temporal_slice) <= 3
+            msg = ('If providing list or tuple for temporal_slice length must '
+                   'be <= 3')
+            assert check, msg
+            self._temporal_slice = slice(*self._temporal_slice)
+        if self._temporal_slice.step is None:
+            self._temporal_slice = slice(self._temporal_slice.start,
+                                         self._temporal_slice.stop, 1)
+        if self._temporal_slice.start is None:
+            self._temporal_slice = slice(0, self._temporal_slice.stop,
+                                         self._temporal_slice.step)
+        return self._temporal_slice
+
+    @property
+    def raw_time_index(self):
+        """Time index for input data without time pruning. This is the base
+        time index for the raw input data."""
+
+        if self._raw_time_index is None:
+            self._raw_time_index = self.get_time_index(self.file_paths,
+                                                       **self.res_kwargs)
+        if self._single_ts_files:
+            self.time_index_conflict_check()
+        return self._raw_time_index
+
+    def time_index_conflict_check(self):
+        """Check if the number of input files and the length of the time index
+        is the same"""
+        msg = (f'Number of time steps ({len(self._raw_time_index)}) and files '
+               f'({self.raw_tsteps}) conflict!')
+        check = len(self._raw_time_index) == self.raw_tsteps
+        assert check, msg
+
+    @property
+    def time_index(self):
+        """Time index for input data with time pruning. This is the raw time
+        index with a cropped range and time step applied."""
+        return self.raw_time_index[self.temporal_slice]
+
+    @property
+    def time_freq_hours(self):
+        """Get the time frequency in hours as a float"""
+        ti_deltas = self.raw_time_index - np.roll(self.raw_time_index, 1)
+        ti_deltas_hours = pd.Series(ti_deltas).dt.total_seconds()[1:-1] / 3600
+        return float(mode(ti_deltas_hours).mode)
 
     @classmethod
-    def get_lat_lon(cls, file_paths, raster_index, invert_lat=False):
-        """Get lat/lon grid for requested target and shape
+    @abstractmethod
+    def get_full_domain(cls, file_paths):
+        """Get full lat/lon grid for when target + shape are not specified"""
 
-        Parameters
-        ----------
-        file_paths : list
-            path to data file
-        raster_index : ndarray | list
-            Raster index array or list of slices
-        invert_lat : bool
-            Flag to invert data along the latitude axis. Wrf data tends to use
-            an increasing ordering for latitude while wtk uses a decreasing
-            ordering.
+    @classmethod
+    @abstractmethod
+    def get_lat_lon(cls, file_paths, raster_index, invert_lat=False):
+        """Get lat/lon grid for requested target and shape"""
+
+    @property
+    def need_full_domain(self):
+        """Check whether we need to get the full lat/lon grid to determine
+        target and shape values"""
+        no_raster_file = self.raster_file is None or not os.path.exists(
+            self.raster_file)
+        no_target_shape = self._target is None or self._grid_shape is None
+        need_full = no_raster_file and no_target_shape
+
+        if need_full:
+            logger.info('Target + shape not specified. Getting full domain '
+                        f'for {self.file_paths[0]}.')
+
+        return need_full
+
+    @property
+    def full_raw_lat_lon(self):
+        """Get the full lat/lon grid without doing any latitude inversion"""
+        if self._full_raw_lat_lon is None and self.need_full_domain:
+            self._full_raw_lat_lon = self.get_full_domain(self.file_paths[:1])
+        return self._full_raw_lat_lon
+
+    @property
+    def raw_lat_lon(self):
+        """Lat lon grid for data in format (spatial_1, spatial_2, 2) Lat/Lon
+        array with same ordering in last dimension. This returns the gid
+        without any lat inversion.
 
         Returns
         -------
         ndarray
-            (spatial_1, spatial_2, 2) Lat/Lon array with same ordering in last
-            dimension
         """
-        lat_lon = cls.lookup('lat_lon', 'compute')(file_paths, raster_index)
-        if invert_lat:
-            lat_lon = lat_lon[::-1]
-        # put angle betwen -180 and 180
-        lat_lon[..., 1] = (lat_lon[..., 1] + 180) % 360 - 180
-        return lat_lon.astype(np.float32)
+        raster_file_exists = self.raster_file is not None and os.path.exists(
+            self.raster_file)
+
+        if self.full_raw_lat_lon is not None and raster_file_exists:
+            self._raw_lat_lon = self.full_raw_lat_lon[self.raster_index]
+
+        elif self.full_raw_lat_lon is not None and not raster_file_exists:
+            self._raw_lat_lon = self.full_raw_lat_lon
+
+        if self._raw_lat_lon is None:
+            self._raw_lat_lon = self.get_lat_lon(self.file_paths[0:1],
+                                                 self.raster_index,
+                                                 invert_lat=False)
+        return self._raw_lat_lon
 
     @property
-    def shape(self):
-        """Full data shape
+    def lat_lon(self):
+        """Lat lon grid for data in format (spatial_1, spatial_2, 2) Lat/Lon
+        array with same ordering in last dimension. This ensures that the
+        lower left hand corner of the domain is given by lat_lon[-1, 0]
 
         Returns
         -------
-        shape : tuple
-            Full data shape
-            (spatial_1, spatial_2, temporal, features)
+        ndarray
         """
-        if self._shape is None:
-            self._shape = self.data.shape
-        return self._shape
+        if self._lat_lon is None:
+            self._lat_lon = self.raw_lat_lon
+            if self.invert_lat:
+                self._lat_lon = self._lat_lon[::-1]
+        return self._lat_lon
 
     @property
-    def size(self):
-        """Size of data array
+    def invert_lat(self):
+        """Whether to invert the latitude axis during data extraction. This is
+        to enforce a descending latitude ordering so that the lower left corner
+        of the grid is at idx=(-1, 0) instead of idx=(0, 0)"""
+        return (not self.lats_are_descending())
+
+    @property
+    def target(self):
+        """Get lower left corner of raster
 
         Returns
         -------
-        size : int
-            Number of total elements contained in data array
+        _target: tuple
+            (lat, lon) lower left corner of raster.
         """
-        return np.prod(self.requested_shape)
-
-    @property
-    def requested_shape(self):
-        """Get requested shape for cached data"""
-        shape = get_raster_shape(self.raster_index)
-        return (shape[0] // self.hr_spatial_coarsen,
-                shape[1] // self.hr_spatial_coarsen,
-                len(self.raw_time_index[self.temporal_slice]),
-                len(self.features))
-
-    def run_all_data_init(self):
-        """Build base 4D data array. Can handle multiple files but assumes
-        each file has the same spatial domain
-
-        Returns
-        -------
-        data : np.ndarray
-            4D array of high res data
-            (spatial_1, spatial_2, temporal, features)
-        """
-        now = dt.now()
-        logger.debug(f'Loading data for raster of shape {self.grid_shape}')
-
-        time_chunk_size = self.time_chunk_size or self.n_tsteps
-        # get the file-native time index without pruning
-        if self.is_time_independent:
-            n_steps = 1
-            shifted_time_chunks = [slice(None)]
-        else:
-            n_steps = len(self.raw_time_index[self.temporal_slice])
-            shifted_time_chunks = get_chunk_slices(n_steps, time_chunk_size)
-
-        self.run_data_extraction()
-        self.run_data_compute()
-
-        logger.info('Building final data array')
-        self.data_fill(shifted_time_chunks, self.extract_workers)
-
-        if self.invert_lat:
-            self.data = self.data[::-1]
-
-        if self.time_roll != 0:
-            logger.debug('Applying time roll to data array')
-            self.data = np.roll(self.data, self.time_roll, axis=2)
-
-        if self.hr_spatial_coarsen > 1:
-            logger.debug('Applying hr spatial coarsening to data array')
-            self.data = spatial_coarsening(self.data,
-                                           s_enhance=self.hr_spatial_coarsen,
-                                           obs_axis=False)
-
-        logger.info(f'Finished extracting data for {self.input_file_info} in '
-                    f'{dt.now() - now}')
-
-        return self.data.astype(np.float32)
-
-    def run_nn_fill(self):
-        """Run nn nan fill on full data array."""
-        for i in range(self.data.shape[-1]):
-            if np.isnan(self.data[..., i]).any():
-                self.data[..., i] = nn_fill_array(self.data[..., i])
-
-    def mask_nan(self):
-        """Drop timesteps with NaN data"""
-        nan_mask = np.isnan(self.data).any(axis=(0, 1, 3))
-        logger.info('Removing {} out of {} timesteps due to NaNs'.format(
-            nan_mask.sum(), self.data.shape[2]))
-        self.data = self.data[:, :, ~nan_mask, :]
-
-    def run_data_extraction(self):
-        """Run the raw dataset extraction process from disk to raw
-        un-manipulated datasets.
-        """
-        if self.extract_features:
-            logger.info(f'Starting extraction of {self.extract_features} '
-                        f'using {len(self.time_chunks)} time_chunks.')
-            if self.extract_workers == 1:
-                self._raw_data = self.serial_extract(self.file_paths,
-                                                     self.raster_index,
-                                                     self.time_chunks,
-                                                     self.extract_features,
-                                                     **self.res_kwargs)
-
+        if self._target is None:
+            lat_lon = self.lat_lon
+            if not self.lats_are_descending(lat_lon):
+                self._target = tuple(lat_lon[0, 0, :])
             else:
-                self._raw_data = self.parallel_extract(self.file_paths,
-                                                       self.raster_index,
-                                                       self.time_chunks,
-                                                       self.extract_features,
-                                                       self.extract_workers,
-                                                       **self.res_kwargs)
+                self._target = tuple(lat_lon[-1, 0, :])
+        return self._target
 
-            logger.info(f'Finished extracting {self.extract_features} for '
-                        f'{self.input_file_info}')
-
-    def run_data_compute(self):
-        """Run the data computation / derivation from raw features to desired
-        features.
-        """
-        if self.derive_features:
-            logger.info(f'Starting computation of {self.derive_features}')
-
-            if self.compute_workers == 1:
-                self._raw_data = self.serial_compute(self._raw_data,
-                                                     self.file_paths,
-                                                     self.raster_index,
-                                                     self.time_chunks,
-                                                     self.derive_features,
-                                                     self.noncached_features,
-                                                     self.handle_features)
-
-            elif self.compute_workers != 1:
-                self._raw_data = self.parallel_compute(self._raw_data,
-                                                       self.file_paths,
-                                                       self.raster_index,
-                                                       self.time_chunks,
-                                                       self.derive_features,
-                                                       self.noncached_features,
-                                                       self.handle_features,
-                                                       self.compute_workers)
-
-            logger.info(f'Finished computing {self.derive_features} for '
-                        f'{self.input_file_info}')
-
-    def _single_data_fill(self, t, t_slice, f_index, f):
-        """Place single extracted / computed chunk in final data array
+    def lats_are_descending(self, lat_lon=None):
+        """Check if latitudes are in descending order (i.e. the target
+        coordinate is already at the bottom left corner)
 
         Parameters
         ----------
-        t : int
-            Index of time slice in extracted / computed raw data dictionary
-        t_slice : slice
-            Time slice corresponding to the location in the final data array
-        f_index : int
-            Index of feature in the final data array
-        f : str
-            Name of corresponding feature in the raw data dictionary
-        """
-        tmp = self._raw_data[t][f]
-        if len(tmp.shape) == 2:
-            tmp = tmp[..., np.newaxis]
-        self.data[..., t_slice, f_index] = tmp
-
-    def serial_data_fill(self, shifted_time_chunks):
-        """Fill final data array in serial
-
-        Parameters
-        ----------
-        shifted_time_chunks : list
-            List of time slices corresponding to the appropriate location of
-            extracted / computed chunks in the final data array
-        """
-        for t, ts in enumerate(shifted_time_chunks):
-            for _, f in enumerate(self.noncached_features):
-                f_index = self.features.index(f)
-                self._single_data_fill(t, ts, f_index, f)
-            logger.info(f'Added {t + 1} of {len(shifted_time_chunks)} '
-                        'chunks to final data array')
-            self._raw_data.pop(t)
-
-    def data_fill(self, shifted_time_chunks, max_workers=None):
-        """Fill final data array with extracted / computed chunks
-
-        Parameters
-        ----------
-        shifted_time_chunks : list
-            List of time slices corresponding to the appropriate location of
-            extracted / computed chunks in the final data array
-        max_workers : int | None
-            Max number of workers to use for building final data array. If None
-            max available workers will be used. If 1 cached data will be loaded
-            in serial
-        """
-        self.data = np.zeros((self.grid_shape[0],
-                              self.grid_shape[1],
-                              self.n_tsteps,
-                              len(self.features)),
-                             dtype=np.float32)
-
-        if max_workers == 1:
-            self.serial_data_fill(shifted_time_chunks)
-        else:
-            with ThreadPoolExecutor(max_workers=max_workers) as exe:
-                futures = {}
-                now = dt.now()
-                for t, ts in enumerate(shifted_time_chunks):
-                    for _, f in enumerate(self.noncached_features):
-                        f_index = self.features.index(f)
-                        future = exe.submit(self._single_data_fill,
-                                            t, ts, f_index, f)
-                        futures[future] = {'t': t, 'fidx': f_index}
-
-                logger.info(f'Started adding {len(futures)} chunks '
-                            f'to data array in {dt.now() - now}.')
-
-                for i, future in enumerate(as_completed(futures)):
-                    try:
-                        future.result()
-                    except Exception as e:
-                        msg = (f'Error adding ({futures[future]["t"]}, '
-                               f'{futures[future]["fidx"]}) chunk to '
-                               'final data array.')
-                        logger.exception(msg)
-                        raise RuntimeError(msg) from e
-                    logger.debug(f'Added {i + 1} out of {len(futures)} '
-                                 'chunks to final data array')
-        logger.info('Finished building data array')
-
-    @abstractmethod
-    def get_raster_index(self):
-        """Get raster index for file data. Here we assume the list of paths in
-        file_paths all have data with the same spatial domain. We use the first
-        file in the list to compute the raster
+        lat_lon : np.ndarray
+            Lat/Lon array with shape (n_lats, n_lons, 2)
 
         Returns
         -------
-        raster_index : np.ndarray
-            2D array of grid indices for H5 or list of
-            slices for NETCDF
+        bool
         """
+        lat_lon = lat_lon if lat_lon is not None else self.raw_lat_lon
+        return lat_lon[-1, 0, 0] < lat_lon[0, 0, 0]
 
-    def lin_bc(self, bc_files, threshold=0.1):
-        """Bias correct the data in this DataHandler using linear bias
-        correction factors from files output by MonthlyLinearCorrection or
-        LinearCorrection from sup3r.bias.bias_calc
+    @property
+    def grid_shape(self):
+        """Get shape of raster
 
-        Parameters
-        ----------
-        bc_files : list | tuple | str
-            One or more filepaths to .h5 files output by
-            MonthlyLinearCorrection or LinearCorrection. These should contain
-            datasets named "{feature}_scalar" and "{feature}_adder" where
-            {feature} is one of the features contained by this DataHandler and
-            the data is a 3D array of shape (lat, lon, time) where time is
-            length 1 for annual correction or 12 for monthly correction.
-        threshold : float
-            Nearest neighbor euclidean distance threshold. If the DataHandler
-            coordinates are more than this value away from the bias correction
-            lat/lon, an error is raised.
+        Returns
+        -------
+        _grid_shape: tuple
+            (rows, cols) grid size.
         """
+        return self.lat_lon.shape[:-1]
 
-        if isinstance(bc_files, str):
-            bc_files = [bc_files]
+    @property
+    def domain_shape(self):
+        """Get spatiotemporal domain shape
 
-        completed = []
-        for idf, feature in enumerate(self.features):
-            for fp in bc_files:
-                dset_scalar = f'{feature}_scalar'
-                dset_adder = f'{feature}_adder'
-                with Resource(fp) as res:
-                    dsets = [dset.lower() for dset in res.dsets]
-                    check = (dset_scalar.lower() in dsets
-                             and dset_adder.lower() in dsets)
-                if feature not in completed and check:
-                    scalar, adder = get_spatial_bc_factors(
-                        lat_lon=self.lat_lon,
-                        feature_name=feature,
-                        bias_fp=fp,
-                        threshold=threshold)
-
-                    if scalar.shape[-1] == 1:
-                        scalar = np.repeat(scalar, self.shape[2], axis=2)
-                        adder = np.repeat(adder, self.shape[2], axis=2)
-                    elif scalar.shape[-1] == 12:
-                        idm = self.time_index.month.values - 1
-                        scalar = scalar[..., idm]
-                        adder = adder[..., idm]
-                    else:
-                        msg = ('Can only accept bias correction factors '
-                               'with last dim equal to 1 or 12 but '
-                               'received bias correction factors with '
-                               'shape {}'.format(scalar.shape))
-                        logger.error(msg)
-                        raise RuntimeError(msg)
-
-                    logger.info('Bias correcting "{}" with linear '
-                                'correction from "{}"'.format(
-                                    feature, os.path.basename(fp)))
-                    self.data[..., idf] *= scalar
-                    self.data[..., idf] += adder
-                    completed.append(feature)
-
-    def qdm_bc(self,
-               bc_files,
-               reference_feature,
-               relative=True,
-               threshold=0.1):
-        """Bias Correction using Quantile Delta Mapping
-
-        Bias correct this DataHandler's data with Quantile Delta Mapping. The
-        required statistical distributions should be pre-calculated using
-        :class:`sup3r.bias.bias_calc.QuantileDeltaMappingCorrection`.
-
-        Warning: There is no guarantee that the coefficients from ``bc_files``
-        match the resource processed here. Be careful choosing ``bc_files``.
-
-        Parameters
-        ----------
-        bc_files : list | tuple | str
-            One or more filepaths to .h5 files output by
-            :class:`bias_calc.QuantileDeltaMappingCorrection`. These should
-            contain datasets named "base_{reference_feature}_params",
-            "bias_{feature}_params", and "bias_fut_{feature}_params" where
-            {feature} is one of the features contained by this DataHandler and
-            the data is a 3D array of shape (lat, lon, time) where time.
-        reference_feature : str
-            Name of the feature used as (historical) reference. Dataset with
-            name "base_{reference_feature}_params" will be retrieved from
-            ``bc_files``.
-        relative : bool, default=True
-            Switcher to apply QDM as a relative (use True) or absolute (use
-            False) correction value.
-        threshold : float, default=0.1
-            Nearest neighbor euclidean distance threshold. If the DataHandler
-            coordinates are more than this value away from the bias correction
-            lat/lon, an error is raised.
+        Returns
+        -------
+        tuple
+            (rows, cols, timesteps)
         """
-
-        if isinstance(bc_files, str):
-            bc_files = [bc_files]
-
-        completed = []
-        for idf, feature in enumerate(self.features):
-            for fp in bc_files:
-                logger.info('Bias correcting "{}" with QDM '
-                            'correction from "{}"'.format(
-                                feature, os.path.basename(fp)))
-                self.data[..., idf] = local_qdm_bc(self.data[..., idf],
-                                                   self.lat_lon,
-                                                   reference_feature,
-                                                   feature,
-                                                   bias_fp=fp,
-                                                   threshold=threshold,
-                                                   relative=relative)
-                completed.append(feature)
+        return (*self.grid_shape, len(self.time_index))

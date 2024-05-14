@@ -1657,7 +1657,9 @@ class ForwardPass:
         """Reshape and transpose data chunk and exogenous data before being
         passed to the sup3r model.
 
-        NOTE: Exo data needs to be different shapes for 5D (Spatiotemporal) /
+        Notes
+        -----
+        Exo data needs to be different shapes for 5D (Spatiotemporal) /
         4D (Spatial / Surface) models, and different models use different
         indices for spatial and temporal dimensions. These differences are
         handled here.
@@ -1777,7 +1779,7 @@ class ForwardPass:
         allowed_const = self.strategy.allowed_const
         if allowed_const is True:
             return
-        elif allowed_const is False:
+        if allowed_const is False:
             allowed_const = []
         elif not isinstance(allowed_const, (list, tuple)):
             allowed_const = [allowed_const]

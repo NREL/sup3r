@@ -2,25 +2,22 @@
 contained data."""
 
 import logging
-from abc import ABC, abstractmethod
+from abc import ABC
 
 import numpy as np
 
-from sup3r.containers.abstract import AbstractContainer
-from sup3r.containers.base import Container
+from sup3r.containers.wranglers.abstract import AbstractWrangler
 
 np.random.seed(42)
 
 logger = logging.getLogger(__name__)
 
 
-class AbstractWrangler(AbstractContainer, ABC):
-    """Loader subclass with additional methods for wrangling data. e.g.
-    Extracting specific spatiotemporal extents and features and deriving new
-    features."""
+class WranglerH5(AbstractWrangler, ABC):
+    """Wrangler subclass for h5 files specifically."""
 
     def __init__(self,
-                 loader: Container,
+                 file_paths,
                  features,
                  target,
                  shape,
@@ -31,9 +28,8 @@ class AbstractWrangler(AbstractContainer, ABC):
         """
         Parameters
         ----------
-        loader : Container
-            Loader type container. Initialized on file_paths pointing to data
-            that will now be wrangled.
+        file_paths : str | pathlib.Path | list
+            Globbable path str(s) or pathlib.Path for file locations.
         features : list
             List of feature names to extract from file_paths.
         target : tuple
@@ -52,8 +48,11 @@ class AbstractWrangler(AbstractContainer, ABC):
             Slice specifying extent and step of temporal extraction. e.g.
             slice(start, stop, time_pruning). If equal to slice(None, None, 1)
             the full time dimension is selected.
+        res_kwargs : dict | None
+            Dictionary of kwargs to pass to xarray.open_mfdataset.
         """
-        super().__init__()
+        super().__init__(file_paths, features=features)
+        self.res_kwargs = res_kwargs or {}
         self.raster_file = raster_file
         self.temporal_slice = temporal_slice
         self.target = target
@@ -62,17 +61,3 @@ class AbstractWrangler(AbstractContainer, ABC):
         self.lat_lon = self.get_lat_lon()
         self.raster_index = self.get_raster_index()
         self.data = self.load()
-
-    @abstractmethod
-    def get_raster_index(self):
-        """Get array of indices used to select the spatial region of
-        interest."""
-
-    @abstractmethod
-    def get_time_index(self):
-        """Get the time index for the time period of interest."""
-
-    @abstractmethod
-    def get_lat_lon(self):
-        """Get 2D grid of coordinates with `target` as the lower left
-        coordinate."""

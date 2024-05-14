@@ -22,6 +22,8 @@ from sup3r.preprocessing.dual_batch_handling import (
     SpatialDualBatchHandler,
 )
 
+from sup3r.containers.batchers import PairBatchQueue
+
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 FP_ERA = os.path.join(TEST_DATA_DIR, 'test_era5_co_2012.nc')
 TARGET_COORD = (39.01, -105.15)
@@ -65,8 +67,8 @@ def test_train_spatial(
         hr_handler, lr_handler, s_enhance=2, t_enhance=1, val_split=0.1
     )
 
-    batch_handler = SpatialDualBatchHandler(
-        [dual_handler], batch_size=2, s_enhance=2, n_batches=2
+    batch_handler = PairBatchQueue(
+        [dual_handler], batch_size=2, n_batches=2, s_enhance=2, n_batches=2
     )
 
     with tempfile.TemporaryDirectory() as td:

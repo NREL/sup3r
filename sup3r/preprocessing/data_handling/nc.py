@@ -141,6 +141,7 @@ class DataHandlerNC(DataHandler):
         elif hasattr(handle, 'indexes') and 'time' in handle.indexes:
             time_index = handle.indexes['time']
             if not isinstance(time_index, pd.DatetimeIndex):
+                breakpoint()
                 time_index = time_index.to_datetimeindex()
         elif hasattr(handle, 'times'):
             time_index = np_to_pd_times(handle.times.values)

@@ -401,7 +401,9 @@ class Solar:
     def get_sup3r_fps(fp_pattern, ignore=None):
         """Get a list of file chunks to run in parallel based on a file pattern
 
-        NOTE: it's assumed that all source files have the pattern
+        Notes
+        -----
+        It's assumed that all source files have the pattern
         sup3r_file_TTTTTT_SSSSSS.h5 where TTTTTT is the zero-padded temporal
         chunk index and SSSSSS is the zero-padded spatial chunk index.
 

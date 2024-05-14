@@ -4,11 +4,11 @@ containers."""
 
 import copy
 import logging
-from typing import Tuple
+from typing import Self, Tuple
 
 import numpy as np
 
-from sup3r.containers.abstract import AbstractContainer, DataObject
+from sup3r.containers.abstract import AbstractContainer
 
 logger = logging.getLogger(__name__)
 
@@ -17,13 +17,14 @@ class Container(AbstractContainer):
     """Low level object with access to data, knowledge of the data shape, and
     what variables / features are contained."""
 
-    def __init__(self, obj: DataObject):
-        super().__init__(obj)
+    def __init__(self, container: Self):
+        super().__init__()
+        self.container = container
 
     @property
     def data(self):
         """Returns the contained data."""
-        return self.obj
+        return self.container
 
     @property
     def size(self):
@@ -33,16 +34,16 @@ class Container(AbstractContainer):
     @property
     def shape(self):
         """Shape of contained data. Usually (lat, lon, time, features)."""
-        return self.obj.shape
+        return self.container.shape
 
     @property
     def features(self):
         """Features in this container."""
-        return self.obj.features
+        return self.container.features
 
     def __getitem__(self, key):
         """Method for accessing self.data."""
-        return self.obj[key]
+        return self.container[key]
 
 
 class ContainerPair(Container):
