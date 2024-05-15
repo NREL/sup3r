@@ -107,7 +107,6 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         )
         self.stds = stds if isinstance(stds, dict) else safe_json_load(stds)
         self.container_index = self.get_container_index()
-        self.container_weights = self.get_container_weights()
         self.batch_size = batch_size
         self.n_batches = n_batches
         self.queue_cap = queue_cap or n_batches
@@ -115,11 +114,30 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         self.queue = self.get_queue()
         self.max_workers = max_workers or batch_size
         self.gpu_list = tf.config.list_physical_devices('GPU')
-        self.default_device = (
-            default_device or '/cpu:0'
-            if len(self.gpu_list) == 0
-            else self.gpu_list[0]
+        self.default_device = default_device or (
+            '/cpu:0' if len(self.gpu_list) == 0 else '/gpu:0'
         )
+        self.check_stats()
+        self.check_features()
+
+    def check_features(self):
+        """Make sure all samplers have the same sets of features."""
+        features = [c.features for c in self.containers]
+        msg = 'Received samplers with different sets of features.'
+        assert all(feats == features[0] for feats in features), msg
+
+    def check_stats(self):
+        """Make sure the provided stats cover the contained features."""
+        msg = (
+            f'Received means = {self.means} with self.features = '
+            f'{self.features}.'
+        )
+        assert len(self.means) == len(self.features), msg
+        msg = (
+            f'Received stds = {self.stds} with self.features = '
+            f'{self.features}.'
+        )
+        assert len(self.stds) == len(self.features), msg
 
     @property
     def batches(self):
@@ -167,8 +185,10 @@ class AbstractBatchQueue(SamplerCollection, ABC):
 
     def prefetch(self):
         """Prefetch set of batches from dataset generator."""
-        logger.info(f'Prefetching {self.queue.name} batches with '
-                    f'batch_size = {self.batch_size}.')
+        logger.info(
+            f'Prefetching {self.queue.name} batches with '
+            f'batch_size = {self.batch_size}.'
+        )
         with tf.device(self.default_device):
             data = self._parallel_map()
             data = data.prefetch(tf.data.experimental.AUTOTUNE)

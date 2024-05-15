@@ -21,11 +21,6 @@ from sup3r.preprocessing.feature_handling import (
     Feature,
     FeatureHandler,
 )
-from sup3r.preprocessing.mixin import (
-    HandlerFeatureSets,
-    InputMixIn,
-    TrainingPrep,
-)
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
 from sup3r.utilities.utilities import (
@@ -40,8 +35,7 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
-class DataHandler(HandlerFeatureSets, FeatureHandler, InputMixIn,
-                  TrainingPrep):
+class DataHandler(FeatureHandler):
     """Sup3r data handling and extraction for low-res source data or for
     artificially coarsened high-res source data for training.
 
@@ -178,12 +172,6 @@ class DataHandler(HandlerFeatureSets, FeatureHandler, InputMixIn,
                       'chunks': {'south_north': 120, 'west_east': 120}}
             which then gets passed to xr.open_mfdataset(file, **res_kwargs)
         """
-        InputMixIn.__init__(self,
-                            target=target,
-                            shape=shape,
-                            raster_file=raster_file,
-                            temporal_slice=temporal_slice)
-
         self.file_paths = file_paths
         self.features = (features if isinstance(features, (list, tuple))
                          else [features])

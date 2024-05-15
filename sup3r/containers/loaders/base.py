@@ -4,24 +4,23 @@ classes."""
 
 import logging
 
-import numpy as np
-import xarray as xr
-from rex import MultiFileWindX
+import dask.array
 
 from sup3r.containers.loaders.abstract import AbstractLoader
 
 logger = logging.getLogger(__name__)
 
 
-class LoaderNC(AbstractLoader):
-    """Base NETCDF loader. "Loads" netcdf files so that a `.data` attribute
-    provides access to the data in the files. This object provides a
-    `__getitem__` method that can be used by Sampler objects to build batches
-    or by Wrangler objects to derive / extract specific features / regions /
-    time_periods."""
+class Loader(AbstractLoader):
+    """Base loader. "Loads" files so that a `.data` attribute provides access
+    to the data in the files. This object provides a `__getitem__` method that
+    can be used by Sampler objects to build batches or by Wrangler objects to
+    derive / extract specific features / regions / time_periods."""
+
+    DEFAULT_RES = None
 
     def __init__(
-        self, file_paths, features, res_kwargs=None, mode='lazy'
+        self, file_paths, features, res_kwargs=None, chunks='auto', mode='lazy'
     ):
         """
         Parameters
@@ -31,116 +30,63 @@ class LoaderNC(AbstractLoader):
         features : list
             list of all features wanted from the file_paths.
         res_kwargs : dict
-            kwargs for xr.open_mfdataset()
+            kwargs for `.res` object
+        chunks : tuple
+            Tuple of chunk sizes to use for call to dask.array.from_array().
+            Note: The ordering here corresponds to the default ordering given
+            by `.res`.
         mode : str
             Options are ('lazy', 'eager') for how to load data.
         """
-        super().__init__(file_paths)
-        self.features = features
+        super().__init__(
+            file_paths=file_paths,
+            features=features
+        )
         self._res_kwargs = res_kwargs or {}
         self._mode = mode
+        self.chunks = chunks
+        self.data = self.load()
 
     @property
-    def shape(self):
-        """Return shape of extent available for sampling."""
-        if self._shape is None:
-            self._shape = (*self.data["latitude"].shape,
-                           len(self.data["time"]))
-        return self._shape
+    def res(self):
+        """Lowest level interface to data."""
+        return self.DEFAULT_RES(self.file_paths, **self._res_kwargs)
 
-    def load(self):
-        """Xarray dataset either lazily loaded (mode = 'lazy') or loaded into
-        memory right away (mode = 'eager').
+    def load(self) -> dask.array:
+        """Dask array with features in last dimension. Either lazily loaded
+        (mode = 'lazy') or loaded into memory right away (mode = 'eager').
 
         Returns
         -------
-        xr.Dataset()
-            xarray dataset with the requested features
+        dask.array.core.Array
+            (spatial, time, features) or (spatial_1, spatial_2, time, features)
         """
-        data = xr.open_mfdataset(self.file_paths, **self._res_kwargs)
-        msg = (f'Loading {self.file_paths} with kwargs = '
-               f'{self._res_kwargs} and mode = {self._mode}')
-        logger.info(msg)
+        data = dask.array.stack(
+            [
+                dask.array.from_array(self.res[f], chunks=self.chunks)
+                for f in self.features
+            ],
+            axis=-1,
+        )
+        data = dask.array.moveaxis(data, 0, -2)
 
         if self._mode == 'eager':
             data = data.compute()
 
-        return data[self.features]
-
-    def __getitem__(self, key):
-        """Get observation/sample. Should return a single sample from the
-        underlying data with shape (spatial_1, spatial_2, temporal,
-        features)."""
-
-        out = self.data.isel(
-            south_north=key[0],
-            west_east=key[1],
-            time=key[2],
-        )
-
-        if self._mode == 'lazy':
-            out = out.compute()
-
-        out = out.to_dataarray().values
-        return np.transpose(out, axes=(2, 3, 1, 0))
-
-
-class LoaderH5(AbstractLoader):
-    """Base H5 loader. "Loads" h5 files so that a `.data` attribute
-    provides access to the data in the files. This object provides a
-    `__getitem__` method that can be used by Sampler objects to build batches
-    or by Wrangler objects to derive / extract specific features / regions /
-    time_periods."""
-
-    def __init__(
-        self, file_paths, features, res_kwargs=None, mode='lazy'
-):
-        """
-        Parameters
-        ----------
-        file_paths : str | pathlib.Path | list
-            Location(s) of files to load
-        features : list
-            list of all features wanted from the file_paths.
-        res_kwargs : dict
-            kwargs for MultiFileWindX
-        mode : str
-            Options are ('lazy', 'eager') for how to load data.
-        """
-        super().__init__(file_paths)
-        self.features = features
-        self._res_kwargs = res_kwargs or {}
-        self._mode = mode
-
-    @property
-    def shape(self):
-        """Return shape of extent available for sampling."""
-        if self._shape is None:
-            self._shape = (*self.data["latitude"].shape,
-                           len(self.data["time"]))
-        return self._shape
-
-    def load(self):
-        """Xarray dataset either lazily loaded (mode = 'lazy') or loaded into
-        memory right away (mode = 'eager').
-
-        Returns
-        -------
-        xr.Dataset()
-            xarray dataset with the requested features
-        """
-        data = MultiFileWindX(self.file_paths, **self._res_kwargs)
-        msg = (f'Loading {self.file_paths} with kwargs = '
-               f'{self._res_kwargs} and mode = {self._mode}')
-        logger.info(msg)
-
-        if self._mode == 'eager':
-            data = data[:]
-
         return data
 
     def __getitem__(self, key):
-        """Get observation/sample. Should return a single sample from the
-        underlying data with shape (spatial_1, spatial_2, temporal,
+        """Get data from container. This can be used to return a single sample
+        from the underlying data for building batches or as part of extended
+        feature extraction / derivation (spatial_1, spatial_2, temporal,
         features)."""
-        return self.data[key]
+        out = self.data[key]
+        if self._mode == 'lazy':
+            out = out.compute(scheduler='threads')
+        return out
+
+    @property
+    def shape(self):
+        """Return shape of spatiotemporal extent available (spatial_1,
+        spatial_2, temporal)"""
+        return self.data.shape[:-1]

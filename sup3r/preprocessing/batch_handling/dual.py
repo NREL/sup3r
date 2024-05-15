@@ -9,16 +9,12 @@ from sup3r.preprocessing.batch_handling.base import (
     BatchHandler,
     ValidationData,
 )
-from sup3r.preprocessing.mixin import (
-    MultiDualMixIn,
-    MultiHandlerMixIn,
-)
 from sup3r.utilities.utilities import uniform_box_sampler, uniform_time_sampler
 
 logger = logging.getLogger(__name__)
 
 
-class DualValidationData(ValidationData, MultiHandlerMixIn):
+class DualValidationData(ValidationData):
     """Iterator for validation data for training with dual data handler"""
 
     # Classes to use for handling an individual batch obj.
@@ -123,11 +119,10 @@ class DualValidationData(ValidationData, MultiHandlerMixIn):
             batch = self.BATCH_CLASS(low_res=low_res, high_res=high_res)
             self._i += 1
             return batch
-        else:
-            raise StopIteration
+        raise StopIteration
 
 
-class DualBatchHandler(BatchHandler, MultiDualMixIn):
+class DualBatchHandler(BatchHandler):
     """Batch handling class for dual data handlers"""
 
     BATCH_CLASS = Batch
@@ -159,8 +154,7 @@ class DualBatchHandler(BatchHandler, MultiDualMixIn):
 
             self._i += 1
             return batch
-        else:
-            raise StopIteration
+        raise StopIteration
 
 
 class SpatialDualBatchHandler(DualBatchHandler):
@@ -198,5 +192,4 @@ class SpatialDualBatchHandler(DualBatchHandler):
 
             self._i += 1
             return batch
-        else:
-            raise StopIteration
+        raise StopIteration

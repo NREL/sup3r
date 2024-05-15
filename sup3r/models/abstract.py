@@ -544,7 +544,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
     def __init__(self):
         super().__init__()
         self.gpu_list = tf.config.list_physical_devices('GPU')
-        self.default_device = '/cpu:0'
+        self.default_device = '/cpu:0' if len(self.gpu_list) == 0 else '/gpu:0'
         self._version_record = VERSION_RECORD
         self.name = None
         self._meta = None
@@ -1208,10 +1208,13 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             optimizer = self.optimizer
 
         if not multi_gpu or len(self.gpu_list) == 1:
-
-            grad, loss_details = self.get_single_grad(low_res, hi_res_true,
-                                                      training_weights,
-                                                      **calc_loss_kwargs)
+            grad, loss_details = self.get_single_grad(
+                low_res,
+                hi_res_true,
+                training_weights,
+                device_name=self.default_device,
+                **calc_loss_kwargs,
+            )
             optimizer.apply_gradients(zip(grad, training_weights))
             t1 = time.time()
             logger.debug(f'Finished single gradient descent step '
@@ -1466,6 +1469,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         loss_details : dict
             Namespace of the breakdown of loss components
         """
+        device_name = '/cpu:0'
         with tf.device(device_name), tf.GradientTape(
                 watch_accessed_variables=False) as tape:
             self.timer(tape.watch, training_weights)

@@ -5,7 +5,7 @@ information about how different features are used by models."""
 import logging
 from abc import ABC, abstractmethod
 from fnmatch import fnmatch
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 from warnings import warn
 
 from sup3r.containers.base import Container
@@ -17,29 +17,34 @@ logger = logging.getLogger(__name__)
 class AbstractSampler(Container, ABC):
     """Sampler class for iterating through contained things."""
 
-    def __init__(self, data, sample_shape, lr_only_features=(),
-                 hr_exo_features=()):
+    def __init__(self, data, sample_shape, feature_sets: Dict):
         """
         Parameters
         ----------
         data : Container
             Object with data that will be sampled from.
-        data_shape : tuple
-            Size of extent available for sampling
         sample_shape : tuple
             Size of arrays to sample from the contained data.
-        lr_only_features : list | tuple
-            List of feature names or patt*erns that should only be included in
-            the low-res training set and not the high-res observations.
-        hr_exo_features : list | tuple
-            List of feature names or patt*erns that should be included in the
-            high-resolution observation but not expected to be output from the
-            generative model. An example is high-res topography that is to be
-            injected mid-network.
+        feature_sets : dict
+            Dictionary of feature sets. This must include a 'features' entry
+            and optionally can include 'lr_only_features' and/or
+            'hr_only_features'
+
+            The allowed keys are:
+                lr_only_features : list | tuple
+                    List of feature names or patt*erns that should only be
+                    included in the low-res training set and not the high-res
+                    observations.
+                hr_exo_features : list | tuple
+                    List of feature names or patt*erns that should be included
+                    in the high-resolution observation but not expected to be
+                    output from the generative model. An example is high-res
+                    topography that is to be injected mid-network.
         """
         super().__init__(data)
-        self._lr_only_features = lr_only_features
-        self._hr_exo_features = hr_exo_features
+        self.features = feature_sets['features']
+        self._lr_only_features = feature_sets.get('lr_only_features', [])
+        self._hr_exo_features = feature_sets.get('hr_exo_features', [])
         self._counter = 0
         self.sample_shape = sample_shape
         self.preflight()
@@ -106,20 +111,32 @@ class AbstractSampler(Container, ABC):
     def __len__(self):
         return self._size
 
+    def _parse_features(self, unparsed_feats):
+        """Return a list of parsed feature names without wildcards."""
+        if isinstance(unparsed_feats, str):
+            parsed_feats = [unparsed_feats]
+
+        elif isinstance(unparsed_feats, tuple):
+            parsed_feats = list(unparsed_feats)
+
+        elif unparsed_feats is None:
+            parsed_feats = []
+
+        if any('*' in fn for fn in parsed_feats):
+            out = []
+            for feature in self.features:
+                match = any(fnmatch(feature.lower(), pattern.lower())
+                            for pattern in parsed_feats)
+                if match:
+                    out.append(feature)
+            parsed_feats = out
+        return parsed_feats
+
     @property
     def lr_only_features(self):
         """List of feature names or patt*erns that should only be included in
         the low-res training set and not the high-res observations."""
-        if isinstance(self._lr_only_features, str):
-            self._lr_only_features = [self._lr_only_features]
-
-        elif isinstance(self._lr_only_features, tuple):
-            self._lr_only_features = list(self._lr_only_features)
-
-        elif self._lr_only_features is None:
-            self._lr_only_features = []
-
-        return self._lr_only_features
+        return self._parse_features(self._lr_only_features)
 
     @property
     def lr_features(self):
@@ -134,24 +151,7 @@ class AbstractSampler(Container, ABC):
         for training e.g., mid-network high-res topo injection. These must come
         at the end of the high-res feature set. These can also be input to the
         model as low-res features."""
-
-        if isinstance(self._hr_exo_features, str):
-            self._hr_exo_features = [self._hr_exo_features]
-
-        elif isinstance(self._hr_exo_features, tuple):
-            self._hr_exo_features = list(self._hr_exo_features)
-
-        elif self._hr_exo_features is None:
-            self._hr_exo_features = []
-
-        if any('*' in fn for fn in self._hr_exo_features):
-            hr_exo_features = []
-            for feature in self.features:
-                match = any(fnmatch(feature.lower(), pattern.lower())
-                            for pattern in self._hr_exo_features)
-                if match:
-                    hr_exo_features.append(feature)
-            self._hr_exo_features = hr_exo_features
+        self._hr_exo_features = self._parse_features(self._hr_exo_features)
 
         if len(self._hr_exo_features) > 0:
             msg = (f'High-res train-only features "{self._hr_exo_features}" '
@@ -192,20 +192,14 @@ class AbstractSampler(Container, ABC):
 
 
 class AbstractSamplerCollection(Collection, ABC):
-    """Abstract collection of sampler containers with methods for sampling
-    across the containers."""
+    """Abstract collection of class:`Sampler` containers with methods for
+    sampling across the containers."""
 
     def __init__(self, containers: List[AbstractSampler], s_enhance,
                  t_enhance):
         super().__init__(containers)
-        self.container_weights = None
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
-
-    @abstractmethod
-    def get_container_weights(self):
-        """List of normalized container sizes used to weight them when randomly
-        sampling."""
 
     @abstractmethod
     def get_container_index(self) -> int:

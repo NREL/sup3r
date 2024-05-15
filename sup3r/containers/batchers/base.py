@@ -40,8 +40,8 @@ class BatchQueue(AbstractBatchQueue):
         stds: Union[Dict, str],
         queue_cap: Optional[int] = None,
         max_workers: Optional[int] = None,
-        default_device: Optional[str] = None,
         coarsen_kwargs: Optional[Dict] = None,
+        default_device: Optional[str] = None,
     ):
         """
         Parameters
@@ -69,12 +69,12 @@ class BatchQueue(AbstractBatchQueue):
         max_workers : int
             Number of workers / threads to use for getting samples used to
             build batches.
+        coarsen_kwargs : Union[Dict, None]
+            Dictionary of kwargs to be passed to `self.coarsen`.
         default_device : str
             Default device to use for batch queue (e.g. /cpu:0, /gpu:0). If
             None this will use the first GPU if GPUs are available otherwise
             the CPU.
-        coarsen_kwargs : Union[Dict, None]
-            Dictionary of kwargs to be passed to `self.coarsen`.
         """
         super().__init__(
             containers=containers,
@@ -85,8 +85,8 @@ class BatchQueue(AbstractBatchQueue):
             means=means,
             stds=stds,
             queue_cap=queue_cap,
-            default_device=default_device,
             max_workers=max_workers,
+            default_device=default_device,
         )
         self.coarsen_kwargs = coarsen_kwargs or {
             'smoothing_ignore': [],
@@ -177,6 +177,7 @@ class PairBatchQueue(AbstractBatchQueue):
         stds: Union[Dict, str],
         queue_cap=None,
         max_workers=None,
+        default_device: Optional[str] = None,
     ):
         super().__init__(
             containers=containers,
@@ -188,12 +189,14 @@ class PairBatchQueue(AbstractBatchQueue):
             stds=stds,
             queue_cap=queue_cap,
             max_workers=max_workers,
+            default_device=default_device
         )
-        self.check_for_consistent_enhancement_factors()
+        self.check_enhancement_factors()
 
-    def check_for_consistent_enhancement_factors(self):
-        """Make sure each SamplerPair has the same enhancment factors and that
-        they match those provided to the BatchQueue."""
+    def check_enhancement_factors(self):
+        """Make sure each SamplerPair has the same enhancment factors and they
+        match those provided to the BatchQueue."""
+
         s_factors = [c.s_enhance for c in self.containers]
         msg = (
             f'Received s_enhance = {self.s_enhance} but not all '

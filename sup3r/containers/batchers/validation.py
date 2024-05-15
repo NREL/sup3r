@@ -15,7 +15,7 @@ class BatchQueueWithValidation(BatchQueue):
 
     Notes
     -----
-    These list of samplers can sample from the same underlying data source
+    These lists of samplers can sample from the same underlying data source
     (e.g. CONUS WTK) (by using `CroppedSampler(..., crop_slice=crop_slice)`
     with `crop_slice` selecting different time periods to prevent
     cross-contamination), or they can sample from completely different data
@@ -34,6 +34,7 @@ class BatchQueueWithValidation(BatchQueue):
         queue_cap: Optional[int] = None,
         max_workers: Optional[int] = None,
         coarsen_kwargs: Optional[Dict] = None,
+        default_device: Optional[str] = None,
     ):
         super().__init__(
             containers=train_containers,
@@ -46,6 +47,7 @@ class BatchQueueWithValidation(BatchQueue):
             queue_cap=queue_cap,
             max_workers=max_workers,
             coarsen_kwargs=coarsen_kwargs,
+            default_device=default_device
         )
         self.val_data = BatchQueue(
             containers=val_containers,
@@ -58,6 +60,7 @@ class BatchQueueWithValidation(BatchQueue):
             queue_cap=queue_cap,
             max_workers=max_workers,
             coarsen_kwargs=coarsen_kwargs,
+            default_device=default_device
         )
         self.val_data.queue._name = 'validation'
 

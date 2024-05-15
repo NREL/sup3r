@@ -7,7 +7,6 @@ from warnings import warn
 import numpy as np
 import pandas as pd
 
-from sup3r.preprocessing.mixin import CacheHandling, DualMixIn, TrainingPrep
 from sup3r.utilities.regridder import Regridder
 from sup3r.utilities.utilities import nn_fill_array, spatial_coarsening
 
@@ -15,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 # pylint: disable=unsubscriptable-object
-class DualDataHandler(CacheHandling, TrainingPrep, DualMixIn):
+class DualDataHandler:
     """Batch handling class for h5 data as high res (usually WTK) and netcdf
     data as low res (usually ERA5)
 

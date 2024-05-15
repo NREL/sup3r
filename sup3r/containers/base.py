@@ -6,6 +6,7 @@ import copy
 import logging
 from typing import Self, Tuple
 
+import dask.array
 import numpy as np
 
 from sup3r.containers.abstract import AbstractContainer
@@ -22,9 +23,9 @@ class Container(AbstractContainer):
         self.container = container
 
     @property
-    def data(self):
+    def data(self) -> dask.array:
         """Returns the contained data."""
-        return self.container
+        return self.container.data
 
     @property
     def size(self):
@@ -55,9 +56,9 @@ class ContainerPair(Container):
         self.hr_container = hr_container
 
     @property
-    def data(self) -> Tuple[Container, Container]:
+    def data(self) -> Tuple[dask.array, dask.array]:
         """Raw data."""
-        return (self.lr_container, self.hr_container)
+        return (self.lr_container.data, self.hr_container.data)
 
     @property
     def shape(self) -> Tuple[tuple, tuple]:

@@ -13,8 +13,6 @@ from rex import MultiFileNSRDBX, MultiFileWindX
 from sup3r.preprocessing.data_handling.base import DataHandler
 from sup3r.preprocessing.data_handling.data_centric import DataHandlerDC
 from sup3r.preprocessing.derived_features import (
-    BVFreqMon,
-    BVFreqSquaredH5,
     ClearSkyRatioH5,
     CloudMaskH5,
     LatLonH5,
@@ -36,8 +34,6 @@ class DataHandlerH5(DataHandler):
     """DataHandler for H5 Data"""
 
     FEATURE_REGISTRY: ClassVar[dict] = {
-        'BVF2_(.*)m': BVFreqSquaredH5,
-        'BVF_MO_(.*)m': BVFreqMon,
         'U_(.*)m': UWind,
         'V_(.*)m': VWind,
         'lat_lon': LatLonH5,

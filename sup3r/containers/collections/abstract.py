@@ -7,7 +7,7 @@ from typing import List
 from sup3r.containers.base import Container
 
 
-class AbstractCollection(ABC):
+class AbstractCollection(Container, ABC):
     """Object consisting of a set of containers."""
 
     def __init__(self, containers: List[Container]):
@@ -23,9 +23,9 @@ class AbstractCollection(ABC):
         self._containers = containers
 
     @property
-    @abstractmethod
     def data(self):
         """Data available in the collection of containers."""
+        return [c.data for c in self._containers]
 
     @property
     @abstractmethod
