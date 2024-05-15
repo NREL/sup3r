@@ -1,6 +1,7 @@
 """Sampler objects. These take in data objects / containers and can them sample
 from them. These samples can be used to build batches."""
 
+import copy
 import logging
 from typing import List, Tuple
 
@@ -93,6 +94,14 @@ class SamplerPair(ContainerPair, AbstractSampler):
         return (lr_index, hr_index)
 
     @property
+    def features(self):
+        """Get a list of data features including features from both the lr and
+        hr data handlers"""
+        out = list(copy.deepcopy(self.lr_container.features))
+        out += [fn for fn in self.hr_container.features if fn not in out]
+        return out
+
+    @property
     def lr_only_features(self):
         """Features to use for training only and not output"""
         return [fn for fn in self.lr_container.features
@@ -126,11 +135,6 @@ class SamplerPair(ContainerPair, AbstractSampler):
         return self.hr_container.hr_out_features
 
     @property
-    def size(self):
-        """Return size used to compute container weights."""
-        return np.prod(self.shape)
-
-    @property
     def lr_sample_shape(self):
         """Get lr sample shape"""
         return self.lr_container.sample_shape
@@ -162,13 +166,6 @@ class SamplerCollection(AbstractSamplerCollection):
         containers"""
         return all(isinstance(container, ContainerPair)
                    for container in self.containers)
-
-    def get_container_weights(self):
-        """Get weights used to sample from different containers based on
-        relative sizes"""
-        sizes = [c.size for c in self.containers]
-        weights = sizes / np.sum(sizes)
-        return weights.astype(np.float32)
 
     def get_container_index(self):
         """Get random container index based on weights"""

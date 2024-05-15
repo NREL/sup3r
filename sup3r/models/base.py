@@ -95,10 +95,8 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         super().__init__()
 
         self.default_device = default_device
-        if self.default_device is None and len(self.gpu_list) == 1:
+        if self.default_device is None and len(self.gpu_list) >= 1:
             self.default_device = '/gpu:0'
-        elif self.default_device is None and len(self.gpu_list) > 1:
-            self.default_device = '/cpu:0'
 
         self.name = name if name is not None else self.__class__.__name__
         self._meta = meta if meta is not None else {}

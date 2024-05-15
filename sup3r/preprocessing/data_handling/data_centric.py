@@ -8,13 +8,8 @@ import numpy as np
 
 from sup3r.preprocessing.data_handling.base import DataHandler
 from sup3r.preprocessing.derived_features import (
-    BVFreqMon,
-    BVFreqSquaredNC,
-    InverseMonNC,
     LatLonNC,
-    PotentialTempNC,
     PressureNC,
-    TempNC,
     UWind,
     VWind,
     WinddirectionNC,
@@ -37,18 +32,12 @@ class DataHandlerDC(DataHandler):
     """Data-centric data handler"""
 
     FEATURE_REGISTRY: ClassVar[dict] = {
-        'BVF2_(.*)m': BVFreqSquaredNC,
-        'BVF_MO_(.*)m': BVFreqMon,
-        'RMOL': InverseMonNC,
         'U_(.*)': UWind,
         'V_(.*)': VWind,
         'Windspeed_(.*)m': WindspeedNC,
         'Winddirection_(.*)m': WinddirectionNC,
         'lat_lon': LatLonNC,
-        'Temperature_(.*)m': TempNC,
         'Pressure_(.*)m': PressureNC,
-        'PotentialTemp_(.*)m': PotentialTempNC,
-        'PT_(.*)m': PotentialTempNC,
         'topography': ['HGT', 'orog']
     }
 

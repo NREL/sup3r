@@ -503,9 +503,14 @@ class EraDownloader:
             logger.info(f'Combining {files} to {self.combined_file}.')
             kwargs = {'compat': 'override',
                       'chunks': self.CHUNKS}
-            with xr.open_mfdataset(files, **kwargs) as ds:
-                ds.to_netcdf(self.combined_file)
-            logger.info(f'Finished writing {self.combined_file}')
+            try:
+                with xr.open_mfdataset(files, **kwargs) as ds:
+                    ds.to_netcdf(self.combined_file)
+                logger.info(f'Finished writing {self.combined_file}')
+            except Exception as e:
+                msg = f'Error combining {files}.'
+                logger.error(msg)
+                raise RuntimeError(msg) from e
 
             if os.path.exists(self.level_file):
                 os.remove(self.level_file)
@@ -924,10 +929,15 @@ class EraDownloader:
 
         if not os.path.exists(outfile):
             logger.info(f'Combining {files} into {outfile}.')
-            with xr.open_mfdataset(files, chunks=cls.CHUNKS) as res:
-                os.makedirs(os.path.dirname(outfile), exist_ok=True)
-                res.to_netcdf(outfile)
-                logger.info(f'Saved {outfile}')
+            try:
+                with xr.open_mfdataset(files, chunks=cls.CHUNKS) as res:
+                    os.makedirs(os.path.dirname(outfile), exist_ok=True)
+                    res.to_netcdf(outfile)
+                    logger.info(f'Saved {outfile}')
+            except Exception as e:
+                msg = f'Error combining {files}.'
+                logger.error(msg)
+                raise RuntimeError(msg) from e
         else:
             logger.info(f'{outfile} already exists.')
 
@@ -958,11 +968,16 @@ class EraDownloader:
         if not os.path.exists(yearly_file):
             kwargs = {'combine': 'nested', 'concat_dim': 'time',
                       'chunks': cls.CHUNKS}
-            with xr.open_mfdataset(files, **kwargs) as res:
-                logger.info(f'Combining {files}')
-                os.makedirs(os.path.dirname(yearly_file), exist_ok=True)
-                res.to_netcdf(yearly_file)
-                logger.info(f'Saved {yearly_file}')
+            try:
+                with xr.open_mfdataset(files, **kwargs) as res:
+                    logger.info(f'Combining {files}')
+                    os.makedirs(os.path.dirname(yearly_file), exist_ok=True)
+                    res.to_netcdf(yearly_file)
+                    logger.info(f'Saved {yearly_file}')
+            except Exception as e:
+                msg = f'Error combining {files}'
+                logger.error(msg)
+                raise RuntimeError(msg) from e
         else:
             logger.info(f'{yearly_file} already exists.')
 

@@ -29,7 +29,6 @@ from sup3r.preprocessing import (
     ExoData,
     ExogenousDataHandler,
 )
-from sup3r.preprocessing.mixin import InputMixIn
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
 from sup3r.utilities.execution import DistributedProcess
@@ -584,7 +583,7 @@ class ForwardPassSlicer:
         return cropped_slices
 
 
-class ForwardPassStrategy(InputMixIn, DistributedProcess):
+class ForwardPassStrategy(DistributedProcess):
     """Class to prepare data for forward passes through generator.
 
     A full file list of contiguous times is provided. The corresponding data is

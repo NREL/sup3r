@@ -5,23 +5,56 @@ import os
 import pytest
 from rex import init_logger
 
-from sup3r.containers.batchers import (
+from sup3r.containers import (
     BatchQueue,
     BatchQueueWithValidation,
     PairBatchQueue,
+    SamplerPair,
 )
-from sup3r.containers.samplers import SamplerPair
 from sup3r.utilities.pytest.helpers import DummyCroppedSampler, DummySampler
 
 init_logger('sup3r', log_level='DEBUG')
+
+FEATURES = ['windspeed', 'winddirection']
+means = dict.fromkeys(FEATURES, 0)
+stds = dict.fromkeys(FEATURES, 1)
+
+
+def test_not_enough_stats_for_batch_queue():
+    """Negative test for not enough means / stds for given features."""
+
+    samplers = [
+        DummySampler(
+            sample_shape=(8, 8, 10), data_shape=(10, 10, 20), features=FEATURES
+        ),
+        DummySampler(
+            sample_shape=(8, 8, 10), data_shape=(12, 12, 15), features=FEATURES
+        ),
+    ]
+    coarsen_kwargs = {'smoothing_ignore': [], 'smoothing': None}
+
+    with pytest.raises(AssertionError):
+        _ = BatchQueue(
+            containers=samplers,
+            n_batches=3,
+            batch_size=4,
+            s_enhance=2,
+            t_enhance=2,
+            means={'windspeed': 4},
+            stds={'windspeed': 2},
+            queue_cap=10,
+            max_workers=1,
+            coarsen_kwargs=coarsen_kwargs,
+        )
 
 
 def test_batch_queue():
     """Smoke test for batch queue."""
 
+    sample_shape = (8, 8, 10)
     samplers = [
-        DummySampler(sample_shape=(8, 8, 10), data_shape=(10, 10, 20)),
-        DummySampler(sample_shape=(8, 8, 10), data_shape=(12, 12, 15)),
+        DummySampler(sample_shape, data_shape=(10, 10, 20), features=FEATURES),
+        DummySampler(sample_shape, data_shape=(12, 12, 15), features=FEATURES),
     ]
     coarsen_kwargs = {'smoothing_ignore': [], 'smoothing': None}
     batcher = BatchQueue(
@@ -30,8 +63,8 @@ def test_batch_queue():
         batch_size=4,
         s_enhance=2,
         t_enhance=2,
-        means={'windspeed': 4},
-        stds={'windspeed': 2},
+        means=means,
+        stds=stds,
         queue_cap=10,
         max_workers=1,
         coarsen_kwargs=coarsen_kwargs,
@@ -39,8 +72,8 @@ def test_batch_queue():
     batcher.start()
     assert len(batcher) == 3
     for b in batcher:
-        assert b.low_res.shape == (4, 4, 4, 5, 1)
-        assert b.high_res.shape == (4, 8, 8, 10, 1)
+        assert b.low_res.shape == (4, 4, 4, 5, len(FEATURES))
+        assert b.high_res.shape == (4, 8, 8, 10, len(FEATURES))
     batcher.stop()
 
 
@@ -55,8 +88,8 @@ def test_spatial_batch_queue():
     n_batches = 3
     coarsen_kwargs = {'smoothing_ignore': [], 'smoothing': None}
     samplers = [
-        DummySampler(sample_shape, data_shape=(10, 10, 20)),
-        DummySampler(sample_shape, data_shape=(12, 12, 15)),
+        DummySampler(sample_shape, data_shape=(10, 10, 20), features=FEATURES),
+        DummySampler(sample_shape, data_shape=(12, 12, 15), features=FEATURES),
     ]
     batcher = BatchQueue(
         containers=samplers,
@@ -65,8 +98,8 @@ def test_spatial_batch_queue():
         n_batches=n_batches,
         batch_size=batch_size,
         queue_cap=queue_cap,
-        means={'windspeed': 4},
-        stds={'windspeed': 2},
+        means=means,
+        stds=stds,
         max_workers=1,
         coarsen_kwargs=coarsen_kwargs,
     )
@@ -77,9 +110,9 @@ def test_spatial_batch_queue():
             batch_size,
             sample_shape[0] // s_enhance,
             sample_shape[1] // s_enhance,
-            1,
+            len(FEATURES),
         )
-        assert b.high_res.shape == (batch_size, *sample_shape)
+        assert b.high_res.shape == (batch_size, *sample_shape, len(FEATURES))
     batcher.stop()
 
 
@@ -88,12 +121,28 @@ def test_pair_batch_queue():
     lr_sample_shape = (4, 4, 5)
     hr_sample_shape = (8, 8, 10)
     lr_samplers = [
-        DummySampler(sample_shape=lr_sample_shape, data_shape=(10, 10, 20)),
-        DummySampler(sample_shape=lr_sample_shape, data_shape=(12, 12, 15)),
+        DummySampler(
+            sample_shape=lr_sample_shape,
+            data_shape=(10, 10, 20),
+            features=FEATURES,
+        ),
+        DummySampler(
+            sample_shape=lr_sample_shape,
+            data_shape=(12, 12, 15),
+            features=FEATURES,
+        ),
     ]
     hr_samplers = [
-        DummySampler(sample_shape=hr_sample_shape, data_shape=(20, 20, 40)),
-        DummySampler(sample_shape=hr_sample_shape, data_shape=(24, 24, 30)),
+        DummySampler(
+            sample_shape=hr_sample_shape,
+            data_shape=(20, 20, 40),
+            features=FEATURES,
+        ),
+        DummySampler(
+            sample_shape=hr_sample_shape,
+            data_shape=(24, 24, 30),
+            features=FEATURES,
+        ),
     ]
     sampler_pairs = [
         SamplerPair(lr, hr, s_enhance=2, t_enhance=2)
@@ -106,15 +155,69 @@ def test_pair_batch_queue():
         n_batches=3,
         batch_size=4,
         queue_cap=10,
-        means={'windspeed': 4},
-        stds={'windspeed': 2},
+        means=means,
+        stds=stds,
         max_workers=1,
     )
     batcher.start()
     assert len(batcher) == 3
     for b in batcher:
-        assert b.low_res.shape == (4, *lr_sample_shape, 1)
-        assert b.high_res.shape == (4, *hr_sample_shape, 1)
+        assert b.low_res.shape == (4, *lr_sample_shape, len(FEATURES))
+        assert b.high_res.shape == (4, *hr_sample_shape, len(FEATURES))
+    batcher.stop()
+
+
+def test_pair_batch_queue_with_lr_only_features():
+    """Smoke test for paired batch queue with an extra lr_only_feature."""
+    lr_sample_shape = (4, 4, 5)
+    hr_sample_shape = (8, 8, 10)
+    lr_features = ['dummy_lr_feat', *FEATURES]
+    lr_samplers = [
+        DummySampler(
+            sample_shape=lr_sample_shape,
+            data_shape=(10, 10, 20),
+            features=lr_features,
+        ),
+        DummySampler(
+            sample_shape=lr_sample_shape,
+            data_shape=(12, 12, 15),
+            features=lr_features,
+        ),
+    ]
+    hr_samplers = [
+        DummySampler(
+            sample_shape=hr_sample_shape,
+            data_shape=(20, 20, 40),
+            features=FEATURES,
+        ),
+        DummySampler(
+            sample_shape=hr_sample_shape,
+            data_shape=(24, 24, 30),
+            features=FEATURES,
+        ),
+    ]
+    sampler_pairs = [
+        SamplerPair(lr, hr, s_enhance=2, t_enhance=2)
+        for lr, hr in zip(lr_samplers, hr_samplers)
+    ]
+    means = dict.fromkeys(lr_features, 0)
+    stds = dict.fromkeys(lr_features, 1)
+    batcher = PairBatchQueue(
+        containers=sampler_pairs,
+        s_enhance=2,
+        t_enhance=2,
+        n_batches=3,
+        batch_size=4,
+        queue_cap=10,
+        means=means,
+        stds=stds,
+        max_workers=1,
+    )
+    batcher.start()
+    assert len(batcher) == 3
+    for b in batcher:
+        assert b.low_res.shape == (4, *lr_sample_shape, len(lr_features))
+        assert b.high_res.shape == (4, *hr_sample_shape, len(FEATURES))
     batcher.stop()
 
 
@@ -124,12 +227,20 @@ def test_bad_enhancement_factors():
     are not consistent with the low / high res shapes."""
 
     lr_samplers = [
-        DummySampler(sample_shape=(4, 4, 5), data_shape=(10, 10, 20)),
-        DummySampler(sample_shape=(4, 4, 5), data_shape=(12, 12, 15)),
+        DummySampler(
+            sample_shape=(4, 4, 5), data_shape=(10, 10, 20), features=FEATURES
+        ),
+        DummySampler(
+            sample_shape=(4, 4, 5), data_shape=(12, 12, 15), features=FEATURES
+        ),
     ]
     hr_samplers = [
-        DummySampler(sample_shape=(8, 8, 10), data_shape=(20, 20, 40)),
-        DummySampler(sample_shape=(8, 8, 10), data_shape=(24, 24, 30)),
+        DummySampler(
+            sample_shape=(8, 8, 10), data_shape=(20, 20, 40), features=FEATURES
+        ),
+        DummySampler(
+            sample_shape=(8, 8, 10), data_shape=(24, 24, 30), features=FEATURES
+        ),
     ]
 
     for s_enhance, t_enhance in zip([2, 4], [2, 6]):
@@ -145,8 +256,8 @@ def test_bad_enhancement_factors():
                 n_batches=3,
                 batch_size=4,
                 queue_cap=10,
-                means={'windspeed': 4},
-                stds={'windspeed': 2},
+                means=means,
+                stds=stds,
                 max_workers=1,
             )
 
@@ -156,8 +267,12 @@ def test_bad_sample_shapes():
     samplers."""
 
     samplers = [
-        DummySampler(sample_shape=(4, 4, 5), data_shape=(10, 10, 20)),
-        DummySampler(sample_shape=(3, 3, 5), data_shape=(12, 12, 15)),
+        DummySampler(
+            sample_shape=(4, 4, 5), data_shape=(10, 10, 20), features=FEATURES
+        ),
+        DummySampler(
+            sample_shape=(3, 3, 5), data_shape=(12, 12, 15), features=FEATURES
+        ),
     ]
 
     with pytest.raises(AssertionError):
@@ -168,8 +283,8 @@ def test_bad_sample_shapes():
             n_batches=3,
             batch_size=4,
             queue_cap=10,
-            means={'windspeed': 4},
-            stds={'windspeed': 2},
+            means=means,
+            stds=stds,
             max_workers=1,
         )
 
@@ -180,11 +295,13 @@ def test_split_batch_queue():
     train_sampler = DummyCroppedSampler(
         sample_shape=(8, 8, 4),
         data_shape=(10, 10, 100),
+        features=FEATURES,
         crop_slice=slice(0, 90),
     )
     val_sampler = DummyCroppedSampler(
         sample_shape=(8, 8, 4),
         data_shape=(10, 10, 100),
+        features=FEATURES,
         crop_slice=slice(90, 100),
     )
     coarsen_kwargs = {'smoothing_ignore': [], 'smoothing': None}
@@ -196,8 +313,8 @@ def test_split_batch_queue():
         s_enhance=2,
         t_enhance=1,
         queue_cap=10,
-        means={'windspeed': 4},
-        stds={'windspeed': 2},
+        means=means,
+        stds=stds,
         max_workers=1,
         coarsen_kwargs=coarsen_kwargs,
     )
@@ -205,13 +322,13 @@ def test_split_batch_queue():
     batcher.start()
     assert len(batcher) == 3
     for b in batcher:
-        assert b.low_res.shape == (4, 4, 4, 4, 1)
-        assert b.high_res.shape == (4, 8, 8, 4, 1)
+        assert b.low_res.shape == (4, 4, 4, 4, len(FEATURES))
+        assert b.high_res.shape == (4, 8, 8, 4, len(FEATURES))
 
     assert len(batcher.val_data) == 3
     for b in batcher.val_data:
-        assert b.low_res.shape == (4, 4, 4, 4, 1)
-        assert b.high_res.shape == (4, 8, 8, 4, 1)
+        assert b.low_res.shape == (4, 4, 4, 4, len(FEATURES))
+        assert b.high_res.shape == (4, 8, 8, 4, len(FEATURES))
     batcher.stop()
 
 

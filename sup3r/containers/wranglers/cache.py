@@ -89,10 +89,10 @@ class WranglerH5(Wrangler, ABC):
         """Get set of slices or indices selecting the requested region from
         the contained data."""
         if self.raster_file is None or not os.path.exists(self.raster_file):
-            logger.info(f'Calculating raster_index for target={self._target}, '
-                        f'shape={self._grid_shape}.')
+            logger.info(f'Calculating raster_index for target={self.target}, '
+                        f'shape={self.shape}.')
             raster_index = self.container.res.get_raster_index(
-                self._target, self._grid_shape, max_delta=self.max_delta
+                self.target, self.grid_shape, max_delta=self.max_delta
             )
         else:
             raster_index = np.loadtxt(self.raster_file)
@@ -110,7 +110,7 @@ class WranglerH5(Wrangler, ABC):
         return (
             self.container.res.meta[['latitude', 'longitude']]
             .iloc[self.raster_index.flatten()]
-            .values.reshape((*self.raster_index.shape, 2))
+            .values.reshape((*self.grid_shape, 2))
         )
 
     def extract_features(self):

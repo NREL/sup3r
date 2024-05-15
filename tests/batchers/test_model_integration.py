@@ -1,5 +1,5 @@
 """Test integration of batch queue with training routines and legacy data
-handlers."""
+containers."""
 
 import os
 from tempfile import TemporaryDirectory
@@ -10,34 +10,36 @@ from rex import init_logger
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.containers.batchers import BatchQueueWithValidation
+from sup3r.containers.loaders import LoaderH5
 from sup3r.containers.samplers import CroppedSampler
+from sup3r.containers.wranglers import WranglerH5
 from sup3r.models import Sup3rGan
-from sup3r.preprocessing import (
-    DataHandlerH5,
-)
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)
-FEATURES = ['U_100m', 'V_100m']
+FEATURES = ['windspeed_100m', 'winddirection_100m']
 
 np.random.seed(42)
 
 
-def get_val_queue_params(handler, sample_shape):
+def get_val_queue_params(container, sample_shape):
     """Get train / test samplers and means / stds for batch queue inputs."""
     val_split = 0.1
-    split_index = int(val_split * handler.data.shape[2])
+    split_index = int(val_split * container.data.shape[2])
     val_slice = slice(0, split_index)
-    train_slice = slice(split_index, handler.data.shape[2])
+    train_slice = slice(split_index, container.data.shape[2])
     train_sampler = CroppedSampler(
-        handler, sample_shape, crop_slice=train_slice
+        container, sample_shape, crop_slice=train_slice, features=FEATURES
     )
-    val_sampler = CroppedSampler(handler, sample_shape, crop_slice=val_slice)
+    val_sampler = CroppedSampler(
+        container, sample_shape, crop_slice=val_slice, features=FEATURES
+    )
     means = {
-        FEATURES[i]: handler.data[..., i].mean() for i in range(len(FEATURES))
+        FEATURES[i]: container.data[..., i].mean()
+        for i in range(len(FEATURES))
     }
     stds = {
-        FEATURES[i]: handler.data[..., i].std() for i in range(len(FEATURES))
+        FEATURES[i]: container.data[..., i].std() for i in range(len(FEATURES))
     }
     return train_sampler, val_sampler, means, stds
 
@@ -54,24 +56,26 @@ def test_train_spatial(
 
     Sup3rGan.seed()
     model = Sup3rGan(
-        fp_gen, fp_disc, learning_rate=2e-5, loss='MeanAbsoluteError'
+        fp_gen,
+        fp_disc,
+        learning_rate=2e-5,
+        loss='MeanAbsoluteError',
     )
 
     # need to reduce the number of temporal examples to test faster
-    handler = DataHandlerH5(
-        FP_WTK,
+    loader = LoaderH5(FP_WTK, FEATURES)
+    wrangler = WranglerH5(
+        loader,
         FEATURES,
         target=TARGET_COORD,
         shape=full_shape,
-        temporal_slice=slice(None, None, 10),
-        worker_kwargs={'max_workers': 1},
-        val_split=0.0,
+        time_slice=slice(None, None, 10),
     )
 
     train_sampler, val_sampler, means, stds = get_val_queue_params(
-        handler, sample_shape
+        wrangler, sample_shape
     )
-    batch_handler = BatchQueueWithValidation(
+    batcher = BatchQueueWithValidation(
         [train_sampler],
         [val_sampler],
         batch_size=2,
@@ -82,12 +86,12 @@ def test_train_spatial(
         stds=stds,
     )
 
-    batch_handler.start()
+    batcher.start()
     # test that training works and reduces loss
 
     with TemporaryDirectory() as td:
         model.train(
-            batch_handler,
+            batcher,
             input_resolution={'spatial': '8km', 'temporal': '30min'},
             n_epoch=n_epoch,
             checkpoint_int=10,
@@ -105,7 +109,7 @@ def test_train_spatial(
     assert model.means is not None
     assert model.stdevs is not None
 
-    batch_handler.stop()
+    batcher.stop()
 
 
 def test_train_st(
@@ -120,24 +124,26 @@ def test_train_st(
 
     Sup3rGan.seed()
     model = Sup3rGan(
-        fp_gen, fp_disc, learning_rate=2e-5, loss='MeanAbsoluteError'
+        fp_gen,
+        fp_disc,
+        learning_rate=2e-5,
+        loss='MeanAbsoluteError',
     )
 
     # need to reduce the number of temporal examples to test faster
-    handler = DataHandlerH5(
-        FP_WTK,
+    loader = LoaderH5(FP_WTK, FEATURES)
+    wrangler = WranglerH5(
+        loader,
         FEATURES,
         target=TARGET_COORD,
         shape=full_shape,
-        temporal_slice=slice(None, None, 10),
-        worker_kwargs={'max_workers': 1},
-        val_split=0.0,
+        time_slice=slice(None, None, 10),
     )
 
     train_sampler, val_sampler, means, stds = get_val_queue_params(
-        handler, sample_shape
+        wrangler, sample_shape
     )
-    batch_handler = BatchQueueWithValidation(
+    batcher = BatchQueueWithValidation(
         [train_sampler],
         [val_sampler],
         batch_size=2,
@@ -148,13 +154,13 @@ def test_train_st(
         stds=stds,
     )
 
-    batch_handler.start()
+    batcher.start()
     # test that training works and reduces loss
 
     with TemporaryDirectory() as td:
         with pytest.raises(RuntimeError):
             model.train(
-                batch_handler,
+                batcher,
                 input_resolution={'spatial': '8km', 'temporal': '30min'},
                 n_epoch=n_epoch,
                 weight_gen_advers=0.0,
@@ -164,11 +170,14 @@ def test_train_st(
             )
 
         model = Sup3rGan(
-            fp_gen, fp_disc, learning_rate=2e-5, loss='MeanAbsoluteError'
+            fp_gen,
+            fp_disc,
+            learning_rate=2e-5,
+            loss='MeanAbsoluteError',
         )
 
         model.train(
-            batch_handler,
+            batcher,
             input_resolution={'spatial': '12km', 'temporal': '60min'},
             n_epoch=n_epoch,
             checkpoint_int=10,
@@ -186,7 +195,7 @@ def test_train_st(
     assert model.means is not None
     assert model.stdevs is not None
 
-    batch_handler.stop()
+    batcher.stop()
 
 
 def execute_pytest(capture='all', flags='-rapP'):

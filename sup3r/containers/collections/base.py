@@ -20,6 +20,14 @@ class Collection(AbstractCollection):
         self.all_container_pairs = self.check_all_container_pairs()
 
     @property
+    def container_weights(self):
+        """Get weights used to sample from different containers based on
+        relative sizes"""
+        sizes = [c.size for c in self.containers]
+        weights = sizes / np.sum(sizes)
+        return weights.astype(np.float32)
+
+    @property
     def features(self):
         """Get set of features available in the container collection."""
         return self.containers[0].features

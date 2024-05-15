@@ -1,0 +1,91 @@
+# -*- coding: utf-8 -*-
+"""pytests for data handling"""
+
+import os
+from tempfile import TemporaryDirectory
+
+import numpy as np
+import pytest
+from rex import safe_json_load
+
+from sup3r import TEST_DATA_DIR
+from sup3r.containers import LoaderH5, StatsCollection, WranglerH5
+
+input_files = [
+    os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5'),
+    os.path.join(TEST_DATA_DIR, 'test_wtk_co_2013.h5'),
+]
+target = (39.01, -105.15)
+shape = (20, 20)
+features = ['U_100m', 'V_100m']
+kwargs = {
+    'target': target,
+    'shape': shape,
+    'max_delta': 20,
+    'time_slice': slice(None, None, 1),
+}
+
+
+def test_stats_calc():
+    """Check accuracy of stats calcs across multiple wranglers and caching
+    stats files."""
+    features = ['windspeed_100m', 'winddirection_100m']
+    wranglers = [
+        WranglerH5(LoaderH5(file, features), features, **kwargs)
+        for file in input_files
+    ]
+    with TemporaryDirectory() as td:
+        means_file = os.path.join(td, 'means.json')
+        stds_file = os.path.join(td, 'stds.json')
+        stats = StatsCollection(
+            wranglers, means_file=means_file, stds_file=stds_file
+        )
+
+        means = safe_json_load(means_file)
+        stds = safe_json_load(stds_file)
+        assert means == stats.means
+        assert stds == stats.stds
+
+        means = {
+            f: np.sum(
+                [
+                    wgt * w.data[..., fidx].mean()
+                    for wgt, w in zip(stats.container_weights, wranglers)
+                ]
+            )
+            for fidx, f in enumerate(features)
+        }
+        stds = {
+            f: np.sqrt(
+                np.sum(
+                    [
+                        wgt * w.data[..., fidx].std() ** 2
+                        for wgt, w in zip(stats.container_weights, wranglers)
+                    ]
+                )
+            )
+            for fidx, f in enumerate(features)
+        }
+
+        assert means == stats.means
+        assert stds == stats.stds
+
+
+def execute_pytest(capture='all', flags='-rapP'):
+    """Execute module as pytest with detailed summary report.
+
+    Parameters
+    ----------
+    capture : str
+        Log or stdout/stderr capture option. ex: log (only logger),
+        all (includes stdout/stderr)
+    flags : str
+        Which tests to show logs and results for.
+    """
+
+    fname = os.path.basename(__file__)
+    pytest.main(['-q', '--show-capture={}'.format(capture), fname, flags])
+
+
+if __name__ == '__main__':
+    execute_pytest()

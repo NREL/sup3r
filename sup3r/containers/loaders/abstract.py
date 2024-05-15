@@ -3,6 +3,8 @@ can be loaded lazily or eagerly."""
 
 from abc import ABC, abstractmethod
 
+import dask.array
+
 from sup3r.containers.abstract import AbstractContainer
 from sup3r.utilities.utilities import expand_paths
 
@@ -12,22 +14,30 @@ class AbstractLoader(AbstractContainer, ABC):
     atttribute."""
 
     def __init__(self,
-                 file_paths):
+                 file_paths,
+                 features):
         """
         Parameters
         ----------
         file_paths : str | pathlib.Path | list
-            Globbable path str(s) or pathlib.Path for file locations.
+            Location(s) of files to load
+        features : list
+            list of all features wanted from the file_paths.
         """
         super().__init__()
         self.file_paths = file_paths
-        self.data = self.load()
+        self.features = features
+
+    @abstractmethod
+    def res(self):
+        """Lowest level file_path handler. e.g. h5py.File(), xr.open_dataset(),
+        rex.Resource(), etc."""
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_value, trace):
-        self.data.close()
+        self.res.close()
 
     @property
     def file_paths(self):
@@ -52,5 +62,5 @@ class AbstractLoader(AbstractContainer, ABC):
         assert file_paths is not None and len(self._file_paths) > 0, msg
 
     @abstractmethod
-    def load(self):
+    def load(self) -> dask.array:
         """Get data using provided file_paths."""

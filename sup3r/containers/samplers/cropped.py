@@ -15,19 +15,18 @@ logger = logging.getLogger(__name__)
 
 
 class CroppedSampler(Sampler):
-    """Cropped sampler class used to splitting samples into train / test."""
+    """Cropped Sampler class used to splitting samples into train / test."""
 
     def __init__(
         self,
         data,
         sample_shape,
+        feature_sets,
         crop_slice=slice(None),
-        lr_only_features=(),
-        hr_exo_features=(),
     ):
         super().__init__(
-            data, sample_shape, lr_only_features, hr_exo_features
-        )
+            data=data, sample_shape=sample_shape, feature_sets=feature_sets)
+
         self.crop_slice = crop_slice
 
     @property

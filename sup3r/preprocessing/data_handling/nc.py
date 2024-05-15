@@ -19,18 +19,13 @@ from scipy.stats import mode
 from sup3r.preprocessing.data_handling.base import DataHandler
 from sup3r.preprocessing.data_handling.data_centric import DataHandlerDC
 from sup3r.preprocessing.derived_features import (
-    BVFreqMon,
-    BVFreqSquaredNC,
     ClearSkyRatioCC,
     Feature,
-    InverseMonNC,
     LatLonNC,
-    PotentialTempNC,
     PressureNC,
     Tas,
     TasMax,
     TasMin,
-    TempNC,
     TempNCforCC,
     UWind,
     UWindPowerLaw,
@@ -55,18 +50,12 @@ class DataHandlerNC(DataHandler):
     """Data Handler for NETCDF data"""
 
     FEATURE_REGISTRY: ClassVar[dict] = {
-        'BVF2_(.*)': BVFreqSquaredNC,
-        'BVF_MO_(.*)': BVFreqMon,
-        'RMOL': InverseMonNC,
         'U_(.*)': UWind,
         'V_(.*)': VWind,
         'Windspeed_(.*)': WindspeedNC,
         'Winddirection_(.*)': WinddirectionNC,
         'lat_lon': LatLonNC,
-        'Temperature_(.*)': TempNC,
         'Pressure_(.*)': PressureNC,
-        'PotentialTemp_(.*)': PotentialTempNC,
-        'PT_(.*)': PotentialTempNC,
         'topography': ['HGT', 'orog'],
     }
 
@@ -141,7 +130,6 @@ class DataHandlerNC(DataHandler):
         elif hasattr(handle, 'indexes') and 'time' in handle.indexes:
             time_index = handle.indexes['time']
             if not isinstance(time_index, pd.DatetimeIndex):
-                breakpoint()
                 time_index = time_index.to_datetimeindex()
         elif hasattr(handle, 'times'):
             time_index = np_to_pd_times(handle.times.values)

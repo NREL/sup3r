@@ -1,9 +1,9 @@
-"""Batcher testing."""
+"""Testing helpers."""
 
 import os
 
+import dask.array as da
 import numpy as np
-import pandas as pd
 import xarray as xr
 
 from sup3r.containers.abstract import AbstractContainer
@@ -15,50 +15,33 @@ from sup3r.utilities.utilities import pd_date_range
 class DummyData(AbstractContainer):
     """Dummy container with random data."""
 
-    def __init__(self, features, data_shape):
+    def __init__(self, data_shape, features):
         super().__init__()
+        self.data = da.random.random(size=(*data_shape, len(features)))
         self.shape = data_shape
-        self.features = features
-        lons, lats = np.meshgrid(
-            np.linspace(0, 1, data_shape[1]),
-            np.linspace(0, 1, data_shape[0]),
-        )
-        times = pd.date_range('2024-01-01', periods=data_shape[2])
-        dim_names = ['time', 'south_north', 'west_east']
-        coords = {
-            'time': times,
-            'latitude': (dim_names[1:], lats),
-            'longitude': (dim_names[1:], lons),
-        }
-        ws = np.zeros((len(times), *lats.shape))
-        self.data = xr.Dataset(
-            data_vars={'windspeed': (dim_names, ws)}, coords=coords
-        )
 
     def __getitem__(self, key):
-        out = self.data.isel(
-            south_north=key[0],
-            west_east=key[1],
-            time=key[2],
-        )
-        out = out.to_dataarray().values
-        return np.transpose(out, axes=(2, 3, 1, 0))
+        return self.data[key]
 
 
 class DummySampler(Sampler):
     """Dummy container with random data."""
 
-    def __init__(self, sample_shape, data_shape):
-        data = DummyData(features=['windspeed'], data_shape=data_shape)
-        super().__init__(data, sample_shape)
+    def __init__(self, sample_shape, data_shape, features):
+        data = DummyData(data_shape=data_shape, features=features)
+        super().__init__(data, sample_shape, features=features)
 
 
 class DummyCroppedSampler(CroppedSampler):
     """Dummy container with random data."""
 
-    def __init__(self, sample_shape, data_shape, crop_slice=slice(None)):
-        data = DummyData(features=['windspeed'], data_shape=data_shape)
-        super().__init__(data, sample_shape, crop_slice=crop_slice)
+    def __init__(
+        self, sample_shape, data_shape, features, crop_slice=slice(None)
+    ):
+        data = DummyData(data_shape=data_shape, features=features)
+        super().__init__(
+            data, sample_shape, features=features, crop_slice=crop_slice
+        )
 
 
 def make_fake_nc_files(td, input_file, n_files):

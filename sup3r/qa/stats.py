@@ -26,7 +26,6 @@ from sup3r.utilities.utilities import (
     spatial_coarsening,
     st_interp,
     temporal_coarsening,
-    vorticity_calc,
 )
 
 logger = logging.getLogger(__name__)

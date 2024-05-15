@@ -21,7 +21,6 @@ from sup3r import __version__
 from sup3r.preprocessing.feature_handling import Feature
 from sup3r.utilities import VERSION_RECORD
 from sup3r.utilities.utilities import (
-    estimate_max_workers,
     get_time_dim_name,
     invert_uv,
     pd_date_range,
@@ -83,14 +82,6 @@ H5_ATTRS = {'windspeed': {'scale_factor': 100.0,
                          'chunks': (2000, 500),
                          'min': 0,
                          'max': 150000},
-            'bvf_mo': {'scale_factor': 0.1,
-                       'units': 'm s-2',
-                       'dtype': 'uint16',
-                       'chunks': (2000, 500)},
-            'bvf2': {'scale_factor': 0.1,
-                     'units': 's-2',
-                     'dtype': 'int16',
-                     'chunks': (2000, 500)},
             'pr': {'scale_factor': 1,
                    'units': 'kg m-2 s-1',
                    'dtype': 'float32',
@@ -701,7 +692,6 @@ class OutputHandlerH5(OutputHandler):
 
         proc_mem = 4 * np.prod(data.shape[:-1])
         n_procs = len(heights)
-        max_workers = estimate_max_workers(max_workers, proc_mem, n_procs)
 
         futures = {}
         now = dt.now()
