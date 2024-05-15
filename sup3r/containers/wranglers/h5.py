@@ -28,6 +28,7 @@ class WranglerH5(Wrangler, ABC):
         time_slice=slice(None),
         max_delta=20,
         transform_function=None,
+        cache_kwargs=None,
     ):
         """
         Parameters
@@ -66,6 +67,19 @@ class WranglerH5(Wrangler, ABC):
             provide a function that operates on windspeed/direction and returns
             U/V. The final `.data` attribute will be the output of this
             function.
+        cache_kwargs : dict
+            Dictionary with kwargs for caching wrangled data. This should at
+            minimum include a 'cache_pattern' key, value. This pattern must
+            have a {feature} format key and either a h5 or nc file extension,
+            based on desired output type.
+
+            Can also include a 'chunks' key, value with a dictionary of tuples
+            for each feature. e.g. {'cache_pattern': ..., 'chunks':
+            {'windspeed_100m': (20, 100, 100)}} where the chunks ordering is
+            (time, lats, lons)
+
+            Note: This is only for saving cached data. If you want to reload
+            the cached files load them with a Loader object.
         """
         super().__init__(
             container=container,
@@ -74,11 +88,16 @@ class WranglerH5(Wrangler, ABC):
             shape=shape,
             time_slice=time_slice,
             transform_function=transform_function,
+            cache_kwargs=cache_kwargs,
         )
         self.raster_file = raster_file
         self.max_delta = max_delta
-        if self.raster_file is not None:
+        if self.raster_file is not None and not os.path.exists(
+            self.raster_file
+        ):
             self.save_raster_index()
+        if self.cache_kwargs is not None:
+            self.cache_data()
 
     def save_raster_index(self):
         """Save raster index to cache file."""
@@ -89,8 +108,10 @@ class WranglerH5(Wrangler, ABC):
         """Get set of slices or indices selecting the requested region from
         the contained data."""
         if self.raster_file is None or not os.path.exists(self.raster_file):
-            logger.info(f'Calculating raster_index for target={self._target}, '
-                        f'shape={self._grid_shape}.')
+            logger.info(
+                f'Calculating raster_index for target={self._target}, '
+                f'shape={self._grid_shape}.'
+            )
             raster_index = self.container.res.get_raster_index(
                 self._target, self._grid_shape, max_delta=self.max_delta
             )

@@ -3,7 +3,6 @@ contained data."""
 
 import logging
 import os
-from abc import ABC
 
 import numpy as np
 
@@ -15,7 +14,7 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
-class WranglerH5(Wrangler, ABC):
+class Cacher(Wrangler):
     """Wrangler subclass for h5 files specifically."""
 
     def __init__(

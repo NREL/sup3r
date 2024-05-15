@@ -35,9 +35,9 @@ class LoaderH5(Loader):
         for feat in self.features:
             if feat in self.res.h5:
                 scale = self.res.h5[feat].attrs.get('scale_factor', 1)
-                entry = np.float32(scale) * dask.array.from_array(
+                entry = dask.array.from_array(
                     self.res.h5[feat], chunks=self.chunks
-                )
+                ) / scale
             elif feat in self.res.meta:
                 entry = dask.array.from_array(
                     np.repeat(
@@ -55,7 +55,7 @@ class LoaderH5(Loader):
         data = dask.array.stack(arrays, axis=-1)
         data = dask.array.moveaxis(data, 0, -2)
 
-        if self._mode == 'eager':
+        if self.mode == 'eager':
             data = data.compute()
 
         return data

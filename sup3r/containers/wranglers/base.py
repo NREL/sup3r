@@ -24,7 +24,8 @@ class Wrangler(AbstractWrangler, ABC):
         target,
         shape,
         time_slice=slice(None),
-        transform_function=None
+        transform_function=None,
+        cache_kwargs=None
     ):
         """
         Parameters
@@ -49,6 +50,19 @@ class Wrangler(AbstractWrangler, ABC):
             provide a function that operates on windspeed/direction and returns
             U/V. The final `.data` attribute will be the output of this
             function.
+        cache_kwargs : dict
+            Dictionary with kwargs for caching wrangled data. This should at
+            minimum include a 'cache_pattern' key, value. This pattern must
+            have a {feature} format key and either a h5 or nc file extension,
+            based on desired output type.
+
+            Can also include a 'chunks' key, value with a dictionary of tuples
+            for each feature. e.g. {'cache_pattern': ..., 'chunks':
+            {'windspeed_100m': (20, 100, 100)}} where the chunks ordering is
+            (time, lats, lons)
+
+            Note: This is only for saving cached data. If you want to reload
+            the cached files load them with a Loader object.
         """
         super().__init__(
             container=container,
@@ -56,5 +70,6 @@ class Wrangler(AbstractWrangler, ABC):
             target=target,
             shape=shape,
             time_slice=time_slice,
-            transform_function=transform_function
+            transform_function=transform_function,
+            cache_kwargs=cache_kwargs
         )

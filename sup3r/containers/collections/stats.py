@@ -32,12 +32,11 @@ class StatsCollection(Collection):
         if means_file is None or not os.path.exists(means_file):
             means = {}
             for fidx, feat in enumerate(self.containers[0].features):
-                means[feat] = np.sum(
-                    [
-                        self.data[cidx][..., fidx].mean() * wgt
-                        for cidx, wgt in enumerate(self.container_weights)
-                    ]
-                )
+                cmeans = [
+                    self.data[cidx][..., fidx].mean() * wgt
+                    for cidx, wgt in enumerate(self.container_weights)
+                ]
+                means[feat] = np.float64(np.sum(cmeans))
         else:
             means = safe_json_load(means_file)
         return means
@@ -48,14 +47,11 @@ class StatsCollection(Collection):
         if stds_file is None or not os.path.exists(stds_file):
             stds = {}
             for fidx, feat in enumerate(self.containers[0].features):
-                stds[feat] = np.sqrt(
-                    np.sum(
-                        [
-                            self.data[cidx][..., fidx].std() ** 2 * wgt
-                            for cidx, wgt in enumerate(self.container_weights)
-                        ]
-                    )
-                )
+                cstds = [
+                    wgt * self.data[cidx][..., fidx].std() ** 2
+                    for cidx, wgt in enumerate(self.container_weights)
+                ]
+                stds[feat] = np.float64(np.sqrt(np.sum(cstds)))
         else:
             stds = safe_json_load(stds_file)
         return stds
