@@ -43,7 +43,7 @@ class Loader(AbstractLoader):
             features=features
         )
         self._res_kwargs = res_kwargs or {}
-        self._mode = mode
+        self.mode = mode
         self.chunks = chunks
         self.data = self.load()
 
@@ -70,7 +70,7 @@ class Loader(AbstractLoader):
         )
         data = dask.array.moveaxis(data, 0, -2)
 
-        if self._mode == 'eager':
+        if self.mode == 'eager':
             data = data.compute()
 
         return data
@@ -81,7 +81,7 @@ class Loader(AbstractLoader):
         feature extraction / derivation (spatial_1, spatial_2, temporal,
         features)."""
         out = self.data[key]
-        if self._mode == 'lazy':
+        if self.mode == 'lazy':
             out = out.compute(scheduler='threads')
         return out
 

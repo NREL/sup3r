@@ -21,6 +21,7 @@ class Container(AbstractContainer):
     def __init__(self, container: Self):
         super().__init__()
         self.container = container
+        self.features = self.container.features
 
     @property
     def data(self) -> dask.array:
@@ -40,7 +41,12 @@ class Container(AbstractContainer):
     @property
     def features(self):
         """Features in this container."""
-        return self.container.features
+        return self._features
+
+    @features.setter
+    def features(self, features):
+        """Update features."""
+        self._features = features
 
     def __getitem__(self, key):
         """Method for accessing self.data."""

@@ -102,6 +102,7 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         self._data = None
         self._batches = None
         self._stopped = threading.Event()
+        self.val_data = []
         self.means = (
             means if isinstance(means, dict) else safe_json_load(means)
         )
@@ -119,6 +120,7 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         )
         self.check_stats()
         self.check_features()
+        self.check_enhancement_factors()
 
     def check_features(self):
         """Make sure all samplers have the same sets of features."""
@@ -138,6 +140,18 @@ class AbstractBatchQueue(SamplerCollection, ABC):
             f'{self.features}.'
         )
         assert len(self.stds) == len(self.features), msg
+
+    def check_enhancement_factors(self):
+        """Make sure the enhancement factors evenly divide the sample_shape."""
+        msg = (f'The sample_shape {self.sample_shape} is not consistent with '
+               f'the enhancement factors ({self.s_enhance, self.t_enhance}).')
+        assert all(
+            samp % enhance == 0
+            for samp, enhance in zip(
+                self.sample_shape,
+                [self.s_enhance, self.s_enhance, self.t_enhance],
+            )
+        ), msg
 
     @property
     def batches(self):

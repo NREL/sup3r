@@ -3,15 +3,16 @@
 
 import os
 import tempfile
+from glob import glob
 
 import numpy as np
 import pytest
-from rex import Resource
+from rex import Resource, init_logger
 
 from sup3r import TEST_DATA_DIR
 from sup3r.containers.loaders import LoaderH5
 from sup3r.containers.wranglers import WranglerH5
-from sup3r.utilities.utilities import transform_rotate_wind
+from sup3r.utilities.utilities import spatial_coarsening, transform_rotate_wind
 
 input_files = [
     os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5'),
@@ -27,12 +28,22 @@ kwargs = {
 }
 features = ['windspeed_100m', 'winddirection_100m']
 
+init_logger('sup3r', log_level='DEBUG')
+
 
 def ws_wd_transform(self, data):
     """Transform function for wrangler ws/wd -> u/v"""
     data[..., 0], data[..., 1] = transform_rotate_wind(
         ws=data[..., 0], wd=data[..., 1], lat_lon=self.lat_lon
     )
+    return data
+
+
+def coarse_transform(self, data):
+    """Corasen high res wrangled data."""
+    data = spatial_coarsening(data, s_enhance=2, obs_axis=False)
+    self._lat_lon = spatial_coarsening(self.lat_lon, s_enhance=2,
+                                       obs_axis=False)
     return data
 
 
@@ -51,7 +62,7 @@ def test_data_extraction():
 
 
 def test_uv_transform():
-    """Test that topography is batched and extracted correctly"""
+    """Test that ws/wd -> u/v transform is done correctly."""
 
     features = ['U_100m', 'V_100m']
     with LoaderH5(
@@ -111,91 +122,46 @@ def test_raster_index_caching():
 
 def test_hr_coarsening():
     """Test spatial coarsening of the high res field"""
-    handler = WranglerH5(
-        input_files[0], features, hr_spatial_coarsen=2, **kwargs
-    )
-    assert handler.data.shape == (
-        shape[0] // 2,
-        shape[1] // 2,
-        handler.data.shape[2],
-        len(features),
-    )
-    assert handler.data.dtype == np.dtype(np.float32)
 
-    with tempfile.TemporaryDirectory() as td:
-        cache_pattern = os.path.join(td, 'cached_features_h5')
-        if os.path.exists(cache_pattern):
-            os.system(f'rm {cache_pattern}')
-        handler = WranglerH5(
-            input_files[0],
-            features,
-            hr_spatial_coarsen=2,
-            cache_pattern=cache_pattern,
-            overwrite_cache=True,
-            **kwargs,
+    features = ['windspeed_100m', 'winddirection_100m']
+    with LoaderH5(input_files[0], features) as loader:
+        wrangler = WranglerH5(
+            loader, features, **kwargs, transform_function=coarse_transform
         )
-        assert handler.data is None
-        handler.load_cached_data()
-        assert handler.data.shape == (
+
+        assert wrangler.data.shape == (
             shape[0] // 2,
             shape[1] // 2,
-            handler.data.shape[2],
+            wrangler.data.shape[2],
             len(features),
         )
-        assert handler.data.dtype == np.dtype(np.float32)
+        assert wrangler.data.dtype == np.dtype(np.float32)
 
 
 def test_data_caching():
-    """Test data extraction class with data caching/loading"""
+    """Test data extraction with caching/loading"""
 
     with tempfile.TemporaryDirectory() as td:
-        cache_pattern = os.path.join(td, 'cached_features_h5')
-        handler = WranglerH5(
-            input_files[0],
-            features,
-            cache_pattern=cache_pattern,
-            overwrite_cache=True,
-            **kwargs,
-        )
+        cache_pattern = os.path.join(td, 'cached_{feature}.h5')
+        with LoaderH5(input_files[0], features) as loader:
+            wrangler = WranglerH5(
+                loader,
+                features,
+                cache_kwargs={'cache_pattern': cache_pattern},
+                **kwargs,
+            )
 
-        assert handler.data is None
-        handler.load_cached_data()
-        assert handler.data.shape == (
+        assert wrangler.data.shape == (
             shape[0],
             shape[1],
-            handler.data.shape[2],
+            wrangler.data.shape[2],
             len(features),
         )
-        assert handler.data.dtype == np.dtype(np.float32)
+        assert wrangler.data.dtype == np.dtype(np.float32)
 
-        # test cache data but keep in memory
-        cache_pattern = os.path.join(td, 'new_1_cache')
-        handler = WranglerH5(
-            input_files[0],
-            features,
-            cache_pattern=cache_pattern,
-            overwrite_cache=True,
-            load_cached=True,
-            **kwargs,
-        )
-        assert handler.data is not None
-        assert handler.data.dtype == np.dtype(np.float32)
+        loader = LoaderH5(glob(cache_pattern.format(feature='*')), features)
 
-        # test cache data but keep in memory, with no val split
-        cache_pattern = os.path.join(td, 'new_2_cache')
-
-        kwargs_new = kwargs.copy()
-        kwargs_new['val_split'] = 0
-        handler = WranglerH5(
-            input_files[0],
-            features,
-            cache_pattern=cache_pattern,
-            overwrite_cache=False,
-            load_cached=True,
-            **kwargs_new,
-        )
-        assert handler.data is not None
-        assert handler.data.dtype == np.dtype(np.float32)
+        assert np.array_equal(loader.data, wrangler.data)
 
 
 def execute_pytest(capture='all', flags='-rapP'):

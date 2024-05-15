@@ -42,7 +42,7 @@ class AbstractSampler(Container, ABC):
                     topography that is to be injected mid-network.
         """
         super().__init__(data)
-        self.features = feature_sets['features']
+        self._features = feature_sets['features']
         self._lr_only_features = feature_sets.get('lr_only_features', [])
         self._hr_exo_features = feature_sets.get('hr_exo_features', [])
         self._counter = 0
@@ -115,12 +115,12 @@ class AbstractSampler(Container, ABC):
         """Return a list of parsed feature names without wildcards."""
         if isinstance(unparsed_feats, str):
             parsed_feats = [unparsed_feats]
-
         elif isinstance(unparsed_feats, tuple):
             parsed_feats = list(unparsed_feats)
-
         elif unparsed_feats is None:
             parsed_feats = []
+        else:
+            parsed_feats = unparsed_feats
 
         if any('*' in fn for fn in parsed_feats):
             out = []
