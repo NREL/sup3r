@@ -219,17 +219,6 @@ class ExoExtract(ABC):
         return cache_fp
 
     @property
-    def source_temporal_slice(self):
-        """Get the temporal slice for the exo_source data corresponding to the
-        input file temporal slice
-        """
-        start_index = self.source_time_index.get_indexer(
-            [self.input_handler.hr_time_index[0]], method='nearest')[0]
-        end_index = self.source_time_index.get_indexer(
-            [self.input_handler.hr_time_index[-1]], method='nearest')[0]
-        return slice(start_index, end_index + 1, self._t_agg_factor)
-
-    @property
     def source_lat_lon(self):
         """Get the 2D array (n, 2) of lat, lon data from the exo_source_h5"""
         with Resource(self._exo_source) as res:

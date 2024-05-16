@@ -2,6 +2,7 @@
 import logging
 from warnings import warn
 
+import dask.array as da
 import numpy as np
 from scipy.interpolate import interp1d
 
@@ -312,7 +313,9 @@ class Interpolator:
         # data didnt provide underground data.
         for level in levels:
             mask = lev_array == level
-            lev_array[mask] += np.random.uniform(-1e-5, 0, size=mask.sum())
+            random = np.random.uniform(-1e-5, 0, size=mask.sum())
+            lev_array = da.ma.masked_array(lev_array, mask)
+            lev_array = da.ma.filled(lev_array, random)
 
         return lev_array, levels
 
@@ -356,15 +359,17 @@ class Interpolator:
             h_tmp = lev_array[idt].reshape(shape).T
             var_tmp = var_array[idt].reshape(shape).T
             not_nan = ~np.isnan(h_tmp) & ~np.isnan(var_tmp)
-
             # Interp each vertical column of height and var to requested levels
             zip_iter = zip(h_tmp, var_tmp, not_nan)
             vals = [
-                interp1d(h[mask], var[mask], fill_value='extrapolate')(levels)
+                interp1d(
+                    da.ma.masked_array(h, mask),
+                    da.ma.masked_array(var, mask),
+                    fill_value='extrapolate',
+                )(levels)
                 for h, var, mask in zip_iter
             ]
             out_array[:, idt, :] = np.array(vals, dtype=np.float32)
-
         # Reshape out_array
         if isinstance(levels, (float, np.float32, int)):
             shape = (1, array_shape[-4], array_shape[-2], array_shape[-1])

@@ -20,8 +20,6 @@ class LoaderH5(Loader):
     or by Wrangler objects to derive / extract specific features / regions /
     time_periods."""
 
-    DEFAULT_RES = MultiFileWindX
-
     def load(self) -> dask.array:
         """Dask array with features in last dimension. Either lazily loaded
         (mode = 'lazy') or loaded into memory right away (mode = 'eager').
@@ -38,7 +36,7 @@ class LoaderH5(Loader):
                 entry = dask.array.from_array(
                     self.res.h5[feat], chunks=self.chunks
                 ) / scale
-            elif feat in self.res.meta:
+            elif hasattr(self.res, 'meta') and feat in self.res.meta:
                 entry = dask.array.from_array(
                     np.repeat(
                         self.res.h5['meta'][feat][None],
@@ -59,3 +57,6 @@ class LoaderH5(Loader):
             data = data.compute()
 
         return data
+
+    def _get_res(self):
+        return MultiFileWindX(self.file_paths, **self._res_kwargs)

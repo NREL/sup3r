@@ -1,5 +1,4 @@
 """Dual data handler class for using separate low_res and high_res datasets"""
-import copy
 import logging
 import pickle
 from warnings import warn
@@ -31,15 +30,10 @@ class DualDataHandler:
     def __init__(self,
                  hr_handler,
                  lr_handler,
-                 cache_pattern=None,
-                 overwrite_cache=False,
                  regrid_workers=1,
-                 load_cached=True,
-                 shuffle_time=False,
                  regrid_lr=True,
                  s_enhance=1,
-                 t_enhance=1,
-                 val_split=0.0):
+                 t_enhance=1):
         """Initialize data handler using hr and lr data handlers for h5 data
         and nc data
 
@@ -75,42 +69,16 @@ class DualDataHandler:
         self.t_enhance = t_enhance
         self.lr_dh = lr_handler
         self.hr_dh = hr_handler
-        self.overwrite_cache = overwrite_cache
-        self.val_split = val_split
-        self.current_obs_index = None
-        self.load_cached = load_cached
         self.regrid_workers = regrid_workers
-        self.shuffle_time = shuffle_time
         self.hr_data = None
-        self.lr_val_data = None
-        self.hr_val_data = None
         self.lr_data = np.zeros(self.shape, dtype=np.float32)
         self.lr_time_index = lr_handler.time_index
         self.hr_time_index = hr_handler.time_index
-        self.lr_val_time_index = lr_handler.val_time_index
-        self.hr_val_time_index = hr_handler.val_time_index
         self._lr_lat_lon = None
         self._hr_lat_lon = None
         self._lr_input_data = None
-        self._cache_pattern = cache_pattern
-        self._cached_features = None
-        self._noncached_features = None
-        self._means = None
-        self._stds = None
-        self._is_normalized = False
         self._regrid_lr = regrid_lr
-        self.norm_workers = self.lr_dh.norm_workers
-        DualMixIn.__init__(self, lr_handler, hr_handler)
-
-        if self.try_load and self.load_cached:
-            self.load_cached_data()
-
-        if not self.try_load:
-            self.get_data()
-
-        self._run_pair_checks(hr_handler, lr_handler)
-
-        self.check_clear_data()
+        self.get_data()
 
         logger.info('Finished initializing DualDataHandler.')
 
@@ -120,211 +88,6 @@ class DualDataHandler:
         data and split hr and lr data into training and validation sets."""
         self._set_hr_data()
         self.get_lr_data()
-        self._val_split_check()
-
-    def _val_split_check(self):
-        """Check if val_split > 0 and split data into validation and training.
-        Make sure validation data is larger than sample_shape
-
-        Note that if val split > 0.0, hr_data will no longer be a view of
-        self.hr_dh.data and this could lead to lots of memory usage.
-        """
-
-        if self.hr_data is not None and self.val_split > 0.0:
-            n_val_obs = self.hr_data.shape[2] * (1 - self.val_split)
-            n_val_obs = int(self.t_enhance * (n_val_obs // self.t_enhance))
-            train_indices, val_indices = self._split_data_indices(
-                self.hr_data,
-                n_val_obs=n_val_obs,
-                shuffle_time=self.shuffle_time)
-            self.hr_val_data = self.hr_data[:, :, val_indices, :]
-            self.hr_data = self.hr_data[:, :, train_indices, :]
-            self.hr_val_time_index = self.hr_time_index[val_indices]
-            self.hr_time_index = self.hr_time_index[train_indices]
-            msg = ('High res validation data has shape='
-                   f'{self.hr_val_data.shape} and sample_shape='
-                   f'{self.hr_sample_shape}. Use a smaller sample_shape '
-                   'and/or larger val_split.')
-            check = any(val_size < samp_size for val_size, samp_size in zip(
-                self.hr_val_data.shape, self.hr_sample_shape))
-            if check:
-                logger.warning(msg)
-                warn(msg)
-
-            if self.lr_data is not None and self.val_split > 0.0:
-                train_indices = list(set(train_indices // self.t_enhance))
-                val_indices = list(set(val_indices // self.t_enhance))
-
-                self.lr_val_data = self.lr_data[:, :, val_indices, :]
-                self.lr_data = self.lr_data[:, :, train_indices, :]
-
-                self.lr_val_time_index = self.lr_time_index[val_indices]
-                self.lr_time_index = self.lr_time_index[train_indices]
-
-                msg = ('Low res validation data has shape='
-                       f'{self.lr_val_data.shape} and sample_shape='
-                       f'{self.lr_sample_shape}. Use a smaller sample_shape '
-                       'and/or larger val_split.')
-                check = any(val_size < samp_size
-                            for val_size, samp_size in zip(
-                                self.lr_val_data.shape, self.lr_sample_shape))
-                if check:
-                    logger.warning(msg)
-                    warn(msg)
-
-    def _get_stats(self):
-        """Get mean/stdev stats for HR and LR data handlers"""
-        super()._get_stats(features=self.lr_dh.features)
-        self.hr_dh._get_stats()
-
-    @property
-    def means(self):
-        """Get the mean values for each feature. Mean values from the low-res
-        data handler are prioritized because these are typically the "input"
-        features
-
-        Returns
-        -------
-        dict
-        """
-
-        if self.hr_dh.data is None:
-            msg = ('High-res DataHandler object has DataHandler.data=None! '
-                   'Try initializing the high-res handler with '
-                   'load_cached=True')
-            logger.error(msg)
-            raise RuntimeError(msg)
-
-        out = copy.deepcopy(self.hr_dh.means)
-        out.update(super().means)
-        return out
-
-    @property
-    def stds(self):
-        """Get the standard deviation values for each feature. Mean values from
-        the low-res data handler are prioritized because these are typically
-        the "input" features
-
-        Returns
-        -------
-        dict
-        """
-
-        if self.hr_dh.data is None:
-            msg = ('High-res DataHandler object has DataHandler.data=None! '
-                   'Try initializing the high-res handler with '
-                   'load_cached=True')
-            logger.error(msg)
-            raise RuntimeError(msg)
-
-        out = copy.deepcopy(self.hr_dh.stds)
-        out.update(super().stds)
-        return out
-
-    # pylint: disable=unused-argument
-    def normalize(self, means=None, stds=None, max_workers=None):
-        """Normalize low_res and high_res data
-
-        Parameters
-        ----------
-        means : dict | none
-            Dictionary of means for all features with keys: feature names and
-            values: mean values. If this is None, the self.means attribute will
-            be used. If this is not None, this DataHandler object means
-            attribute will be updated.
-        stds : dict | none
-            dictionary of standard deviation values for all features with keys:
-            feature names and values: standard deviations. If this is None, the
-            self.stds attribute will be used. If this is not None, this
-            DataHandler object stds attribute will be updated.
-        max_workers : None | int
-            Has no effect. Used to match MixIn class signature.
-        """
-
-        if self.hr_dh.data is None:
-            msg = ('High-res DataHandler object has DataHandler.data=None! '
-                   'Try initializing the high-res handler with '
-                   'load_cached=True')
-            logger.error(msg)
-            raise RuntimeError(msg)
-
-        if means is None:
-            means = self.means
-        if stds is None:
-            stds = self.stds
-
-        self._normalize_lr(means, stds)
-        self._normalize_hr(means, stds)
-
-    def _normalize_lr(self, means, stds):
-        """Normalize the low-resolution data features including in the
-        low-res data handler
-
-        Note that self.lr_data is usually a unique regridded array but if
-        regridding was not performed then it is just a sliced *view* of
-        self.lr_dh.data and the super().normalize() operation will have applied
-        to that data already.
-
-        Parameters
-        ----------
-        means : dict | none
-            Dictionary of means for all features with keys: feature names and
-            values: mean values. If this is None, the self.means attribute will
-            be used. If this is not None, this DataHandler object means
-            attribute will be updated.
-        stds : dict | none
-            dictionary of standard deviation values for all features with keys:
-            feature names and values: standard deviations. If this is None, the
-            self.stds attribute will be used. If this is not None, this
-            DataHandler object stds attribute will be updated.
-        """
-
-        logger.info('Normalizing low resolution data features='
-                    f'{self.lr_dh.features}')
-        super().normalize(means=means, stds=stds,
-                          features=self.lr_dh.features,
-                          max_workers=self.lr_dh.norm_workers)
-
-        if id(self.lr_dh.data) != id(self.lr_data.base):
-            self.lr_dh.normalize(means=means, stds=stds,
-                                 features=self.lr_dh.features,
-                                 max_workers=self.lr_dh.norm_workers)
-        else:
-            self.lr_dh._is_normalized = True
-
-    def _normalize_hr(self, means, stds):
-        """Normalize the high-resolution data features including in the
-        high-res data handler
-
-        Note that self.hr_data is usually just a sliced *view* of
-        self.hr_dh.data but if the *view* is broken then it will have to be
-        normalized too
-
-        Parameters
-        ----------
-        means : dict | none
-            Dictionary of means for all features with keys: feature names and
-            values: mean values. If this is None, the self.means attribute will
-            be used. If this is not None, this DataHandler object means
-            attribute will be updated.
-        stds : dict | none
-            dictionary of standard deviation values for all features with keys:
-            feature names and values: standard deviations. If this is None, the
-            self.stds attribute will be used. If this is not None, this
-            DataHandler object stds attribute will be updated.
-        """
-
-        logger.info('Normalizing high resolution data features='
-                    f'{self.hr_dh.features}')
-        self.hr_dh.normalize(means=means, stds=stds,
-                             features=self.hr_dh.features,
-                             max_workers=self.hr_dh.norm_workers)
-
-        if id(self.hr_data.base) != id(self.hr_dh.data):
-            mean_arr = np.array([means[fn] for fn in self.hr_dh.features])
-            std_arr = np.array([stds[fn] for fn in self.hr_dh.features])
-            self.hr_data = (self.hr_data - mean_arr) / std_arr
-            self.hr_data = self.hr_data.astype(np.float32)
 
     def _set_hr_data(self):
         """Set the high resolution data attribute and check if hr_handler.shape
@@ -354,56 +117,11 @@ class DualDataHandler:
         assert np.array_equal(self.hr_time_index[::self.t_enhance].values,
                               self.lr_time_index.values)
 
-    def _run_pair_checks(self, hr_handler, lr_handler):
-        """Run sanity checks on high_res and low_res pairs. The handler data
-        shapes are restricted by enhancement factors."""
-        msg = ('Validation split is done by DualDataHandler. '
-               'hr_handler.val_split and lr_handler.val_split should both be '
-               'zero.')
-        assert hr_handler.val_split == 0 and lr_handler.val_split == 0, msg
-        hr_shape = hr_handler.sample_shape
-        lr_shape = [hr_shape[0] // self.s_enhance,
-                    hr_shape[1] // self.s_enhance,
-                    hr_shape[2] // self.t_enhance]
-        msg = (f'hr_handler.sample_shape {hr_handler.sample_shape} and '
-               f'lr_handler.sample_shape {lr_handler.sample_shape} are '
-               f'incompatible. Must be {hr_shape} and {lr_shape}.')
-        assert list(lr_handler.sample_shape) == lr_shape, msg
-
-        if hr_handler.data is not None and lr_handler.data is not None:
-            hr_shape = self.hr_data.shape[:-1]
-            lr_shape = [hr_shape[0] // self.s_enhance,
-                        hr_shape[1] // self.s_enhance,
-                        hr_shape[2] // self.t_enhance]
-            msg = (f'hr_data.shape {self.hr_data.shape} and '
-                   f'lr_data.shape {self.lr_data.shape} are '
-                   f'incompatible. Must be {hr_shape} and {lr_shape}.')
-            assert list(self.lr_data.shape[:-1]) == lr_shape, msg
-
-        if self.lr_val_data is not None and self.hr_val_data is not None:
-            hr_shape = self.hr_val_data.shape
-            lr_shape = [hr_shape[0] // self.s_enhance,
-                        hr_shape[1] // self.s_enhance,
-                        hr_shape[2] // self.t_enhance]
-            msg = (f'hr_val_data.shape {self.hr_val_data.shape} '
-                   f'and lr_val_data.shape {self.lr_val_data.shape}'
-                   f' are incompatible. Must be {hr_shape} and {lr_shape}.')
-            assert list(self.lr_val_data.shape[:-1]) == lr_shape, msg
-
-        if self.val_split == 0.0:
-            assert id(self.hr_data.base) == id(hr_handler.data)
-
     @property
     def data(self):
         """Get low res data. Same as self.lr_data but used to match property
         used for computing means and stdevs"""
         return self.lr_data
-
-    @property
-    def val_data(self):
-        """Get low res validation data. Same as self.lr_val_data but used to
-        match property used by normalization routine."""
-        return self.lr_val_data
 
     @property
     def lr_input_data(self):
@@ -602,27 +320,3 @@ class DualDataHandler:
                 logger.info(msg)
                 self.lr_data[..., fidx] = nn_fill_array(
                     self.lr_data[..., fidx])
-
-    def get_next(self):
-        """Get next high_res + low_res. Gets random spatiotemporal sample for
-        h5 data and then uses enhancement factors to subsample
-        interpolated/regridded low_res data for same spatiotemporal extent.
-
-        Returns
-        -------
-        hr_data : ndarray
-            Array of high resolution data with each feature equal in shape to
-            hr_sample_shape
-        lr_data : ndarray
-            Array of low resolution data with each feature equal in shape to
-            lr_sample_shape
-        """
-        lr_obs_idx, hr_obs_idx = self.get_index_pair(self.lr_data.shape,
-                                                     self.lr_sample_shape)
-
-        self.current_obs_index = {
-            'lr_index': lr_obs_idx,
-            'hr_index': hr_obs_idx
-        }
-
-        return self.lr_data[lr_obs_idx], self.hr_data[hr_obs_idx]

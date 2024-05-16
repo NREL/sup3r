@@ -4,41 +4,27 @@
 
 import logging
 import os
-import warnings
 from typing import ClassVar
 
 import numpy as np
 import pandas as pd
 import xarray as xr
 from rex import Resource
-from scipy.interpolate import interp1d
 from scipy.ndimage import gaussian_filter
 from scipy.spatial import KDTree
 from scipy.stats import mode
 
-from sup3r.preprocessing.data_handling.base import DataHandler
+from sup3r.containers import LoaderNC, WranglerNC
 from sup3r.preprocessing.data_handling.data_centric import DataHandlerDC
 from sup3r.preprocessing.derived_features import (
     ClearSkyRatioCC,
-    Feature,
     LatLonNC,
-    PressureNC,
     Tas,
     TasMax,
     TasMin,
     TempNCforCC,
-    UWind,
     UWindPowerLaw,
-    VWind,
     VWindPowerLaw,
-    WinddirectionNC,
-    WindspeedNC,
-)
-from sup3r.utilities.interpolation import Interpolator
-from sup3r.utilities.regridder import Regridder
-from sup3r.utilities.utilities import (
-    get_time_dim_name,
-    np_to_pd_times,
 )
 
 np.random.seed(42)
@@ -46,393 +32,38 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
-class DataHandlerNC(DataHandler):
-    """Data Handler for NETCDF data"""
+class DataHandlerNC(WranglerNC):
+    """DataHandler for NETCDF Data"""
 
-    FEATURE_REGISTRY: ClassVar[dict] = {
-        'U_(.*)': UWind,
-        'V_(.*)': VWind,
-        'Windspeed_(.*)': WindspeedNC,
-        'Winddirection_(.*)': WinddirectionNC,
-        'lat_lon': LatLonNC,
-        'Pressure_(.*)': PressureNC,
-        'topography': ['HGT', 'orog'],
-    }
-
-    CHUNKS: ClassVar[dict] = {
-        'XTIME': 100,
-        'XLAT': 150,
-        'XLON': 150,
-        'south_north': 150,
-        'west_east': 150,
-        'Time': 100,
-    }
-    """CHUNKS sets the chunk sizes to extract from the data in each dimension.
-    Chunk sizes that approximately match the data volume being extracted
-    typically results in the most efficient IO."""
-
-    @classmethod
-    def source_handler(cls, file_paths, **kwargs):
-        """Xarray data handler
-
-        Note that xarray appears to treat open file handlers as singletons
-        within a threadpool, so its okay to open this source_handler without a
-        context handler or a .close() statement.
-
-        Parameters
-        ----------
-        file_paths : str | list
-            paths to data files
-        kwargs : dict
-            kwargs passed to source handler for data extraction. e.g. This
-            could be {'parallel': True,
-                      'chunks': {'south_north': 120, 'west_east': 120}}
-            which then gets passed to xr.open_mfdataset(file, **kwargs)
-
-        Returns
-        -------
-        data : xarray.Dataset
-        """
-        time_key = get_time_dim_name(file_paths[0])
-        default_kws = {
-            'combine': 'nested',
-            'concat_dim': time_key,
-            'chunks': cls.CHUNKS,
-        }
-        default_kws.update(kwargs)
-        return xr.open_mfdataset(file_paths, **default_kws)
-
-    @classmethod
-    def get_file_times(cls, file_paths, **kwargs):
-        """Get time index from data files
-
-        Parameters
-        ----------
-        file_paths : list
-            path to data file
-        kwargs : dict
-            kwargs passed to source handler for data extraction. e.g. This
-            could be {'parallel': True,
-                      'chunks': {'south_north': 120, 'west_east': 120}}
-            which then gets passed to xr.open_mfdataset(file, **kwargs)
-
-        Returns
-        -------
-        time_index : pd.Datetimeindex
-            List of times as a Datetimeindex
-        """
-        handle = cls.source_handler(file_paths, **kwargs)
-
-        if hasattr(handle, 'Times'):
-            time_index = np_to_pd_times(handle.Times.values)
-        elif hasattr(handle, 'Time'):
-            time_index = np_to_pd_times(handle.Time.values)
-        elif hasattr(handle, 'indexes') and 'time' in handle.indexes:
-            time_index = handle.indexes['time']
-            if not isinstance(time_index, pd.DatetimeIndex):
-                time_index = time_index.to_datetimeindex()
-        elif hasattr(handle, 'times'):
-            time_index = np_to_pd_times(handle.times.values)
-        else:
-            msg = (f'Could not get time_index for {file_paths}. '
-                   'Assuming time independence.')
-            time_index = None
-            logger.warning(msg)
-            warnings.warn(msg)
-
-        return time_index
-
-    @classmethod
-    def get_time_index(cls, file_paths, **kwargs):
-        """Get time index from data files
-
-        Parameters
-        ----------
-        file_paths : list
-            path to data file
-        kwargs : dict
-            kwargs passed to source handler for data extraction. e.g. This
-            could be {'parallel': True,
-                      'chunks': {'south_north': 120, 'west_east': 120}}
-            which then gets passed to xr.open_mfdataset(file, **kwargs)
-
-        Returns
-        -------
-        time_index : pd.Datetimeindex
-            List of times as a Datetimeindex
-        """
-        return cls.get_file_times(file_paths, **kwargs)
-
-    @classmethod
-    def extract_feature(cls,
-                        file_paths,
-                        raster_index,
-                        feature,
-                        time_slice=slice(None),
-                        **kwargs,
-                        ):
-        """Extract single feature from data source. The requested feature
-        can match exactly to one found in the source data or can have a
-        matching prefix with a suffix specifying the height or pressure level
-        to interpolate to. e.g. feature=U_100m -> interpolate exact match U to
-        100 meters.
-
-        Parameters
-        ----------
-        file_paths : list
-            path to data file
-        raster_index : ndarray
-            Raster index array
-        feature : str
-            Feature to extract from data
-        time_slice : slice
-            slice of time to extract
-        kwargs : dict
-            kwargs passed to source handler for data extraction. e.g. This
-            could be {'parallel': True,
-                      'chunks': {'south_north': 120, 'west_east': 120}}
-            which then gets passed to xr.open_mfdataset(file, **kwargs)
-
-        Returns
-        -------
-        ndarray
-            Data array for extracted feature
-            (spatial_1, spatial_2, temporal)
-        """
-        logger.debug(f'Extracting {feature} with time_slice={time_slice}, '
-                     f'raster_index={raster_index}, kwargs={kwargs}.')
-        handle = cls.source_handler(file_paths, **kwargs)
-        f_info = Feature(feature, handle)
-        interp_height = f_info.height
-        interp_pressure = f_info.pressure
-        basename = f_info.basename
-
-        if cls.has_exact_feature(feature, handle):
-            feat_key = feature if feature in handle else feature.lower()
-            fdata = cls.direct_extract(handle, feat_key, raster_index,
-                                       time_slice)
-
-        elif interp_height is not None and (
-                cls.has_multilevel_feature(feature, handle)
-                or cls.has_surrounding_features(feature, handle)):
-            fdata = Interpolator.interp_var_to_height(
-                handle, feature, raster_index, np.float32(interp_height),
-                time_slice)
-        elif interp_pressure is not None and cls.has_multilevel_feature(
-                feature, handle):
-            fdata = Interpolator.interp_var_to_pressure(
-                handle, basename, raster_index, np.float32(interp_pressure),
-                time_slice)
-
-        else:
-            hfeatures = cls.get_handle_features(file_paths)
-            msg = (f'Requested feature "{feature}" cannot be extracted from '
-                   f'source data that has handle features: {hfeatures}.')
-            logger.exception(msg)
-            raise ValueError(msg)
-
-        fdata = np.transpose(fdata, (1, 2, 0))
-        return fdata.astype(np.float32)
-
-    @classmethod
-    def direct_extract(cls, handle, feature, raster_index, time_slice):
-        """Extract requested feature directly from source data, rather than
-        interpolating to a requested height or pressure level
-
-        Parameters
-        ----------
-        handle : xarray
-            netcdf data object
-        feature : str
-            Name of feature to extract directly from source handler
-        raster_index : list
-            List of slices for raster index of spatial domain
-        time_slice : slice
-            slice of time to extract
-
-        Returns
-        -------
-        fdata : ndarray
-            Data array for requested feature
-        """
-        # Sometimes xarray returns fields with (Times, time, lats, lons)
-        # with a single entry in the 'time' dimension so we include this [0]
-        if len(handle[feature].dims) == 4:
-            idx = (time_slice, 0, *raster_index)
-        elif len(handle[feature].dims) == 3:
-            idx = (time_slice, *raster_index)
-        else:
-            idx = tuple(raster_index)
-        fdata = np.array(handle[feature][idx], dtype=np.float32)
-        if len(fdata.shape) == 2:
-            fdata = np.expand_dims(fdata, axis=0)
-        return fdata
-
-    @classmethod
-    def get_full_domain(cls, file_paths):
-        """Get full shape and min available lat lon. To simplify processing
-        of full domain without needing to specify target and shape.
-
-        Parameters
-        ----------
-        file_paths : list
-            List of data file paths
-
-        Returns
-        -------
-        target : tuple
-            (lat, lon) for lower left corner
-        lat_lon : ndarray
-            Raw lat/lon array for entire domain
-        """
-        return cls.get_lat_lon(file_paths, [slice(None), slice(None)])
-
-    @classmethod
-    def compute_raster_index(cls, file_paths, target, grid_shape):
-        """Get raster index for a given target and shape
-
-        Parameters
-        ----------
-        file_paths : list
-            List of input data file paths
-        target : tuple
-            Target coordinate for lower left corner of extracted data
-        grid_shape : tuple
-            Shape out extracted data
-
-        Returns
-        -------
-        list
-            List of slices corresponding to extracted data region
-        """
-        lat_lon = cls.get_lat_lon(file_paths[:1],
-                                  [slice(None), slice(None)],
-                                  invert_lat=False)
-        cls._check_grid_extent(target, grid_shape, lat_lon)
-
-        row, col = cls.get_closest_lat_lon(lat_lon, target)
-
-        closest = tuple(lat_lon[row, col])
-        logger.debug(f'Found closest coordinate {closest} to target={target}')
-        if np.hypot(closest[0] - target[0], closest[1] - target[1]) > 1:
-            msg = 'Closest coordinate to target is more than 1 degree away'
-            logger.warning(msg)
-            warnings.warn(msg)
-
-        if cls.lats_are_descending(lat_lon):
-            row_end = row + 1
-            row_start = row_end - grid_shape[0]
-        else:
-            row_end = row + grid_shape[0]
-            row_start = row
-        raster_index = [
-            slice(row_start, row_end),
-            slice(col, col + grid_shape[1]),
-        ]
-        cls._validate_raster_shape(target, grid_shape, lat_lon, raster_index)
-        return raster_index
-
-    @classmethod
-    def _check_grid_extent(cls, target, grid_shape, lat_lon):
-        """Make sure the requested target coordinate lies within the available
-        lat/lon grid.
-
-        Parameters
-        ----------
-        target : tuple
-            Target coordinate for lower left corner of extracted data
-        grid_shape : tuple
-            Shape out extracted data
-        lat_lon : ndarray
-            Array of lat/lon coordinates for entire available grid. Used to
-            check whether computed raster only includes coordinates within this
-            grid.
-        """
-        min_lat = np.min(lat_lon[..., 0])
-        min_lon = np.min(lat_lon[..., 1])
-        max_lat = np.max(lat_lon[..., 0])
-        max_lon = np.max(lat_lon[..., 1])
-        logger.debug('Calculating raster index from NETCDF file '
-                     f'for shape {grid_shape} and target {target}')
-        logger.debug(f'lat/lon (min, max): {min_lat}/{min_lon}, '
-                     f'{max_lat}/{max_lon}')
-        msg = (f'target {target} out of bounds with min lat/lon '
-               f'{min_lat}/{min_lon} and max lat/lon {max_lat}/{max_lon}')
-        assert (min_lat <= target[0] <= max_lat
-                and min_lon <= target[1] <= max_lon), msg
-
-    @classmethod
-    def _validate_raster_shape(cls, target, grid_shape, lat_lon, raster_index):
-        """Make sure the computed raster_index only includes coordinates within
-        the available grid
-
-        Parameters
-        ----------
-        target : tuple
-            Target coordinate for lower left corner of extracted data
-        grid_shape : tuple
-            Shape out extracted data
-        lat_lon : ndarray
-            Array of lat/lon coordinates for entire available grid. Used to
-            check whether computed raster only includes coordinates within this
-            grid.
-        raster_index : list
-            List of slices selecting region from entire available grid.
-        """
-        if (raster_index[0].stop > lat_lon.shape[0]
-                or raster_index[1].stop > lat_lon.shape[1]
-                or raster_index[0].start < 0 or raster_index[1].start < 0):
-            msg = (f'Invalid target {target}, shape {grid_shape}, and raster '
-                   f'{raster_index} for data domain of size '
-                   f'{lat_lon.shape[:-1]} with lower left corner '
-                   f'({np.min(lat_lon[..., 0])}, {np.min(lat_lon[..., 1])}) '
-                   f' and upper right corner ({np.max(lat_lon[..., 0])}, '
-                   f'{np.max(lat_lon[..., 1])}).')
-            raise ValueError(msg)
-
-    def get_raster_index(self):
-        """Get raster index for file data. Here we assume the list of paths in
-        file_paths all have data with the same spatial domain. We use the first
-        file in the list to compute the raster.
-
-        Returns
-        -------
-        raster_index : np.ndarray
-            2D array of grid indices
-        """
-        self.raster_file = (self.raster_file if self.raster_file is None else
-                            self.raster_file.replace('.txt', '.npy'))
-        if self.raster_file is not None and os.path.exists(self.raster_file):
-            logger.debug(f'Loading raster index: {self.raster_file} '
-                         f'for {self.input_file_info}')
-            raster_index = np.load(self.raster_file, allow_pickle=True)
-            raster_index = list(raster_index)
-        else:
-            check = self.grid_shape is not None and self.target is not None
-            msg = ('Must provide raster file or shape + target to get '
-                   'raster index')
-            assert check, msg
-            raster_index = self.compute_raster_index(self.file_paths,
-                                                     self.target,
-                                                     self.grid_shape)
-            logger.debug('Found raster index with row, col slices: {}'.format(
-                raster_index))
-
-            if self.raster_file is not None:
-                basedir = os.path.dirname(self.raster_file)
-                if not os.path.exists(basedir):
-                    os.makedirs(basedir)
-                logger.debug(f'Saving raster index: {self.raster_file}')
-                np.save(self.raster_file.replace('.txt', '.npy'), raster_index)
-
-        return raster_index
-
-
-class DataHandlerNCforERA(DataHandlerNC):
-    """Data Handler for NETCDF ERA5 data"""
-
-    FEATURE_REGISTRY = DataHandlerNC.FEATURE_REGISTRY.copy()
-    FEATURE_REGISTRY.update({'Pressure_(.*)m': 'level_(.*)'})
+    def __init__(
+        self,
+        file_paths,
+        features,
+        res_kwargs=None,
+        chunks='auto',
+        mode='lazy',
+        target=None,
+        shape=None,
+        time_slice=None,
+        transform_function=None,
+        cache_kwargs=None,
+    ):
+        loader = LoaderNC(
+            file_paths,
+            features,
+            res_kwargs=res_kwargs,
+            chunks=chunks,
+            mode=mode,
+        )
+        super().__init__(
+            loader,
+            features,
+            target=target,
+            shape=shape,
+            time_slice=time_slice,
+            transform_function=transform_function,
+            cache_kwargs=cache_kwargs,
+        )
 
 
 class DataHandlerNCforCC(DataHandlerNC):
@@ -660,100 +291,3 @@ class DataHandlerNCforCCwithPowerLaw(DataHandlerNCforCC):
 
 class DataHandlerDCforNC(DataHandlerNC, DataHandlerDC):
     """Data centric data handler for NETCDF files"""
-
-
-class DataHandlerNCwithAugmentation(DataHandlerNC):
-    """DataHandler class which takes additional data handler and function type
-    to augment base data. For example, we can use this with function =
-    np.add(x, 2*y) and augment_dh holding EDA spread data to create an
-    augmented ERA5 data array representing the upper bound of the 95%
-    confidence interval."""
-
-    # pylint: disable=W0123
-    def __init__(self, *args, augment_handler_kwargs, augment_func, **kwargs):
-        """
-        Parameters
-        ----------
-        *args : list
-            Same as positional arguments of Parent class
-        augment_handler_kwargs : dict
-            Dictionary of keyword arguments passed to DataHandlerNC used to
-            initialize handler storing data used to augment base data. e.g.
-            DataHandler intialized on EDA data
-        augment_func : function
-            Function used in augmentation operation.
-            e.g. lambda x, y: np.add(x, 2 * y), used to compute upper bound
-            of 95% confidence interval: ERA5 + 2 * EDA
-        **kwargs : dict
-            Same as keyword arguments of Parent class
-        """
-        self.augment_dh = DataHandlerNC(**augment_handler_kwargs)
-        self.augment_func = (
-            augment_func if not isinstance(augment_func, str)
-            else eval(augment_func))
-
-        logger.info(
-            f"Initializing {self.__class__.__name__} with "
-            f"augment_handler_kwargs = {augment_handler_kwargs} and "
-            f"augment_func = {augment_func}"
-        )
-        super().__init__(*args, **kwargs)
-
-    def get_temporal_overlap(self):
-        """Get augment data that overlaps with time period of base data.
-
-        Returns
-        -------
-        ndarray
-            Data array of augment data that has an overlapping time period with
-            base data.
-        """
-        aug_time_mask = self.augment_dh.time_index.isin(self.time_index)
-        return self.augment_dh.data[..., aug_time_mask, :]
-
-    # pylint: disable=E1136
-    def regrid_augment_data(self):
-        """Regrid augment data to match resolution of base data.
-
-        Returns
-        -------
-        out : ndarray
-            Augment data temporally interpolated and regridded to match the
-            resolution of base data.
-        """
-        time_mask = self.time_index.isin(self.augment_dh.time_index)
-        time_indices = np.arange(len(self.time_index))
-        tinterp_out = self.get_temporal_overlap()
-        if self.augment_dh.data.shape[-2] > 1:
-            interp_func = interp1d(
-                time_indices[time_mask],
-                tinterp_out,
-                axis=-2,
-                fill_value="extrapolate",
-            )
-            tinterp_out = interp_func(time_indices)
-        regridder = Regridder(self.augment_dh.meta, self.meta)
-        out = np.zeros((*self.domain_shape, len(self.augment_dh.features)),
-                       dtype=np.float32)
-        for fidx, _ in enumerate(self.augment_dh.features):
-            out[..., fidx] = regridder(
-                tinterp_out[..., fidx]).reshape(self.domain_shape)
-        logger.info('Finished regridding augment data from '
-                    f'{self.augment_dh.data.shape} to {self.data.shape}')
-        return out
-
-    def run_all_data_init(self):
-        """Modified run_all_data_init function with augmentation operation.
-
-        Returns
-        -------
-        out : ndarray
-            Base data array augmented by data in augment_dh.
-            e.g. ERA5 +/- 2 * EDA
-        """
-        out = super().run_all_data_init()
-        base_indices = [self.features.index(feature)
-                        for feature in self.augment_dh.features]
-        out[..., base_indices] = self.augment_func(out[..., base_indices],
-                                                   self.regrid_augment_data())
-        return out
