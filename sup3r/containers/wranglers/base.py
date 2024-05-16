@@ -2,9 +2,13 @@
 contained data."""
 
 import logging
+import os
 from abc import ABC
 
+import dask.array as da
+import h5py
 import numpy as np
+import xarray as xr
 
 from sup3r.containers.loaders import Loader
 from sup3r.containers.wranglers.abstract import AbstractWrangler
@@ -73,3 +77,78 @@ class Wrangler(AbstractWrangler, ABC):
             transform_function=transform_function,
             cache_kwargs=cache_kwargs
         )
+
+    def cache_data(self):
+        """Cache data to file with file type based on user provided
+        cache_pattern."""
+        cache_pattern = self.cache_kwargs['cache_pattern']
+        chunks = self.cache_kwargs.get('chunks', None)
+        msg = 'cache_pattern must have {feature} format key.'
+        assert '{feature}' in cache_pattern, msg
+        _, ext = os.path.splitext(cache_pattern)
+        coords = {
+            'latitude': (('south_north', 'west_east'), self.lat_lon[..., 0]),
+            'longitude': (('south_north', 'west_east'), self.lat_lon[..., 1]),
+            'time': self.time_index.values,
+        }
+        for fidx, feature in enumerate(self.features):
+            out_file = cache_pattern.format(feature=feature)
+            if not os.path.exists(out_file):
+                logger.info(f'Writing {feature} to {out_file}.')
+                data = self.data[..., fidx]
+                if ext == '.h5':
+                    self._write_h5(
+                        out_file,
+                        feature,
+                        np.transpose(data, axes=(2, 0, 1)),
+                        coords,
+                        chunks,
+                    )
+                elif ext == '.nc':
+                    self._write_netcdf(
+                        out_file,
+                        feature,
+                        np.transpose(data, axes=(2, 0, 1)),
+                        coords,
+                    )
+                else:
+                    msg = (
+                        'cache_pattern must have either h5 or nc '
+                        f'extension. Recived {ext}.'
+                    )
+                    logger.error(msg)
+                    raise ValueError(msg)
+
+    def _write_h5(self, out_file, feature, data, coords, chunks=None):
+        """Cache data to h5 file using user provided chunks value."""
+        chunks = chunks or {}
+        with h5py.File(out_file, 'w') as f:
+            _, lats = coords['latitude']
+            _, lons = coords['longitude']
+            times = coords['time'].astype(int)
+            data_dict = dict(
+                zip(
+                    ['time_index', 'latitude', 'longitude', feature],
+                    [
+                        da.from_array(times),
+                        da.from_array(lats),
+                        da.from_array(lons),
+                        data,
+                    ],
+                )
+            )
+            for dset, vals in data_dict.items():
+                d = f.require_dataset(
+                    f'/{dset}',
+                    dtype=vals.dtype,
+                    shape=vals.shape,
+                    chunks=chunks.get(dset, None),
+                )
+                da.store(vals, d)
+                logger.info(f'Added {dset} to {out_file}.')
+
+    def _write_netcdf(self, out_file, feature, data, coords):
+        """Cache data to a netcdf file."""
+        data_vars = {feature: (('time', 'south_north', 'west_east'), data)}
+        out = xr.Dataset(data_vars=data_vars, coords=coords)
+        out.to_netcdf(out_file)

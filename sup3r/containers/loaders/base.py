@@ -17,8 +17,6 @@ class Loader(AbstractLoader):
     can be used by Sampler objects to build batches or by Wrangler objects to
     derive / extract specific features / regions / time_periods."""
 
-    DEFAULT_RES = None
-
     def __init__(
         self, file_paths, features, res_kwargs=None, chunks='auto', mode='lazy'
     ):
@@ -45,12 +43,13 @@ class Loader(AbstractLoader):
         self._res_kwargs = res_kwargs or {}
         self.mode = mode
         self.chunks = chunks
-        self.data = self.load()
 
     @property
     def res(self):
         """Lowest level interface to data."""
-        return self.DEFAULT_RES(self.file_paths, **self._res_kwargs)
+        if self._res is None:
+            self._res = self._get_res()
+        return self._res
 
     def load(self) -> dask.array:
         """Dask array with features in last dimension. Either lazily loaded
@@ -80,10 +79,14 @@ class Loader(AbstractLoader):
         from the underlying data for building batches or as part of extended
         feature extraction / derivation (spatial_1, spatial_2, temporal,
         features)."""
-        out = self.data[key]
-        if self.mode == 'lazy':
-            out = out.compute(scheduler='threads')
-        return out
+        if isinstance(key, str):
+            fidx = self.features.index(key)
+            return self.data[..., fidx]
+        if isinstance(key, (tuple, list)) and isinstance(key[0], str):
+            fidx = self.features.index(key)
+            return self.data[*key[1:], fidx]
+
+        return self.data[key]
 
     @property
     def shape(self):

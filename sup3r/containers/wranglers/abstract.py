@@ -2,13 +2,9 @@
 contained data."""
 
 import logging
-import os
 from abc import ABC, abstractmethod
 
-import dask.array as da
-import h5py
 import numpy as np
-import xarray as xr
 
 from sup3r.containers.abstract import AbstractContainer
 from sup3r.containers.loaders.base import Loader
@@ -27,8 +23,8 @@ class AbstractWrangler(AbstractContainer, ABC):
         self,
         container: Loader,
         features,
-        target=(),
-        shape=(),
+        target,
+        shape,
         time_slice=slice(None),
         transform_function=None,
         cache_kwargs=None,
@@ -64,7 +60,9 @@ class AbstractWrangler(AbstractContainer, ABC):
                 def transform_ws_wd(self, data):
 
                     from sup3r.utilities.utilities import transform_rotate_wind
-                    ws, wd = data[..., 0], data[..., 1]
+                    ws_idx = self.container.features.index('windspeed')
+                    wd_idx = self.container.features.index('winddirection')
+                    ws, wd = data[..., ws_idx], data[..., wd_idx]
                     u, v = transform_rotate_wind(ws, wd, self.lat_lon)
                     data[..., 0], data[..., 1] = u, v
 
@@ -96,6 +94,12 @@ class AbstractWrangler(AbstractContainer, ABC):
         self._lat_lon = None
         self._time_index = None
         self._raster_index = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, trace):
+        self.container.res.close()
 
     @property
     def target(self):
@@ -141,7 +145,7 @@ class AbstractWrangler(AbstractContainer, ABC):
             data = self.extract_features()
             if self.transform_function is not None:
                 data = self.transform_function(self, data)
-            self._data = data
+            self._data = data.astype(np.float32)
         return self._data
 
     @abstractmethod
@@ -171,77 +175,7 @@ class AbstractWrangler(AbstractContainer, ABC):
         """Define spatiotemporal shape of extracted extent."""
         return (*self.grid_shape, len(self.time_index))
 
+    @abstractmethod
     def cache_data(self):
         """Cache data to file with file type based on user provided
         cache_pattern."""
-        cache_pattern = self.cache_kwargs['cache_pattern']
-        chunks = self.cache_kwargs.get('chunks', None)
-        msg = 'cache_pattern must have {feature} format key.'
-        assert '{feature}' in cache_pattern, msg
-        _, ext = os.path.splitext(cache_pattern)
-        coords = {
-            'latitude': (('south_north', 'west_east'), self.lat_lon[..., 0]),
-            'longitude': (('south_north', 'west_east'), self.lat_lon[..., 1]),
-            'time': self.time_index.values,
-        }
-        for fidx, feature in enumerate(self.features):
-            out_file = cache_pattern.format(feature=feature)
-            if not os.path.exists(out_file):
-                logger.info(f'Writing {feature} to {out_file}.')
-                data = self.data[..., fidx]
-                if ext == '.h5':
-                    self._write_h5(
-                        out_file,
-                        feature,
-                        np.transpose(data, axes=(2, 0, 1)),
-                        coords,
-                        chunks,
-                    )
-                elif ext == '.nc':
-                    self._write_netcdf(
-                        out_file,
-                        feature,
-                        np.transpose(data, axes=(2, 0, 1)),
-                        coords,
-                    )
-                else:
-                    msg = (
-                        'cache_pattern must have either h5 or nc '
-                        f'extension. Recived {ext}.'
-                    )
-                    logger.error(msg)
-                    raise ValueError(msg)
-
-    def _write_h5(self, out_file, feature, data, coords, chunks=None):
-        """Cache data to h5 file using user provided chunks value."""
-        chunks = chunks or {}
-        with h5py.File(out_file, 'w') as f:
-            _, lats = coords['latitude']
-            _, lons = coords['longitude']
-            times = coords['time'].astype(int)
-            data_dict = dict(
-                zip(
-                    ['time_index', 'latitude', 'longitude', feature],
-                    [
-                        da.from_array(times),
-                        da.from_array(lats),
-                        da.from_array(lons),
-                        data,
-                    ],
-                )
-            )
-            for dset, vals in data_dict.items():
-                d = f.require_dataset(
-                    f'/{dset}',
-                    dtype=vals.dtype,
-                    shape=vals.shape,
-                    chunks=chunks.get(dset, None),
-                )
-                da.store(vals, d)
-                logger.info(f'Added {dset} to {out_file}.')
-
-    def _write_netcdf(self, out_file, feature, data, coords):
-        """Cache data to a netcdf file."""
-        data_vars = {feature: (('time', 'south_north', 'west_east'), data)}
-        out = xr.Dataset(data_vars=data_vars, coords=coords)
-        out.to_netcdf(out_file)

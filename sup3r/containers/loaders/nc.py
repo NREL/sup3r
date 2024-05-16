@@ -4,6 +4,7 @@ classes."""
 
 import logging
 
+import dask
 import xarray as xr
 
 from sup3r.containers.loaders import Loader
@@ -18,4 +19,24 @@ class LoaderNC(Loader):
     or by Wrangler objects to derive / extract specific features / regions /
     time_periods."""
 
-    DEFAULT_RES = xr.open_mfdataset
+    def load(self) -> dask.array:
+        """Dask array with features in last dimension. Either lazily loaded
+        (mode = 'lazy') or loaded into memory right away (mode = 'eager').
+
+        Returns
+        -------
+        dask.array.core.Array
+            (spatial, time, features) or (spatial_1, spatial_2, time, features)
+        """
+        data = self.res[self.features].to_dataarray().data
+        data = dask.array.moveaxis(data, 0, -1)
+        data = dask.array.moveaxis(data, 0, -2)
+
+        if self.mode == 'eager':
+            data = data.compute()
+
+        return data
+
+    def _get_res(self):
+        """Lowest level interface to data."""
+        return xr.open_mfdataset(self.file_paths, **self._res_kwargs)

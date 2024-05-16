@@ -113,8 +113,7 @@ class DistributedProcess:
         """Get the number of process chunks for this distributed routine."""
         if self._n_chunks is None:
             return self._max_chunks
-        else:
-            return min(self._n_chunks, self._max_chunks)
+        return min(self._n_chunks, self._max_chunks)
 
     @property
     def nodes(self):

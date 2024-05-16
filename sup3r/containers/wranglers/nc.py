@@ -21,10 +21,10 @@ class WranglerNC(Wrangler, ABC):
         self,
         container: Loader,
         features,
-        target,
-        shape,
+        target=None,
+        shape=None,
         time_slice=slice(None),
-        transform_function=None
+        transform_function=None,
     ):
         """
         Parameters
@@ -63,16 +63,52 @@ class WranglerNC(Wrangler, ABC):
             target=target,
             shape=shape,
             time_slice=time_slice,
-            transform_function=transform_function
+            transform_function=transform_function,
         )
+        self.check_target_and_shape()
+
+    def check_target_and_shape(self):
+        """NETCDF files tend to use a regular grid so if either target or shape
+        is not given we can easily find the values that give the maximum
+        extent."""
+        full_lat_lon = self._get_full_lat_lon()
+        if self._target is None:
+            lat = (
+                full_lat_lon[-1, 0, 0]
+                if self._has_descending_lats()
+                else full_lat_lon[0, 0, 0]
+            )
+            lon = (
+                full_lat_lon[-1, 0, 1]
+                if self._has_descending_lats()
+                else full_lat_lon[0, 0, 1]
+            )
+            self._target = (lat, lon)
+        if self._grid_shape is None:
+            self._grid_shape = full_lat_lon.shape[:-1]
+
+    def _get_full_lat_lon(self):
+        lats = self.container.res['latitude'].data
+        lons = self.container.res['longitude'].data
+        if len(lats.shape) == 1:
+            lons, lats = np.meshgrid(lons, lats)
+        return np.dstack([lats, lons])
+
+    def _has_descending_lats(self):
+        lats = self._get_full_lat_lon()[:, 0, 0]
+        return lats[0] > lats[-1]
 
     def get_raster_index(self):
         """Get set of slices or indices selecting the requested region from
         the contained data."""
-        full_lat_lon = self.container.res[['latitude', 'longitude']]
-        row, col = self.get_closest_row_col(full_lat_lon, self.target)
-        lat_slice = slice(row, row + self.grid_shape[0])
-        lon_slice = slice(col, col + self.grid_shape[1])
+        row, col = self.get_closest_row_col(
+            self._get_full_lat_lon(), self._target
+        )
+        if self._has_descending_lats():
+            lat_slice = slice(row, row - self._grid_shape[0], -1)
+        else:
+            lat_slice = slice(row, row + self._grid_shape[0])
+        lon_slice = slice(col, col + self._grid_shape[1])
         return (lat_slice, lon_slice)
 
     @staticmethod
@@ -95,20 +131,22 @@ class WranglerNC(Wrangler, ABC):
         col : int
             col index for closest lat/lon to target lat/lon
         """
-        dist = np.hypot(lat_lon[..., 0] - target[0],
-                        lat_lon[..., 1] - target[1])
+        dist = np.hypot(
+            lat_lon[..., 0] - target[0], lat_lon[..., 1] - target[1]
+        )
         row, col = np.where(dist == np.min(dist))
-        row = row[0]
-        col = col[0]
-        return row, col
+        return row[0], col[0]
 
     def get_time_index(self):
         """Get the time index corresponding to the requested time_slice"""
-        return self.container.res.time_index[self.time_slice]
+        return self.container.res['time'].values[self.time_slice]
 
     def get_lat_lon(self):
         """Get the 2D array of coordinates corresponding to the requested
         target and shape."""
-        return self.container.res[['latitude', 'longitude']][
-            self.raster_index
-        ].reshape((*self.grid_shape, 2))
+        return self._get_full_lat_lon()[*self.raster_index]
+
+    def extract_features(self):
+        """Extract the requested features for the requested target + grid_shape
+        + time_slice."""
+        return self.container[*self.raster_index, self.time_slice]

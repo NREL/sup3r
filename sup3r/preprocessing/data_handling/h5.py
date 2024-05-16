@@ -4,19 +4,13 @@
 
 import copy
 import logging
-import os
-from typing import ClassVar
 
 import numpy as np
 from rex import MultiFileNSRDBX, MultiFileWindX
 
-from sup3r.preprocessing.data_handling.base import DataHandler
+from sup3r.containers import LoaderH5, WranglerH5
 from sup3r.preprocessing.data_handling.data_centric import DataHandlerDC
 from sup3r.preprocessing.derived_features import (
-    ClearSkyRatioH5,
-    CloudMaskH5,
-    LatLonH5,
-    TopoH5,
     UWind,
     VWind,
 )
@@ -30,162 +24,47 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
-class DataHandlerH5(DataHandler):
+class DataHandlerH5(WranglerH5):
     """DataHandler for H5 Data"""
 
-    FEATURE_REGISTRY: ClassVar[dict] = {
-        'U_(.*)m': UWind,
-        'V_(.*)m': VWind,
-        'lat_lon': LatLonH5,
-        'RMOL': 'inversemoninobukhovlength_2m',
-        'P_(.*)m': 'pressure_(.*)m',
-        'topography': TopoH5,
-        'cloud_mask': CloudMaskH5,
-        'clearsky_ratio': ClearSkyRatioH5,
-    }
-
-    # the handler from rex to open h5 data.
-    REX_HANDLER = MultiFileWindX
-
-    @classmethod
-    def source_handler(cls, file_paths, **kwargs):
-        """Rex data handler
-
-        Note that xarray appears to treat open file handlers as singletons
-        within a threadpool, so its okay to open this source_handler without a
-        context handler or a .close() statement.
-
-        Parameters
-        ----------
-        file_paths : str | list
-            paths to data files
-        kwargs : dict
-            keyword arguments passed to source handler
-
-        Returns
-        -------
-        data : ResourceX
-        """
-        return cls.REX_HANDLER(file_paths, **kwargs)
-
-    @classmethod
-    def get_full_domain(cls, file_paths):
-        """Get target and shape for largest domain possible"""
-        msg = ('You must either provide the target+shape inputs or an '
-               'existing raster_file input.')
-        logger.error(msg)
-        raise ValueError(msg)
-
-    @classmethod
-    def get_time_index(cls, file_paths, **kwargs):
-        """Get time index from data files
-
-        Parameters
-        ----------
-        file_paths : list
-            path to data file
-        kwargs : dict
-            placeholder to match signature
-
-        Returns
-        -------
-        time_index : pd.DateTimeIndex
-            Time index from h5 source file(s)
-        """
-        handle = cls.source_handler(file_paths)
-        return handle.time_index
-
-    @classmethod
-    def extract_feature(cls,
-                        file_paths,
-                        raster_index,
-                        feature,
-                        time_slice=slice(None),
-                        **kwargs,
-                        ):
-        """Extract single feature from data source
-
-        Parameters
-        ----------
-        file_paths : list
-            path to data file
-        raster_index : ndarray
-            Raster index array
-        feature : str
-            Feature to extract from data
-        time_slice : slice
-            slice of time to extract
-        kwargs : dict
-            keyword arguments passed to source handler
-
-        Returns
-        -------
-        ndarray
-            Data array for extracted feature
-            (spatial_1, spatial_2, temporal)
-        """
-        logger.info(f'Extracting {feature} with kwargs={kwargs}')
-        handle = cls.source_handler(file_paths, **kwargs)
-        try:
-            fdata = handle[(feature, time_slice, *(raster_index.flatten(),))]
-        except ValueError as e:
-            hfeatures = cls.get_handle_features(file_paths)
-            msg = (f'Requested feature "{feature}" cannot be extracted from '
-                   f'source data that has handle features: {hfeatures}.')
-            logger.exception(msg)
-            raise ValueError(msg) from e
-
-        fdata = fdata.reshape(
-            (-1, raster_index.shape[0], raster_index.shape[1]))
-        fdata = np.transpose(fdata, (1, 2, 0))
-        return fdata.astype(np.float32)
-
-    def get_raster_index(self):
-        """Get raster index for file data. Here we assume the list of paths in
-        file_paths all have data with the same spatial domain. We use the first
-        file in the list to compute the raster.
-
-        Returns
-        -------
-        raster_index : np.ndarray
-            2D array of grid indices
-        """
-        if self.raster_file is not None and os.path.exists(self.raster_file):
-            logger.debug(f'Loading raster index: {self.raster_file} '
-                         f'for {self.input_file_info}')
-            raster_index = np.loadtxt(self.raster_file).astype(np.uint32)
-        else:
-            check = self.grid_shape is not None and self.target is not None
-            msg = ('Must provide raster file or shape + target to get '
-                   'raster index')
-            assert check, msg
-            logger.debug('Calculating raster index from .h5 file '
-                         f'for shape {self.grid_shape} and target '
-                         f'{self.target}')
-            handle = self.source_handler(self.file_paths[0])
-            raster_index = handle.get_raster_index(self.target,
-                                                   self.grid_shape,
-                                                   max_delta=self.max_delta)
-            if self.raster_file is not None:
-                basedir = os.path.dirname(self.raster_file)
-                if not os.path.exists(basedir):
-                    os.makedirs(basedir)
-                logger.debug(f'Saving raster index: {self.raster_file}')
-                np.savetxt(self.raster_file, raster_index)
-        return raster_index
+    def __init__(
+        self,
+        file_paths,
+        features,
+        res_kwargs,
+        chunks='auto',
+        mode='lazy',
+        target=None,
+        shape=None,
+        time_slice=None,
+        raster_file=None,
+        max_delta=20,
+        transform_function=None,
+        cache_kwargs=None,
+    ):
+        loader = LoaderH5(
+            file_paths,
+            features,
+            res_kwargs=res_kwargs,
+            chunks=chunks,
+            mode=mode,
+        )
+        super().__init__(
+            loader,
+            features,
+            target=target,
+            shape=shape,
+            raster_file=raster_file,
+            time_slice=time_slice,
+            max_delta=max_delta,
+            transform_function=transform_function,
+            cache_kwargs=cache_kwargs,
+        )
 
 
 class DataHandlerH5WindCC(DataHandlerH5):
     """Special data handling and batch sampling for h5 wtk or nsrdb data for
     climate change applications"""
-
-    FEATURE_REGISTRY = DataHandlerH5.FEATURE_REGISTRY.copy()
-    FEATURE_REGISTRY.update({
-        'temperature_max_(.*)m': 'temperature_(.*)m',
-        'temperature_min_(.*)m': 'temperature_(.*)m',
-        'relativehumidity_max_(.*)m': 'relativehumidity_(.*)m',
-        'relativehumidity_min_(.*)m': 'relativehumidity_(.*)m'
-    })
 
     # the handler from rex to open h5 data.
     REX_HANDLER = MultiFileWindX
@@ -265,29 +144,6 @@ class DataHandlerH5WindCC(DataHandlerH5):
         logger.info('Finished calculating daily average datasets for {} '
                     'training data days.'.format(n_data_days))
 
-    def _normalize_data(self, data, val_data, feature_index, mean, std):
-        """Normalize data with initialized mean and standard deviation for a
-        specific feature
-
-        Parameters
-        ----------
-        data : np.ndarray
-            Array of training data.
-            (spatial_1, spatial_2, temporal, n_features)
-        val_data : np.ndarray
-            Array of validation data.
-            (spatial_1, spatial_2, temporal, n_features)
-        feature_index : int
-            index of feature to be normalized
-        mean : float32
-            specified mean of associated feature
-        std : float32
-            specificed standard deviation for associated feature
-        """
-        super()._normalize_data(data, val_data, feature_index, mean, std)
-        self.daily_data[..., feature_index] -= mean
-        self.daily_data[..., feature_index] /= std
-
     def get_observation_index(self):
         """Randomly gets spatial sample and time sample
 
@@ -337,49 +193,6 @@ class DataHandlerH5WindCC(DataHandlerH5):
         obs_hourly = self.data[obs_ind_hourly]
         obs_daily_avg = self.daily_data[obs_ind_daily]
         return obs_hourly, obs_daily_avg
-
-    def split_data(self, data=None, val_split=0.0, shuffle_time=False):
-        """Split time dimension into set of training indices and validation
-        indices. For NSRDB it makes sure that the splits happen at midnight.
-
-        Parameters
-        ----------
-        data : np.ndarray
-            4D array of high res data
-            (spatial_1, spatial_2, temporal, features)
-        val_split : float
-            Fraction of data to separate for validation.
-        shuffle_time : bool
-            No effect. Used to fit base class function signature.
-
-        Returns
-        -------
-        data : np.ndarray
-            (spatial_1, spatial_2, temporal, features)
-            Training data fraction of initial data array. Initial data array is
-            overwritten by this new data array.
-        val_data : np.ndarray
-            (spatial_1, spatial_2, temporal, features)
-            Validation data fraction of initial data array.
-        """
-
-        if data is not None:
-            self.data = data
-
-        midnight_ilocs = np.where((self.time_index.hour == 0)
-                                  & (self.time_index.minute == 0)
-                                  & (self.time_index.second == 0))[0]
-
-        n_val_obs = int(np.ceil(val_split * len(midnight_ilocs)))
-        val_split_index = midnight_ilocs[n_val_obs]
-
-        self.val_data = self.data[:, :, slice(None, val_split_index), :]
-        self.data = self.data[:, :, slice(val_split_index, None), :]
-
-        self.val_time_index = self.time_index[slice(None, val_split_index)]
-        self.time_index = self.time_index[slice(val_split_index, None)]
-
-        return self.data, self.val_data
 
 
 class DataHandlerH5SolarCC(DataHandlerH5WindCC):

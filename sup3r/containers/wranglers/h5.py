@@ -123,7 +123,15 @@ class WranglerH5(Wrangler, ABC):
 
     def get_time_index(self):
         """Get the time index corresponding to the requested time_slice"""
-        return self.container.res.time_index[self.time_slice]
+        if 'time_index' in self.container.res:
+            raw_time_index = self.container.res['time_index']
+        elif hasattr(self.container.res, 'time_index'):
+            raw_time_index = self.container.res.time_index
+        else:
+            msg = (f'Could not get time_index from {self.container.res}')
+            logger.error(msg)
+            raise RuntimeError(msg)
+        return raw_time_index[self.time_slice]
 
     def get_lat_lon(self):
         """Get the 2D array of coordinates corresponding to the requested
@@ -137,5 +145,5 @@ class WranglerH5(Wrangler, ABC):
     def extract_features(self):
         """Extract the requested features for the requested target + grid_shape
         + time_slice."""
-        out = self.container.data[self.raster_index.flatten(), self.time_slice]
+        out = self.container[self.raster_index.flatten(), self.time_slice]
         return out.reshape((*self.shape, len(self.features)))
