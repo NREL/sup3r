@@ -45,7 +45,7 @@ def test_train_spatial(log=False, full_shape=(20, 20),
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=full_shape,
                             sample_shape=sample_shape,
-                            temporal_slice=slice(None, None, 10),
+                            time_slice=slice(None, None, 10),
                             worker_kwargs=dict(max_workers=1), val_split=0.1)
 
     batch_handler = SpatialBatchHandler([handler], batch_size=2, s_enhance=2,
@@ -130,7 +130,7 @@ def test_train_st_weight_update(n_epoch=2, log=False):
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=(20, 20),
                             sample_shape=(12, 12, 16),
-                            temporal_slice=slice(None, None, 1),
+                            time_slice=slice(None, None, 1),
                             val_split=0.005,
                             worker_kwargs=dict(max_workers=1))
 
@@ -184,7 +184,7 @@ def test_train_spatial_dc(log=False, full_shape=(20, 20),
     handler = DataHandlerDCforH5(FP_WTK, FEATURES, target=TARGET_COORD,
                                  shape=full_shape,
                                  sample_shape=sample_shape,
-                                 temporal_slice=slice(None, None, 1),
+                                 time_slice=slice(None, None, 1),
                                  val_split=0.005,
                                  worker_kwargs=dict(max_workers=1))
     batch_size = 2
@@ -234,7 +234,7 @@ def test_train_st_dc(n_epoch=2, log=False):
 
     handler = DataHandlerDCforH5(FP_WTK, FEATURES, target=TARGET_COORD,
                                  shape=(20, 20), sample_shape=(12, 12, 16),
-                                 temporal_slice=slice(None, None, 1),
+                                 time_slice=slice(None, None, 1),
                                  val_split=0.005,
                                  worker_kwargs=dict(max_workers=1))
     batch_size = 4
@@ -283,7 +283,7 @@ def test_train_st(n_epoch=2, log=False):
 
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=(20, 20), sample_shape=(12, 12, 16),
-                            temporal_slice=slice(None, None, 1),
+                            time_slice=slice(None, None, 1),
                             val_split=0.005,
                             worker_kwargs=dict(max_workers=1))
 

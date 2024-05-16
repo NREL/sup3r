@@ -201,7 +201,7 @@ class ExogenousDataHandler:
                  source_file=None,
                  target=None,
                  shape=None,
-                 temporal_slice=None,
+                 time_slice=None,
                  raster_file=None,
                  max_delta=20,
                  input_handler=None,
@@ -257,7 +257,7 @@ class ExogenousDataHandler:
             raster_file.
         shape : tuple
             (rows, cols) grid size. Either need target+shape or raster_file.
-        temporal_slice : slice | None
+        time_slice : slice | None
             slice used to extract interval from temporal dimension for input
             data and source data
         raster_file : str | None
@@ -297,7 +297,7 @@ class ExogenousDataHandler:
         self.source_file = source_file
         self.file_paths = file_paths
         self.exo_handler = exo_handler
-        self.temporal_slice = temporal_slice
+        self.time_slice = time_slice
         self.target = target
         self.shape = shape
         self.raster_file = raster_file
@@ -586,7 +586,7 @@ class ExogenousDataHandler:
                       t_agg_factor=t_agg_factor,
                       target=self.target,
                       shape=self.shape,
-                      temporal_slice=self.temporal_slice,
+                      time_slice=self.time_slice,
                       raster_file=self.raster_file,
                       max_delta=self.max_delta,
                       input_handler=self.input_handler,

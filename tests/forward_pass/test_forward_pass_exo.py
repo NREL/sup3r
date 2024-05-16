@@ -23,7 +23,7 @@ INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
 target = (19.3, -123.5)
 shape = (8, 8)
 sample_shape = (8, 8, 6)
-temporal_slice = slice(None, None, 1)
+time_slice = slice(None, None, 1)
 list_chunk_size = 10
 fwp_chunk_shape = (4, 4, 150)
 s_enhance = 3
@@ -107,7 +107,7 @@ def test_fwp_multi_step_model_topo_exoskip(log=False):
         input_handler_kwargs = dict(
             target=target,
             shape=shape,
-            temporal_slice=temporal_slice,
+            time_slice=time_slice,
             worker_kwargs=dict(max_workers=max_workers),
             overwrite_cache=True)
         handler = ForwardPassStrategy(
@@ -213,7 +213,7 @@ def test_fwp_multi_step_spatial_model_topo_noskip():
         input_handler_kwargs = dict(
             target=target,
             shape=shape,
-            temporal_slice=temporal_slice,
+            time_slice=time_slice,
             worker_kwargs=dict(max_workers=max_workers),
             overwrite_cache=True)
         handler = ForwardPassStrategy(
@@ -324,7 +324,7 @@ def test_fwp_multi_step_model_topo_noskip():
         input_handler_kwargs = dict(
             target=target,
             shape=shape,
-            temporal_slice=temporal_slice,
+            time_slice=time_slice,
             worker_kwargs=dict(max_workers=max_workers),
             overwrite_cache=True)
         handler = ForwardPassStrategy(
@@ -400,7 +400,7 @@ def test_fwp_single_step_sfc_model(plot=False):
         out_files = os.path.join(td, 'out_{file_id}.h5')
         input_handler_kwargs = dict(target=target,
                                     shape=shape,
-                                    temporal_slice=temporal_slice,
+                                    time_slice=time_slice,
                                     worker_kwargs=dict(max_workers=1),
                                     overwrite_cache=True)
 
@@ -544,7 +544,7 @@ def test_fwp_single_step_wind_hi_res_topo(plot=False):
         out_files = os.path.join(td, 'out_{file_id}.h5')
         input_handler_kwargs = dict(target=target,
                                     shape=shape,
-                                    temporal_slice=temporal_slice,
+                                    time_slice=time_slice,
                                     worker_kwargs=dict(max_workers=1),
                                     overwrite_cache=True)
 
@@ -713,7 +713,7 @@ def test_fwp_multi_step_wind_hi_res_topo():
         out_files = os.path.join(td, 'out_{file_id}.h5')
         input_handler_kwargs = dict(target=target,
                                     shape=shape,
-                                    temporal_slice=temporal_slice,
+                                    time_slice=time_slice,
                                     worker_kwargs=dict(max_workers=1),
                                     overwrite_cache=True)
 
@@ -878,7 +878,7 @@ def test_fwp_wind_hi_res_topo_plus_linear():
         out_files = os.path.join(td, 'out_{file_id}.h5')
         input_handler_kwargs = dict(target=target,
                                     shape=shape,
-                                    temporal_slice=temporal_slice,
+                                    time_slice=time_slice,
                                     worker_kwargs=dict(max_workers=1),
                                     overwrite_cache=True)
 
@@ -988,7 +988,7 @@ def test_fwp_multi_step_model_multi_exo():
         input_handler_kwargs = dict(
             target=target,
             shape=shape,
-            temporal_slice=temporal_slice,
+            time_slice=time_slice,
             worker_kwargs=dict(max_workers=max_workers),
             overwrite_cache=True)
         handler = ForwardPassStrategy(
@@ -1247,7 +1247,7 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza():
         out_files = os.path.join(td, 'out_{file_id}.h5')
         input_handler_kwargs = dict(target=target,
                                     shape=shape,
-                                    temporal_slice=temporal_slice,
+                                    time_slice=time_slice,
                                     worker_kwargs=dict(max_workers=1),
                                     overwrite_cache=True)
 

@@ -52,15 +52,15 @@ class DataCentricSampler(Sampler):
                 self.shape, self.sample_shape[:2]
             )
         if temporal_weights is not None:
-            temporal_slice = weighted_time_sampler(
+            time_slice = weighted_time_sampler(
                 self.shape, self.sample_shape[2], weights=temporal_weights
             )
         else:
-            temporal_slice = uniform_time_sampler(
+            time_slice = uniform_time_sampler(
                 self.shape, self.sample_shape[2]
             )
 
-        return (*spatial_slice, temporal_slice, np.arange(len(self.features)))
+        return (*spatial_slice, time_slice, np.arange(len(self.features)))
 
     def get_next(self, temporal_weights=None, spatial_weights=None):
         """Get data for observation using weighted random observation index.

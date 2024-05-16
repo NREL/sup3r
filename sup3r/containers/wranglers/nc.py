@@ -25,6 +25,7 @@ class WranglerNC(Wrangler, ABC):
         shape=None,
         time_slice=slice(None),
         transform_function=None,
+        cache_kwargs=None
     ):
         """
         Parameters
@@ -64,8 +65,12 @@ class WranglerNC(Wrangler, ABC):
             shape=shape,
             time_slice=time_slice,
             transform_function=transform_function,
+            cache_kwargs=cache_kwargs
         )
         self.check_target_and_shape()
+
+        if self.cache_kwargs is not None:
+            self.cache_data(self.cache_kwargs)
 
     def check_target_and_shape(self):
         """NETCDF files tend to use a regular grid so if either target or shape

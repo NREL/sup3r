@@ -65,7 +65,7 @@ def test_fwp_pipeline():
             'overwrite_cache': True,
             'time_chunk_size': 10,
             'worker_kwargs': {'max_workers': 1},
-            'temporal_slice': [t_slice.start, t_slice.stop],
+            'time_slice': [t_slice.start, t_slice.stop],
         }
         config = {
             'worker_kwargs': {'max_workers': 1},
@@ -169,7 +169,7 @@ def test_multiple_fwp_pipeline():
             'overwrite_cache': True,
             'time_chunk_size': 10,
             'worker_kwargs': {'max_workers': 1},
-            'temporal_slice': [t_slice.start, t_slice.stop],
+            'time_slice': [t_slice.start, t_slice.stop],
         }
 
         sub_dir_1 = os.path.join(td, 'dir1')

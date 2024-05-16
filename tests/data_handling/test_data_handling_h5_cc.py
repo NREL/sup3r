@@ -32,7 +32,7 @@ INPUT_FILE_SURF = os.path.join(TEST_DATA_DIR, 'test_wtk_surface_vars.h5')
 TARGET_SURF = (39.1, -105.4)
 
 dh_kwargs = dict(target=TARGET_S, shape=SHAPE,
-                 temporal_slice=slice(None, None, 2),
+                 time_slice=slice(None, None, 2),
                  time_roll=-7, val_split=0.1, sample_shape=(20, 20, 24),
                  worker_kwargs=dict(worker_kwargs=1))
 
@@ -501,7 +501,7 @@ def test_surf_min_max_vars():
     dh_kwargs_new['target'] = TARGET_SURF
     dh_kwargs_new['sample_shape'] = (20, 20, 72)
     dh_kwargs_new['val_split'] = 0
-    dh_kwargs_new['temporal_slice'] = slice(None, None, 1)
+    dh_kwargs_new['time_slice'] = slice(None, None, 1)
     dh_kwargs_new['lr_only_features'] = ['*_min_*', '*_max_*']
     handler = DataHandlerH5WindCC(INPUT_FILE_SURF, surf_features,
                                   **dh_kwargs_new)

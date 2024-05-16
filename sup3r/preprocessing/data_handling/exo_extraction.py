@@ -41,7 +41,7 @@ class ExoExtract(ABC):
                  t_agg_factor,
                  target=None,
                  shape=None,
-                 temporal_slice=None,
+                 time_slice=None,
                  raster_file=None,
                  max_delta=20,
                  input_handler=None,
@@ -91,7 +91,7 @@ class ExoExtract(ABC):
             raster_file.
         shape : tuple
             (rows, cols) grid size. Either need target+shape or raster_file.
-        temporal_slice : slice | None
+        time_slice : slice | None
             slice used to extract interval from temporal dimension for input
             data and source data
         raster_file : str | None
@@ -137,7 +137,7 @@ class ExoExtract(ABC):
         self._distance_upper_bound = distance_upper_bound
         self.cache_data = cache_data
         self.cache_dir = cache_dir
-        self.temporal_slice = temporal_slice
+        self.time_slice = time_slice
         self.target = target
         self.shape = shape
         self.res_kwargs = res_kwargs
@@ -170,7 +170,7 @@ class ExoExtract(ABC):
             file_paths, [],
             target=target,
             shape=shape,
-            temporal_slice=temporal_slice,
+            time_slice=time_slice,
             raster_file=raster_file,
             max_delta=max_delta,
             res_kwargs=self.res_kwargs
@@ -203,10 +203,10 @@ class ExoExtract(ABC):
         cache_fp : str
             Name of cache file
         """
-        tsteps = (None if self.temporal_slice is None
-                  or self.temporal_slice.start is None
-                  or self.temporal_slice.stop is None
-                  else self.temporal_slice.stop - self.temporal_slice.start)
+        tsteps = (None if self.time_slice is None
+                  or self.time_slice.start is None
+                  or self.time_slice.stop is None
+                  else self.time_slice.stop - self.time_slice.start)
         fn = f'exo_{feature}_{self.target}_{self.shape},{tsteps}'
         fn += f'_tagg{t_agg_factor}_{s_enhance}x_'
         fn += f'{t_enhance}x.pkl'
@@ -365,7 +365,7 @@ class ExoExtract(ABC):
                        exo_source=None,
                        target=None,
                        shape=None,
-                       temporal_slice=None,
+                       time_slice=None,
                        raster_file=None,
                        max_delta=20,
                        input_handler=None,
@@ -408,7 +408,7 @@ class ExoExtract(ABC):
             raster_file.
         shape : tuple
             (rows, cols) grid size. Either need target+shape or raster_file.
-        temporal_slice : slice | None
+        time_slice : slice | None
             slice used to extract interval from temporal dimension for input
             data and source data
         raster_file : str | None
@@ -449,7 +449,7 @@ class ExoExtract(ABC):
                   exo_source=exo_source,
                   target=target,
                   shape=shape,
-                  temporal_slice=temporal_slice,
+                  time_slice=time_slice,
                   raster_file=raster_file,
                   max_delta=max_delta,
                   input_handler=input_handler,

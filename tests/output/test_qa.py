@@ -55,7 +55,7 @@ def test_qa_nc():
             fwp_chunk_shape=FWP_CHUNK_SHAPE,
             spatial_pad=1, temporal_pad=1,
             input_handler_kwargs=dict(target=TARGET, shape=SHAPE,
-                                      temporal_slice=TEMPORAL_SLICE,
+                                      time_slice=TEMPORAL_SLICE,
                                       worker_kwargs=dict(max_workers=1)),
             out_pattern=out_files,
             worker_kwargs=dict(max_workers=1),
@@ -70,7 +70,7 @@ def test_qa_nc():
         qa_fp = os.path.join(td, 'qa.h5')
         kwargs = dict(s_enhance=S_ENHANCE, t_enhance=T_ENHANCE,
                       temporal_coarsening_method='subsample',
-                      temporal_slice=TEMPORAL_SLICE,
+                      time_slice=TEMPORAL_SLICE,
                       target=TARGET, shape=SHAPE,
                       qa_fp=qa_fp, save_sources=True,
                       worker_kwargs=dict(max_workers=1))
@@ -134,7 +134,7 @@ def test_qa_h5():
 
         out_files = os.path.join(td, 'out_{file_id}.h5')
         input_handler_kwargs = dict(target=TARGET, shape=SHAPE,
-                                    temporal_slice=TEMPORAL_SLICE,
+                                    time_slice=TEMPORAL_SLICE,
                                     worker_kwargs=dict(max_workers=1))
         strategy = ForwardPassStrategy(
             input_files, model_kwargs={'model_dir': out_dir},
@@ -154,7 +154,7 @@ def test_qa_h5():
         args = [input_files, strategy.out_files[0]]
         kwargs = dict(s_enhance=S_ENHANCE, t_enhance=T_ENHANCE,
                       temporal_coarsening_method='subsample',
-                      temporal_slice=TEMPORAL_SLICE,
+                      time_slice=TEMPORAL_SLICE,
                       target=TARGET, shape=SHAPE,
                       qa_fp=qa_fp, save_sources=True,
                       worker_kwargs=dict(max_workers=1))
@@ -227,7 +227,7 @@ def test_stats(log=False):
             input_files, model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=(100, 100, 100),
             spatial_pad=1, temporal_pad=1,
-            input_handler_kwargs=dict(temporal_slice=TEMPORAL_SLICE,
+            input_handler_kwargs=dict(time_slice=TEMPORAL_SLICE,
                                       worker_kwargs=dict(max_workers=1)),
             out_pattern=out_files,
             worker_kwargs=dict(max_workers=1),

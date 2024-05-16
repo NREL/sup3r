@@ -176,6 +176,6 @@ class AbstractWrangler(AbstractContainer, ABC):
         return (*self.grid_shape, len(self.time_index))
 
     @abstractmethod
-    def cache_data(self):
+    def cache_data(self, kwargs):
         """Cache data to file with file type based on user provided
         cache_pattern."""

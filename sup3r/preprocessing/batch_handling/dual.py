@@ -38,9 +38,9 @@ class DualValidationData(ValidationData):
                 for _ in range(h.hr_val_data.shape[2]):
                     spatial_slice = uniform_box_sampler(
                         h.lr_val_data.shape, self.lr_sample_shape[:2])
-                    temporal_slice = uniform_time_sampler(
+                    time_slice = uniform_time_sampler(
                         h.lr_val_data.shape, self.lr_sample_shape[2])
-                    lr_index = (*spatial_slice, temporal_slice,
+                    lr_index = (*spatial_slice, time_slice,
                                 np.arange(h.lr_val_data.shape[-1]))
                     hr_index = [slice(s.start * self.s_enhance,
                                       s.stop * self.s_enhance)

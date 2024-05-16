@@ -78,11 +78,23 @@ class Wrangler(AbstractWrangler, ABC):
             cache_kwargs=cache_kwargs
         )
 
-    def cache_data(self):
+    def cache_data(self, kwargs):
         """Cache data to file with file type based on user provided
-        cache_pattern."""
-        cache_pattern = self.cache_kwargs['cache_pattern']
-        chunks = self.cache_kwargs.get('chunks', None)
+        cache_pattern.
+
+        Parameters
+        ----------
+        lat_lon: array
+            (lats, lons, 2) array of coordinates
+        time_index : pd.DatetimeIndex
+            Pandas datetime index describing time period of data contained
+        cache_kwargs : dict
+            Can include 'cache_pattern' and 'chunks'. 'chunks' is a dictionary
+            of tuples (time, lats, lons) for each feature specifying the chunks
+            for h5 writes. 'cache_pattern' must have a {feature} format key.
+        """
+        cache_pattern = kwargs['cache_pattern']
+        chunks = kwargs.get('chunks', None)
         msg = 'cache_pattern must have {feature} format key.'
         assert '{feature}' in cache_pattern, msg
         _, ext = os.path.splitext(cache_pattern)

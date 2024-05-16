@@ -42,7 +42,7 @@ class Sup3rQa:
         features=None,
         source_features=None,
         output_names=None,
-        temporal_slice=slice(None),
+        time_slice=slice(None),
         target=None,
         shape=None,
         raster_file=None,
@@ -93,11 +93,11 @@ class Sup3rQa:
         output_names : str | list
             Optional output file dataset names corresponding to the features
             list input
-        temporal_slice : slice | tuple | list
+        time_slice : slice | tuple | list
             Slice defining size of full temporal domain. e.g. If we have 5
-            files each with 5 time steps then temporal_slice = slice(None) will
+            files each with 5 time steps then time_slice = slice(None) will
             select all 25 time steps. This can also be a tuple / list with
-            length 3 that will be interpreted as slice(*temporal_slice)
+            length 3 that will be interpreted as slice(*time_slice)
         target : tuple
             (lat, lon) lower left corner of raster. You should provide
             target+shape or raster_file, or if all three are None the full
@@ -204,7 +204,7 @@ class Sup3rQa:
             self.source_features_flat,
             target=target,
             shape=shape,
-            temporal_slice=temporal_slice,
+            time_slice=time_slice,
             raster_file=raster_file,
             cache_pattern=cache_pattern,
             time_chunk_size=time_chunk_size,

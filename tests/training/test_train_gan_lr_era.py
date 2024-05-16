@@ -52,14 +52,14 @@ def test_train_spatial(
         target=TARGET_COORD,
         shape=full_shape,
         sample_shape=sample_shape,
-        temporal_slice=slice(None, None, 10),
+        time_slice=slice(None, None, 10),
         worker_kwargs=dict(max_workers=1),
     )
     lr_handler = DataHandlerNC(
         FP_ERA,
         FEATURES,
         sample_shape=(sample_shape[0] // 2, sample_shape[1] // 2, 1),
-        temporal_slice=slice(None, None, 10),
+        time_slice=slice(None, None, 10),
         worker_kwargs=dict(max_workers=1),
     )
 
@@ -144,14 +144,14 @@ def test_train_st(n_epoch=3, log=False):
         target=TARGET_COORD,
         shape=(20, 20),
         sample_shape=(12, 12, 16),
-        temporal_slice=slice(None, None, 10),
+        time_slice=slice(None, None, 10),
         worker_kwargs=dict(max_workers=1),
     )
     lr_handler = DataHandlerNC(
         FP_ERA,
         FEATURES,
         sample_shape=(4, 4, 4),
-        temporal_slice=slice(None, None, 40),
+        time_slice=slice(None, None, 40),
         worker_kwargs=dict(max_workers=1),
     )
 

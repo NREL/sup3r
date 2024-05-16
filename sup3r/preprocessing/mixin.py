@@ -457,7 +457,7 @@ class InputMixIn(CacheHandlingMixIn):
                  shape,
                  raster_file=None,
                  raster_index=None,
-                 temporal_slice=slice(None, None, 1),
+                 time_slice=slice(None, None, 1),
                  res_kwargs=None,
                  ):
         """Provide properties of the spatiotemporal data domain
@@ -480,7 +480,7 @@ class InputMixIn(CacheHandlingMixIn):
             List of tuples or slices. Used as an alternative to computing the
             raster index from target+shape or loading the raster index from
             file
-        temporal_slice : slice
+        time_slice : slice
             Slice specifying extent and step of temporal extraction. e.g.
             slice(start, stop, time_pruning). If equal to slice(None, None, 1)
             the full time dimension is selected.
@@ -491,7 +491,7 @@ class InputMixIn(CacheHandlingMixIn):
         self.target = target
         self.grid_shape = shape
         self.raster_index = raster_index
-        self.temporal_slice = temporal_slice
+        self.time_slice = time_slice
         self.lat_lon = None
         self.overwrite_ti_cache = False
         self.max_workers = None
@@ -593,41 +593,41 @@ class InputMixIn(CacheHandlingMixIn):
         return msg
 
     @property
-    def temporal_slice(self):
+    def time_slice(self):
         """Get temporal range to extract from full dataset"""
-        return self._temporal_slice
+        return self._time_slice
 
-    @temporal_slice.setter
-    def temporal_slice(self, temporal_slice):
-        """Make sure temporal_slice is a slice. Need to do this because json
+    @time_slice.setter
+    def time_slice(self, time_slice):
+        """Make sure time_slice is a slice. Need to do this because json
         cannot save slices so we can instead save as list and then convert.
 
         Parameters
         ----------
-        temporal_slice : tuple | list | slice
+        time_slice : tuple | list | slice
             Time range to extract from input data. If a list or tuple it will
             be concerted to a slice. Tuple or list must have at least two
             elements and no more than three, corresponding to the inputs of
             slice()
         """
-        if temporal_slice is None:
-            temporal_slice = slice(None)
-        msg = 'temporal_slice must be tuple, list, or slice'
-        assert isinstance(temporal_slice, (tuple, list, slice)), msg
-        if isinstance(temporal_slice, slice):
-            self._temporal_slice = temporal_slice
+        if time_slice is None:
+            time_slice = slice(None)
+        msg = 'time_slice must be tuple, list, or slice'
+        assert isinstance(time_slice, (tuple, list, slice)), msg
+        if isinstance(time_slice, slice):
+            self._time_slice = time_slice
         else:
-            check = len(temporal_slice) <= 3
-            msg = ('If providing list or tuple for temporal_slice length must '
+            check = len(time_slice) <= 3
+            msg = ('If providing list or tuple for time_slice length must '
                    'be <= 3')
             assert check, msg
-            self._temporal_slice = slice(*temporal_slice)
-        if self._temporal_slice.step is None:
-            self._temporal_slice = slice(self._temporal_slice.start,
-                                         self._temporal_slice.stop, 1)
-        if self._temporal_slice.start is None:
-            self._temporal_slice = slice(0, self._temporal_slice.stop,
-                                         self._temporal_slice.step)
+            self._time_slice = slice(*time_slice)
+        if self._time_slice.step is None:
+            self._time_slice = slice(self._time_slice.start,
+                                         self._time_slice.stop, 1)
+        if self._time_slice.start is None:
+            self._time_slice = slice(0, self._time_slice.stop,
+                                         self._time_slice.step)
 
     @property
     def file_paths(self):
@@ -859,7 +859,7 @@ class InputMixIn(CacheHandlingMixIn):
         """Time index for input data with time pruning. This is the raw time
         index with a cropped range and time step applied."""
         if self._time_index is None:
-            self._time_index = self.raw_time_index[self.temporal_slice]
+            self._time_index = self.raw_time_index[self.time_slice]
         return self._time_index
 
     @time_index.setter
@@ -991,8 +991,8 @@ class TrainingPrepMixIn:
             Used to get single observation like self.data[observation_index]
         """
         spatial_slice = uniform_box_sampler(data, sample_shape[:2])
-        temporal_slice = uniform_time_sampler(data, sample_shape[2])
-        return (*spatial_slice, temporal_slice, np.arange(data.shape[-1]))
+        time_slice = uniform_time_sampler(data, sample_shape[2])
+        return (*spatial_slice, time_slice, np.arange(data.shape[-1]))
 
     def _normalize_data(self, data, val_data, feature_index, mean, std):
         """Normalize data with initialized mean and standard deviation for a

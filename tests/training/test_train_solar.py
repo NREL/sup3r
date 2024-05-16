@@ -35,7 +35,7 @@ def test_solar_cc_model(log=False):
 
     handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S,
                                    target=TARGET_S, shape=SHAPE,
-                                   temporal_slice=slice(None, None, 2),
+                                   time_slice=slice(None, None, 2),
                                    time_roll=-7,
                                    sample_shape=(20, 20, 72),
                                    worker_kwargs=dict(max_workers=1))
@@ -91,7 +91,7 @@ def test_solar_cc_model_spatial(log=False):
 
     handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S,
                                    target=TARGET_S, shape=SHAPE,
-                                   temporal_slice=slice(None, None, 2),
+                                   time_slice=slice(None, None, 2),
                                    time_roll=-7,
                                    val_split=0.1,
                                    sample_shape=(20, 20),
@@ -134,7 +134,7 @@ def test_solar_custom_loss(log=False):
     """Test custom solar loss with only disc and content over daylight hours"""
     handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S,
                                    target=TARGET_S, shape=SHAPE,
-                                   temporal_slice=slice(None, None, 2),
+                                   time_slice=slice(None, None, 2),
                                    time_roll=-7,
                                    sample_shape=(5, 5, 72),
                                    worker_kwargs=dict(max_workers=1))
