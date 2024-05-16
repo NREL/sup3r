@@ -39,8 +39,8 @@ class Sampler(AbstractSampler):
             Used to get single observation like self.data[sample_index]
         """
         spatial_slice = uniform_box_sampler(self.shape, self.sample_shape[:2])
-        temporal_slice = uniform_time_sampler(self.shape, self.sample_shape[2])
-        return (*spatial_slice, temporal_slice, slice(None))
+        time_slice = uniform_time_sampler(self.shape, self.sample_shape[2])
+        return (*spatial_slice, time_slice, slice(None))
 
 
 class SamplerPair(ContainerPair, AbstractSampler):

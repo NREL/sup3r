@@ -292,7 +292,7 @@ def test_clearsky_ratio():
     """Test that bias correction of daily clearsky ratio instead of raw ghi
     works."""
     bias_handler_kwargs = {'nsrdb_source_fp': FP_NSRDB, 'nsrdb_agg': 4,
-                           'temporal_slice': [0, 30, 1]}
+                           'time_slice': [0, 30, 1]}
     calc = LinearCorrection(FP_NSRDB, FP_CC,
                             'clearsky_ratio', 'clearsky_ratio',
                             target=TARGET, shape=SHAPE,
@@ -322,7 +322,7 @@ def test_fwp_integration():
     features = ['U_100m', 'V_100m']
     target = (13.67, 125.0)
     shape = (8, 8)
-    temporal_slice = slice(None, None, 1)
+    time_slice = slice(None, None, 1)
     fwp_chunk_shape = (4, 4, 150)
     input_files = [os.path.join(TEST_DATA_DIR, 'ua_test.nc'),
                    os.path.join(TEST_DATA_DIR, 'va_test.nc'),
@@ -368,7 +368,7 @@ def test_fwp_integration():
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=0, temporal_pad=0,
             input_handler_kwargs=dict(target=target, shape=shape,
-                                      temporal_slice=temporal_slice,
+                                      time_slice=time_slice,
                                       worker_kwargs=dict(max_workers=1)),
             out_pattern=os.path.join(td, 'out_{file_id}.nc'),
             worker_kwargs=dict(max_workers=1),
@@ -379,7 +379,7 @@ def test_fwp_integration():
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=0, temporal_pad=0,
             input_handler_kwargs=dict(target=target, shape=shape,
-                                      temporal_slice=temporal_slice,
+                                      time_slice=time_slice,
                                       worker_kwargs=dict(max_workers=1)),
             out_pattern=os.path.join(td, 'out_{file_id}.nc'),
             worker_kwargs=dict(max_workers=1),

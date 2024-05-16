@@ -530,8 +530,8 @@ class OutputHandlerH5(OutputHandler):
             High res lat/lon array
             (spatial_1, spatial_2, 2)
         max_workers : int | None
-            Max workers to use for inverse transform. If None the max_workers
-            will be estimated based on memory limits.
+            Max workers to use for inverse transform. If None the maximum
+            possible will be used
         """
 
         heights = [Feature.get_height(f) for f in features if
@@ -541,9 +541,6 @@ class OutputHandlerH5(OutputHandler):
                         ' output')
             logger.debug('Found heights {} for output features {}'
                          .format(heights, features))
-
-        proc_mem = 4 * np.prod(data.shape[:-1])
-        n_procs = len(heights)
 
         futures = {}
         now = dt.now()

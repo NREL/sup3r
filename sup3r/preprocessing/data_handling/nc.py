@@ -4,11 +4,9 @@
 
 import logging
 import os
-from typing import ClassVar
 
 import numpy as np
 import pandas as pd
-import xarray as xr
 from rex import Resource
 from scipy.ndimage import gaussian_filter
 from scipy.spatial import KDTree
@@ -16,16 +14,6 @@ from scipy.stats import mode
 
 from sup3r.containers import LoaderNC, WranglerNC
 from sup3r.preprocessing.data_handling.data_centric import DataHandlerDC
-from sup3r.preprocessing.derived_features import (
-    ClearSkyRatioCC,
-    LatLonNC,
-    Tas,
-    TasMax,
-    TasMin,
-    TempNCforCC,
-    UWindPowerLaw,
-    VWindPowerLaw,
-)
 
 np.random.seed(42)
 
@@ -69,27 +57,6 @@ class DataHandlerNC(WranglerNC):
 class DataHandlerNCforCC(DataHandlerNC):
     """Data Handler for NETCDF climate change data"""
 
-    FEATURE_REGISTRY = DataHandlerNC.FEATURE_REGISTRY.copy()
-    FEATURE_REGISTRY.update({
-        'U_(.*)': 'ua_(.*)',
-        'V_(.*)': 'va_(.*)',
-        'relativehumidity_2m': 'hurs',
-        'relativehumidity_min_2m': 'hursmin',
-        'relativehumidity_max_2m': 'hursmax',
-        'clearsky_ratio': ClearSkyRatioCC,
-        'lat_lon': LatLonNC,
-        'Pressure_(.*)': 'plev_(.*)',
-        'Temperature_(.*)': TempNCforCC,
-        'temperature_2m': Tas,
-        'temperature_max_2m': TasMax,
-        'temperature_min_2m': TasMin,
-    })
-
-    CHUNKS: ClassVar[dict] = {'time': 5, 'lat': 20, 'lon': 20}
-    """CHUNKS sets the chunk sizes to extract from the data in each dimension.
-    Chunk sizes that approximately match the data volume being extracted
-    typically results in the most efficient IO."""
-
     def __init__(self,
                  *args,
                  nsrdb_source_fp=None,
@@ -125,32 +92,6 @@ class DataHandlerNCforCC(DataHandlerNC):
         self._nsrdb_smoothing = nsrdb_smoothing
         super().__init__(*args, **kwargs)
 
-    @classmethod
-    def source_handler(cls, file_paths, **kwargs):
-        """Xarray data handler
-
-        Note that xarray appears to treat open file handlers as singletons
-        within a threadpool, so its okay to open this source_handler without a
-        context handler or a .close() statement.
-
-        Parameters
-        ----------
-        file_paths : str | list
-            paths to data files
-        kwargs : dict
-            kwargs passed to source handler for data extraction. e.g. This
-            could be {'parallel': True,
-                      'chunks': {'south_north': 120, 'west_east': 120}}
-            which then gets passed to xr.open_mfdataset(file, **kwargs)
-
-        Returns
-        -------
-        data : xarray.Dataset
-        """
-        default_kws = {'chunks': cls.CHUNKS}
-        default_kws.update(kwargs)
-        return xr.open_mfdataset(file_paths, **default_kws)
-
     def run_data_extraction(self):
         """Run the raw dataset extraction process from disk to raw
         un-manipulated datasets.
@@ -159,9 +100,9 @@ class DataHandlerNCforCC(DataHandlerNC):
         NSRDB source h5 file (required to compute clearsky_ratio).
         """
         get_clearsky = False
-        if 'clearsky_ghi' in self.raw_features:
+        if 'clearsky_ghi' in self.features:
             get_clearsky = True
-            self._raw_features.remove('clearsky_ghi')
+            self._features.remove('clearsky_ghi')
 
         super().run_data_extraction()
 
@@ -203,9 +144,9 @@ class DataHandlerNCforCC(DataHandlerNC):
                                                 self.raw_time_index))
         assert self.time_freq_hours == 24.0, msg
 
-        msg = ('Can only handle source CC data with temporal_slice.step == 1 '
-               'but received: {}'.format(self.temporal_slice.step))
-        assert (self.temporal_slice.step is None) | (self.temporal_slice.step
+        msg = ('Can only handle source CC data with time_slice.step == 1 '
+               'but received: {}'.format(self.time_slice.step))
+        assert (self.time_slice.step is None) | (self.time_slice.step
                                                      == 1), msg
 
         with Resource(self._nsrdb_source_fp) as res:
@@ -271,22 +212,14 @@ class DataHandlerNCforCC(DataHandlerNC):
         logger.info(
             'Reshaped clearsky_ghi data to final shape {} to '
             'correspond with CC daily average data over source '
-            'temporal_slice {} with (lat, lon) grid shape of {}'.format(
-                cs_ghi.shape, self.temporal_slice, self.grid_shape))
+            'time_slice {} with (lat, lon) grid shape of {}'.format(
+                cs_ghi.shape, self.time_slice, self.grid_shape))
         msg = ('nsrdb clearsky GHI time dimension {} '
                'does not match the GCM time dimension {}'
                .format(cs_ghi.shape[2], len(self.time_index)))
         assert cs_ghi.shape[2] == len(self.time_index), msg
 
         return cs_ghi
-
-
-class DataHandlerNCforCCwithPowerLaw(DataHandlerNCforCC):
-    """Data Handler for NETCDF climate change data with power law based
-    extrapolation for windspeeds"""
-
-    FEATURE_REGISTRY = DataHandlerNCforCC.FEATURE_REGISTRY.copy()
-    FEATURE_REGISTRY.update({'U_(.*)': UWindPowerLaw, 'V_(.*)': VWindPowerLaw})
 
 
 class DataHandlerDCforNC(DataHandlerNC, DataHandlerDC):

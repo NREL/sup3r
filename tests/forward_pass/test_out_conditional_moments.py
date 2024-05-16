@@ -50,7 +50,7 @@ def test_out_s_mom1(FEATURES, TRAIN_FEATURES,
                             lr_only_features=TRAIN_FEATURES,
                             shape=full_shape,
                             sample_shape=sample_shape,
-                            temporal_slice=slice(None, None, 10),
+                            time_slice=slice(None, None, 10),
                             val_split=0,
                             worker_kwargs=dict(max_workers=1))
 
@@ -145,7 +145,7 @@ def test_out_s_mom1_sf(FEATURES, TRAIN_FEATURES,
                             lr_only_features=TRAIN_FEATURES,
                             shape=full_shape,
                             sample_shape=sample_shape,
-                            temporal_slice=slice(None, None, 10),
+                            time_slice=slice(None, None, 10),
                             val_split=0,
                             worker_kwargs=dict(max_workers=1))
 
@@ -241,7 +241,7 @@ def test_out_s_mom2(FEATURES, TRAIN_FEATURES,
                             lr_only_features=TRAIN_FEATURES,
                             shape=full_shape,
                             sample_shape=sample_shape,
-                            temporal_slice=slice(None, None, 10),
+                            time_slice=slice(None, None, 10),
                             val_split=0,
                             worker_kwargs=dict(max_workers=1))
 
@@ -332,7 +332,7 @@ def test_out_s_mom2_sf(FEATURES, TRAIN_FEATURES,
                             lr_only_features=TRAIN_FEATURES,
                             shape=full_shape,
                             sample_shape=sample_shape,
-                            temporal_slice=slice(None, None, 10),
+                            time_slice=slice(None, None, 10),
                             val_split=0,
                             worker_kwargs=dict(max_workers=1))
 
@@ -439,7 +439,7 @@ def test_out_s_mom2_sep(FEATURES, TRAIN_FEATURES,
                             lr_only_features=TRAIN_FEATURES,
                             shape=full_shape,
                             sample_shape=sample_shape,
-                            temporal_slice=slice(None, None, 10),
+                            time_slice=slice(None, None, 10),
                             val_split=0,
                             worker_kwargs=dict(max_workers=1))
 
@@ -543,7 +543,7 @@ def test_out_s_mom2_sep_sf(FEATURES, TRAIN_FEATURES,
                             lr_only_features=TRAIN_FEATURES,
                             shape=full_shape,
                             sample_shape=sample_shape,
-                            temporal_slice=slice(None, None, 10),
+                            time_slice=slice(None, None, 10),
                             val_split=0,
                             worker_kwargs=dict(max_workers=1))
 
@@ -737,7 +737,7 @@ def test_out_st_mom1(plot=False, full_shape=(20, 20),
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=full_shape,
                             sample_shape=sample_shape,
-                            temporal_slice=slice(None, None, 1),
+                            time_slice=slice(None, None, 1),
                             val_split=0,
                             worker_kwargs=dict(max_workers=1))
 
@@ -844,7 +844,7 @@ def test_out_st_mom1_sf(plot=False, full_shape=(20, 20),
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=full_shape,
                             sample_shape=sample_shape,
-                            temporal_slice=slice(None, None, 1),
+                            time_slice=slice(None, None, 1),
                             val_split=0,
                             worker_kwargs=dict(max_workers=1))
 
@@ -960,7 +960,7 @@ def test_out_st_mom2(plot=False, full_shape=(20, 20),
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=full_shape,
                             sample_shape=sample_shape,
-                            temporal_slice=slice(None, None, 1),
+                            time_slice=slice(None, None, 1),
                             val_split=0,
                             worker_kwargs=dict(max_workers=1))
 
@@ -1093,7 +1093,7 @@ def test_out_st_mom2_sf(plot=False, full_shape=(20, 20),
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=full_shape,
                             sample_shape=sample_shape,
-                            temporal_slice=slice(None, None, 1),
+                            time_slice=slice(None, None, 1),
                             val_split=0,
                             worker_kwargs=dict(max_workers=1))
 
@@ -1242,7 +1242,7 @@ def test_out_st_mom2_sep(plot=False, full_shape=(20, 20),
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=full_shape,
                             sample_shape=sample_shape,
-                            temporal_slice=slice(None, None, 1),
+                            time_slice=slice(None, None, 1),
                             val_split=0,
                             worker_kwargs=dict(max_workers=1))
 
@@ -1385,7 +1385,7 @@ def test_out_st_mom2_sep_sf(plot=False, full_shape=(20, 20),
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=full_shape,
                             sample_shape=sample_shape,
-                            temporal_slice=slice(None, None, 1),
+                            time_slice=slice(None, None, 1),
                             val_split=0,
                             worker_kwargs=dict(max_workers=1))
 

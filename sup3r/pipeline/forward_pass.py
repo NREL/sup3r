@@ -49,7 +49,7 @@ class ForwardPassSlicer:
     def __init__(self,
                  coarse_shape,
                  time_steps,
-                 temporal_slice,
+                 time_slice,
                  chunk_shape,
                  s_enhancements,
                  t_enhancements,
@@ -63,7 +63,7 @@ class ForwardPassSlicer:
         time_steps : int
             Number of time steps for full temporal domain of low res data. This
             is used to construct a dummy_time_index from np.arange(time_steps)
-        temporal_slice : slice
+        time_slice : slice
             Slice to use to extract range from time_index
         chunk_shape : tuple
             Max shape (spatial_1, spatial_2, temporal) of an unpadded coarse
@@ -102,7 +102,7 @@ class ForwardPassSlicer:
         self.s_enhance = np.prod(self.s_enhancements)
         self.t_enhance = np.prod(self.t_enhancements)
         self.dummy_time_index = np.arange(time_steps)
-        self.temporal_slice = temporal_slice
+        self.time_slice = time_slice
         self.temporal_pad = temporal_pad
         self.spatial_pad = spatial_pad
         self.chunk_shape = chunk_shape
@@ -144,7 +144,7 @@ class ForwardPassSlicer:
         """
         return (self.s_lr_slices, self.s_lr_pad_slices, self.s_hr_slices)
 
-    def get_temporal_slices(self):
+    def get_time_slices(self):
         """Calculate the number of time chunks across the full time index
 
         Returns
@@ -222,7 +222,7 @@ class ForwardPassSlicer:
                 self.time_steps,
                 1,
                 self.temporal_pad,
-                self.temporal_slice.step,
+                self.time_slice.step,
             )
         return self._t_lr_pad_slices
 
@@ -436,13 +436,13 @@ class ForwardPassSlicer:
     @property
     def t_lr_slices(self):
         """Low resolution temporal slices"""
-        n_tsteps = len(self.dummy_time_index[self.temporal_slice])
+        n_tsteps = len(self.dummy_time_index[self.time_slice])
         n_chunks = n_tsteps / self.chunk_shape[2]
         n_chunks = int(np.ceil(n_chunks))
-        ti_slices = self.dummy_time_index[self.temporal_slice]
+        ti_slices = self.dummy_time_index[self.time_slice]
         ti_slices = np.array_split(ti_slices, n_chunks)
         ti_slices = [
-            slice(c[0], c[-1] + 1, self.temporal_slice.step) for c in ti_slices
+            slice(c[0], c[-1] + 1, self.time_slice.step) for c in ti_slices
         ]
         return ti_slices
 
@@ -532,7 +532,7 @@ class ForwardPassSlicer:
             to index an enhanced dimension.
         step : int | None
             Step size for slices. e.g. If these slices are indexing a temporal
-            dimension and temporal_slice.step = 3 then step=3.
+            dimension and time_slice.step = 3 then step=3.
 
         Returns
         -------
@@ -775,7 +775,7 @@ class ForwardPassStrategy(DistributedProcess):
 
         self.fwp_slicer = ForwardPassSlicer(self.grid_shape,
                                             self.raw_tsteps,
-                                            self.temporal_slice,
+                                            self.time_slice,
                                             self.fwp_chunk_shape,
                                             self.s_enhancements,
                                             self.t_enhancements,
@@ -794,14 +794,14 @@ class ForwardPassStrategy(DistributedProcess):
         target = self._input_handler_kwargs.get('target', None)
         grid_shape = self._input_handler_kwargs.get('shape', None)
         raster_file = self._input_handler_kwargs.get('raster_file', None)
-        temporal_slice = self._input_handler_kwargs.get(
-            'temporal_slice', slice(None, None, 1))
+        time_slice = self._input_handler_kwargs.get(
+            'time_slice', slice(None, None, 1))
         res_kwargs = self._input_handler_kwargs.get('res_kwargs', None)
         InputMixIn.__init__(self,
                             target=target,
                             shape=grid_shape,
                             raster_file=raster_file,
-                            temporal_slice=temporal_slice,
+                            time_slice=time_slice,
                             res_kwargs=res_kwargs)
 
     def preflight(self):
@@ -818,7 +818,7 @@ class ForwardPassStrategy(DistributedProcess):
                     f'pass_workers={self.pass_workers}, '
                     f'output_workers={self.output_workers}')
 
-        out = self.fwp_slicer.get_temporal_slices()
+        out = self.fwp_slicer.get_time_slices()
         self.ti_slices, self.ti_pad_slices = out
 
         msg = ('Using a padded chunk size '
@@ -855,7 +855,7 @@ class ForwardPassStrategy(DistributedProcess):
             kwargs = copy.deepcopy(self._input_handler_kwargs)
             kwargs.update({'file_paths': self.file_paths[0], 'features': [],
                            'target': self.target, 'shape': self.grid_shape,
-                           'temporal_slice': slice(None, None)})
+                           'time_slice': slice(None, None)})
             self._init_handler = self.input_handler_class(**kwargs)
         return self._init_handler
 
@@ -1130,7 +1130,7 @@ class ForwardPass:
                 exo_kwargs['feature'] = feature
                 exo_kwargs['target'] = self.target
                 exo_kwargs['shape'] = self.shape
-                exo_kwargs['temporal_slice'] = self.ti_pad_slice
+                exo_kwargs['time_slice'] = self.ti_pad_slice
                 exo_kwargs['models'] = getattr(self.model, 'models',
                                                [self.model])
                 sig = signature(ExogenousDataHandler)
@@ -1162,7 +1162,7 @@ class ForwardPass:
             "features": self.features,
             "target": self.target,
             "shape": self.shape,
-            "temporal_slice": self.temporal_pad_slice,
+            "time_slice": self.temporal_pad_slice,
             "raster_file": self.raster_file,
             "cache_pattern": self.cache_pattern,
             "val_split": 0.0}

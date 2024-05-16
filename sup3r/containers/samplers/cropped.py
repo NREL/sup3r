@@ -43,10 +43,10 @@ class CroppedSampler(Sampler):
     def get_sample_index(self):
         """Crop time dimension to restrict sampling."""
         spatial_slice = uniform_box_sampler(self.shape, self.sample_shape[:2])
-        temporal_slice = uniform_time_sampler(
+        time_slice = uniform_time_sampler(
             self.shape, self.sample_shape[2], crop_slice=self.crop_slice
         )
-        return (*spatial_slice, temporal_slice, slice(None))
+        return (*spatial_slice, time_slice, slice(None))
 
     def crop_check(self):
         """Check if crop_slice limits the sampling region to fewer time steps

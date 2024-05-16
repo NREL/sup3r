@@ -99,7 +99,7 @@ def test_solar_cc():
                                  nsrdb_source_fp=nsrdb_source_fp,
                                  target=target,
                                  shape=shape,
-                                 temporal_slice=slice(0, 1),
+                                 time_slice=slice(0, 1),
                                  val_split=0.0,
                                  worker_kwargs=dict(max_workers=1))
 

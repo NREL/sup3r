@@ -225,10 +225,10 @@ class ValidationData:
                 for _ in range(h.val_data.shape[2]):
                     spatial_slice = uniform_box_sampler(
                         h.val_data.shape, self.sample_shape[:2])
-                    temporal_slice = uniform_time_sampler(
+                    time_slice = uniform_time_sampler(
                         h.val_data.shape, self.sample_shape[2])
                     tuple_index = (
-                        *spatial_slice, temporal_slice,
+                        *spatial_slice, time_slice,
                         np.arange(h.val_data.shape[-1]),
                     )
                     val_indices.append({
@@ -1103,11 +1103,11 @@ class ValidationDataDC(ValidationData):
                                                     self.sample_shape[:2])
                 weights = np.zeros(self.N_TIME_BINS)
                 weights[t] = 1
-                temporal_slice = weighted_time_sampler(h.data,
+                time_slice = weighted_time_sampler(h.data,
                                                        self.sample_shape[2],
                                                        weights)
                 tuple_index = (
-                    *spatial_slice, temporal_slice,
+                    *spatial_slice, time_slice,
                     np.arange(h.data.shape[-1])
                 )
                 val_indices[t].append({
@@ -1124,10 +1124,10 @@ class ValidationDataDC(ValidationData):
                 spatial_slice = weighted_box_sampler(h.data,
                                                      self.sample_shape[:2],
                                                      weights)
-                temporal_slice = uniform_time_sampler(h.data,
+                time_slice = uniform_time_sampler(h.data,
                                                       self.sample_shape[2])
                 tuple_index = (
-                    *spatial_slice, temporal_slice,
+                    *spatial_slice, time_slice,
                     np.arange(h.data.shape[-1])
                 )
                 val_indices[s + self.N_TIME_BINS].append({

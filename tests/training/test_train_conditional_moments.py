@@ -64,7 +64,7 @@ def test_train_s_mom1(FEATURES, TRAIN_FEATURES,
                             lr_only_features=TRAIN_FEATURES,
                             shape=full_shape,
                             sample_shape=sample_shape,
-                            temporal_slice=slice(None, None, 10),
+                            time_slice=slice(None, None, 10),
                             val_split=0.005,
                             worker_kwargs=dict(max_workers=1))
 
@@ -154,7 +154,7 @@ def test_train_s_mom1_sf(FEATURES, TRAIN_FEATURES,
                             lr_only_features=TRAIN_FEATURES,
                             shape=full_shape,
                             sample_shape=sample_shape,
-                            temporal_slice=slice(None, None, 10),
+                            time_slice=slice(None, None, 10),
                             val_split=0.005,
                             worker_kwargs=dict(max_workers=1))
 
@@ -217,7 +217,7 @@ def test_train_s_mom2(FEATURES, TRAIN_FEATURES,
                             lr_only_features=TRAIN_FEATURES,
                             shape=full_shape,
                             sample_shape=sample_shape,
-                            temporal_slice=slice(None, None, 10),
+                            time_slice=slice(None, None, 10),
                             val_split=0.005,
                             worker_kwargs=dict(max_workers=1))
 
@@ -279,7 +279,7 @@ def test_train_s_mom2_sf(FEATURES, TRAIN_FEATURES,
                             lr_only_features=TRAIN_FEATURES,
                             shape=full_shape,
                             sample_shape=sample_shape,
-                            temporal_slice=slice(None, None, 10),
+                            time_slice=slice(None, None, 10),
                             val_split=0.005,
                             worker_kwargs=dict(max_workers=1))
 
@@ -335,7 +335,7 @@ def test_train_s_mom2_sep(FEATURES, TRAIN_FEATURES,
                             lr_only_features=TRAIN_FEATURES,
                             shape=full_shape,
                             sample_shape=sample_shape,
-                            temporal_slice=slice(None, None, 10),
+                            time_slice=slice(None, None, 10),
                             val_split=0.005,
                             worker_kwargs=dict(max_workers=1))
 
@@ -390,7 +390,7 @@ def test_train_s_mom2_sep_sf(FEATURES, TRAIN_FEATURES,
                             lr_only_features=TRAIN_FEATURES,
                             shape=full_shape,
                             sample_shape=sample_shape,
-                            temporal_slice=slice(None, None, 10),
+                            time_slice=slice(None, None, 10),
                             val_split=0.005,
                             worker_kwargs=dict(max_workers=1))
 
@@ -439,7 +439,7 @@ def test_train_st_mom1(FEATURES,
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=full_shape,
                             sample_shape=sample_shape,
-                            temporal_slice=slice(None, None, 1),
+                            time_slice=slice(None, None, 1),
                             val_split=0.005,
                             worker_kwargs=dict(max_workers=1))
 
@@ -471,7 +471,7 @@ def test_train_st_mom1_sf(FEATURES,
                           log=False, full_shape=(20, 20),
                           sample_shape=(12, 12, 24), n_epoch=2,
                           batch_size=2, n_batches=2,
-                          temporal_slice=slice(None, None, 1),
+                          time_slice=slice(None, None, 1),
                           out_dir_root=None):
     """Test basic spatiotemporal model training for first conditional moment
     of the subfilter velocity."""
@@ -488,7 +488,7 @@ def test_train_st_mom1_sf(FEATURES,
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=full_shape,
                             sample_shape=sample_shape,
-                            temporal_slice=temporal_slice,
+                            time_slice=time_slice,
                             val_split=0.005,
                             worker_kwargs=dict(max_workers=1))
 
@@ -520,7 +520,7 @@ def test_train_st_mom2(FEATURES,
                        log=False, full_shape=(20, 20),
                        sample_shape=(12, 12, 16), n_epoch=2,
                        batch_size=2, n_batches=2,
-                       temporal_slice=slice(None, None, 1),
+                       time_slice=slice(None, None, 1),
                        out_dir_root=None,
                        model_mom1_dir=None):
     """Test basic spatiotemporal model training
@@ -547,7 +547,7 @@ def test_train_st_mom2(FEATURES,
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=full_shape,
                             sample_shape=sample_shape,
-                            temporal_slice=temporal_slice,
+                            time_slice=time_slice,
                             val_split=0.005,
                             worker_kwargs=dict(max_workers=1))
 
@@ -578,7 +578,7 @@ def test_train_st_mom2_sf(FEATURES,
                           end_t_padding=False,
                           log=False, full_shape=(20, 20),
                           sample_shape=(12, 12, 16), n_epoch=2,
-                          temporal_slice=slice(None, None, 1),
+                          time_slice=slice(None, None, 1),
                           batch_size=2, n_batches=2,
                           out_dir_root=None,
                           model_mom1_dir=None):
@@ -606,7 +606,7 @@ def test_train_st_mom2_sf(FEATURES,
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=full_shape,
                             sample_shape=sample_shape,
-                            temporal_slice=temporal_slice,
+                            time_slice=time_slice,
                             val_split=0.005,
                             worker_kwargs=dict(max_workers=1))
 
@@ -638,7 +638,7 @@ def test_train_st_mom2_sep(FEATURES,
                            end_t_padding=False,
                            log=False, full_shape=(20, 20),
                            sample_shape=(12, 12, 16), n_epoch=2,
-                           temporal_slice=slice(None, None, 1),
+                           time_slice=slice(None, None, 1),
                            batch_size=2, n_batches=2,
                            out_dir_root=None):
     """Test basic spatiotemporal model training
@@ -656,7 +656,7 @@ def test_train_st_mom2_sep(FEATURES,
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=full_shape,
                             sample_shape=sample_shape,
-                            temporal_slice=temporal_slice,
+                            time_slice=time_slice,
                             val_split=0.005,
                             worker_kwargs=dict(max_workers=1))
 
@@ -704,7 +704,7 @@ def test_train_st_mom2_sep_sf(FEATURES,
     handler = DataHandlerH5(FP_WTK, FEATURES, target=TARGET_COORD,
                             shape=full_shape,
                             sample_shape=sample_shape,
-                            temporal_slice=slice(None, None, 1),
+                            time_slice=slice(None, None, 1),
                             val_split=0.005,
                             worker_kwargs=dict(max_workers=1))
 

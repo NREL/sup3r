@@ -97,7 +97,7 @@ class WranglerH5(Wrangler, ABC):
         ):
             self.save_raster_index()
         if self.cache_kwargs is not None:
-            self.cache_data()
+            self.cache_data(self.cache_kwargs)
 
     def save_raster_index(self):
         """Save raster index to cache file."""

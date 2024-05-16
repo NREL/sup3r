@@ -26,7 +26,7 @@ INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
 target = (19.3, -123.5)
 shape = (8, 8)
 sample_shape = (8, 8, 6)
-temporal_slice = slice(None, None, 1)
+time_slice = slice(None, None, 1)
 list_chunk_size = 10
 fwp_chunk_shape = (4, 4, 150)
 s_enhance = 3
@@ -68,7 +68,7 @@ def test_fwp_nc_cc(log=False):
         input_handler_kwargs = dict(
             target=target,
             shape=shape,
-            temporal_slice=temporal_slice,
+            time_slice=time_slice,
             cache_pattern=cache_pattern,
             overwrite_cache=True,
             worker_kwargs=dict(max_workers=max_workers))
@@ -127,7 +127,7 @@ def test_fwp_single_ts_vs_multi_ts_input_files():
         input_handler_kwargs = dict(
             target=target,
             shape=shape,
-            temporal_slice=temporal_slice,
+            time_slice=time_slice,
             worker_kwargs=dict(max_workers=max_workers),
             cache_pattern=cache_pattern,
             overwrite_cache=True)
@@ -152,7 +152,7 @@ def test_fwp_single_ts_vs_multi_ts_input_files():
         input_handler_kwargs = dict(
             target=target,
             shape=shape,
-            temporal_slice=temporal_slice,
+            time_slice=time_slice,
             worker_kwargs=dict(max_workers=max_workers),
             cache_pattern=cache_pattern,
             overwrite_cache=True)
@@ -202,7 +202,7 @@ def test_fwp_spatial_only():
         input_handler_kwargs = dict(
             target=target,
             shape=shape,
-            temporal_slice=temporal_slice,
+            time_slice=time_slice,
             worker_kwargs=dict(max_workers=max_workers),
             cache_pattern=cache_pattern,
             overwrite_cache=True)
@@ -257,7 +257,7 @@ def test_fwp_nc():
         input_handler_kwargs = dict(
             target=target,
             shape=shape,
-            temporal_slice=temporal_slice,
+            time_slice=time_slice,
             worker_kwargs=dict(max_workers=max_workers),
             cache_pattern=cache_pattern,
             overwrite_cache=True)
@@ -289,7 +289,7 @@ def test_fwp_nc():
                                              s_enhance * fwp_chunk_shape[1])
 
 
-def test_fwp_temporal_slice():
+def test_fwp_time_slice():
     """Test forward pass handler output to h5 file. Includes temporal
     slicing."""
 
@@ -312,13 +312,13 @@ def test_fwp_temporal_slice():
         out_files = os.path.join(td, 'out_{file_id}.h5')
 
         max_workers = 1
-        temporal_slice = slice(5, 17, 3)
+        time_slice = slice(5, 17, 3)
         raw_time_index = np.arange(20)
-        n_tsteps = len(raw_time_index[temporal_slice])
+        n_tsteps = len(raw_time_index[time_slice])
         input_handler_kwargs = dict(
             target=target,
             shape=shape,
-            temporal_slice=temporal_slice,
+            time_slice=time_slice,
             worker_kwargs=dict(max_workers=max_workers),
             cache_pattern=cache_pattern,
             overwrite_cache=True)
@@ -381,7 +381,7 @@ def test_fwp_handler():
         input_handler_kwargs = dict(
             target=target,
             shape=shape,
-            temporal_slice=temporal_slice,
+            time_slice=time_slice,
             worker_kwargs=dict(max_workers=max_workers),
             cache_pattern=cache_pattern,
             overwrite_cache=True)
@@ -441,7 +441,7 @@ def test_fwp_chunking(log=False, plot=False):
                                       input_handler_kwargs=dict(
                                           target=target,
                                           shape=shape,
-                                          temporal_slice=temporal_slice,
+                                          time_slice=time_slice,
                                           cache_pattern=cache_pattern,
                                           overwrite_cache=True,
                                           worker_kwargs=dict(max_workers=1)))
@@ -530,7 +530,7 @@ def test_fwp_nochunking():
         cache_pattern = os.path.join(td, 'cache')
         input_handler_kwargs = dict(target=target,
                                     shape=shape,
-                                    temporal_slice=temporal_slice,
+                                    time_slice=time_slice,
                                     worker_kwargs=dict(max_workers=1),
                                     cache_pattern=cache_pattern,
                                     overwrite_cache=True)
@@ -549,7 +549,7 @@ def test_fwp_nochunking():
                                   FEATURES,
                                   target=target,
                                   shape=shape,
-                                  temporal_slice=temporal_slice,
+                                  time_slice=time_slice,
                                   cache_pattern=None,
                                   time_chunk_size=100,
                                   overwrite_cache=True,
@@ -605,7 +605,7 @@ def test_fwp_multi_step_model():
         input_handler_kwargs = dict(
             target=target,
             shape=shape,
-            temporal_slice=temporal_slice,
+            time_slice=time_slice,
             worker_kwargs=dict(max_workers=max_workers),
             overwrite_cache=True)
         handler = ForwardPassStrategy(
@@ -688,7 +688,7 @@ def test_slicing_no_pad(log=False):
 
         input_handler_kwargs = dict(target=target,
                                     shape=shape,
-                                    temporal_slice=temporal_slice,
+                                    time_slice=time_slice,
                                     worker_kwargs=dict(max_workers=1),
                                     overwrite_cache=True)
         strategy = ForwardPassStrategy(
@@ -750,7 +750,7 @@ def test_slicing_pad(log=False):
 
         input_handler_kwargs = dict(target=target,
                                     shape=shape,
-                                    temporal_slice=temporal_slice,
+                                    time_slice=time_slice,
                                     worker_kwargs=dict(max_workers=1),
                                     overwrite_cache=True)
         strategy = ForwardPassStrategy(
