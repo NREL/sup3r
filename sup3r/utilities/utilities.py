@@ -27,6 +27,130 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
+def parse_keys(keys):
+    """
+    Parse keys for complex __getitem__ and __setitem__
+
+    Parameters
+    ----------
+    keys : string | tuple
+        key or key and slice to extract
+
+    Returns
+    -------
+    key : string
+        key to extract
+    key_slice : slice | tuple
+        Slice or tuple of slices of key to extract
+    """
+    if isinstance(keys, tuple):
+        key = keys[0]
+        key_slice = keys[1:]
+    else:
+        key = keys
+        key_slice = (slice(None), slice(None), slice(None),)
+
+    return key, key_slice
+
+
+class Feature:
+    """Class to simplify feature computations. Stores feature height, feature
+    basename, name of feature in handle
+    """
+
+    def __init__(self, feature, handle):
+        """Takes a feature (e.g. U_100m) and gets the height (100), basename
+        (U) and determines whether the feature is found in the data handle
+
+        Parameters
+        ----------
+        feature : str
+            Raw feature name e.g. U_100m
+        handle : WindX | NSRDBX | xarray
+            handle for data file
+        """
+        self.raw_name = feature
+        self.height = self.get_height(feature)
+        self.pressure = self.get_pressure(feature)
+        self.basename = self.get_basename(feature)
+        if self.raw_name in handle:
+            self.handle_input = self.raw_name
+        elif self.basename in handle:
+            self.handle_input = self.basename
+        else:
+            self.handle_input = None
+
+    @staticmethod
+    def get_basename(feature):
+        """Get basename of feature. e.g. temperature from temperature_100m
+
+        Parameters
+        ----------
+        feature : str
+            Name of feature. e.g. U_100m
+
+        Returns
+        -------
+        str
+            feature basename
+        """
+        height = Feature.get_height(feature)
+        pressure = Feature.get_pressure(feature)
+        if height is not None or pressure is not None:
+            suffix = feature.split('_')[-1]
+            basename = feature.replace(f'_{suffix}', '')
+        else:
+            basename = feature
+        return basename
+
+    @staticmethod
+    def get_height(feature):
+        """Get height from feature name to use in height interpolation
+
+        Parameters
+        ----------
+        feature : str
+            Name of feature. e.g. U_100m
+
+        Returns
+        -------
+        float | None
+            height to use for interpolation
+            in meters
+        """
+        height = None
+        if isinstance(feature, str):
+            height = re.search(r'\d+m', feature)
+            if height:
+                height = height.group(0).strip('m')
+                if not height.isdigit():
+                    height = None
+        return height
+
+    @staticmethod
+    def get_pressure(feature):
+        """Get pressure from feature name to use in pressure interpolation
+
+        Parameters
+        ----------
+        feature : str
+            Name of feature. e.g. U_100pa
+
+        Returns
+        -------
+        float | None
+            pressure to use for interpolation in pascals
+        """
+        pressure = None
+        if isinstance(feature, str):
+            pressure = re.search(r'\d+pa', feature)
+            if pressure:
+                pressure = pressure.group(0).strip('pa')
+                if not pressure.isdigit():
+                    pressure = None
+        return pressure
+
+
 class Timer:
     """Timer class for timing and storing function call times."""
 

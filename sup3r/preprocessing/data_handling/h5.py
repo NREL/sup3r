@@ -9,11 +9,6 @@ import numpy as np
 from rex import MultiFileNSRDBX, MultiFileWindX
 
 from sup3r.containers import LoaderH5, WranglerH5
-from sup3r.preprocessing.data_handling.data_centric import DataHandlerDC
-from sup3r.preprocessing.derived_features import (
-    UWind,
-    VWind,
-)
 from sup3r.utilities.utilities import (
     daily_temporal_coarsening,
     uniform_box_sampler,
@@ -39,7 +34,7 @@ class DataHandlerH5(WranglerH5):
         time_slice=None,
         raster_file=None,
         max_delta=20,
-        transform_function=None,
+        transform=None,
         cache_kwargs=None,
     ):
         loader = LoaderH5(
@@ -57,7 +52,7 @@ class DataHandlerH5(WranglerH5):
             raster_file=raster_file,
             time_slice=time_slice,
             max_delta=max_delta,
-            transform_function=transform_function,
+            transform=transform,
             cache_kwargs=cache_kwargs,
         )
 
@@ -199,14 +194,6 @@ class DataHandlerH5SolarCC(DataHandlerH5WindCC):
     """Special data handling and batch sampling for h5 NSRDB solar data for
     climate change applications"""
 
-    FEATURE_REGISTRY = DataHandlerH5WindCC.FEATURE_REGISTRY.copy()
-    FEATURE_REGISTRY.update({
-        'windspeed': 'wind_speed',
-        'winddirection': 'wind_direction',
-        'U': UWind,
-        'V': VWind,
-    })
-
     # the handler from rex to open h5 data.
     REX_HANDLER = MultiFileNSRDBX
 
@@ -293,7 +280,3 @@ class DataHandlerH5SolarCC(DataHandlerH5WindCC):
 
         logger.info('Finished calculating daily average datasets for {} '
                     'training data days.'.format(n_data_days))
-
-
-class DataHandlerDCforH5(DataHandlerH5, DataHandlerDC):
-    """Data centric data handler for H5 files"""

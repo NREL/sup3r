@@ -17,7 +17,6 @@ from sup3r.preprocessing import (
     BatchHandler,
     BatchHandlerDC,
     BatchHandlerSpatialDC,
-    DataHandlerDCforH5,
     DataHandlerH5,
     SpatialBatchHandler,
 )

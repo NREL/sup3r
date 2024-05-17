@@ -1,5 +1,5 @@
-"""Basic container objects can perform transformations / extractions on the
-contained data."""
+"""Basic container object that can perform extractions on the contained H5
+data."""
 
 import logging
 import os
@@ -7,44 +7,41 @@ from abc import ABC
 
 import numpy as np
 
+from sup3r.containers.extracters.base import Extracter
 from sup3r.containers.loaders import Loader
-from sup3r.containers.wranglers.base import Wrangler
 
 np.random.seed(42)
 
 logger = logging.getLogger(__name__)
 
 
-class WranglerH5(Wrangler, ABC):
-    """Wrangler subclass for h5 files specifically."""
+class ExtracterH5(Extracter, ABC):
+    """Extracter subclass for h5 files specifically."""
 
     def __init__(
         self,
         container: Loader,
-        features,
         target=(),
         shape=(),
-        raster_file=None,
         time_slice=slice(None),
+        raster_file=None,
         max_delta=20,
-        transform_function=None,
-        cache_kwargs=None,
     ):
         """
         Parameters
         ----------
         container : Loader
             Loader type container with `.data` attribute exposing data to
-            wrangle.
-        features : list
-            List of feature names to extract from data exposed through Loader.
-            These are not necessarily the same as the features used to
-            initialize the Loader.
+            extract.
         target : tuple
             (lat, lon) lower left corner of raster. Either need target+shape or
             raster_file.
         shape : tuple
             (rows, cols) grid size. Either need target+shape or raster_file.
+        time_slice : slice
+            Slice specifying extent and step of temporal extraction. e.g.
+            slice(start, stop, step). If equal to slice(None, None, 1)
+            the full time dimension is selected.
         raster_file : str | None
             File for raster_index array for the corresponding target and shape.
             If specified the raster_index will be loaded from the file if it
@@ -52,43 +49,17 @@ class WranglerH5(Wrangler, ABC):
             raster_index is not provided raster_index will be calculated
             directly. Either need target+shape, raster_file, or raster_index
             input.
-        time_slice : slice
-            Slice specifying extent and step of temporal extraction. e.g.
-            slice(start, stop, step). If equal to slice(None, None, 1)
-            the full time dimension is selected.
         max_delta : int
             Optional maximum limit on the raster shape that is retrieved at
             once. If shape is (20, 20) and max_delta=10, the full raster will
             be retrieved in four chunks of (10, 10). This helps adapt to
             non-regular grids that curve over large distances.
-        transform_function : function
-            Optional operation on loader.data. For example, if you want to
-            derive U/V and you used the Loader to expose windspeed/direction,
-            provide a function that operates on windspeed/direction and returns
-            U/V. The final `.data` attribute will be the output of this
-            function.
-        cache_kwargs : dict
-            Dictionary with kwargs for caching wrangled data. This should at
-            minimum include a 'cache_pattern' key, value. This pattern must
-            have a {feature} format key and either a h5 or nc file extension,
-            based on desired output type.
-
-            Can also include a 'chunks' key, value with a dictionary of tuples
-            for each feature. e.g. {'cache_pattern': ..., 'chunks':
-            {'windspeed_100m': (20, 100, 100)}} where the chunks ordering is
-            (time, lats, lons)
-
-            Note: This is only for saving cached data. If you want to reload
-            the cached files load them with a Loader object.
         """
         super().__init__(
             container=container,
-            features=features,
             target=target,
             shape=shape,
-            time_slice=time_slice,
-            transform_function=transform_function,
-            cache_kwargs=cache_kwargs,
+            time_slice=time_slice
         )
         self.raster_file = raster_file
         self.max_delta = max_delta
@@ -96,8 +67,6 @@ class WranglerH5(Wrangler, ABC):
             self.raster_file
         ):
             self.save_raster_index()
-        if self.cache_kwargs is not None:
-            self.cache_data(self.cache_kwargs)
 
     def save_raster_index(self):
         """Save raster index to cache file."""

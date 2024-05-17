@@ -11,9 +11,6 @@ from sup3r.preprocessing.batch_handling.base import (
     BatchHandler,
     ValidationData,
 )
-from sup3r.preprocessing.data_handling import (
-    DataHandlerDCforH5,
-)
 from sup3r.utilities.utilities import (
     uniform_box_sampler,
     uniform_time_sampler,
@@ -108,8 +105,7 @@ class ValidationDataDC(ValidationData):
                 smoothing_ignore=self.smoothing_ignore)
             self._i += 1
             return batch
-        else:
-            raise StopIteration
+        raise StopIteration
 
 
 class ValidationDataTemporalDC(ValidationDataDC):
@@ -142,8 +138,7 @@ class ValidationDataSpatialDC(ValidationDataDC):
                 smoothing_ignore=self.smoothing_ignore)
             self._i += 1
             return batch
-        else:
-            raise StopIteration
+        raise StopIteration
 
 
 class BatchHandlerDC(BatchHandler):
@@ -151,7 +146,6 @@ class BatchHandlerDC(BatchHandler):
 
     VAL_CLASS = ValidationDataTemporalDC
     BATCH_CLASS = Batch
-    DATA_HANDLER_CLASS = DataHandlerDCforH5
 
     def __init__(self, *args, **kwargs):
         """
@@ -218,13 +212,12 @@ class BatchHandlerDC(BatchHandler):
 
             self._i += 1
             return batch
-        else:
-            total_count = self.n_batches * self.batch_size
-            self.norm_temporal_record = [
-                c / total_count for c in self.temporal_sample_record.copy()
-            ]
-            self.old_temporal_weights = self.temporal_weights.copy()
-            raise StopIteration
+        total_count = self.n_batches * self.batch_size
+        self.norm_temporal_record = [
+            c / total_count for c in self.temporal_sample_record.copy()
+        ]
+        self.old_temporal_weights = self.temporal_weights.copy()
+        raise StopIteration
 
 
 class BatchHandlerSpatialDC(BatchHandler):
@@ -232,7 +225,6 @@ class BatchHandlerSpatialDC(BatchHandler):
 
     VAL_CLASS = ValidationDataSpatialDC
     BATCH_CLASS = Batch
-    DATA_HANDLER_CLASS = DataHandlerDCforH5
 
     def __init__(self, *args, **kwargs):
         """
@@ -305,10 +297,9 @@ class BatchHandlerSpatialDC(BatchHandler):
 
             self._i += 1
             return batch
-        else:
-            total_count = self.n_batches * self.batch_size
-            self.norm_spatial_record = [
-                c / total_count for c in self.spatial_sample_record
-            ]
-            self.old_spatial_weights = self.spatial_weights.copy()
-            raise StopIteration
+        total_count = self.n_batches * self.batch_size
+        self.norm_spatial_record = [
+            c / total_count for c in self.spatial_sample_record
+        ]
+        self.old_spatial_weights = self.spatial_weights.copy()
+        raise StopIteration

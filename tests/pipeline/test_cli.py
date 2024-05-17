@@ -16,7 +16,6 @@ from sup3r.models.base import Sup3rGan
 from sup3r.pipeline.forward_pass_cli import from_config as fwp_main
 from sup3r.pipeline.pipeline_cli import from_config as pipe_main
 from sup3r.postprocessing.data_collect_cli import from_config as dc_main
-from sup3r.preprocessing.data_extract_cli import from_config as dh_main
 from sup3r.qa.visual_qa_cli import from_config as vqa_main
 from sup3r.utilities.utilities import correct_path
 
@@ -255,37 +254,6 @@ def test_fwd_pass_cli(runner, log=False):
         assert len(glob.glob(f'{td}/cache*')) == n_cache_files
         assert len(glob.glob(f'{td}/*.log')) == t_chunks
         assert len(glob.glob(f'{td}/out*')) == n_chunks
-
-
-def test_data_extract_cli(runner):
-    """Test cli call to run data extraction"""
-    with tempfile.TemporaryDirectory() as td:
-        cache_pattern = os.path.join(td, 'cache')
-        log_file = os.path.join(td, 'log.log')
-        config = {'file_paths': FP_WTK,
-                  'target': (39.01, -105.15),
-                  'features': FEATURES,
-                  'shape': (20, 20),
-                  'sample_shape': (20, 20, 12),
-                  'cache_pattern': cache_pattern,
-                  'log_file': log_file,
-                  'val_split': 0.05,
-                  'handler_class': 'DataHandlerH5'}
-
-        config_path = os.path.join(td, 'config.json')
-        with open(config_path, 'w') as fh:
-            json.dump(config, fh)
-
-        result = runner.invoke(dh_main, ['-c', config_path, '-v'])
-
-        if result.exit_code != 0:
-            import traceback
-            msg = ('Failed with error {}'
-                   .format(traceback.print_exception(*result.exc_info)))
-            raise RuntimeError(msg)
-
-        assert len(glob.glob(f'{cache_pattern}*')) == len(FEATURES)
-        assert len(glob.glob(f'{log_file}')) == 1
 
 
 def test_pipeline_fwp_qa(runner, log=False):

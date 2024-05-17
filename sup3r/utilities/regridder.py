@@ -13,8 +13,7 @@ from rex import MultiFileResource
 from rex.utilities.fun_utils import get_fun_call_str
 from sklearn.neighbors import BallTree
 
-from sup3r.postprocessing.file_handling import RexOutputs
-from sup3r.postprocessing.mixin import OutputMixIn
+from sup3r.postprocessing.file_handling import OutputMixIn, RexOutputs
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
 from sup3r.utilities.execution import DistributedProcess

@@ -18,7 +18,6 @@ from scipy import stats
 from scipy.spatial import KDTree
 
 import sup3r.preprocessing.data_handling
-from sup3r.preprocessing.data_handling.base import DataHandler
 from sup3r.utilities import VERSION_RECORD, ModuleName
 from sup3r.utilities.cli import BaseCLI
 from sup3r.utilities.utilities import expand_paths

@@ -60,6 +60,10 @@ class AbstractLoader(AbstractContainer, ABC):
         """Close `self.res`."""
         self.res.close()
 
+    def __getitem__(self, keys):
+        """Get item from data."""
+        return self.data[keys]
+
     @property
     def file_paths(self):
         """Get file paths for input data"""

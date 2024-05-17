@@ -13,13 +13,9 @@ from sup3r.bias.bias_calc_cli import from_config as bias_calc_cli
 from sup3r.pipeline.forward_pass_cli import from_config as fwp_cli
 from sup3r.pipeline.pipeline_cli import from_config as pipe_cli
 from sup3r.postprocessing.data_collect_cli import from_config as dc_cli
-from sup3r.preprocessing.data_extract_cli import from_config as dh_cli
 from sup3r.qa.qa_cli import from_config as qa_cli
-from sup3r.qa.stats_cli import from_config as stats_cli
-from sup3r.qa.visual_qa_cli import from_config as visual_qa_cli
 from sup3r.solar.solar_cli import from_config as solar_cli
 from sup3r.utilities import ModuleName
-from sup3r.utilities.regridder_cli import from_config as regrid_cli
 
 logger = logging.getLogger(__name__)
 
@@ -240,45 +236,6 @@ def bias_calc(ctx, verbose):
 @click.option('-v', '--verbose', is_flag=True,
               help='Flag to turn on debug logging.')
 @click.pass_context
-def data_extract(ctx, verbose):
-    """Sup3r data extraction and caching prior to training
-
-    The sup3r data-extract module is a utility to pre-extract and pre-process
-    data from a source file to disk pickle files for faster restarts while
-    debugging. You can call the data-extract module via the sup3r-pipeline CLI,
-    or call it directly with either of these equivalent commands::
-
-        $ sup3r -c config_extract.json data-extract
-
-        $ sup3r-data-extract from-config -c config_extract.json
-
-    A sup3r data-extract config.json file can contain any arguments or keyword
-    arguments required to initialize the
-    :class:`sup3r.preprocessing.data_handling.DataHandler` class. The config
-    also has several optional arguments: ``handler_class``, ``log_level``, and
-    ``execution_control``. Here's a small example data-extract config::
-
-        {
-            "file_paths": "/datasets/WIND/conus/v1.0.0/wtk_conus_2007.h5",
-            "features": ["U_100m", "V_100m"],
-            "target": [27, -97],
-            "shape": [800, 800],
-            "execution_control": {"option": "local"},
-            "log_level": "DEBUG"
-        }
-
-    Note that the ``execution_control`` has the same options as forward-pass
-    and you can set ``"option": "kestrel"`` to run on the NREL HPC.
-    """
-    config_file = ctx.obj['CONFIG_FILE']
-    verbose = any([verbose, ctx.obj['VERBOSE']])
-    ctx.invoke(dh_cli, config_file=config_file, verbose=verbose)
-
-
-@main.command()
-@click.option('-v', '--verbose', is_flag=True,
-              help='Flag to turn on debug logging.')
-@click.pass_context
 def data_collect(ctx, verbose):
     """Sup3r data collection following forward pass.
 
@@ -353,133 +310,6 @@ def qa(ctx, verbose):
     config_file = ctx.obj['CONFIG_FILE']
     verbose = any([verbose, ctx.obj['VERBOSE']])
     ctx.invoke(qa_cli, config_file=config_file, verbose=verbose)
-
-
-@main.command()
-@click.option('-v', '--verbose', is_flag=True,
-              help='Flag to turn on debug logging.')
-@click.pass_context
-def visual_qa(ctx, verbose):
-    """Sup3r visual QA module following forward pass and collection.
-
-    The sup3r visual QA module can be used to perform a visual inspection on
-    the high-resolution sup3r resolved output. You can call the visual QA
-    module via the sup3r-pipeline CLI, or call it directly with either of
-    these equivalent commands::
-
-        $ sup3r -c config_qa.json visual-qa
-
-        $ sup3r-visual-qa from-config -c config_qa.json
-
-    A sup3r visual QA config.json file can contain any arguments or keyword
-    arguments required to initialize the :class:`sup3r.qa.qa.Sup3rVisualQa`
-    class. The config also has several optional arguments: ``log_file``,
-    ``log_level``, and ``execution_control``. Here's a small example
-    visual QA config::
-
-        {
-            "file_paths": "./outputs/collected_output*.h5",
-            "out_pattern": "./outputs/plots/{feature}_{index}.png",
-            "features": ['windspeed_100m', 'winddirection_100m'],
-            "time_step": 100,
-            "spatial_slice": [None, None, 100],
-            "execution_control": {"option": "local"},
-            "log_level": "DEBUG"
-        }
-
-    Note that the ``execution_control`` has the same options as forward-pass
-    and you can set ``"option": "kestrel"`` to run on the NREL HPC.
-    """
-    config_file = ctx.obj['CONFIG_FILE']
-    verbose = any([verbose, ctx.obj['VERBOSE']])
-    ctx.invoke(visual_qa_cli, config_file=config_file, verbose=verbose)
-
-
-@main.command()
-@click.option('-v', '--verbose', is_flag=True,
-              help='Flag to turn on debug logging.')
-@click.pass_context
-def stats(ctx, verbose):
-    """Sup3r stats module following forward pass and collection.
-
-    The sup3r stats module computes various statistics on wind fields of at
-    given hub heights. These statistics include energy spectra, time derivative
-    pdfs, velocity gradient pdfs, and vorticity pdfs.
-    You can call the stats module via the sup3r-pipeline CLI, or call it
-    directly with either of these equivalent commands::
-
-        $ sup3r -c config_stats.json stats
-
-        $ sup3r-stats from-config -c config_stats.json
-
-    A sup3r stats config.json file can contain any arguments or keyword
-    arguments required to initialize the
-    :class:`sup3r.qa.stats.Sup3rStatsMulti` class. The config also has several
-    optional arguments: ``log_file``, ``log_level``, and ``execution_control``.
-    Here's a small example stats config::
-
-        {
-            "source_file_paths": "./source_files*.nc",
-            "out_file_path": "./outputs/collected_output_file.h5",
-            "s_enhance": 2,
-            "t_enhance": 12,
-            "features": ["windspeed_100m", "winddirection_100m"],
-            "include_stats": ["time_derivative", "gradient", "spectrum_k"]
-            "get_interp": True,
-            "log_file": "./logs/stats.log",
-            "execution_control": {"option": "local"},
-            "log_level": "DEBUG"
-        }
-
-    Note that the ``execution_control`` has the same options as forward-pass
-    and you can set ``"option": "kestrel"`` to run on the NREL HPC.
-    """
-    config_file = ctx.obj['CONFIG_FILE']
-    verbose = any([verbose, ctx.obj['VERBOSE']])
-    ctx.invoke(stats_cli, config_file=config_file, verbose=verbose)
-
-
-@main.command()
-@click.option('-v', '--verbose', is_flag=True,
-              help='Flag to turn on debug logging.')
-@click.pass_context
-def regrid(ctx, verbose):
-    """Sup3r regrid module for regridding forward pass output to a different
-    meta file.
-
-    You can call the regrid module via the sup3r-pipeline CLI, or call it
-    directly with either of these equivalent commands::
-
-        $ sup3r -c config_regrid.json regrid
-
-        $ sup3r-regrid from-config -c config_regrid.json
-
-    A sup3r regrid config.json file can contain any arguments or keyword
-    arguments required to initialize the
-    :class:`sup3r.utilities.regridder.RegridOutput` class. The config also has
-    several optional arguments: ``log_file``, ``log_level``, and
-    ``execution_control``.
-    Here's a small example regrid config::
-
-        {
-            "source_files": "./source_files*.h5",
-            "out_pattern": "./chunks_{file_id}.h5",
-            "heights": [100, 200],
-            "target_meta": "./target_meta.csv",
-            "n_chunks": 100,
-            "worker_kwargs": {"regrid_workers": 10, "query_workers": 10},
-            "cache_pattern": "./{array_name}.pkl",
-            "log_file": "./logs/regrid.log",
-            "execution_control": {"option": "local"},
-            "log_level": "DEBUG"
-        }
-
-    Note that the ``execution_control`` has the same options as forward-pass
-    and you can set ``"option": "kestrel"`` to run on the NREL HPC.
-    """
-    config_file = ctx.obj['CONFIG_FILE']
-    verbose = any([verbose, ctx.obj['VERBOSE']])
-    ctx.invoke(regrid_cli, config_file=config_file, verbose=verbose)
 
 
 @main.group(invoke_without_command=True)
@@ -584,13 +414,9 @@ def batch(ctx, dry_run, cancel, delete, monitor_background, verbose):
 
 Pipeline.COMMANDS[ModuleName.FORWARD_PASS] = fwp_cli
 Pipeline.COMMANDS[ModuleName.SOLAR] = solar_cli
-Pipeline.COMMANDS[ModuleName.DATA_EXTRACT] = dh_cli
 Pipeline.COMMANDS[ModuleName.DATA_COLLECT] = dc_cli
 Pipeline.COMMANDS[ModuleName.QA] = qa_cli
-Pipeline.COMMANDS[ModuleName.VISUAL_QA] = visual_qa_cli
-Pipeline.COMMANDS[ModuleName.STATS] = stats_cli
 Pipeline.COMMANDS[ModuleName.BIAS_CALC] = bias_calc_cli
-Pipeline.COMMANDS[ModuleName.REGRID] = regrid_cli
 
 
 if __name__ == '__main__':

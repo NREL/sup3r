@@ -13,7 +13,6 @@ from scipy.spatial import KDTree
 from scipy.stats import mode
 
 from sup3r.containers import LoaderNC, WranglerNC
-from sup3r.preprocessing.data_handling.data_centric import DataHandlerDC
 
 np.random.seed(42)
 
@@ -33,7 +32,7 @@ class DataHandlerNC(WranglerNC):
         target=None,
         shape=None,
         time_slice=None,
-        transform_function=None,
+        transform=None,
         cache_kwargs=None,
     ):
         loader = LoaderNC(
@@ -49,7 +48,7 @@ class DataHandlerNC(WranglerNC):
             target=target,
             shape=shape,
             time_slice=time_slice,
-            transform_function=transform_function,
+            transform=transform,
             cache_kwargs=cache_kwargs,
         )
 
@@ -220,7 +219,3 @@ class DataHandlerNCforCC(DataHandlerNC):
         assert cs_ghi.shape[2] == len(self.time_index), msg
 
         return cs_ghi
-
-
-class DataHandlerDCforNC(DataHandlerNC, DataHandlerDC):
-    """Data centric data handler for NETCDF files"""

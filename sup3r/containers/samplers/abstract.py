@@ -209,7 +209,7 @@ class AbstractSamplerCollection(Collection, ABC):
     def get_random_container(self) -> Container:
         """Get random container based on weights."""
 
-    def __getitem__(self, index):
+    def __getitem__(self, keys):
         """Get data sample from sampled container."""
         container = self.get_random_container()
         return container.get_next()

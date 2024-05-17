@@ -1,76 +1,52 @@
-"""Basic container objects can perform transformations / extractions on the
-contained data."""
+"""Basic container object that can perform extractions on the contained NETCDF
+data."""
 
 import logging
 from abc import ABC
 
 import numpy as np
 
+from sup3r.containers.extracters.base import Extracter
 from sup3r.containers.loaders import Loader
-from sup3r.containers.wranglers.base import Wrangler
 
 np.random.seed(42)
 
 logger = logging.getLogger(__name__)
 
 
-class WranglerNC(Wrangler, ABC):
-    """Wrangler subclass for h5 files specifically."""
+class ExtracterNC(Extracter, ABC):
+    """Extracter subclass for h5 files specifically."""
 
     def __init__(
         self,
         container: Loader,
-        features,
         target=None,
         shape=None,
-        time_slice=slice(None),
-        transform_function=None,
-        cache_kwargs=None
+        time_slice=slice(None)
     ):
         """
         Parameters
         ----------
         container : Loader
             Loader type container with `.data` attribute exposing data to
-            wrangle.
-        features : list
-            List of feature names to extract from file_paths.
+            extract.
         target : tuple
             (lat, lon) lower left corner of raster. Either need target+shape or
             raster_file.
         shape : tuple
             (rows, cols) grid size. Either need target+shape or raster_file.
-        raster_file : str | None
-            File for raster_index array for the corresponding target and shape.
-            If specified the raster_index will be loaded from the file if it
-            exists or written to the file if it does not yet exist. If None and
-            raster_index is not provided raster_index will be calculated
-            directly. Either need target+shape, raster_file, or raster_index
-            input.
         time_slice : slice
             Slice specifying extent and step of temporal extraction. e.g.
             slice(start, stop, step). If equal to slice(None, None, 1)
             the full time dimension is selected.
-        transform_function : function
-            Optional operation on loader.data. For example, if you want to
-            derive U/V and you used the Loader to expose windspeed/direction,
-            provide a function that operates on windspeed/direction and returns
-            U/V. The final `.data` attribute will be the output of this
-            function.
         """
         super().__init__(
             container=container,
-            features=features,
             target=target,
             shape=shape,
-            time_slice=time_slice,
-            transform_function=transform_function,
-            cache_kwargs=cache_kwargs
+            time_slice=time_slice
         )
         self.check_target_and_shape()
-
-        if self.cache_kwargs is not None:
-            self.cache_data(self.cache_kwargs)
 
     def check_target_and_shape(self):
         """NETCDF files tend to use a regular grid so if either target or shape
@@ -110,7 +86,7 @@ class WranglerNC(Wrangler, ABC):
             self._get_full_lat_lon(), self._target
         )
         if self._has_descending_lats():
-            lat_slice = slice(row, row - self._grid_shape[0], -1)
+            lat_slice = slice(row - self._grid_shape[0] + 1, row + 1)
         else:
             lat_slice = slice(row, row + self._grid_shape[0])
         lon_slice = slice(col, col + self._grid_shape[1])
@@ -149,9 +125,15 @@ class WranglerNC(Wrangler, ABC):
     def get_lat_lon(self):
         """Get the 2D array of coordinates corresponding to the requested
         target and shape."""
-        return self._get_full_lat_lon()[*self.raster_index]
+        lat_lon = self._get_full_lat_lon()[*self.raster_index]
+        if self._has_descending_lats():
+            lat_lon = lat_lon[::-1]
+        return lat_lon
 
     def extract_features(self):
         """Extract the requested features for the requested target + grid_shape
         + time_slice."""
-        return self.container[*self.raster_index, self.time_slice]
+        out = self.container[*self.raster_index, self.time_slice]
+        if self._has_descending_lats():
+            out = out[::-1]
+        return out

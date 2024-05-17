@@ -1,4 +1,5 @@
-"""Paired wrangler class for matching separate low_res and high_res datasets"""
+"""Paired extracter class for matching separate low_res and high_res
+datasets"""
 
 import logging
 from warnings import warn
@@ -8,14 +9,15 @@ import numpy as np
 import pandas as pd
 
 from sup3r.containers.base import ContainerPair
+from sup3r.containers.extracters import Extracter
 from sup3r.utilities.regridder import Regridder
 from sup3r.utilities.utilities import nn_fill_array, spatial_coarsening
 
 logger = logging.getLogger(__name__)
 
 
-class WranglerPair(ContainerPair):
-    """Object containing Wrangler objects for low and high-res containers.
+class ExtracterPair(ContainerPair):
+    """Object containing Extracter objects for low and high-res containers.
     (Usually ERA5 and WTK, respectively). This essentially just regrids the
     low-res data to the coarsened high-res grid.  This is useful for caching
     data which then can go directly to a class:`PairSampler` object for a
@@ -33,8 +35,8 @@ class WranglerPair(ContainerPair):
 
     def __init__(
         self,
-        lr_container,
-        hr_container,
+        lr_container: Extracter,
+        hr_container: Extracter,
         regrid_workers=1,
         regrid_lr=True,
         s_enhance=1,
@@ -47,10 +49,12 @@ class WranglerPair(ContainerPair):
 
         Parameters
         ----------
-        hr_container : Container
-            Container for high_res data
-        lr_container : Container
-            Container for low_res data
+        hr_container : Wrangler | Container
+            Wrangler for high_res data. Needs to have `.cache_data` method if
+            you want to cache the regridded data.
+        lr_container : Wrangler | Container
+            Wrangler for low_res data. Needs to have `.cache_data` method if
+            you want to cache the regridded data.
         regrid_workers : int | None
             Number of workers to use for regridding routine.
         regrid_lr : bool
@@ -87,8 +91,6 @@ class WranglerPair(ContainerPair):
 
         self.lr_container.cache_data(lr_cache_kwargs)
         self.hr_container.cache_data(hr_cache_kwargs)
-
-        logger.info('Finished initializing DualContainer.')
 
     def update_hr_container(self):
         """Set the high resolution data attribute and check if

@@ -9,7 +9,7 @@ import numpy as np
 from rex import safe_json_load
 
 from sup3r.containers.collections.base import Collection
-from sup3r.containers.wranglers import Wrangler
+from sup3r.containers.extracters import Extracter
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ class StatsCollection(Collection):
     saving these to files."""
 
     def __init__(
-        self, containers: List[Wrangler], means_file=None, stds_file=None
+        self, containers: List[Extracter], means_file=None, stds_file=None
     ):
         super().__init__(containers)
         self.means = self.get_means(means_file)
