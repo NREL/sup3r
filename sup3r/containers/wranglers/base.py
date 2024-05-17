@@ -2,34 +2,32 @@
 contained data."""
 
 import logging
-import os
-from abc import ABC
 
-import dask.array as da
-import h5py
 import numpy as np
-import xarray as xr
 
+from sup3r.containers.derivers import DeriverH5, DeriverNC
+from sup3r.containers.extracters import ExtracterH5, ExtracterNC
 from sup3r.containers.loaders import Loader
-from sup3r.containers.wranglers.abstract import AbstractWrangler
 
 np.random.seed(42)
 
 logger = logging.getLogger(__name__)
 
 
-class Wrangler(AbstractWrangler, ABC):
-    """Base Wrangler object."""
+class WranglerH5(DeriverH5, ExtracterH5):
+    """Wrangler subclass for H5 files specifically."""
 
     def __init__(
         self,
         container: Loader,
         features,
-        target,
-        shape,
+        target=(),
+        shape=(),
         time_slice=slice(None),
-        transform_function=None,
-        cache_kwargs=None
+        transform=None,
+        cache_kwargs=None,
+        raster_file=None,
+        max_delta=20,
     ):
         """
         Parameters
@@ -37,8 +35,9 @@ class Wrangler(AbstractWrangler, ABC):
         container : Loader
             Loader type container with `.data` attribute exposing data to
             wrangle.
-        features : list
-            List of feature names to extract from file_paths.
+        extract_features : list
+            List of feature names to derive from data exposed through Loader
+            for the spatiotemporal extent specified by target + shape.
         target : tuple
             (lat, lon) lower left corner of raster. Either need target+shape or
             raster_file.
@@ -48,12 +47,35 @@ class Wrangler(AbstractWrangler, ABC):
             Slice specifying extent and step of temporal extraction. e.g.
             slice(start, stop, step). If equal to slice(None, None, 1)
             the full time dimension is selected.
-        transform_function : function
-            Optional operation on loader.data. For example, if you want to
-            derive U/V and you used the Loader to expose windspeed/direction,
-            provide a function that operates on windspeed/direction and returns
-            U/V. The final `.data` attribute will be the output of this
-            function.
+        raster_file : str | None
+            File for raster_index array for the corresponding target and shape.
+            If specified the raster_index will be loaded from the file if it
+            exists or written to the file if it does not yet exist. If None and
+            raster_index is not provided raster_index will be calculated
+            directly. Either need target+shape, raster_file, or raster_index
+            input.
+        max_delta : int
+            Optional maximum limit on the raster shape that is retrieved at
+            once. If shape is (20, 20) and max_delta=10, the full raster will
+            be retrieved in four chunks of (10, 10). This helps adapt to
+            non-regular grids that curve over large distances.
+        transform : function
+            Optional operation on extracter data. For example, if you want to
+            derive U/V and you used the class:`Extracter` to expose
+            windspeed/direction, provide a function that operates on
+            windspeed/direction and returns U/V. The final `.data` attribute
+            will be the output of this function.
+
+            Note: This function needs to include a `self` argument. This
+            enables access to the members of the class:`Deriver` instance. For
+            example::
+
+                def transform_ws_wd(self, data: Container):
+
+                    from sup3r.utilities.utilities import transform_rotate_wind
+                    ws, wd = data['windspeed'], data['winddirection']
+                    u, v = transform_rotate_wind(ws, wd, self.lat_lon)
+                    self['U'], self['V'] = u, v
         cache_kwargs : dict
             Dictionary with kwargs for caching wrangled data. This should at
             minimum include a 'cache_pattern' key, value. This pattern must
@@ -68,99 +90,89 @@ class Wrangler(AbstractWrangler, ABC):
             Note: This is only for saving cached data. If you want to reload
             the cached files load them with a Loader object.
         """
-        super().__init__(
+        extracter = ExtracterH5(
             container=container,
-            features=features,
             target=target,
             shape=shape,
             time_slice=time_slice,
-            transform_function=transform_function,
-            cache_kwargs=cache_kwargs
+            raster_file=raster_file,
+            max_delta=max_delta,
         )
+        super().__init__(extracter, features=features, transform=transform)
 
-    def cache_data(self, kwargs):
-        """Cache data to file with file type based on user provided
-        cache_pattern.
+        if cache_kwargs is not None:
+            self.cache_data(cache_kwargs)
 
+
+class WranglerNC(DeriverNC, ExtracterNC):
+    """Wrangler subclass for NETCDF files specifically."""
+
+    def __init__(
+        self,
+        container: Loader,
+        features,
+        target=(),
+        shape=(),
+        time_slice=slice(None),
+        transform=None,
+        cache_kwargs=None,
+    ):
+        """
         Parameters
         ----------
-        lat_lon: array
-            (lats, lons, 2) array of coordinates
-        time_index : pd.DatetimeIndex
-            Pandas datetime index describing time period of data contained
+        container : Loader
+            Loader type container with `.data` attribute exposing data to
+            wrangle.
+        extract_features : list
+            List of feature names to derive from data exposed through Loader
+            for the spatiotemporal extent specified by target + shape.
+        target : tuple
+            (lat, lon) lower left corner of raster. Either need target+shape or
+            raster_file.
+        shape : tuple
+            (rows, cols) grid size. Either need target+shape or raster_file.
+        time_slice : slice
+            Slice specifying extent and step of temporal extraction. e.g.
+            slice(start, stop, step). If equal to slice(None, None, 1)
+            the full time dimension is selected.
+        transform : function
+            Optional operation on extracter data. For example, if you want to
+            derive U/V and you used the class:`Extracter` to expose
+            windspeed/direction, provide a function that operates on
+            windspeed/direction and returns U/V. The final `.data` attribute
+            will be the output of this function.
+
+            Note: This function needs to include a `self` argument. This
+            enables access to the members of the class:`Deriver` instance. For
+            example::
+
+                def transform_ws_wd(self, data: Container):
+
+                    from sup3r.utilities.utilities import transform_rotate_wind
+                    ws, wd = data['windspeed'], data['winddirection']
+                    u, v = transform_rotate_wind(ws, wd, self.lat_lon)
+                    self['U'], self['V'] = u, v
         cache_kwargs : dict
-            Can include 'cache_pattern' and 'chunks'. 'chunks' is a dictionary
-            of tuples (time, lats, lons) for each feature specifying the chunks
-            for h5 writes. 'cache_pattern' must have a {feature} format key.
+            Dictionary with kwargs for caching wrangled data. This should at
+            minimum include a 'cache_pattern' key, value. This pattern must
+            have a {feature} format key and either a h5 or nc file extension,
+            based on desired output type.
+
+            Can also include a 'chunks' key, value with a dictionary of tuples
+            for each feature. e.g. {'cache_pattern': ..., 'chunks':
+            {'windspeed_100m': (20, 100, 100)}} where the chunks ordering is
+            (time, lats, lons)
+
+            Note: This is only for saving cached data. If you want to reload
+            the cached files load them with a Loader object.
         """
-        cache_pattern = kwargs['cache_pattern']
-        chunks = kwargs.get('chunks', None)
-        msg = 'cache_pattern must have {feature} format key.'
-        assert '{feature}' in cache_pattern, msg
-        _, ext = os.path.splitext(cache_pattern)
-        coords = {
-            'latitude': (('south_north', 'west_east'), self.lat_lon[..., 0]),
-            'longitude': (('south_north', 'west_east'), self.lat_lon[..., 1]),
-            'time': self.time_index.values,
-        }
-        for fidx, feature in enumerate(self.features):
-            out_file = cache_pattern.format(feature=feature)
-            if not os.path.exists(out_file):
-                logger.info(f'Writing {feature} to {out_file}.')
-                data = self.data[..., fidx]
-                if ext == '.h5':
-                    self._write_h5(
-                        out_file,
-                        feature,
-                        np.transpose(data, axes=(2, 0, 1)),
-                        coords,
-                        chunks,
-                    )
-                elif ext == '.nc':
-                    self._write_netcdf(
-                        out_file,
-                        feature,
-                        np.transpose(data, axes=(2, 0, 1)),
-                        coords,
-                    )
-                else:
-                    msg = (
-                        'cache_pattern must have either h5 or nc '
-                        f'extension. Recived {ext}.'
-                    )
-                    logger.error(msg)
-                    raise ValueError(msg)
+        extracter = ExtracterNC(
+            container=container,
+            target=target,
+            shape=shape,
+            time_slice=time_slice,
+        )
+        super().__init__(extracter, features=features, transform=transform)
 
-    def _write_h5(self, out_file, feature, data, coords, chunks=None):
-        """Cache data to h5 file using user provided chunks value."""
-        chunks = chunks or {}
-        with h5py.File(out_file, 'w') as f:
-            _, lats = coords['latitude']
-            _, lons = coords['longitude']
-            times = coords['time'].astype(int)
-            data_dict = dict(
-                zip(
-                    ['time_index', 'latitude', 'longitude', feature],
-                    [
-                        da.from_array(times),
-                        da.from_array(lats),
-                        da.from_array(lons),
-                        data,
-                    ],
-                )
-            )
-            for dset, vals in data_dict.items():
-                d = f.require_dataset(
-                    f'/{dset}',
-                    dtype=vals.dtype,
-                    shape=vals.shape,
-                    chunks=chunks.get(dset, None),
-                )
-                da.store(vals, d)
-                logger.info(f'Added {dset} to {out_file}.')
-
-    def _write_netcdf(self, out_file, feature, data, coords):
-        """Cache data to a netcdf file."""
-        data_vars = {feature: (('time', 'south_north', 'west_east'), data)}
-        out = xr.Dataset(data_vars=data_vars, coords=coords)
-        out.to_netcdf(out_file)
+        if cache_kwargs is not None:
+            self.cache_data(cache_kwargs)

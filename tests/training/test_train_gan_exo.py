@@ -12,7 +12,6 @@ from sup3r.models import Sup3rGan
 from sup3r.models.data_centric import Sup3rGanDC
 from sup3r.preprocessing import (
     BatchHandlerDC,
-    DataHandlerDCforH5,
     DataHandlerH5,
     DataHandlerH5WindCC,
     SpatialBatchHandler,

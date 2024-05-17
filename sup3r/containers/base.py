@@ -10,6 +10,7 @@ import dask.array
 import numpy as np
 
 from sup3r.containers.abstract import AbstractContainer
+from sup3r.utilities.utilities import parse_keys
 
 logger = logging.getLogger(__name__)
 
@@ -21,12 +22,19 @@ class Container(AbstractContainer):
     def __init__(self, container: Self):
         super().__init__()
         self.container = container
-        self.features = self.container.features
+        self._features = self.container.features
+        self._data = self.container.data
+        self._shape = self.container.shape
 
     @property
     def data(self) -> dask.array:
         """Returns the contained data."""
-        return self.container.data
+        return self._data
+
+    @data.setter
+    def data(self, value):
+        """Set data values."""
+        self._data = value
 
     @property
     def size(self):
@@ -36,7 +44,12 @@ class Container(AbstractContainer):
     @property
     def shape(self):
         """Shape of contained data. Usually (lat, lon, time, features)."""
-        return self.container.shape
+        return self._shape
+
+    @shape.setter
+    def shape(self, shape):
+        """Set shape value."""
+        self._shape = shape
 
     @property
     def features(self):
@@ -48,9 +61,36 @@ class Container(AbstractContainer):
         """Update features."""
         self._features = features
 
-    def __getitem__(self, key):
-        """Method for accessing self.data."""
-        return self.container[key]
+    def __contains__(self, feature):
+        return feature.lower() in [f.lower() for f in self.features]
+
+    def index(self, feature):
+        """Get index of feature."""
+        return [f.lower() for f in self.features].index(feature.lower())
+
+    def __getitem__(self, keys):
+        """Method for accessing self.data or attributes. keys can optionally
+        include a feature name as the first element of a keys tuple"""
+        key, key_slice = parse_keys(keys)
+        if isinstance(key, str):
+            if key in self:
+                return self.data[*key_slice, self.index(key)]
+            if hasattr(self, key):
+                return getattr(self, key)
+            raise ValueError(f'Could not get item for "{keys}"')
+        return self.data[key, *key_slice]
+
+    def __setitem__(self, keys, value):
+        """Set values of data or attributes. keys can optionally include a
+        feature name as the first element of a keys tuple."""
+        key, key_slice = parse_keys(keys)
+        if isinstance(key, str):
+            if key in self:
+                self.data[*key_slice, self.index(key)] = value
+            if hasattr(self, key):
+                setattr(self, key, value)
+            raise ValueError(f'Could not set item for "{keys}"')
+        self.data[key, *key_slice] = value
 
 
 class ContainerPair(Container):

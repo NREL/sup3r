@@ -31,7 +31,7 @@ class LoaderH5(Loader):
         """
         arrays = []
         for feat in self.features:
-            if feat in self.res.h5:
+            if feat in self.res.h5 or feat.lower() in self.res.h5:
                 scale = self.res.h5[feat].attrs.get('scale_factor', 1)
                 entry = dask.array.from_array(
                     self.res.h5[feat], chunks=self.chunks

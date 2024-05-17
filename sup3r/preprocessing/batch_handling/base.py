@@ -12,9 +12,7 @@ import numpy as np
 from rex.utilities import log_mem
 from scipy.ndimage import gaussian_filter
 
-from sup3r.preprocessing.data_handling.h5 import (
-    DataHandlerDCforH5,
-)
+from sup3r.containers import BatchQueueWithValidation
 from sup3r.utilities.utilities import (
     nn_fill_array,
     nsrdb_reduce_daily_data,
@@ -344,7 +342,7 @@ class ValidationData:
         raise StopIteration
 
 
-class BatchHandler:
+class BatchHandler(BatchQueueWithValidation):
     """Sup3r base batch handling class"""
 
     # Classes to use for handling an individual batch obj.
@@ -1198,7 +1196,6 @@ class BatchHandlerDC(BatchHandler):
 
     VAL_CLASS = ValidationDataTemporalDC
     BATCH_CLASS = Batch
-    DATA_HANDLER_CLASS = DataHandlerDCforH5
 
     def __init__(self, *args, **kwargs):
         """
@@ -1278,7 +1275,6 @@ class BatchHandlerSpatialDC(BatchHandler):
 
     VAL_CLASS = ValidationDataSpatialDC
     BATCH_CLASS = Batch
-    DATA_HANDLER_CLASS = DataHandlerDCforH5
 
     def __init__(self, *args, **kwargs):
         """

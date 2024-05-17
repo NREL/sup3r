@@ -74,20 +74,6 @@ class Loader(AbstractLoader):
 
         return data
 
-    def __getitem__(self, key):
-        """Get data from container. This can be used to return a single sample
-        from the underlying data for building batches or as part of extended
-        feature extraction / derivation (spatial_1, spatial_2, temporal,
-        features)."""
-        if isinstance(key, str):
-            fidx = self.features.index(key)
-            return self.data[..., fidx]
-        if isinstance(key, (tuple, list)) and isinstance(key[0], str):
-            fidx = self.features.index(key)
-            return self.data[*key[1:], fidx]
-
-        return self.data[key]
-
     @property
     def shape(self):
         """Return shape of spatiotemporal extent available (spatial_1,
