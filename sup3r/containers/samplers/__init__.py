@@ -2,3 +2,4 @@
 
 from .base import Sampler, SamplerCollection, SamplerPair
 from .cropped import CroppedSampler
+from .dc import DataCentricSampler

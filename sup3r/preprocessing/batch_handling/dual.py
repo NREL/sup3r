@@ -139,7 +139,7 @@ class DualBatchHandler(BatchHandler):
         """
         self.current_batch_indices = []
         if self._i < self.n_batches:
-            handler = self.get_rand_handler()
+            handler = self.get_random_container()
             hr_list = []
             lr_list = []
             for _ in range(self.batch_size):
@@ -175,7 +175,7 @@ class SpatialDualBatchHandler(DualBatchHandler):
         """
         self.current_batch_indices = []
         if self._i < self.n_batches:
-            handler = self.get_rand_handler()
+            handler = self.get_random_container()
             hr_list = []
             lr_list = []
             for i in range(self.batch_size):

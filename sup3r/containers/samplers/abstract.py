@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class AbstractSampler(Container, ABC):
     """Sampler class for iterating through contained things."""
 
-    def __init__(self, data, sample_shape, feature_sets: Dict):
+    def __init__(self, container, sample_shape, feature_sets: Dict):
         """
         Parameters
         ----------
@@ -41,7 +41,7 @@ class AbstractSampler(Container, ABC):
                     output from the generative model. An example is high-res
                     topography that is to be injected mid-network.
         """
-        super().__init__(data)
+        super().__init__(container)
         self._features = feature_sets['features']
         self._lr_only_features = feature_sets.get('lr_only_features', [])
         self._hr_exo_features = feature_sets.get('hr_exo_features', [])

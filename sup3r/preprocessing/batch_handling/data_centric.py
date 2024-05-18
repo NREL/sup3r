@@ -187,7 +187,7 @@ class BatchHandlerDC(BatchHandler):
     def __next__(self):
         self.current_batch_indices = []
         if self._i < self.n_batches:
-            handler = self.get_rand_handler()
+            handler = self.get_random_container()
             high_res = np.zeros(
                 (self.batch_size, self.sample_shape[0], self.sample_shape[1],
                  self.sample_shape[2], self.shape[-1]),
@@ -272,7 +272,7 @@ class BatchHandlerSpatialDC(BatchHandler):
     def __next__(self):
         self.current_batch_indices = []
         if self._i < self.n_batches:
-            handler = self.get_rand_handler()
+            handler = self.get_random_container()
             high_res = np.zeros((self.batch_size, self.sample_shape[0],
                                  self.sample_shape[1], self.shape[-1],
                                  ),
