@@ -53,8 +53,10 @@ class BatchQueue(AbstractBatchQueue):
         n_batches : int
             Number of batches in an epoch, this sets the iteration limit for
             this object.
-        queue_cap : int
-            Maximum number of batches the batch queue can store.
+        s_enhance : int
+            Integer factor by which the spatial axes is to be enhanced.
+        t_enhance : int
+            Integer factor by which the temporal axes is to be enhanced.
         means : Union[Dict, str]
             Either a .json path containing a dictionary or a dictionary of
             means which will be used to normalize batches as they are built.
@@ -62,10 +64,8 @@ class BatchQueue(AbstractBatchQueue):
             Either a .json path containing a dictionary or a dictionary of
             standard deviations which will be used to normalize batches as they
             are built.
-        s_enhance : int
-            Integer factor by which the spatial axes is to be enhanced.
-        t_enhance : int
-            Integer factor by which the temporal axes is to be enhanced.
+        queue_cap : int
+            Maximum number of batches the batch queue can store.
         max_workers : int
             Number of workers / threads to use for getting samples used to
             build batches.
@@ -96,7 +96,6 @@ class BatchQueue(AbstractBatchQueue):
     def get_output_signature(self):
         """Get tensorflow dataset output signature for single data object
         containers."""
-
         return tf.TensorSpec(
             (*self.sample_shape, len(self.features)),
             tf.float32,

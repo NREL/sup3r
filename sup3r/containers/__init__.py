@@ -22,5 +22,10 @@ from .collections import Collection, StatsCollection
 from .derivers import Deriver, DeriverH5, DeriverNC
 from .extracters import Extracter, ExtracterH5, ExtracterNC
 from .loaders import Loader, LoaderH5, LoaderNC
-from .samplers import Sampler, SamplerCollection, SamplerPair
+from .samplers import (
+    DataCentricSampler,
+    Sampler,
+    SamplerCollection,
+    SamplerPair,
+)
 from .wranglers import WranglerH5, WranglerNC

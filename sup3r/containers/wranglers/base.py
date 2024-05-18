@@ -5,6 +5,8 @@ import logging
 
 import numpy as np
 
+from sup3r.containers.base import Container
+from sup3r.containers.cachers import Cacher
 from sup3r.containers.derivers import DeriverH5, DeriverNC
 from sup3r.containers.extracters import ExtracterH5, ExtracterNC
 from sup3r.containers.loaders import Loader
@@ -14,7 +16,7 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
-class WranglerH5(DeriverH5, ExtracterH5):
+class WranglerH5(Container):
     """Wrangler subclass for H5 files specifically."""
 
     def __init__(
@@ -98,13 +100,13 @@ class WranglerH5(DeriverH5, ExtracterH5):
             raster_file=raster_file,
             max_delta=max_delta,
         )
-        super().__init__(extracter, features=features, transform=transform)
+        deriver = DeriverH5(extracter, features=features, transform=transform)
 
         if cache_kwargs is not None:
-            self.cache_data(cache_kwargs)
+            Cacher(deriver, cache_kwargs)
 
 
-class WranglerNC(DeriverNC, ExtracterNC):
+class WranglerNC(Container):
     """Wrangler subclass for NETCDF files specifically."""
 
     def __init__(
@@ -172,7 +174,7 @@ class WranglerNC(DeriverNC, ExtracterNC):
             shape=shape,
             time_slice=time_slice,
         )
-        super().__init__(extracter, features=features, transform=transform)
+        deriver = DeriverNC(extracter, features=features, transform=transform)
 
         if cache_kwargs is not None:
-            self.cache_data(cache_kwargs)
+            Cacher(deriver, cache_kwargs)
