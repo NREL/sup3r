@@ -3,19 +3,18 @@
 import os
 from tempfile import TemporaryDirectory
 
-import pytest
 from rex import init_logger
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.containers import (
-    BatchQueueWithValidation,
+    BatchQueue,
     LoaderH5,
     Sampler,
     StatsCollection,
     WranglerH5,
 )
 from sup3r.models import Sup3rGan
-from sup3r.utilities.utilities import transform_rotate_wind
+from sup3r.utilities.pytest.helpers import execute_pytest
 
 INPUT_FILES = [
     os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5'),
@@ -36,19 +35,11 @@ kwargs = {
 init_logger('sup3r', log_level='DEBUG')
 
 
-def ws_wd_transform(self, data):
-    """Transform function for wrangler ws/wd -> u/v"""
-    data[..., 0], data[..., 1] = transform_rotate_wind(
-        ws=data[..., 0], wd=data[..., 1], lat_lon=self.lat_lon
-    )
-    return data
-
-
 def test_end_to_end():
     """Test data loading, extraction to h5 files with chunks, batch building,
     and training with validation end to end workflow."""
 
-    extract_features = ['U_100m', 'V_100m']
+    derive_features = ['U_100m', 'V_100m']
     raw_features = ['windspeed_100m', 'winddirection_100m']
 
     with TemporaryDirectory() as td:
@@ -57,43 +48,41 @@ def test_end_to_end():
         # get training data
         _ = WranglerH5(
             LoaderH5(INPUT_FILES[0], raw_features),
-            extract_features,
+            derive_features,
             **kwargs,
-            transform=ws_wd_transform,
             cache_kwargs={'cache_pattern': train_cache_pattern,
-                          'chunks': {'U_100m': (20, 10, 10),
-                                     'V_100m': (20, 10, 10)}},
+                          'chunks': {'U_100m': (50, 20, 20),
+                                     'V_100m': (50, 20, 20)}},
         )
         # get val data
         _ = WranglerH5(
             LoaderH5(INPUT_FILES[1], raw_features),
-            extract_features,
+            derive_features,
             **kwargs,
-            transform=ws_wd_transform,
             cache_kwargs={'cache_pattern': val_cache_pattern,
-                          'chunks': {'U_100m': (20, 10, 10),
-                                     'V_100m': (20, 10, 10)}},
+                          'chunks': {'U_100m': (50, 20, 20),
+                                     'V_100m': (50, 20, 20)}},
         )
 
         train_files = [
-            train_cache_pattern.format(feature=f) for f in extract_features
+            train_cache_pattern.format(feature=f) for f in derive_features
         ]
         val_files = [
-            val_cache_pattern.format(feature=f) for f in extract_features
+            val_cache_pattern.format(feature=f) for f in derive_features
         ]
 
         # init training data sampler
         train_sampler = Sampler(
-            LoaderH5(train_files, features=extract_features),
+            LoaderH5(train_files, features=derive_features),
             sample_shape=(18, 18, 16),
-            feature_sets={'features': extract_features},
+            feature_sets={'features': derive_features},
         )
 
         # init val data sampler
         val_sampler = Sampler(
-            LoaderH5(val_files, features=extract_features),
+            LoaderH5(val_files, features=derive_features),
             sample_shape=(18, 18, 16),
-            feature_sets={'features': extract_features},
+            feature_sets={'features': derive_features},
         )
 
         means_file = os.path.join(td, 'means.json')
@@ -103,11 +92,11 @@ def test_end_to_end():
             means_file=means_file,
             stds_file=stds_file,
         )
-        batcher = BatchQueueWithValidation(
-            [train_sampler],
-            [val_sampler],
-            n_batches=5,
-            batch_size=100,
+        batcher = BatchQueue(
+            train_containers=[train_sampler],
+            val_containers=[val_sampler],
+            n_batches=3,
+            batch_size=10,
             s_enhance=3,
             t_enhance=4,
             means=means_file,
@@ -125,7 +114,7 @@ def test_end_to_end():
         model.train(
             batcher,
             input_resolution={'spatial': '30km', 'temporal': '60min'},
-            n_epoch=5,
+            n_epoch=3,
             weight_gen_advers=0.01,
             train_gen=True,
             train_disc=True,
@@ -135,21 +124,5 @@ def test_end_to_end():
         batcher.stop()
 
 
-def execute_pytest(capture='all', flags='-rapP'):
-    """Execute module as pytest with detailed summary report.
-
-    Parameters
-    ----------
-    capture : str
-        Log or stdout/stderr capture option. ex: log (only logger),
-        all (includes stdout/stderr)
-    flags : str
-        Which tests to show logs and results for.
-    """
-
-    fname = os.path.basename(__file__)
-    pytest.main(['-q', '--show-capture={}'.format(capture), fname, flags])
-
-
 if __name__ == '__main__':
-    execute_pytest()
+    execute_pytest(__file__)

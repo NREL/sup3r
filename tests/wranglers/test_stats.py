@@ -5,11 +5,11 @@ import os
 from tempfile import TemporaryDirectory
 
 import numpy as np
-import pytest
 from rex import safe_json_load
 
 from sup3r import TEST_DATA_DIR
 from sup3r.containers import LoaderH5, StatsCollection, WranglerH5
+from sup3r.utilities.pytest.helpers import execute_pytest
 
 input_files = [
     os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5'),
@@ -69,22 +69,6 @@ def test_stats_calc():
 
         assert means == stats.means
         assert stds == stats.stds
-
-
-def execute_pytest(capture='all', flags='-rapP'):
-    """Execute module as pytest with detailed summary report.
-
-    Parameters
-    ----------
-    capture : str
-        Log or stdout/stderr capture option. ex: log (only logger),
-        all (includes stdout/stderr)
-    flags : str
-        Which tests to show logs and results for.
-    """
-
-    fname = os.path.basename(__file__)
-    pytest.main(['-q', '--show-capture={}'.format(capture), fname, flags])
 
 
 if __name__ == '__main__':

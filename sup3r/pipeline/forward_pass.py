@@ -1117,8 +1117,8 @@ class ForwardPass:
         Returns
         -------
         exo_data : ExoData
-            class:`ExoData` object composed of multiple
-            class:`SingleExoDataStep` objects.
+           :class:`ExoData` object composed of multiple
+           :class:`SingleExoDataStep` objects.
         """
         data = {}
         exo_data = None

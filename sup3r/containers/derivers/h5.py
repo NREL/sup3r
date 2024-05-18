@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class DeriverH5(Deriver):
     """Container subclass with additional methods for transforming / deriving
-    data exposed through an class:`Extracter` object. Specifically for H5 data
+    data exposed through an :class:`Extracter` object. Specifically for H5 data
     """
 
     FEATURE_REGISTRY = RegistryH5

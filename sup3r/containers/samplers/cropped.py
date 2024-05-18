@@ -19,13 +19,16 @@ class CroppedSampler(Sampler):
 
     def __init__(
         self,
-        data,
+        container,
         sample_shape,
-        feature_sets,
+        feature_sets=None,
         crop_slice=slice(None),
     ):
         super().__init__(
-            data=data, sample_shape=sample_shape, feature_sets=feature_sets)
+            container=container,
+            sample_shape=sample_shape,
+            feature_sets=feature_sets,
+        )
 
         self.crop_slice = crop_slice
 
@@ -52,9 +55,11 @@ class CroppedSampler(Sampler):
         """Check if crop_slice limits the sampling region to fewer time steps
         than sample_shape[2]"""
         cropped_indices = np.arange(self.shape[2])[self.crop_slice]
-        msg = (f'Cropped region has {len(cropped_indices)} but requested '
-               f'sample_shape is {self.sample_shape}. Use a smaller '
-               'sample_shape[2] or larger crop_slice.')
+        msg = (
+            f'Cropped region has {len(cropped_indices)} but requested '
+            f'sample_shape is {self.sample_shape}. Use a smaller '
+            'sample_shape[2] or larger crop_slice.'
+        )
         if len(cropped_indices) < self.sample_shape[2]:
             logger.warning(msg)
             warn(msg)

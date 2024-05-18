@@ -9,8 +9,8 @@ import xarray as xr
 from rex import Resource, init_logger
 
 from sup3r import TEST_DATA_DIR
-from sup3r.containers.extracters import ExtracterH5, ExtracterNC
-from sup3r.containers.loaders import LoaderH5, LoaderNC
+from sup3r.containers import ExtracterH5, ExtracterNC, LoaderH5, LoaderNC
+from sup3r.utilities.pytest.helpers import execute_pytest
 
 h5_files = [
     os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5'),
@@ -91,22 +91,6 @@ def test_topography_h5():
         topo = topo.reshape((ri.shape[0], ri.shape[1]))
         topo_idx = extracter.features.index('elevation')
     assert np.allclose(topo, extracter.data[..., 0, topo_idx])
-
-
-def execute_pytest(capture='all', flags='-rapP'):
-    """Execute module as pytest with detailed summary report.
-
-    Parameters
-    ----------
-    capture : str
-        Log or stdout/stderr capture option. ex: log (only logger),
-        all (includes stdout/stderr)
-    flags : str
-        Which tests to show logs and results for.
-    """
-
-    fname = os.path.basename(__file__)
-    pytest.main(['-q', '--show-capture={}'.format(capture), fname, flags])
 
 
 if __name__ == '__main__':

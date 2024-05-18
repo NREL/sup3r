@@ -1,6 +1,6 @@
 """Sup3r Batch Handling module."""
 
-from .conditional_moments import (
+from .conditional import (
     BatchHandlerMom1,
     BatchHandlerMom1SF,
     BatchHandlerMom2,
@@ -14,4 +14,3 @@ from .conditional_moments import (
     BatchMom2SepSF,
     BatchMom2SF,
 )
-from .dual import DualBatchHandler

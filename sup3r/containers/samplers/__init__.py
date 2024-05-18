@@ -1,5 +1,6 @@
 """Container subclass with methods for sampling contained data."""
 
-from .base import Sampler, SamplerCollection, SamplerPair
+from .base import Sampler
 from .cropped import CroppedSampler
 from .dc import DataCentricSampler
+from .pair import SamplerPair

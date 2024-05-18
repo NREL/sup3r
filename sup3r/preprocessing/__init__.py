@@ -13,7 +13,6 @@ from .batch_handling import (
     BatchMom2Sep,
     BatchMom2SepSF,
     BatchMom2SF,
-    DualBatchHandler,
 )
 from .data_handling import (
     DataHandlerH5,

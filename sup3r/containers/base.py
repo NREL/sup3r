@@ -4,9 +4,8 @@ containers."""
 
 import copy
 import logging
-from typing import Self, Tuple
+from typing import Self
 
-import dask.array
 import numpy as np
 
 from sup3r.containers.abstract import AbstractContainer
@@ -27,7 +26,7 @@ class Container(AbstractContainer):
         self._shape = self.container.shape
 
     @property
-    def data(self) -> dask.array:
+    def data(self):
         """Returns the contained data."""
         return self._data
 
@@ -100,26 +99,13 @@ class ContainerPair(Container):
     def __init__(self, lr_container: Container, hr_container: Container):
         self.lr_container = lr_container
         self.hr_container = hr_container
-
-    @property
-    def data(self) -> Tuple[dask.array, dask.array]:
-        """Raw data."""
-        return (self.lr_container.data, self.hr_container.data)
-
-    @property
-    def shape(self) -> Tuple[tuple, tuple]:
-        """Shape of raw data"""
-        return (self.lr_container.shape, self.hr_container.shape)
+        self.data = (self.lr_container.data, self.hr_container.data)
+        self.shape = (self.lr_container.shape, self.hr_container.shape)
+        feats = list(copy.deepcopy(self.lr_container.features))
+        feats += [fn for fn in self.hr_container.features if fn not in feats]
+        self.features = feats
 
     def __getitem__(self, keys):
         """Method for accessing self.data."""
         lr_key, hr_key = keys
         return (self.lr_container[lr_key], self.hr_container[hr_key])
-
-    @property
-    def features(self):
-        """Get a list of data features including features from both the lr and
-        hr data handlers"""
-        out = list(copy.deepcopy(self.lr_container.features))
-        out += [fn for fn in self.hr_container.features if fn not in out]
-        return out

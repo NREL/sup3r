@@ -51,7 +51,7 @@ class Loader(AbstractLoader):
             self._res = self._get_res()
         return self._res
 
-    def load(self) -> dask.array:
+    def load(self):
         """Dask array with features in last dimension. Either lazily loaded
         (mode = 'lazy') or loaded into memory right away (mode = 'eager').
 
@@ -62,7 +62,8 @@ class Loader(AbstractLoader):
         """
         data = dask.array.stack(
             [
-                dask.array.from_array(self.res[f], chunks=self.chunks)
+                dask.array.from_array(self.get(f), chunks=self.chunks)
+                / self.scale_factor(f)
                 for f in self.features
             ],
             axis=-1,
