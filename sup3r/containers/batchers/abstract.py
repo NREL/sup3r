@@ -10,7 +10,8 @@ import numpy as np
 import tensorflow as tf
 from rex import safe_json_load
 
-from sup3r.containers.samplers.base import Sampler, SamplerCollection
+from sup3r.containers.collections.samplers import SamplerCollection
+from sup3r.containers.samplers import Sampler, SamplerPair
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +51,7 @@ class AbstractBatchQueue(SamplerCollection, ABC):
 
     def __init__(
         self,
-        containers: List[Sampler],
+        containers: Union[List[Sampler], List[SamplerPair]],
         batch_size,
         n_batches,
         s_enhance,
@@ -99,10 +100,8 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         )
         self._sample_counter = 0
         self._batch_counter = 0
-        self._data = None
         self._batches = None
         self._stopped = threading.Event()
-        self.val_data = []
         self.means = (
             means if isinstance(means, dict) else safe_json_load(means)
         )
@@ -111,13 +110,16 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         self.batch_size = batch_size
         self.n_batches = n_batches
         self.queue_cap = queue_cap or n_batches
-        self.queue_thread = threading.Thread(target=self.enqueue_batches)
+        self.queue_thread = threading.Thread(
+            target=self.enqueue_batches, args=(self._stopped,)
+        )
         self.queue = self.get_queue()
         self.max_workers = max_workers or batch_size
         self.gpu_list = tf.config.list_physical_devices('GPU')
         self.default_device = default_device or (
             '/cpu:0' if len(self.gpu_list) == 0 else '/gpu:0'
         )
+        self.data = self.get_data_generator()
         self.check_stats()
         self.check_features()
         self.check_enhancement_factors()
@@ -143,8 +145,10 @@ class AbstractBatchQueue(SamplerCollection, ABC):
 
     def check_enhancement_factors(self):
         """Make sure the enhancement factors evenly divide the sample_shape."""
-        msg = (f'The sample_shape {self.sample_shape} is not consistent with '
-               f'the enhancement factors ({self.s_enhance, self.t_enhance}).')
+        msg = (
+            f'The sample_shape {self.sample_shape} is not consistent with '
+            f'the enhancement factors ({self.s_enhance, self.t_enhance}).'
+        )
         assert all(
             samp % enhance == 0
             for samp, enhance in zip(
@@ -176,14 +180,11 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         Otherwise we are just getting high res batches and coarsening to get
         the corresponding low res batches."""
 
-    @property
-    def data(self):
+    def get_data_generator(self):
         """Tensorflow dataset."""
-        if self._data is None:
-            self._data = tf.data.Dataset.from_generator(
-                self.generator, output_signature=self.get_output_signature()
-            )
-        return self._data
+        return tf.data.Dataset.from_generator(
+            self.generator, output_signature=self.get_output_signature()
+        )
 
     def _parallel_map(self):
         """Perform call to map function to enable parallel sampling."""
@@ -199,14 +200,18 @@ class AbstractBatchQueue(SamplerCollection, ABC):
 
     def prefetch(self):
         """Prefetch set of batches from dataset generator."""
-        logger.info(
+        logger.debug(
             f'Prefetching {self.queue.name} batches with '
             f'batch_size = {self.batch_size}.'
         )
         with tf.device(self.default_device):
             data = self._parallel_map()
-            data = data.prefetch(tf.data.experimental.AUTOTUNE)
-            batches = data.batch(self.batch_size)
+            data = data.prefetch(tf.data.AUTOTUNE)
+            batches = data.batch(
+                self.batch_size,
+                drop_remainder=True,
+                deterministic=False,
+                num_parallel_calls=tf.data.AUTOTUNE)
         return batches.as_numpy_iterator()
 
     def _get_queue_shape(self) -> List[tuple]:
@@ -231,6 +236,8 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         tensorflow.queue.FIFOQueue
             First in first out queue with `size = self.queue_cap`
         """
+        if self._stopped.is_set():
+            self._stopped.clear()
         shapes = self._get_queue_shape()
         dtypes = [tf.float32] * len(shapes)
         out = tf.queue.FIFOQueue(
@@ -253,17 +260,18 @@ class AbstractBatchQueue(SamplerCollection, ABC):
 
     def start(self) -> None:
         """Start thread to keep sample queue full for batches."""
-        logger.info(f'Running {self.__class__.__name__}.queue_thread.start()')
+        logger.info(f'Starting {self.queue.name} queue.')
         self._stopped.clear()
         self.queue_thread.start()
 
     def join(self) -> None:
         """Join thread to exit gracefully."""
-        logger.info(f'Running {self.__class__.__name__}.queue_thread.join()')
+        logger.info(f'Joining {self.queue.name} queue thread to main thread.')
         self.queue_thread.join()
 
     def stop(self) -> None:
         """Stop loading batches."""
+        logger.info(f'Stopping {self.queue.name} queue.')
         self._stopped.set()
         self.join()
 
@@ -274,19 +282,22 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         self._batch_counter = 0
         return self
 
-    def enqueue_batches(self) -> None:
+    def enqueue_batches(self, stopped) -> None:
         """Callback function for queue thread. While training the queue is
         checked for empty spots and filled. In the training thread, batches are
         removed from the queue."""
-        while not self._stopped.is_set():
+        while not stopped.is_set():
             queue_size = self.queue.size().numpy()
             if queue_size < self.queue_cap:
                 if queue_size == 1:
                     msg = f'1 batch in {self.queue.name} queue'
                 else:
                     msg = f'{queue_size} batches in {self.queue.name} queue.'
-                logger.info(msg)
-                self.queue.enqueue(next(self.batches))
+                logger.debug(msg)
+
+                batch = next(self.batches, None)
+                if batch is not None:
+                    self.queue.enqueue(batch)
 
     def get_next(self) -> Batch:
         """Get next batch. This removes sets of samples from the queue and
@@ -313,13 +324,13 @@ class AbstractBatchQueue(SamplerCollection, ABC):
             Batch object with batch.low_res and batch.high_res attributes
         """
         if self._batch_counter < self.n_batches:
-            logger.info(
+            logger.debug(
                 f'Getting next {self.queue.name} batch: '
                 f'{self._batch_counter + 1} / {self.n_batches}.'
             )
             start = time.time()
             batch = self.get_next()
-            logger.info(
+            logger.debug(
                 f'Built {self.queue.name} batch in ' f'{time.time() - start}.'
             )
             self._batch_counter += 1

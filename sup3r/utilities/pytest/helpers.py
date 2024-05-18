@@ -4,12 +4,29 @@ import os
 
 import dask.array as da
 import numpy as np
+import pytest
 import xarray as xr
 
 from sup3r.containers.abstract import AbstractContainer
 from sup3r.containers.samplers import CroppedSampler, Sampler
 from sup3r.postprocessing.file_handling import OutputHandlerH5
 from sup3r.utilities.utilities import pd_date_range
+
+
+def execute_pytest(fname, capture='all', flags='-rapP'):
+    """Execute module as pytest with detailed summary report.
+
+    Parameters
+    ----------
+    fname : str
+        test file to run
+    capture : str
+        Log or stdout/stderr capture option. ex: log (only logger),
+        all (includes stdout/stderr)
+    flags : str
+        Which tests to show logs and results for.
+    """
+    pytest.main(['-q', '--show-capture={}'.format(capture), fname, flags])
 
 
 class DummyData(AbstractContainer):
@@ -19,6 +36,7 @@ class DummyData(AbstractContainer):
         super().__init__()
         self.data = da.random.random(size=(*data_shape, len(features)))
         self.shape = data_shape
+        self.features = features
 
     def __getitem__(self, key):
         return self.data[key]
@@ -27,20 +45,28 @@ class DummyData(AbstractContainer):
 class DummySampler(Sampler):
     """Dummy container with random data."""
 
-    def __init__(self, sample_shape, data_shape, features):
+    def __init__(self, sample_shape, data_shape, features, feature_sets=None):
         data = DummyData(data_shape=data_shape, features=features)
-        super().__init__(data, sample_shape, features=features)
+        super().__init__(data, sample_shape, feature_sets=feature_sets)
 
 
 class DummyCroppedSampler(CroppedSampler):
     """Dummy container with random data."""
 
     def __init__(
-        self, sample_shape, data_shape, features, crop_slice=slice(None)
+        self,
+        sample_shape,
+        data_shape,
+        features,
+        feature_sets=None,
+        crop_slice=slice(None),
     ):
         data = DummyData(data_shape=data_shape, features=features)
         super().__init__(
-            data, sample_shape, features=features, crop_slice=crop_slice
+            data,
+            sample_shape,
+            feature_sets=feature_sets,
+            crop_slice=crop_slice,
         )
 
 

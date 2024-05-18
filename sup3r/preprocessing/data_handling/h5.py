@@ -25,7 +25,8 @@ class DataHandlerH5(WranglerH5):
     def __init__(
         self,
         file_paths,
-        features,
+        extract_features,
+        derive_features,
         res_kwargs,
         chunks='auto',
         mode='lazy',
@@ -39,18 +40,18 @@ class DataHandlerH5(WranglerH5):
     ):
         loader = LoaderH5(
             file_paths,
-            features,
+            extract_features,
             res_kwargs=res_kwargs,
             chunks=chunks,
             mode=mode,
         )
         super().__init__(
             loader,
-            features,
+            derive_features,
             target=target,
             shape=shape,
-            raster_file=raster_file,
             time_slice=time_slice,
+            raster_file=raster_file,
             max_delta=max_delta,
             transform=transform,
             cache_kwargs=cache_kwargs,

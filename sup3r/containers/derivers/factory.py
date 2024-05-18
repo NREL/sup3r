@@ -28,7 +28,7 @@ class DerivedFeature(ABC):
     @abstractmethod
     def compute(cls, container: Extracter, **kwargs):
         """Compute method for derived feature. This can use any of the features
-        contained in the class:`Extracter` data and the attributes (e.g.
+        contained in the :class:`Extracter` data and the attributes (e.g.
         `.lat_lon`, `.time_index`). To access the data contained in the
         extracter just use the feature name. e.g. container['windspeed_100m'].
         This will also work for attributes e.g. container['lat_lon'].
@@ -37,7 +37,7 @@ class DerivedFeature(ABC):
         ----------
         container : Extracter
             Extracter type container. This has been initialized on a
-            class:`Loader` object and extracted a specific spatiotemporal
+            :class:`Loader` object and extracted a specific spatiotemporal
             extent for the features contained in the loader. These features are
             exposed through a `__getitem__` method such that container[feature]
             will return the feature data for the specified extent.

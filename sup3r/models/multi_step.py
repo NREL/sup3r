@@ -172,7 +172,7 @@ class MultiStepGan(AbstractInterface):
            Flag to un-normalize synthetically generated output data to physical
            units
         exogenous_data : ExoData
-            class:`ExoData` object, which is a special dictionary containing
+           :class:`ExoData` object, which is a special dictionary containing
             exogenous data for each model step and info about how to use the
             data at each step.
 
@@ -582,7 +582,7 @@ class SolarMultiStepGan(MultiStepGan):
            Flag to un-normalize synthetically generated output data to physical
            units
         exogenous_data : ExoData
-            class:`ExoData` object with data arrays for each exogenous data
+           :class:`ExoData` object with data arrays for each exogenous data
             step. Each array has 3D or 4D shape:
             (spatial_1, spatial_2, n_features)
             (temporal, spatial_1, spatial_2, n_features)

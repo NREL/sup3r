@@ -13,9 +13,6 @@ from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing import (
     DataHandlerH5,
     DataHandlerNC,
-    DualBatchHandler,
-    DualDataHandler,
-    SpatialDualBatchHandler,
 )
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')

@@ -1,17 +1,20 @@
 """Smoke tests for batcher objects. Just make sure things run without errors"""
 
-import os
-
 import pytest
 from rex import init_logger
 
 from sup3r.containers import (
     BatchQueue,
-    BatchQueueWithValidation,
+    ContainerPair,
     PairBatchQueue,
     SamplerPair,
 )
-from sup3r.utilities.pytest.helpers import DummyCroppedSampler, DummySampler
+from sup3r.utilities.pytest.helpers import (
+    DummyCroppedSampler,
+    DummyData,
+    DummySampler,
+    execute_pytest,
+)
 
 init_logger('sup3r', log_level='DEBUG')
 
@@ -35,7 +38,7 @@ def test_not_enough_stats_for_batch_queue():
 
     with pytest.raises(AssertionError):
         _ = BatchQueue(
-            containers=samplers,
+            train_containers=samplers,
             n_batches=3,
             batch_size=4,
             s_enhance=2,
@@ -58,7 +61,7 @@ def test_batch_queue():
     ]
     coarsen_kwargs = {'smoothing_ignore': [], 'smoothing': None}
     batcher = BatchQueue(
-        containers=samplers,
+        train_containers=samplers,
         n_batches=3,
         batch_size=4,
         s_enhance=2,
@@ -92,7 +95,7 @@ def test_spatial_batch_queue():
         DummySampler(sample_shape, data_shape=(12, 12, 15), features=FEATURES),
     ]
     batcher = BatchQueue(
-        containers=samplers,
+        train_containers=samplers,
         s_enhance=s_enhance,
         t_enhance=t_enhance,
         n_batches=n_batches,
@@ -120,36 +123,34 @@ def test_pair_batch_queue():
     """Smoke test for paired batch queue."""
     lr_sample_shape = (4, 4, 5)
     hr_sample_shape = (8, 8, 10)
-    lr_samplers = [
-        DummySampler(
-            sample_shape=lr_sample_shape,
+    lr_containers = [
+        DummyData(
             data_shape=(10, 10, 20),
             features=FEATURES,
         ),
-        DummySampler(
-            sample_shape=lr_sample_shape,
+        DummyData(
             data_shape=(12, 12, 15),
             features=FEATURES,
         ),
     ]
-    hr_samplers = [
-        DummySampler(
-            sample_shape=hr_sample_shape,
+    hr_containers = [
+        DummyData(
             data_shape=(20, 20, 40),
             features=FEATURES,
         ),
-        DummySampler(
-            sample_shape=hr_sample_shape,
+        DummyData(
             data_shape=(24, 24, 30),
             features=FEATURES,
         ),
     ]
     sampler_pairs = [
-        SamplerPair(lr, hr, s_enhance=2, t_enhance=2)
-        for lr, hr in zip(lr_samplers, hr_samplers)
+        SamplerPair(
+            ContainerPair(lr, hr), hr_sample_shape, s_enhance=2, t_enhance=2
+        )
+        for lr, hr in zip(lr_containers, hr_containers)
     ]
     batcher = PairBatchQueue(
-        containers=sampler_pairs,
+        train_containers=sampler_pairs,
         s_enhance=2,
         t_enhance=2,
         n_batches=3,
@@ -171,39 +172,42 @@ def test_pair_batch_queue_with_lr_only_features():
     """Smoke test for paired batch queue with an extra lr_only_feature."""
     lr_sample_shape = (4, 4, 5)
     hr_sample_shape = (8, 8, 10)
-    lr_features = ['dummy_lr_feat', *FEATURES]
-    lr_samplers = [
-        DummySampler(
-            sample_shape=lr_sample_shape,
+    lr_only_features = ['dummy_lr_feat']
+    lr_features = [*lr_only_features, *FEATURES]
+    lr_containers = [
+        DummyData(
             data_shape=(10, 10, 20),
             features=lr_features,
         ),
-        DummySampler(
-            sample_shape=lr_sample_shape,
+        DummyData(
             data_shape=(12, 12, 15),
             features=lr_features,
         ),
     ]
-    hr_samplers = [
-        DummySampler(
-            sample_shape=hr_sample_shape,
+    hr_containers = [
+        DummyData(
             data_shape=(20, 20, 40),
             features=FEATURES,
         ),
-        DummySampler(
-            sample_shape=hr_sample_shape,
+        DummyData(
             data_shape=(24, 24, 30),
             features=FEATURES,
         ),
     ]
     sampler_pairs = [
-        SamplerPair(lr, hr, s_enhance=2, t_enhance=2)
-        for lr, hr in zip(lr_samplers, hr_samplers)
+        SamplerPair(
+            ContainerPair(lr, hr),
+            hr_sample_shape,
+            s_enhance=2,
+            t_enhance=2,
+            feature_sets={'lr_only_features': lr_only_features},
+        )
+        for lr, hr in zip(lr_containers, hr_containers)
     ]
     means = dict.fromkeys(lr_features, 0)
     stds = dict.fromkeys(lr_features, 1)
     batcher = PairBatchQueue(
-        containers=sampler_pairs,
+        train_containers=sampler_pairs,
         s_enhance=2,
         t_enhance=2,
         n_batches=3,
@@ -225,32 +229,40 @@ def test_bad_enhancement_factors():
     """Failure when enhancement factors given to BatchQueue do not match those
     given to the contained SamplerPairs, and when those given to SamplerPair
     are not consistent with the low / high res shapes."""
-
-    lr_samplers = [
-        DummySampler(
-            sample_shape=(4, 4, 5), data_shape=(10, 10, 20), features=FEATURES
+    hr_sample_shape = (8, 8, 10)
+    lr_containers = [
+        DummyData(
+            data_shape=(10, 10, 20),
+            features=FEATURES,
         ),
-        DummySampler(
-            sample_shape=(4, 4, 5), data_shape=(12, 12, 15), features=FEATURES
-        ),
-    ]
-    hr_samplers = [
-        DummySampler(
-            sample_shape=(8, 8, 10), data_shape=(20, 20, 40), features=FEATURES
-        ),
-        DummySampler(
-            sample_shape=(8, 8, 10), data_shape=(24, 24, 30), features=FEATURES
+        DummyData(
+            data_shape=(12, 12, 15),
+            features=FEATURES,
         ),
     ]
-
+    hr_containers = [
+        DummyData(
+            data_shape=(20, 20, 40),
+            features=FEATURES,
+        ),
+        DummyData(
+            data_shape=(24, 24, 30),
+            features=FEATURES,
+        ),
+    ]
     for s_enhance, t_enhance in zip([2, 4], [2, 6]):
         with pytest.raises(AssertionError):
             sampler_pairs = [
-                SamplerPair(lr, hr, s_enhance=s_enhance, t_enhance=t_enhance)
-                for lr, hr in zip(lr_samplers, hr_samplers)
+                SamplerPair(
+                    ContainerPair(lr, hr),
+                    hr_sample_shape,
+                    s_enhance=s_enhance,
+                    t_enhance=t_enhance,
+                )
+                for lr, hr in zip(lr_containers, hr_containers)
             ]
             _ = PairBatchQueue(
-                containers=sampler_pairs,
+                train_containers=sampler_pairs,
                 s_enhance=4,
                 t_enhance=6,
                 n_batches=3,
@@ -277,7 +289,7 @@ def test_bad_sample_shapes():
 
     with pytest.raises(AssertionError):
         _ = BatchQueue(
-            containers=samplers,
+            train_containers=samplers,
             s_enhance=4,
             t_enhance=6,
             n_batches=3,
@@ -305,7 +317,7 @@ def test_split_batch_queue():
         crop_slice=slice(90, 100),
     )
     coarsen_kwargs = {'smoothing_ignore': [], 'smoothing': None}
-    batcher = BatchQueueWithValidation(
+    batcher = BatchQueue(
         train_containers=[train_sampler],
         val_containers=[val_sampler],
         batch_size=4,
@@ -332,21 +344,5 @@ def test_split_batch_queue():
     batcher.stop()
 
 
-def execute_pytest(capture='all', flags='-rapP'):
-    """Execute module as pytest with detailed summary report.
-
-    Parameters
-    ----------
-    capture : str
-        Log or stdout/stderr capture option. ex: log (only logger),
-        all (includes stdout/stderr)
-    flags : str
-        Which tests to show logs and results for.
-    """
-
-    fname = os.path.basename(__file__)
-    pytest.main(['-q', '--show-capture={}'.format(capture), fname, flags])
-
-
 if __name__ == '__main__':
-    execute_pytest()
+    execute_pytest(__file__)

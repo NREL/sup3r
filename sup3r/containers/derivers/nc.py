@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class DeriverNC(Deriver):
     """Container subclass with additional methods for transforming / deriving
-    data exposed through an class:`Extracter` object. Specifically for NETCDF
+    data exposed through an :class:`Extracter` object. Specifically for NETCDF
     data"""
 
     FEATURE_REGISTRY = RegistryNC

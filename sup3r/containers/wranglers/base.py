@@ -5,7 +5,6 @@ import logging
 
 import numpy as np
 
-from sup3r.containers.base import Container
 from sup3r.containers.cachers import Cacher
 from sup3r.containers.derivers import DeriverH5, DeriverNC
 from sup3r.containers.extracters import ExtracterH5, ExtracterNC
@@ -16,7 +15,7 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
-class WranglerH5(Container):
+class WranglerH5(DeriverH5):
     """Wrangler subclass for H5 files specifically."""
 
     def __init__(
@@ -63,13 +62,13 @@ class WranglerH5(Container):
             non-regular grids that curve over large distances.
         transform : function
             Optional operation on extracter data. For example, if you want to
-            derive U/V and you used the class:`Extracter` to expose
+            derive U/V and you used the :class:`Extracter` to expose
             windspeed/direction, provide a function that operates on
             windspeed/direction and returns U/V. The final `.data` attribute
             will be the output of this function.
 
             Note: This function needs to include a `self` argument. This
-            enables access to the members of the class:`Deriver` instance. For
+            enables access to the members of the :class:`Deriver` instance. For
             example::
 
                 def transform_ws_wd(self, data: Container):
@@ -100,13 +99,13 @@ class WranglerH5(Container):
             raster_file=raster_file,
             max_delta=max_delta,
         )
-        deriver = DeriverH5(extracter, features=features, transform=transform)
+        super().__init__(extracter, features=features, transform=transform)
 
         if cache_kwargs is not None:
-            Cacher(deriver, cache_kwargs)
+            Cacher(self, cache_kwargs)
 
 
-class WranglerNC(Container):
+class WranglerNC(DeriverNC):
     """Wrangler subclass for NETCDF files specifically."""
 
     def __init__(
@@ -139,13 +138,13 @@ class WranglerNC(Container):
             the full time dimension is selected.
         transform : function
             Optional operation on extracter data. For example, if you want to
-            derive U/V and you used the class:`Extracter` to expose
+            derive U/V and you used the :class:`Extracter` to expose
             windspeed/direction, provide a function that operates on
             windspeed/direction and returns U/V. The final `.data` attribute
             will be the output of this function.
 
             Note: This function needs to include a `self` argument. This
-            enables access to the members of the class:`Deriver` instance. For
+            enables access to the members of the :class:`Deriver` instance. For
             example::
 
                 def transform_ws_wd(self, data: Container):
@@ -174,7 +173,7 @@ class WranglerNC(Container):
             shape=shape,
             time_slice=time_slice,
         )
-        deriver = DeriverNC(extracter, features=features, transform=transform)
+        super().__init__(extracter, features=features, transform=transform)
 
         if cache_kwargs is not None:
-            Cacher(deriver, cache_kwargs)
+            Cacher(self, cache_kwargs)

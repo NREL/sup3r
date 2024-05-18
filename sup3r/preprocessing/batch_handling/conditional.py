@@ -8,10 +8,9 @@ from datetime import datetime as dt
 import numpy as np
 from rex.utilities import log_mem
 
+from sup3r.containers.batchers.abstract import Batch
 from sup3r.preprocessing.batch_handling.base import (
-    Batch,
     BatchHandler,
-    ValidationData,
 )
 from sup3r.utilities.utilities import (
     smooth_data,
@@ -606,7 +605,7 @@ class BatchMom2SepSF(BatchMom1SF):
         )
 
 
-class ValidationDataMom1(ValidationData):
+class ValidationDataMom1:
     """Iterator for validation data"""
 
     # Classes to use for handling an individual batch obj.
@@ -979,8 +978,7 @@ class BatchHandlerMom1(BatchHandler):
 
             self._i += 1
             return batch
-        else:
-            raise StopIteration
+        raise StopIteration
 
 
 class SpatialBatchHandlerMom1(BatchHandlerMom1):
@@ -1017,8 +1015,7 @@ class SpatialBatchHandlerMom1(BatchHandlerMom1):
 
             self._i += 1
             return batch
-        else:
-            raise StopIteration
+        raise StopIteration
 
 
 class ValidationDataMom1SF(ValidationDataMom1):

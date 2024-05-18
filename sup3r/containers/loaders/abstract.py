@@ -3,7 +3,6 @@ can be loaded lazily or eagerly."""
 
 from abc import ABC, abstractmethod
 
-import dask.array
 import numpy as np
 
 from sup3r.containers.abstract import AbstractContainer
@@ -50,6 +49,16 @@ class AbstractLoader(AbstractContainer, ABC):
     def _get_res(self):
         """Get lowest level file interface."""
 
+    @abstractmethod
+    def get(self, feature):
+        """Method for retrieving features for `.res`. This can depend on the
+        specific methods / attributes of `.res`"""
+
+    @abstractmethod
+    def scale_factor(self, feature):
+        """Return scale factor for the given feature if the data is stored in
+        scaled format."""
+
     def __enter__(self):
         return self
 
@@ -87,5 +96,5 @@ class AbstractLoader(AbstractContainer, ABC):
         assert file_paths is not None and len(self._file_paths) > 0, msg
 
     @abstractmethod
-    def load(self) -> dask.array:
+    def load(self):
         """Get data using provided file_paths."""

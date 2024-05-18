@@ -5,11 +5,10 @@ information about how different features are used by models."""
 import logging
 from abc import ABC, abstractmethod
 from fnmatch import fnmatch
-from typing import Dict, List, Tuple
+from typing import Dict, Optional, Tuple
 from warnings import warn
 
 from sup3r.containers.base import Container
-from sup3r.containers.collections.base import Collection
 
 logger = logging.getLogger(__name__)
 
@@ -17,36 +16,37 @@ logger = logging.getLogger(__name__)
 class AbstractSampler(Container, ABC):
     """Sampler class for iterating through contained things."""
 
-    def __init__(self, container, sample_shape, feature_sets: Dict):
+    def __init__(self, container, sample_shape,
+                 feature_sets: Optional[Dict] = None):
         """
         Parameters
         ----------
-        data : Container
+        container : Container
             Object with data that will be sampled from.
         sample_shape : tuple
             Size of arrays to sample from the contained data.
-        feature_sets : dict
-            Dictionary of feature sets. This must include a 'features' entry
-            and optionally can include 'lr_only_features' and/or
-            'hr_only_features'
+        feature_sets : Optional[dict]
+            Optional dictionary describing how the full set of features is
+            split between `lr_only_features` and `hr_exo_features`.
 
-            The allowed keys are:
-                lr_only_features : list | tuple
-                    List of feature names or patt*erns that should only be
-                    included in the low-res training set and not the high-res
-                    observations.
-                hr_exo_features : list | tuple
-                    List of feature names or patt*erns that should be included
-                    in the high-resolution observation but not expected to be
-                    output from the generative model. An example is high-res
-                    topography that is to be injected mid-network.
+            lr_only_features : list | tuple
+                List of feature names or patt*erns that should only be
+                included in the low-res training set and not the high-res
+                observations.
+            hr_exo_features : list | tuple
+                List of feature names or patt*erns that should be included
+                in the high-resolution observation but not expected to be
+                output from the generative model. An example is high-res
+                topography that is to be injected mid-network.
         """
         super().__init__(container)
-        self._features = feature_sets['features']
+        feature_sets = feature_sets or {}
         self._lr_only_features = feature_sets.get('lr_only_features', [])
         self._hr_exo_features = feature_sets.get('hr_exo_features', [])
         self._counter = 0
         self.sample_shape = sample_shape
+        self.lr_features = self.features
+        self.hr_features = self.features
         self.preflight()
 
     @abstractmethod
@@ -100,6 +100,12 @@ class AbstractSampler(Container, ABC):
         as sample_shape"""
         return self._sample_shape
 
+    @hr_sample_shape.setter
+    def hr_sample_shape(self, hr_sample_shape):
+        """Set the sample shape to select when `get_next()` is called. Same
+        as sample_shape"""
+        self._sample_shape = hr_sample_shape
+
     def __next__(self):
         """Iterable next method"""
         return self.get_next()
@@ -137,13 +143,6 @@ class AbstractSampler(Container, ABC):
         """List of feature names or patt*erns that should only be included in
         the low-res training set and not the high-res observations."""
         return self._parse_features(self._lr_only_features)
-
-    @property
-    def lr_features(self):
-        """Get a list of low-resolution features. It is assumed that all
-        features are used in the low-resolution observations for single
-        container objects. For container pairs this is overridden."""
-        return self.features
 
     @property
     def hr_exo_features(self):
@@ -184,59 +183,3 @@ class AbstractSampler(Container, ABC):
             raise RuntimeError(msg)
 
         return out
-
-    @property
-    def hr_features(self):
-        """Same as features since this is a single data object container."""
-        return self.features
-
-
-class AbstractSamplerCollection(Collection, ABC):
-    """Abstract collection of class:`Sampler` containers with methods for
-    sampling across the containers."""
-
-    def __init__(self, containers: List[AbstractSampler], s_enhance,
-                 t_enhance):
-        super().__init__(containers)
-        self.s_enhance = s_enhance
-        self.t_enhance = t_enhance
-
-    @abstractmethod
-    def get_container_index(self) -> int:
-        """Get random container index based on weights."""
-
-    @abstractmethod
-    def get_random_container(self) -> Container:
-        """Get random container based on weights."""
-
-    def __getitem__(self, keys):
-        """Get data sample from sampled container."""
-        container = self.get_random_container()
-        return container.get_next()
-
-    @property
-    def sample_shape(self):
-        """Get shape of sample to select when sampling container collection."""
-        return self.containers[0].sample_shape
-
-    @property
-    def lr_sample_shape(self):
-        """Get shape of low resolution samples"""
-        return self.containers[0].lr_sample_shape
-
-    @property
-    def hr_sample_shape(self):
-        """Get shape of high resolution samples"""
-        return self.containers[0].hr_sample_shape
-
-    @property
-    def lr_shape(self):
-        """Shape of low resolution sample in a low-res / high-res pair.  (e.g.
-        (spatial_1, spatial_2, temporal, features)) """
-        return (*self.lr_sample_shape, len(self.lr_features))
-
-    @property
-    def hr_shape(self):
-        """Shape of high resolution sample in a low-res / high-res pair.  (e.g.
-        (spatial_1, spatial_2, temporal, features)) """
-        return (*self.hr_sample_shape, len(self.hr_features))

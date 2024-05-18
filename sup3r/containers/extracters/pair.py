@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 
 from sup3r.containers.base import ContainerPair
+from sup3r.containers.cachers import Cacher
 from sup3r.containers.extracters import Extracter
 from sup3r.utilities.regridder import Regridder
 from sup3r.utilities.utilities import nn_fill_array, spatial_coarsening
@@ -20,8 +21,8 @@ class ExtracterPair(ContainerPair):
     """Object containing Extracter objects for low and high-res containers.
     (Usually ERA5 and WTK, respectively). This essentially just regrids the
     low-res data to the coarsened high-res grid.  This is useful for caching
-    data which then can go directly to a class:`PairSampler` object for a
-    class:`PairBatchQueue`.
+    data which then can go directly to a :class:`PairSampler` object for a
+     :class:`PairBatchQueue`.
 
     Notes
     -----
@@ -42,7 +43,7 @@ class ExtracterPair(ContainerPair):
         s_enhance=1,
         t_enhance=1,
         lr_cache_kwargs=None,
-        hr_cache_kwargs=None
+        hr_cache_kwargs=None,
     ):
         """Initialize data container using hr and lr data containers for h5
         data and nc data
@@ -81,6 +82,10 @@ class ExtracterPair(ContainerPair):
         self.regrid_workers = regrid_workers
         self.lr_time_index = lr_container.time_index
         self.hr_time_index = hr_container.time_index
+        self.shape = (
+            *self.lr_required_shape,
+            len(self.lr_container.features),
+        )
         self._lr_lat_lon = None
         self._hr_lat_lon = None
         self._lr_input_data = None
@@ -89,8 +94,11 @@ class ExtracterPair(ContainerPair):
         self.update_lr_container()
         self.update_hr_container()
 
-        self.lr_container.cache_data(lr_cache_kwargs)
-        self.hr_container.cache_data(hr_cache_kwargs)
+        if lr_cache_kwargs is not None:
+            Cacher(self.lr_container, lr_cache_kwargs)
+
+        if hr_cache_kwargs is not None:
+            Cacher(self.hr_container, hr_cache_kwargs)
 
     def update_hr_container(self):
         """Set the high resolution data attribute and check if
@@ -133,11 +141,6 @@ class ExtracterPair(ContainerPair):
             self.hr_container.shape[1] // self.s_enhance,
             self.hr_container.shape[2] // self.t_enhance,
         )
-
-    @property
-    def shape(self):
-        """Get low_res shape"""
-        return (*self.lr_required_shape, len(self.lr_container.features))
 
     @property
     def hr_required_shape(self):
@@ -210,7 +213,8 @@ class ExtracterPair(ContainerPair):
             self.lr_container.data = da.stack(lr_list, axis=-1)
             self.lr_container.lat_lon = self.lr_lat_lon
             self.lr_container.time_index = self.lr_container.time_index[
-                : self.lr_required_shape[2]]
+                : self.lr_required_shape[2]
+            ]
 
         for fidx in range(self.lr_container.data.shape[-1]):
             nan_perc = (

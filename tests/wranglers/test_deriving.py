@@ -9,10 +9,16 @@ import pytest
 from rex import init_logger
 
 from sup3r import TEST_DATA_DIR
-from sup3r.containers.derivers import Deriver, DeriverNC
-from sup3r.containers.extracters import ExtracterH5, ExtracterNC
-from sup3r.containers.loaders import LoaderH5, LoaderNC
+from sup3r.containers import (
+    Deriver,
+    DeriverNC,
+    ExtracterH5,
+    ExtracterNC,
+    LoaderH5,
+    LoaderNC,
+)
 from sup3r.utilities.interpolation import Interpolator
+from sup3r.utilities.pytest.helpers import execute_pytest
 from sup3r.utilities.utilities import (
     spatial_coarsening,
     transform_rotate_wind,
@@ -145,22 +151,6 @@ def test_hr_coarsening(input_files, Loader, Extracter, shape, target):
     )
     assert extracter.lat_lon.shape == (shape[0] // 2, shape[1] // 2, 2)
     assert deriver.data.dtype == np.dtype(np.float32)
-
-
-def execute_pytest(capture='all', flags='-rapP'):
-    """Execute module as pytest with detailed summary report.
-
-    Parameters
-    ----------
-    capture : str
-        Log or stdout/stderr capture option. ex: log (only logger),
-        all (includes stdout/stderr)
-    flags : str
-        Which tests to show logs and results for.
-    """
-
-    fname = os.path.basename(__file__)
-    pytest.main(['-q', '--show-capture={}'.format(capture), fname, flags])
 
 
 if __name__ == '__main__':

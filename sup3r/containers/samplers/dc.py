@@ -5,7 +5,7 @@ import logging
 
 import numpy as np
 
-from sup3r.containers import Sampler
+from sup3r.containers.samplers.base import Sampler
 from sup3r.utilities.utilities import (
     uniform_box_sampler,
     uniform_time_sampler,

@@ -9,11 +9,9 @@ import pytest
 from rex import init_logger
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
-from sup3r.containers.batchers import BatchQueueWithValidation
-from sup3r.containers.loaders import LoaderH5
-from sup3r.containers.samplers import CroppedSampler
-from sup3r.containers.wranglers import WranglerH5
+from sup3r.containers import BatchQueue, CroppedSampler, LoaderH5, WranglerH5
 from sup3r.models import Sup3rGan
+from sup3r.utilities.pytest.helpers import execute_pytest
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)
@@ -29,11 +27,9 @@ def get_val_queue_params(container, sample_shape):
     val_slice = slice(0, split_index)
     train_slice = slice(split_index, container.data.shape[2])
     train_sampler = CroppedSampler(
-        container, sample_shape, crop_slice=train_slice, features=FEATURES
-    )
+        container, sample_shape, crop_slice=train_slice)
     val_sampler = CroppedSampler(
-        container, sample_shape, crop_slice=val_slice, features=FEATURES
-    )
+        container, sample_shape, crop_slice=val_slice)
     means = {
         FEATURES[i]: container.data[..., i].mean()
         for i in range(len(FEATURES))
@@ -75,9 +71,9 @@ def test_train_spatial(
     train_sampler, val_sampler, means, stds = get_val_queue_params(
         wrangler, sample_shape
     )
-    batcher = BatchQueueWithValidation(
-        [train_sampler],
-        [val_sampler],
+    batcher = BatchQueue(
+        train_containers=[train_sampler],
+        val_containers=[val_sampler],
         batch_size=2,
         s_enhance=2,
         t_enhance=1,
@@ -143,9 +139,9 @@ def test_train_st(
     train_sampler, val_sampler, means, stds = get_val_queue_params(
         wrangler, sample_shape
     )
-    batcher = BatchQueueWithValidation(
-        [train_sampler],
-        [val_sampler],
+    batcher = BatchQueue(
+        train_containers=[train_sampler],
+        val_containers=[val_sampler],
         batch_size=2,
         n_batches=2,
         s_enhance=3,
@@ -198,21 +194,5 @@ def test_train_st(
     batcher.stop()
 
 
-def execute_pytest(capture='all', flags='-rapP'):
-    """Execute module as pytest with detailed summary report.
-
-    Parameters
-    ----------
-    capture : str
-        Log or stdout/stderr capture option. ex: log (only logger),
-        all (includes stdout/stderr)
-    flags : str
-        Which tests to show logs and results for.
-    """
-
-    fname = os.path.basename(__file__)
-    pytest.main(['-q', '--show-capture={}'.format(capture), fname, flags])
-
-
 if __name__ == '__main__':
-    execute_pytest()
+    execute_pytest(__file__)

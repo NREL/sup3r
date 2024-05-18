@@ -5,37 +5,41 @@ batchers) are based on."""
 import inspect
 import logging
 import pprint
-from abc import ABC, abstractmethod
+from abc import ABC, ABCMeta, abstractmethod
 
 import numpy as np
 
 logger = logging.getLogger(__name__)
 
 
-class AbstractContainer(ABC):
+class _ContainerMeta(ABCMeta, type):
+
+    def __call__(cls, *args, **kwargs):
+        """Check for required attributes"""
+        obj = type.__call__(cls, *args, **kwargs)
+        obj._init_check()
+        obj._log_args(args, kwargs)
+        return obj
+
+
+class AbstractContainer(ABC, metaclass=_ContainerMeta):
     """Lowest level object. This is the thing "contained" by Container
     classes.
 
     Notes
     -----
-    class:`Container` implementation just requires: `__getitem__` method and
-    `.data`, `.shape` attributes. `.shape` is needed because class:`Container`
-    objects interface with class:`Sampler` objects, which need to know the
-    shape available for sampling."""
+    :class:`Container` implementation just requires: `__getitem__` method and
+    `.data`, `.shape`, `.features` attributes. Both `.shape` and `.features`
+    are needed because :class:`Container` objects interface with :class:`Sampler`
+    objects, which need to know the shape available for sampling and what
+    features are available if they need to be split into lr / hr feature
+    sets."""
 
-    def __new__(cls, *args, **kwargs):
-        """Run check on required attributes and log arguments."""
-        instance = super().__new__(cls)
-        cls._init_check()
-        cls._log_args(args, kwargs)
-        return instance
-
-    @classmethod
-    def _init_check(cls):
-        required = ['data', 'shape']
-        missing = [attr for attr in required if not hasattr(cls, attr)]
+    def _init_check(self):
+        required = ['data', 'shape', 'features']
+        missing = [attr for attr in required if not hasattr(self, attr)]
         if len(missing) > 0:
-            msg = f'{cls.__name__} must implement {missing}.'
+            msg = f'{self.__class__.__name__} must implement {missing}.'
             raise NotImplementedError(msg)
 
     @classmethod
