@@ -9,7 +9,7 @@ import xarray as xr
 from rex import Resource, init_logger
 
 from sup3r import TEST_DATA_DIR
-from sup3r.containers import ExtracterH5, ExtracterNC, LoaderH5, LoaderNC
+from sup3r.containers import DirectExtracterH5, DirectExtracterNC
 from sup3r.utilities.pytest.helpers import execute_pytest
 
 h5_files = [
@@ -26,7 +26,8 @@ init_logger('sup3r', log_level='DEBUG')
 def test_get_full_domain_nc():
     """Test data handling without target, shape, or raster_file input"""
 
-    extracter = ExtracterNC(LoaderNC(nc_files, features))
+    extracter = DirectExtracterNC(
+        file_paths=nc_files, features=['u_100m', 'v_100m'])
     nc_res = xr.open_mfdataset(nc_files)
     shape = (len(nc_res['latitude']), len(nc_res['longitude']))
     target = (
@@ -40,8 +41,8 @@ def test_get_full_domain_nc():
 
 def test_get_target_nc():
     """Test data handling without target or raster_file input"""
-    extracter = ExtracterNC(
-        LoaderNC(nc_files, features), shape=(4, 4)
+    extracter = DirectExtracterNC(
+        file_paths=nc_files, features=['u_100m', 'v_100m'], shape=(4, 4)
     )
     nc_res = xr.open_mfdataset(nc_files)
     target = (
@@ -54,17 +55,31 @@ def test_get_target_nc():
 
 
 @pytest.mark.parametrize(
-    ['input_files', 'Loader', 'Extracter', 'shape', 'target'],
+    ['input_files', 'Extracter', 'features', 'shape', 'target'],
     [
-        (h5_files, LoaderH5, ExtracterH5, (20, 20), (39.01, -105.15)),
-        (nc_files, LoaderNC, ExtracterNC, (10, 10), (37.25, -107)),
+        (
+            h5_files,
+            DirectExtracterH5,
+            ['windspeed_100m', 'winddirection_100m'],
+            (20, 20),
+            (39.01, -105.15),
+        ),
+        (
+            nc_files,
+            DirectExtracterNC,
+            ['u_100m', 'v_100m'],
+            (10, 10),
+            (37.25, -107),
+        ),
     ],
 )
-def test_data_extraction(input_files, Loader, Extracter, shape, target):
+def test_data_extraction(input_files, Extracter, features, shape, target):
     """Test extraction of raw features"""
-    features = ['windspeed_100m', 'winddirection_100m']
     extracter = Extracter(
-        Loader(input_files[0], features), target=target, shape=shape
+        file_paths=input_files[0],
+        features=features,
+        target=target,
+        shape=shape,
     )
     assert extracter.data.shape == (
         shape[0],
@@ -81,8 +96,9 @@ def test_topography_h5():
 
     features = ['windspeed_100m', 'elevation']
     with Resource(h5_files[0]) as res:
-        extracter = ExtracterH5(
-            LoaderH5(h5_files[0], features),
+        extracter = DirectExtracterH5(
+            file_paths=h5_files[0],
+            features=features,
             target=(39.01, -105.15),
             shape=(20, 20),
         )
@@ -94,4 +110,4 @@ def test_topography_h5():
 
 
 if __name__ == '__main__':
-    execute_pytest()
+    execute_pytest(__file__)

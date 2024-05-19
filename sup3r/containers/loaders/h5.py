@@ -26,7 +26,8 @@ class LoaderH5(Loader):
     def scale_factor(self, feature):
         """Get scale factor for given feature. Data is stored in scaled form to
         reduce memory."""
-        feat = self.get(feature)
+        feat = feature if feature in self.res else feature.lower()
+        feat = self.res.h5[feat]
         return (
             1
             if not hasattr(feat, 'attrs')
@@ -59,5 +60,9 @@ class LoaderH5(Loader):
             logger.error(msg)
             raise KeyError(msg)
 
-        data = da.moveaxis(data, 0, -1)
+        data = (
+            da.stack(data, axis=-1)
+            if isinstance(data, list)
+            else da.moveaxis(data, 0, -1)
+        )
         return data

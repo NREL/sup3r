@@ -8,3 +8,4 @@ objects."""
 from .base import Extracter
 from .h5 import ExtracterH5
 from .nc import ExtracterNC
+from .pair import ExtracterPair
