@@ -30,10 +30,10 @@ class AbstractContainer(ABC, metaclass=_ContainerMeta):
     -----
     :class:`Container` implementation just requires: `__getitem__` method and
     `.data`, `.shape`, `.features` attributes. Both `.shape` and `.features`
-    are needed because :class:`Container` objects interface with :class:`Sampler`
-    objects, which need to know the shape available for sampling and what
-    features are available if they need to be split into lr / hr feature
-    sets."""
+    are needed because :class:`Container` objects interface with
+    :class:`Sampler` objects, which need to know the shape available for
+    sampling and what features are available if they need to be split into lr /
+    hr feature sets."""
 
     def _init_check(self):
         required = ['data', 'shape', 'features']

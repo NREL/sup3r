@@ -7,12 +7,14 @@ things.
 
 If you want to extract a specific spatiotemporal extent from a data file then
 use :class:`Extracter`. If you want to split into a test and validation set
-then use :class:`Extracter` to extract different temporal extents separately. If
-you've already extracted data and written that to a file and then want to
+then use :class:`Extracter` to extract different temporal extents separately.
+If you've already extracted data and written that to a file and then want to
 sample that data for batches then use a :class:`Loader`, :class:`Sampler`, and
-class:`BatchQueue`. If you want to have training and validation batches then
-load those separate data sets, wrap the data objects in Sampler objects and
-provide these to :class:`BatchQueueWithValidation`.
+class:`SingleBatchQueue`. If you want to have training and validation batches
+then load those separate data sets, wrap the data objects in Sampler objects
+and provide these to :class:`BatchQueue`. If you want to have a BatchQueue
+containing pairs of low / high res data, rather than coarsening high-res to get
+low res then use :class:`PairBatchQueue` with :class:`SamplerPair` objects.
 """
 
 from .base import Container, ContainerPair

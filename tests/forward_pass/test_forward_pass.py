@@ -8,16 +8,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 import xarray as xr
-from helpers.utils import (
-    make_fake_multi_time_nc_files,
-    make_fake_nc_files,
-)
 from rex import ResourceX, init_logger
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR, __version__
 from sup3r.models import Sup3rGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.preprocessing import DataHandlerNC
+from sup3r.utilities.pytest.helpers import (
+    execute_pytest,
+    make_fake_multi_time_nc_files,
+    make_fake_nc_files,
+)
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)
@@ -25,7 +26,6 @@ FEATURES = ['U_100m', 'V_100m', 'BVF2_200m']
 INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
 target = (19.3, -123.5)
 shape = (8, 8)
-sample_shape = (8, 8, 6)
 time_slice = slice(None, None, 1)
 list_chunk_size = 10
 fwp_chunk_shape = (4, 4, 150)
@@ -451,7 +451,6 @@ def test_fwp_chunking(log=False, plot=False):
         handlerNC = DataHandlerNC(input_files,
                                   FEATURES,
                                   target=target,
-                                  val_split=0.0,
                                   shape=shape)
         pad_width = ((spatial_pad, spatial_pad), (spatial_pad, spatial_pad),
                      (temporal_pad, temporal_pad), (0, 0))
@@ -681,10 +680,7 @@ def test_slicing_no_pad(log=False):
         handler = DataHandlerNC(input_files,
                                 features,
                                 target=target,
-                                shape=shape,
-                                sample_shape=(1, 1, 1),
-                                val_split=0.0,
-                                worker_kwargs=dict(max_workers=1))
+                                shape=shape)
 
         input_handler_kwargs = dict(target=target,
                                     shape=shape,
@@ -743,10 +739,7 @@ def test_slicing_pad(log=False):
         handler = DataHandlerNC(input_files,
                                 features,
                                 target=target,
-                                shape=shape,
-                                sample_shape=(1, 1, 1),
-                                val_split=0.0,
-                                worker_kwargs=dict(max_workers=1))
+                                shape=shape)
 
         input_handler_kwargs = dict(target=target,
                                     shape=shape,
@@ -817,3 +810,7 @@ def test_slicing_pad(log=False):
 
             assert forward_pass.input_data.shape == padded_truth.shape
             assert np.allclose(forward_pass.input_data, padded_truth)
+
+
+if __name__ == '__main__':
+    execute_pytest(__file__)

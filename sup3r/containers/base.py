@@ -4,7 +4,6 @@ containers."""
 
 import copy
 import logging
-from typing import Self
 
 import numpy as np
 
@@ -18,7 +17,7 @@ class Container(AbstractContainer):
     """Low level object with access to data, knowledge of the data shape, and
     what variables / features are contained."""
 
-    def __init__(self, container: Self):
+    def __init__(self, container):
         super().__init__()
         self.container = container
         self._features = self.container.features

@@ -6,15 +6,12 @@ import logging
 from typing import Dict, Optional
 
 from sup3r.containers.base import ContainerPair
-from sup3r.containers.samplers.abstract import (
-    AbstractSampler,
-)
 from sup3r.containers.samplers.base import Sampler
 
 logger = logging.getLogger(__name__)
 
 
-class SamplerPair(ContainerPair, AbstractSampler):
+class SamplerPair(ContainerPair, Sampler):
     """Pair of sampler objects, one for low resolution and one for high
     resolution, initialized from a :class:`ContainerPair` object."""
 

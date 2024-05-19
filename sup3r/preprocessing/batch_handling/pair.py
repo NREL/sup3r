@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 
 
 class PairBatchHandler(PairBatchQueue):
-    """Same as BatchHandler but using  :class:`ContainerPair` objects instead of
-     :class:`Container` objects. The former are pairs of low / high res data
+    """Same as BatchHandler but using :class:`ContainerPair` objects instead of
+    :class:`Container` objects. The former are pairs of low / high res data
     instead of just high-res data that will be coarsened to create
     corresponding low-res samples. This means `coarsen_kwargs` is not an input
     here either."""

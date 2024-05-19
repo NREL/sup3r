@@ -4,6 +4,7 @@ classes."""
 
 import logging
 
+import dask.array as da
 import numpy as np
 from rex import MultiFileWindX
 
@@ -15,9 +16,9 @@ logger = logging.getLogger(__name__)
 class LoaderH5(Loader):
     """Base H5 loader. "Loads" h5 files so that a `.data` attribute
     provides access to the data in the files. This object provides a
-    `__getitem__` method that can be used by Sampler objects to build batches
-    or by Wrangler objects to derive / extract specific features / regions /
-    time_periods."""
+    `__getitem__` method that can be used by :class:`Sampler` objects to build
+    batches or by :class:`Extracter` objects to derive / extract specific
+    features / regions / time_periods."""
 
     def _get_res(self):
         return MultiFileWindX(self.file_paths, **self._res_kwargs)
@@ -32,18 +33,31 @@ class LoaderH5(Loader):
             else feat.attrs.get('scale_factor', 1)
         )
 
-    def get(self, feature):
-        """Get feature from base resource"""
-        if feature in self.res.h5:
-            return self.res.h5[feature]
-        if feature.lower() in self.res.h5:
-            return self.res.h5[feature.lower()]
-        if hasattr(self.res, 'meta') and feature in self.res.meta:
-            return np.repeat(
-                self.res.h5['meta'][feature][None],
-                self.res.h5['time_index'].shape[0],
-                axis=0,
+    def _get_features(self, features):
+        """Get feature(s) from base resource"""
+        if isinstance(features, (list, tuple)):
+            data = [self._get_features(f) for f in features]
+
+        elif features in self.res.h5:
+            data = da.from_array(
+                self.res.h5[features], chunks=self.chunks
+            ) / self.scale_factor(features)
+
+        elif features.lower() in self.res.h5:
+            data = self._get_features(features.lower())
+
+        elif hasattr(self.res, 'meta') and features in self.res.meta:
+            data = da.from_array(
+                np.repeat(
+                    self.res.h5['meta'][features][None],
+                    self.res.h5['time_index'].shape[0],
+                    axis=0,
+                )
             )
-        msg = f'{feature} not found in {self.file_paths}.'
-        logger.error(msg)
-        raise RuntimeError(msg)
+        else:
+            msg = f'{features} not found in {self.file_paths}.'
+            logger.error(msg)
+            raise KeyError(msg)
+
+        data = da.moveaxis(data, 0, -1)
+        return data

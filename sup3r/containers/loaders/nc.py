@@ -19,24 +19,19 @@ class LoaderNC(Loader):
     or by Wrangler objects to derive / extract specific features / regions /
     time_periods."""
 
-    def load(self) -> dask.array:
-        """Dask array with features in last dimension. Either lazily loaded
-        (mode = 'lazy') or loaded into memory right away (mode = 'eager').
-
-        Returns
-        -------
-        dask.array.core.Array
-            (spatial, time, features) or (spatial_1, spatial_2, time, features)
-        """
-        data = self.res[self.features].to_dataarray().data
-        data = dask.array.moveaxis(data, 0, -1)
-        data = dask.array.moveaxis(data, 0, -2)
-
-        if self.mode == 'eager':
-            data = data.compute()
-
-        return data
-
     def _get_res(self):
         """Lowest level interface to data."""
         return xr.open_mfdataset(self.file_paths, **self._res_kwargs)
+
+    def _get_features(self, features):
+        if isinstance(features, (list, tuple)):
+            data = self.res[features].to_dataarray().data
+        elif isinstance(features, str):
+            data = self._get_features([features])
+        else:
+            msg = f'{features} not found in {self.file_paths}.'
+            logger.error(msg)
+            raise KeyError(msg)
+        data = dask.array.moveaxis(data, 0, -1)
+        data = dask.array.moveaxis(data, 0, -2)
+        return data
