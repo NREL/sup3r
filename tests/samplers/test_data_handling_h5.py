@@ -7,12 +7,14 @@ import pytest
 from scipy.ndimage.filters import gaussian_filter
 
 from sup3r import TEST_DATA_DIR
+from sup3r.containers import Sampler
 from sup3r.preprocessing import (
     BatchHandler,
     SpatialBatchHandler,
 )
 from sup3r.preprocessing import DataHandlerH5 as DataHandler
 from sup3r.utilities import utilities
+from sup3r.utilities.pytest.helpers import DummyData
 
 input_files = [os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5'),
                os.path.join(TEST_DATA_DIR, 'test_wtk_co_2013.h5')]
@@ -192,17 +194,12 @@ def test_hr_exo_features():
 def test_feature_errors(features, lr_only_features, hr_exo_features):
     """Each of these feature combinations should raise an error due to no
     features left in hr output or bad ordering"""
-    handler = DataHandler(input_files[0],
-                          features,
-                          lr_only_features=lr_only_features,
-                          hr_exo_features=hr_exo_features,
-                          target=target,
-                          shape=(20, 20),
-                          sample_shape=(5, 5, 4),
-                          time_slice=slice(None, None, 1),
-                          worker_kwargs={'max_workers': 1},
-                          )
+    sampler = Sampler(
+        DummyData(data_shape=(20, 20, 10), features=features),
+        feature_sets={'lr_only_features': lr_only_features,
+                      'hr_exo_features': hr_exo_features})
+
     with pytest.raises(Exception):
-        _ = handler.lr_features
-        _ = handler.hr_out_features
-        _ = handler.hr_exo_features
+        _ = sampler.lr_features
+        _ = sampler.hr_out_features
+        _ = sampler.hr_exo_features

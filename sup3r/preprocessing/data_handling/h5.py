@@ -25,7 +25,7 @@ class DataHandlerH5(WranglerH5):
     def __init__(
         self,
         file_paths,
-        extract_features,
+        load_features,
         derive_features,
         res_kwargs,
         chunks='auto',
@@ -40,7 +40,7 @@ class DataHandlerH5(WranglerH5):
     ):
         loader = LoaderH5(
             file_paths,
-            extract_features,
+            load_features,
             res_kwargs=res_kwargs,
             chunks=chunks,
             mode=mode,

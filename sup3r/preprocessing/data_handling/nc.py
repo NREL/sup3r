@@ -25,7 +25,8 @@ class DataHandlerNC(WranglerNC):
     def __init__(
         self,
         file_paths,
-        features,
+        load_features,
+        derive_features,
         res_kwargs=None,
         chunks='auto',
         mode='lazy',
@@ -37,14 +38,14 @@ class DataHandlerNC(WranglerNC):
     ):
         loader = LoaderNC(
             file_paths,
-            features,
+            load_features,
             res_kwargs=res_kwargs,
             chunks=chunks,
             mode=mode,
         )
         super().__init__(
             loader,
-            features,
+            derive_features,
             target=target,
             shape=shape,
             time_slice=time_slice,

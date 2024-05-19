@@ -1303,6 +1303,34 @@ def get_source_type(file_paths):
     return 'nc'
 
 
+def get_extracter_class(extracter_name):
+    """Get the DataHandler class.
+
+    Parameters
+    ----------
+    extracter_name : str
+        :class:`Extracter` class to use for input data. Provide a string name
+        to match a class in `sup3r.container.extracters`.
+    """
+
+    ExtracterClass = None
+
+    if isinstance(extracter_name, str):
+        import sup3r.containers
+
+        ExtracterClass = getattr(sup3r.containers, extracter_name, None)
+
+    if ExtracterClass is None:
+        msg = (
+            'Could not find requested :class:`Extracter` class '
+            f'"{extracter_name}" in sup3r.containers.'
+        )
+        logger.error(msg)
+        raise KeyError(msg)
+
+    return ExtracterClass
+
+
 def get_input_handler_class(file_paths, input_handler_name):
     """Get the DataHandler class.
 

@@ -55,14 +55,14 @@ class ExtracterH5(Extracter, ABC):
             be retrieved in four chunks of (10, 10). This helps adapt to
             non-regular grids that curve over large distances.
         """
+        self.raster_file = raster_file
+        self.max_delta = max_delta
         super().__init__(
             container=container,
             target=target,
             shape=shape,
             time_slice=time_slice
         )
-        self.raster_file = raster_file
-        self.max_delta = max_delta
         if self.raster_file is not None and not os.path.exists(
             self.raster_file
         ):

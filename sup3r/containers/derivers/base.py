@@ -33,8 +33,8 @@ class Deriver(Container):
             spatiotemporal extent
         features : list
             List of feature names to derive from the :class:`Extracter` data.
-            The :class:`Extracter` object contains the features available to use
-            in the derivation. e.g. extracter.features = ['windspeed',
+            The :class:`Extracter` object contains the features available to
+            use in the derivation. e.g. extracter.features = ['windspeed',
             'winddirection'] with self.features = ['U', 'V']
         transform : function
             Optional operation on extracter data. This should not be used for
