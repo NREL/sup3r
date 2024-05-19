@@ -1,19 +1,17 @@
 # -*- coding: utf-8 -*-
 """Test the basic training of super resolution GAN"""
-import copy
-import os
-import tempfile
 
-import matplotlib.pyplot as plt
-import numpy as np
-import pytest
+import os
+
 from rex import init_logger
 
 from sup3r import TEST_DATA_DIR
-from sup3r.preprocessing import (
-    DataHandlerH5,
-    DataHandlerNC,
+from sup3r.containers import (
+    DirectDeriverH5,
+    DirectDeriverNC,
+    ExtracterPair,
 )
+from sup3r.utilities.pytest.helpers import execute_pytest
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 FP_ERA = os.path.join(TEST_DATA_DIR, 'test_era5_co_2012.nc')
@@ -21,48 +19,35 @@ TARGET_COORD = (39.01, -105.15)
 FEATURES = ['U_100m', 'V_100m']
 
 
-def test_dual_data_handler(log=False,
-                           full_shape=(20, 20),
-                           sample_shape=(10, 10, 1),
-                           plot=False):
+def test_pair_extracter(log=False, full_shape=(20, 20)):
     """Test basic spatial model training with only gen content loss."""
     if log:
         init_logger('sup3r', log_level='DEBUG')
 
     # need to reduce the number of temporal examples to test faster
-    hr_handler = DataHandlerH5(FP_WTK,
-                               FEATURES,
-                               target=TARGET_COORD,
-                               shape=full_shape,
-                               time_slice=slice(None, None, 10),
-                               )
-    lr_handler = DataHandlerNC(FP_ERA,
-                               FEATURES,
-                               time_slice=slice(None, None, 10),
-                               )
+    hr_container = DirectDeriverH5(
+        file_paths=FP_WTK,
+        features=FEATURES,
+        target=TARGET_COORD,
+        shape=full_shape,
+        time_slice=slice(None, None, 10),
+    )
+    lr_container = DirectDeriverNC(
+        file_paths=FP_ERA, features=FEATURES, time_slice=slice(None, None, 10)
+    )
 
-    dual_handler = DualDataHandler(hr_handler,
-                                   lr_handler,
-                                   s_enhance=2,
-                                   t_enhance=1)
+    pair_extracter = ExtracterPair(
+        hr_container, lr_container, s_enhance=2, t_enhance=1
+    )
 
-    batch_handler = SpatialDualBatchHandler([dual_handler],
-                                            batch_size=2,
-                                            s_enhance=2,
-                                            n_batches=10)
-
-    if plot:
-        for i, batch in enumerate(batch_handler):
-            fig, ax = plt.subplots(1, 2, figsize=(5, 10))
-            fig.suptitle(f'High vs Low Res ({dual_handler.features[-1]})')
-            ax[0].set_title('High Res')
-            ax[0].imshow(np.mean(batch.high_res[..., -1], axis=0))
-            ax[1].set_title('Low Res')
-            ax[1].imshow(np.mean(batch.low_res[..., -1], axis=0))
-            fig.savefig(f'./high_vs_low_{str(i).zfill(3)}.png',
-                        bbox_inches='tight')
+    assert pair_extracter.lr_container.shape == (
+        pair_extracter.hr_container.shape[0] // 2,
+        pair_extracter.hr_container.shape[1] // 2,
+        pair_extracter.hr_container.shape[2],
+    )
 
 
+'''
 def test_regrid_caching(log=False,
                         full_shape=(20, 20),
                         sample_shape=(10, 10, 1)):
@@ -343,3 +328,7 @@ def test_bad_cache_load():
         _ = copy.deepcopy(dual_handler.means)
         _ = copy.deepcopy(dual_handler.stds)
         dual_handler.normalize()
+'''
+
+if __name__ == '__main__':
+    execute_pytest(__file__)

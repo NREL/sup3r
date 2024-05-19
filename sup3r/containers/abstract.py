@@ -13,7 +13,6 @@ logger = logging.getLogger(__name__)
 
 
 class _ContainerMeta(ABCMeta, type):
-
     def __call__(cls, *args, **kwargs):
         """Check for required attributes"""
         obj = type.__call__(cls, *args, **kwargs)
@@ -48,8 +47,8 @@ class AbstractContainer(ABC, metaclass=_ContainerMeta):
         arg_spec = inspect.getfullargspec(cls.__init__)
         args = args or []
         defaults = arg_spec.defaults or []
-        arg_names = arg_spec.args[-len(args) - len(defaults):]
-        kwargs_names = arg_spec.args[-len(defaults):]
+        arg_names = arg_spec.args[1 : len(args) + 1]
+        kwargs_names = arg_spec.args[-len(defaults) :]
         args_dict = dict(zip(arg_names, args))
         default_dict = dict(zip(kwargs_names, defaults))
         args_dict.update(default_dict)

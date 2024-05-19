@@ -22,7 +22,7 @@ class ExtracterNC(Extracter, ABC):
         container: Loader,
         target=None,
         shape=None,
-        time_slice=slice(None)
+        time_slice=slice(None),
     ):
         """
         Parameters
@@ -44,16 +44,14 @@ class ExtracterNC(Extracter, ABC):
             container=container,
             target=target,
             shape=shape,
-            time_slice=time_slice
+            time_slice=time_slice,
         )
-        self.check_target_and_shape()
 
-    def check_target_and_shape(self):
+    def check_target_and_shape(self, full_lat_lon):
         """NETCDF files tend to use a regular grid so if either target or shape
         is not given we can easily find the values that give the maximum
         extent."""
-        full_lat_lon = self._get_full_lat_lon()
-        if self._target is None:
+        if not self._target:
             lat = (
                 full_lat_lon[-1, 0, 0]
                 if self._has_descending_lats()
@@ -65,7 +63,7 @@ class ExtracterNC(Extracter, ABC):
                 else full_lat_lon[0, 0, 1]
             )
             self._target = (lat, lon)
-        if self._grid_shape is None:
+        if not self._grid_shape:
             self._grid_shape = full_lat_lon.shape[:-1]
 
     def _get_full_lat_lon(self):
@@ -82,9 +80,9 @@ class ExtracterNC(Extracter, ABC):
     def get_raster_index(self):
         """Get set of slices or indices selecting the requested region from
         the contained data."""
-        row, col = self.get_closest_row_col(
-            self._get_full_lat_lon(), self._target
-        )
+        full_lat_lon = self._get_full_lat_lon()
+        self.check_target_and_shape(full_lat_lon)
+        row, col = self.get_closest_row_col(full_lat_lon, self._target)
         if self._has_descending_lats():
             lat_slice = slice(row - self._grid_shape[0] + 1, row + 1)
         else:

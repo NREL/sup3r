@@ -22,7 +22,15 @@ from .batchers import BatchQueue, PairBatchQueue, SingleBatchQueue
 from .cachers import Cacher
 from .collections import Collection, SamplerCollection, StatsCollection
 from .derivers import Deriver, DeriverH5, DeriverNC
-from .extracters import Extracter, ExtracterH5, ExtracterNC
+from .extracters import Extracter, ExtracterH5, ExtracterNC, ExtracterPair
+from .factory import (
+    DirectDeriverH5,
+    DirectDeriverNC,
+    DirectExtracterH5,
+    DirectExtracterNC,
+    WranglerH5,
+    WranglerNC,
+)
 from .loaders import Loader, LoaderH5, LoaderNC
 from .samplers import (
     CroppedSampler,
@@ -30,4 +38,3 @@ from .samplers import (
     Sampler,
     SamplerPair,
 )
-from .wranglers import WranglerH5, WranglerNC

@@ -8,7 +8,7 @@ from abc import ABC
 import numpy as np
 
 from sup3r.containers.extracters.base import Extracter
-from sup3r.containers.loaders import Loader
+from sup3r.containers.loaders import LoaderH5
 
 np.random.seed(42)
 
@@ -20,7 +20,7 @@ class ExtracterH5(Extracter, ABC):
 
     def __init__(
         self,
-        container: Loader,
+        container: LoaderH5,
         target=(),
         shape=(),
         time_slice=slice(None),
@@ -61,7 +61,7 @@ class ExtracterH5(Extracter, ABC):
             container=container,
             target=target,
             shape=shape,
-            time_slice=time_slice
+            time_slice=time_slice,
         )
         if self.raster_file is not None and not os.path.exists(
             self.raster_file
@@ -97,7 +97,7 @@ class ExtracterH5(Extracter, ABC):
         elif hasattr(self.container.res, 'time_index'):
             raw_time_index = self.container.res.time_index
         else:
-            msg = (f'Could not get time_index from {self.container.res}')
+            msg = f'Could not get time_index from {self.container.res}'
             logger.error(msg)
             raise RuntimeError(msg)
         return raw_time_index[self.time_slice]
@@ -108,7 +108,7 @@ class ExtracterH5(Extracter, ABC):
         return (
             self.container.res.meta[['latitude', 'longitude']]
             .iloc[self.raster_index.flatten()]
-            .values.reshape((*self.raster_index.shape, 2))
+            .values.reshape((*self._grid_shape, 2))
         )
 
     def extract_features(self):

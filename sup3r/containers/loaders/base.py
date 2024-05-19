@@ -17,15 +17,23 @@ class Loader(AbstractContainer, ABC):
     to derive / extract specific features / regions / time_periods."""
 
     def __init__(
-        self, file_paths, features, res_kwargs=None, chunks='auto', mode='lazy'
+        self,
+        file_paths,
+        features='all',
+        res_kwargs=None,
+        chunks='auto',
+        mode='lazy',
     ):
         """
         Parameters
         ----------
         file_paths : str | pathlib.Path | list
             Location(s) of files to load
-        features : list
-            list of all features wanted from the file_paths.
+        features : list | str | None
+            list of all features wanted from the file_paths. If 'all' then all
+            available features will be loaded. If None then only the base
+            file_path interface will be exposed for downstream extraction of
+            meta data like lat_lon / time_index
         res_kwargs : dict
             kwargs for `.res` object
         chunks : tuple
@@ -40,14 +48,27 @@ class Loader(AbstractContainer, ABC):
         self._data = None
         self._res_kwargs = res_kwargs or {}
         self.file_paths = file_paths
-        self.features = features
+        self.features = self.parse_requested_features(features)
         self.mode = mode
         self.chunks = chunks
+
+    def parse_requested_features(self, features):
+        """Parse the feature input and return corresponding feature list."""
+        features = [] if features is None else features
+        if features == 'all':
+            features = self.get_loadable_features()
+        return features
+
+    def get_loadable_features(self):
+        """Get loadable features excluding coordinate / time fields."""
+        return [
+            f for f in self.res if f not in ('latitude', 'longitude', 'time')
+        ]
 
     @property
     def data(self):
         """'Load' data when access is requested."""
-        if self._data is None:
+        if self._data is None and any(self.features):
             self._data = self.load().astype(np.float32)
         return self._data
 
@@ -68,11 +89,6 @@ class Loader(AbstractContainer, ABC):
     @abstractmethod
     def _get_res(self):
         """Get lowest level file interface."""
-
-    @abstractmethod
-    def scale_factor(self, feature):
-        """Return scale factor for the given feature if the data is stored in
-        scaled format."""
 
     def __enter__(self):
         return self
