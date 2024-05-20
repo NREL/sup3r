@@ -6,9 +6,9 @@ from typing import List, Union
 
 import numpy as np
 
-from sup3r.containers.base import Container, ContainerPair
+from sup3r.containers.base import Container, DualContainer
 from sup3r.containers.samplers.base import Sampler
-from sup3r.containers.samplers.pair import SamplerPair
+from sup3r.containers.samplers.dual import DualSampler
 
 
 class Collection(Container):
@@ -18,9 +18,9 @@ class Collection(Container):
         self,
         containers: Union[
             List[Container],
-            List[ContainerPair],
+            List[DualContainer],
             List[Sampler],
-            List[SamplerPair],
+            List[DualSampler],
         ],
     ):
         self._containers = containers
@@ -33,7 +33,7 @@ class Collection(Container):
     def containers(
         self,
     ) -> Union[
-        List[Container], List[ContainerPair], List[Sampler], List[SamplerPair]
+        List[Container], List[DualContainer], List[Sampler], List[DualSampler]
     ]:
         """Returns a list of containers."""
         return self._containers
@@ -54,6 +54,6 @@ class Collection(Container):
         """Check if all containers are pairs of low and high res or single
         containers"""
         return all(
-            isinstance(container, (ContainerPair, SamplerPair))
+            isinstance(container, (DualContainer, DualSampler))
             for container in self.containers
         )

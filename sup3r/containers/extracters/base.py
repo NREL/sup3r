@@ -50,7 +50,6 @@ class Extracter(Container, ABC):
         self._lat_lon = None
         self._time_index = None
         self._raster_index = None
-        self.shape = (*self.grid_shape, len(self.time_index))
         self.data = self.extract_features().astype(np.float32)
 
     def __enter__(self):

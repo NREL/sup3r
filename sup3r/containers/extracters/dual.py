@@ -8,7 +8,7 @@ import dask.array as da
 import numpy as np
 import pandas as pd
 
-from sup3r.containers.base import ContainerPair
+from sup3r.containers.base import DualContainer
 from sup3r.containers.cachers import Cacher
 from sup3r.containers.extracters import Extracter
 from sup3r.utilities.regridder import Regridder
@@ -17,12 +17,12 @@ from sup3r.utilities.utilities import nn_fill_array, spatial_coarsening
 logger = logging.getLogger(__name__)
 
 
-class ExtracterPair(ContainerPair):
+class DualExtracter(DualContainer):
     """Object containing Extracter objects for low and high-res containers.
     (Usually ERA5 and WTK, respectively). This essentially just regrids the
     low-res data to the coarsened high-res grid.  This is useful for caching
-    data which then can go directly to a :class:`PairSampler` object for a
-     :class:`PairBatchQueue`.
+    data which then can go directly to a :class:`DualSampler` object for a
+     :class:`DualBatchQueue`.
 
     Notes
     -----
@@ -82,17 +82,28 @@ class ExtracterPair(ContainerPair):
         self.regrid_workers = regrid_workers
         self.lr_time_index = lr_container.time_index
         self.hr_time_index = hr_container.time_index
-        self.shape = (
-            *self.lr_required_shape,
-            len(self.lr_container.features),
+        self.lr_required_shape = (
+            self.hr_container.shape[0] // self.s_enhance,
+            self.hr_container.shape[1] // self.s_enhance,
+            self.hr_container.shape[2] // self.t_enhance,
         )
-        self._lr_lat_lon = None
-        self._hr_lat_lon = None
-        self._lr_input_data = None
+        self.hr_required_shape = (
+            self.s_enhance * self.lr_required_shape[0],
+            self.s_enhance * self.lr_required_shape[1],
+            self.t_enhance * self.lr_required_shape[2],
+        )
+        self.hr_lat_lon = self.hr_container.lat_lon[
+            *map(slice, self.hr_required_shape[:2])
+        ]
+        self.lr_lat_lon = spatial_coarsening(
+            self.hr_lat_lon, s_enhance=self.s_enhance, obs_axis=False
+        )
         self._regrid_lr = regrid_lr
 
         self.update_lr_container()
         self.update_hr_container()
+
+        self.check_regridded_lr_data()
 
         if lr_cache_kwargs is not None:
             Cacher(self.lr_container, lr_cache_kwargs)
@@ -105,93 +116,36 @@ class ExtracterPair(ContainerPair):
         hr_container.shape is divisible by s_enhance. If not, take the largest
         shape that can be."""
         msg = (
-            f'hr_container.shape {self.hr_container.shape[:-1]} is not '
+            f'hr_container.shape {self.hr_container.shape[:3]} is not '
             f'divisible by s_enhance ({self.s_enhance}). Using shape = '
             f'{self.hr_required_shape} instead.'
         )
-        if self.hr_container.shape[:-1] != self.hr_required_shape:
+        if self.hr_container.shape[:3] != self.hr_required_shape[:3]:
             logger.warning(msg)
             warn(msg)
 
         self.hr_container.data = self.hr_container.data[
-            : self.hr_required_shape[0],
-            : self.hr_required_shape[1],
-            : self.hr_required_shape[2],
+            *map(slice, self.hr_required_shape)
         ]
         self.hr_container.lat_lon = self.hr_lat_lon
-
         self.hr_container.time_index = self.hr_container.time_index[
             : self.hr_required_shape[2]
         ]
 
-    @property
-    def lr_input_data(self):
-        """Get low res data used as input to regridding routine"""
-        if self._lr_input_data is None:
-            self._lr_input_data = self.lr_container.data[
-                ..., : self.lr_required_shape[2], :
-            ]
-        return self._lr_input_data
-
-    @property
-    def lr_required_shape(self):
-        """Return required shape for regridded low_res data"""
-        return (
-            self.hr_container.shape[0] // self.s_enhance,
-            self.hr_container.shape[1] // self.s_enhance,
-            self.hr_container.shape[2] // self.t_enhance,
-        )
-
-    @property
-    def hr_required_shape(self):
-        """Return required shape for high_res data"""
-        return (
-            self.s_enhance * self.lr_required_shape[0],
-            self.s_enhance * self.lr_required_shape[1],
-            self.t_enhance * self.lr_required_shape[2],
-        )
-
-    @property
-    def lr_grid_shape(self):
-        """Return grid shape for regridded low_res data"""
-        return (self.lr_required_shape[0], self.lr_required_shape[1])
-
-    @property
-    def lr_lat_lon(self):
-        """Get low_res lat lon array"""
-        if self._lr_lat_lon is None:
-            self._lr_lat_lon = spatial_coarsening(
-                self.hr_lat_lon, s_enhance=self.s_enhance, obs_axis=False
-            )
-        return self._lr_lat_lon
-
-    @lr_lat_lon.setter
-    def lr_lat_lon(self, lat_lon):
-        """Set low_res lat lon array"""
-        self._lr_lat_lon = lat_lon
-
-    @property
-    def hr_lat_lon(self):
-        """Get high_res lat lon array"""
-        if self._hr_lat_lon is None:
-            self._hr_lat_lon = self.hr_container.lat_lon[
-                : self.hr_required_shape[0], : self.hr_required_shape[1]
-            ]
-        return self._hr_lat_lon
-
-    @hr_lat_lon.setter
-    def hr_lat_lon(self, lat_lon):
-        """Set high_res lat lon array"""
-        self._hr_lat_lon = lat_lon
-
     def get_regridder(self):
         """Get regridder object"""
-        input_meta = pd.DataFrame()
-        input_meta['latitude'] = self.lr_container.lat_lon[..., 0].flatten()
-        input_meta['longitude'] = self.lr_container.lat_lon[..., 1].flatten()
-        target_meta = pd.DataFrame()
-        target_meta['latitude'] = self.lr_lat_lon[..., 0].flatten()
-        target_meta['longitude'] = self.lr_lat_lon[..., 1].flatten()
+        input_meta = pd.DataFrame.from_dict(
+            {
+                'latitude': self.lr_container.lat_lon[..., 0].flatten(),
+                'longitude': self.lr_container.lat_lon[..., 1].flatten(),
+            }
+        )
+        target_meta = pd.DataFrame.from_dict(
+            {
+                'latitude': self.lr_lat_lon[..., 0].flatten(),
+                'longitude': self.lr_lat_lon[..., 1].flatten(),
+            }
+        )
         return Regridder(
             input_meta, target_meta, max_workers=self.regrid_workers
         )
@@ -204,11 +158,12 @@ class ExtracterPair(ContainerPair):
             logger.info('Regridding low resolution feature data.')
             regridder = self.get_regridder()
 
-            lr_list = []
-            for fname in self.lr_container.features:
-                fidx = self.lr_container.features.index(fname)
-                tmp = regridder(self.lr_input_data[..., fidx])
-                lr_list.append(tmp.reshape(self.lr_required_shape)[..., None])
+            lr_list = [
+                regridder(
+                    self.lr_container[f][..., : self.lr_required_shape[2]]
+                ).reshape(self.lr_required_shape)
+                for f in self.lr_container.features
+            ]
 
             self.lr_container.data = da.stack(lr_list, axis=-1)
             self.lr_container.lat_lon = self.lr_lat_lon
@@ -216,24 +171,18 @@ class ExtracterPair(ContainerPair):
                 : self.lr_required_shape[2]
             ]
 
-        for fidx in range(self.lr_container.data.shape[-1]):
+    def check_regridded_lr_data(self):
+        """Check for NaNs after regridding and do NN fill if needed."""
+        for f in self.lr_container.features:
             nan_perc = (
                 100
-                * np.isnan(self.lr_container.data[..., fidx]).sum()
-                / self.lr_container.data[..., fidx].size
+                * np.isnan(self.lr_container[f]).sum()
+                / self.lr_container[f].size
             )
             if nan_perc > 0:
-                msg = (
-                    f'{self.lr_container.features[fidx]} data has '
-                    f'{nan_perc:.3f}% NaN values!'
-                )
+                msg = f'{f} data has {nan_perc:.3f}% NaN values!'
                 logger.warning(msg)
                 warn(msg)
-                msg = (
-                    f'Doing nn nan fill on low res '
-                    f'{self.lr_container.features[fidx]} data.'
-                )
+                msg = f'Doing nn nan fill on low res {f} data.'
                 logger.info(msg)
-                self.lr_container.data[..., fidx] = nn_fill_array(
-                    self.lr_container.data[..., fidx]
-                )
+                self.lr_container[f] = nn_fill_array(self.lr_container[f])

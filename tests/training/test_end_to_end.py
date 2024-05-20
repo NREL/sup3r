@@ -7,11 +7,11 @@ from rex import init_logger
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.containers import (
-    BatchQueue,
+    BatchHandler,
+    DataHandlerH5,
     LoaderH5,
     Sampler,
     StatsCollection,
-    WranglerH5,
 )
 from sup3r.models import Sup3rGan
 from sup3r.utilities.pytest.helpers import execute_pytest
@@ -40,24 +40,23 @@ def test_end_to_end():
     and training with validation end to end workflow."""
 
     derive_features = ['U_100m', 'V_100m']
-    raw_features = ['windspeed_100m', 'winddirection_100m']
 
     with TemporaryDirectory() as td:
         train_cache_pattern = os.path.join(td, 'train_{feature}.h5')
         val_cache_pattern = os.path.join(td, 'val_{feature}.h5')
         # get training data
-        _ = WranglerH5(
-            LoaderH5(INPUT_FILES[0], raw_features),
-            derive_features,
+        _ = DataHandlerH5(
+            INPUT_FILES[0],
+            features=derive_features,
             **kwargs,
             cache_kwargs={'cache_pattern': train_cache_pattern,
                           'chunks': {'U_100m': (50, 20, 20),
                                      'V_100m': (50, 20, 20)}},
         )
         # get val data
-        _ = WranglerH5(
-            LoaderH5(INPUT_FILES[1], raw_features),
-            derive_features,
+        _ = DataHandlerH5(
+            INPUT_FILES[1],
+            features=derive_features,
             **kwargs,
             cache_kwargs={'cache_pattern': val_cache_pattern,
                           'chunks': {'U_100m': (50, 20, 20),
@@ -74,14 +73,14 @@ def test_end_to_end():
         # init training data sampler
         train_sampler = Sampler(
             LoaderH5(train_files, features=derive_features),
-            sample_shape=(18, 18, 16),
+            sample_shape=(12, 12, 16),
             feature_sets={'features': derive_features},
         )
 
         # init val data sampler
         val_sampler = Sampler(
             LoaderH5(val_files, features=derive_features),
-            sample_shape=(18, 18, 16),
+            sample_shape=(12, 12, 16),
             feature_sets={'features': derive_features},
         )
 
@@ -92,10 +91,10 @@ def test_end_to_end():
             means_file=means_file,
             stds_file=stds_file,
         )
-        batcher = BatchQueue(
-            train_containers=[train_sampler],
-            val_containers=[val_sampler],
-            n_batches=3,
+        batcher = BatchHandler(
+            train_containers=[LoaderH5(train_files, derive_features)],
+            val_containers=[LoaderH5(val_files, derive_features)],
+            n_batches=2,
             batch_size=10,
             s_enhance=3,
             t_enhance=4,
@@ -110,11 +109,10 @@ def test_end_to_end():
         model = Sup3rGan(
             fp_gen, fp_disc, learning_rate=2e-5, loss='MeanAbsoluteError'
         )
-        batcher.start()
         model.train(
             batcher,
             input_resolution={'spatial': '30km', 'temporal': '60min'},
-            n_epoch=3,
+            n_epoch=2,
             weight_gen_advers=0.01,
             train_gen=True,
             train_disc=True,

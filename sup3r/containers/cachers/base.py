@@ -127,7 +127,7 @@ class Cacher(Container):
                     chunks=chunks.get(dset, None),
                 )
                 da.store(vals, d)
-                logger.info(f'Added {dset} to {out_file}.')
+                logger.debug(f'Added {dset} to {out_file}.')
 
     def _write_netcdf(self, out_file, feature, data, coords):
         """Cache data to a netcdf file."""

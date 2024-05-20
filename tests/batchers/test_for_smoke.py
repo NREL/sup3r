@@ -5,9 +5,9 @@ from rex import init_logger
 
 from sup3r.containers import (
     BatchQueue,
-    ContainerPair,
-    PairBatchQueue,
-    SamplerPair,
+    DualBatchQueue,
+    DualContainer,
+    DualSampler,
 )
 from sup3r.utilities.pytest.helpers import (
     DummyCroppedSampler,
@@ -144,12 +144,12 @@ def test_pair_batch_queue():
         ),
     ]
     sampler_pairs = [
-        SamplerPair(
-            ContainerPair(lr, hr), hr_sample_shape, s_enhance=2, t_enhance=2
+        DualSampler(
+            DualContainer(lr, hr), hr_sample_shape, s_enhance=2, t_enhance=2
         )
         for lr, hr in zip(lr_containers, hr_containers)
     ]
-    batcher = PairBatchQueue(
+    batcher = DualBatchQueue(
         train_containers=sampler_pairs,
         s_enhance=2,
         t_enhance=2,
@@ -195,8 +195,8 @@ def test_pair_batch_queue_with_lr_only_features():
         ),
     ]
     sampler_pairs = [
-        SamplerPair(
-            ContainerPair(lr, hr),
+        DualSampler(
+            DualContainer(lr, hr),
             hr_sample_shape,
             s_enhance=2,
             t_enhance=2,
@@ -206,7 +206,7 @@ def test_pair_batch_queue_with_lr_only_features():
     ]
     means = dict.fromkeys(lr_features, 0)
     stds = dict.fromkeys(lr_features, 1)
-    batcher = PairBatchQueue(
+    batcher = DualBatchQueue(
         train_containers=sampler_pairs,
         s_enhance=2,
         t_enhance=2,
@@ -227,7 +227,7 @@ def test_pair_batch_queue_with_lr_only_features():
 
 def test_bad_enhancement_factors():
     """Failure when enhancement factors given to BatchQueue do not match those
-    given to the contained SamplerPairs, and when those given to SamplerPair
+    given to the contained DualSamplers, and when those given to DualSampler
     are not consistent with the low / high res shapes."""
     hr_sample_shape = (8, 8, 10)
     lr_containers = [
@@ -253,15 +253,15 @@ def test_bad_enhancement_factors():
     for s_enhance, t_enhance in zip([2, 4], [2, 6]):
         with pytest.raises(AssertionError):
             sampler_pairs = [
-                SamplerPair(
-                    ContainerPair(lr, hr),
+                DualSampler(
+                    DualContainer(lr, hr),
                     hr_sample_shape,
                     s_enhance=s_enhance,
                     t_enhance=t_enhance,
                 )
                 for lr, hr in zip(lr_containers, hr_containers)
             ]
-            _ = PairBatchQueue(
+            _ = DualBatchQueue(
                 train_containers=sampler_pairs,
                 s_enhance=4,
                 t_enhance=6,

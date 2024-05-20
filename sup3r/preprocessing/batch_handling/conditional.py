@@ -8,10 +8,10 @@ from datetime import datetime as dt
 import numpy as np
 from rex.utilities import log_mem
 
-from sup3r.containers.batchers.abstract import Batch
-from sup3r.preprocessing.batch_handling.base import (
+from sup3r.containers import (
     BatchHandler,
 )
+from sup3r.containers.batchers.abstract import Batch
 from sup3r.utilities.utilities import (
     smooth_data,
     spatial_coarsening,

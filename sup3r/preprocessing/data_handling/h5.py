@@ -8,7 +8,7 @@ import logging
 import numpy as np
 from rex import MultiFileNSRDBX, MultiFileWindX
 
-from sup3r.containers import LoaderH5, WranglerH5
+from sup3r.containers import DataHandlerH5
 from sup3r.utilities.utilities import (
     daily_temporal_coarsening,
     uniform_box_sampler,
@@ -17,45 +17,6 @@ from sup3r.utilities.utilities import (
 np.random.seed(42)
 
 logger = logging.getLogger(__name__)
-
-
-class DataHandlerH5(WranglerH5):
-    """DataHandler for H5 Data"""
-
-    def __init__(
-        self,
-        file_paths,
-        load_features,
-        derive_features,
-        res_kwargs,
-        chunks='auto',
-        mode='lazy',
-        target=None,
-        shape=None,
-        time_slice=None,
-        raster_file=None,
-        max_delta=20,
-        transform=None,
-        cache_kwargs=None,
-    ):
-        loader = LoaderH5(
-            file_paths,
-            load_features,
-            res_kwargs=res_kwargs,
-            chunks=chunks,
-            mode=mode,
-        )
-        super().__init__(
-            loader,
-            derive_features,
-            target=target,
-            shape=shape,
-            time_slice=time_slice,
-            raster_file=raster_file,
-            max_delta=max_delta,
-            transform=transform,
-            cache_kwargs=cache_kwargs,
-        )
 
 
 class DataHandlerH5WindCC(DataHandlerH5):

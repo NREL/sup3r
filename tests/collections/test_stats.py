@@ -8,7 +8,7 @@ import numpy as np
 from rex import safe_json_load
 
 from sup3r import TEST_DATA_DIR
-from sup3r.containers import LoaderH5, StatsCollection, WranglerH5
+from sup3r.containers import DirectExtracterH5, StatsCollection
 from sup3r.utilities.pytest.helpers import execute_pytest
 
 input_files = [
@@ -27,18 +27,18 @@ kwargs = {
 
 
 def test_stats_calc():
-    """Check accuracy of stats calcs across multiple wranglers and caching
+    """Check accuracy of stats calcs across multiple extracters and caching
     stats files."""
     features = ['windspeed_100m', 'winddirection_100m']
-    wranglers = [
-        WranglerH5(LoaderH5(file, features), features, **kwargs)
+    extracters = [
+        DirectExtracterH5(file, features, **kwargs)
         for file in input_files
     ]
     with TemporaryDirectory() as td:
         means_file = os.path.join(td, 'means.json')
         stds_file = os.path.join(td, 'stds.json')
         stats = StatsCollection(
-            wranglers, means_file=means_file, stds_file=stds_file
+            extracters, means_file=means_file, stds_file=stds_file
         )
 
         means = safe_json_load(means_file)
@@ -50,7 +50,7 @@ def test_stats_calc():
             f: np.sum(
                 [
                     wgt * w.data[..., fidx].mean()
-                    for wgt, w in zip(stats.container_weights, wranglers)
+                    for wgt, w in zip(stats.container_weights, extracters)
                 ]
             )
             for fidx, f in enumerate(features)
@@ -60,7 +60,7 @@ def test_stats_calc():
                 np.sum(
                     [
                         wgt * w.data[..., fidx].std() ** 2
-                        for wgt, w in zip(stats.container_weights, wranglers)
+                        for wgt, w in zip(stats.container_weights, extracters)
                     ]
                 )
             )

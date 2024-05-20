@@ -13,10 +13,9 @@ from rex import Resource
 from rex.utilities.solar_position import SolarPosition
 from scipy.spatial import KDTree
 
-import sup3r.preprocessing.data_handling
+import sup3r.containers
+from sup3r.containers import DataHandlerH5, DataHandlerNC
 from sup3r.postprocessing.file_handling import OutputHandler
-from sup3r.preprocessing.data_handling.h5 import DataHandlerH5
-from sup3r.preprocessing.data_handling.nc import DataHandlerNC
 from sup3r.utilities.utilities import (
     generate_random_string,
     get_source_type,
@@ -157,12 +156,12 @@ class ExoExtract(ABC):
                 logger.error(msg)
                 raise RuntimeError(msg)
         elif isinstance(input_handler, str):
-            input_handler = getattr(sup3r.preprocessing.data_handling,
+            input_handler = getattr(sup3r.containers,
                                     input_handler, None)
             if input_handler is None:
                 msg = ('Could not find requested data handler class '
                        f'"{input_handler}" in '
-                       'sup3r.preprocessing.')
+                       'sup3r.containers.')
                 logger.error(msg)
                 raise KeyError(msg)
 

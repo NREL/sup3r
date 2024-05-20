@@ -7,7 +7,7 @@ from typing import Dict, List, Optional, Tuple, Union
 import tensorflow as tf
 
 from sup3r.containers.batchers.base import BatchQueue
-from sup3r.containers.samplers import SamplerPair
+from sup3r.containers.samplers import DualSampler
 
 logger = logging.getLogger(__name__)
 
@@ -19,32 +19,32 @@ option_no_order.experimental_optimization.noop_elimination = True
 option_no_order.experimental_optimization.apply_default_optimizations = True
 
 
-class PairBatchQueue(BatchQueue):
-    """Base BatchQueue for SamplerPair containers."""
+class DualBatchQueue(BatchQueue):
+    """Base BatchQueue for DualSampler containers."""
 
     def __init__(
         self,
-        train_containers: List[SamplerPair],
+        train_containers: List[DualSampler],
+        val_containers: List[DualSampler],
         batch_size,
         n_batches,
         s_enhance,
         t_enhance,
         means: Union[Dict, str],
         stds: Union[Dict, str],
-        val_containers: Optional[List[SamplerPair]] = None,
         queue_cap=None,
         max_workers=None,
         default_device: Optional[str] = None,
     ):
         super().__init__(
             train_containers=train_containers,
+            val_containers=val_containers,
             batch_size=batch_size,
             n_batches=n_batches,
             s_enhance=s_enhance,
             t_enhance=t_enhance,
             means=means,
             stds=stds,
-            val_containers=val_containers,
             queue_cap=queue_cap,
             max_workers=max_workers,
             default_device=default_device
@@ -52,19 +52,19 @@ class PairBatchQueue(BatchQueue):
         self.check_enhancement_factors()
 
     def check_enhancement_factors(self):
-        """Make sure each SamplerPair has the same enhancment factors and they
+        """Make sure each DualSampler has the same enhancment factors and they
         match those provided to the BatchQueue."""
 
         s_factors = [c.s_enhance for c in self.containers]
         msg = (
             f'Received s_enhance = {self.s_enhance} but not all '
-            f'SamplerPairs in the collection have the same value.'
+            f'DualSamplers in the collection have the same value.'
         )
         assert all(self.s_enhance == s for s in s_factors), msg
         t_factors = [c.t_enhance for c in self.containers]
         msg = (
             f'Recived t_enhance = {self.t_enhance} but not all '
-            f'SamplerPairs in the collection have the same value.'
+            f'DualSamplers in the collection have the same value.'
         )
         assert all(self.t_enhance == t for t in t_factors), msg
 

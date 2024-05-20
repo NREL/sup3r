@@ -115,4 +115,4 @@ class ExtracterH5(Extracter, ABC):
         """Extract the requested features for the requested target + grid_shape
         + time_slice."""
         out = self.container[self.raster_index.flatten(), self.time_slice]
-        return out.reshape((*self.shape, len(self.features)))
+        return out.reshape((*self.grid_shape, *out.shape[1:]))

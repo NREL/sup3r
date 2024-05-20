@@ -5,19 +5,19 @@ import copy
 import logging
 from typing import Dict, Optional
 
-from sup3r.containers.base import ContainerPair
+from sup3r.containers.base import DualContainer
 from sup3r.containers.samplers.base import Sampler
 
 logger = logging.getLogger(__name__)
 
 
-class SamplerPair(ContainerPair, Sampler):
+class DualSampler(DualContainer, Sampler):
     """Pair of sampler objects, one for low resolution and one for high
-    resolution, initialized from a :class:`ContainerPair` object."""
+    resolution, initialized from a :class:`DualContainer` object."""
 
     def __init__(
         self,
-        container: ContainerPair,
+        container: DualContainer,
         sample_shape,
         s_enhance,
         t_enhance,
@@ -26,8 +26,8 @@ class SamplerPair(ContainerPair, Sampler):
         """
         Parameters
         ----------
-        container : ContainerPair
-            ContainerPair instance composed of a low-res and high-res
+        container : DualContainer
+            DualContainer instance composed of a low-res and high-res
             container.
         sample_shape : tuple
             Size of arrays to sample from the high-res data. The sample shape

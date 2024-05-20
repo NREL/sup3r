@@ -62,7 +62,9 @@ class Loader(AbstractContainer, ABC):
     def get_loadable_features(self):
         """Get loadable features excluding coordinate / time fields."""
         return [
-            f for f in self.res if f not in ('latitude', 'longitude', 'time')
+            f
+            for f in self.res
+            if not f.startswith(('lat', 'lon', 'time', 'meta'))
         ]
 
     @property
@@ -79,12 +81,6 @@ class Loader(AbstractContainer, ABC):
         if self._res is None:
             self._res = self._get_res()
         return self._res
-
-    @property
-    def shape(self):
-        """Return shape of spatiotemporal extent available (spatial_1,
-        spatial_2, temporal)"""
-        return self.data.shape[:-1]
 
     @abstractmethod
     def _get_res(self):
@@ -122,8 +118,10 @@ class Loader(AbstractContainer, ABC):
             glob.glob
         """
         self._file_paths = expand_paths(file_paths)
-        msg = (f'No valid files provided to {self.__class__.__name__}. '
-               f'Received file_paths={file_paths}. Aborting.')
+        msg = (
+            f'No valid files provided to {self.__class__.__name__}. '
+            f'Received file_paths={file_paths}. Aborting.'
+        )
         assert file_paths is not None and len(self._file_paths) > 0, msg
 
     def load(self):

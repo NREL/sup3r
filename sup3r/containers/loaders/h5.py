@@ -28,10 +28,10 @@ class LoaderH5(Loader):
         reduce memory."""
         feat = feature if feature in self.res else feature.lower()
         feat = self.res.h5[feat]
-        return (
-            1
+        return np.float32(
+            1.0
             if not hasattr(feat, 'attrs')
-            else feat.attrs.get('scale_factor', 1)
+            else feat.attrs.get('scale_factor', 1.0)
         )
 
     def _get_features(self, features):
