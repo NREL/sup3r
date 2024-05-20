@@ -15,14 +15,13 @@ import pandas as pd
 import rex
 from rex.utilities.fun_utils import get_fun_call_str
 from scipy import stats
-from scipy.ndimage import gaussian_filter
 from scipy.spatial import KDTree
 
 import sup3r.preprocessing.data_handling
 from sup3r.preprocessing.data_handling.base import DataHandler
 from sup3r.utilities import VERSION_RECORD, ModuleName
 from sup3r.utilities.cli import BaseCLI
-from sup3r.utilities.utilities import expand_paths, nn_fill_array
+from sup3r.utilities.utilities import expand_paths
 from .mixins import FillAndSmoothMixin
 
 logger = logging.getLogger(__name__)
