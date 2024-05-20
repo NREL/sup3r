@@ -35,7 +35,9 @@ class LoaderH5(Loader):
         )
 
     def _get_features(self, features):
-        """Get feature(s) from base resource"""
+        """Get feature(s) from base resource. We perform an axis shift here
+        from (time, ...) ordering to (..., time) ordering. The final stack puts
+        features in the last channel."""
         if isinstance(features, (list, tuple)):
             data = [self._get_features(f) for f in features]
 
@@ -43,26 +45,25 @@ class LoaderH5(Loader):
             data = da.from_array(
                 self.res.h5[features], chunks=self.chunks
             ) / self.scale_factor(features)
+            data = da.moveaxis(data, 0, -1)
 
         elif features.lower() in self.res.h5:
             data = self._get_features(features.lower())
 
         elif hasattr(self.res, 'meta') and features in self.res.meta:
-            data = da.from_array(
+            da.from_array(
                 np.repeat(
                     self.res.h5['meta'][features][None],
                     self.res.h5['time_index'].shape[0],
                     axis=0,
-                )
+                ),
             )
+            data = da.moveaxis(data, 0, -1)
         else:
             msg = f'{features} not found in {self.file_paths}.'
             logger.error(msg)
             raise KeyError(msg)
 
-        data = (
-            da.stack(data, axis=-1)
-            if isinstance(data, list)
-            else da.moveaxis(data, 0, -1)
-        )
+        if isinstance(data, list):
+            data = da.stack(data, axis=-1)
         return data

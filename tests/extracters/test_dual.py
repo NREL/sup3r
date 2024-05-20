@@ -75,7 +75,6 @@ def test_regrid_caching(log=False, full_shape=(20, 20)):
             features=FEATURES,
             time_slice=slice(None, None, 10),
         )
-
         lr_cache_pattern = os.path.join(td, 'lr_{feature}.h5')
         hr_cache_pattern = os.path.join(td, 'hr_{feature}.h5')
         pair_extracter = DualExtracter(
@@ -100,7 +99,7 @@ def test_regrid_caching(log=False, full_shape=(20, 20)):
                 hr_cache_pattern.format(feature=f)
                 for f in hr_container.features
             ],
-            hr_container.features,
+            features=hr_container.features,
         )
 
         assert da.map_blocks(
