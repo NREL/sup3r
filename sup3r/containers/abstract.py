@@ -54,9 +54,8 @@ class AbstractContainer(ABC, metaclass=_ContainerMeta):
         defaults = arg_spec.defaults or []
         arg_names = arg_spec.args[1 : len(args) + 1]
         kwargs_names = arg_spec.args[-len(defaults) :]
-        args_dict = dict(zip(arg_names, args))
-        default_dict = dict(zip(kwargs_names, defaults))
-        args_dict.update(default_dict)
+        args_dict = dict(zip(kwargs_names, defaults))
+        args_dict.update(dict(zip(arg_names, args)))
         args_dict.update(kwargs)
         logger.info(
             f'Initialized {cls.__name__} with:\n'

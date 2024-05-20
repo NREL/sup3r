@@ -24,20 +24,18 @@ class LoaderNC(Loader):
         return xr.open_mfdataset(self.file_paths, **self._res_kwargs)
 
     def _get_features(self, features):
+        """We perform an axis shift here from (time, ...) to (..., time)
+        ordering. The final stack puts features in the last channel."""
         if isinstance(features, (list, tuple)):
             data = [self._get_features(f) for f in features]
         elif isinstance(features, str) and features in self.res:
-            data = self.res[features].data
+            data = da.moveaxis(self.res[features].data, 0, -1)
         elif isinstance(features, str) and features.lower() in self.res:
             data = self._get_features(features.lower())
         else:
             msg = f'{features} not found in {self.file_paths}.'
             logger.error(msg)
             raise KeyError(msg)
-
-        data = (
-            da.stack(data, axis=-1)
-            if isinstance(data, list)
-            else da.moveaxis(data, 0, -1)
-        )
+        if isinstance(data, list):
+            data = da.stack(data, axis=-1)
         return data
