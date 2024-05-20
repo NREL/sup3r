@@ -10,7 +10,7 @@ from sup3r.containers.batchers.abstract import (
     AbstractBatchQueue,
 )
 from sup3r.containers.samplers import Sampler
-from sup3r.containers.samplers.pair import SamplerPair
+from sup3r.containers.samplers.dual import DualSampler
 from sup3r.utilities.utilities import (
     smooth_data,
     spatial_coarsening,
@@ -33,7 +33,7 @@ class SingleBatchQueue(AbstractBatchQueue):
 
     def __init__(
         self,
-        containers: Union[List[Sampler], List[SamplerPair]],
+        containers: Union[List[Sampler], List[DualSampler]],
         batch_size,
         n_batches,
         s_enhance,
@@ -44,6 +44,7 @@ class SingleBatchQueue(AbstractBatchQueue):
         max_workers: Optional[int] = None,
         coarsen_kwargs: Optional[Dict] = None,
         default_device: Optional[str] = None,
+        thread_name: Optional[str] = 'training'
     ):
         """
         Parameters
@@ -77,6 +78,10 @@ class SingleBatchQueue(AbstractBatchQueue):
             Default device to use for batch queue (e.g. /cpu:0, /gpu:0). If
             None this will use the first GPU if GPUs are available otherwise
             the CPU.
+        thread_name : str
+            Name of the queue thread. Default is 'training'. Used to set name
+            to 'validation' for :class:`BatchQueue`, which has a training and
+            validation queue.
         """
         super().__init__(
             containers=containers,
@@ -89,6 +94,7 @@ class SingleBatchQueue(AbstractBatchQueue):
             queue_cap=queue_cap,
             max_workers=max_workers,
             default_device=default_device,
+            thread_name=thread_name
         )
         self.coarsen_kwargs = coarsen_kwargs or {
             'smoothing_ignore': [],
@@ -178,16 +184,14 @@ class BatchQueue(SingleBatchQueue):
 
     def __init__(
         self,
-        train_containers: Union[List[Sampler], List[SamplerPair]],
+        train_containers: Union[List[Sampler], List[DualSampler]],
+        val_containers: Union[List[Sampler], List[DualSampler]],
         batch_size,
         n_batches,
         s_enhance,
         t_enhance,
         means: Union[Dict, str],
         stds: Union[Dict, str],
-        val_containers: Optional[
-            Union[List[Sampler], List[SamplerPair]]
-        ] = None,
         queue_cap: Optional[int] = None,
         max_workers: Optional[int] = None,
         coarsen_kwargs: Optional[Dict] = None,
@@ -198,6 +202,9 @@ class BatchQueue(SingleBatchQueue):
         ----------
         train_containers : List[Sampler]
             List of Sampler instances containing training data
+        val_containers : List[Sampler]
+            List of Sampler instances containing validation data. Can provide
+            an empty list to instantiate without any validation data.
         batch_size : int
             Number of observations / samples in a batch
         n_batches : int
@@ -214,8 +221,6 @@ class BatchQueue(SingleBatchQueue):
             Either a .json path containing a dictionary or a dictionary of
             standard deviations which will be used to normalize batches as they
             are built.
-        val_containers : Optional[List[Sampler]]
-            Optional list of Sampler instances containing validation data
         queue_cap : int
             Maximum number of batches the batch queue can store.
         max_workers : int
@@ -228,6 +233,24 @@ class BatchQueue(SingleBatchQueue):
             None this will use the first GPU if GPUs are available otherwise
             the CPU.
         """
+        if not val_containers:
+            self.val_data: Union[List, SingleBatchQueue] = []
+        else:
+            self.val_data = SingleBatchQueue(
+                containers=val_containers,
+                batch_size=batch_size,
+                n_batches=n_batches,
+                s_enhance=s_enhance,
+                t_enhance=t_enhance,
+                means=means,
+                stds=stds,
+                queue_cap=queue_cap,
+                max_workers=max_workers,
+                coarsen_kwargs=coarsen_kwargs,
+                default_device=default_device,
+                thread_name='validation'
+            )
+
         super().__init__(
             containers=train_containers,
             batch_size=batch_size,
@@ -241,30 +264,7 @@ class BatchQueue(SingleBatchQueue):
             coarsen_kwargs=coarsen_kwargs,
             default_device=default_device,
         )
-        self.val_data = (
-            []
-            if val_containers is None
-            else self.init_validation_queue(val_containers)
-        )
-
-    def init_validation_queue(self, val_containers):
-        """Initialize validation batch queue if validation samplers are
-        provided."""
-        val_queue = SingleBatchQueue(
-            containers=val_containers,
-            batch_size=self.batch_size,
-            n_batches=self.n_batches,
-            s_enhance=self.s_enhance,
-            t_enhance=self.t_enhance,
-            means=self.means,
-            stds=self.stds,
-            queue_cap=self.queue_cap,
-            max_workers=self.max_workers,
-            coarsen_kwargs=self.coarsen_kwargs,
-            default_device=self.default_device,
-        )
-        val_queue.queue._name = 'validation'
-        return val_queue
+        self.start()
 
     def start(self):
         """Start the val data batch queue in addition to the train batch

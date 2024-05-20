@@ -17,7 +17,6 @@ class _ContainerMeta(ABCMeta, type):
         """Check for required attributes"""
         obj = type.__call__(cls, *args, **kwargs)
         obj._init_check()
-        obj._log_args(args, kwargs)
         return obj
 
 
@@ -35,11 +34,17 @@ class AbstractContainer(ABC, metaclass=_ContainerMeta):
     hr feature sets."""
 
     def _init_check(self):
-        required = ['data', 'shape', 'features']
-        missing = [attr for attr in required if not hasattr(self, attr)]
+        required = ['data', 'features']
+        missing = [req for req in required if req not in dir(self)]
         if len(missing) > 0:
             msg = f'{self.__class__.__name__} must implement {missing}.'
             raise NotImplementedError(msg)
+
+    def __new__(cls, *args, **kwargs):
+        """Include arg logging in construction."""
+        instance = super().__new__(cls)
+        cls._log_args(args, kwargs)
+        return instance
 
     @classmethod
     def _log_args(cls, args, kwargs):
@@ -61,6 +66,11 @@ class AbstractContainer(ABC, metaclass=_ContainerMeta):
     @abstractmethod
     def __getitem__(self, keys):
         """Method for accessing contained data"""
+
+    @property
+    def shape(self):
+        """Get shape of contained data."""
+        return self.data.shape
 
     @property
     def size(self):

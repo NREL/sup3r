@@ -3,4 +3,4 @@
 from .base import Sampler
 from .cropped import CroppedSampler
 from .dc import DataCentricSampler
-from .pair import SamplerPair
+from .dual import DualSampler

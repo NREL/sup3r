@@ -4,7 +4,7 @@ classes."""
 
 import logging
 
-import dask
+import dask.array as da
 import xarray as xr
 
 from sup3r.containers.loaders import Loader
@@ -25,13 +25,19 @@ class LoaderNC(Loader):
 
     def _get_features(self, features):
         if isinstance(features, (list, tuple)):
-            data = self.res[features].to_dataarray().data
-        elif isinstance(features, str):
-            data = self._get_features([features])
+            data = [self._get_features(f) for f in features]
+        elif isinstance(features, str) and features in self.res:
+            data = self.res[features].data
+        elif isinstance(features, str) and features.lower() in self.res:
+            data = self._get_features(features.lower())
         else:
             msg = f'{features} not found in {self.file_paths}.'
             logger.error(msg)
             raise KeyError(msg)
-        data = dask.array.moveaxis(data, 0, -1)
-        data = dask.array.moveaxis(data, 0, -2)
+
+        data = (
+            da.stack(data, axis=-1)
+            if isinstance(data, list)
+            else da.moveaxis(data, 0, -1)
+        )
         return data

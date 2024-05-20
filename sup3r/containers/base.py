@@ -5,8 +5,6 @@ containers."""
 import copy
 import logging
 
-import numpy as np
-
 from sup3r.containers.abstract import AbstractContainer
 from sup3r.utilities.utilities import parse_keys
 
@@ -19,10 +17,9 @@ class Container(AbstractContainer):
 
     def __init__(self, container):
         super().__init__()
+        self._features = container.features
+        self._data = container.data
         self.container = container
-        self._features = self.container.features
-        self._data = self.container.data
-        self._shape = self.container.shape
 
     @property
     def data(self):
@@ -33,21 +30,6 @@ class Container(AbstractContainer):
     def data(self, value):
         """Set data values."""
         self._data = value
-
-    @property
-    def size(self):
-        """'Size' of container."""
-        return np.prod(self.shape)
-
-    @property
-    def shape(self):
-        """Shape of contained data. Usually (lat, lon, time, features)."""
-        return self._shape
-
-    @shape.setter
-    def shape(self, shape):
-        """Set shape value."""
-        self._shape = shape
 
     @property
     def features(self):
@@ -75,23 +57,13 @@ class Container(AbstractContainer):
                 return self.data[*key_slice, self.index(key)]
             if hasattr(self, key):
                 return getattr(self, key)
+            if hasattr(self.container, key):
+                return getattr(self.container, key)
             raise ValueError(f'Could not get item for "{keys}"')
         return self.data[key, *key_slice]
 
-    def __setitem__(self, keys, value):
-        """Set values of data or attributes. keys can optionally include a
-        feature name as the first element of a keys tuple."""
-        key, key_slice = parse_keys(keys)
-        if isinstance(key, str):
-            if key in self:
-                self.data[*key_slice, self.index(key)] = value
-            if hasattr(self, key):
-                setattr(self, key, value)
-            raise ValueError(f'Could not set item for "{keys}"')
-        self.data[key, *key_slice] = value
 
-
-class ContainerPair(Container):
+class DualContainer(Container):
     """Pair of two Containers, one for low resolution and one for high
     resolution data."""
 
@@ -99,7 +71,6 @@ class ContainerPair(Container):
         self.lr_container = lr_container
         self.hr_container = hr_container
         self.data = (self.lr_container.data, self.hr_container.data)
-        self.shape = (self.lr_container.shape, self.hr_container.shape)
         feats = list(copy.deepcopy(self.lr_container.features))
         feats += [fn for fn in self.hr_container.features if fn not in feats]
         self.features = feats

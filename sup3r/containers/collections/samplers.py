@@ -7,7 +7,7 @@ import numpy as np
 
 from sup3r.containers.collections.base import Collection
 from sup3r.containers.samplers.base import Sampler
-from sup3r.containers.samplers.pair import SamplerPair
+from sup3r.containers.samplers.dual import DualSampler
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ class SamplerCollection(Collection):
 
     def __init__(
         self,
-        containers: Union[List[Sampler], List[SamplerPair]],
+        containers: Union[List[Sampler], List[DualSampler]],
         s_enhance,
         t_enhance,
     ):

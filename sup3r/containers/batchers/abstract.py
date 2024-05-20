@@ -11,7 +11,7 @@ import tensorflow as tf
 from rex import safe_json_load
 
 from sup3r.containers.collections.samplers import SamplerCollection
-from sup3r.containers.samplers import Sampler, SamplerPair
+from sup3r.containers.samplers import DualSampler, Sampler
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +51,7 @@ class AbstractBatchQueue(SamplerCollection, ABC):
 
     def __init__(
         self,
-        containers: Union[List[Sampler], List[SamplerPair]],
+        containers: Union[List[Sampler], List[DualSampler]],
         batch_size,
         n_batches,
         s_enhance,
@@ -61,6 +61,7 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         queue_cap: Optional[int] = None,
         max_workers: Optional[int] = None,
         default_device: Optional[str] = None,
+        thread_name: Optional[str] = 'training'
     ):
         """
         Parameters
@@ -94,6 +95,10 @@ class AbstractBatchQueue(SamplerCollection, ABC):
             Default device to use for batch queue (e.g. /cpu:0, /gpu:0). If
             None this will use the first GPU if GPUs are available otherwise
             the CPU.
+        thread_name : str
+            Name of the queue thread. Default is 'training'. Used to set name
+            to 'validation' for :class:`BatchQueue`, which has a training and
+            validation queue.
         """
         super().__init__(
             containers=containers, s_enhance=s_enhance, t_enhance=t_enhance
@@ -111,7 +116,8 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         self.n_batches = n_batches
         self.queue_cap = queue_cap or n_batches
         self.queue_thread = threading.Thread(
-            target=self.enqueue_batches, args=(self._stopped,)
+            target=self.enqueue_batches, args=(self._stopped,),
+            name=thread_name
         )
         self.queue = self.get_queue()
         self.max_workers = max_workers or batch_size
@@ -201,7 +207,7 @@ class AbstractBatchQueue(SamplerCollection, ABC):
     def prefetch(self):
         """Prefetch set of batches from dataset generator."""
         logger.debug(
-            f'Prefetching {self.queue.name} batches with '
+            f'Prefetching {self.queue_thread.name} batches with '
             f'batch_size = {self.batch_size}.'
         )
         with tf.device(self.default_device):
@@ -215,7 +221,7 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         return batches.as_numpy_iterator()
 
     def _get_queue_shape(self) -> List[tuple]:
-        """Get shape for queue. For SamplerPair containers shape is a list of
+        """Get shape for queue. For DualSampler containers shape is a list of
         length = 2. Otherwise its a list of length = 1.  In both cases the list
         elements are of shape (batch_size,
         *sample_shape, len(features))"""
@@ -228,7 +234,7 @@ class AbstractBatchQueue(SamplerCollection, ABC):
             shape = [(self.batch_size, *self.sample_shape, len(self.features))]
         return shape
 
-    def get_queue(self, name='training'):
+    def get_queue(self):
         """Initialize FIFO queue for storing batches.
 
         Returns
@@ -236,21 +242,18 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         tensorflow.queue.FIFOQueue
             First in first out queue with `size = self.queue_cap`
         """
-        if self._stopped.is_set():
-            self._stopped.clear()
         shapes = self._get_queue_shape()
         dtypes = [tf.float32] * len(shapes)
         out = tf.queue.FIFOQueue(
             self.queue_cap, dtypes=dtypes, shapes=self._get_queue_shape()
         )
-        out._name = name
         return out
 
     @abstractmethod
     def batch_next(self, samples):
         """Returns normalized collection of samples / observations. Performs
         coarsening on high-res data if Collection objects are Samplers and not
-        SamplerPairs
+        DualSamplers
 
         Returns
         -------
@@ -260,18 +263,19 @@ class AbstractBatchQueue(SamplerCollection, ABC):
 
     def start(self) -> None:
         """Start thread to keep sample queue full for batches."""
-        logger.info(f'Starting {self.queue.name} queue.')
+        logger.info(f'Starting {self.queue_thread.name} queue.')
         self._stopped.clear()
         self.queue_thread.start()
 
     def join(self) -> None:
         """Join thread to exit gracefully."""
-        logger.info(f'Joining {self.queue.name} queue thread to main thread.')
+        logger.info(f'Joining {self.queue_thread.name} queue thread to main '
+                    'thread.')
         self.queue_thread.join()
 
     def stop(self) -> None:
         """Stop loading batches."""
-        logger.info(f'Stopping {self.queue.name} queue.')
+        logger.info(f'Stopping {self.queue_thread.name} queue.')
         self._stopped.set()
         self.join()
 
@@ -290,9 +294,10 @@ class AbstractBatchQueue(SamplerCollection, ABC):
             queue_size = self.queue.size().numpy()
             if queue_size < self.queue_cap:
                 if queue_size == 1:
-                    msg = f'1 batch in {self.queue.name} queue'
+                    msg = f'1 batch in {self.queue_thread.name} queue'
                 else:
-                    msg = f'{queue_size} batches in {self.queue.name} queue.'
+                    msg = (f'{queue_size} batches in {self.queue_thread.name} '
+                           'queue.')
                 logger.debug(msg)
 
                 batch = next(self.batches, None)
@@ -325,13 +330,14 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         """
         if self._batch_counter < self.n_batches:
             logger.debug(
-                f'Getting next {self.queue.name} batch: '
+                f'Getting next {self.queue_thread.name} batch: '
                 f'{self._batch_counter + 1} / {self.n_batches}.'
             )
             start = time.time()
             batch = self.get_next()
             logger.debug(
-                f'Built {self.queue.name} batch in ' f'{time.time() - start}.'
+                f'Built {self.queue_thread.name} batch in '
+                f'{time.time() - start}.'
             )
             self._batch_counter += 1
         else:
@@ -339,27 +345,27 @@ class AbstractBatchQueue(SamplerCollection, ABC):
 
         return batch
 
-    @property
+    @ property
     def lr_means(self):
         """Means specific to the low-res objects in the Containers."""
         return np.array([self.means[k] for k in self.lr_features])
 
-    @property
+    @ property
     def hr_means(self):
         """Means specific the high-res objects in the Containers."""
         return np.array([self.means[k] for k in self.hr_features])
 
-    @property
+    @ property
     def lr_stds(self):
         """Stdevs specific the low-res objects in the Containers."""
         return np.array([self.stds[k] for k in self.lr_features])
 
-    @property
+    @ property
     def hr_stds(self):
         """Stdevs specific the high-res objects in the Containers."""
         return np.array([self.stds[k] for k in self.hr_features])
 
-    @staticmethod
+    @ staticmethod
     def _normalize(array, means, stds):
         """Normalize an array with given means and stds."""
         return (array - means) / stds

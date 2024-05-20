@@ -1,9 +1,8 @@
 """Top level containers. These are just things that have access to data.
-Loaders, Extracters, Samplers, Derivers, Wranglers, Handlers, Batchers, etc are
-subclasses of Containers. Rather than having a single object that does
-everything - extract data, compute features, sample the data for batching,
-split into train and val, etc, we have fundamental objects that do one of these
-things.
+Loaders, Extracters, Samplers, Derivers, Handlers, Batchers, etc are subclasses
+of Containers. Rather than having a single object that does everything -
+extract data, compute features, sample the data for batching, split into train
+and val, etc, we have fundamental objects that do one of these things.
 
 If you want to extract a specific spatiotemporal extent from a data file then
 use :class:`Extracter`. If you want to split into a test and validation set
@@ -14,27 +13,31 @@ class:`SingleBatchQueue`. If you want to have training and validation batches
 then load those separate data sets, wrap the data objects in Sampler objects
 and provide these to :class:`BatchQueue`. If you want to have a BatchQueue
 containing pairs of low / high res data, rather than coarsening high-res to get
-low res then use :class:`PairBatchQueue` with :class:`SamplerPair` objects.
+low res then use :class:`DualBatchQueue` with :class:`DualSampler` objects.
 """
 
-from .base import Container, ContainerPair
-from .batchers import BatchQueue, PairBatchQueue, SingleBatchQueue
+from .base import Container, DualContainer
+from .batchers import (
+    BatchHandler,
+    BatchQueue,
+    DualBatchHandler,
+    DualBatchQueue,
+    SingleBatchQueue,
+)
 from .cachers import Cacher
 from .collections import Collection, SamplerCollection, StatsCollection
 from .derivers import Deriver, DeriverH5, DeriverNC
-from .extracters import Extracter, ExtracterH5, ExtracterNC, ExtracterPair
+from .extracters import DualExtracter, Extracter, ExtracterH5, ExtracterNC
 from .factory import (
-    DirectDeriverH5,
-    DirectDeriverNC,
+    DataHandlerH5,
+    DataHandlerNC,
     DirectExtracterH5,
     DirectExtracterNC,
-    WranglerH5,
-    WranglerNC,
 )
 from .loaders import Loader, LoaderH5, LoaderNC
 from .samplers import (
     CroppedSampler,
     DataCentricSampler,
+    DualSampler,
     Sampler,
-    SamplerPair,
 )

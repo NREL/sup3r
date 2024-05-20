@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Test the basic training of super resolution GAN with dual data handler"""
+
 import json
 import os
 import tempfile
@@ -11,18 +12,13 @@ from rex import init_logger
 from tensorflow.python.framework.errors_impl import InvalidArgumentError
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
-from sup3r.models import Sup3rGan
-from sup3r.preprocessing import (
+from sup3r.containers import (
     DataHandlerH5,
     DataHandlerNC,
+    DualBatchHandler,
     DualDataHandler,
 )
-from sup3r.preprocessing.dual_batch_handling import (
-    DualBatchHandler,
-    SpatialDualBatchHandler,
-)
-
-from sup3r.containers.batchers import PairBatchQueue
+from sup3r.models import Sup3rGan
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 FP_ERA = os.path.join(TEST_DATA_DIR, 'test_era5_co_2012.nc')
@@ -47,28 +43,30 @@ def test_train_spatial(
 
     # need to reduce the number of temporal examples to test faster
     hr_handler = DataHandlerH5(
-        FP_WTK,
-        FEATURES,
+        file_paths=FP_WTK,
+        features=FEATURES,
         target=TARGET_COORD,
         shape=full_shape,
-        sample_shape=sample_shape,
         time_slice=slice(None, None, 10),
-        worker_kwargs=dict(max_workers=1),
     )
     lr_handler = DataHandlerNC(
-        FP_ERA,
-        FEATURES,
-        sample_shape=(sample_shape[0] // 2, sample_shape[1] // 2, 1),
+        file_paths=FP_ERA,
+        features=FEATURES,
         time_slice=slice(None, None, 10),
-        worker_kwargs=dict(max_workers=1),
     )
 
     dual_handler = DualDataHandler(
-        hr_handler, lr_handler, s_enhance=2, t_enhance=1, val_split=0.1
+        hr_handler, lr_handler, s_enhance=2, t_enhance=1
     )
 
-    batch_handler = PairBatchQueue(
-        [dual_handler], batch_size=2, n_batches=2, s_enhance=2, n_batches=2
+    batch_handler = DualBatchHandler(
+        train_containers=[dual_handler],
+        val_containers=[],
+        sample_shape=sample_shape,
+        batch_size=2,
+        n_batches=2,
+        s_enhance=2,
+        t_enhance=1
     )
 
     with tempfile.TemporaryDirectory() as td:
@@ -139,38 +137,30 @@ def test_train_st(n_epoch=3, log=False):
     )
 
     hr_handler = DataHandlerH5(
-        FP_WTK,
-        FEATURES,
+        file_paths=FP_WTK,
+        features=FEATURES,
         target=TARGET_COORD,
         shape=(20, 20),
-        sample_shape=(12, 12, 16),
         time_slice=slice(None, None, 10),
-        worker_kwargs=dict(max_workers=1),
     )
     lr_handler = DataHandlerNC(
-        FP_ERA,
-        FEATURES,
-        sample_shape=(4, 4, 4),
+        file_paths=FP_ERA,
+        features=FEATURES,
         time_slice=slice(None, None, 40),
-        worker_kwargs=dict(max_workers=1),
     )
 
     dual_handler = DualDataHandler(
-        hr_handler, lr_handler, s_enhance=3, t_enhance=4, val_split=0.1
-    )
+        hr_handler, lr_handler, s_enhance=3, t_enhance=4)
 
     batch_handler = DualBatchHandler(
-        [dual_handler],
+        train_containers=[dual_handler],
+        val_containers=[],
+        sample_shape=(12, 12, 16),
         batch_size=5,
         s_enhance=3,
         t_enhance=4,
         n_batches=5,
-        worker_kwargs={'max_workers': 1},
     )
-
-    assert batch_handler.norm_workers == 1
-    assert batch_handler.stats_workers == 1
-    assert batch_handler.load_workers == 1
 
     with tempfile.TemporaryDirectory() as td:
         # test that training works and reduces loss

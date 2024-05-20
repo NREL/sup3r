@@ -9,7 +9,11 @@ import pytest
 from rex import init_logger
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
-from sup3r.containers import BatchQueue, CroppedSampler, LoaderH5, WranglerH5
+from sup3r.containers import (
+    BatchQueue,
+    CroppedSampler,
+    DirectExtracterH5,
+)
 from sup3r.models import Sup3rGan
 from sup3r.utilities.pytest.helpers import execute_pytest
 
@@ -27,9 +31,9 @@ def get_val_queue_params(container, sample_shape):
     val_slice = slice(0, split_index)
     train_slice = slice(split_index, container.data.shape[2])
     train_sampler = CroppedSampler(
-        container, sample_shape, crop_slice=train_slice)
-    val_sampler = CroppedSampler(
-        container, sample_shape, crop_slice=val_slice)
+        container, sample_shape, crop_slice=train_slice
+    )
+    val_sampler = CroppedSampler(container, sample_shape, crop_slice=val_slice)
     means = {
         FEATURES[i]: container.data[..., i].mean()
         for i in range(len(FEATURES))
@@ -59,9 +63,8 @@ def test_train_spatial(
     )
 
     # need to reduce the number of temporal examples to test faster
-    loader = LoaderH5(FP_WTK, FEATURES)
-    wrangler = WranglerH5(
-        loader,
+    extracter = DirectExtracterH5(
+        FP_WTK,
         FEATURES,
         target=TARGET_COORD,
         shape=full_shape,
@@ -69,7 +72,7 @@ def test_train_spatial(
     )
 
     train_sampler, val_sampler, means, stds = get_val_queue_params(
-        wrangler, sample_shape
+        extracter, sample_shape
     )
     batcher = BatchQueue(
         train_containers=[train_sampler],
@@ -127,9 +130,8 @@ def test_train_st(
     )
 
     # need to reduce the number of temporal examples to test faster
-    loader = LoaderH5(FP_WTK, FEATURES)
-    wrangler = WranglerH5(
-        loader,
+    extracter = DirectExtracterH5(
+        FP_WTK,
         FEATURES,
         target=TARGET_COORD,
         shape=full_shape,
@@ -137,7 +139,7 @@ def test_train_st(
     )
 
     train_sampler, val_sampler, means, stds = get_val_queue_params(
-        wrangler, sample_shape
+        extracter, sample_shape
     )
     batcher = BatchQueue(
         train_containers=[train_sampler],

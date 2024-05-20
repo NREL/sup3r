@@ -86,7 +86,7 @@ class ExtracterNC(Extracter, ABC):
         if self._has_descending_lats():
             lat_slice = slice(row - self._grid_shape[0] + 1, row + 1)
         else:
-            lat_slice = slice(row, row + self._grid_shape[0])
+            lat_slice = slice(row, row + self._grid_shape[0] + 1)
         lon_slice = slice(col, col + self._grid_shape[1])
         return (lat_slice, lon_slice)
 

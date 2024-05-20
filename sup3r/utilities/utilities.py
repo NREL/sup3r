@@ -10,6 +10,7 @@ import re
 import string
 import time
 from fnmatch import fnmatch
+from inspect import signature
 from pathlib import Path
 from warnings import warn
 
@@ -25,6 +26,20 @@ from scipy.ndimage import gaussian_filter, zoom
 np.random.seed(42)
 
 logger = logging.getLogger(__name__)
+
+
+def _get_possible_class_args(Class):
+    class_args = list(signature(Class.__init__).parameters.keys())
+    if Class.__bases__ == (object,):
+        return class_args
+    for base in Class.__bases__:
+        class_args += _get_possible_class_args(base)
+    return class_args
+
+
+def _get_class_kwargs(Class, kwargs):
+    class_args = _get_possible_class_args(Class)
+    return {k: v for k, v in kwargs.items() if k in class_args}
 
 
 def parse_keys(keys):

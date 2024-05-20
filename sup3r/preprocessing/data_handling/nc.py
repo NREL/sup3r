@@ -12,46 +12,11 @@ from scipy.ndimage import gaussian_filter
 from scipy.spatial import KDTree
 from scipy.stats import mode
 
-from sup3r.containers import LoaderNC, WranglerNC
+from sup3r.containers import DataHandlerNC
 
 np.random.seed(42)
 
 logger = logging.getLogger(__name__)
-
-
-class DataHandlerNC(WranglerNC):
-    """DataHandler for NETCDF Data"""
-
-    def __init__(
-        self,
-        file_paths,
-        load_features,
-        derive_features,
-        res_kwargs=None,
-        chunks='auto',
-        mode='lazy',
-        target=None,
-        shape=None,
-        time_slice=None,
-        transform=None,
-        cache_kwargs=None,
-    ):
-        loader = LoaderNC(
-            file_paths,
-            load_features,
-            res_kwargs=res_kwargs,
-            chunks=chunks,
-            mode=mode,
-        )
-        super().__init__(
-            loader,
-            derive_features,
-            target=target,
-            shape=shape,
-            time_slice=time_slice,
-            transform=transform,
-            cache_kwargs=cache_kwargs,
-        )
 
 
 class DataHandlerNCforCC(DataHandlerNC):
