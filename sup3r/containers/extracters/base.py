@@ -62,16 +62,6 @@ class Extracter(AbstractContainer, ABC):
         self.loader.close()
 
     @property
-    def full_lat_lon(self):
-        """Get lat / lon grid for entire domain."""
-        if self._full_lat_lon is None:
-            self._full_lat_lon = da.stack(
-                [self.loader['latitude'], self.loader['longitude']],
-                axis=-1,
-            )
-        return self._full_lat_lon
-
-    @property
     def target(self):
         """Return the true value based on the closest lat lon instead of the
         user provided value self._target, which is used to find the closest lat
@@ -97,7 +87,7 @@ class Extracter(AbstractContainer, ABC):
     def time_index(self):
         """Get the time index for the time period of interest."""
         if self._time_index is None:
-            self._time_index = self.get_time_index()
+            self._time_index = self.loader.time_index[self.time_slice]
         return self._time_index
 
     @property

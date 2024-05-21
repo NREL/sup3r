@@ -113,7 +113,7 @@ class ExtracterH5(Extracter, ABC):
     def get_lat_lon(self):
         """Get the 2D array of coordinates corresponding to the requested
         target and shape."""
-        lat_lon = self.full_lat_lon[self.raster_index.flatten()].reshape(
+        lat_lon = self.loader.lat_lon[self.raster_index.flatten()].reshape(
             (*self.raster_index.shape, -1)
         )
         return lat_lon
