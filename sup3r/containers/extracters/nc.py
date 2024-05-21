@@ -3,7 +3,9 @@ data."""
 
 import logging
 from abc import ABC
+from warnings import warn
 
+import dask.array as da
 import numpy as np
 
 from sup3r.containers.extracters.base import Extracter
@@ -19,7 +21,7 @@ class ExtracterNC(Extracter, ABC):
 
     def __init__(
         self,
-        container: Loader,
+        loader: Loader,
         target=None,
         shape=None,
         time_slice=slice(None),
@@ -27,7 +29,7 @@ class ExtracterNC(Extracter, ABC):
         """
         Parameters
         ----------
-        container : Loader
+        loader : Loader
             Loader type container with `.data` attribute exposing data to
             extract.
         target : tuple
@@ -41,11 +43,15 @@ class ExtracterNC(Extracter, ABC):
             the full time dimension is selected.
         """
         super().__init__(
-            container=container,
+            loader=loader,
             target=target,
             shape=shape,
             time_slice=time_slice,
         )
+
+    def get_data(self):
+        """Get rasterized data."""
+        return self.loader[(*self.raster_index, self.time_slice)]
 
     def check_target_and_shape(self, full_lat_lon):
         """NETCDF files tend to use a regular grid so if either target or shape
@@ -66,29 +72,49 @@ class ExtracterNC(Extracter, ABC):
         if not self._grid_shape:
             self._grid_shape = full_lat_lon.shape[:-1]
 
-    def _get_full_lat_lon(self):
-        lats = self.container.res['latitude'].data
-        lons = self.container.res['longitude'].data
-        if len(lats.shape) == 1:
-            lons, lats = np.meshgrid(lons, lats)
-        return np.dstack([lats, lons])
-
     def _has_descending_lats(self):
-        lats = self._get_full_lat_lon()[:, 0, 0]
+        lats = self.full_lat_lon[:, 0, 0]
         return lats[0] > lats[-1]
 
     def get_raster_index(self):
         """Get set of slices or indices selecting the requested region from
         the contained data."""
-        full_lat_lon = self._get_full_lat_lon()
-        self.check_target_and_shape(full_lat_lon)
-        row, col = self.get_closest_row_col(full_lat_lon, self._target)
+        self.check_target_and_shape(self.full_lat_lon)
+        row, col = self.get_closest_row_col(self.full_lat_lon, self._target)
         if self._has_descending_lats():
             lat_slice = slice(row - self._grid_shape[0] + 1, row + 1)
         else:
             lat_slice = slice(row, row + self._grid_shape[0] + 1)
         lon_slice = slice(col, col + self._grid_shape[1])
-        return (lat_slice, lon_slice)
+
+        return self._check_raster_index(lat_slice, lon_slice)
+
+    def _check_raster_index(self, lat_slice, lon_slice):
+        """Check if raster index has bounds which exceed available region and
+        crop if so."""
+        lat_start, lat_end = lat_slice.start, lat_slice.stop
+        lon_start, lon_end = lon_slice.start, lon_slice.stop
+        lat_start = max(lat_start, 0)
+        lat_end = min(lat_end, self.full_lat_lon.shape[0])
+        lon_start = max(lon_start, 0)
+        lon_end = min(lon_end, self.full_lat_lon.shape[1])
+        new_lat_slice = slice(lat_start, lat_end)
+        new_lon_slice = slice(lon_start, lon_end)
+        msg = (
+            f'Computed lat_slice = {lat_slice} exceeds available region. '
+            f'Using {new_lat_slice}'
+        )
+        if lat_slice != new_lat_slice:
+            logger.warning(msg)
+            warn(msg)
+        msg = (
+            f'Computed lon_slice = {lon_slice} exceeds available region. '
+            f'Using {new_lon_slice}'
+        )
+        if lon_slice != new_lon_slice:
+            logger.warning(msg)
+            warn(msg)
+        return new_lat_slice, new_lon_slice
 
     @staticmethod
     def get_closest_row_col(lat_lon, target):
@@ -113,25 +139,12 @@ class ExtracterNC(Extracter, ABC):
         dist = np.hypot(
             lat_lon[..., 0] - target[0], lat_lon[..., 1] - target[1]
         )
-        row, col = np.where(dist == np.min(dist))
-        return row[0], col[0]
-
-    def get_time_index(self):
-        """Get the time index corresponding to the requested time_slice"""
-        return self.container.res['time'].values[self.time_slice]
+        return da.unravel_index(da.argmin(dist, axis=None), dist.shape)
 
     def get_lat_lon(self):
         """Get the 2D array of coordinates corresponding to the requested
         target and shape."""
-        lat_lon = self._get_full_lat_lon()[*self.raster_index]
+        lat_lon = self.full_lat_lon[*self.raster_index]
         if self._has_descending_lats():
             lat_lon = lat_lon[::-1]
         return lat_lon
-
-    def extract_features(self):
-        """Extract the requested features for the requested target + grid_shape
-        + time_slice."""
-        out = self.container[*self.raster_index, self.time_slice]
-        if self._has_descending_lats():
-            out = out[::-1]
-        return out

@@ -4,6 +4,7 @@ import os
 
 import dask.array as da
 import numpy as np
+import pandas as pd
 import pytest
 import xarray as xr
 
@@ -27,6 +28,33 @@ def execute_pytest(fname, capture='all', flags='-rapP'):
         Which tests to show logs and results for.
     """
     pytest.main(['-q', '--show-capture={}'.format(capture), fname, flags])
+
+
+def make_fake_nc_file(file_name, shape, features):
+    """Make nc file with dummy data for tests."""
+    times = pd.date_range('2023-01-01', '2023-12-31', freq='60min')[: shape[0]]
+
+    if len(shape) == 3:
+        dims = ('time', 'latitude', 'longitude')
+        lats = np.linspace(70, -70, shape[1])
+        lons = np.linspace(-150, 150, shape[2])
+        coords = {'time': times, 'latitude': lats, 'longitude': lons}
+
+    if len(shape) == 4:
+        dims = ('time', 'level', 'latitude', 'longitude')
+        levels = np.linspace(0, 1000, shape[1])
+        lats = np.linspace(70, -70, shape[2])
+        lons = np.linspace(-150, 150, shape[3])
+        coords = {
+            'time': times,
+            'level': levels,
+            'latitude': lats,
+            'longitude': lons,
+        }
+
+    data_vars = {f: (dims, da.random.random(shape)) for f in features}
+    nc = xr.Dataset(coords=coords, data_vars=data_vars)
+    nc.to_netcdf(file_name)
 
 
 class DummyData(AbstractContainer):
@@ -68,122 +96,6 @@ class DummyCroppedSampler(CroppedSampler):
             feature_sets=feature_sets,
             crop_slice=crop_slice,
         )
-
-
-def make_fake_nc_files(td, input_file, n_files):
-    """Make dummy nc files with increasing times
-
-    Parameters
-    ----------
-    td : str
-        Temporary directory
-    input_file : str
-        File to use as template for all dummy files
-    n_files : int
-        Number of dummy files to create
-
-    Returns
-    -------
-    fake_files : list
-        List of dummy files
-    """
-    fake_dates = [
-        f'2014-10-01_{str(i).zfill(2)}_00_00' for i in range(n_files)
-    ]
-    fake_times = [
-        f'2014-10-01 {str(i).zfill(2)}:00:00' for i in range(n_files)
-    ]
-    fake_files = [os.path.join(td, f'input_{date}') for date in fake_dates]
-    for i in range(n_files):
-        if os.path.exists(fake_files[i]):
-            os.remove(fake_files[i])
-        with (
-            xr.open_dataset(input_file) as input_dset,
-            xr.Dataset(input_dset) as dset,
-        ):
-            dset['Times'][:] = np.array(
-                [fake_times[i].encode('ASCII')], dtype='|S19'
-            )
-            dset['XTIME'][:] = i
-            dset.to_netcdf(fake_files[i])
-    return fake_files
-
-
-def make_fake_multi_time_nc_files(td, input_file, n_steps, n_files):
-    """Make dummy nc file with multiple timesteps
-
-    Parameters
-    ----------
-    td : str
-        Temporary directory
-    input_file : str
-        File to use as template for timesteps in dummy file
-    n_steps : int
-        Number of timesteps across all files
-    n_files : int
-        Number of files to split all timsteps across
-
-    Returns
-    -------
-    fake_file : str
-        multi timestep dummy file
-    """
-    fake_files = make_fake_nc_files(td, input_file, n_steps)
-    fake_files = np.array_split(fake_files, n_files)
-    dummy_files = []
-    for i, files in enumerate(fake_files):
-        dummy_file = os.path.join(
-            td, f'multi_timestep_file_{str(i).zfill(3)}.nc'
-        )
-        if os.path.exists(dummy_file):
-            os.remove(dummy_file)
-        dummy_files.append(dummy_file)
-        with xr.open_mfdataset(
-            files, combine='nested', concat_dim='Time'
-        ) as dset:
-            dset.to_netcdf(dummy_file)
-    return dummy_files
-
-
-def make_fake_era_files(td, input_file, n_files):
-    """Make dummy era files with increasing times. ERA files have a different
-    naming convention than WRF.
-
-    Parameters
-    ----------
-    td : str
-        Temporary directory
-    input_file : str
-        File to use as template for all dummy files
-    n_files : int
-        Number of dummy files to create
-
-    Returns
-    -------
-    fake_files : list
-        List of dummy files
-    """
-    fake_dates = [
-        f'2014-10-01_{str(i).zfill(2)}_00_00' for i in range(n_files)
-    ]
-    fake_times = [
-        f'2014-10-01 {str(i).zfill(2)}:00:00' for i in range(n_files)
-    ]
-    fake_files = [os.path.join(td, f'input_{date}') for date in fake_dates]
-    for i in range(n_files):
-        if os.path.exists(fake_files[i]):
-            os.remove(fake_files[i])
-        with (
-            xr.open_dataset(input_file) as input_dset,
-            xr.Dataset(input_dset) as dset,
-        ):
-            dset['Times'][:] = np.array(
-                [fake_times[i].encode('ASCII')], dtype='|S19'
-            )
-            dset['XTIME'][:] = i
-            dset = dset.rename({'U': 'u', 'V': 'v'})
-            dset.to_netcdf(fake_files[i])
-    return fake_files
 
 
 def make_fake_h5_chunks(td):

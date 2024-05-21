@@ -10,6 +10,7 @@ import h5py
 import numpy as np
 import xarray as xr
 
+from sup3r.containers.abstract import AbstractContainer
 from sup3r.containers.base import Container
 from sup3r.containers.derivers import Deriver
 from sup3r.containers.extracters import Extracter
@@ -19,11 +20,13 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
-class Cacher(Container):
+class Cacher(AbstractContainer):
     """Base extracter object."""
 
     def __init__(
-        self, container: Union[Extracter, Deriver], cache_kwargs: Dict
+        self,
+        container: Union[Container, Extracter, Deriver],
+        cache_kwargs: Dict,
     ):
         """
         Parameters
@@ -44,8 +47,10 @@ class Cacher(Container):
             Note: This is only for saving cached data. If you want to reload
             the cached files load them with a Loader object.
         """
-        super().__init__(container=container)
-        self.cache_data(cache_kwargs)
+        super().__init__()
+        self.container = container
+        self.data = container.data
+        self.out_files = self.cache_data(cache_kwargs)
 
     def cache_data(self, kwargs):
         """Cache data to file with file type based on user provided
@@ -63,19 +68,11 @@ class Cacher(Container):
         msg = 'cache_pattern must have {feature} format key.'
         assert '{feature}' in cache_pattern, msg
         _, ext = os.path.splitext(cache_pattern)
-        coords = {
-            'latitude': (
-                ('south_north', 'west_east'),
-                self.container['lat_lon'][..., 0],
-            ),
-            'longitude': (
-                ('south_north', 'west_east'),
-                self.container['lat_lon'][..., 1],
-            ),
-            'time': self.container['time_index'],
-        }
-        for feature in self.features:
-            out_file = cache_pattern.format(feature=feature)
+        write_features = [
+            f for f in self.features if len(self.container[f].shape) == 3
+        ]
+        out_files = [cache_pattern.format(feature=f) for f in write_features]
+        for feature, out_file in zip(write_features, out_files):
             if not os.path.exists(out_file):
                 logger.info(f'Writing {feature} to {out_file}.')
                 if ext == '.h5':
@@ -83,7 +80,7 @@ class Cacher(Container):
                         out_file,
                         feature,
                         np.transpose(self.container[feature], axes=(2, 0, 1)),
-                        coords,
+                        self.data.coords,
                         chunks,
                     )
                 elif ext == '.nc':
@@ -91,7 +88,7 @@ class Cacher(Container):
                         out_file,
                         feature,
                         np.transpose(self.container[feature], axes=(2, 0, 1)),
-                        coords,
+                        self.data.coords,
                     )
                 else:
                     msg = (
@@ -100,26 +97,25 @@ class Cacher(Container):
                     )
                     logger.error(msg)
                     raise ValueError(msg)
+        logger.info(f'Finished writing {out_files}.')
+        return out_files
 
     def _write_h5(self, out_file, feature, data, coords, chunks=None):
         """Cache data to h5 file using user provided chunks value."""
         chunks = chunks or {}
         with h5py.File(out_file, 'w') as f:
-            _, lats = coords['latitude']
-            _, lons = coords['longitude']
+            lats = coords['latitude'].data
+            lons = coords['longitude'].data
             times = coords['time'].astype(int)
             data_dict = dict(
                 zip(
                     ['time_index', 'latitude', 'longitude', feature],
-                    [
-                        da.from_array(times),
-                        da.from_array(lats),
-                        da.from_array(lons),
-                        data,
-                    ],
+                    [da.from_array(times), lats, lons, data],
                 )
             )
             for dset, vals in data_dict.items():
+                if dset in ('latitude', 'longitude'):
+                    dset = f'meta/{dset}'
                 d = f.require_dataset(
                     f'/{dset}',
                     dtype=vals.dtype,

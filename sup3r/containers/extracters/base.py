@@ -4,9 +4,10 @@ contained data."""
 import logging
 from abc import ABC, abstractmethod
 
+import dask.array as da
 import numpy as np
 
-from sup3r.containers.base import Container
+from sup3r.containers.abstract import AbstractContainer
 from sup3r.containers.loaders.base import Loader
 
 np.random.seed(42)
@@ -14,21 +15,17 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
-class Extracter(Container, ABC):
+class Extracter(AbstractContainer, ABC):
     """Container subclass with additional methods for extracting a
     spatiotemporal extent from contained data."""
 
     def __init__(
-        self,
-        container: Loader,
-        target,
-        shape,
-        time_slice=slice(None)
+        self, loader: Loader, target, shape, time_slice=slice(None)
     ):
         """
         Parameters
         ----------
-        container : Loader
+        loader : Loader
             Loader type container with `.data` attribute exposing data to
             extract.
         features : list
@@ -43,14 +40,16 @@ class Extracter(Container, ABC):
             slice(start, stop, step). If equal to slice(None, None, 1)
         the full time dimension is selected.
         """
-        super().__init__(container)
+        super().__init__()
+        self.loader = loader
         self.time_slice = time_slice
         self._grid_shape = shape
         self._target = target
         self._lat_lon = None
         self._time_index = None
         self._raster_index = None
-        self.data = self.extract_features().astype(np.float32)
+        self._full_lat_lon = None
+        self.data = self.get_data()
 
     def __enter__(self):
         return self
@@ -60,7 +59,17 @@ class Extracter(Container, ABC):
 
     def close(self):
         """Close Loader."""
-        self.container.close()
+        self.loader.close()
+
+    @property
+    def full_lat_lon(self):
+        """Get lat / lon grid for entire domain."""
+        if self._full_lat_lon is None:
+            self._full_lat_lon = da.stack(
+                [self.loader['latitude'], self.loader['longitude']],
+                axis=-1,
+            )
+        return self._full_lat_lon
 
     @property
     def target(self):
@@ -100,20 +109,20 @@ class Extracter(Container, ABC):
         return self._lat_lon
 
     @abstractmethod
-    def extract_features(self):
-        """'Extract' requested features to dask.array (lats, lons, time,
-        features)"""
-
-    @abstractmethod
     def get_raster_index(self):
         """Get array of indices used to select the spatial region of
         interest."""
 
-    @abstractmethod
     def get_time_index(self):
-        """Get the time index for the time period of interest."""
+        """Get the time index corresponding to the requested time_slice"""
+        return self.loader['time'][self.time_slice]
 
     @abstractmethod
     def get_lat_lon(self):
         """Get 2D grid of coordinates with `target` as the lower left
         coordinate. (lats, lons, 2)"""
+
+    @abstractmethod
+    def get_data(self):
+        """Get extracted data by slicing loader.data with calculated
+        raster_index and time_slice."""

@@ -6,6 +6,7 @@ import os
 from abc import ABC
 
 import numpy as np
+import xarray as xr
 
 from sup3r.containers.extracters.base import Extracter
 from sup3r.containers.loaders import LoaderH5
@@ -20,7 +21,7 @@ class ExtracterH5(Extracter, ABC):
 
     def __init__(
         self,
-        container: LoaderH5,
+        loader: LoaderH5,
         target=(),
         shape=(),
         time_slice=slice(None),
@@ -30,7 +31,7 @@ class ExtracterH5(Extracter, ABC):
         """
         Parameters
         ----------
-        container : Loader
+        loader : Loader
             Loader type container with `.data` attribute exposing data to
             extract.
         target : tuple
@@ -58,7 +59,7 @@ class ExtracterH5(Extracter, ABC):
         self.raster_file = raster_file
         self.max_delta = max_delta
         super().__init__(
-            container=container,
+            loader=loader,
             target=target,
             shape=shape,
             time_slice=time_slice,
@@ -67,6 +68,25 @@ class ExtracterH5(Extracter, ABC):
             self.raster_file
         ):
             self.save_raster_index()
+
+    def get_data(self):
+        """Get rasterized data."""
+        dims = ('south_north', 'west_east')
+        coords = {
+            'latitude': (dims, self.lat_lon[..., 0]),
+            'longitude': (dims, self.lat_lon[..., 1]),
+            'time': self.time_index,
+        }
+        data_vars = {
+            f: (
+                (*dims, 'time'),
+                self.loader[f][
+                    self.raster_index.flatten(), self.time_slice
+                ].reshape((*self.grid_shape, len(self.time_index))),
+            )
+            for f in self.loader.features
+        }
+        return xr.Dataset(coords=coords, data_vars=data_vars)
 
     def save_raster_index(self):
         """Save raster index to cache file."""
@@ -81,7 +101,7 @@ class ExtracterH5(Extracter, ABC):
                 f'Calculating raster_index for target={self._target}, '
                 f'shape={self._grid_shape}.'
             )
-            raster_index = self.container.res.get_raster_index(
+            raster_index = self.loader.res.get_raster_index(
                 self._target, self._grid_shape, max_delta=self.max_delta
             )
         else:
@@ -90,29 +110,10 @@ class ExtracterH5(Extracter, ABC):
 
         return raster_index
 
-    def get_time_index(self):
-        """Get the time index corresponding to the requested time_slice"""
-        if 'time_index' in self.container.res:
-            raw_time_index = self.container.res['time_index']
-        elif hasattr(self.container.res, 'time_index'):
-            raw_time_index = self.container.res.time_index
-        else:
-            msg = f'Could not get time_index from {self.container.res}'
-            logger.error(msg)
-            raise RuntimeError(msg)
-        return raw_time_index[self.time_slice]
-
     def get_lat_lon(self):
         """Get the 2D array of coordinates corresponding to the requested
         target and shape."""
-        return (
-            self.container.res.meta[['latitude', 'longitude']]
-            .iloc[self.raster_index.flatten()]
-            .values.reshape((*self._grid_shape, 2))
+        lat_lon = self.full_lat_lon[self.raster_index.flatten()].reshape(
+            (*self.raster_index.shape, -1)
         )
-
-    def extract_features(self):
-        """Extract the requested features for the requested target + grid_shape
-        + time_slice."""
-        out = self.container[self.raster_index.flatten(), self.time_slice]
-        return out.reshape((*self.grid_shape, *out.shape[1:]))
+        return lat_lon

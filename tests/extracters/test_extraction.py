@@ -27,7 +27,7 @@ def test_get_full_domain_nc():
     """Test data handling without target, shape, or raster_file input"""
 
     extracter = DirectExtracterNC(
-        file_paths=nc_files, features=['u_100m', 'v_100m'])
+        file_paths=nc_files)
     nc_res = xr.open_mfdataset(nc_files)
     shape = (len(nc_res['latitude']), len(nc_res['longitude']))
     target = (
@@ -42,7 +42,7 @@ def test_get_full_domain_nc():
 def test_get_target_nc():
     """Test data handling without target or raster_file input"""
     extracter = DirectExtracterNC(
-        file_paths=nc_files, features=['u_100m', 'v_100m'], shape=(4, 4)
+        file_paths=nc_files, shape=(4, 4)
     )
     nc_res = xr.open_mfdataset(nc_files)
     target = (
@@ -55,58 +55,51 @@ def test_get_target_nc():
 
 
 @pytest.mark.parametrize(
-    ['input_files', 'Extracter', 'features', 'shape', 'target'],
+    ['input_files', 'Extracter', 'shape', 'target'],
     [
         (
             h5_files,
             DirectExtracterH5,
-            ['windspeed_100m', 'winddirection_100m'],
             (20, 20),
             (39.01, -105.15),
         ),
         (
             nc_files,
             DirectExtracterNC,
-            ['u_100m', 'v_100m'],
             (10, 10),
             (37.25, -107),
         ),
     ],
 )
-def test_data_extraction(input_files, Extracter, features, shape, target):
+def test_data_extraction(input_files, Extracter, shape, target):
     """Test extraction of raw features"""
     extracter = Extracter(
         file_paths=input_files[0],
-        features=features,
         target=target,
         shape=shape,
     )
-    assert extracter.data.shape == (
+    assert extracter.shape[:3] == (
         shape[0],
         shape[1],
-        extracter.data.shape[2],
-        len(features),
+        extracter.shape[2],
     )
-    assert extracter.data.dtype == np.dtype(np.float32)
+    assert extracter.dtype == np.dtype(np.float32)
     extracter.close()
 
 
 def test_topography_h5():
     """Test that topography is extracted correctly"""
 
-    features = ['windspeed_100m', 'elevation']
     with Resource(h5_files[0]) as res:
         extracter = DirectExtracterH5(
             file_paths=h5_files[0],
-            features=features,
             target=(39.01, -105.15),
             shape=(20, 20),
         )
         ri = extracter.raster_index
         topo = res.get_meta_arr('elevation')[(ri.flatten(),)]
         topo = topo.reshape((ri.shape[0], ri.shape[1]))
-        topo_idx = extracter.features.index('elevation')
-    assert np.allclose(topo, extracter.data[..., 0, topo_idx])
+    assert np.allclose(topo, extracter['elevation'][..., 0])
 
 
 if __name__ == '__main__':
