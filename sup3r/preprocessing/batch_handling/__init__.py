@@ -1,5 +1,6 @@
 """Sup3r Batch Handling module."""
 
+from .cc import BatchHandlerCC
 from .conditional import (
     BatchHandlerMom1,
     BatchHandlerMom1SF,

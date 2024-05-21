@@ -29,9 +29,15 @@ def handler_factory(QueueClass, SamplerClass):
     :class:`BatchQueue` and :class:`Sampler`. To build a
     :class:`DualBatchHandler` use :class:`DualBatchQueue` and
     :class:`DualSampler`.
+
+    Notes
+    -----
+    There is no need to generate "Spatial" batch handlers. Using
+    :class:`Sampler` objects with a single time step in the sample shape will
+    produce batches without a time dimension.
     """
 
-    class Handler(QueueClass):
+    class BatchHandler(QueueClass):
         """BatchHandler object built from two lists of class:`Container`
         objects, one with training data and one with validation data. These
         lists will be used to initialize lists of class:`Sampler` objects that
@@ -73,7 +79,7 @@ def handler_factory(QueueClass, SamplerClass):
                 val_containers=val_samplers,
                 **queue_kwargs,
             )
-    return Handler
+    return BatchHandler
 
 
 BatchHandler = handler_factory(BatchQueue, Sampler)

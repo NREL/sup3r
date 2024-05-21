@@ -180,7 +180,12 @@ class BatchQueue(SingleBatchQueue):
     (e.g. CONUS WTK) (by using `CroppedSampler(..., crop_slice=crop_slice)`
     with `crop_slice` selecting different time periods to prevent
     cross-contamination), or they can sample from completely different data
-    sources (e.g. train on CONUS WTK while validating on Canada WTK)."""
+    sources (e.g. train on CONUS WTK while validating on Canada WTK).
+
+    Using :class:`Sampler` objects with a single time step in the sample shape
+    will produce batches without a time dimension, which are suitable for
+    spatial only models.
+    """
 
     def __init__(
         self,

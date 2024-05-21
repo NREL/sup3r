@@ -5,21 +5,21 @@ containers."""
 import copy
 import logging
 
+import xarray as xr
+
 from sup3r.containers.abstract import AbstractContainer
-from sup3r.utilities.utilities import parse_keys
 
 logger = logging.getLogger(__name__)
 
 
 class Container(AbstractContainer):
-    """Low level object with access to data, knowledge of the data shape, and
-    what variables / features are contained."""
+    """Low level object containing an xarray.Dataset and some methods for
+    selecting data from the dataset"""
 
-    def __init__(self, container):
+    def __init__(self, data: xr.Dataset):
         super().__init__()
-        self._features = container.features
-        self._data = container.data
-        self.container = container
+        self.data = data
+        self._features = list(data.data_vars)
 
     @property
     def data(self):
@@ -31,39 +31,8 @@ class Container(AbstractContainer):
         """Set data values."""
         self._data = value
 
-    @property
-    def features(self):
-        """Features in this container."""
-        return self._features
 
-    @features.setter
-    def features(self, features):
-        """Update features."""
-        self._features = features
-
-    def __contains__(self, feature):
-        return feature.lower() in [f.lower() for f in self.features]
-
-    def index(self, feature):
-        """Get index of feature."""
-        return [f.lower() for f in self.features].index(feature.lower())
-
-    def __getitem__(self, keys):
-        """Method for accessing self.data or attributes. keys can optionally
-        include a feature name as the first element of a keys tuple"""
-        key, key_slice = parse_keys(keys)
-        if isinstance(key, str):
-            if key in self:
-                return self.data[*key_slice, self.index(key)]
-            if hasattr(self, key):
-                return getattr(self, key)
-            if hasattr(self.container, key):
-                return getattr(self.container, key)
-            raise ValueError(f'Could not get item for "{keys}"')
-        return self.data[key, *key_slice]
-
-
-class DualContainer(Container):
+class DualContainer(AbstractContainer):
     """Pair of two Containers, one for low resolution and one for high
     resolution data."""
 
@@ -73,7 +42,7 @@ class DualContainer(Container):
         self.data = (self.lr_container.data, self.hr_container.data)
         feats = list(copy.deepcopy(self.lr_container.features))
         feats += [fn for fn in self.hr_container.features if fn not in feats]
-        self.features = feats
+        self._features = feats
 
     def __getitem__(self, keys):
         """Method for accessing self.data."""

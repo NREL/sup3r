@@ -5,30 +5,28 @@ import logging
 import re
 from inspect import signature
 
-import dask.array as da
 import numpy as np
+import xarray as xr
 
-from sup3r.containers.base import Container
+from sup3r.containers.abstract import AbstractContainer
 from sup3r.containers.derivers.methods import (
     RegistryBase,
-    RegistryH5,
-    RegistryNC,
 )
 from sup3r.containers.extracters.base import Extracter
-from sup3r.utilities.utilities import Feature, parse_keys
+from sup3r.utilities.utilities import Feature, spatial_coarsening
 
 np.random.seed(42)
 
 logger = logging.getLogger(__name__)
 
 
-class Deriver(Container):
+class Deriver(AbstractContainer):
     """Container subclass with additional methods for transforming / deriving
     data exposed through an :class:`Extracter` object."""
 
     FEATURE_REGISTRY = RegistryBase
 
-    def __init__(self, container: Extracter, features, transform=None):
+    def __init__(self, container: Extracter, features, FeatureRegistry=None):
         """
         Parameters
         ----------
@@ -40,48 +38,28 @@ class Deriver(Container):
             The :class:`Extracter` object contains the features available to
             use in the derivation. e.g. extracter.features = ['windspeed',
             'winddirection'] with self.features = ['U', 'V']
-        transform : function
-            Optional operation on extracter data. This should not be used for
-            deriving new features from extracted features. That should be
-            handled by compute method lookups in the FEATURE_REGISTRY. This is
-            for transformations like rotations, inversions, spatial / temporal
-            coarsening, etc.
-
-            For example::
-
-                def coarsening_transform(extracter: Container):
-                    from sup3r.utilities.utilities import spatial_coarsening
-                    data = spatial_coarsening(extracter.data, s_enhance=2,
-                                              obs_axis=False)
-                    extracter._lat_lon = spatial_coarsening(extracter.lat_lon,
-                                                            s_enhance=2,
-                                                            obs_axis=False)
-                    return data
+        FeatureRegistry : Dict
+            Optional FeatureRegistry dictionary to use for derivation method
+            lookups. When the :class:`Deriver` is asked to derive a feature
+            that is not found in the :class:`Extracter` data it will look for a
+            method to derive the feature in the registry.
         """
-        super().__init__(container)
-        self._data = None
+        if FeatureRegistry is not None:
+            self.FEATURE_REGISTRY = FeatureRegistry
+
+        super().__init__()
+        self.container = container
+        self.data = container.data
         self.features = features
-        self.transform = transform
         self.update_data()
 
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_value, trace):
-        self.close()
-
-    def close(self):
-        """Close Extracter."""
-        self.container.close()
-
     def update_data(self):
-        """Update contained data with results of transformation and
-        derivations. If the features in self.features are not found in data
-        after the transform then the calls to `__getitem__` will run
-        derivations for features found in the feature registry."""
-        if self.transform is not None:
-            self.container.data = self.transform(self.container)
-        self.data = da.stack([self[feat] for feat in self.features], axis=-1)
+        """Update contained data with results of derivations. If the features
+        in self.features are not found in data the calls to `__getitem__`
+        will run derivations for features found in the feature registry."""
+        for f in self.features:
+            self.data[f] = (('south_north', 'west_east', 'time'), self[f])
+        self.data = self.data[self.features]
 
     def _check_for_compute(self, feature):
         """Get compute method from the registry if available. Will check for
@@ -89,61 +67,73 @@ class Deriver(Container):
         feature registry entry of U_(.*)m"""
         for pattern in self.FEATURE_REGISTRY:
             if re.match(pattern.lower(), feature.lower()):
-                compute = self.FEATURE_REGISTRY[pattern].compute
-                kwargs = {}
+                method = self.FEATURE_REGISTRY[pattern]
+                if isinstance(method, str):
+                    return self._check_for_compute(method)
+                compute = method.compute
                 params = signature(compute).parameters
-                if 'height' in params:
-                    kwargs.update({'height': Feature.get_height(feature)})
-                if 'pressure' in params:
-                    kwargs.update({'pressure': Feature.get_pressure(feature)})
+                kwargs = {
+                    k: getattr(Feature(feature), k)
+                    for k in params
+                    if hasattr(Feature(feature), k)
+                }
                 return compute(self.container, **kwargs)
         return None
 
-    def _check_self(self, key, key_slice):
-        """Check if the requested key is available in derived data or a self
-        attribute."""
-        if self.data is not None and key in self:
-            return self.data[*key_slice, self.index(key)]
-        if hasattr(self, key):
-            return getattr(self, key)
-        return None
-
-    def _check_container(self, key, key_slice):
-        """Check if the requested key is available in the container data (if it
-        has not been derived yet) or a container attribute."""
-        if self.container.data is not None and key in self.container:
-            return self.container.data[*key_slice, self.index(key)]
-        if hasattr(self.container, key):
-            return getattr(self.container, key)
-        return None
-
     def __getitem__(self, keys):
-        key, key_slice = parse_keys(keys)
-        if isinstance(key, str):
-            self_check = self._check_self(key, key_slice)
-            if self_check is not None:
-                return self_check
-            container_check = self._check_container(key, key_slice)
-            if container_check is not None:
-                return container_check
-            compute_check = self._check_for_compute(key)
+        if keys not in self:
+            compute_check = self._check_for_compute(keys)
+            if compute_check is not None and isinstance(compute_check, str):
+                return self[compute_check]
             if compute_check is not None:
                 return compute_check
-            raise ValueError(f'Could not get item for "{keys}"')
-        return self.data[key, key_slice]
+            msg = (
+                f'Could not find {keys} in contained data or in the '
+                'FeatureRegistry.'
+            )
+            logger.error(msg)
+            raise KeyError(msg)
+        return super().__getitem__(keys)
 
 
-class DeriverNC(Deriver):
-    """Container subclass with additional methods for transforming / deriving
-    data exposed through an :class:`Extracter` object. Specifically for NETCDF
-    data"""
+class ExtendedDeriver(Deriver):
+    """Extends base :class:`Deriver` class with time_roll and
+    hr_spatial_coarsen args."""
 
-    FEATURE_REGISTRY = RegistryNC
+    def __init__(
+        self,
+        container: Extracter,
+        features,
+        time_roll=0,
+        hr_spatial_coarsen=1,
+        FeatureRegistry=None,
+    ):
+        super().__init__(container, features, FeatureRegistry=FeatureRegistry)
 
+        if time_roll != 0:
+            logger.debug('Applying time roll to data array')
+            self.data = np.roll(self.data, time_roll, axis=2)
 
-class DeriverH5(Deriver):
-    """Container subclass with additional methods for transforming / deriving
-    data exposed through an :class:`Extracter` object. Specifically for H5 data
-    """
-
-    FEATURE_REGISTRY = RegistryH5
+        if hr_spatial_coarsen > 1:
+            logger.debug('Applying hr spatial coarsening to data array')
+            coords = {
+                coord: spatial_coarsening(
+                    self.data[coord],
+                    s_enhance=hr_spatial_coarsen,
+                    obs_axis=False,
+                )
+                for coord in ['latitude', 'longitude']
+            }
+            coords['time'] = self.data['time']
+            data_vars = {
+                f: (
+                    ('latitude', 'longitude', 'time'),
+                    spatial_coarsening(
+                        self.data[f],
+                        s_enhance=hr_spatial_coarsen,
+                        obs_axis=False,
+                    ),
+                )
+                for f in self.features
+            }
+            self.data = xr.Dataset(coords=coords, data_vars=data_vars)

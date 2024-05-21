@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Test the basic training of super resolution GAN for solar climate change
 applications"""
+
 import os
 import tempfile
 
@@ -13,7 +14,6 @@ from sup3r.models import SolarCC, Sup3rGan
 from sup3r.preprocessing import (
     BatchHandlerCC,
     DataHandlerH5SolarCC,
-    SpatialBatchHandlerCC,
 )
 
 SHAPE = (20, 20)
@@ -33,15 +33,20 @@ def test_solar_cc_model(log=False):
     NOTE that the full 10x model is too big to train on the 20x20 test data.
     """
 
-    handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S,
-                                   target=TARGET_S, shape=SHAPE,
-                                   time_slice=slice(None, None, 2),
-                                   time_roll=-7,
-                                   sample_shape=(20, 20, 72),
-                                   worker_kwargs=dict(max_workers=1))
+    handler = DataHandlerH5SolarCC(
+        INPUT_FILE_S,
+        FEATURES_S,
+        target=TARGET_S,
+        shape=SHAPE,
+        time_slice=slice(None, None, 2),
+        time_roll=-7,
+        sample_shape=(20, 20, 72),
+        worker_kwargs=dict(max_workers=1),
+    )
 
-    batcher = BatchHandlerCC([handler], batch_size=2, n_batches=2,
-                             s_enhance=1, sub_daily_shape=24)
+    batcher = BatchHandlerCC(
+        [handler], batch_size=2, n_batches=2, s_enhance=1, sub_daily_shape=24
+    )
 
     if log:
         init_logger('sup3r', log_level='DEBUG')
@@ -50,17 +55,21 @@ def test_solar_cc_model(log=False):
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
 
     Sup3rGan.seed()
-    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4,
-                     loss='MeanAbsoluteError')
+    model = Sup3rGan(
+        fp_gen, fp_disc, learning_rate=1e-4, loss='MeanAbsoluteError'
+    )
 
     with tempfile.TemporaryDirectory() as td:
-        model.train(batcher,
-                    input_resolution={'spatial': '4km', 'temporal': '40min'},
-                    n_epoch=1,
-                    weight_gen_advers=0.0,
-                    train_gen=True, train_disc=False,
-                    checkpoint_int=None,
-                    out_dir=os.path.join(td, 'test_{epoch}'))
+        model.train(
+            batcher,
+            input_resolution={'spatial': '4km', 'temporal': '40min'},
+            n_epoch=1,
+            weight_gen_advers=0.0,
+            train_gen=True,
+            train_disc=False,
+            checkpoint_int=None,
+            out_dir=os.path.join(td, 'test_{epoch}'),
+        )
 
         assert 'test_0' in os.listdir(td)
         assert model.meta['hr_out_features'] == ['clearsky_ratio']
@@ -89,16 +98,19 @@ def test_solar_cc_model_spatial(log=False):
     enhancement only.
     """
 
-    handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S,
-                                   target=TARGET_S, shape=SHAPE,
-                                   time_slice=slice(None, None, 2),
-                                   time_roll=-7,
-                                   val_split=0.1,
-                                   sample_shape=(20, 20),
-                                   worker_kwargs=dict(max_workers=1))
+    handler = DataHandlerH5SolarCC(
+        INPUT_FILE_S,
+        FEATURES_S,
+        target=TARGET_S,
+        shape=SHAPE,
+        time_slice=slice(None, None, 2),
+        time_roll=-7,
+        val_split=0.1,
+        sample_shape=(20, 20),
+        worker_kwargs=dict(max_workers=1),
+    )
 
-    batcher = SpatialBatchHandlerCC([handler], batch_size=2, n_batches=2,
-                                    s_enhance=5)
+    batcher = BatchHandlerCC([handler], batch_size=2, n_batches=2, s_enhance=5)
 
     if log:
         init_logger('sup3r', log_level='DEBUG')
@@ -110,13 +122,16 @@ def test_solar_cc_model_spatial(log=False):
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
 
     with tempfile.TemporaryDirectory() as td:
-        model.train(batcher,
-                    input_resolution={'spatial': '25km', 'temporal': '15min'},
-                    n_epoch=1,
-                    weight_gen_advers=0.0,
-                    train_gen=True, train_disc=False,
-                    checkpoint_int=None,
-                    out_dir=os.path.join(td, 'test_{epoch}'))
+        model.train(
+            batcher,
+            input_resolution={'spatial': '25km', 'temporal': '15min'},
+            n_epoch=1,
+            weight_gen_advers=0.0,
+            train_gen=True,
+            train_disc=False,
+            checkpoint_int=None,
+            out_dir=os.path.join(td, 'test_{epoch}'),
+        )
 
         assert 'test_0' in os.listdir(td)
         assert model.meta['hr_out_features'] == ['clearsky_ratio']
@@ -132,15 +147,20 @@ def test_solar_cc_model_spatial(log=False):
 
 def test_solar_custom_loss(log=False):
     """Test custom solar loss with only disc and content over daylight hours"""
-    handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S,
-                                   target=TARGET_S, shape=SHAPE,
-                                   time_slice=slice(None, None, 2),
-                                   time_roll=-7,
-                                   sample_shape=(5, 5, 72),
-                                   worker_kwargs=dict(max_workers=1))
+    handler = DataHandlerH5SolarCC(
+        INPUT_FILE_S,
+        FEATURES_S,
+        target=TARGET_S,
+        shape=SHAPE,
+        time_slice=slice(None, None, 2),
+        time_roll=-7,
+        sample_shape=(5, 5, 72),
+        worker_kwargs=dict(max_workers=1),
+    )
 
-    batcher = BatchHandlerCC([handler], batch_size=1, n_batches=1,
-                             s_enhance=1, sub_daily_shape=24)
+    batcher = BatchHandlerCC(
+        [handler], batch_size=1, n_batches=1, s_enhance=1, sub_daily_shape=24
+    )
 
     if log:
         init_logger('sup3r', log_level='DEBUG')
@@ -149,37 +169,53 @@ def test_solar_custom_loss(log=False):
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
 
     Sup3rGan.seed()
-    model = SolarCC(fp_gen, fp_disc, learning_rate=1e-4,
-                    loss='MeanAbsoluteError')
+    model = SolarCC(
+        fp_gen, fp_disc, learning_rate=1e-4, loss='MeanAbsoluteError'
+    )
 
     with tempfile.TemporaryDirectory() as td:
-        model.train(batcher,
-                    input_resolution={'spatial': '4km', 'temporal': '40min'},
-                    n_epoch=1,
-                    weight_gen_advers=0.0,
-                    train_gen=True, train_disc=False,
-                    checkpoint_int=None,
-                    out_dir=os.path.join(td, 'test_{epoch}'))
+        model.train(
+            batcher,
+            input_resolution={'spatial': '4km', 'temporal': '40min'},
+            n_epoch=1,
+            weight_gen_advers=0.0,
+            train_gen=True,
+            train_disc=False,
+            checkpoint_int=None,
+            out_dir=os.path.join(td, 'test_{epoch}'),
+        )
 
         shape = (1, 4, 4, 72, 1)
         hi_res_true = np.random.uniform(0, 1, shape).astype(np.float32)
         hi_res_gen = np.random.uniform(0, 1, shape).astype(np.float32)
-        loss1, _ = model.calc_loss(hi_res_true, hi_res_gen,
-                                   weight_gen_advers=0.0,
-                                   train_gen=True, train_disc=False)
+        loss1, _ = model.calc_loss(
+            hi_res_true,
+            hi_res_gen,
+            weight_gen_advers=0.0,
+            train_gen=True,
+            train_disc=False,
+        )
 
         t_len = hi_res_true.shape[3]
         n_days = int(t_len // 24)
-        day_slices = [slice(SolarCC.STARTING_HOUR + x,
-                            SolarCC.STARTING_HOUR + x + SolarCC.DAYLIGHT_HOURS)
-                      for x in range(0, 24 * n_days, 24)]
+        day_slices = [
+            slice(
+                SolarCC.STARTING_HOUR + x,
+                SolarCC.STARTING_HOUR + x + SolarCC.DAYLIGHT_HOURS,
+            )
+            for x in range(0, 24 * n_days, 24)
+        ]
 
         for tslice in day_slices:
             hi_res_gen[:, :, :, tslice, :] = hi_res_true[:, :, :, tslice, :]
 
-        loss2, _ = model.calc_loss(hi_res_true, hi_res_gen,
-                                   weight_gen_advers=0.0,
-                                   train_gen=True, train_disc=False)
+        loss2, _ = model.calc_loss(
+            hi_res_true,
+            hi_res_gen,
+            weight_gen_advers=0.0,
+            train_gen=True,
+            train_disc=False,
+        )
 
         assert loss1 > loss2
         assert loss2 == 0

@@ -1,6 +1,7 @@
 """data preprocessing module"""
 
 from .batch_handling import (
+    BatchHandlerCC,
     BatchHandlerMom1,
     BatchHandlerMom1SF,
     BatchHandlerMom2,
@@ -15,10 +16,8 @@ from .batch_handling import (
     BatchMom2SF,
 )
 from .data_handling import (
-    DataHandlerH5,
     DataHandlerH5SolarCC,
     DataHandlerH5WindCC,
-    DataHandlerNC,
     DataHandlerNCforCC,
     ExoData,
     ExogenousDataHandler,

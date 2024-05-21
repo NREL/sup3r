@@ -4,7 +4,6 @@
 import os
 import tempfile
 
-import dask.array as da
 import numpy as np
 import pytest
 from rex import init_logger
@@ -12,10 +11,8 @@ from rex import init_logger
 from sup3r import TEST_DATA_DIR
 from sup3r.containers import (
     Cacher,
-    DeriverH5,
-    DeriverNC,
-    ExtracterH5,
-    ExtracterNC,
+    DataHandlerH5,
+    DataHandlerNC,
     LoaderH5,
     LoaderNC,
 )
@@ -38,9 +35,7 @@ init_logger('sup3r', log_level='DEBUG')
     [
         'input_files',
         'Loader',
-        'Extracter',
         'Deriver',
-        'extract_features',
         'derive_features',
         'ext',
         'shape',
@@ -50,9 +45,7 @@ init_logger('sup3r', log_level='DEBUG')
         (
             h5_files,
             LoaderH5,
-            ExtracterH5,
-            DeriverH5,
-            ['windspeed_100m', 'winddirection_100m'],
+            DataHandlerH5,
             ['u_100m', 'v_100m'],
             'h5',
             (20, 20),
@@ -61,9 +54,7 @@ init_logger('sup3r', log_level='DEBUG')
         (
             nc_files,
             LoaderNC,
-            ExtracterNC,
-            DeriverNC,
-            ['u_100m', 'v_100m'],
+            DataHandlerNC,
             ['windspeed_100m', 'winddirection_100m'],
             'nc',
             (10, 10),
@@ -74,9 +65,7 @@ init_logger('sup3r', log_level='DEBUG')
 def test_derived_data_caching(
     input_files,
     Loader,
-    Extracter,
     Deriver,
-    extract_features,
     derive_features,
     ext,
     shape,
@@ -86,29 +75,23 @@ def test_derived_data_caching(
 
     with tempfile.TemporaryDirectory() as td:
         cache_pattern = os.path.join(td, 'cached_{feature}.' + ext)
-        extracter = Extracter(
-            Loader(input_files[0], extract_features),
+        deriver = Deriver(
+            file_paths=input_files[0],
+            features=derive_features,
             shape=shape,
             target=target,
         )
-        deriver = Deriver(extracter, derive_features)
-        _ = Cacher(deriver, cache_kwargs={'cache_pattern': cache_pattern})
+        cacher = Cacher(deriver, cache_kwargs={'cache_pattern': cache_pattern})
 
-        assert deriver.data.shape == (
-            shape[0],
-            shape[1],
-            deriver.data.shape[2],
-            len(derive_features),
+        assert deriver.shape[:3] == (shape[0], shape[1], deriver.shape[2])
+        assert all(
+            deriver[f].shape == (*shape, deriver.shape[2])
+            for f in derive_features
         )
-        assert deriver.data.dtype == np.dtype(np.float32)
+        assert deriver.dtype == np.dtype(np.float32)
 
-        loader = Loader(
-            [cache_pattern.format(feature=f) for f in derive_features],
-            derive_features,
-        )
-        assert da.map_blocks(
-            lambda x, y: x == y, loader.data, deriver.data
-        ).all()
+        loader = Loader(cacher.out_files)
+        assert np.array_equal(loader.to_array(), deriver.to_array())
 
 
 if __name__ == '__main__':

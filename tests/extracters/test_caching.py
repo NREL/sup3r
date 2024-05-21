@@ -12,8 +12,8 @@ from rex import init_logger
 from sup3r import TEST_DATA_DIR
 from sup3r.containers import (
     Cacher,
-    ExtracterH5,
-    ExtracterNC,
+    DirectExtracterH5,
+    DirectExtracterNC,
     LoaderH5,
     LoaderNC,
 )
@@ -36,58 +36,79 @@ def test_raster_index_caching():
     """Test raster index caching by saving file and then loading"""
 
     # saving raster file
-    with tempfile.TemporaryDirectory() as td, LoaderH5(
-        h5_files[0], features
-    ) as loader:
+    with tempfile.TemporaryDirectory() as td:
         raster_file = os.path.join(td, 'raster.txt')
-        extracter = ExtracterH5(
-            loader, raster_file=raster_file, target=target, shape=shape
+        extracter = DirectExtracterH5(
+            h5_files[0], raster_file=raster_file, target=target, shape=shape
         )
         # loading raster file
-        extracter = ExtracterH5(loader, raster_file=raster_file)
-        assert np.allclose(extracter.target, target, atol=1)
-        assert extracter.data.shape == (
-            shape[0],
-            shape[1],
-            extracter.data.shape[2],
-            len(features),
-        )
-        assert extracter.shape[:2] == (shape[0], shape[1])
+        extracter = DirectExtracterH5(h5_files[0], raster_file=raster_file)
+    assert np.allclose(extracter.target, target, atol=1)
+    assert extracter.shape[:3] == (
+        shape[0],
+        shape[1],
+        extracter.shape[2],
+    )
 
 
 @pytest.mark.parametrize(
-    ['input_files', 'Loader', 'Extracter', 'ext', 'shape', 'target'],
     [
-        (h5_files, LoaderH5, ExtracterH5, 'h5', (20, 20), (39.01, -105.15)),
-        (nc_files, LoaderNC, ExtracterNC, 'nc', (10, 10), (37.25, -107)),
+        'input_files',
+        'Loader',
+        'Extracter',
+        'ext',
+        'shape',
+        'target',
+        'features',
+    ],
+    [
+        (
+            h5_files,
+            LoaderH5,
+            DirectExtracterH5,
+            'h5',
+            (20, 20),
+            (39.01, -105.15),
+            ['windspeed_100m', 'winddirection_100m'],
+        ),
+        (
+            nc_files,
+            LoaderNC,
+            DirectExtracterNC,
+            'nc',
+            (10, 10),
+            (37.25, -107),
+            ['u_100m', 'v_100m'],
+        ),
     ],
 )
-def test_data_caching(input_files, Loader, Extracter, ext, shape, target):
+def test_data_caching(
+    input_files, Loader, Extracter, ext, shape, target, features
+):
     """Test data extraction with caching/loading"""
 
-    extract_features = ['windspeed_100m', 'winddirection_100m']
     with tempfile.TemporaryDirectory() as td:
         cache_pattern = os.path.join(td, 'cached_{feature}.' + ext)
         extracter = Extracter(
-            Loader(input_files[0], extract_features),
+            input_files[0],
             shape=shape,
             target=target,
         )
-        _ = Cacher(extracter, cache_kwargs={'cache_pattern': cache_pattern})
+        cacher = Cacher(
+            extracter, cache_kwargs={'cache_pattern': cache_pattern}
+        )
 
-        assert extracter.data.shape == (
+        assert extracter.shape[:3] == (
             shape[0],
             shape[1],
-            extracter.data.shape[2],
-            len(extract_features),
+            extracter.shape[2],
         )
-        assert extracter.data.dtype == np.dtype(np.float32)
-
-        loader = Loader(
-            [cache_pattern.format(feature=f) for f in features], features
-        )
+        assert extracter.dtype == np.dtype(np.float32)
+        loader = Loader(cacher.out_files)
         assert da.map_blocks(
-            lambda x, y: x == y, loader.data, extracter.data
+            lambda x, y: x == y,
+            loader[features],
+            extracter[features],
         ).all()
 
 

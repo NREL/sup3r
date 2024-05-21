@@ -5,6 +5,7 @@ classes."""
 import logging
 
 import dask.array as da
+import numpy as np
 import xarray as xr
 
 from sup3r.containers.loaders import Loader
@@ -19,23 +20,28 @@ class LoaderNC(Loader):
     or by Wrangler objects to derive / extract specific features / regions /
     time_periods."""
 
-    def _get_res(self):
+    def BASE_LOADER(self, file_paths, **kwargs):
         """Lowest level interface to data."""
-        return xr.open_mfdataset(self.file_paths, **self._res_kwargs)
+        if isinstance(self.chunks, tuple):
+            kwargs['chunks'] = dict(
+                zip(['time', 'latitude', 'longitude', 'level'], self.chunks)
+            )
+        return xr.open_mfdataset(file_paths, **kwargs)
 
-    def _get_features(self, features):
-        """We perform an axis shift here from (time, ...) to (..., time)
-        ordering. The final stack puts features in the last channel."""
-        if isinstance(features, (list, tuple)):
-            data = [self._get_features(f) for f in features]
-        elif isinstance(features, str) and features in self.res:
-            data = da.moveaxis(self.res[features].data, 0, -1)
-        elif isinstance(features, str) and features.lower() in self.res:
-            data = self._get_features(features.lower())
-        else:
-            msg = f'{features} not found in {self.file_paths}.'
-            logger.error(msg)
-            raise KeyError(msg)
-        if isinstance(data, list):
-            data = da.stack(data, axis=-1)
-        return data
+    def load(self):
+        """Load netcdf xarray.Dataset()."""
+        lats = self.res['latitude'].data
+        lons = self.res['longitude'].data
+        if len(lats.shape) == 1:
+            lons, lats = da.meshgrid(lons, lats)
+        rename_dict = {'latitude': 'south_north', 'longitude': 'west_east'}
+        for k, v in rename_dict.items():
+            if k in self.res.dims:
+                self.res = self.res.rename({k: v})
+        self.res = self.res.assign_coords(
+            {'latitude': (('south_north', 'west_east'), lats)}
+        )
+        self.res = self.res.assign_coords(
+            {'longitude': (('south_north', 'west_east'), lons)}
+        )
+        return self.res.astype(np.float32)

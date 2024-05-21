@@ -231,7 +231,6 @@ class UWind(DerivedFeature):
     @classmethod
     def compute(cls, container, height):
         """Method to compute U wind component from data"""
-
         u, _ = transform_rotate_wind(
             container[f'windspeed_{height}m'],
             container[f'winddirection_{height}m'],
@@ -311,4 +310,20 @@ RegistryH5 = {
     **RegistryBase,
     'cloud_mask': CloudMaskH5,
     'clearsky_ratio': ClearSkyRatioH5,
+}
+
+RegistryH5WindCC = {
+    **RegistryH5,
+    'temperature_max_(.*)m': 'temperature_(.*)m',
+    'temperature_min_(.*)m': 'temperature_(.*)m',
+    'relativehumidity_max_(.*)m': 'relativehumidity_(.*)m',
+    'relativehumidity_min_(.*)m': 'relativehumidity_(.*)m'
+}
+
+RegistryH5SolarCC = {
+    **RegistryH5WindCC,
+    'windspeed': 'wind_speed',
+    'winddirection': 'wind_direction',
+    'U': UWind,
+    'V': VWind,
 }
