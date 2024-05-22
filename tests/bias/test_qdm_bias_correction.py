@@ -11,7 +11,7 @@ import xarray as xr
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.models import Sup3rGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
-from sup3r.bias.bias_calc import QuantileDeltaMappingCorrection
+from sup3r.bias import QuantileDeltaMappingCorrection
 from sup3r.bias.bias_transforms import local_qdm_bc
 from sup3r.preprocessing.data_handling import DataHandlerNC, DataHandlerNCforCC
 
