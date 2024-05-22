@@ -6,7 +6,7 @@ import logging
 import numpy as np
 
 from sup3r.containers.cachers import Cacher
-from sup3r.containers.derivers import ExtendedDeriver
+from sup3r.containers.derivers import Deriver
 from sup3r.containers.derivers.methods import RegistryH5, RegistryNC
 from sup3r.containers.extracters import ExtracterH5, ExtracterNC
 from sup3r.containers.loaders import LoaderH5, LoaderNC
@@ -17,7 +17,9 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
-def extracter_factory(ExtracterClass, LoaderClass, BaseLoader=None):
+def ExtracterFactory(
+    ExtracterClass, LoaderClass, BaseLoader=None, name='DirectExtracter'
+):
     """Build composite :class:`Extracter` objects that also load from
     file_paths. Inputs are required to be provided as keyword args so that they
     can be split appropriately across different classes.
@@ -34,7 +36,11 @@ def extracter_factory(ExtracterClass, LoaderClass, BaseLoader=None):
         those arguments. The default for h5 is a method which returns
         MultiFileWindX(file_paths, **kwargs) and for nc the default is
         xarray.open_mfdataset(file_paths, **kwargs)
+    name : str
+        Optional name for class built from factory. This will display in
+        logging.
     """
+    __name__ = name
 
     class DirectExtracter(ExtracterClass):
         if BaseLoader is not None:
@@ -57,19 +63,18 @@ def extracter_factory(ExtracterClass, LoaderClass, BaseLoader=None):
     return DirectExtracter
 
 
-def handler_factory(
+def DataHandlerFactory(
     ExtracterClass,
     LoaderClass,
     BaseLoader=None,
     FeatureRegistry=None,
+    name='Handler',
 ):
     """Build composite objects that load from file_paths, extract specified
     region, derive new features, and cache derived data.
 
     Parameters
     ----------
-    DeriverClass : class
-        :class:`Deriver` class to use in this object composition.
     ExtracterClass : class
         :class:`Extracter` class to use in this object composition.
     LoaderClass : class
@@ -77,12 +82,19 @@ def handler_factory(
     BaseLoader : class
         Optional base loader update. The default for h5 is MultiFileWindX and
         for nc the default is xarray
+    name : str
+        Optional name for class built from factory. This will display in
+        logging.
+
     """
-    DirectExtracterClass = extracter_factory(
+    DirectExtracterClass = ExtracterFactory(
         ExtracterClass, LoaderClass, BaseLoader=BaseLoader
     )
 
-    class Handler(ExtendedDeriver):
+    class Handler(Deriver):
+
+        __name__ = name
+
         def __init__(self, file_paths, **kwargs):
             """
             Parameters
@@ -95,7 +107,7 @@ def handler_factory(
             """
             cache_kwargs = kwargs.pop('cache_kwargs', None)
             extracter_kwargs = _get_class_kwargs(DirectExtracterClass, kwargs)
-            deriver_kwargs = _get_class_kwargs(ExtendedDeriver, kwargs)
+            deriver_kwargs = _get_class_kwargs(Deriver, kwargs)
             extracter = DirectExtracterClass(file_paths, **extracter_kwargs)
             super().__init__(
                 extracter, **deriver_kwargs, FeatureRegistry=FeatureRegistry
@@ -106,11 +118,15 @@ def handler_factory(
     return Handler
 
 
-DirectExtracterH5 = extracter_factory(ExtracterH5, LoaderH5)
-DirectExtracterNC = extracter_factory(ExtracterNC, LoaderNC)
-DataHandlerH5 = handler_factory(
-    ExtracterH5, LoaderH5, FeatureRegistry=RegistryH5
+DirectExtracterH5 = ExtracterFactory(
+    ExtracterH5, LoaderH5, name='DirectExtracterH5'
 )
-DataHandlerNC = handler_factory(
-    ExtracterNC, LoaderNC, FeatureRegistry=RegistryNC
+DirectExtracterNC = ExtracterFactory(
+    ExtracterNC, LoaderNC, name='DirectExtracterNC'
+)
+DataHandlerH5 = DataHandlerFactory(
+    ExtracterH5, LoaderH5, FeatureRegistry=RegistryH5, name='DataHandlerH5'
+)
+DataHandlerNC = DataHandlerFactory(
+    ExtracterNC, LoaderNC, FeatureRegistry=RegistryNC, name='DataHandlerNC'
 )

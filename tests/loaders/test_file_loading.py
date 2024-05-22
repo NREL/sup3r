@@ -4,6 +4,7 @@
 import os
 from tempfile import TemporaryDirectory
 
+import numpy as np
 from rex import init_logger
 
 from sup3r import TEST_DATA_DIR
@@ -35,7 +36,8 @@ def test_load_nc():
 
 
 def test_load_h5():
-    """Test simple netcdf file loading."""
+    """Test simple netcdf file loading. Also checks renaming elevation ->
+    topography."""
 
     chunks = (5, 5)
     loader = LoaderH5(h5_files[0], chunks=chunks)
@@ -46,9 +48,9 @@ def test_load_h5():
         'winddirection_80m',
         'windspeed_100m',
         'windspeed_80m',
-        'elevation'
+        'topography'
     ]
-    assert loader.shape == (400, 8784, len(feats))
+    assert loader.data.shape == (400, 8784, len(feats))
     assert sorted(loader.features) == sorted(feats)
     assert all(loader[f].chunksize == chunks for f in feats[:-1])
 
@@ -71,7 +73,8 @@ def test_multi_file_load_nc():
 
 
 def test_5d_load_nc():
-    """Test loading netcdf data with some multi level features."""
+    """Test loading netcdf data with some multi level features. This also
+    check renaming of orog -> topography"""
     with TemporaryDirectory() as td:
         wind_file = os.path.join(td, 'wind.nc')
         make_fake_nc_file(
@@ -87,11 +90,12 @@ def test_5d_load_nc():
 
         assert loader.shape == (10, 10, 20, 3, 5)
         assert sorted(loader.features) == sorted(
-            ['orog', 'u_100m', 'v_100m', 'zg', 'u']
+            ['topography', 'u_100m', 'v_100m', 'zg', 'u']
         )
         assert loader['u_100m'].shape == (10, 10, 20)
         assert loader['u'].shape == (10, 10, 20, 3)
-        assert loader[['u', 'orog']].shape == (10, 10, 20, 3, 2)
+        assert loader[['u', 'topography']].shape == (10, 10, 20, 3, 2)
+        assert loader.data.dtype == np.float32
 
 
 if __name__ == '__main__':

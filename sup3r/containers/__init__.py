@@ -26,7 +26,7 @@ from .batchers import (
 )
 from .cachers import Cacher
 from .collections import Collection, SamplerCollection, StatsCollection
-from .derivers import Deriver, DeriverH5, DeriverNC
+from .derivers import Deriver
 from .extracters import DualExtracter, Extracter, ExtracterH5, ExtracterNC
 from .factory import (
     DataHandlerH5,

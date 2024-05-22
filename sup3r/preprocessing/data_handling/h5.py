@@ -13,7 +13,7 @@ from sup3r.containers.derivers.methods import (
     RegistryH5SolarCC,
     RegistryH5WindCC,
 )
-from sup3r.containers.factory import handler_factory
+from sup3r.containers.factory import DataHandlerFactory
 from sup3r.utilities.utilities import (
     daily_temporal_coarsening,
 )
@@ -23,10 +23,10 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
-BaseH5WindCC = handler_factory(
+BaseH5WindCC = DataHandlerFactory(
     ExtracterH5, LoaderH5, FeatureRegistry=RegistryH5WindCC
 )
-BaseH5SolarCC = handler_factory(
+BaseH5SolarCC = DataHandlerFactory(
     ExtracterH5,
     LoaderH5,
     BaseLoader=lambda file_paths, **kwargs: MultiFileNSRDBX(

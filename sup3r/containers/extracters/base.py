@@ -4,7 +4,6 @@ contained data."""
 import logging
 from abc import ABC, abstractmethod
 
-import dask.array as da
 import numpy as np
 
 from sup3r.containers.abstract import AbstractContainer
@@ -49,7 +48,7 @@ class Extracter(AbstractContainer, ABC):
         self._time_index = None
         self._raster_index = None
         self._full_lat_lon = None
-        self.data = self.get_data()
+        self.data = self.extract_data()
 
     def __enter__(self):
         return self
@@ -84,6 +83,13 @@ class Extracter(AbstractContainer, ABC):
         return self._raster_index
 
     @property
+    def full_lat_lon(self):
+        """Get full lat/lon grid from loader."""
+        if self._full_lat_lon is None:
+            self._full_lat_lon = self.loader.lat_lon
+        return self._full_lat_lon
+
+    @property
     def time_index(self):
         """Get the time index for the time period of interest."""
         if self._time_index is None:
@@ -113,6 +119,15 @@ class Extracter(AbstractContainer, ABC):
         coordinate. (lats, lons, 2)"""
 
     @abstractmethod
-    def get_data(self):
+    def extract_data(self):
         """Get extracted data by slicing loader.data with calculated
-        raster_index and time_slice."""
+        raster_index and time_slice.
+
+        Returns
+        -------
+        xr.Dataset
+            xr.Dataset() object with extracted features. When `self.data` is
+            set with this, `self._data` will be wrapped with
+            :class:`DataWrapper` class so that `self.data` will return a
+            :class:`DataWrapper` object.
+        """

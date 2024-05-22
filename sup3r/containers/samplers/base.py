@@ -8,13 +8,13 @@ from fnmatch import fnmatch
 from typing import Dict, Optional, Tuple
 from warnings import warn
 
-from sup3r.containers.base import Container
+from sup3r.containers.abstract import AbstractContainer
 from sup3r.utilities.utilities import uniform_box_sampler, uniform_time_sampler
 
 logger = logging.getLogger(__name__)
 
 
-class Sampler(Container, ABC):
+class Sampler(AbstractContainer, ABC):
     """Sampler class for iterating through contained things."""
 
     def __init__(self, container, sample_shape,
@@ -40,11 +40,13 @@ class Sampler(Container, ABC):
                 output from the generative model. An example is high-res
                 topography that is to be injected mid-network.
         """
-        super().__init__(container)
+        super().__init__()
         feature_sets = feature_sets or {}
         self._lr_only_features = feature_sets.get('lr_only_features', [])
         self._hr_exo_features = feature_sets.get('hr_exo_features', [])
         self._counter = 0
+        self.data = container.data
+        self.container = container
         self.sample_shape = sample_shape
         self.lr_features = self.features
         self.hr_features = self.features
@@ -92,6 +94,8 @@ class Sampler(Container, ABC):
         msg = (f'sample_shape[2] ({self.sample_shape[2]}) cannot be larger '
                'than the number of time steps in the raw data '
                f'({self.shape[2]}).')
+        breakpoint()
+
         if self.shape[2] < self.sample_shape[2]:
             logger.warning(msg)
             warn(msg)

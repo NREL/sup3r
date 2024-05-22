@@ -49,9 +49,9 @@ class ExtracterNC(Extracter, ABC):
             time_slice=time_slice,
         )
 
-    def get_data(self):
+    def extract_data(self):
         """Get rasterized data."""
-        return self.loader[(*self.raster_index, self.time_slice)]
+        return self.loader[*self.raster_index, self.time_slice]
 
     def check_target_and_shape(self, full_lat_lon):
         """NETCDF files tend to use a regular grid so if either target or shape
@@ -79,8 +79,8 @@ class ExtracterNC(Extracter, ABC):
     def get_raster_index(self):
         """Get set of slices or indices selecting the requested region from
         the contained data."""
-        self.check_target_and_shape(self.loader.lat_lon)
-        row, col = self.get_closest_row_col(self.loader.lat_lon, self._target)
+        self.check_target_and_shape(self.full_lat_lon)
+        row, col = self.get_closest_row_col(self.full_lat_lon, self._target)
         if self._has_descending_lats():
             lat_slice = slice(row - self._grid_shape[0] + 1, row + 1)
         else:
@@ -144,7 +144,7 @@ class ExtracterNC(Extracter, ABC):
     def get_lat_lon(self):
         """Get the 2D array of coordinates corresponding to the requested
         target and shape."""
-        lat_lon = self.loader.lat_lon[*self.raster_index]
+        lat_lon = self.full_lat_lon[*self.raster_index]
         if self._has_descending_lats():
             lat_lon = lat_lon[::-1]
         return lat_lon

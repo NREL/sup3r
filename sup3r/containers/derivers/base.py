@@ -20,7 +20,7 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
-class Deriver(AbstractContainer):
+class BaseDeriver(AbstractContainer):
     """Container subclass with additional methods for transforming / deriving
     data exposed through an :class:`Extracter` object."""
 
@@ -51,15 +51,21 @@ class Deriver(AbstractContainer):
         self.container = container
         self.data = container.data
         self.features = features
-        self.update_data()
+        self.data = self.derive_data()
 
-    def update_data(self):
-        """Update contained data with results of derivations. If the features
-        in self.features are not found in data the calls to `__getitem__`
-        will run derivations for features found in the feature registry."""
+    def derive_data(self):
+        """Derive data for requested features. Calling `self[feature]` first
+        checks if `feature` is in `self.data` already. If not it checks for a
+        compute method in `self.FEATURE_REGISTRY`.
+
+        Returns
+        -------
+        DataWrapper
+            Wrapped xr.Dataset() object with derived features
+        """
         for f in self.features:
-            self.data[f] = (('south_north', 'west_east', 'time'), self[f])
-        self.data = self.data[self.features]
+            self.data[f] = self[f]
+        return self.data[self.features]
 
     def _check_for_compute(self, feature):
         """Get compute method from the registry if available. Will check for
@@ -81,7 +87,7 @@ class Deriver(AbstractContainer):
         return None
 
     def __getitem__(self, keys):
-        if keys not in self:
+        if keys not in self.data:
             compute_check = self._check_for_compute(keys)
             if compute_check is not None and isinstance(compute_check, str):
                 return self[compute_check]
@@ -96,8 +102,8 @@ class Deriver(AbstractContainer):
         return super().__getitem__(keys)
 
 
-class ExtendedDeriver(Deriver):
-    """Extends base :class:`Deriver` class with time_roll and
+class Deriver(BaseDeriver):
+    """Extends base :class:`BaseDeriver` class with time_roll and
     hr_spatial_coarsen args."""
 
     def __init__(
@@ -112,28 +118,31 @@ class ExtendedDeriver(Deriver):
 
         if time_roll != 0:
             logger.debug('Applying time roll to data array')
-            self.data = np.roll(self.data, time_roll, axis=2)
+            self.data = self.data.roll(time=time_roll)
 
         if hr_spatial_coarsen > 1:
             logger.debug('Applying hr spatial coarsening to data array')
+            coords = self.data.coords
             coords = {
-                coord: spatial_coarsening(
-                    self.data[coord],
-                    s_enhance=hr_spatial_coarsen,
-                    obs_axis=False,
-                )
-                for coord in ['latitude', 'longitude']
-            }
-            coords['time'] = self.data['time']
-            data_vars = {
-                f: (
-                    ('latitude', 'longitude', 'time'),
+                coord: (
+                    self.dim_names[:2],
                     spatial_coarsening(
-                        self.data[f],
+                        self.data[coord].data,
                         s_enhance=hr_spatial_coarsen,
                         obs_axis=False,
                     ),
                 )
-                for f in self.features
+                for coord in ['latitude', 'longitude']
             }
+            data_vars = {}
+            for feat in self.features:
+                dat = self.data[feat].data
+                data_vars[feat] = (
+                    (self.dim_names[: len(dat.shape)]),
+                    spatial_coarsening(
+                        dat,
+                        s_enhance=hr_spatial_coarsen,
+                        obs_axis=False,
+                    ),
+                )
             self.data = xr.Dataset(coords=coords, data_vars=data_vars)
