@@ -94,7 +94,6 @@ class Sampler(AbstractContainer, ABC):
         msg = (f'sample_shape[2] ({self.sample_shape[2]}) cannot be larger '
                'than the number of time steps in the raw data '
                f'({self.shape[2]}).')
-        breakpoint()
 
         if self.shape[2] < self.sample_shape[2]:
             logger.warning(msg)
