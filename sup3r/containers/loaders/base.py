@@ -19,6 +19,8 @@ class Loader(AbstractContainer, ABC):
 
     BASE_LOADER = None
 
+    STANDARD_NAMES = {'elevation': 'topography', 'orog': 'topography'}
+
     def __init__(
         self,
         file_paths,
@@ -48,28 +50,20 @@ class Loader(AbstractContainer, ABC):
         self.mode = mode
         self.chunks = chunks
         self.res = self.BASE_LOADER(self.file_paths, **self.res_kwargs)
+        self.data = self.standardize(self.load()).astype(np.float32)
 
     def standardize(self, data: xr.Dataset):
-        """Standardize feature names in `.data.` For now this just ensures they
-        are all lower case. This could apply a rename map to standardize naming
-        conventions in the future though."""
-        breakpoint()
-        rename_map = {
-            feat: feat.lower()
-            for feat in data.data_vars
-            if feat.lower() != feat
-        }
-        if rename_map:
-            data = data.rename(rename_map)
-        return data
+        """Standardize feature names in `.data.`
 
-    @property
-    def data(self) -> xr.Dataset:
-        """'Load' data when access is requested."""
-        if self._data is None:
-            self._data = self.load().astype(np.float32)
-            self._data = self.standardize(self._data)
-        return self._data
+        TODO: For now this just ensures they are all lower case. This could
+        apply a rename map to standardize naming conventions in the future
+        though."""
+        rename_map = {feat: feat.lower() for feat in data.data_vars}
+        data = data.rename(rename_map)
+        data = data.rename(
+            {k: v for k, v in self.STANDARD_NAMES.items() if k in data}
+        )
+        return data
 
     def __enter__(self):
         return self

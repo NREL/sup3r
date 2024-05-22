@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 import xarray as xr
 
-from sup3r.containers.abstract import AbstractContainer
+from sup3r.containers.abstract import AbstractContainer, DataWrapper
 from sup3r.containers.samplers import CroppedSampler, Sampler
 from sup3r.postprocessing.file_handling import OutputHandlerH5
 from sup3r.utilities.utilities import pd_date_range
@@ -30,8 +30,8 @@ def execute_pytest(fname, capture='all', flags='-rapP'):
     pytest.main(['-q', '--show-capture={}'.format(capture), fname, flags])
 
 
-def make_fake_nc_file(file_name, shape, features):
-    """Make nc file with dummy data for tests."""
+def make_fake_dset(shape, features):
+    """Make dummy data for tests."""
     times = pd.date_range('2023-01-01', '2023-12-31', freq='60min')[: shape[0]]
 
     if len(shape) == 3:
@@ -54,6 +54,12 @@ def make_fake_nc_file(file_name, shape, features):
 
     data_vars = {f: (dims, da.random.random(shape)) for f in features}
     nc = xr.Dataset(coords=coords, data_vars=data_vars)
+    return nc
+
+
+def make_fake_nc_file(file_name, shape, features):
+    """Make nc file with dummy data for tests."""
+    nc = make_fake_dset(shape, features)
     nc.to_netcdf(file_name)
 
 
@@ -62,12 +68,7 @@ class DummyData(AbstractContainer):
 
     def __init__(self, data_shape, features):
         super().__init__()
-        self.data = da.random.random(size=(*data_shape, len(features)))
-        self.shape = data_shape
-        self.features = features
-
-    def __getitem__(self, key):
-        return self.data[key]
+        self.data = DataWrapper(make_fake_dset(data_shape, features))
 
 
 class DummySampler(Sampler):

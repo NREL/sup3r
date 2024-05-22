@@ -12,8 +12,7 @@ from rex import init_logger
 
 from sup3r import TEST_DATA_DIR
 from sup3r.containers import (
-    DeriverH5,
-    DeriverNC,
+    Deriver,
     DirectExtracterH5,
     DirectExtracterNC,
 )
@@ -59,7 +58,7 @@ def make_5d_nc_file(td, features):
         'target',
     ],
     [
-        (None, DirectExtracterNC, DeriverNC, nc_shape, nc_target),
+        (None, DirectExtracterNC, Deriver, nc_shape, nc_target),
     ],
 )
 def test_unneeded_uv_transform(
@@ -96,8 +95,8 @@ def test_unneeded_uv_transform(
         'target',
     ],
     [
-        (None, DirectExtracterNC, DeriverNC, nc_shape, nc_target),
-        (h5_files, DirectExtracterH5, DeriverH5, h5_shape, h5_target),
+        (None, DirectExtracterNC, Deriver, nc_shape, nc_target),
+        (h5_files, DirectExtracterH5, Deriver, h5_shape, h5_target),
     ],
 )
 def test_uv_transform(input_files, DirectExtracter, Deriver, shape, target):
@@ -136,11 +135,11 @@ def test_uv_transform(input_files, DirectExtracter, Deriver, shape, target):
         (
             h5_files,
             DirectExtracterH5,
-            DeriverH5,
+            Deriver,
             h5_shape,
             h5_target,
         ),
-        (None, DirectExtracterNC, DeriverNC, nc_shape, nc_target),
+        (None, DirectExtracterNC, Deriver, nc_shape, nc_target),
     ],
 )
 def test_hr_coarsening(input_files, DirectExtracter, Deriver, shape, target):
@@ -162,7 +161,8 @@ def test_hr_coarsening(input_files, DirectExtracter, Deriver, shape, target):
         deriver.data.shape[2],
         len(features),
     )
-    assert extracter.lat_lon.shape == (shape[0] // 2, shape[1] // 2, 2)
+    assert deriver.lat_lon.shape == (shape[0] // 2, shape[1] // 2, 2)
+    assert extracter.lat_lon.shape == (shape[0], shape[1], 2)
     assert deriver.dtype == np.dtype(np.float32)
 
 

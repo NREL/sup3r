@@ -23,7 +23,7 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
-def handler_factory(QueueClass, SamplerClass):
+def BatchHandlerFactory(QueueClass, SamplerClass, name='BatchHandler'):
     """BatchHandler factory. Can build handlers from different queue classes
     and sampler classes. For example, to build a standard BatchHandler use
     :class:`BatchQueue` and :class:`Sampler`. To build a
@@ -54,6 +54,8 @@ def handler_factory(QueueClass, SamplerClass):
 
         SAMPLER = SamplerClass
 
+        __name__ = name
+
         def __init__(
             self,
             train_containers: Union[List[Container], List[DualContainer]],
@@ -79,8 +81,11 @@ def handler_factory(QueueClass, SamplerClass):
                 val_containers=val_samplers,
                 **queue_kwargs,
             )
+
     return BatchHandler
 
 
-BatchHandler = handler_factory(BatchQueue, Sampler)
-DualBatchHandler = handler_factory(DualBatchQueue, DualSampler)
+BatchHandler = BatchHandlerFactory(BatchQueue, Sampler, name='BatchHandler')
+DualBatchHandler = BatchHandlerFactory(
+    DualBatchQueue, DualSampler, name='DualBatchHandler'
+)
