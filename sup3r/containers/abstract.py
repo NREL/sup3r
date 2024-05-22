@@ -92,7 +92,7 @@ class DataWrapper:
         """Get shape of underlying xr.DataArray. Feature channel by default is
         first and time is second, so we shift these to (..., time, features).
         We also sometimes have a level dimension for pressure level data."""
-        dim_dict = dict(self.dset.dims)
+        dim_dict = dict(self.dset.sizes)
         dim_vals = [
             dim_dict[k] for k in ('space', *self.dim_names) if k in dim_dict
         ]

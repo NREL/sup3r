@@ -39,6 +39,7 @@ def test_not_enough_stats_for_batch_queue():
     with pytest.raises(AssertionError):
         _ = BatchQueue(
             train_containers=samplers,
+            val_containers=[],
             n_batches=3,
             batch_size=4,
             s_enhance=2,
@@ -62,6 +63,7 @@ def test_batch_queue():
     coarsen_kwargs = {'smoothing_ignore': [], 'smoothing': None}
     batcher = BatchQueue(
         train_containers=samplers,
+        val_containers=[],
         n_batches=3,
         batch_size=4,
         s_enhance=2,
@@ -96,6 +98,7 @@ def test_spatial_batch_queue():
     ]
     batcher = BatchQueue(
         train_containers=samplers,
+        val_containers=[],
         s_enhance=s_enhance,
         t_enhance=t_enhance,
         n_batches=n_batches,
@@ -151,6 +154,7 @@ def test_pair_batch_queue():
     ]
     batcher = DualBatchQueue(
         train_containers=sampler_pairs,
+        val_containers=[],
         s_enhance=2,
         t_enhance=2,
         n_batches=3,
@@ -208,6 +212,7 @@ def test_pair_batch_queue_with_lr_only_features():
     stds = dict.fromkeys(lr_features, 1)
     batcher = DualBatchQueue(
         train_containers=sampler_pairs,
+        val_containers=[],
         s_enhance=2,
         t_enhance=2,
         n_batches=3,
@@ -263,6 +268,7 @@ def test_bad_enhancement_factors():
             ]
             _ = DualBatchQueue(
                 train_containers=sampler_pairs,
+                val_containers=[],
                 s_enhance=4,
                 t_enhance=6,
                 n_batches=3,
@@ -290,6 +296,7 @@ def test_bad_sample_shapes():
     with pytest.raises(AssertionError):
         _ = BatchQueue(
             train_containers=samplers,
+            val_containers=[],
             s_enhance=4,
             t_enhance=6,
             n_batches=3,

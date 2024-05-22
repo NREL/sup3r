@@ -8,7 +8,8 @@ import pandas as pd
 import pytest
 import xarray as xr
 
-from sup3r.containers.abstract import AbstractContainer, DataWrapper
+from sup3r.containers.abstract import AbstractContainer
+from sup3r.containers.base import Container
 from sup3r.containers.samplers import CroppedSampler, Sampler
 from sup3r.postprocessing.file_handling import OutputHandlerH5
 from sup3r.utilities.utilities import pd_date_range
@@ -32,27 +33,33 @@ def execute_pytest(fname, capture='all', flags='-rapP'):
 
 def make_fake_dset(shape, features):
     """Make dummy data for tests."""
-    times = pd.date_range('2023-01-01', '2023-12-31', freq='60min')[: shape[0]]
 
-    if len(shape) == 3:
-        dims = ('time', 'latitude', 'longitude')
-        lats = np.linspace(70, -70, shape[1])
-        lons = np.linspace(-150, 150, shape[2])
-        coords = {'time': times, 'latitude': lats, 'longitude': lons}
+    lats = np.linspace(70, -70, shape[0])
+    lons = np.linspace(-150, 150, shape[1])
+    lons, lats = np.meshgrid(lons, lats)
+    time = pd.date_range('2023-01-01', '2023-12-31', freq='60min')[: shape[2]]
+    dims = ('time', 'level', 'south_north', 'west_east')
+    coords = {}
 
     if len(shape) == 4:
-        dims = ('time', 'level', 'latitude', 'longitude')
-        levels = np.linspace(0, 1000, shape[1])
-        lats = np.linspace(70, -70, shape[2])
-        lons = np.linspace(-150, 150, shape[3])
-        coords = {
-            'time': times,
-            'level': levels,
-            'latitude': lats,
-            'longitude': lons,
-        }
+        levels = np.linspace(0, 1000, shape[4])
+        coords['level'] = levels
+    coords['time'] = time
+    coords['latitude'] = (('south_north', 'west_east'), lats)
+    coords['longitude'] = (('south_north', 'west_east'), lons)
 
-    data_vars = {f: (dims, da.random.random(shape)) for f in features}
+    dims = ('time', 'level', 'south_north', 'west_east')
+    trans_axes = (2, 3, 0, 1)
+    if len(shape) == 3:
+        dims = ('time', *dims[2:])
+        trans_axes = (2, 0, 1)
+    data_vars = {
+        f: (
+            dims[: len(shape)],
+            da.transpose(da.random.random(shape), axes=trans_axes),
+        )
+        for f in features
+    }
     nc = xr.Dataset(coords=coords, data_vars=data_vars)
     return nc
 
@@ -68,15 +75,16 @@ class DummyData(AbstractContainer):
 
     def __init__(self, data_shape, features):
         super().__init__()
-        self.data = DataWrapper(make_fake_dset(data_shape, features))
+        self.data = make_fake_dset(data_shape, features)
 
 
 class DummySampler(Sampler):
     """Dummy container with random data."""
 
     def __init__(self, sample_shape, data_shape, features, feature_sets=None):
-        data = DummyData(data_shape=data_shape, features=features)
-        super().__init__(data, sample_shape, feature_sets=feature_sets)
+        data = make_fake_dset(data_shape, features=features)
+        container = Container(data)
+        super().__init__(container, sample_shape, feature_sets=feature_sets)
 
 
 class DummyCroppedSampler(CroppedSampler):
@@ -90,9 +98,10 @@ class DummyCroppedSampler(CroppedSampler):
         feature_sets=None,
         crop_slice=slice(None),
     ):
-        data = DummyData(data_shape=data_shape, features=features)
+        data = make_fake_dset(data_shape, features=features)
+        container = Container(data)
         super().__init__(
-            data,
+            container,
             sample_shape,
             feature_sets=feature_sets,
             crop_slice=crop_slice,
