@@ -8,11 +8,10 @@ from inspect import signature
 import numpy as np
 import xarray as xr
 
-from sup3r.containers.abstract import AbstractContainer
+from sup3r.containers.abstract import AbstractContainer, Data
 from sup3r.containers.derivers.methods import (
     RegistryBase,
 )
-from sup3r.containers.extracters.base import Extracter
 from sup3r.utilities.utilities import Feature, spatial_coarsening
 
 np.random.seed(42)
@@ -26,13 +25,13 @@ class BaseDeriver(AbstractContainer):
 
     FEATURE_REGISTRY = RegistryBase
 
-    def __init__(self, container: Extracter, features, FeatureRegistry=None):
+    def __init__(self, data: Data, features, FeatureRegistry=None):
         """
         Parameters
         ----------
-        container : Container
-            Extracter type container exposing `.data` for a specified
-            spatiotemporal extent
+        data : Data
+            wrapped xr.Dataset() with data to use for derivations. Usually
+            comes from the `.data` attribute of a :class:`Extracter` object.
         features : list
             List of feature names to derive from the :class:`Extracter` data.
             The :class:`Extracter` object contains the features available to
@@ -48,24 +47,24 @@ class BaseDeriver(AbstractContainer):
             self.FEATURE_REGISTRY = FeatureRegistry
 
         super().__init__()
-        self.container = container
-        self.data = container.data
+        self.data = data
         self.features = features
-        self.data = self.derive_data()
+        self.update_data()
 
-    def derive_data(self):
-        """Derive data for requested features. Calling `self[feature]` first
-        checks if `feature` is in `self.data` already. If not it checks for a
-        compute method in `self.FEATURE_REGISTRY`.
+    def update_data(self):
+        """Derive data for requested features and update `self.data`. Calling
+        `self.derive(feature)` first checks if `feature` is in `self.data`
+        already. If not it checks for a compute method in
+        `self.FEATURE_REGISTRY`.
 
         Returns
         -------
-        DataWrapper
+        Data
             Wrapped xr.Dataset() object with derived features
         """
         for f in self.features:
-            self.data[f] = self[f]
-        return self.data[self.features]
+            self.data[f] = self.derive(f)
+        self.data = self.data.slice_dset(features=self.features)
 
     def _check_for_compute(self, feature):
         """Get compute method from the registry if available. Will check for
@@ -83,23 +82,26 @@ class BaseDeriver(AbstractContainer):
                     for k in params
                     if hasattr(Feature(feature), k)
                 }
-                return compute(self.container, **kwargs)
+                return compute(self.data, **kwargs)
         return None
 
-    def __getitem__(self, keys):
-        if keys not in self.data:
-            compute_check = self._check_for_compute(keys)
+    def derive(self, feature):
+        """Routine to derive requested features. Employs a little resursion to
+        locate differently named features with a name map in the feture
+        registry."""
+        if feature not in self.data.features:
+            compute_check = self._check_for_compute(feature)
             if compute_check is not None and isinstance(compute_check, str):
-                return self[compute_check]
+                return self.compute[compute_check]
             if compute_check is not None:
                 return compute_check
             msg = (
-                f'Could not find {keys} in contained data or in the '
+                f'Could not find {feature} in contained data or in the '
                 'FeatureRegistry.'
             )
             logger.error(msg)
-            raise KeyError(msg)
-        return super().__getitem__(keys)
+            raise RuntimeError(msg)
+        return self[feature]
 
 
 class Deriver(BaseDeriver):
@@ -108,13 +110,13 @@ class Deriver(BaseDeriver):
 
     def __init__(
         self,
-        container: Extracter,
+        data: Data,
         features,
         time_roll=0,
         hr_spatial_coarsen=1,
         FeatureRegistry=None,
     ):
-        super().__init__(container, features, FeatureRegistry=FeatureRegistry)
+        super().__init__(data, features, FeatureRegistry=FeatureRegistry)
 
         if time_roll != 0:
             logger.debug('Applying time roll to data array')
@@ -127,7 +129,7 @@ class Deriver(BaseDeriver):
                 coord: (
                     self.dims[:2],
                     spatial_coarsening(
-                        self.data[coord].data,
+                        self.data[coord],
                         s_enhance=hr_spatial_coarsen,
                         obs_axis=False,
                     ),
@@ -136,7 +138,7 @@ class Deriver(BaseDeriver):
             }
             data_vars = {}
             for feat in self.features:
-                dat = self.data[feat].data
+                dat = self.data[feat]
                 data_vars[feat] = (
                     (self.dims[:len(dat.shape)]),
                     spatial_coarsening(
@@ -145,4 +147,4 @@ class Deriver(BaseDeriver):
                         obs_axis=False,
                     ),
                 )
-            self.data = xr.Dataset(coords=coords, data_vars=data_vars)
+            self.data = Data(xr.Dataset(coords=coords, data_vars=data_vars))

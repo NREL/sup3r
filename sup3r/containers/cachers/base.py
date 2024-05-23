@@ -2,17 +2,14 @@
 
 import logging
 import os
-from typing import Dict, Union
+from typing import Dict
 
 import dask.array as da
 import h5py
 import numpy as np
 import xarray as xr
 
-from sup3r.containers.abstract import AbstractContainer
-from sup3r.containers.base import Container
-from sup3r.containers.derivers import Deriver
-from sup3r.containers.extracters import Extracter
+from sup3r.containers.abstract import AbstractContainer, Data
 
 np.random.seed(42)
 
@@ -24,14 +21,14 @@ class Cacher(AbstractContainer):
 
     def __init__(
         self,
-        container: Union[Container, Extracter, Deriver],
+        data: Data,
         cache_kwargs: Dict,
     ):
         """
         Parameters
         ----------
-        container : Union[Extracter, Deriver]
-            Extracter or Deriver type container containing data to cache
+        data : Data
+            Data object with underlying xr.Dataset()
         cache_kwargs : dict
             Dictionary with kwargs for caching wrangled data. This should at
             minimum include a 'cache_pattern' key, value. This pattern must
@@ -47,7 +44,7 @@ class Cacher(AbstractContainer):
             the cached files load them with a Loader object.
         """
         super().__init__()
-        self.container = container
+        self.data = data
         self.out_files = self.cache_data(cache_kwargs)
 
     def cache_data(self, kwargs):
@@ -67,7 +64,7 @@ class Cacher(AbstractContainer):
         assert '{feature}' in cache_pattern, msg
         _, ext = os.path.splitext(cache_pattern)
         write_features = [
-            f for f in self.features if len(self.container[f].shape) == 3
+            f for f in self.features if len(self.data[f].shape) == 3
         ]
         out_files = [cache_pattern.format(feature=f) for f in write_features]
         for feature, out_file in zip(write_features, out_files):
@@ -77,16 +74,16 @@ class Cacher(AbstractContainer):
                     self._write_h5(
                         out_file,
                         feature,
-                        np.transpose(self.container[feature], axes=(2, 0, 1)),
-                        self.container.data.coords,
+                        np.transpose(self.data[feature], axes=(2, 0, 1)),
+                        self.data.coords,
                         chunks,
                     )
                 elif ext == '.nc':
                     self._write_netcdf(
                         out_file,
                         feature,
-                        np.transpose(self.container[feature], axes=(2, 0, 1)),
-                        self.container.data.coords,
+                        np.transpose(self.data[feature], axes=(2, 0, 1)),
+                        self.data.coords,
                     )
                 else:
                     msg = (

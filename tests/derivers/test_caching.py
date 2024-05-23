@@ -81,7 +81,10 @@ def test_derived_data_caching(
             shape=shape,
             target=target,
         )
-        cacher = Cacher(deriver, cache_kwargs={'cache_pattern': cache_pattern})
+
+        cacher = Cacher(
+            deriver.data, cache_kwargs={'cache_pattern': cache_pattern}
+        )
 
         assert deriver.shape[:3] == (shape[0], shape[1], deriver.shape[2])
         assert all(

@@ -16,7 +16,7 @@ from sup3r.containers import (
     DataHandlerH5,
     DataHandlerNC,
     DualBatchHandler,
-    DualDataHandler,
+    DualExtracter,
 )
 from sup3r.models import Sup3rGan
 
@@ -55,12 +55,12 @@ def test_train_spatial(
         time_slice=slice(None, None, 10),
     )
 
-    dual_handler = DualDataHandler(
+    dual_extracter = DualExtracter(
         hr_handler, lr_handler, s_enhance=2, t_enhance=1
     )
 
     batch_handler = DualBatchHandler(
-        train_containers=[dual_handler],
+        train_containers=[dual_extracter],
         val_containers=[],
         sample_shape=sample_shape,
         batch_size=2,

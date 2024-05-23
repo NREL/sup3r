@@ -109,7 +109,9 @@ def DataHandlerFactory(
             extracter_kwargs['features'] = 'all'
             extracter = DirectExtracterClass(file_paths, **extracter_kwargs)
             super().__init__(
-                extracter, **deriver_kwargs, FeatureRegistry=FeatureRegistry
+                extracter.data,
+                **deriver_kwargs,
+                FeatureRegistry=FeatureRegistry,
             )
             if cache_kwargs is not None:
                 _ = Cacher(self, cache_kwargs)

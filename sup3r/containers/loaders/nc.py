@@ -24,7 +24,7 @@ class LoaderNC(Loader):
         """Lowest level interface to data."""
         if isinstance(self.chunks, tuple):
             kwargs['chunks'] = dict(
-                zip(['time', 'latitude', 'longitude', 'level'], self.chunks)
+                zip(['south_north', 'west_east', 'time', 'level'], self.chunks)
             )
         return xr.open_mfdataset(file_paths, **kwargs)
 
