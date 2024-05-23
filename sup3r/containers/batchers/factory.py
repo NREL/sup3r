@@ -58,27 +58,27 @@ def BatchHandlerFactory(QueueClass, SamplerClass, name='BatchHandler'):
 
         def __init__(
             self,
-            train_containers: Union[List[Container], List[DualContainer]],
-            val_containers: Union[List[Container], List[DualContainer]],
+            train_samplers: Union[List[Container], List[DualContainer]],
+            val_samplers: Union[List[Container], List[DualContainer]],
             **kwargs,
         ):
             sampler_kwargs = _get_class_kwargs(SamplerClass, kwargs)
             queue_kwargs = _get_class_kwargs(QueueClass, kwargs)
 
             train_samplers = [
-                self.SAMPLER(c, **sampler_kwargs) for c in train_containers
+                self.SAMPLER(c, **sampler_kwargs) for c in train_samplers
             ]
 
             val_samplers = (
                 None
-                if val_containers is None
+                if val_samplers is None
                 else [
-                    self.SAMPLER(c, **sampler_kwargs) for c in val_containers
+                    self.SAMPLER(c, **sampler_kwargs) for c in val_samplers
                 ]
             )
             super().__init__(
-                train_containers=train_samplers,
-                val_containers=val_samplers,
+                train_samplers=train_samplers,
+                val_samplers=val_samplers,
                 **queue_kwargs,
             )
 

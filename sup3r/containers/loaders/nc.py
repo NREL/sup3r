@@ -34,14 +34,15 @@ class LoaderNC(Loader):
         lons = self.res['longitude'].data
         if len(lats.shape) == 1:
             lons, lats = da.meshgrid(lons, lats)
-        rename_dict = {'latitude': 'south_north', 'longitude': 'west_east'}
-        for k, v in rename_dict.items():
-            if k in self.res.dims:
-                self.res = self.res.rename({k: v})
-        self.res = self.res.assign_coords(
+        out = self.res.drop(('latitude', 'longitude'))
+        rename_map = {'latitude': 'south_north', 'longitude': 'west_east'}
+        for old_name, new_name in rename_map.items():
+            if old_name in out.dims:
+                out = out.rename({old_name: new_name})
+        out = out.assign_coords(
             {'latitude': (('south_north', 'west_east'), lats)}
         )
-        self.res = self.res.assign_coords(
+        out = out.assign_coords(
             {'longitude': (('south_north', 'west_east'), lons)}
         )
-        return self.res.astype(np.float32)
+        return out.astype(np.float32)

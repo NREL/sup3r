@@ -19,13 +19,13 @@ class CroppedSampler(Sampler):
 
     def __init__(
         self,
-        container,
+        data,
         sample_shape,
         feature_sets=None,
         crop_slice=slice(None),
     ):
         super().__init__(
-            container=container,
+            data=data,
             sample_shape=sample_shape,
             feature_sets=feature_sets,
         )

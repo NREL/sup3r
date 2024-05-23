@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 import xarray as xr
 
-from sup3r.containers.abstract import AbstractContainer
+from sup3r.containers.abstract import Data
 from sup3r.containers.base import Container
 from sup3r.containers.samplers import CroppedSampler, Sampler
 from sup3r.postprocessing.file_handling import OutputHandlerH5
@@ -72,7 +72,7 @@ def make_fake_nc_file(file_name, shape, features):
     nc.to_netcdf(file_name)
 
 
-class DummyData(AbstractContainer):
+class DummyData(Container):
     """Dummy container with random data."""
 
     def __init__(self, data_shape, features):
@@ -85,8 +85,7 @@ class DummySampler(Sampler):
 
     def __init__(self, sample_shape, data_shape, features, feature_sets=None):
         data = make_fake_dset(data_shape, features=features)
-        container = Container(data)
-        super().__init__(container, sample_shape, feature_sets=feature_sets)
+        super().__init__(Data(data), sample_shape, feature_sets=feature_sets)
 
 
 class DummyCroppedSampler(CroppedSampler):
@@ -101,9 +100,8 @@ class DummyCroppedSampler(CroppedSampler):
         crop_slice=slice(None),
     ):
         data = make_fake_dset(data_shape, features=features)
-        container = Container(data)
         super().__init__(
-            container,
+            Data(data),
             sample_shape,
             feature_sets=feature_sets,
             crop_slice=crop_slice,

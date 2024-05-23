@@ -8,7 +8,8 @@ from inspect import signature
 import numpy as np
 import xarray as xr
 
-from sup3r.containers.abstract import AbstractContainer, Data
+from sup3r.containers.abstract import Data
+from sup3r.containers.base import Container
 from sup3r.containers.derivers.methods import (
     RegistryBase,
 )
@@ -19,7 +20,7 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
-class BaseDeriver(AbstractContainer):
+class BaseDeriver(Container):
     """Container subclass with additional methods for transforming / deriving
     data exposed through an :class:`Extracter` object."""
 
@@ -30,8 +31,9 @@ class BaseDeriver(AbstractContainer):
         Parameters
         ----------
         data : Data
-            wrapped xr.Dataset() with data to use for derivations. Usually
-            comes from the `.data` attribute of a :class:`Extracter` object.
+            wrapped xr.Dataset() (:class:`Data`) with data to use for
+            derivations. Usually comes from the `.data` attribute of a
+            :class:`Extracter` object.
         features : list
             List of feature names to derive from the :class:`Extracter` data.
             The :class:`Extracter` object contains the features available to
@@ -46,30 +48,21 @@ class BaseDeriver(AbstractContainer):
         if FeatureRegistry is not None:
             self.FEATURE_REGISTRY = FeatureRegistry
 
-        super().__init__()
-        self.data = data
-        self.features = features
-        self.update_data()
-
-    def update_data(self):
-        """Derive data for requested features and update `self.data`. Calling
-        `self.derive(feature)` first checks if `feature` is in `self.data`
-        already. If not it checks for a compute method in
-        `self.FEATURE_REGISTRY`.
-
-        Returns
-        -------
-        Data
-            Wrapped xr.Dataset() object with derived features
-        """
-        for f in self.features:
-            self.data[f] = self.derive(f)
-        self.data = self.data.slice_dset(features=self.features)
+        super().__init__(data=data)
+        for f in features:
+            self.data[f.lower()] = self.derive(f.lower())
+        self.data = self.data.slice_dset(features=features)
 
     def _check_for_compute(self, feature):
         """Get compute method from the registry if available. Will check for
         pattern feature match in feature registry. e.g. if U_100m matches a
-        feature registry entry of U_(.*)m"""
+        feature registry entry of U_(.*)m
+
+        Notes
+        -----
+        Features are all saved as lower case names and __contains__ checks will
+        use feature.lower()
+        """
         for pattern in self.FEATURE_REGISTRY:
             if re.match(pattern.lower(), feature.lower()):
                 method = self.FEATURE_REGISTRY[pattern]
@@ -86,10 +79,12 @@ class BaseDeriver(AbstractContainer):
         return None
 
     def derive(self, feature):
-        """Routine to derive requested features. Employs a little resursion to
+        """Routine to derive requested features. Employs a little recursion to
         locate differently named features with a name map in the feture
-        registry."""
-        if feature not in self.data.features:
+        registry. i.e. if  `FEATURE_REGISTRY` containers a key, value pair like
+        "windspeed": "wind_speed" then requesting "windspeed" will ultimately
+        return a compute method (or fetch from raw data) for "wind_speed"""
+        if feature not in self.data:
             compute_check = self._check_for_compute(feature)
             if compute_check is not None and isinstance(compute_check, str):
                 return self.compute[compute_check]
@@ -101,7 +96,7 @@ class BaseDeriver(AbstractContainer):
             )
             logger.error(msg)
             raise RuntimeError(msg)
-        return self[feature]
+        return self.data[feature]
 
 
 class Deriver(BaseDeriver):

@@ -60,15 +60,17 @@ class DualSampler(DualContainer, Sampler):
         )
         self._lr_only_features = feature_sets.get('lr_only_features', [])
         self._hr_exo_features = feature_sets.get('hr_exo_features', [])
-        hr_sampler = Sampler(container.hr_container, self.hr_sample_shape)
-        lr_sampler = Sampler(container.lr_container, self.lr_sample_shape)
+        hr_sampler = Sampler(container.hr_data, self.hr_sample_shape)
+        lr_sampler = Sampler(container.lr_data, self.lr_sample_shape)
         super().__init__(lr_sampler, hr_sampler)
 
-        feats = list(copy.deepcopy(self.lr_container.features))
-        feats += [fn for fn in self.hr_container.features if fn not in feats]
+        feats = list(copy.deepcopy(self.lr_data.features))
+        feats += [fn for fn in self.hr_data.features if fn not in feats]
+
         self.features = feats
-        self.lr_features = self.lr_container.features
-        self.hr_features = self.hr_container.features
+
+        self.lr_features = self.lr_data.features
+        self.hr_features = self.hr_data.features
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
         self.check_for_consistent_shapes()
@@ -77,22 +79,22 @@ class DualSampler(DualContainer, Sampler):
         """Make sure container shapes are compatible with enhancement
         factors."""
         enhanced_shape = (
-            self.lr_container.shape[0] * self.s_enhance,
-            self.lr_container.shape[1] * self.s_enhance,
-            self.lr_container.shape[2] * self.t_enhance,
+            self.lr_data.shape[0] * self.s_enhance,
+            self.lr_data.shape[1] * self.s_enhance,
+            self.lr_data.shape[2] * self.t_enhance,
         )
         msg = (
-            f'hr_container.shape {self.hr_container.shape} and enhanced '
-            f'lr_container.shape {enhanced_shape} are not compatible with '
+            f'hr_data.shape {self.hr_data.shape} and enhanced '
+            f'lr_data.shape {enhanced_shape} are not compatible with '
             'the given enhancement factors'
         )
-        assert self.hr_container.shape[:3] == enhanced_shape, msg
+        assert self.hr_data.shape[:3] == enhanced_shape, msg
 
     def get_sample_index(self):
         """Get paired sample index, consisting of index for the low res sample
         and the index for the high res sample with the same spatiotemporal
         extent."""
-        lr_index = self.lr_container.get_sample_index()
+        lr_index = self.lr_data.get_sample_index()
         hr_index = [
             slice(s.start * self.s_enhance, s.stop * self.s_enhance)
             for s in lr_index[:2]

@@ -17,8 +17,10 @@ from sup3r.containers import (
     DataHandlerNC,
     DualBatchHandler,
     DualExtracter,
+    StatsCollection,
 )
 from sup3r.models import Sup3rGan
+from sup3r.utilities.pytest.helpers import execute_pytest
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 FP_ERA = os.path.join(TEST_DATA_DIR, 'test_era5_co_2012.nc')
@@ -56,20 +58,31 @@ def test_train_spatial(
     )
 
     dual_extracter = DualExtracter(
-        hr_handler, lr_handler, s_enhance=2, t_enhance=1
-    )
-
-    batch_handler = DualBatchHandler(
-        train_containers=[dual_extracter],
-        val_containers=[],
-        sample_shape=sample_shape,
-        batch_size=2,
-        n_batches=2,
-        s_enhance=2,
-        t_enhance=1
+        hr_handler.data, lr_handler.data, s_enhance=2, t_enhance=1
     )
 
     with tempfile.TemporaryDirectory() as td:
+
+        means_file = os.path.join(td, 'means.json')
+        stds_file = os.path.join(td, 'stds.json')
+        _ = StatsCollection(
+            [dual_extracter],
+            means_file=means_file,
+            stds_file=stds_file,
+        )
+
+        batch_handler = DualBatchHandler(
+            train_samplers=[dual_extracter],
+            val_samplers=[],
+            sample_shape=sample_shape,
+            batch_size=2,
+            n_batches=2,
+            s_enhance=2,
+            t_enhance=1,
+            means=means_file,
+            stds=stds_file
+        )
+
         # test that training works and reduces loss
         model.train(
             batch_handler,
@@ -149,20 +162,31 @@ def test_train_st(n_epoch=3, log=False):
         time_slice=slice(None, None, 40),
     )
 
-    dual_handler = DualDataHandler(
-        hr_handler, lr_handler, s_enhance=3, t_enhance=4)
-
-    batch_handler = DualBatchHandler(
-        train_containers=[dual_handler],
-        val_containers=[],
-        sample_shape=(12, 12, 16),
-        batch_size=5,
-        s_enhance=3,
-        t_enhance=4,
-        n_batches=5,
-    )
+    dual_extracter = DualExtracter(
+        hr_handler.data, lr_handler.data, s_enhance=3, t_enhance=4)
 
     with tempfile.TemporaryDirectory() as td:
+
+        means_file = os.path.join(td, 'means.json')
+        stds_file = os.path.join(td, 'stds.json')
+        _ = StatsCollection(
+            [dual_extracter],
+            means_file=means_file,
+            stds_file=stds_file,
+        )
+
+        batch_handler = DualBatchHandler(
+            train_samplers=[dual_extracter],
+            val_samplers=[],
+            sample_shape=(12, 12, 16),
+            batch_size=5,
+            s_enhance=3,
+            t_enhance=4,
+            n_batches=5,
+            means=means_file,
+            stds=stds_file
+        )
+
         # test that training works and reduces loss
         model.train(
             batch_handler,
@@ -237,3 +261,7 @@ def test_train_st(n_epoch=3, log=False):
         assert y_test.shape[2] == test_data.shape[2] * 3
         assert y_test.shape[3] == test_data.shape[3] * 4
         assert y_test.shape[4] == test_data.shape[4]
+
+
+if __name__ == '__main__':
+    execute_pytest(__file__)

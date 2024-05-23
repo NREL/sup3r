@@ -1,16 +1,16 @@
 """Abstract Loader class merely for loading data from file paths. This data
 can be loaded lazily or eagerly."""
 
-from abc import ABC
+from abc import ABC, abstractmethod
 
 import numpy as np
 import xarray as xr
 
-from sup3r.containers.abstract import AbstractContainer
+from sup3r.containers.base import Container
 from sup3r.utilities.utilities import expand_paths
 
 
-class Loader(AbstractContainer, ABC):
+class Loader(Container, ABC):
     """Base loader. "Loads" files so that a `.data` attribute provides access
     to the data in the files as a dask array with shape (lats, lons, time,
     features). This object provides a `__getitem__` method that can be used by
@@ -24,6 +24,7 @@ class Loader(AbstractContainer, ABC):
     def __init__(
         self,
         file_paths,
+        features='all',
         res_kwargs=None,
         chunks='auto',
         mode='lazy',
@@ -33,6 +34,11 @@ class Loader(AbstractContainer, ABC):
         ----------
         file_paths : str | pathlib.Path | list
             Location(s) of files to load
+        features : str | None | list
+            List of features in include in the loaded data. If 'all'
+            this includes all features available in the file_paths. If None
+            this results in a dataset with just lat / lon / time. To select
+            specific features provide a list.
         res_kwargs : dict
             kwargs for `.res` object
         chunks : tuple
@@ -51,6 +57,14 @@ class Loader(AbstractContainer, ABC):
         self.chunks = chunks
         self.res = self.BASE_LOADER(self.file_paths, **self.res_kwargs)
         self.data = self.standardize(self.load()).astype(np.float32)
+        features = (
+            list(self.data.features)
+            if features == 'all'
+            else ['latitude', 'longitude', 'time']
+            if features is None
+            else features
+        )
+        self.data = self.data.slice_dset(features=features)
 
     def standardize(self, data: xr.Dataset):
         """Standardize feature names in `.data.`
@@ -100,6 +114,7 @@ class Loader(AbstractContainer, ABC):
         )
         assert file_paths is not None and len(self._file_paths) > 0, msg
 
+    @abstractmethod
     def load(self):
         """xarray.DataArray features in last dimension. Either lazily loaded
         (mode = 'lazy') or loaded into memory right away (mode = 'eager').

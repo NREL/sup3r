@@ -3,27 +3,30 @@ the underlying data. These interface with Batchers so they also have additional
 information about how different features are used by models."""
 
 import logging
-from abc import ABC
 from fnmatch import fnmatch
 from typing import Dict, Optional, Tuple
 from warnings import warn
 
-from sup3r.containers.abstract import AbstractContainer
+from sup3r.containers.abstract import Data
+from sup3r.containers.base import Container
 from sup3r.utilities.utilities import uniform_box_sampler, uniform_time_sampler
 
 logger = logging.getLogger(__name__)
 
 
-class Sampler(AbstractContainer, ABC):
+class Sampler(Container):
     """Sampler class for iterating through contained things."""
 
-    def __init__(self, container, sample_shape,
+    def __init__(self, data: Data, sample_shape,
                  feature_sets: Optional[Dict] = None):
         """
         Parameters
         ----------
-        container : Container
-            Object with data that will be sampled from.
+        data : Data
+            wrapped xr.Dataset() object with data that will be sampled from.
+            Can be the `.data` attribute of various :class:`Container` objects.
+            i.e. :class:`Loader`, :class:`Extracter`, :class:`Deriver`, as long
+            as the spatial dimensions are not flattened.
         sample_shape : tuple
             Size of arrays to sample from the contained data.
         feature_sets : Optional[dict]
@@ -40,12 +43,11 @@ class Sampler(AbstractContainer, ABC):
                 output from the generative model. An example is high-res
                 topography that is to be injected mid-network.
         """
-        super().__init__()
+        super().__init__(data=data)
         feature_sets = feature_sets or {}
         self._lr_only_features = feature_sets.get('lr_only_features', [])
         self._hr_exo_features = feature_sets.get('hr_exo_features', [])
         self._counter = 0
-        self.data = container.data
         self.sample_shape = sample_shape
         self.lr_features = self.features
         self.hr_features = self.features
@@ -156,7 +158,7 @@ class Sampler(AbstractContainer, ABC):
                 if match:
                     out.append(feature)
             parsed_feats = out
-        return parsed_feats
+        return [f.lower() for f in parsed_feats]
 
     @property
     def lr_only_features(self):

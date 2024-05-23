@@ -69,8 +69,8 @@ def test_train_spatial(
         extracter, sample_shape
     )
     batcher = BatchQueue(
-        train_containers=[train_sampler],
-        val_containers=[val_sampler],
+        train_samplers=[train_sampler],
+        val_samplers=[val_sampler],
         batch_size=2,
         s_enhance=2,
         t_enhance=1,
@@ -134,8 +134,8 @@ def test_train_st(
         extracter, sample_shape
     )
     batcher = BatchQueue(
-        train_containers=[train_sampler],
-        val_containers=[val_sampler],
+        train_samplers=[train_sampler],
+        val_samplers=[val_sampler],
         batch_size=2,
         n_batches=2,
         s_enhance=3,
