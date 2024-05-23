@@ -40,10 +40,10 @@ def make_5d_nc_file(td, features):
     """Make netcdf file with variables needed for tests. some 4d some 5d."""
     wind_file = os.path.join(td, 'wind.nc')
     make_fake_nc_file(
-        wind_file, shape=(100, 60, 60), features=['orog', *features]
+        wind_file, shape=(60, 60, 100), features=['orog', *features]
     )
     level_file = os.path.join(td, 'wind_levs.nc')
-    make_fake_nc_file(level_file, shape=(100, 3, 60, 60), features=['zg', 'u'])
+    make_fake_nc_file(level_file, shape=(60, 60, 100, 3), features=['zg', 'u'])
     out_file = os.path.join(td, 'nc_5d.nc')
     xr.open_mfdataset([wind_file, level_file]).to_netcdf(out_file)
     return out_file
@@ -163,7 +163,7 @@ def test_hr_coarsening(input_files, DirectExtracter, Deriver, shape, target):
     )
     assert deriver.lat_lon.shape == (shape[0] // 2, shape[1] // 2, 2)
     assert extracter.lat_lon.shape == (shape[0], shape[1], 2)
-    assert deriver.dtype == np.dtype(np.float32)
+    assert deriver.data.dtype == np.dtype(np.float32)
 
 
 if __name__ == '__main__':

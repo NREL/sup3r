@@ -1,5 +1,5 @@
-"""Basic container objects can perform transformations / extractions on the
-contained data."""
+"""Basic objects can perform transformations / extractions on the contained
+data."""
 
 import logging
 

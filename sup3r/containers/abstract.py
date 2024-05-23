@@ -170,6 +170,11 @@ class AbstractContainer:
         """Base time index for contained data."""
         return pd.to_datetime(self['time'])
 
+    @property
+    def dims(self):
+        """Get ordered dim names for datasets."""
+        return get_dim_names(self.data)
+
     @time_index.setter
     def time_index(self, value):
         """Update the time_index attribute with given index."""
@@ -183,8 +188,8 @@ class AbstractContainer:
     @lat_lon.setter
     def lat_lon(self, lat_lon):
         """Update the lat_lon attribute with array values."""
-        self.data.dset['latitude'] = (self.data.dset['latitude'].dims, lat_lon[..., 0])
-        self.data.dset['longitude'] = (self.data.dset['longitude'].dims, lat_lon[..., 1])
+        self.data['latitude'] = (self.data['latitude'], lat_lon[..., 0])
+        self.data['longitude'] = (self.data['longitude'], lat_lon[..., 1])
 
     def parse_keys(self, keys):
         """

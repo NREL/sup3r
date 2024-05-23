@@ -88,7 +88,7 @@ def test_derived_data_caching(
             deriver[f].shape == (*shape, deriver.shape[2])
             for f in derive_features
         )
-        assert deriver.dtype == np.dtype(np.float32)
+        assert deriver.data.dtype == np.dtype(np.float32)
 
         loader = Loader(cacher.out_files)
         assert np.array_equal(loader.to_array(), deriver.to_array())
