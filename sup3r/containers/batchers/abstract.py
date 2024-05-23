@@ -51,7 +51,7 @@ class AbstractBatchQueue(SamplerCollection, ABC):
 
     def __init__(
         self,
-        containers: Union[List[Sampler], List[DualSampler]],
+        samplers: Union[List[Sampler], List[DualSampler]],
         batch_size,
         n_batches,
         s_enhance,
@@ -61,12 +61,12 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         queue_cap: Optional[int] = None,
         max_workers: Optional[int] = None,
         default_device: Optional[str] = None,
-        thread_name: Optional[str] = 'training'
+        thread_name: Optional[str] = 'training',
     ):
         """
         Parameters
         ----------
-        containers : List[Sampler]
+        samplers : List[Sampler]
             List of Sampler instances
         batch_size : int
             Number of observations / samples in a batch
@@ -101,7 +101,7 @@ class AbstractBatchQueue(SamplerCollection, ABC):
             validation queue.
         """
         super().__init__(
-            containers=containers, s_enhance=s_enhance, t_enhance=t_enhance
+            samplers=samplers, s_enhance=s_enhance, t_enhance=t_enhance
         )
         self._sample_counter = 0
         self._batch_counter = 0
@@ -116,8 +116,9 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         self.n_batches = n_batches
         self.queue_cap = queue_cap or n_batches
         self.queue_thread = threading.Thread(
-            target=self.enqueue_batches, args=(self._stopped,),
-            name=thread_name
+            target=self.enqueue_batches,
+            args=(self._stopped,),
+            name=thread_name,
         )
         self.queue = self.get_queue()
         self.max_workers = max_workers or batch_size
@@ -192,17 +193,9 @@ class AbstractBatchQueue(SamplerCollection, ABC):
             self.generator, output_signature=self.get_output_signature()
         )
 
+    @abstractmethod
     def _parallel_map(self):
         """Perform call to map function to enable parallel sampling."""
-        if self.all_container_pairs:
-            data = self.data.map(
-                lambda x, y: (x, y), num_parallel_calls=self.max_workers
-            )
-        else:
-            data = self.data.map(
-                lambda x: x, num_parallel_calls=self.max_workers
-            )
-        return data
 
     def prefetch(self):
         """Prefetch set of batches from dataset generator."""
@@ -217,22 +210,16 @@ class AbstractBatchQueue(SamplerCollection, ABC):
                 self.batch_size,
                 drop_remainder=True,
                 deterministic=False,
-                num_parallel_calls=tf.data.AUTOTUNE)
+                num_parallel_calls=tf.data.AUTOTUNE,
+            )
         return batches.as_numpy_iterator()
 
+    @abstractmethod
     def _get_queue_shape(self) -> List[tuple]:
         """Get shape for queue. For DualSampler containers shape is a list of
         length = 2. Otherwise its a list of length = 1.  In both cases the list
         elements are of shape (batch_size,
         *sample_shape, len(features))"""
-        if self.all_container_pairs:
-            shape = [
-                (self.batch_size, *self.lr_shape),
-                (self.batch_size, *self.hr_shape),
-            ]
-        else:
-            shape = [(self.batch_size, *self.sample_shape, len(self.features))]
-        return shape
 
     def get_queue(self):
         """Initialize FIFO queue for storing batches.
@@ -269,8 +256,9 @@ class AbstractBatchQueue(SamplerCollection, ABC):
 
     def join(self) -> None:
         """Join thread to exit gracefully."""
-        logger.info(f'Joining {self.queue_thread.name} queue thread to main '
-                    'thread.')
+        logger.info(
+            f'Joining {self.queue_thread.name} queue thread to main ' 'thread.'
+        )
         self.queue_thread.join()
 
     def stop(self) -> None:
@@ -296,8 +284,10 @@ class AbstractBatchQueue(SamplerCollection, ABC):
                 if queue_size == 1:
                     msg = f'1 batch in {self.queue_thread.name} queue'
                 else:
-                    msg = (f'{queue_size} batches in {self.queue_thread.name} '
-                           'queue.')
+                    msg = (
+                        f'{queue_size} batches in {self.queue_thread.name} '
+                        'queue.'
+                    )
                 logger.debug(msg)
 
                 batch = next(self.batches, None)
@@ -314,11 +304,11 @@ class AbstractBatchQueue(SamplerCollection, ABC):
             Batch object with batch.low_res and batch.high_res attributes
         """
         samples = self.queue.dequeue()
-
-        # batches for spatial model have no time dimension
-        if self.hr_sample_shape[2] == 1:
-            samples = samples[..., 0, :]
-
+        if self.sample_shape[2] == 1:
+            if isinstance(samples, (list, tuple)):
+                samples = tuple([s[..., 0, :] for s in samples])
+            else:
+                samples = samples[..., 0, :]
         return self.batch_next(samples)
 
     def __next__(self) -> Batch:
@@ -345,27 +335,27 @@ class AbstractBatchQueue(SamplerCollection, ABC):
 
         return batch
 
-    @ property
+    @property
     def lr_means(self):
         """Means specific to the low-res objects in the Containers."""
         return np.array([self.means[k] for k in self.lr_features])
 
-    @ property
+    @property
     def hr_means(self):
         """Means specific the high-res objects in the Containers."""
         return np.array([self.means[k] for k in self.hr_features])
 
-    @ property
+    @property
     def lr_stds(self):
         """Stdevs specific the low-res objects in the Containers."""
         return np.array([self.stds[k] for k in self.lr_features])
 
-    @ property
+    @property
     def hr_stds(self):
         """Stdevs specific the high-res objects in the Containers."""
         return np.array([self.stds[k] for k in self.hr_features])
 
-    @ staticmethod
+    @staticmethod
     def _normalize(array, means, stds):
         """Normalize an array with given means and stds."""
         return (array - means) / stds

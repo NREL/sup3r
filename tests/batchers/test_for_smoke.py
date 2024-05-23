@@ -4,13 +4,14 @@ import pytest
 from rex import init_logger
 
 from sup3r.containers import (
+    BatchHandler,
     BatchQueue,
     DualBatchQueue,
     DualContainer,
     DualSampler,
+    SingleBatchQueue,
 )
 from sup3r.utilities.pytest.helpers import (
-    DummyCroppedSampler,
     DummyData,
     DummySampler,
     execute_pytest,
@@ -95,9 +96,8 @@ def test_spatial_batch_queue():
         DummySampler(sample_shape, data_shape=(10, 10, 20), features=FEATURES),
         DummySampler(sample_shape, data_shape=(12, 12, 15), features=FEATURES),
     ]
-    batcher = BatchQueue(
+    batcher = SingleBatchQueue(
         train_samplers=samplers,
-        val_samplers=[],
         s_enhance=s_enhance,
         t_enhance=t_enhance,
         n_batches=n_batches,
@@ -152,7 +152,6 @@ def test_dual_batch_queue():
     ]
     batcher = DualBatchQueue(
         train_samplers=sampler_pairs,
-        val_samplers=[],
         s_enhance=2,
         t_enhance=2,
         n_batches=3,
@@ -209,7 +208,6 @@ def test_pair_batch_queue_with_lr_only_features():
     stds = dict.fromkeys(lr_features, 1)
     batcher = DualBatchQueue(
         train_samplers=sampler_pairs,
-        val_samplers=[],
         s_enhance=2,
         t_enhance=2,
         n_batches=3,
@@ -264,7 +262,6 @@ def test_bad_enhancement_factors():
             ]
             _ = DualBatchQueue(
                 train_samplers=sampler_pairs,
-                val_samplers=[],
                 s_enhance=4,
                 t_enhance=6,
                 n_batches=3,
@@ -292,7 +289,6 @@ def test_bad_sample_shapes():
     with pytest.raises(AssertionError):
         _ = BatchQueue(
             train_samplers=samplers,
-            val_samplers=[],
             s_enhance=4,
             t_enhance=6,
             n_batches=3,
@@ -304,25 +300,14 @@ def test_bad_sample_shapes():
         )
 
 
-def test_split_batch_queue():
+def test_batch_handler_with_validation():
     """Smoke test for batch queue."""
 
-    train_sampler = DummyCroppedSampler(
-        sample_shape=(8, 8, 4),
-        data_shape=(10, 10, 100),
-        features=FEATURES,
-        crop_slice=slice(0, 90),
-    )
-    val_sampler = DummyCroppedSampler(
-        sample_shape=(8, 8, 4),
-        data_shape=(10, 10, 100),
-        features=FEATURES,
-        crop_slice=slice(90, 100),
-    )
     coarsen_kwargs = {'smoothing_ignore': [], 'smoothing': None}
-    batcher = BatchQueue(
-        train_samplers=[train_sampler],
-        val_samplers=[val_sampler],
+    batcher = BatchHandler(
+        train_containers=[DummyData((10, 10, 100), FEATURES)],
+        val_containers=[DummyData((10, 10, 100), FEATURES)],
+        sample_shape=(8, 8, 4),
         batch_size=4,
         n_batches=3,
         s_enhance=2,

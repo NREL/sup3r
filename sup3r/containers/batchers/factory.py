@@ -12,7 +12,7 @@ from sup3r.containers.base import (
     Container,
     DualContainer,
 )
-from sup3r.containers.batchers.base import BatchQueue
+from sup3r.containers.batchers.base import SingleBatchQueue
 from sup3r.containers.batchers.dual import DualBatchQueue
 from sup3r.containers.samplers.base import Sampler
 from sup3r.containers.samplers.dual import DualSampler
@@ -58,34 +58,60 @@ def BatchHandlerFactory(QueueClass, SamplerClass, name='BatchHandler'):
 
         def __init__(
             self,
-            train_samplers: Union[List[Container], List[DualContainer]],
-            val_samplers: Union[List[Container], List[DualContainer]],
+            train_containers: Union[List[Container], List[DualContainer]],
+            val_containers: Union[List[Container], List[DualContainer]],
             **kwargs,
         ):
             sampler_kwargs = _get_class_kwargs(SamplerClass, kwargs)
             queue_kwargs = _get_class_kwargs(QueueClass, kwargs)
 
             train_samplers = [
-                self.SAMPLER(c, **sampler_kwargs) for c in train_samplers
+                self.SAMPLER(c, **sampler_kwargs) for c in train_containers
             ]
 
             val_samplers = (
                 None
-                if val_samplers is None
+                if val_containers is None
                 else [
-                    self.SAMPLER(c, **sampler_kwargs) for c in val_samplers
+                    self.SAMPLER(c, **sampler_kwargs) for c in val_containers
                 ]
             )
+
+            if not val_samplers:
+                self.val_data: Union[List, SingleBatchQueue] = []
+            else:
+                self.val_data = QueueClass(
+                    samplers=val_samplers,
+                    thread_name='validation',
+                    **queue_kwargs,
+                )
+
             super().__init__(
-                train_samplers=train_samplers,
-                val_samplers=val_samplers,
+                samplers=train_samplers,
                 **queue_kwargs,
             )
+            self.start()
+
+        def start(self):
+            """Start the val data batch queue in addition to the train batch
+            queue."""
+            if hasattr(self.val_data, 'start'):
+                self.val_data.start()
+            super().start()
+
+        def stop(self):
+            """Stop the val data batch queue in addition to the train batch
+            queue."""
+            if hasattr(self.val_data, 'stop'):
+                self.val_data.stop()
+            super().stop()
 
     return BatchHandler
 
 
-BatchHandler = BatchHandlerFactory(BatchQueue, Sampler, name='BatchHandler')
+BatchHandler = BatchHandlerFactory(
+    SingleBatchQueue, Sampler, name='BatchHandler'
+)
 DualBatchHandler = BatchHandlerFactory(
     DualBatchQueue, DualSampler, name='DualBatchHandler'
 )

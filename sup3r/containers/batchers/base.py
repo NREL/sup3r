@@ -28,12 +28,12 @@ option_no_order.experimental_optimization.apply_default_optimizations = True
 
 
 class SingleBatchQueue(AbstractBatchQueue):
-    """Base BatchQueue class for single data object containers with no
-    validation queue."""
+    """Base BatchQueue class for single dataset containers, with no validation
+    queue."""
 
     def __init__(
         self,
-        containers: Union[List[Sampler], List[DualSampler]],
+        samplers: Union[List[Sampler], List[DualSampler]],
         batch_size,
         n_batches,
         s_enhance,
@@ -44,12 +44,12 @@ class SingleBatchQueue(AbstractBatchQueue):
         max_workers: Optional[int] = None,
         coarsen_kwargs: Optional[Dict] = None,
         default_device: Optional[str] = None,
-        thread_name: Optional[str] = 'training'
+        thread_name: Optional[str] = 'training',
     ):
         """
         Parameters
         ----------
-        containers : List[Sampler]
+        samplers : List[Sampler]
             List of Sampler instances
         batch_size : int
             Number of observations / samples in a batch
@@ -84,7 +84,7 @@ class SingleBatchQueue(AbstractBatchQueue):
             validation queue.
         """
         super().__init__(
-            containers=containers,
+            samplers=samplers,
             batch_size=batch_size,
             n_batches=n_batches,
             s_enhance=s_enhance,
@@ -94,21 +94,12 @@ class SingleBatchQueue(AbstractBatchQueue):
             queue_cap=queue_cap,
             max_workers=max_workers,
             default_device=default_device,
-            thread_name=thread_name
+            thread_name=thread_name,
         )
         self.coarsen_kwargs = coarsen_kwargs or {
             'smoothing_ignore': [],
             'smoothing': None,
         }
-
-    def get_output_signature(self):
-        """Get tensorflow dataset output signature for single data object
-        containers."""
-        return tf.TensorSpec(
-            (*self.sample_shape, len(self.features)),
-            tf.float32,
-            name='high_res',
-        )
 
     def batch_next(self, samples):
         """Coarsens high res samples, normalizes low / high res and returns
@@ -169,118 +160,24 @@ class SingleBatchQueue(AbstractBatchQueue):
         high_res = high_res.numpy()[..., self.hr_features_ind]
         return low_res, high_res
 
-
-class BatchQueue(SingleBatchQueue):
-    """BatchQueue object built from list of samplers containing training data
-    and an optional list of samplers containing validation data.
-
-    Notes
-    -----
-    These lists of samplers can sample from the same underlying data source
-    (e.g. CONUS WTK) (by using `CroppedSampler(..., crop_slice=crop_slice)`
-    with `crop_slice` selecting different time periods to prevent
-    cross-contamination), or they can sample from completely different data
-    sources (e.g. train on CONUS WTK while validating on Canada WTK).
-
-    Using :class:`Sampler` objects with a single time step in the sample shape
-    will produce batches without a time dimension, which are suitable for
-    spatial only models.
-    """
-
-    def __init__(
+    def get_output_signature(
         self,
-        train_samplers: Union[List[Sampler], List[DualSampler]],
-        val_samplers: Union[List[Sampler], List[DualSampler]],
-        batch_size,
-        n_batches,
-        s_enhance,
-        t_enhance,
-        means: Union[Dict, str],
-        stds: Union[Dict, str],
-        queue_cap: Optional[int] = None,
-        max_workers: Optional[int] = None,
-        coarsen_kwargs: Optional[Dict] = None,
-        default_device: Optional[str] = None,
-    ):
-        """
-        Parameters
-        ----------
-        train_samplers : List[Sampler]
-            List of Sampler instances containing training data
-        val_samplers : List[Sampler]
-            List of Sampler instances containing validation data. Can provide
-            an empty list to instantiate without any validation data.
-        batch_size : int
-            Number of observations / samples in a batch
-        n_batches : int
-            Number of batches in an epoch, this sets the iteration limit for
-            this object.
-        s_enhance : int
-            Integer factor by which the spatial axes is to be enhanced.
-        t_enhance : int
-            Integer factor by which the temporal axes is to be enhanced.
-        means : Union[Dict, str]
-            Either a .json path containing a dictionary or a dictionary of
-            means which will be used to normalize batches as they are built.
-        stds : Union[Dict, str]
-            Either a .json path containing a dictionary or a dictionary of
-            standard deviations which will be used to normalize batches as they
-            are built.
-        queue_cap : int
-            Maximum number of batches the batch queue can store.
-        max_workers : int
-            Number of workers / threads to use for getting samples used to
-            build batches.
-        coarsen_kwargs : Union[Dict, None]
-            Dictionary of kwargs to be passed to `self.coarsen`.
-        default_device : str
-            Default device to use for batch queue (e.g. /cpu:0, /gpu:0). If
-            None this will use the first GPU if GPUs are available otherwise
-            the CPU.
-        """
-        if not val_samplers:
-            self.val_data: Union[List, SingleBatchQueue] = []
-        else:
-            self.val_data = SingleBatchQueue(
-                containers=val_samplers,
-                batch_size=batch_size,
-                n_batches=n_batches,
-                s_enhance=s_enhance,
-                t_enhance=t_enhance,
-                means=means,
-                stds=stds,
-                queue_cap=queue_cap,
-                max_workers=max_workers,
-                coarsen_kwargs=coarsen_kwargs,
-                default_device=default_device,
-                thread_name='validation'
-            )
-
-        super().__init__(
-            containers=train_samplers,
-            batch_size=batch_size,
-            n_batches=n_batches,
-            s_enhance=s_enhance,
-            t_enhance=t_enhance,
-            means=means,
-            stds=stds,
-            queue_cap=queue_cap,
-            max_workers=max_workers,
-            coarsen_kwargs=coarsen_kwargs,
-            default_device=default_device,
+    ) -> tf.TensorSpec:
+        """Get tensorflow dataset output signature for single dataset
+        containers."""
+        return tf.TensorSpec(
+            (*self.sample_shape, len(self.features)),
+            tf.float32,
+            name='high_res',
         )
-        self.start()
 
-    def start(self):
-        """Start the val data batch queue in addition to the train batch
-        queue."""
-        if hasattr(self.val_data, 'start'):
-            self.val_data.start()
-        super().start()
+    def _parallel_map(self):
+        """Perform call to map function for single dataset containers to enable
+        parallel sampling."""
+        return self.data.map(
+            lambda x: x, num_parallel_calls=self.max_workers
+        )
 
-    def stop(self):
-        """Stop the val data batch queue in addition to the train batch
-        queue."""
-        if hasattr(self.val_data, 'stop'):
-            self.val_data.stop()
-        super().stop()
+    def _get_queue_shape(self) -> List[tuple]:
+        """Get shape for single dataset container queue."""
+        return [(self.batch_size, *self.sample_shape, len(self.features))]
