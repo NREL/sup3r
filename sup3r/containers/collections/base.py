@@ -24,7 +24,7 @@ class Collection(Container):
         ],
     ):
         self._containers = containers
-        self.data = [c.data for c in self._containers]
+        self.data = tuple([c.data for c in self._containers])
         self.all_container_pairs = self.check_all_container_pairs()
         self.features = self.containers[0].features
 

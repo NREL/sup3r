@@ -28,6 +28,9 @@ TARGET_COORD = (39.01, -105.15)
 FEATURES = ['U_100m', 'V_100m']
 
 
+init_logger('sup3r', log_level='DEBUG')
+
+
 def test_train_spatial(
     log=False, full_shape=(20, 20), sample_shape=(10, 10, 1), n_epoch=3
 ):
@@ -72,8 +75,8 @@ def test_train_spatial(
         )
 
         batch_handler = DualBatchHandler(
-            train_samplers=[dual_extracter],
-            val_samplers=[],
+            train_containers=[dual_extracter],
+            val_containers=[dual_extracter],
             sample_shape=sample_shape,
             batch_size=2,
             n_batches=2,
@@ -96,10 +99,10 @@ def test_train_spatial(
         )
 
         assert len(model.history) == n_epoch
-        vlossg = model.history['val_loss_gen'].values
         tlossg = model.history['train_loss_gen'].values
-        assert np.sum(np.diff(vlossg)) < 0
+        vlossg = model.history['val_loss_gen'].values
         assert np.sum(np.diff(tlossg)) < 0
+        assert np.sum(np.diff(vlossg)) < 0
         assert 'test_0' in os.listdir(td)
         assert 'test_1' in os.listdir(td)
         assert 'model_gen.pkl' in os.listdir(td + '/test_1')
@@ -134,6 +137,8 @@ def test_train_spatial(
             loss_og = model.calc_loss(batch.high_res, out_og)[0]
             loss_dummy = dummy.calc_loss(batch.high_res, out_dummy)[0]
             assert loss_og.numpy() < loss_dummy.numpy()
+
+        batch_handler.stop()
 
 
 def test_train_st(n_epoch=3, log=False):
@@ -176,8 +181,8 @@ def test_train_st(n_epoch=3, log=False):
         )
 
         batch_handler = DualBatchHandler(
-            train_samplers=[dual_extracter],
-            val_samplers=[],
+            train_containers=[dual_extracter],
+            val_containers=[dual_extracter],
             sample_shape=(12, 12, 16),
             batch_size=5,
             s_enhance=3,
@@ -204,10 +209,10 @@ def test_train_st(n_epoch=3, log=False):
         assert len(model.history) == n_epoch
         assert all(model.history['train_gen_trained_frac'] == 1)
         assert all(model.history['train_disc_trained_frac'] == 0)
-        vlossg = model.history['val_loss_gen'].values
         tlossg = model.history['train_loss_gen'].values
-        assert np.sum(np.diff(vlossg)) < 0
+        vlossg = model.history['val_loss_gen'].values
         assert np.sum(np.diff(tlossg)) < 0
+        assert np.sum(np.diff(vlossg)) < 0
         assert 'test_0' in os.listdir(td)
         assert 'test_1' in os.listdir(td)
         assert 'model_gen.pkl' in os.listdir(td + '/test_1')
@@ -261,6 +266,8 @@ def test_train_st(n_epoch=3, log=False):
         assert y_test.shape[2] == test_data.shape[2] * 3
         assert y_test.shape[3] == test_data.shape[3] * 4
         assert y_test.shape[4] == test_data.shape[4]
+
+        batch_handler.stop()
 
 
 if __name__ == '__main__':

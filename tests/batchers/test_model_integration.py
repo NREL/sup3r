@@ -10,8 +10,7 @@ from rex import init_logger
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.containers import (
-    BatchQueue,
-    CroppedSampler,
+    BatchHandler,
     DirectExtracterH5,
 )
 from sup3r.models import Sup3rGan
@@ -22,21 +21,6 @@ TARGET_COORD = (39.01, -105.15)
 FEATURES = ['windspeed_100m', 'winddirection_100m']
 
 np.random.seed(42)
-
-
-def get_val_queue_params(container, sample_shape):
-    """Get train / test samplers and means / stds for batch queue inputs."""
-    val_split = 0.1
-    split_index = int(val_split * container.data.shape[2])
-    val_slice = slice(0, split_index)
-    train_slice = slice(split_index, container.data.shape[2])
-    train_sampler = CroppedSampler(
-        container, sample_shape, crop_slice=train_slice
-    )
-    val_sampler = CroppedSampler(container, sample_shape, crop_slice=val_slice)
-    means = {f: container[f].mean() for f in FEATURES}
-    stds = {f: container[f].std() for f in FEATURES}
-    return train_sampler, val_sampler, means, stds
 
 
 def test_train_spatial(
@@ -58,19 +42,27 @@ def test_train_spatial(
     )
 
     # need to reduce the number of temporal examples to test faster
-    extracter = DirectExtracterH5(
+    train_extracter = DirectExtracterH5(
         FP_WTK,
         features=FEATURES,
         target=TARGET_COORD,
         shape=full_shape,
-        time_slice=slice(None, None, 10),
+        time_slice=slice(None, 500, 10),
     )
-    train_sampler, val_sampler, means, stds = get_val_queue_params(
-        extracter, sample_shape
+    val_extracter = DirectExtracterH5(
+        FP_WTK,
+        features=FEATURES,
+        target=TARGET_COORD,
+        shape=full_shape,
+        time_slice=slice(500, None, 10),
     )
-    batcher = BatchQueue(
-        train_samplers=[train_sampler],
-        val_samplers=[val_sampler],
+    means = {f: train_extracter[f].mean() for f in FEATURES}
+    stds = {f: train_extracter[f].std() for f in FEATURES}
+
+    batcher = BatchHandler(
+        train_containers=[train_extracter],
+        val_containers=[val_extracter],
+        sample_shape=sample_shape,
         batch_size=2,
         s_enhance=2,
         t_enhance=1,
@@ -122,20 +114,28 @@ def test_train_st(
     )
 
     # need to reduce the number of temporal examples to test faster
-    extracter = DirectExtracterH5(
+    train_extracter = DirectExtracterH5(
         FP_WTK,
         features=FEATURES,
         target=TARGET_COORD,
         shape=full_shape,
-        time_slice=slice(None, None, 10),
+        time_slice=slice(None, 500, 10),
+    )
+    val_extracter = DirectExtracterH5(
+        FP_WTK,
+        features=FEATURES,
+        target=TARGET_COORD,
+        shape=full_shape,
+        time_slice=slice(500, None, 10),
     )
 
-    train_sampler, val_sampler, means, stds = get_val_queue_params(
-        extracter, sample_shape
-    )
-    batcher = BatchQueue(
-        train_samplers=[train_sampler],
-        val_samplers=[val_sampler],
+    means = {f: train_extracter[f].mean() for f in FEATURES}
+    stds = {f: train_extracter[f].std() for f in FEATURES}
+
+    batcher = BatchHandler(
+        train_samplers=[train_extracter],
+        val_samplers=[val_extracter],
+        sample_shape=sample_shape,
         batch_size=2,
         n_batches=2,
         s_enhance=3,

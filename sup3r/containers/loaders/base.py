@@ -2,6 +2,7 @@
 can be loaded lazily or eagerly."""
 
 from abc import ABC, abstractmethod
+from typing import ClassVar
 
 import numpy as np
 import xarray as xr
@@ -19,7 +20,10 @@ class Loader(Container, ABC):
 
     BASE_LOADER = None
 
-    STANDARD_NAMES = {'elevation': 'topography', 'orog': 'topography'}
+    STANDARD_NAMES: ClassVar = {
+        'elevation': 'topography',
+        'orog': 'topography',
+    }
 
     def __init__(
         self,

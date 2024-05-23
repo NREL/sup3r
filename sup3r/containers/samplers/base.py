@@ -102,7 +102,8 @@ class Sampler(Container):
 
     def get_next(self):
         """Get "next" thing in the container. e.g. data observation or batch of
-        observations"""
+        observations. If this is for a spatial model then we remove the time
+        dimension."""
         return self[self.get_sample_index()]
 
     @property
