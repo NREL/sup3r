@@ -27,12 +27,12 @@ def test_load_nc():
     with TemporaryDirectory() as td:
         temp_file = os.path.join(td, 'test.nc')
         make_fake_nc_file(
-            temp_file, shape=(20, 10, 10), features=['u_100m', 'v_100m']
+            temp_file, shape=(10, 10, 20), features=['u_100m', 'v_100m']
         )
         chunks = (5, 5, 5)
         loader = LoaderNC(temp_file, chunks=chunks)
         assert loader.shape == (10, 10, 20, 2)
-        assert all(loader[f].chunksize == chunks for f in loader.features)
+        assert all(loader.data[f].chunksize == chunks for f in loader.features)
 
 
 def test_load_h5():
@@ -60,12 +60,12 @@ def test_multi_file_load_nc():
     with TemporaryDirectory() as td:
         wind_file = os.path.join(td, 'wind.nc')
         make_fake_nc_file(
-            wind_file, shape=(20, 10, 10), features=['u_100m', 'v_100m']
+            wind_file, shape=(10, 10, 20), features=['u_100m', 'v_100m']
         )
         press_file = os.path.join(td, 'press.nc')
         make_fake_nc_file(
             press_file,
-            shape=(20, 10, 10),
+            shape=(10, 10, 20),
             features=['pressure_0m', 'pressure_100m'],
         )
         loader = LoaderNC([wind_file, press_file])
@@ -79,12 +79,12 @@ def test_5d_load_nc():
         wind_file = os.path.join(td, 'wind.nc')
         make_fake_nc_file(
             wind_file,
-            shape=(20, 10, 10),
+            shape=(10, 10, 20),
             features=['orog', 'u_100m', 'v_100m'],
         )
         level_file = os.path.join(td, 'wind_levs.nc')
         make_fake_nc_file(
-            level_file, shape=(20, 3, 10, 10), features=['zg', 'u']
+            level_file, shape=(10, 10, 20, 3), features=['zg', 'u']
         )
         loader = LoaderNC([wind_file, level_file])
 

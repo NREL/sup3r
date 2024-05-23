@@ -11,7 +11,7 @@ from rex import init_logger
 
 from sup3r import TEST_DATA_DIR
 from sup3r.containers import (
-    DeriverNC,
+    Deriver,
     DirectExtracterNC,
 )
 from sup3r.utilities.interpolation import Interpolator
@@ -31,8 +31,8 @@ init_logger('sup3r', log_level='DEBUG')
 def _height_interp(u, orog, zg):
     hgt_array = zg - orog
     u_100m = Interpolator.interp_to_level(
-        np.transpose(u, axes=(3, 0, 1, 2)),
-        np.transpose(hgt_array, axes=(3, 0, 1, 2)),
+        np.transpose(u, axes=(2, 3, 0, 1)),
+        np.transpose(hgt_array, axes=(2, 3, 0, 1)),
         levels=[100],
     )[..., None]
     return np.transpose(u_100m, axes=(1, 2, 0, 3))
@@ -40,13 +40,15 @@ def _height_interp(u, orog, zg):
 
 def height_interp(container):
     """Interpolate u to u_100m."""
-    return _height_interp(container['u'], container['orog'], container['zg'])
+    return _height_interp(
+        container['u'], container['topography'], container['zg']
+    )
 
 
 @pytest.mark.parametrize(
     ['DirectExtracter', 'Deriver', 'shape', 'target'],
     [
-        (DirectExtracterNC, DeriverNC, (10, 10), (37.25, -107)),
+        (DirectExtracterNC, Deriver, (10, 10), (37.25, -107)),
     ],
 )
 def test_height_interp_nc(DirectExtracter, Deriver, shape, target):
@@ -56,25 +58,27 @@ def test_height_interp_nc(DirectExtracter, Deriver, shape, target):
         wind_file = os.path.join(td, 'wind.nc')
         make_fake_nc_file(
             wind_file,
-            shape=(20, 10, 10),
-            features=['orog', 'u_100m', 'v_100m'],
+            shape=(10, 10, 20),
+            features=['orog']
         )
         level_file = os.path.join(td, 'wind_levs.nc')
         make_fake_nc_file(
-            level_file, shape=(20, 3, 10, 10), features=['zg', 'u']
+            level_file, shape=(10, 10, 20, 3), features=['zg', 'u']
         )
 
         derive_features = ['U_100m']
-        raw_features = ['orog', 'zg', 'u']
         no_transform = DirectExtracter(
-            [wind_file, level_file],
-            target=target,
-            shape=shape)
+            [wind_file, level_file], target=target, shape=shape
+        )
 
-        transform = Deriver(no_transform, derive_features)
+        transform = Deriver(
+            no_transform,
+            derive_features,
+            FeatureRegistry={'u_100m': height_interp},
+        )
 
         out = _height_interp(
-            orog=no_transform['orog'],
+            orog=no_transform['topography'],
             zg=no_transform['zg'],
             u=no_transform['u'],
         )

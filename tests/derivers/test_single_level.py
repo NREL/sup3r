@@ -76,7 +76,7 @@ def test_unneeded_uv_transform(
             target=target,
             shape=shape,
         )
-    deriver = Deriver(extracter, features=derive_features)
+    deriver = Deriver(extracter.data, features=derive_features)
 
     assert da.map_blocks(
         lambda x, y: x == y, extracter['U_100m'], deriver['U_100m']
@@ -113,7 +113,7 @@ def test_uv_transform(input_files, DirectExtracter, Deriver, shape, target):
             target=target,
             shape=shape,
         )
-    deriver = Deriver(extracter, features=derive_features)
+    deriver = Deriver(extracter.data, features=derive_features)
     u, v = transform_rotate_wind(
         extracter['windspeed_100m'],
         extracter['winddirection_100m'],
@@ -154,7 +154,7 @@ def test_hr_coarsening(input_files, DirectExtracter, Deriver, shape, target):
             target=target,
             shape=shape,
         )
-    deriver = Deriver(extracter, features=features, hr_spatial_coarsen=2)
+    deriver = Deriver(extracter.data, features=features, hr_spatial_coarsen=2)
     assert deriver.data.shape == (
         shape[0] // 2,
         shape[1] // 2,
