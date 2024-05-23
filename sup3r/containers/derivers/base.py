@@ -1,5 +1,5 @@
-"""Basic container objects can perform transformations / extractions on the
-contained data."""
+"""Basic objects that can perform derivations of new features from loaded /
+extracted features."""
 
 import logging
 import re
@@ -125,7 +125,7 @@ class Deriver(BaseDeriver):
             coords = self.data.coords
             coords = {
                 coord: (
-                    self.dim_names[:2],
+                    self.dims[:2],
                     spatial_coarsening(
                         self.data[coord].data,
                         s_enhance=hr_spatial_coarsen,
@@ -138,7 +138,7 @@ class Deriver(BaseDeriver):
             for feat in self.features:
                 dat = self.data[feat].data
                 data_vars[feat] = (
-                    (self.dim_names[: len(dat.shape)]),
+                    (self.dims[:len(dat.shape)]),
                     spatial_coarsening(
                         dat,
                         s_enhance=hr_spatial_coarsen,

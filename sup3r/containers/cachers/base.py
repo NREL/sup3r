@@ -1,5 +1,4 @@
-"""Basic container objects can perform transformations / extractions on the
-contained data."""
+"""Basic objects that can cache extracted / derived data."""
 
 import logging
 import os
@@ -49,7 +48,6 @@ class Cacher(AbstractContainer):
         """
         super().__init__()
         self.container = container
-        self.data = container.data
         self.out_files = self.cache_data(cache_kwargs)
 
     def cache_data(self, kwargs):
@@ -80,7 +78,7 @@ class Cacher(AbstractContainer):
                         out_file,
                         feature,
                         np.transpose(self.container[feature], axes=(2, 0, 1)),
-                        self.data.coords,
+                        self.container.data.coords,
                         chunks,
                     )
                 elif ext == '.nc':
@@ -88,7 +86,7 @@ class Cacher(AbstractContainer):
                         out_file,
                         feature,
                         np.transpose(self.container[feature], axes=(2, 0, 1)),
-                        self.data.coords,
+                        self.container.data.coords,
                     )
                 else:
                     msg = (

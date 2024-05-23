@@ -46,7 +46,6 @@ class Sampler(AbstractContainer, ABC):
         self._hr_exo_features = feature_sets.get('hr_exo_features', [])
         self._counter = 0
         self.data = container.data
-        self.container = container
         self.sample_shape = sample_shape
         self.lr_features = self.features
         self.hr_features = self.features

@@ -1,5 +1,5 @@
-"""Basic container objects can perform transformations / extractions on the
-contained data."""
+"""Basic objects that can perform spatial / temporal extractions of requested
+features on loaded data."""
 
 import logging
 from abc import ABC, abstractmethod
