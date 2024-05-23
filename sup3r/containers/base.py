@@ -40,6 +40,7 @@ class DualContainer(AbstractContainer):
         self.lr_container = lr_container
         self.hr_container = hr_container
         self.data = (self.lr_container.data, self.hr_container.data)
+        self.shape = (lr_container.shape, hr_container.shape)
         feats = list(copy.deepcopy(self.lr_container.features))
         feats += [fn for fn in self.hr_container.features if fn not in feats]
         self._features = feats

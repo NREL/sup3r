@@ -32,17 +32,17 @@ def test_5d_extract_nc():
         wind_file = os.path.join(td, 'wind.nc')
         make_fake_nc_file(
             wind_file,
-            shape=(20, 10, 10),
+            shape=(10, 10, 20),
             features=['orog', 'u_100m', 'v_100m'],
         )
         level_file = os.path.join(td, 'wind_levs.nc')
         make_fake_nc_file(
-            level_file, shape=(20, 3, 10, 10), features=['zg', 'u']
+            level_file, shape=(10, 10, 20, 3), features=['zg', 'u']
         )
         extracter = DirectExtracterNC([wind_file, level_file])
         assert extracter.shape == (10, 10, 20, 3, 5)
         assert sorted(extracter.features) == sorted(
-            ['orog', 'u_100m', 'v_100m', 'zg', 'u']
+            ['topography', 'u_100m', 'v_100m', 'zg', 'u']
         )
         assert extracter['U_100m'].shape == (10, 10, 20)
         assert extracter['U'].shape == (10, 10, 20, 3)

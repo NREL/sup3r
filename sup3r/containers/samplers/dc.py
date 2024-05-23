@@ -3,8 +3,6 @@ from them. These samples can be used to build batches."""
 
 import logging
 
-import numpy as np
-
 from sup3r.containers.samplers.base import Sampler
 from sup3r.utilities.utilities import (
     uniform_box_sampler,
@@ -60,7 +58,7 @@ class DataCentricSampler(Sampler):
                 self.shape, self.sample_shape[2]
             )
 
-        return (*spatial_slice, time_slice, np.arange(len(self.features)))
+        return (*spatial_slice, time_slice)
 
     def get_next(self, temporal_weights=None, spatial_weights=None):
         """Get data for observation using weighted random observation index.

@@ -27,7 +27,6 @@ class Collection(Container):
         self.data = [c.data for c in self._containers]
         self.all_container_pairs = self.check_all_container_pairs()
         self.features = self.containers[0].features
-        self.shape = self.containers[0].shape
 
     @property
     def containers(

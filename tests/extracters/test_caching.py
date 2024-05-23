@@ -103,7 +103,7 @@ def test_data_caching(
             shape[1],
             extracter.shape[2],
         )
-        assert extracter.dtype == np.dtype(np.float32)
+        assert extracter.data.dtype == np.dtype(np.float32)
         loader = Loader(cacher.out_files)
         assert da.map_blocks(
             lambda x, y: x == y,

@@ -67,12 +67,12 @@ class Sampler(AbstractContainer, ABC):
         Returns
         -------
         sample_index : tuple
-            Tuple of sampled spatial grid, time slice, and features indices.
+            Tuple of latitude slice, longitude slice, time slice, and features.
             Used to get single observation like self.data[sample_index]
         """
         spatial_slice = uniform_box_sampler(self.shape, self.sample_shape[:2])
         time_slice = uniform_time_sampler(self.shape, self.sample_shape[2])
-        return (*spatial_slice, time_slice, slice(None))
+        return (*spatial_slice, time_slice, self.features)
 
     def preflight(self):
         """Check if the sample_shape is larger than the requested raster

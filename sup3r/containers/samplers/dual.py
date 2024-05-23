@@ -58,6 +58,8 @@ class DualSampler(DualContainer, Sampler):
             sample_shape[1] // s_enhance,
             sample_shape[2] // t_enhance,
         )
+        self._lr_only_features = feature_sets.get('lr_only_features', [])
+        self._hr_exo_features = feature_sets.get('hr_exo_features', [])
         hr_sampler = Sampler(container.hr_container, self.hr_sample_shape)
         lr_sampler = Sampler(container.lr_container, self.lr_sample_shape)
         super().__init__(lr_sampler, hr_sampler)
@@ -69,8 +71,6 @@ class DualSampler(DualContainer, Sampler):
         self.hr_features = self.hr_container.features
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
-        self._lr_only_features = feature_sets.get('lr_only_features', [])
-        self._hr_exo_features = feature_sets.get('hr_exo_features', [])
         self.check_for_consistent_shapes()
 
     def check_for_consistent_shapes(self):
@@ -86,7 +86,7 @@ class DualSampler(DualContainer, Sampler):
             f'lr_container.shape {enhanced_shape} are not compatible with '
             'the given enhancement factors'
         )
-        assert self.hr_container.shape == enhanced_shape, msg
+        assert self.hr_container.shape[:3] == enhanced_shape, msg
 
     def get_sample_index(self):
         """Get paired sample index, consisting of index for the low res sample
@@ -101,6 +101,5 @@ class DualSampler(DualContainer, Sampler):
             slice(s.start * self.t_enhance, s.stop * self.t_enhance)
             for s in lr_index[2:-1]
         ]
-        hr_index += [slice(None)]
-        hr_index = tuple(hr_index)
+        hr_index = (*hr_index, self.hr_features)
         return (lr_index, hr_index)
