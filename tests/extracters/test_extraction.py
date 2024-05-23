@@ -83,7 +83,7 @@ def test_data_extraction(input_files, Extracter, shape, target):
         shape[1],
         extracter.shape[2],
     )
-    assert extracter.dtype == np.dtype(np.float32)
+    assert extracter.data.dtype == np.dtype(np.float32)
     extracter.close()
 
 

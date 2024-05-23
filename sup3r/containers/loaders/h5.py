@@ -7,7 +7,6 @@ from typing import Dict, Tuple
 
 import dask.array as da
 import numpy as np
-import pandas as pd
 import xarray as xr
 from rex import MultiFileWindX
 
@@ -64,7 +63,7 @@ class LoaderH5(Loader):
             },
         }
         coords = {
-            'time': pd.to_datetime(self.res['time_index']),
+            'time': self.res['time_index'],
             'latitude': (
                 dims[1:],
                 da.from_array(self.res.h5['meta']['latitude']),

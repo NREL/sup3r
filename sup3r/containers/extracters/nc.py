@@ -51,7 +51,7 @@ class ExtracterNC(Extracter, ABC):
 
     def extract_data(self):
         """Get rasterized data."""
-        return self.loader[*self.raster_index, self.time_slice]
+        return self.loader.slice_dset((*self.raster_index, self.time_slice))
 
     def check_target_and_shape(self, full_lat_lon):
         """NETCDF files tend to use a regular grid so if either target or shape

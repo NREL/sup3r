@@ -42,7 +42,7 @@ def make_fake_dset(shape, features):
     coords = {}
 
     if len(shape) == 4:
-        levels = np.linspace(0, 1000, shape[4])
+        levels = np.linspace(0, 1000, shape[3])
         coords['level'] = levels
     coords['time'] = time
     coords['latitude'] = (('south_north', 'west_east'), lats)
@@ -56,12 +56,14 @@ def make_fake_dset(shape, features):
     data_vars = {
         f: (
             dims[: len(shape)],
-            da.transpose(da.random.random(shape), axes=trans_axes),
+            da.transpose(
+                da.random.random(shape), axes=trans_axes
+            ),
         )
         for f in features
     }
     nc = xr.Dataset(coords=coords, data_vars=data_vars)
-    return nc
+    return nc.astype(np.float32)
 
 
 def make_fake_nc_file(file_name, shape, features):

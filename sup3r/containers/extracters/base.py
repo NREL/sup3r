@@ -19,7 +19,12 @@ class Extracter(AbstractContainer, ABC):
     spatiotemporal extent from contained data."""
 
     def __init__(
-        self, loader: Loader, target, shape, time_slice=slice(None)
+        self,
+        loader: Loader,
+        features='all',
+        target=(),
+        shape=(),
+        time_slice=slice(None),
     ):
         """
         Parameters
@@ -27,8 +32,11 @@ class Extracter(AbstractContainer, ABC):
         loader : Loader
             Loader type container with `.data` attribute exposing data to
             extract.
-        features : list
-            List of feature names to extract from file_paths.
+        features : str | None | list
+            List of features in include in the final extracted data. If 'all'
+            this includes all features available in the loader. If None this
+            results in a dataset with just lat / lon / time. To select specific
+            features provide a list.
         target : tuple
             (lat, lon) lower left corner of raster. Either need target+shape or
             raster_file.
@@ -48,7 +56,14 @@ class Extracter(AbstractContainer, ABC):
         self._time_index = None
         self._raster_index = None
         self._full_lat_lon = None
-        self.data = self.extract_data()
+        features = (
+            self.loader.features
+            if features == 'all'
+            else ['latitude', 'longitude', 'time']
+            if features is None
+            else features
+        )
+        self.data = self.extract_data()[features]
 
     def __enter__(self):
         return self

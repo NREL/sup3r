@@ -74,7 +74,6 @@ def test_batch_queue():
         max_workers=1,
         coarsen_kwargs=coarsen_kwargs,
     )
-    batcher.start()
     assert len(batcher) == 3
     for b in batcher:
         assert b.low_res.shape == (4, 4, 4, 5, len(FEATURES))
@@ -109,7 +108,6 @@ def test_spatial_batch_queue():
         max_workers=1,
         coarsen_kwargs=coarsen_kwargs,
     )
-    batcher.start()
     assert len(batcher) == 3
     for b in batcher:
         assert b.low_res.shape == (
@@ -164,7 +162,6 @@ def test_pair_batch_queue():
         stds=stds,
         max_workers=1,
     )
-    batcher.start()
     assert len(batcher) == 3
     for b in batcher:
         assert b.low_res.shape == (4, *lr_sample_shape, len(FEATURES))
@@ -222,7 +219,6 @@ def test_pair_batch_queue_with_lr_only_features():
         stds=stds,
         max_workers=1,
     )
-    batcher.start()
     assert len(batcher) == 3
     for b in batcher:
         assert b.low_res.shape == (4, *lr_sample_shape, len(lr_features))
@@ -338,7 +334,6 @@ def test_split_batch_queue():
         coarsen_kwargs=coarsen_kwargs,
     )
 
-    batcher.start()
     assert len(batcher) == 3
     for b in batcher:
         assert b.low_res.shape == (4, 4, 4, 4, len(FEATURES))
@@ -352,4 +347,6 @@ def test_split_batch_queue():
 
 
 if __name__ == '__main__':
-    execute_pytest(__file__)
+    # test_batch_queue()
+    if True:
+        execute_pytest(__file__)

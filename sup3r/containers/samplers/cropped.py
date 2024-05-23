@@ -49,7 +49,7 @@ class CroppedSampler(Sampler):
         time_slice = uniform_time_sampler(
             self.shape, self.sample_shape[2], crop_slice=self.crop_slice
         )
-        return (*spatial_slice, time_slice, slice(None))
+        return (*spatial_slice, time_slice)
 
     def crop_check(self):
         """Check if crop_slice limits the sampling region to fewer time steps

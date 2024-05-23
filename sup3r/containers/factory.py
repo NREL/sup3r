@@ -40,9 +40,10 @@ def ExtracterFactory(
         Optional name for class built from factory. This will display in
         logging.
     """
-    __name__ = name
 
     class DirectExtracter(ExtracterClass):
+        __name__ = name
+
         if BaseLoader is not None:
             BASE_LOADER = BaseLoader
 
@@ -52,8 +53,6 @@ def ExtracterFactory(
             ----------
             file_paths : str | list | pathlib.Path
                 file_paths input to LoaderClass
-            features : list | None
-                List of features to load
             **kwargs : dict
                 Dictionary of keyword args for Extracter
             """
@@ -92,7 +91,6 @@ def DataHandlerFactory(
     )
 
     class Handler(Deriver):
-
         __name__ = name
 
         def __init__(self, file_paths, **kwargs):
@@ -106,8 +104,9 @@ def DataHandlerFactory(
                 Cacher
             """
             cache_kwargs = kwargs.pop('cache_kwargs', None)
-            extracter_kwargs = _get_class_kwargs(DirectExtracterClass, kwargs)
             deriver_kwargs = _get_class_kwargs(Deriver, kwargs)
+            extracter_kwargs = _get_class_kwargs(DirectExtracterClass, kwargs)
+            extracter_kwargs['features'] = 'all'
             extracter = DirectExtracterClass(file_paths, **extracter_kwargs)
             super().__init__(
                 extracter, **deriver_kwargs, FeatureRegistry=FeatureRegistry

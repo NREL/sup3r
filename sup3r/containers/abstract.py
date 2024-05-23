@@ -1,17 +1,30 @@
 """Abstract container classes. These are the fundamental objects that all
 classes which interact with data (e.g. handlers, wranglers, loaders, samplers,
 batchers) are based on."""
-
 import inspect
 import logging
 import pprint
-from abc import ABC
 
 import dask.array as da
 import numpy as np
+import pandas as pd
 import xarray as xr
 
 logger = logging.getLogger(__name__)
+
+DIM_NAMES = (
+    'space',
+    'south_north',
+    'west_east',
+    'time',
+    'level',
+    'variable',
+)
+
+
+def get_dim_names(data):
+    """Get standard dimension ordering for 2d and 3d+ arrays."""
+    return tuple([dim for dim in DIM_NAMES if dim in data.dims])
 
 
 class DataWrapper:
@@ -19,19 +32,6 @@ class DataWrapper:
 
     def __init__(self, data: xr.Dataset):
         self.dset = data
-        self.dim_names = (
-            'south_north',
-            'west_east',
-            'time',
-            'level',
-            'variable',
-        )
-
-    def get_dim_names(self, data):
-        """Get standard dimension ordering for 2d and 3d+ arrays."""
-        return tuple(
-            [dim for dim in ('space', *self.dim_names) if dim in data.dims]
-        )
 
     def __getitem__(self, keys):
         return self.dset[keys]
@@ -46,46 +46,30 @@ class DataWrapper:
             return getattr(self, keys)
         if hasattr(self.dset, keys):
             return getattr(self.dset, keys)
-        msg = f'Could not find attribute {keys} in {self.__class__.__name__}'
-        logger.error(msg)
-        raise KeyError(msg)
+        raise AttributeError
 
     def __setattr__(self, keys, value):
         self.__dict__[keys] = value
 
     def __setitem__(self, keys, value):
         if hasattr(value, 'dims') and len(value.dims) >= 2:
-            self.dset[keys] = (self.get_dim_names(value), value)
+            self.dset[keys] = (get_dim_names(value), value)
         elif hasattr(value, 'shape'):
-            self.dset[keys] = (self.dim_names[: len(value.shape)], value)
+            self.dset[keys] = (DIM_NAMES[1 : len(value.shape) + 1], value)
         else:
             self.dset[keys] = value
 
-    def to_array(self):
-        """Return xr.DataArray of contained xr.Dataset."""
-        return self._transpose(
-            self.dset[sorted(self.features)].to_dataarray()
-        ).data
-
     @property
-    def features(self):
-        """Features in this container."""
+    def variables(self):
+        """'Features' in the dataset. Called variables here to distinguish them
+        from the ordered list of training features. These are ordered
+        alphabetically and not necessarily used in training."""
         return sorted(self.dset.data_vars)
-
-    @property
-    def size(self):
-        """Get the "size" of the container."""
-        return np.prod(self.shape)
 
     @property
     def dtype(self):
         """Get data type of contained array."""
         return self.to_array().dtype
-
-    def _transpose(self, data):
-        """Transpose arrays so they have a (space, time, ...) or (space, time,
-        ..., feature) ordering."""
-        return data.transpose(*self.get_dim_names(data))
 
     @property
     def shape(self):
@@ -93,13 +77,11 @@ class DataWrapper:
         first and time is second, so we shift these to (..., time, features).
         We also sometimes have a level dimension for pressure level data."""
         dim_dict = dict(self.dset.sizes)
-        dim_vals = [
-            dim_dict[k] for k in ('space', *self.dim_names) if k in dim_dict
-        ]
-        return (*dim_vals, len(self.features))
+        dim_vals = [dim_dict[k] for k in DIM_NAMES if k in dim_dict]
+        return (*dim_vals, len(self.variables))
 
 
-class AbstractContainer(ABC):
+class AbstractContainer:
     """Lowest level object. This contains an xarray.Dataset and some methods
     for selecting data from the dataset. :class:`Container` implementation
     just requires defining `.data` with an xarray.Dataset."""
@@ -107,35 +89,13 @@ class AbstractContainer(ABC):
     def __init__(self):
         self._data = None
         self._features = None
+        self._shape = None
 
     def __new__(cls, *args, **kwargs):
         """Include arg logging in construction."""
         instance = super().__new__(cls)
         cls._log_args(args, kwargs)
         return instance
-
-    @property
-    def data(self) -> DataWrapper:
-        """Wrapped xr.Dataset."""
-        return self._data
-
-    @data.setter
-    def data(self, data):
-        """Wrap given data in :class:`DataWrapper` to provide additional
-        attributes on top of xr.Dataset."""
-        self._data = DataWrapper(data)
-
-    @property
-    def features(self):
-        """Features in this container."""
-        if self._features is None:
-            self._features = sorted(self.data.features)
-        return self._features
-
-    @features.setter
-    def features(self, val):
-        """Set features in this container."""
-        self._features = [f.lower() for f in val]
 
     @classmethod
     def _log_args(cls, args, kwargs):
@@ -153,10 +113,62 @@ class AbstractContainer(ABC):
             f'{pprint.pformat(args_dict, indent=2)}'
         )
 
+    def _transpose(self, data):
+        """Transpose arrays so they have a (space, time, ...) or (space, time,
+        ..., feature) ordering."""
+        return data.transpose(*get_dim_names(data))
+
+    def to_array(self):
+        """Return xr.DataArray of contained xr.Dataset."""
+        return self._transpose(self.dset[self.features].to_dataarray()).data
+
+    @property
+    def data(self) -> DataWrapper:
+        """Wrapped xr.Dataset."""
+        return self._data
+
+    @data.setter
+    def data(self, data):
+        """Wrap given data in :class:`DataWrapper` to provide additional
+        attributes on top of xr.Dataset."""
+        if isinstance(data, xr.Dataset):
+            self._data = DataWrapper(data)
+        else:
+            self._data = data
+
+    @property
+    def features(self):
+        """Features in this container."""
+        if self._features is None:
+            self._features = sorted(self.data.variables)
+        return self._features
+
+    @features.setter
+    def features(self, val):
+        """Set features in this container."""
+        self._features = [f.lower() for f in val]
+
+    @property
+    def shape(self):
+        """Shape of underlying array (lats, lons, time, ..., features)"""
+        if self._shape is None:
+            self._shape = self.data.shape
+        return self._shape
+
+    @shape.setter
+    def shape(self, val):
+        """Set shape value. Used for dual containers / samplers."""
+        self._shape = val
+
+    @property
+    def size(self):
+        """Get the "size" of the container."""
+        return np.prod(self.shape)
+
     @property
     def time_index(self):
         """Base time index for contained data."""
-        return self['time']
+        return pd.to_datetime(self['time'])
 
     @time_index.setter
     def time_index(self, value):
@@ -171,8 +183,8 @@ class AbstractContainer(ABC):
     @lat_lon.setter
     def lat_lon(self, lat_lon):
         """Update the lat_lon attribute with array values."""
-        self.data['latitude'] = (self.data['latitude'].dims, lat_lon[..., 0])
-        self.data['longitude'] = (self.data['longitude'].dims, lat_lon[..., 1])
+        self.data.dset['latitude'] = (self.data.dset['latitude'].dims, lat_lon[..., 0])
+        self.data.dset['longitude'] = (self.data.dset['longitude'].dims, lat_lon[..., 1])
 
     def parse_keys(self, keys):
         """
@@ -202,7 +214,7 @@ class AbstractContainer(ABC):
 
     def _check_string_keys(self, keys):
         """Check for string key in `.data` or as an attribute."""
-        if keys.lower() in self.data.features:
+        if keys.lower() in self.data.variables:
             out = self._transpose(self.data[keys.lower()]).data
         elif keys in self.data:
             out = self.data[keys].data
@@ -210,15 +222,20 @@ class AbstractContainer(ABC):
             out = getattr(self, keys)
         return out
 
-    def _slice_data(self, keys):
+    def slice_dset(self, keys, features=None):
+        """Use given keys to return a sliced version of the underlying
+        xr.Dataset()."""
+        slice_kwargs = dict(zip(get_dim_names(self.data), keys))
+        return self.data[self.features if features is None else features].isel(
+            **slice_kwargs
+        )
+
+    def _slice_data(self, keys, features=None):
         """Select a region of data with a list or tuple of slices."""
-        if len(keys) == 2:
-            out = self.data.isel(space=keys[0], time=keys[1])
-        elif len(keys) < 5:
-            slice_kwargs = dict(
-                zip(['south_north', 'west_east', 'time', 'level'], keys)
-            )
-            out = self.data.isel(**slice_kwargs)
+        if len(keys) < 5:
+            out = self._transpose(
+                self.slice_dset(keys, features).to_dataarray()
+            ).data
         else:
             msg = f'Received too many keys: {keys}.'
             logger.error(msg)
@@ -235,8 +252,18 @@ class AbstractContainer(ABC):
             out = self.data[keys].to_dataarray().data
         elif all(type(s) is slice for s in keys):
             out = self._slice_data(keys)
+        elif isinstance(keys[-1], list) and all(
+            isinstance(s, slice) for s in keys[:-1]
+        ):
+            out = self._slice_data(keys[:-1], features=keys[-1])
+        elif isinstance(keys[0], list) and all(
+            isinstance(s, slice) for s in keys[1:]
+        ):
+            out = self.slice_data(keys[1:], features=keys[0])
         else:
-            msg = f'Could not use the provided set of {keys}.'
+            msg = (
+                'Do not know what to do with the provided key set: ' f'{keys}.'
+            )
             logger.error(msg)
             raise KeyError(msg)
         return out
@@ -250,10 +277,3 @@ class AbstractContainer(ABC):
         if isinstance(keys, (tuple, list)):
             return self._check_list_keys(keys)
         return self.to_array()[key, *key_slice]
-
-    def __getattr__(self, keys):
-        if keys in self.__dict__:
-            return self.__dict__[keys]
-        if keys in dir(self):
-            return getattr(self, keys)
-        return getattr(self.data, keys)

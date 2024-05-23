@@ -34,13 +34,8 @@ def get_val_queue_params(container, sample_shape):
         container, sample_shape, crop_slice=train_slice
     )
     val_sampler = CroppedSampler(container, sample_shape, crop_slice=val_slice)
-    means = {
-        FEATURES[i]: container.data[..., i].mean()
-        for i in range(len(FEATURES))
-    }
-    stds = {
-        FEATURES[i]: container.data[..., i].std() for i in range(len(FEATURES))
-    }
+    means = {f: container[f].mean() for f in FEATURES}
+    stds = {f: container[f].std() for f in FEATURES}
     return train_sampler, val_sampler, means, stds
 
 
@@ -65,12 +60,11 @@ def test_train_spatial(
     # need to reduce the number of temporal examples to test faster
     extracter = DirectExtracterH5(
         FP_WTK,
-        FEATURES,
+        features=FEATURES,
         target=TARGET_COORD,
         shape=full_shape,
         time_slice=slice(None, None, 10),
     )
-
     train_sampler, val_sampler, means, stds = get_val_queue_params(
         extracter, sample_shape
     )
@@ -85,9 +79,7 @@ def test_train_spatial(
         stds=stds,
     )
 
-    batcher.start()
     # test that training works and reduces loss
-
     with TemporaryDirectory() as td:
         model.train(
             batcher,
@@ -132,7 +124,7 @@ def test_train_st(
     # need to reduce the number of temporal examples to test faster
     extracter = DirectExtracterH5(
         FP_WTK,
-        FEATURES,
+        features=FEATURES,
         target=TARGET_COORD,
         shape=full_shape,
         time_slice=slice(None, None, 10),
@@ -151,9 +143,6 @@ def test_train_st(
         means=means,
         stds=stds,
     )
-
-    batcher.start()
-    # test that training works and reduces loss
 
     with TemporaryDirectory() as td:
         with pytest.raises(RuntimeError):
