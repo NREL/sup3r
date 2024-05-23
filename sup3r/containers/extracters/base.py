@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 
-from sup3r.containers.abstract import AbstractContainer
+from sup3r.containers.base import Container
 from sup3r.containers.loaders.base import Loader
 
 np.random.seed(42)
@@ -14,7 +14,7 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
-class Extracter(AbstractContainer, ABC):
+class Extracter(Container, ABC):
     """Container subclass with additional methods for extracting a
     spatiotemporal extent from contained data."""
 

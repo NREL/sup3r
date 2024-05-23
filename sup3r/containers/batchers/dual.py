@@ -24,8 +24,8 @@ class DualBatchQueue(BatchQueue):
 
     def __init__(
         self,
-        train_containers: List[DualSampler],
-        val_containers: List[DualSampler],
+        train_samplers: List[DualSampler],
+        val_samplers: List[DualSampler],
         batch_size,
         n_batches,
         s_enhance,
@@ -37,8 +37,8 @@ class DualBatchQueue(BatchQueue):
         default_device: Optional[str] = None,
     ):
         super().__init__(
-            train_containers=train_containers,
-            val_containers=val_containers,
+            train_samplers=train_samplers,
+            val_samplers=val_samplers,
             batch_size=batch_size,
             n_batches=n_batches,
             s_enhance=s_enhance,

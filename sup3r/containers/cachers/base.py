@@ -9,14 +9,15 @@ import h5py
 import numpy as np
 import xarray as xr
 
-from sup3r.containers.abstract import AbstractContainer, Data
+from sup3r.containers.abstract import Data
+from sup3r.containers.base import Container
 
 np.random.seed(42)
 
 logger = logging.getLogger(__name__)
 
 
-class Cacher(AbstractContainer):
+class Cacher(Container):
     """Base extracter object."""
 
     def __init__(
@@ -43,8 +44,7 @@ class Cacher(AbstractContainer):
             Note: This is only for saving cached data. If you want to reload
             the cached files load them with a Loader object.
         """
-        super().__init__()
-        self.data = data
+        super().__init__(data=data)
         self.out_files = self.cache_data(cache_kwargs)
 
     def cache_data(self, kwargs):

@@ -101,4 +101,4 @@ class SamplerCollection(Collection):
     def hr_features(self):
         """Get the high-resolution features corresponding to
         `hr_features_ind`"""
-        return [self.features[ind] for ind in self.hr_features_ind]
+        return [self.features[ind].lower() for ind in self.hr_features_ind]

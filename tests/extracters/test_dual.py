@@ -4,7 +4,7 @@
 import os
 import tempfile
 
-import dask.array as da
+import numpy as np
 from rex import init_logger
 
 from sup3r import TEST_DATA_DIR
@@ -46,12 +46,12 @@ def test_pair_extracter_shapes(log=False, full_shape=(20, 20)):
     )
 
     pair_extracter = DualExtracter(
-        lr_container, hr_container, s_enhance=2, t_enhance=1
+        lr_container.data, hr_container.data, s_enhance=2, t_enhance=1
     )
-    assert pair_extracter.lr_container.shape == (
-        pair_extracter.hr_container.shape[0] // 2,
-        pair_extracter.hr_container.shape[1] // 2,
-        *pair_extracter.hr_container.shape[2:],
+    assert pair_extracter.lr_data.shape == (
+        pair_extracter.hr_data.shape[0] // 2,
+        pair_extracter.hr_data.shape[1] // 2,
+        *pair_extracter.hr_data.shape[2:],
     )
 
 
@@ -78,8 +78,8 @@ def test_regrid_caching(log=False, full_shape=(20, 20)):
         lr_cache_pattern = os.path.join(td, 'lr_{feature}.h5')
         hr_cache_pattern = os.path.join(td, 'hr_{feature}.h5')
         pair_extracter = DualExtracter(
-            lr_container,
-            hr_container,
+            lr_container.data,
+            hr_container.data,
             s_enhance=2,
             t_enhance=1,
             lr_cache_kwargs={'cache_pattern': lr_cache_pattern},
@@ -88,30 +88,18 @@ def test_regrid_caching(log=False, full_shape=(20, 20)):
 
         # Load handlers again
         lr_container_new = LoaderH5(
-            [
-                lr_cache_pattern.format(feature=f)
-                for f in lr_container.features
-            ],
-            lr_container.features,
+            [lr_cache_pattern.format(feature=f) for f in lr_container.features]
         )
         hr_container_new = LoaderH5(
-            [
-                hr_cache_pattern.format(feature=f)
-                for f in hr_container.features
-            ],
-            features=hr_container.features,
+            [hr_cache_pattern.format(feature=f) for f in hr_container.features]
         )
 
-        assert da.map_blocks(
-            lambda x, y: x == y,
-            lr_container_new.data,
-            pair_extracter.lr_container.data,
-        ).all()
-        assert da.map_blocks(
-            lambda x, y: x == y,
-            hr_container_new.data,
-            pair_extracter.hr_container.data,
-        ).all()
+        assert np.array_equal(
+            lr_container_new.data[FEATURES], pair_extracter.lr_data[FEATURES]
+        )
+        assert np.array_equal(
+            hr_container_new.data[FEATURES], pair_extracter.hr_data[FEATURES]
+        )
 
 
 if __name__ == '__main__':

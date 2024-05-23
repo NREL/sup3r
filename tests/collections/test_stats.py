@@ -31,7 +31,7 @@ def test_stats_calc():
     stats files."""
     features = ['windspeed_100m', 'winddirection_100m']
     extracters = [
-        DirectExtracterH5(file, features, **kwargs)
+        DirectExtracterH5(file, features=features, **kwargs)
         for file in input_files
     ]
     with TemporaryDirectory() as td:
@@ -49,22 +49,22 @@ def test_stats_calc():
         means = {
             f: np.sum(
                 [
-                    wgt * w.data[..., fidx].mean()
-                    for wgt, w in zip(stats.container_weights, extracters)
+                    wgt * c.data[f].mean()
+                    for wgt, c in zip(stats.container_weights, extracters)
                 ]
             )
-            for fidx, f in enumerate(features)
+            for f in features
         }
         stds = {
             f: np.sqrt(
                 np.sum(
                     [
-                        wgt * w.data[..., fidx].std() ** 2
-                        for wgt, w in zip(stats.container_weights, extracters)
+                        wgt * c.data[f].std() ** 2
+                        for wgt, c in zip(stats.container_weights, extracters)
                     ]
                 )
             )
-            for fidx, f in enumerate(features)
+            for f in features
         }
 
         assert means == stats.means

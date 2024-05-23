@@ -92,8 +92,8 @@ def test_end_to_end():
             stds_file=stds_file,
         )
         batcher = BatchHandler(
-            train_containers=[LoaderH5(train_files, derive_features)],
-            val_containers=[LoaderH5(val_files, derive_features)],
+            train_samplers=[LoaderH5(train_files, derive_features)],
+            val_samplers=[LoaderH5(val_files, derive_features)],
             n_batches=2,
             batch_size=10,
             s_enhance=3,

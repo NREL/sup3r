@@ -16,7 +16,12 @@ logger = logging.getLogger(__name__)
 
 class StatsCollection(Collection):
     """Extended collection object with methods for computing means and stds and
-    saving these to files."""
+    saving these to files.
+
+    Notes
+    -----
+    We write stats as float64 because float32 is not json serializable
+    """
 
     def __init__(
         self, containers: List[Extracter], means_file=None, stds_file=None
@@ -26,17 +31,33 @@ class StatsCollection(Collection):
         self.stds = self.get_stds(stds_file)
         self.save_stats(stds_file=stds_file, means_file=means_file)
 
+    @staticmethod
+    def container_mean(container, feature):
+        """Method for computing means on containers, accounting for possible
+        multi-dataset containers."""
+        if container.is_multi_container:
+            return container.data[0][feature].mean()
+        return container.data[feature].mean()
+
+    @staticmethod
+    def container_std(container, feature):
+        """Method for computing stds on containers, accounting for possible
+        multi-dataset containers."""
+        if container.is_multi_container:
+            return container.data[0][feature].std()
+        return container.data[feature].std()
+
     def get_means(self, means_file):
         """Dictionary of means for each feature, computed across all data
         handlers."""
         if means_file is None or not os.path.exists(means_file):
             means = {}
-            for fidx, feat in enumerate(self.containers[0].features):
+            for f in self.containers[0].features:
                 cmeans = [
-                    self.data[cidx][..., fidx].mean() * wgt
-                    for cidx, wgt in enumerate(self.container_weights)
+                    w * self.container_mean(c, f)
+                    for c, w in zip(self.containers, self.container_weights)
                 ]
-                means[feat] = np.float64(np.sum(cmeans))
+                means[f] = np.float64(np.sum(cmeans))
         else:
             means = safe_json_load(means_file)
         return means
@@ -46,12 +67,12 @@ class StatsCollection(Collection):
         all data handlers."""
         if stds_file is None or not os.path.exists(stds_file):
             stds = {}
-            for fidx, feat in enumerate(self.containers[0].features):
+            for f in self.containers[0].features:
                 cstds = [
-                    wgt * self.data[cidx][..., fidx].std() ** 2
-                    for cidx, wgt in enumerate(self.container_weights)
+                    w * self.container_std(c, f) ** 2
+                    for c, w in zip(self.containers, self.container_weights)
                 ]
-                stds[feat] = np.float64(np.sqrt(np.sum(cstds)))
+                stds[f] = np.float64(np.sqrt(np.sum(cstds)))
         else:
             stds = safe_json_load(stds_file)
         return stds

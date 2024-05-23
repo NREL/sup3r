@@ -189,8 +189,8 @@ class BatchQueue(SingleBatchQueue):
 
     def __init__(
         self,
-        train_containers: Union[List[Sampler], List[DualSampler]],
-        val_containers: Union[List[Sampler], List[DualSampler]],
+        train_samplers: Union[List[Sampler], List[DualSampler]],
+        val_samplers: Union[List[Sampler], List[DualSampler]],
         batch_size,
         n_batches,
         s_enhance,
@@ -205,9 +205,9 @@ class BatchQueue(SingleBatchQueue):
         """
         Parameters
         ----------
-        train_containers : List[Sampler]
+        train_samplers : List[Sampler]
             List of Sampler instances containing training data
-        val_containers : List[Sampler]
+        val_samplers : List[Sampler]
             List of Sampler instances containing validation data. Can provide
             an empty list to instantiate without any validation data.
         batch_size : int
@@ -238,11 +238,11 @@ class BatchQueue(SingleBatchQueue):
             None this will use the first GPU if GPUs are available otherwise
             the CPU.
         """
-        if not val_containers:
+        if not val_samplers:
             self.val_data: Union[List, SingleBatchQueue] = []
         else:
             self.val_data = SingleBatchQueue(
-                containers=val_containers,
+                containers=val_samplers,
                 batch_size=batch_size,
                 n_batches=n_batches,
                 s_enhance=s_enhance,
@@ -257,7 +257,7 @@ class BatchQueue(SingleBatchQueue):
             )
 
         super().__init__(
-            containers=train_containers,
+            containers=train_samplers,
             batch_size=batch_size,
             n_batches=n_batches,
             s_enhance=s_enhance,
