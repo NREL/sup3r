@@ -4047,6 +4047,23 @@ packages:
   size: 27689
   timestamp: 1698580072627
 - kind: conda
+  name: executing
+  version: 2.0.1
+  build: pyhd8ed1ab_0
+  subdir: noarch
+  noarch: python
+  url: https://conda.anaconda.org/conda-forge/noarch/executing-2.0.1-pyhd8ed1ab_0.conda
+  sha256: c738804ab1e6376f8ea63372229a04c8d658dc90fd5a218c6273a2eaf02f4057
+  md5: e16be50e378d8a4533b989035b196ab8
+  depends:
+  - python >=2.7
+  license: MIT
+  license_family: MIT
+  purls:
+  - pkg:pypi/executing
+  size: 27689
+  timestamp: 1698580072627
+- kind: conda
   name: expat
   version: 2.6.2
   build: h59595ed_0
@@ -9254,8 +9271,8 @@ packages:
 - kind: pypi
   name: pyjson5
   version: 1.6.6
-  url: https://files.pythonhosted.org/packages/0c/8b/24c7d8f7785bdaab55481b67e736e892b01e10be2366860d67484f48ad50/pyjson5-1.6.6-cp311-cp311-macosx_11_0_arm64.whl
-  sha256: 7d1fe850aa1763e8f9945a7120f032f5f707d0372d52c8e0fecda2a79640820e
+  url: https://files.pythonhosted.org/packages/26/ba/c21b9f0fad649cada64fdfbed8546c74c998f137b487affb1be451b23bb8/pyjson5-1.6.6-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+  sha256: 0abc60630bb1601ae9005e251d30cef363cb4d6cef2d2fb7a160329569170e38
   requires_python: ~=3.5
 - kind: pypi
   name: pyjson5
