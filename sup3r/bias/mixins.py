@@ -94,7 +94,7 @@ class FillAndSmoothMixin:
         return out
 
 
-class ZeroRateMixin(DataRetrievalBase):
+class ZeroRateMixin():
     """Estimate zero rate
 
 
@@ -107,6 +107,7 @@ class ZeroRateMixin(DataRetrievalBase):
        hydrological simulations of climate change. Journal of Hydrometeorology,
        16(6), 2421-2442.
     """
+    @staticmethod
     def _zero_precipitation_rate(arr: np.ndarray, threshold: float = 0.01):
         """Rate of (nearly) zero precipitation days
 
@@ -136,6 +137,7 @@ class ZeroRateMixin(DataRetrievalBase):
         """
         return np.nanmean((arr < 0.01).astype('i'))
 
+    @staticmethod
     def apply_zero_precipitation_rate(arr: np.ndarray, rate: float):
         """Enforce the zero precipitation rate
 
