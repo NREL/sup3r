@@ -613,3 +613,47 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
             idx = (doy > d_start) & (doy < d_end)
 
         return idx
+
+class PresRat(QuantileDeltaMappingCorrection):
+    """PresRat bias correction method (precipitation)
+
+    The PresRat correction is defined as the combination of using the
+    model-predicted change ratio, the treatment of zero-precipitation days,
+    and the final correction factor (K) [Pierce2015]_.
+
+    References
+    ----------
+    .. [Pierce2015] Pierce, D. W., Cayan, D. R., Maurer, E. P., Abatzoglou, J.
+       T., & Hegewisch, K. C. (2015). Improved bias correction techniques for
+       hydrological simulations of climate change. Journal of Hydrometeorology,
+       16(6), 2421-2442.
+    # Todo:
+    #   - Identify Z_gf. (0.01 mm) Also have to save on output params
+    #   - Estimate K = <x> / <hat{x}>
+    """
+
+    def correction_factor():
+        """Preserve the mean precipitation change (K factor)
+
+        When bias correcting, the mean can fall in a different quantile, thus
+        modifying the corrected mean if the shape of the distribution changes.
+        That effect is more pronounced in skewed distributions, such as
+        precipitation.
+        """
+        pass
+        self.bias_dh.bias_ti
+
+    def dev():
+        # Estimate means per month. Later will split this into resolution (n
+        # of chunks and window width such as 30 days) and end up with one
+        # value per month to be used later as the K numberator.
+        t = self.base_dh.time_index
+        t.month
+
+        base_data, base_ti = cls.get_base_data(base_fps,
+                                               base_dset,
+                                               base_gid,
+                                               base_handler,
+                                               daily_reduction=daily_reduction,
+                                               decimals=decimals,
+                                               base_dh_inst=base_dh_inst)
