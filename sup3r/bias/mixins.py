@@ -135,7 +135,7 @@ class ZeroRateMixin():
         The ``NaN`` are ignored for the rate estimate. Therefore, a large
         number of ``NaN`` might mislead this rate estimate.
         """
-        return np.nanmean((arr < 0.01).astype('i'))
+        return np.nanmean((arr < threshold).astype('i'))
 
     @staticmethod
     def apply_zero_precipitation_rate(arr: np.ndarray, rate: float):
