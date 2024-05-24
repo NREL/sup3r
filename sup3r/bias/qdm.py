@@ -21,7 +21,7 @@ from rex.utilities.bc_utils import (
 from sup3r.preprocessing.data_handling.base import DataHandler
 from sup3r.utilities.utilities import expand_paths
 from .bias_calc import DataRetrievalBase
-from .mixins import FillAndSmoothMixin
+from .mixins import FillAndSmoothMixin, ZeroRateMixin
 
 logger = logging.getLogger(__name__)
 
@@ -614,7 +614,7 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
 
         return idx
 
-class PresRat(QuantileDeltaMappingCorrection):
+class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
     """PresRat bias correction method (precipitation)
 
     The PresRat correction is defined as the combination of using the
