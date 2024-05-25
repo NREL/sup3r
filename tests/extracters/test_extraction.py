@@ -26,13 +26,28 @@ init_logger('sup3r', log_level='DEBUG')
 def test_get_full_domain_nc():
     """Test data handling without target, shape, or raster_file input"""
 
-    extracter = DirectExtracterNC(
-        file_paths=nc_files)
+    extracter = DirectExtracterNC(file_paths=nc_files)
     nc_res = xr.open_mfdataset(nc_files)
     shape = (len(nc_res['latitude']), len(nc_res['longitude']))
     target = (
         nc_res['latitude'].values.min(),
         nc_res['longitude'].values.min(),
+    )
+    assert np.array_equal(
+        extracter.lat_lon[-1, 0, :],
+        (
+            extracter.loader['latitude'].min(),
+            extracter.loader['longitude'].min(),
+        ),
+    )
+    dim_order = ('latitude', 'longitude', 'time')
+    assert np.array_equal(
+        extracter['u_100m'],
+        nc_res['u_100m'].transpose(*dim_order).data.astype(np.float32),
+    )
+    assert np.array_equal(
+        extracter['v_100m'],
+        nc_res['v_100m'].transpose(*dim_order).data.astype(np.float32),
     )
     assert extracter.grid_shape == shape
     assert np.array_equal(extracter.target, target)
@@ -41,9 +56,7 @@ def test_get_full_domain_nc():
 
 def test_get_target_nc():
     """Test data handling without target or raster_file input"""
-    extracter = DirectExtracterNC(
-        file_paths=nc_files, shape=(4, 4)
-    )
+    extracter = DirectExtracterNC(file_paths=nc_files, shape=(4, 4))
     nc_res = xr.open_mfdataset(nc_files)
     target = (
         nc_res['latitude'].values.min(),

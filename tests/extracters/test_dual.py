@@ -22,13 +22,11 @@ TARGET_COORD = (39.01, -105.15)
 FEATURES = ['U_100m', 'V_100m']
 
 
-init_logger('sup3r')
+init_logger('sup3r', log_level='DEBUG')
 
 
-def test_pair_extracter_shapes(log=False, full_shape=(20, 20)):
+def test_dual_extracter_shapes(full_shape=(20, 20)):
     """Test basic spatial model training with only gen content loss."""
-    if log:
-        init_logger('sup3r', log_level='DEBUG')
 
     # need to reduce the number of temporal examples to test faster
     hr_container = DataHandlerH5(
@@ -55,10 +53,8 @@ def test_pair_extracter_shapes(log=False, full_shape=(20, 20)):
     )
 
 
-def test_regrid_caching(log=False, full_shape=(20, 20)):
+def test_regrid_caching(full_shape=(20, 20)):
     """Test caching and loading of regridded data"""
-    if log:
-        init_logger('sup3r', log_level='DEBUG')
 
     # need to reduce the number of temporal examples to test faster
     with tempfile.TemporaryDirectory() as td:

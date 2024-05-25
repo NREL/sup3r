@@ -67,35 +67,17 @@ class ExtracterNC(Extracter, ABC):
         is not given we can easily find the values that give the maximum
         extent."""
         if not self._target:
-            lat = (
-                full_lat_lon[-1, 0, 0]
-                if self._has_descending_lats()
-                else full_lat_lon[0, 0, 0]
-            )
-            lon = (
-                full_lat_lon[-1, 0, 1]
-                if self._has_descending_lats()
-                else full_lat_lon[0, 0, 1]
-            )
-            self._target = (lat, lon)
+            self._target = full_lat_lon[-1, 0, :]
         if not self._grid_shape:
             self._grid_shape = full_lat_lon.shape[:-1]
-
-    def _has_descending_lats(self):
-        lats = self.full_lat_lon[:, 0, 0]
-        return lats[0] > lats[-1]
 
     def get_raster_index(self):
         """Get set of slices or indices selecting the requested region from
         the contained data."""
         self.check_target_and_shape(self.full_lat_lon)
         row, col = self.get_closest_row_col(self.full_lat_lon, self._target)
-        if self._has_descending_lats():
-            lat_slice = slice(row - self._grid_shape[0] + 1, row + 1)
-        else:
-            lat_slice = slice(row, row + self._grid_shape[0] + 1)
+        lat_slice = slice(row - self._grid_shape[0] + 1, row + 1)
         lon_slice = slice(col, col + self._grid_shape[1])
-
         return self._check_raster_index(lat_slice, lon_slice)
 
     def _check_raster_index(self, lat_slice, lon_slice):
@@ -153,7 +135,4 @@ class ExtracterNC(Extracter, ABC):
     def get_lat_lon(self):
         """Get the 2D array of coordinates corresponding to the requested
         target and shape."""
-        lat_lon = self.full_lat_lon[*self.raster_index]
-        if self._has_descending_lats():
-            lat_lon = lat_lon[::-1]
-        return lat_lon
+        return self.full_lat_lon[*self.raster_index]

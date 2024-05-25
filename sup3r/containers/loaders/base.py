@@ -5,7 +5,6 @@ from abc import ABC, abstractmethod
 from typing import ClassVar
 
 import numpy as np
-import xarray as xr
 
 from sup3r.containers.base import Container
 from sup3r.utilities.utilities import expand_paths
@@ -20,9 +19,17 @@ class Loader(Container, ABC):
 
     BASE_LOADER = None
 
-    STANDARD_NAMES: ClassVar = {
+    FEATURE_NAMES: ClassVar = {
         'elevation': 'topography',
         'orog': 'topography',
+    }
+
+    DIM_NAMES: ClassVar = {
+        'lat': 'south_north',
+        'lon': 'west_east',
+        'latitude': 'south_north',
+        'longitude': 'west_east',
+        'plev': 'level'
     }
 
     def __init__(
@@ -38,10 +45,9 @@ class Loader(Container, ABC):
         ----------
         file_paths : str | pathlib.Path | list
             Location(s) of files to load
-        features : str | None | list
-            List of features in include in the loaded data. If 'all'
-            this includes all features available in the file_paths. If None
-            this results in a dataset with just lat / lon / time. To select
+        features : str | list
+            List of features to include in the loaded data. If 'all'
+            this includes all features available in the file_paths. To select
             specific features provide a list.
         res_kwargs : dict
             kwargs for `.res` object
@@ -60,26 +66,23 @@ class Loader(Container, ABC):
         self.mode = mode
         self.chunks = chunks
         self.res = self.BASE_LOADER(self.file_paths, **self.res_kwargs)
-        self.data = self.standardize(self.load()).astype(np.float32)
+        self.data = self._standardize(self.load(), self.FEATURE_NAMES).astype(
+            np.float32
+        )
         features = (
             list(self.data.features)
             if features == 'all'
-            else ['latitude', 'longitude', 'time']
-            if features is None
             else features
         )
         self.data = self.data.slice_dset(features=features)
 
-    def standardize(self, data: xr.Dataset):
-        """Standardize feature names in `.data.`
-
-        TODO: For now this just ensures they are all lower case. This could
-        apply a rename map to standardize naming conventions in the future
-        though."""
+    def _standardize(self, data, standard_names):
+        """Standardize fields in the dataset using the `standard_names`
+        dictionary."""
         rename_map = {feat: feat.lower() for feat in data.data_vars}
         data = data.rename(rename_map)
         data = data.rename(
-            {k: v for k, v in self.STANDARD_NAMES.items() if k in data}
+            {k: v for k, v in standard_names.items() if k in data}
         )
         return data
 

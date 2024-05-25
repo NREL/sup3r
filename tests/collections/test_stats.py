@@ -35,14 +35,14 @@ def test_stats_calc():
         for file in input_files
     ]
     with TemporaryDirectory() as td:
-        means_file = os.path.join(td, 'means.json')
-        stds_file = os.path.join(td, 'stds.json')
+        means = os.path.join(td, 'means.json')
+        stds = os.path.join(td, 'stds.json')
         stats = StatsCollection(
-            extracters, means_file=means_file, stds_file=stds_file
+            extracters, means=means, stds=stds
         )
 
-        means = safe_json_load(means_file)
-        stds = safe_json_load(stds_file)
+        means = safe_json_load(means)
+        stds = safe_json_load(stds)
         assert means == stats.means
         assert stds == stats.stds
 

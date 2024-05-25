@@ -7,6 +7,7 @@ import inspect
 import logging
 import pprint
 from typing import Optional
+from warnings import warn
 
 import numpy as np
 import xarray as xr
@@ -75,6 +76,18 @@ class Container:
         else:
             self._data = data
 
+    @staticmethod
+    def _lowered(features):
+        out = [f.lower() for f in features]
+        if features != out:
+            msg = (
+                f'Received some upper case features: {features}. '
+                f'Using {out} instead.'
+            )
+            logger.warning(msg)
+            warn(msg)
+        return out
+
     @property
     def features(self):
         """Features in this container."""
@@ -85,7 +98,7 @@ class Container:
     @features.setter
     def features(self, val):
         """Set features in this container."""
-        self._features = [f.lower() for f in val]
+        self._features = self._lowered(val)
 
     def __getitem__(self, keys):
         """Method for accessing self.data or attributes. keys can optionally
@@ -97,9 +110,11 @@ class Container:
     def consistency_check(self, keys):
         """Check if all Data objects contained have the same value for
         `keys`."""
-        msg = (f'Requested {keys} attribute from a container with '
-               f'{len(self.data)} Data objects but these objects do not all '
-               f'have the same value for {keys}.')
+        msg = (
+            f'Requested {keys} attribute from a container with '
+            f'{len(self.data)} Data objects but these objects do not all '
+            f'have the same value for {keys}.'
+        )
         attr = getattr(self.data[0], keys, None)
         check = all(getattr(d, keys, None) == attr for d in self.data)
         if not check:

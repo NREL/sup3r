@@ -10,8 +10,6 @@ from sup3r.containers import (
     BatchHandler,
     DataHandlerH5,
     LoaderH5,
-    Sampler,
-    StatsCollection,
 )
 from sup3r.models import Sup3rGan
 from sup3r.utilities.pytest.helpers import execute_pytest
@@ -49,57 +47,44 @@ def test_end_to_end():
             INPUT_FILES[0],
             features=derive_features,
             **kwargs,
-            cache_kwargs={'cache_pattern': train_cache_pattern,
-                          'chunks': {'U_100m': (50, 20, 20),
-                                     'V_100m': (50, 20, 20)}},
+            cache_kwargs={
+                'cache_pattern': train_cache_pattern,
+                'chunks': {'U_100m': (50, 20, 20), 'V_100m': (50, 20, 20)},
+            },
         )
         # get val data
         _ = DataHandlerH5(
             INPUT_FILES[1],
             features=derive_features,
             **kwargs,
-            cache_kwargs={'cache_pattern': val_cache_pattern,
-                          'chunks': {'U_100m': (50, 20, 20),
-                                     'V_100m': (50, 20, 20)}},
+            cache_kwargs={
+                'cache_pattern': val_cache_pattern,
+                'chunks': {'U_100m': (50, 20, 20), 'V_100m': (50, 20, 20)},
+            },
         )
 
         train_files = [
-            train_cache_pattern.format(feature=f) for f in derive_features
+            train_cache_pattern.format(feature=f.lower())
+            for f in derive_features
         ]
         val_files = [
-            val_cache_pattern.format(feature=f) for f in derive_features
+            val_cache_pattern.format(feature=f.lower())
+            for f in derive_features
         ]
 
-        # init training data sampler
-        train_sampler = Sampler(
-            LoaderH5(train_files, features=derive_features),
-            sample_shape=(12, 12, 16),
-            feature_sets={'features': derive_features},
-        )
+        means = os.path.join(td, 'means.json')
+        stds = os.path.join(td, 'stds.json')
 
-        # init val data sampler
-        val_sampler = Sampler(
-            LoaderH5(val_files, features=derive_features),
-            sample_shape=(12, 12, 16),
-            feature_sets={'features': derive_features},
-        )
-
-        means_file = os.path.join(td, 'means.json')
-        stds_file = os.path.join(td, 'stds.json')
-        _ = StatsCollection(
-            [train_sampler, val_sampler],
-            means_file=means_file,
-            stds_file=stds_file,
-        )
         batcher = BatchHandler(
-            train_samplers=[LoaderH5(train_files, derive_features)],
-            val_samplers=[LoaderH5(val_files, derive_features)],
+            train_containers=[LoaderH5(train_files, derive_features)],
+            val_containers=[LoaderH5(val_files, derive_features)],
             n_batches=2,
             batch_size=10,
+            sample_shape=(12, 12, 16),
             s_enhance=3,
             t_enhance=4,
-            means=means_file,
-            stds=stds_file,
+            means=means,
+            stds=stds
         )
 
         fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')

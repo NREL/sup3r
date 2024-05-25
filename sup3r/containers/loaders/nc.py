@@ -22,27 +22,45 @@ class LoaderNC(Loader):
 
     def BASE_LOADER(self, file_paths, **kwargs):
         """Lowest level interface to data."""
-        if isinstance(self.chunks, tuple):
-            kwargs['chunks'] = dict(
-                zip(['south_north', 'west_east', 'time', 'level'], self.chunks)
-            )
         return xr.open_mfdataset(file_paths, **kwargs)
+
+    def enforce_descending_lats(self, dset):
+        """Make sure latitudes are in descneding order so that min lat / lon is
+        at lat_lon[-1, 0]."""
+        invert_lats = dset['latitude'][-1, 0] > dset['latitude'][0, 0]
+        if invert_lats:
+            for var in ['latitude', 'longitude', *list(dset.data_vars)]:
+                if 'south_north' in dset[var].dims:
+                    dset[var] = (
+                        dset[var].dims,
+                        dset[var].sel(south_north=slice(None, None, -1)).data,
+                    )
+        return dset
 
     def load(self):
         """Load netcdf xarray.Dataset()."""
-        lats = self.res['latitude'].data
-        lons = self.res['longitude'].data
+        res = self._standardize(self.res, self.DIM_NAMES)
+        lats = res['south_north'].data
+        lons = res['west_east'].data
+        times = res.indexes['time']
+
+        if hasattr(times, 'to_datetimeindex'):
+            times = times.to_datetimeindex()
+
         if len(lats.shape) == 1:
             lons, lats = da.meshgrid(lons, lats)
-        out = self.res.drop(('latitude', 'longitude'))
-        rename_map = {'latitude': 'south_north', 'longitude': 'west_east'}
-        for old_name, new_name in rename_map.items():
-            if old_name in out.dims:
-                out = out.rename({old_name: new_name})
-        out = out.assign_coords(
-            {'latitude': (('south_north', 'west_east'), lats)}
+
+        out = res.assign_coords(
+            {
+                'latitude': (('south_north', 'west_east'), lats),
+                'longitude': (('south_north', 'west_east'), lons),
+                'time': times,
+            }
         )
-        out = out.assign_coords(
-            {'longitude': (('south_north', 'west_east'), lons)}
-        )
-        return out.astype(np.float32)
+        out = out.drop_vars(('south_north', 'west_east'))
+        if isinstance(self.chunks, tuple):
+            chunks = dict(
+                zip(['south_north', 'west_east', 'time', 'level'], self.chunks)
+            )
+            out = out.chunk(chunks)
+        return self.enforce_descending_lats(out).astype(np.float32)

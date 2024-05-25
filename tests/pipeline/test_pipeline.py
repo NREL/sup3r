@@ -9,12 +9,12 @@ import tempfile
 import click
 import numpy as np
 from gaps import Pipeline
-from helpers.utils import make_fake_nc_files
 from rex import ResourceX
 from rex.utilities.loggers import LOGGERS
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.models.base import Sup3rGan
+from sup3r.utilities.pytest.helpers import make_fake_nc_files
 
 INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
 FEATURES = ['U_100m', 'V_100m', 'BVF2_200m']

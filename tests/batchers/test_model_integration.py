@@ -133,8 +133,8 @@ def test_train_st(
     stds = {f: train_extracter[f].std() for f in FEATURES}
 
     batcher = BatchHandler(
-        train_samplers=[train_extracter],
-        val_samplers=[val_extracter],
+        train_containers=[train_extracter],
+        val_containers=[val_extracter],
         sample_shape=sample_shape,
         batch_size=2,
         n_batches=2,

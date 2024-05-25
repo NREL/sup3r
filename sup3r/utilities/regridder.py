@@ -7,17 +7,17 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime as dt
 from glob import glob
 
+import dask
 import numpy as np
 import pandas as pd
 import psutil
 from rex import MultiFileResource
-from rex.utilities.fun_utils import get_fun_call_str
 from sklearn.neighbors import BallTree
 
 from sup3r.postprocessing.file_handling import OutputMixIn, RexOutputs
-from sup3r.utilities import ModuleName
-from sup3r.utilities.cli import BaseCLI
 from sup3r.utilities.execution import DistributedProcess
+
+dask.config.set({'array.slicing.split_large_chunks': True})
 
 logger = logging.getLogger(__name__)
 
@@ -420,147 +420,6 @@ class Regridder:
         return np.einsum('ijk,jk->ij', vals, self.weights).T
 
 
-class WindRegridder(Regridder):
-    """Class to regrid windspeed and winddirection. Includes methods for
-    converting windspeed and winddirection to U and V and inverting after
-    interpolation"""
-
-    @classmethod
-    def get_source_values(cls, index_chunk, feature, source_files):
-        """Get values to use for interpolation from h5 source files
-
-        Parameters
-        ----------
-        index_chunk : ndarray
-            Chunk of the full array of indices where indices[i] gives the
-            list of coordinate indices in the source data to be used for
-            interpolation for the i-th coordinate in the target data.
-            (temporal, n_points, k_neighbors)
-        feature : str
-            Name of feature to interpolate
-        source_files : list
-            List of paths to source files
-
-        Returns
-        -------
-        ndarray
-            Array of values to use for interpolation with shape
-            (temporal, n_points, k_neighbors)
-        """
-        with MultiFileResource(source_files) as res:
-            shape = (
-                len(res.time_index),
-                len(index_chunk),
-                len(index_chunk[0]),
-            )
-            tmp = np.array(index_chunk).flatten()
-            out = res[feature, :, tmp]
-            out = out.reshape(shape)
-        return out
-
-    @classmethod
-    def get_source_uv(cls, index_chunk, height, source_files):
-        """Get u/v wind components from windspeed and winddirection
-
-        Parameters
-        ----------
-        index_chunk : ndarray
-            Chunk of the full array of indices where indices[i] gives the
-            list of coordinate indices in the source data to be used for
-            interpolation for the i-th coordinate in the target data.
-            (temporal, n_points, k_neighbors)
-        height : int
-            Wind height level
-        source_files : list
-            List of paths to h5 source files
-
-        Returns
-        -------
-        u: ndarray
-            Array of zonal wind values to use for interpolation with shape
-            (temporal, n_points, k_neighbors)
-        v: ndarray
-            Array of meridional wind values to use for interpolation with shape
-            (temporal, n_points, k_neighbors)
-        """
-        ws = cls.get_source_values(
-            index_chunk, f'windspeed_{height}m', source_files
-        )
-        wd = cls.get_source_values(
-            index_chunk, f'winddirection_{height}m', source_files
-        )
-        u = ws * np.sin(np.radians(wd))
-        v = ws * np.cos(np.radians(wd))
-
-        return u, v
-
-    @classmethod
-    def invert_uv(cls, u, v):
-        """Get u/v wind components from windspeed and winddirection
-
-        Parameters
-        ----------
-        u: ndarray
-            Array of interpolated zonal wind values with shape
-            (temporal, n_points)
-        v: ndarray
-            Array of interpolated meridional wind values with shape
-            (temporal, n_points)
-
-        Returns
-        -------
-        ws: ndarray
-            Array of interpolated windspeed values with shape
-            (temporal, n_points)
-        wd: ndarray
-            Array of winddirection values with shape (temporal, n_points)
-        """
-        ws = np.hypot(u, v)
-        wd = np.rad2deg(np.arctan2(u, v))
-        wd = (wd + 360) % 360
-
-        return ws, wd
-
-    @classmethod
-    def regrid_coordinates(
-        cls, index_chunk, distance_chunk, height, source_files
-    ):
-        """Regrid wind fields at given height for the requested coordinate
-        index
-
-        Parameters
-        ----------
-        index_chunk : ndarray
-            Chunk of the full array of indices where indices[i] gives the
-            list of coordinate indices in the source data to be used for
-            interpolation for the i-th coordinate in the target data.
-            (temporal, n_points, k_neighbors)
-        distance_chunk : ndarray
-            Chunk of the full array of distances where distances[i] gives the
-            list of distances to the source coordinates to be used for
-            interpolation for the i-th coordinate in the target data.
-            (temporal, n_points, k_neighbors)
-        height : int
-            Wind height level
-        source_files : list
-            List of paths to h5 source files
-
-        Returns
-        -------
-        ws: ndarray
-            Array of interpolated windspeed values with shape
-            (temporal, n_points)
-        wd: ndarray
-            Array of winddirection values with shape (temporal, n_points)
-
-        """
-        u, v = cls.get_source_uv(index_chunk, height, source_files)
-        u = cls.interpolate(distance_chunk, u)
-        v = cls.interpolate(distance_chunk, v)
-        ws, wd = cls.invert_uv(u, v)
-        return ws, wd
-
-
 class RegridOutput(OutputMixIn, DistributedProcess):
     """Output regridded data as it is interpolated. Takes source data from
     windspeed and winddirection h5 files and uses this data to interpolate onto
@@ -638,7 +497,7 @@ class RegridOutput(OutputMixIn, DistributedProcess):
             self.source_meta = res.meta
             self.global_attrs = res.global_attrs
 
-        self.regridder = WindRegridder(
+        self.regridder = Regridder(
             self.source_meta,
             self.target_meta,
             leaf_size=leaf_size,
@@ -718,46 +577,6 @@ class RegridOutput(OutputMixIn, DistributedProcess):
             out.append(f'windspeed_{height}m')
             out.append(f'winddirection_{height}m')
         return out
-
-    @classmethod
-    def get_node_cmd(cls, config):
-        """Get a CLI call to regrid data.
-
-        Parameters
-        ----------
-        config : dict
-            sup3r collection config with all necessary args and kwargs to
-            run regridding.
-        """
-        import_str = (
-            'from sup3r.utilities.regridder import RegridOutput;\n'
-            'from rex import init_logger;\n'
-            'import time;\n'
-            'from gaps import Status;\n'
-        )
-        regrid_fun_str = get_fun_call_str(cls, config)
-
-        node_index = config['node_index']
-        log_file = config.get('log_file', None)
-        log_level = config.get('log_level', 'INFO')
-        log_arg_str = f'"sup3r", log_level="{log_level}"'
-        if log_file is not None:
-            log_arg_str += f', log_file="{log_file}"'
-
-        cmd = (
-            f"python -c '{import_str}\n"
-            't0 = time.time();\n'
-            f'logger = init_logger({log_arg_str});\n'
-            f'regrid_output = {regrid_fun_str};\n'
-            f'regrid_output.run({node_index});\n'
-            't_elap = time.time() - t0;\n'
-        )
-
-        pipeline_step = config.get('pipeline_step') or ModuleName.REGRID
-        cmd = BaseCLI.add_status_cmd(config, pipeline_step, cmd)
-        cmd += ";'\n"
-
-        return cmd.replace('\\', '/')
 
     def run(self, node_index):
         """Run regridding and output write in either serial or parallel

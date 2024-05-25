@@ -7,8 +7,17 @@ import numpy as np
 
 from sup3r.containers.cachers import Cacher
 from sup3r.containers.derivers import Deriver
-from sup3r.containers.derivers.methods import RegistryH5, RegistryNC
-from sup3r.containers.extracters import ExtracterH5, ExtracterNC
+from sup3r.containers.derivers.methods import (
+    RegistryH5,
+    RegistryNC,
+    RegistryNCforCC,
+    RegistryNCforCCwithPowerLaw,
+)
+from sup3r.containers.extracters import (
+    ExtracterH5,
+    ExtracterNC,
+    ExtracterNCforCC,
+)
 from sup3r.containers.loaders import LoaderH5, LoaderNC
 from sup3r.utilities.utilities import _get_class_kwargs
 
@@ -130,4 +139,18 @@ DataHandlerH5 = DataHandlerFactory(
 )
 DataHandlerNC = DataHandlerFactory(
     ExtracterNC, LoaderNC, FeatureRegistry=RegistryNC, name='DataHandlerNC'
+)
+
+DataHandlerNCforCC = DataHandlerFactory(
+    ExtracterNCforCC,
+    LoaderNC,
+    FeatureRegistry=RegistryNCforCC,
+    name='DataHandlerNCforCC',
+)
+
+DataHandlerNCforCCwithPowerLaw = DataHandlerFactory(
+    ExtracterNCforCC,
+    LoaderNC,
+    FeatureRegistry=RegistryNCforCCwithPowerLaw,
+    name='DataHandlerNCforCCwithPowerLaw'
 )

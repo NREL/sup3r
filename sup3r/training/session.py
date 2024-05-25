@@ -1,5 +1,6 @@
 """Multi-threaded training session."""
 import threading
+from time import sleep
 
 
 class TrainingSession:
@@ -14,8 +15,13 @@ class TrainingSession:
                                              args=(batch_handler,),
                                              kwargs=kwargs)
 
-        self.batch_handler.start()
         self.train_thread.start()
 
-        self.train_thread.join()
-        self.batch_handler.stop()
+        try:
+            while True:
+                sleep(0.01)
+        except KeyboardInterrupt:
+            self.train_thread.join()
+            self.batch_handler.queue_thread.join()
+            sleep(5.0)
+            # self.batch_handler.stop()

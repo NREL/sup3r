@@ -19,7 +19,6 @@ low res then use :class:`DualBatchQueue` with :class:`DualSampler` objects.
 from .base import Container, DualContainer
 from .batchers import (
     BatchHandler,
-    BatchQueue,
     DualBatchHandler,
     DualBatchQueue,
     SingleBatchQueue,
@@ -31,12 +30,13 @@ from .extracters import DualExtracter, Extracter, ExtracterH5, ExtracterNC
 from .factory import (
     DataHandlerH5,
     DataHandlerNC,
+    DataHandlerNCforCC,
+    DataHandlerNCforCCwithPowerLaw,
     DirectExtracterH5,
     DirectExtracterNC,
 )
 from .loaders import Loader, LoaderH5, LoaderNC
 from .samplers import (
-    CroppedSampler,
     DataCentricSampler,
     DualSampler,
     Sampler,

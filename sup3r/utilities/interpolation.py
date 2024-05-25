@@ -223,6 +223,75 @@ class Interpolator:
         return p_array
 
     @classmethod
+    def _check_lev_array(cls, lev_array, levels):
+        """Check if the requested levels are consistent with the given
+        lev_array and if there are any nans in the lev_array."""
+
+        if np.isnan(lev_array).all():
+            msg = 'All pressure level height data is NaN!'
+            logger.error(msg)
+            raise RuntimeError(msg)
+
+        nans = np.isnan(lev_array)
+        logger.debug('Level array shape: {}'.format(lev_array.shape))
+
+        lowest_height = np.min(lev_array[0, ...])
+        highest_height = np.max(lev_array[0, ...])
+        bad_min = min(levels) < lowest_height
+        bad_max = max(levels) > highest_height
+
+        if nans.any():
+            if hasattr(nans, 'compute'):
+                nans = nans.compute()
+            msg = (
+                'Approximately {:.2f}% of the vertical level '
+                'array is NaN. Data will be interpolated or extrapolated '
+                'past these NaN values.'.format(100 * nans.sum() / nans.size)
+            )
+            logger.warning(msg)
+            warn(msg)
+
+        # This and the next if statement can return warnings in the case of
+        # pressure inversions, in which case the "lowest" or "highest" pressure
+        # does not correspond to the lowest or highest height. Interpolation
+        # can be performed without issue in this case.
+        if bad_min.any():
+            if hasattr(bad_min, 'compute'):
+                bad_min = bad_min.compute()
+            if hasattr(lev_array, 'compute'):
+                lev_array = lev_array.compute()
+            msg = (
+                'Approximately {:.2f}% of the lowest vertical levels '
+                '(maximum value of {:.3f}, minimum value of {:.3f}) '
+                'were greater than the minimum requested level: {}'.format(
+                    100 * bad_min.sum() / bad_min.size,
+                    lev_array[:, 0, :, :].max(),
+                    lev_array[:, 0, :, :].min(),
+                    min(levels),
+                )
+            )
+            logger.warning(msg)
+            warn(msg)
+
+        if bad_max.any():
+            if hasattr(bad_min, 'compute'):
+                bad_max = bad_max.compute()
+            if hasattr(lev_array, 'compute'):
+                lev_array = lev_array.compute()
+            msg = (
+                'Approximately {:.2f}% of the highest vertical levels '
+                '(minimum value of {:.3f}, maximum value of {:.3f}) '
+                'were lower than the maximum requested level: {}'.format(
+                    100 * bad_max.sum() / bad_max.size,
+                    lev_array[:, -1, :, :].min(),
+                    lev_array[:, -1, :, :].max(),
+                    max(levels),
+                )
+            )
+            logger.warning(msg)
+            warn(msg)
+
+    @classmethod
     def prep_level_interp(cls, var_array, lev_array, levels):
         """Prepare var_array interpolation. Check level ranges and add noise to
         mask locations.
@@ -264,59 +333,7 @@ class Interpolator:
             else levels
         )
 
-        if np.isnan(lev_array).all():
-            msg = 'All pressure level height data is NaN!'
-            logger.error(msg)
-            raise RuntimeError(msg)
-
-        nans = np.isnan(lev_array)
-        logger.debug('Level array shape: {}'.format(lev_array.shape))
-
-        lowest_height = np.min(lev_array[0, ...])
-        highest_height = np.max(lev_array[0, ...])
-        bad_min = min(levels) < lowest_height
-        bad_max = max(levels) > highest_height
-
-        if nans.any():
-            msg = (
-                'Approximately {:.2f}% of the vertical level '
-                'array is NaN. Data will be interpolated or extrapolated '
-                'past these NaN values.'.format(100 * nans.sum() / nans.size)
-            )
-            logger.warning(msg)
-            warn(msg)
-
-        # This and the next if statement can return warnings in the case of
-        # pressure inversions, in which case the "lowest" or "highest" pressure
-        # does not correspond to the lowest or highest height. Interpolation
-        # can be performed without issue in this case.
-        if bad_min.any():
-            msg = (
-                'Approximately {:.2f}% of the lowest vertical levels '
-                '(maximum value of {:.3f}, minimum value of {:.3f}) '
-                'were greater than the minimum requested level: {}'.format(
-                    100 * bad_min.sum() / bad_min.size,
-                    lev_array[:, 0, :, :].max(),
-                    lev_array[:, 0, :, :].min(),
-                    min(levels),
-                )
-            )
-            logger.warning(msg)
-            warn(msg)
-
-        if bad_max.any():
-            msg = (
-                'Approximately {:.2f}% of the highest vertical levels '
-                '(minimum value of {:.3f}, maximum value of {:.3f}) '
-                'were lower than the maximum requested level: {}'.format(
-                    100 * bad_max.sum() / bad_max.size,
-                    lev_array[:, -1, :, :].min(),
-                    lev_array[:, -1, :, :].max(),
-                    max(levels),
-                )
-            )
-            logger.warning(msg)
-            warn(msg)
+        cls._check_lev_array(lev_array, levels)
 
         # if multiple vertical levels have identical heights at the desired
         # interpolation level, interpolation to that value will fail because
@@ -372,16 +389,16 @@ class Interpolator:
             var_tmp = var_array[idt].reshape(shape).T
             not_nan = ~np.isnan(h_tmp) & ~np.isnan(var_tmp)
             # Interp each vertical column of height and var to requested levels
-            zip_iter = zip(
-                h_tmp.compute(), var_tmp.compute(), not_nan.compute()
-            )
+            hgts = da.ma.masked_array(h_tmp, ~not_nan)
+            vals = da.ma.masked_array(var_tmp, ~not_nan)
+            zip_iter = zip(hgts, vals)
             vals = [
                 interp1d(
-                    h[mask],
-                    var[mask],
+                    h,
+                    var,
                     fill_value='extrapolate',
                 )(levels)
-                for h, var, mask in zip_iter
+                for h, var in zip_iter
             ]
             out_array[:, idt, :] = np.array(vals, dtype=np.float32)
         # Reshape out_array

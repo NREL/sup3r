@@ -24,7 +24,7 @@ class DualBatchQueue(AbstractBatchQueue):
 
     def __init__(
         self,
-        train_samplers: List[DualSampler],
+        samplers: List[DualSampler],
         batch_size,
         n_batches,
         s_enhance,
@@ -34,9 +34,10 @@ class DualBatchQueue(AbstractBatchQueue):
         queue_cap=None,
         max_workers=None,
         default_device: Optional[str] = None,
+        thread_name: Optional[str] = "training"
     ):
         super().__init__(
-            train_samplers=train_samplers,
+            samplers=samplers,
             batch_size=batch_size,
             n_batches=n_batches,
             s_enhance=s_enhance,
@@ -46,6 +47,7 @@ class DualBatchQueue(AbstractBatchQueue):
             queue_cap=queue_cap,
             max_workers=max_workers,
             default_device=default_device,
+            thread_name=thread_name
         )
         self.check_enhancement_factors()
         self.queue_shape = [

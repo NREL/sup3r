@@ -317,7 +317,7 @@ RegistryH5WindCC = {
     'temperature_max_(.*)m': 'temperature_(.*)m',
     'temperature_min_(.*)m': 'temperature_(.*)m',
     'relativehumidity_max_(.*)m': 'relativehumidity_(.*)m',
-    'relativehumidity_min_(.*)m': 'relativehumidity_(.*)m'
+    'relativehumidity_min_(.*)m': 'relativehumidity_(.*)m',
 }
 
 RegistryH5SolarCC = {
@@ -326,4 +326,26 @@ RegistryH5SolarCC = {
     'winddirection': 'wind_direction',
     'U': UWind,
     'V': VWind,
+}
+
+RegistryNCforCC = {
+    **RegistryNC,
+    'U_(.*)': 'ua_(.*)',
+    'V_(.*)': 'va_(.*)',
+    'relativehumidity_2m': 'hurs',
+    'relativehumidity_min_2m': 'hursmin',
+    'relativehumidity_max_2m': 'hursmax',
+    'clearsky_ratio': ClearSkyRatioCC,
+    'Pressure_(.*)': 'level_(.*)',
+    'Temperature_(.*)': TempNCforCC,
+    'temperature_2m': Tas,
+    'temperature_max_2m': TasMax,
+    'temperature_min_2m': TasMin,
+}
+
+
+RegistryNCforCCwithPowerLaw = {
+    **RegistryNCforCC,
+    'U_(.*)': UWindPowerLaw,
+    'V_(.*)': VWindPowerLaw,
 }

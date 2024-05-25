@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Test the sample super resolution GAN configs"""
 import os
+
 import numpy as np
 import pytest
 import tensorflow as tf

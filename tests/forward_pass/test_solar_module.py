@@ -11,12 +11,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 from click.testing import CliRunner
-from helpers.utils import make_fake_cs_ratio_files
 from rex import Resource
 
 from sup3r import TEST_DATA_DIR
 from sup3r.solar import Solar
 from sup3r.solar.solar_cli import from_config as solar_main
+from sup3r.utilities.pytest.helpers import make_fake_cs_ratio_files
 from sup3r.utilities.utilities import pd_date_range
 
 NSRDB_FP = os.path.join(TEST_DATA_DIR, 'test_nsrdb_clearsky_2018.h5')

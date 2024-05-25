@@ -6,10 +6,8 @@ import logging
 
 import numpy as np
 
-from sup3r.containers import (
-    BatchHandler,
-    DataCentricSampler,
-)
+from sup3r.containers.batchers.factory import BatchHandler
+from sup3r.containers.samplers.dc import DataCentricSampler
 
 np.random.seed(42)
 

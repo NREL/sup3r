@@ -1,11 +1,11 @@
 """Smoke tests for batcher objects. Just make sure things run without errors"""
 
+import numpy as np
 import pytest
 from rex import init_logger
 
 from sup3r.containers import (
     BatchHandler,
-    BatchQueue,
     DualBatchQueue,
     DualContainer,
     DualSampler,
@@ -38,9 +38,8 @@ def test_not_enough_stats_for_batch_queue():
     coarsen_kwargs = {'smoothing_ignore': [], 'smoothing': None}
 
     with pytest.raises(AssertionError):
-        _ = BatchQueue(
-            train_samplers=samplers,
-            val_samplers=[],
+        _ = SingleBatchQueue(
+            samplers=samplers,
             n_batches=3,
             batch_size=4,
             s_enhance=2,
@@ -62,9 +61,8 @@ def test_batch_queue():
         DummySampler(sample_shape, data_shape=(12, 12, 15), features=FEATURES),
     ]
     coarsen_kwargs = {'smoothing_ignore': [], 'smoothing': None}
-    batcher = BatchQueue(
-        train_samplers=samplers,
-        val_samplers=[],
+    batcher = SingleBatchQueue(
+        samplers=samplers,
         n_batches=3,
         batch_size=4,
         s_enhance=2,
@@ -75,6 +73,7 @@ def test_batch_queue():
         max_workers=1,
         coarsen_kwargs=coarsen_kwargs,
     )
+    batcher.start()
     assert len(batcher) == 3
     for b in batcher:
         assert b.low_res.shape == (4, 4, 4, 5, len(FEATURES))
@@ -97,7 +96,7 @@ def test_spatial_batch_queue():
         DummySampler(sample_shape, data_shape=(12, 12, 15), features=FEATURES),
     ]
     batcher = SingleBatchQueue(
-        train_samplers=samplers,
+        samplers=samplers,
         s_enhance=s_enhance,
         t_enhance=t_enhance,
         n_batches=n_batches,
@@ -108,6 +107,7 @@ def test_spatial_batch_queue():
         max_workers=1,
         coarsen_kwargs=coarsen_kwargs,
     )
+    batcher.start()
     assert len(batcher) == 3
     for b in batcher:
         assert b.low_res.shape == (
@@ -151,7 +151,7 @@ def test_dual_batch_queue():
         for lr, hr in zip(lr_containers, hr_containers)
     ]
     batcher = DualBatchQueue(
-        train_samplers=sampler_pairs,
+        samplers=sampler_pairs,
         s_enhance=2,
         t_enhance=2,
         n_batches=3,
@@ -161,6 +161,7 @@ def test_dual_batch_queue():
         stds=stds,
         max_workers=1,
     )
+    batcher.start()
     assert len(batcher) == 3
     for b in batcher:
         assert b.low_res.shape == (4, *lr_sample_shape, len(FEATURES))
@@ -207,7 +208,7 @@ def test_pair_batch_queue_with_lr_only_features():
     means = dict.fromkeys(lr_features, 0)
     stds = dict.fromkeys(lr_features, 1)
     batcher = DualBatchQueue(
-        train_samplers=sampler_pairs,
+        samplers=sampler_pairs,
         s_enhance=2,
         t_enhance=2,
         n_batches=3,
@@ -217,6 +218,7 @@ def test_pair_batch_queue_with_lr_only_features():
         stds=stds,
         max_workers=1,
     )
+    batcher.start()
     assert len(batcher) == 3
     for b in batcher:
         assert b.low_res.shape == (4, *lr_sample_shape, len(lr_features))
@@ -261,7 +263,7 @@ def test_bad_enhancement_factors():
                 for lr, hr in zip(lr_containers, hr_containers)
             ]
             _ = DualBatchQueue(
-                train_samplers=sampler_pairs,
+                samplers=sampler_pairs,
                 s_enhance=4,
                 t_enhance=6,
                 n_batches=3,
@@ -287,8 +289,8 @@ def test_bad_sample_shapes():
     ]
 
     with pytest.raises(AssertionError):
-        _ = BatchQueue(
-            train_samplers=samplers,
+        _ = SingleBatchQueue(
+            samplers=samplers,
             s_enhance=4,
             t_enhance=6,
             n_batches=3,
@@ -323,15 +325,19 @@ def test_batch_handler_with_validation():
     for b in batcher:
         assert b.low_res.shape == (4, 4, 4, 4, len(FEATURES))
         assert b.high_res.shape == (4, 8, 8, 4, len(FEATURES))
+        assert b.low_res.dtype == np.float32
+        assert b.high_res.dtype == np.float32
 
     assert len(batcher.val_data) == 3
     for b in batcher.val_data:
         assert b.low_res.shape == (4, 4, 4, 4, len(FEATURES))
         assert b.high_res.shape == (4, 8, 8, 4, len(FEATURES))
+        assert b.low_res.dtype == np.float32
+        assert b.high_res.dtype == np.float32
     batcher.stop()
 
 
 if __name__ == '__main__':
-    # test_batch_queue()
-    if True:
+    if False:
         execute_pytest(__file__)
+    test_batch_queue()
