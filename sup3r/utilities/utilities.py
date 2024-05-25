@@ -108,7 +108,7 @@ class Feature:
             suffix = feature.split('_')[-1]
             basename = feature.replace(f'_{suffix}', '')
         else:
-            basename = feature
+            basename = feature.replace('_(.*)', '')
         return basename
 
     @staticmethod
@@ -122,7 +122,7 @@ class Feature:
 
         Returns
         -------
-        float | None
+        int | None
             height to use for interpolation
             in meters
         """

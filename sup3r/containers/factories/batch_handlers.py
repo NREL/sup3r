@@ -15,6 +15,7 @@ from sup3r.containers.base import (
 from sup3r.containers.batchers.base import SingleBatchQueue
 from sup3r.containers.batchers.dual import DualBatchQueue
 from sup3r.containers.collections.stats import StatsCollection
+from sup3r.containers.factories.common import FactoryMeta
 from sup3r.containers.samplers.base import Sampler
 from sup3r.containers.samplers.dual import DualSampler
 from sup3r.utilities.utilities import _get_class_kwargs
@@ -38,7 +39,7 @@ def BatchHandlerFactory(QueueClass, SamplerClass, name='BatchHandler'):
     produce batches without a time dimension.
     """
 
-    class BatchHandler(QueueClass):
+    class BatchHandler(QueueClass, metaclass=FactoryMeta):
         """BatchHandler object built from two lists of class:`Container`
         objects, one with training data and one with validation data. These
         lists will be used to initialize lists of class:`Sampler` objects that
