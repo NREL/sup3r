@@ -28,6 +28,19 @@ features = ['windspeed_100m', 'winddirection_100m']
 init_logger('sup3r', log_level='DEBUG')
 
 
+def test_dim_ordering():
+    """Make sure standard reordering works with dimensions not in the standard
+    list."""
+    input_files = [
+        os.path.join(TEST_DATA_DIR, 'ua_test.nc'),
+        os.path.join(TEST_DATA_DIR, 'va_test.nc'),
+        os.path.join(TEST_DATA_DIR, 'orog_test.nc'),
+        os.path.join(TEST_DATA_DIR, 'zg_test.nc'),
+    ]
+    loader = LoaderNC(input_files)
+    assert loader.dims == ('south_north', 'west_east', 'time', 'level', 'nbnd')
+
+
 def test_lat_inversion():
     """Write temp file with ascending lats and load. Needs to be corrected to
     descending lats."""

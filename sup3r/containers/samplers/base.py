@@ -9,6 +9,7 @@ from warnings import warn
 
 from sup3r.containers.abstract import Data
 from sup3r.containers.base import Container
+from sup3r.containers.common import lowered
 from sup3r.utilities.utilities import uniform_box_sampler, uniform_time_sampler
 
 logger = logging.getLogger(__name__)
@@ -159,7 +160,7 @@ class Sampler(Container):
                 if match:
                     out.append(feature)
             parsed_feats = out
-        return self._lowered(parsed_feats)
+        return lowered(parsed_feats)
 
     @property
     def lr_only_features(self):
@@ -205,4 +206,4 @@ class Sampler(Container):
             logger.error(msg)
             raise RuntimeError(msg)
 
-        return self._lowered(out)
+        return lowered(out)

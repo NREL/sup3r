@@ -1,12 +1,11 @@
 """Test data handler for netcdf climate change data"""
 
 import os
-from tempfile import TemporaryDirectory
 
 import numpy as np
 import pytest
 import xarray as xr
-from rex import Resource
+from rex import Resource, init_logger
 from scipy.spatial import KDTree
 
 from sup3r import TEST_DATA_DIR
@@ -16,6 +15,8 @@ from sup3r.containers import (
 )
 from sup3r.containers.derivers.methods import UWindPowerLaw
 from sup3r.utilities.pytest.helpers import execute_pytest
+
+init_logger('sup3r', log_level='DEBUG')
 
 
 def test_data_handling_nc_cc_power_law(hh=100):
@@ -53,24 +54,12 @@ def test_data_handling_nc_cc():
         ua = np.transpose(fh['ua'][:, -1, ...].values, (1, 2, 0))
         va = np.transpose(fh['va'][:, -1, ...].values, (1, 2, 0))
 
-    with pytest.raises(OSError):
-        _ = DataHandlerNCforCC(
-            input_files,
-            features=['U_100m', 'V_100m'],
-            target=target,
-            shape=(20, 20),
-        )
-    with TemporaryDirectory() as td:
-        fixed_file = os.path.join(td, 'fixed.nc')
-        cc = xr.open_mfdataset(input_files)
-        cc = cc.drop_dims('nbnd')
-        cc.to_netcdf(fixed_file)
-        handler = DataHandlerNCforCC(
-            fixed_file,
-            features=['U_100m', 'V_100m'],
-            target=target,
-            shape=(20, 20),
-        )
+    handler = DataHandlerNCforCC(
+        input_files,
+        features=['U_100m', 'V_100m'],
+        target=target,
+        shape=(20, 20),
+    )
     assert handler.data.shape == (20, 20, 20, 2)
 
     handler = DataHandlerNCforCC(
@@ -81,8 +70,8 @@ def test_data_handling_nc_cc():
     )
 
     assert handler.data.shape == (20, 20, 20, 2)
-    assert np.allclose(ua, handler.data[..., 0])
-    assert np.allclose(va, handler.data[..., 1])
+    assert np.allclose(ua[::-1], handler.data[..., 0])
+    assert np.allclose(va[::-1], handler.data[..., 1])
 
 
 def test_solar_cc():
@@ -138,4 +127,6 @@ def test_solar_cc():
 
 
 if __name__ == '__main__':
-    execute_pytest(__file__)
+    if False:
+        execute_pytest(__file__)
+    test_data_handling_nc_cc()

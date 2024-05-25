@@ -18,6 +18,7 @@ from sup3r.containers.extracters import (
     ExtracterNC,
     ExtracterNCforCC,
 )
+from sup3r.containers.factories.common import FactoryMeta
 from sup3r.containers.loaders import LoaderH5, LoaderNC
 from sup3r.utilities.utilities import _get_class_kwargs
 
@@ -50,7 +51,7 @@ def ExtracterFactory(
         logging.
     """
 
-    class DirectExtracter(ExtracterClass):
+    class DirectExtracter(ExtracterClass, metaclass=FactoryMeta):
         __name__ = name
 
         if BaseLoader is not None:
@@ -99,7 +100,7 @@ def DataHandlerFactory(
         ExtracterClass, LoaderClass, BaseLoader=BaseLoader
     )
 
-    class Handler(Deriver):
+    class Handler(Deriver, metaclass=FactoryMeta):
         __name__ = name
 
         def __init__(self, file_paths, **kwargs):

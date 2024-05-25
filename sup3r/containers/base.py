@@ -7,12 +7,12 @@ import inspect
 import logging
 import pprint
 from typing import Optional
-from warnings import warn
 
 import numpy as np
 import xarray as xr
 
 from sup3r.containers.abstract import Data
+from sup3r.containers.common import lowered
 
 logger = logging.getLogger(__name__)
 
@@ -76,18 +76,6 @@ class Container:
         else:
             self._data = data
 
-    @staticmethod
-    def _lowered(features):
-        out = [f.lower() for f in features]
-        if features != out:
-            msg = (
-                f'Received some upper case features: {features}. '
-                f'Using {out} instead.'
-            )
-            logger.warning(msg)
-            warn(msg)
-        return out
-
     @property
     def features(self):
         """Features in this container."""
@@ -98,7 +86,7 @@ class Container:
     @features.setter
     def features(self, val):
         """Set features in this container."""
-        self._features = self._lowered(val)
+        self._features = lowered(val)
 
     def __getitem__(self, keys):
         """Method for accessing self.data or attributes. keys can optionally

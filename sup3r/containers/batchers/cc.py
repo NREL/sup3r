@@ -8,7 +8,7 @@ import logging
 import numpy as np
 from scipy.ndimage import gaussian_filter
 
-from sup3r.containers.batchers.factory import BatchHandler
+from sup3r.containers.factories.batch_handlers import BatchHandler
 from sup3r.utilities.utilities import (
     nn_fill_array,
     nsrdb_reduce_daily_data,

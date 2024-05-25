@@ -13,7 +13,7 @@ from sup3r.containers.derivers.methods import (
     RegistryH5SolarCC,
     RegistryH5WindCC,
 )
-from sup3r.containers.factory import DataHandlerFactory
+from sup3r.containers.factories.data_handlers import DataHandlerFactory
 from sup3r.utilities.utilities import (
     daily_temporal_coarsening,
 )

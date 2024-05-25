@@ -27,27 +27,6 @@ features = ['windspeed_100m', 'winddirection_100m']
 init_logger('sup3r', log_level='DEBUG')
 
 
-def _height_interp(u, orog, zg):
-    hgt_array = zg - orog[..., None]
-    u_100m = Interpolator.interp_to_level(
-        np.transpose(u, axes=(2, 3, 0, 1)),
-        np.transpose(hgt_array, axes=(2, 3, 0, 1)),
-        levels=[100],
-    )[0]
-    return np.transpose(u_100m, axes=(1, 2, 0))
-
-
-class Interp:
-    """Interp compute method for feature registry."""
-
-    @classmethod
-    def compute(cls, container):
-        """Interpolate u to u_100m."""
-        return _height_interp(
-            container['u'], container['topography'], container['zg']
-        )
-
-
 @pytest.mark.parametrize(
     ['DirectExtracter', 'Deriver', 'shape', 'target'],
     [
@@ -59,10 +38,40 @@ def test_height_interp_nc(DirectExtracter, Deriver, shape, target):
 
     with TemporaryDirectory() as td:
         wind_file = os.path.join(td, 'wind.nc')
+        make_fake_nc_file(wind_file, shape=(10, 10, 20), features=['orog'])
+        level_file = os.path.join(td, 'wind_levs.nc')
         make_fake_nc_file(
-            wind_file,
-            shape=(10, 10, 20),
-            features=['orog']
+            level_file, shape=(10, 10, 20, 3), features=['zg', 'u']
+        )
+
+        derive_features = ['U_100m']
+        no_transform = DirectExtracter(
+            [wind_file, level_file], target=target, shape=shape
+        )
+
+        transform = Deriver(no_transform.data, derive_features)
+
+        hgt_array = no_transform['zg'] - no_transform['topography'][..., None]
+        out = Interpolator.interp_to_level(hgt_array, no_transform['u'], [100])
+
+    assert np.array_equal(out, transform.data['u_100m'])
+
+
+@pytest.mark.parametrize(
+    ['DirectExtracter', 'Deriver', 'shape', 'target'],
+    [
+        (DirectExtracterNC, Deriver, (10, 10), (37.25, -107)),
+    ],
+)
+def test_height_interp_with_single_lev_data_nc(
+    DirectExtracter, Deriver, shape, target
+):
+    """Test that variables can be interpolated with height correctly"""
+
+    with TemporaryDirectory() as td:
+        wind_file = os.path.join(td, 'wind.nc')
+        make_fake_nc_file(
+            wind_file, shape=(10, 10, 20), features=['orog', 'u_10m']
         )
         level_file = os.path.join(td, 'wind_levs.nc')
         make_fake_nc_file(
@@ -77,14 +86,16 @@ def test_height_interp_nc(DirectExtracter, Deriver, shape, target):
         transform = Deriver(
             no_transform.data,
             derive_features,
-            FeatureRegistry={'u_100m': Interp},
         )
 
-        out = _height_interp(
-            orog=no_transform['topography'].compute(),
-            zg=no_transform['zg'].compute(),
-            u=no_transform['u'].compute(),
-        )
+    hgt_array = no_transform['zg'] - no_transform['topography'][..., None]
+    h10 = np.zeros(hgt_array.shape[:-1])[..., None]
+    h10[:] = 10
+    hgt_array = np.concatenate([hgt_array, h10], axis=-1)
+    u = np.concatenate(
+        [no_transform['u'], no_transform['u_10m'][..., None]], axis=-1
+    )
+    out = Interpolator.interp_to_level(hgt_array, u, [100])
 
     assert np.array_equal(out, transform.data['u_100m'])
 

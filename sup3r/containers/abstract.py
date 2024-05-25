@@ -3,11 +3,12 @@ classes which interact with data (e.g. handlers, wranglers, loaders, samplers,
 batchers) are based on."""
 
 import logging
-from warnings import warn
 
 import dask.array as da
 import numpy as np
 import xarray as xr
+
+from sup3r.containers.common import lowered
 
 logger = logging.getLogger(__name__)
 
@@ -36,26 +37,14 @@ class Data:
             raise OSError(msg) from e
         self._features = None
 
-    @staticmethod
-    def _lowered(features):
-        out = [f.lower() for f in features]
-        if features != out:
-            msg = (
-                f'Received some upper case features: {features}. '
-                f'Using {out} instead.'
-            )
-            logger.warning(msg)
-            warn(msg)
-        return out
-
     def enforce_standard_dim_order(self, dset: xr.Dataset):
         """Ensure that data dimensions have a (space, time, ...) or (latitude,
         longitude, time, ...) ordering."""
 
         reordered_vars = {
             var: (
-                self.get_dim_names(dset.data_vars[var]),
-                self._transpose(dset.data_vars[var]).data,
+                self.ordered_dims(dset.data_vars[var].dims),
+                self.transpose(dset.data_vars[var]).data,
             )
             for var in dset.data_vars
         }
@@ -78,18 +67,23 @@ class Data:
         keys = (slice(None),) if keys is None else keys
         slice_kwargs = dict(zip(self.dims, keys))
         features = (
-            self._lowered(features) if features is not None else self.features
+            lowered(features) if features is not None else self.features
         )
         return self.dset[features].isel(**slice_kwargs)
 
-    def get_dim_names(self, data):
-        """Get standard dimension ordering for 2d and 3d+ arrays."""
-        return tuple([dim for dim in self.DIM_ORDER if dim in data.dims])
+    def ordered_dims(self, dims):
+        """Return the order of dims that follows the ordering of self.DIM_ORDER
+        for the common dim names. e.g dims = ('time', 'south_north', 'dummy',
+        'west_east') will return ('south_north', 'west_east', 'time',
+        'dummy')."""
+        standard = [dim for dim in self.DIM_ORDER if dim in dims]
+        non_standard = [dim for dim in dims if dim not in standard]
+        return tuple(standard + non_standard)
 
     @property
     def dims(self):
         """Get ordered dim names for datasets."""
-        return self.get_dim_names(self.dset)
+        return self.ordered_dims(self.dset.dims)
 
     def _dims_with_array(self, arr):
         if len(arr.shape) > 1:
@@ -187,13 +181,14 @@ class Data:
     def __setattr__(self, keys, value):
         self.__dict__[keys] = value
 
-    def __setitem__(self, keys, value):
-        if hasattr(value, 'dims') and len(value.dims) >= 2:
-            self.dset[keys] = (self.get_dim_names(value), value)
-        elif hasattr(value, 'shape'):
-            self.dset[keys] = self._dims_with_array(value)
+    def __setitem__(self, variable, data):
+        variable = variable.lower()
+        if hasattr(data, 'dims') and len(data.dims) >= 2:
+            self.dset[variable] = (self.orered_dims(data.dims), data)
+        elif hasattr(data, 'shape'):
+            self.dset[variable] = self._dims_with_array(data)
         else:
-            self.dset[keys] = value
+            self.dset[variable] = data
 
     @property
     def variables(self):
@@ -211,18 +206,18 @@ class Data:
     @features.setter
     def features(self, val):
         """Set features in this container."""
-        self._features = self._lowered(val)
+        self._features = lowered(val)
 
-    def _transpose(self, data):
+    def transpose(self, data):
         """Transpose arrays so they have a (space, time, ...) or (space, time,
         ..., feature) ordering."""
-        return data.transpose(*self.get_dim_names(data), ...)
+        return data.transpose(*self.ordered_dims(data.dims))
 
     def to_array(self, features=None):
         """Return xr.DataArray of contained xr.Dataset."""
         features = self.features if features is None else features
         return da.moveaxis(
-            self.dset[self._lowered(features)].to_dataarray().data, 0, -1
+            self.dset[lowered(features)].to_dataarray().data, 0, -1
         )
 
     @property

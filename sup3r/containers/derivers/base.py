@@ -5,6 +5,7 @@ import logging
 import re
 from inspect import signature
 
+import dask.array as da
 import numpy as np
 import xarray as xr
 
@@ -13,11 +14,25 @@ from sup3r.containers.base import Container
 from sup3r.containers.derivers.methods import (
     RegistryBase,
 )
-from sup3r.utilities.utilities import Feature, spatial_coarsening
+from sup3r.utilities.interpolation import Interpolator
+from sup3r.utilities.utilities import spatial_coarsening
 
 np.random.seed(42)
 
 logger = logging.getLogger(__name__)
+
+
+def parse_feature(feature):
+    """Parse feature name to get the "basename" (i.e. U for U_100m), the height
+    (100 for U_100m), and pressure if available (1000 for U_1000pa)."""
+
+    class FStruct:
+        fend = feature.split('_')[-1]
+        basename = '_'.join(feature.split('_')[:-1]).lower()
+        height = None if not fend or fend[-1] != 'm' else int(fend[:-1])
+        pressure = None if not fend or fend[-2:] != 'pa' else int(fend[:-2])
+
+    return FStruct
 
 
 class BaseDeriver(Container):
@@ -50,50 +65,80 @@ class BaseDeriver(Container):
 
         super().__init__(data=data)
         for f in features:
-            self.data[f.lower()] = self.derive(f.lower())
+            self.data[f] = self.derive(f)
         self.data = self.data.slice_dset(features=features)
 
     def _check_for_compute(self, feature):
         """Get compute method from the registry if available. Will check for
         pattern feature match in feature registry. e.g. if U_100m matches a
         feature registry entry of U_(.*)m
-
-        Notes
-        -----
-        Features are all saved as lower case names and __contains__ checks will
-        use feature.lower()
         """
         for pattern in self.FEATURE_REGISTRY:
             if re.match(pattern.lower(), feature.lower()):
                 method = self.FEATURE_REGISTRY[pattern]
                 if isinstance(method, str):
-                    return self._check_for_compute(method)
+                    return method
                 compute = method.compute
                 params = signature(compute).parameters
+                fstruct = parse_feature(feature)
                 kwargs = {
-                    k: getattr(Feature(feature), k)
+                    k: getattr(fstruct, k)
                     for k in params
-                    if hasattr(Feature(feature), k)
+                    if hasattr(fstruct, k)
                 }
                 return compute(self.data, **kwargs)
         return None
+
+    def map_new_name(self, feature, pattern):
+        """If the search for a derivation method first finds an alternative
+        name for the feature we want to derive, by matching a wildcard pattern,
+        we need to replace the wildcard with the specific height or pressure we
+        want and continue the search for a derivation method with this new
+        name."""
+        fstruct = parse_feature(feature)
+        pstruct = parse_feature(pattern)
+        if fstruct.height is not None:
+            new_feature = pstruct.basename + f'_{fstruct.height}m'
+        elif fstruct.pressure is not None:
+            new_feature = pstruct.basename + f'_{fstruct.pressure}pa'
+        else:
+            new_feature = pattern
+        logger.debug(
+            f'Found alternative name {new_feature} for '
+            f'feature {feature}. Continuing with search for '
+            f'compute method for {new_feature}.'
+        )
+        return new_feature
 
     def derive(self, feature):
         """Routine to derive requested features. Employs a little recursion to
         locate differently named features with a name map in the feture
         registry. i.e. if  `FEATURE_REGISTRY` containers a key, value pair like
         "windspeed": "wind_speed" then requesting "windspeed" will ultimately
-        return a compute method (or fetch from raw data) for "wind_speed"""
+        return a compute method (or fetch from raw data) for "wind_speed
+
+        Notes
+        -----
+        Features are all saved as lower case names and __contains__ checks will
+        use feature.lower()
+        """
+
+        fstruct = parse_feature(feature)
         if feature not in self.data.variables:
+            if fstruct.basename in self.data.variables:
+                logger.debug(f'Attempting level interpolation for {feature}.')
+                return self.do_level_interpolation(feature)
+
             compute_check = self._check_for_compute(feature)
             if compute_check is not None and isinstance(compute_check, str):
-                logger.debug(f'Found alternative name {compute_check} for '
-                             f'feature {feature}. Continuing with search for '
-                             'compute method.')
-                return self.compute[compute_check]
+                new_feature = self.map_new_name(feature, compute_check)
+                return self.derive(new_feature)
+
             if compute_check is not None:
-                logger.debug(f'Found compute method for {feature}. Proceeding '
-                             'with derivation.')
+                logger.debug(
+                    f'Found compute method for {feature}. Proceeding '
+                    'with derivation.'
+                )
                 return compute_check
             msg = (
                 f'Could not find {feature} in contained data or in the '
@@ -102,6 +147,81 @@ class BaseDeriver(Container):
             logger.error(msg)
             raise RuntimeError(msg)
         return self.data[feature]
+
+    def add_single_level_data(self, feature, lev_array, var_array):
+        """When doing level interpolation we should include the single level
+        data available. e.g. If we have U_100m already and want to
+        interpolation U_40m from multi-level data U we should add U_100m at
+        height 100m before doing interpolation since 100 could be a closer
+        level to 40m than those available in U."""
+        fstruct = parse_feature(feature)
+        pattern = fstruct.basename + '_(.*)'
+        var_list = []
+        lev_list = []
+        for f in self.data.variables:
+            if re.match(pattern.lower(), f):
+                var_list.append(self.data[f])
+                pstruct = parse_feature(f)
+                lev = (
+                    pstruct.height
+                    if pstruct.height is not None
+                    else pstruct.pressure
+                )
+                lev_list.append(lev)
+
+        if len(var_list) > 0:
+            var_array = da.concatenate(
+                [var_array, da.stack(var_list, axis=-1)], axis=-1
+            )
+            lev_array = da.concatenate(
+                [lev_array, self._shape_lev_data(lev_list, var_array.shape)],
+                axis=-1,
+            )
+        return lev_array, var_array
+
+    def _shape_lev_data(self, levels, shape):
+        """Convert list / 1D array of levels into array with shape (lat, lon,
+        time, levels)."""
+        lev_array = da.from_array(levels)
+        lev_array = da.repeat(lev_array[None], shape[2], axis=0)
+        lev_array = da.repeat(lev_array[None], shape[1], axis=0)
+        lev_array = da.repeat(lev_array[None], shape[0], axis=0)
+        return lev_array
+
+    def do_level_interpolation(self, feature):
+        """Interpolate over height or pressure to derive the given feature."""
+        fstruct = parse_feature(feature)
+        var_array = self.data[fstruct.basename]
+        if fstruct.height is not None:
+            level = [fstruct.height]
+            msg = (
+                f'To interpolate {fstruct.basename} to {feature} the loaded '
+                'data needs to include "zg" and "topography".'
+            )
+            assert (
+                'zg' in self.data.variables
+                and 'topography' in self.data.variables
+            ), msg
+            lev_array = self.data['zg'] - self.data['topography'][..., None]
+        else:
+            level = [fstruct.pressure]
+            msg = (
+                f'To interpolate {fstruct.basename} to {feature} the loaded '
+                'data needs to include "level" (a.k.a pressure at multiple '
+                'levels).'
+            )
+            assert 'level' in self.data.dset, msg
+            lev_array = self._shape_lev_data(
+                self.data['level'], var_array.shape
+            )
+
+        lev_array, var_array = self.add_single_level_data(
+            feature, lev_array, var_array
+        )
+        out = Interpolator.interp_to_level(
+            lev_array=lev_array, var_array=var_array, level=level
+        )
+        return out
 
 
 class Deriver(BaseDeriver):
@@ -140,7 +260,7 @@ class Deriver(BaseDeriver):
             for feat in self.features:
                 dat = self.data[feat]
                 data_vars[feat] = (
-                    (self.dims[:len(dat.shape)]),
+                    (self.dims[: len(dat.shape)]),
                     spatial_coarsening(
                         dat,
                         s_enhance=hr_spatial_coarsen,

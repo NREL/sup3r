@@ -25,7 +25,7 @@ class LoaderNC(Loader):
         return xr.open_mfdataset(file_paths, **kwargs)
 
     def enforce_descending_lats(self, dset):
-        """Make sure latitudes are in descneding order so that min lat / lon is
+        """Make sure latitudes are in descending order so that min lat / lon is
         at lat_lon[-1, 0]."""
         invert_lats = dset['latitude'][-1, 0] > dset['latitude'][0, 0]
         if invert_lats:
@@ -34,6 +34,19 @@ class LoaderNC(Loader):
                     dset[var] = (
                         dset[var].dims,
                         dset[var].sel(south_north=slice(None, None, -1)).data,
+                    )
+        return dset
+
+    def enforce_descending_levels(self, dset):
+        """Make sure levels are in descending order so that max pressure is at
+        level[0]."""
+        invert_levels = dset['level'][-1] > dset['level'][0]
+        if invert_levels:
+            for var in list(dset.data_vars):
+                if 'level' in dset[var].dims:
+                    dset[var] = (
+                        dset[var].dims,
+                        dset[var].sel(level=slice(None, None, -1)).data,
                     )
         return dset
 
@@ -50,17 +63,17 @@ class LoaderNC(Loader):
         if len(lats.shape) == 1:
             lons, lats = da.meshgrid(lons, lats)
 
-        out = res.assign_coords(
-            {
+        coords = {
                 'latitude': (('south_north', 'west_east'), lats),
                 'longitude': (('south_north', 'west_east'), lons),
                 'time': times,
             }
-        )
+        out = res.assign_coords(coords)
         out = out.drop_vars(('south_north', 'west_east'))
         if isinstance(self.chunks, tuple):
             chunks = dict(
                 zip(['south_north', 'west_east', 'time', 'level'], self.chunks)
             )
             out = out.chunk(chunks)
-        return self.enforce_descending_lats(out).astype(np.float32)
+        out = self.enforce_descending_lats(out)
+        return self.enforce_descending_levels(out).astype(np.float32)

@@ -38,7 +38,6 @@ class Loader(Container, ABC):
         features='all',
         res_kwargs=None,
         chunks='auto',
-        mode='lazy',
     ):
         """
         Parameters
@@ -55,15 +54,12 @@ class Loader(Container, ABC):
             Tuple of chunk sizes to use for call to dask.array.from_array().
             Note: The ordering here corresponds to the default ordering given
             by `.res`.
-        mode : str
-            Options are ('lazy', 'eager') for how to load data.
         """
         super().__init__()
         self._res = None
         self._data = None
         self.res_kwargs = res_kwargs or {}
         self.file_paths = file_paths
-        self.mode = mode
         self.chunks = chunks
         self.res = self.BASE_LOADER(self.file_paths, **self.res_kwargs)
         self.data = self._standardize(self.load(), self.FEATURE_NAMES).astype(
@@ -85,17 +81,6 @@ class Loader(Container, ABC):
             {k: v for k, v in standard_names.items() if k in data}
         )
         return data
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_value, trace):
-        self.close()
-
-    def close(self):
-        """Close `self.res`."""
-        self.res.close()
-        self.data.close()
 
     @property
     def file_paths(self):
@@ -123,8 +108,7 @@ class Loader(Container, ABC):
 
     @abstractmethod
     def load(self):
-        """xarray.DataArray features in last dimension. Either lazily loaded
-        (mode = 'lazy') or loaded into memory right away (mode = 'eager').
+        """xarray.DataArray features in last dimension.
 
         Returns
         -------
