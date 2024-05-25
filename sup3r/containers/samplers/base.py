@@ -49,8 +49,8 @@ class Sampler(Container):
         self._hr_exo_features = feature_sets.get('hr_exo_features', [])
         self._counter = 0
         self.sample_shape = sample_shape
-        self.lr_features = self.features
-        self.hr_features = self.features
+        self.lr_features = data.features
+        self.hr_features = data.features
         self.preflight()
 
     def get_sample_index(self):
@@ -159,7 +159,7 @@ class Sampler(Container):
                 if match:
                     out.append(feature)
             parsed_feats = out
-        return [f.lower() for f in parsed_feats]
+        return self._lowered(parsed_feats)
 
     @property
     def lr_only_features(self):
@@ -205,4 +205,4 @@ class Sampler(Container):
             logger.error(msg)
             raise RuntimeError(msg)
 
-        return out
+        return self._lowered(out)

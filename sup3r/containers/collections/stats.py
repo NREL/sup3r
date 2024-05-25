@@ -23,13 +23,25 @@ class StatsCollection(Collection):
     We write stats as float64 because float32 is not json serializable
     """
 
-    def __init__(
-        self, containers: List[Extracter], means_file=None, stds_file=None
-    ):
+    def __init__(self, containers: List[Extracter], means=None, stds=None):
+        """
+        Parameters
+        ----------
+        containers: List[Extracter]
+            List of containers to compute stats for.
+        means : str | dict | None
+            Usually a file path for saving results, or None for just
+            calculating stats and not saving. Can also be a dict, which will
+            just get returned as the "result".
+        stds : str | dict | None
+            Usually a file path for saving results, or None for just
+            calculating stats and not saving. Can also be a dict, which will
+            just get returned as the "result".
+        """
         super().__init__(containers)
-        self.means = self.get_means(means_file)
-        self.stds = self.get_stds(stds_file)
-        self.save_stats(stds_file=stds_file, means_file=means_file)
+        self.means = self.get_means(means)
+        self.stds = self.get_stds(stds)
+        self.save_stats(stds=stds, means=means)
 
     @staticmethod
     def container_mean(container, feature):
@@ -47,43 +59,57 @@ class StatsCollection(Collection):
             return container.data[0][feature].std()
         return container.data[feature].std()
 
-    def get_means(self, means_file):
+    def get_means(self, means):
         """Dictionary of means for each feature, computed across all data
         handlers."""
-        if means_file is None or not os.path.exists(means_file):
+        if means is None or (
+            isinstance(means, str) and not os.path.exists(means)
+        ):
             means = {}
             for f in self.containers[0].features:
                 cmeans = [
                     w * self.container_mean(c, f)
                     for c, w in zip(self.containers, self.container_weights)
                 ]
-                means[f] = np.float64(np.sum(cmeans))
-        else:
-            means = safe_json_load(means_file)
+                means[f] = np.float32(np.sum(cmeans))
+        elif isinstance(means, str):
+            means = safe_json_load(means)
         return means
 
-    def get_stds(self, stds_file):
+    def get_stds(self, stds):
         """Dictionary of standard deviations for each feature, computed across
         all data handlers."""
-        if stds_file is None or not os.path.exists(stds_file):
+        if stds is None or (
+            isinstance(stds, str) and not os.path.exists(stds)
+        ):
             stds = {}
             for f in self.containers[0].features:
                 cstds = [
                     w * self.container_std(c, f) ** 2
                     for c, w in zip(self.containers, self.container_weights)
                 ]
-                stds[f] = np.float64(np.sqrt(np.sum(cstds)))
-        else:
-            stds = safe_json_load(stds_file)
+                stds[f] = np.float32(np.sqrt(np.sum(cstds)))
+        elif isinstance(stds, str):
+            stds = safe_json_load(stds)
         return stds
 
-    def save_stats(self, stds_file, means_file):
+    def save_stats(self, stds, means):
         """Save stats to json files."""
-        if stds_file is not None and not os.path.exists(stds_file):
-            with open(stds_file, 'w') as f:
-                f.write(json.dumps(self.stds))
-                logger.info(f'Saved standard deviations to {stds_file}.')
-        if means_file is not None and not os.path.exists(means_file):
-            with open(means_file, 'w') as f:
-                f.write(json.dumps(self.means))
-                logger.info(f'Saved means to {means_file}.')
+        if isinstance(stds, str) and not os.path.exists(stds):
+            with open(stds, 'w') as f:
+                f.write(
+                    json.dumps(
+                        {k: np.float64(v) for k, v in self.stds.items()}
+                    )
+                )
+                logger.info(
+                    f'Saved standard deviations {self.stds} to {stds}.'
+                )
+        if isinstance(means, str) and not os.path.exists(means):
+            with open(means, 'w') as f:
+                f.write(
+                    json.dumps(
+                        {k: np.float64(v) for k, v in self.means.items()}
+                    )
+                )
+                logger.info(f'Saved means {self.means} to {means}.')

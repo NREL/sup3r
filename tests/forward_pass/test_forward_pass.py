@@ -11,9 +11,9 @@ import xarray as xr
 from rex import ResourceX, init_logger
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR, __version__
+from sup3r.containers import DataHandlerNC
 from sup3r.models import Sup3rGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
-from sup3r.preprocessing import DataHandlerNC
 from sup3r.utilities.pytest.helpers import (
     execute_pytest,
     make_fake_multi_time_nc_files,
@@ -61,17 +61,13 @@ def test_fwp_nc_cc(log=False):
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
 
-        cache_pattern = os.path.join(td, 'cache')
         out_files = os.path.join(td, 'out_{file_id}.nc')
         # 1st forward pass
         max_workers = 1
         input_handler_kwargs = dict(
             target=target,
             shape=shape,
-            time_slice=time_slice,
-            cache_pattern=cache_pattern,
-            overwrite_cache=True,
-            worker_kwargs=dict(max_workers=max_workers))
+            time_slice=time_slice)
         handler = ForwardPassStrategy(
             input_files,
             model_kwargs={'model_dir': out_dir},
@@ -80,7 +76,6 @@ def test_fwp_nc_cc(log=False):
             temporal_pad=1,
             input_handler_kwargs=input_handler_kwargs,
             out_pattern=out_files,
-            worker_kwargs=dict(max_workers=max_workers),
             input_handler='DataHandlerNCforCC')
         forward_pass = ForwardPass(handler)
         assert forward_pass.output_workers == max_workers

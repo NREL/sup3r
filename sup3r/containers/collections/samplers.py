@@ -18,11 +18,11 @@ class SamplerCollection(Collection):
 
     def __init__(
         self,
-        containers: Union[List[Sampler], List[DualSampler]],
+        samplers: Union[List[Sampler], List[DualSampler]],
         s_enhance,
         t_enhance,
     ):
-        super().__init__(containers)
+        super().__init__(containers=samplers)
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
         self.set_attrs()
@@ -41,6 +41,7 @@ class SamplerCollection(Collection):
             'hr_sample_shape',
             'sample_shape'
         ]:
+
             if hasattr(self.containers[0], attr):
                 setattr(self, attr, getattr(self.containers[0], attr))
 

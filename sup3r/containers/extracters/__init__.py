@@ -6,6 +6,7 @@ objects, which derive new features from the data contained in
 :class:`Extracter` objects."""
 
 from .base import Extracter
+from .cc import ExtracterNCforCC
 from .dual import DualExtracter
 from .h5 import ExtracterH5
 from .nc import ExtracterNC

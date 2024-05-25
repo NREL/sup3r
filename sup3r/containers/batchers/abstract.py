@@ -45,7 +45,13 @@ class Batch:
 class AbstractBatchQueue(SamplerCollection, ABC):
     """Abstract BatchQueue class. This class gets batches from a dataset
     generator and maintains a queue of normalized batches in a dedicated thread
-    so the training routine can proceed as soon as batches as available."""
+    so the training routine can proceed as soon as batches as available.
+
+    Notes
+    -----
+    If using a batch queue directly, rather than a :class:`BatchHandler` you
+    will need to manually start the queue thread with self.start()
+    """
 
     BATCH_CLASS = Batch
 
@@ -106,26 +112,30 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         self._sample_counter = 0
         self._batch_counter = 0
         self._batches = None
-        self._stopped = threading.Event()
+        self.batch_size = batch_size
+        self.n_batches = n_batches
+        self.queue_cap = queue_cap or n_batches
+        self.max_workers = max_workers or batch_size
+        self.run_queue = threading.Event()
         self.means = (
             means if isinstance(means, dict) else safe_json_load(means)
         )
         self.stds = stds if isinstance(stds, dict) else safe_json_load(stds)
         self.container_index = self.get_container_index()
-        self.batch_size = batch_size
-        self.n_batches = n_batches
-        self.queue_cap = queue_cap or n_batches
         self.queue_thread = threading.Thread(
             target=self.enqueue_batches,
-            args=(self._stopped,),
+            args=(self.run_queue,),
             name=thread_name,
         )
         self.queue = self.get_queue()
-        self.max_workers = max_workers or batch_size
         self.gpu_list = tf.config.list_physical_devices('GPU')
         self.default_device = default_device or (
             '/cpu:0' if len(self.gpu_list) == 0 else '/gpu:0'
         )
+        self.preflight()
+
+    def preflight(self):
+        """Get data generator and run checks before kicking off the queue."""
         self.data = self.get_data_generator()
         self.check_stats()
         self.check_features()
@@ -173,7 +183,7 @@ class AbstractBatchQueue(SamplerCollection, ABC):
 
     def generator(self):
         """Generator over batches, which are composed of data samples."""
-        while True and not self._stopped.is_set():
+        while True and self.run_queue.is_set():
             idx = self._sample_counter
             self._sample_counter += 1
             yield self[idx]
@@ -251,7 +261,7 @@ class AbstractBatchQueue(SamplerCollection, ABC):
     def start(self) -> None:
         """Start thread to keep sample queue full for batches."""
         logger.info(f'Starting {self.queue_thread.name} queue.')
-        self._stopped.clear()
+        self.run_queue.set()
         self.queue_thread.start()
 
     def join(self) -> None:
@@ -264,7 +274,7 @@ class AbstractBatchQueue(SamplerCollection, ABC):
     def stop(self) -> None:
         """Stop loading batches."""
         logger.info(f'Stopping {self.queue_thread.name} queue.')
-        self._stopped.set()
+        self.run_queue.clear()
         self.join()
 
     def __len__(self):
@@ -274,29 +284,36 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         self._batch_counter = 0
         return self
 
-    def enqueue_batches(self, stopped) -> None:
+    def enqueue_batches(self, run_queue: threading.Event) -> None:
         """Callback function for queue thread. While training the queue is
         checked for empty spots and filled. In the training thread, batches are
         removed from the queue."""
-        while not stopped.is_set():
-            queue_size = self.queue.size().numpy()
-            if queue_size < self.queue_cap:
-                if queue_size == 1:
-                    msg = f'1 batch in {self.queue_thread.name} queue'
-                else:
-                    msg = (
-                        f'{queue_size} batches in {self.queue_thread.name} '
-                        'queue.'
-                    )
-                logger.debug(msg)
+        try:
+            while run_queue.is_set():
+                queue_size = self.queue.size().numpy()
+                if queue_size < self.queue_cap:
+                    if queue_size == 1:
+                        msg = f'1 batch in {self.queue_thread.name} queue'
+                    else:
+                        msg = (
+                            f'{queue_size} batches in '
+                            f'{self.queue_thread.name} queue.'
+                        )
+                    logger.debug(msg)
 
-                batch = next(self.batches, None)
-                if batch is not None:
-                    self.queue.enqueue(batch)
+                    batch = next(self.batches, None)
+                    if batch is not None:
+                        self.queue.enqueue(batch)
+        except KeyboardInterrupt:
+            logger.info(
+                f'Attempting to stop {self.queue.thread.name} ' 'batch queue.'
+            )
+            self.stop()
 
     def get_next(self) -> Batch:
         """Get next batch. This removes sets of samples from the queue and
-        wraps them in the simple Batch class.
+        wraps them in the simple Batch class. This also removes the time
+        dimension from samples for batches for spatial models
 
         Returns
         -------
@@ -338,22 +355,30 @@ class AbstractBatchQueue(SamplerCollection, ABC):
     @property
     def lr_means(self):
         """Means specific to the low-res objects in the Containers."""
-        return np.array([self.means[k] for k in self.lr_features])
+        return np.array([self.means[k] for k in self.lr_features]).astype(
+            np.float32
+        )
 
     @property
     def hr_means(self):
         """Means specific the high-res objects in the Containers."""
-        return np.array([self.means[k] for k in self.hr_features])
+        return np.array([self.means[k] for k in self.hr_features]).astype(
+            np.float32
+        )
 
     @property
     def lr_stds(self):
         """Stdevs specific the low-res objects in the Containers."""
-        return np.array([self.stds[k] for k in self.lr_features])
+        return np.array([self.stds[k] for k in self.lr_features]).astype(
+            np.float32
+        )
 
     @property
     def hr_stds(self):
         """Stdevs specific the high-res objects in the Containers."""
-        return np.array([self.stds[k] for k in self.hr_features])
+        return np.array([self.stds[k] for k in self.hr_features]).astype(
+            np.float32
+        )
 
     @staticmethod
     def _normalize(array, means, stds):

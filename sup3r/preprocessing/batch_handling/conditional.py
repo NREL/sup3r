@@ -748,21 +748,14 @@ class BatchHandlerMom1(BatchHandler):
         batch_size=8,
         s_enhance=3,
         t_enhance=1,
-        means=None,
-        stds=None,
         norm=True,
+        stds=None,
+        means=None,
         n_batches=10,
         temporal_coarsening_method='subsample',
         temporal_enhancing_method='constant',
-        stdevs_file=None,
-        means_file=None,
-        overwrite_stats=False,
         smoothing=None,
         smoothing_ignore=None,
-        stats_workers=None,
-        norm_workers=None,
-        load_workers=None,
-        max_workers=None,
         model_mom1=None,
         s_padding=None,
         t_padding=None,
@@ -810,9 +803,9 @@ class BatchHandlerMom1(BatchHandler):
             between landmarks.
             linear will linearly interpolate between landmarks to generate the
             low-res data to remove from the high-res.
-        stdevs_file : str | None
+        stds : str | None
             Path to stdevs data or where to save data after calling get_stats
-        means_file : str | None
+        means : str | None
             Path to means data or where to save data after calling get_stats
         overwrite_stats : bool
             Whether to overwrite stats cache files.
@@ -879,8 +872,8 @@ class BatchHandlerMom1(BatchHandler):
         self.temporal_enhancing_method = temporal_enhancing_method
         self.current_batch_indices = None
         self.current_handler_index = None
-        self.stdevs_file = stdevs_file
-        self.means_file = means_file
+        self.stds = stds
+        self.means = means
         self.overwrite_stats = overwrite_stats
         self.smoothing = smoothing
         self.smoothing_ignore = smoothing_ignore or []

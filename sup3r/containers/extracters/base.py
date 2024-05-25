@@ -80,7 +80,7 @@ class Extracter(Container, ABC):
         """Return the true value based on the closest lat lon instead of the
         user provided value self._target, which is used to find the closest lat
         lon."""
-        return self.lat_lon[0, 0]
+        return self.lat_lon[-1, 0]
 
     @property
     def grid_shape(self):

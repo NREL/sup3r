@@ -1,7 +1,6 @@
 """data preprocessing module"""
 
 from .batch_handling import (
-    BatchHandlerCC,
     BatchHandlerMom1,
     BatchHandlerMom1SF,
     BatchHandlerMom2,

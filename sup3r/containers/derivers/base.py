@@ -84,15 +84,20 @@ class BaseDeriver(Container):
         registry. i.e. if  `FEATURE_REGISTRY` containers a key, value pair like
         "windspeed": "wind_speed" then requesting "windspeed" will ultimately
         return a compute method (or fetch from raw data) for "wind_speed"""
-        if feature not in self.data:
+        if feature not in self.data.variables:
             compute_check = self._check_for_compute(feature)
             if compute_check is not None and isinstance(compute_check, str):
+                logger.debug(f'Found alternative name {compute_check} for '
+                             f'feature {feature}. Continuing with search for '
+                             'compute method.')
                 return self.compute[compute_check]
             if compute_check is not None:
+                logger.debug(f'Found compute method for {feature}. Proceeding '
+                             'with derivation.')
                 return compute_check
             msg = (
                 f'Could not find {feature} in contained data or in the '
-                'FeatureRegistry.'
+                'available compute methods.'
             )
             logger.error(msg)
             raise RuntimeError(msg)

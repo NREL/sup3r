@@ -4,7 +4,7 @@ Sup3r batch_handling module.
 """
 
 import logging
-from typing import List, Union
+from typing import Dict, List, Optional, Union
 
 import numpy as np
 
@@ -14,6 +14,7 @@ from sup3r.containers.base import (
 )
 from sup3r.containers.batchers.base import SingleBatchQueue
 from sup3r.containers.batchers.dual import DualBatchQueue
+from sup3r.containers.collections.stats import StatsCollection
 from sup3r.containers.samplers.base import Sampler
 from sup3r.containers.samplers.dual import DualSampler
 from sup3r.utilities.utilities import _get_class_kwargs
@@ -46,11 +47,14 @@ def BatchHandlerFactory(QueueClass, SamplerClass, name='BatchHandler'):
         Notes
         -----
         These lists of containers can contain data from the same underlying
-        data source (e.g. CONUS WTK) (by using `CroppedSampler(...,
-        crop_slice=crop_slice)` with `crop_slice` selecting different time
-        periods to prevent cross-contamination), or they can be used to sample
-        from completely different data sources (e.g. train on CONUS WTK while
-        validating on Canada WTK)."""
+        data source (e.g. CONUS WTK) (e.g. initialize train / val containers
+        with different time period and / or regions.  , or they can be used to
+        sample from completely different data sources (e.g. train on CONUS WTK
+        while validating on Canada WTK).
+
+        `.start()` is called upon initialization. Maybe should remove this and
+        require manual start.
+        """
 
         SAMPLER = SamplerClass
 
@@ -60,9 +64,18 @@ def BatchHandlerFactory(QueueClass, SamplerClass, name='BatchHandler'):
             self,
             train_containers: Union[List[Container], List[DualContainer]],
             val_containers: Union[List[Container], List[DualContainer]],
+            batch_size,
+            n_batches,
+            s_enhance=1,
+            t_enhance=1,
+            means: Optional[Union[Dict, str]] = None,
+            stds: Optional[Union[Dict, str]] = None,
             **kwargs,
         ):
-            sampler_kwargs = _get_class_kwargs(SamplerClass, kwargs)
+            sampler_kwargs = _get_class_kwargs(
+                SamplerClass,
+                {'s_enhance': s_enhance, 't_enhance': t_enhance, **kwargs},
+            )
             queue_kwargs = _get_class_kwargs(QueueClass, kwargs)
 
             train_samplers = [
@@ -77,17 +90,35 @@ def BatchHandlerFactory(QueueClass, SamplerClass, name='BatchHandler'):
                 ]
             )
 
+            stats = StatsCollection(
+                [*train_containers, *val_containers],
+                means=means,
+                stds=stds,
+            )
+
             if not val_samplers:
                 self.val_data: Union[List, SingleBatchQueue] = []
             else:
                 self.val_data = QueueClass(
                     samplers=val_samplers,
+                    batch_size=batch_size,
+                    n_batches=n_batches,
+                    s_enhance=s_enhance,
+                    t_enhance=t_enhance,
+                    means=stats.means,
+                    stds=stats.stds,
                     thread_name='validation',
                     **queue_kwargs,
                 )
 
             super().__init__(
                 samplers=train_samplers,
+                batch_size=batch_size,
+                n_batches=n_batches,
+                s_enhance=s_enhance,
+                t_enhance=t_enhance,
+                means=stats.means,
+                stds=stats.stds,
                 **queue_kwargs,
             )
             self.start()

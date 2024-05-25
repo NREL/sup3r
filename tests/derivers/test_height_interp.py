@@ -4,7 +4,6 @@
 import os
 from tempfile import TemporaryDirectory
 
-import dask.array as da
 import numpy as np
 import pytest
 from rex import init_logger
@@ -29,20 +28,24 @@ init_logger('sup3r', log_level='DEBUG')
 
 
 def _height_interp(u, orog, zg):
-    hgt_array = zg - orog
+    hgt_array = zg - orog[..., None]
     u_100m = Interpolator.interp_to_level(
         np.transpose(u, axes=(2, 3, 0, 1)),
         np.transpose(hgt_array, axes=(2, 3, 0, 1)),
         levels=[100],
-    )[..., None]
-    return np.transpose(u_100m, axes=(1, 2, 0, 3))
+    )[0]
+    return np.transpose(u_100m, axes=(1, 2, 0))
 
 
-def height_interp(container):
-    """Interpolate u to u_100m."""
-    return _height_interp(
-        container['u'], container['topography'], container['zg']
-    )
+class Interp:
+    """Interp compute method for feature registry."""
+
+    @classmethod
+    def compute(cls, container):
+        """Interpolate u to u_100m."""
+        return _height_interp(
+            container['u'], container['topography'], container['zg']
+        )
 
 
 @pytest.mark.parametrize(
@@ -72,18 +75,18 @@ def test_height_interp_nc(DirectExtracter, Deriver, shape, target):
         )
 
         transform = Deriver(
-            no_transform,
+            no_transform.data,
             derive_features,
-            FeatureRegistry={'u_100m': height_interp},
+            FeatureRegistry={'u_100m': Interp},
         )
 
         out = _height_interp(
-            orog=no_transform['topography'],
-            zg=no_transform['zg'],
-            u=no_transform['u'],
+            orog=no_transform['topography'].compute(),
+            zg=no_transform['zg'].compute(),
+            u=no_transform['u'].compute(),
         )
 
-    assert da.map_blocks(lambda x, y: x == y, out, transform.data).all()
+    assert np.array_equal(out, transform.data['u_100m'])
 
 
 if __name__ == '__main__':

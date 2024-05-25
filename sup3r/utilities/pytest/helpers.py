@@ -10,7 +10,7 @@ import xarray as xr
 
 from sup3r.containers.abstract import Data
 from sup3r.containers.base import Container
-from sup3r.containers.samplers import CroppedSampler, Sampler
+from sup3r.containers.samplers import Sampler
 from sup3r.postprocessing.file_handling import OutputHandlerH5
 from sup3r.utilities.utilities import pd_date_range
 
@@ -86,26 +86,6 @@ class DummySampler(Sampler):
     def __init__(self, sample_shape, data_shape, features, feature_sets=None):
         data = make_fake_dset(data_shape, features=features)
         super().__init__(Data(data), sample_shape, feature_sets=feature_sets)
-
-
-class DummyCroppedSampler(CroppedSampler):
-    """Dummy container with random data."""
-
-    def __init__(
-        self,
-        sample_shape,
-        data_shape,
-        features,
-        feature_sets=None,
-        crop_slice=slice(None),
-    ):
-        data = make_fake_dset(data_shape, features=features)
-        super().__init__(
-            Data(data),
-            sample_shape,
-            feature_sets=feature_sets,
-            crop_slice=crop_slice,
-        )
 
 
 def make_fake_h5_chunks(td):
