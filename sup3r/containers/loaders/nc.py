@@ -40,7 +40,9 @@ class LoaderNC(Loader):
     def enforce_descending_levels(self, dset):
         """Make sure levels are in descending order so that max pressure is at
         level[0]."""
-        invert_levels = dset['level'][-1] > dset['level'][0]
+        invert_levels = (
+            dset['level'][-1] > dset['level'][0] if 'level' in dset else False
+        )
         if invert_levels:
             for var in list(dset.data_vars):
                 if 'level' in dset[var].dims:
@@ -64,10 +66,10 @@ class LoaderNC(Loader):
             lons, lats = da.meshgrid(lons, lats)
 
         coords = {
-                'latitude': (('south_north', 'west_east'), lats),
-                'longitude': (('south_north', 'west_east'), lons),
-                'time': times,
-            }
+            'latitude': (('south_north', 'west_east'), lats),
+            'longitude': (('south_north', 'west_east'), lons),
+            'time': times,
+        }
         out = res.assign_coords(coords)
         out = out.drop_vars(('south_north', 'west_east'))
         if isinstance(self.chunks, tuple):

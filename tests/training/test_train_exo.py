@@ -182,7 +182,4 @@ def test_wind_hi_res_topo(CustomLayer, features, lr_only_features):
 
 
 if __name__ == '__main__':
-    if False:
-        execute_pytest()
-    args = ('Sup3rConcat', FEATURES_W, ['temperature_100m'])
-    test_wind_hi_res_topo(*args)
+    execute_pytest(__file__)

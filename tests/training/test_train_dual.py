@@ -113,8 +113,6 @@ def test_train(
             'checkpoint_int': 1,
             'out_dir': os.path.join(td, 'test_{epoch}')}
 
-        # TrainingSession(batch_handler, model, model_kwargs)
-        # test that training works and reduces loss
         model.train(
             batch_handler,
             **model_kwargs)
@@ -197,13 +195,4 @@ def test_train(
 
 
 if __name__ == '__main__':
-    test_train(
-            'spatiotemporal/gen_3x_4x_2f.json',
-            'spatiotemporal/disc.json',
-            3,
-            4,
-            (12, 12, 16),
-        )
-
-    if False:
-        execute_pytest(__file__)
+    execute_pytest(__file__)

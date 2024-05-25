@@ -4,7 +4,7 @@ import os
 
 import numpy as np
 import pytest
-from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage import gaussian_filter
 
 from sup3r import TEST_DATA_DIR
 from sup3r.containers import Sampler

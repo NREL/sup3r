@@ -7,12 +7,11 @@ import os
 
 import numpy as np
 import pandas as pd
-from rex import Resource
 from scipy.spatial import KDTree
 from scipy.stats import mode
 
 from sup3r.containers.extracters.nc import ExtracterNC
-from sup3r.containers.loaders import Loader
+from sup3r.containers.loaders import Loader, LoaderH5
 
 np.random.seed(42)
 
@@ -26,6 +25,7 @@ class ExtracterNCforCC(ExtracterNC):
 
     def __init__(self,
                  loader: Loader,
+                 features='all',
                  nsrdb_source_fp=None,
                  nsrdb_agg=1,
                  nsrdb_smoothing=0,
@@ -62,21 +62,11 @@ class ExtracterNCforCC(ExtracterNC):
         ti_deltas_hours = pd.Series(ti_deltas).dt.total_seconds()[1:-1] / 3600
         self.time_freq_hours = float(mode(ti_deltas_hours).mode)
         super().__init__(loader, **kwargs)
-        if self._nsrdb_source_fp is not None:
+        if 'clearsky_ghi' in features or features == 'all':
             self.data['clearsky_ghi'] = self.get_clearsky_ghi()
 
-    def get_clearsky_ghi(self):
-        """Get clearsky ghi from an exogenous NSRDB source h5 file at the
-        target CC meta data and time index.
-
-        TODO: Replace some of this with call to Regridder?
-
-        Returns
-        -------
-        cs_ghi : np.ndarray
-            Clearsky ghi (W/m2) from the nsrdb_source_fp h5 source file. Data
-            shape is (lat, lon, time) where time is daily average values.
-        """
+    def run_input_checks(self):
+        """Run checks on the files provided for extracting clearksky_ghi."""
 
         msg = ('Need nsrdb_source_fp input arg as a valid filepath to '
                'retrieve clearsky_ghi (maybe for clearsky_ratio) but '
@@ -95,29 +85,50 @@ class ExtracterNCforCC(ExtracterNC):
         assert (self.time_slice.step is None) | (self.time_slice.step
                                                      == 1), msg
 
-        with Resource(self._nsrdb_source_fp) as res:
-            ti_nsrdb = res.time_index
-            meta_nsrdb = res.meta
+    def run_wrap_checks(self, cs_ghi):
+        """Run check on extracted data from clearsky_ghi source."""
+        logger.info(
+            'Reshaped clearsky_ghi data to final shape {} to '
+            'correspond with CC daily average data over source '
+            'time_slice {} with (lat, lon) grid shape of {}'.format(
+                cs_ghi.shape, self.time_slice, self.grid_shape))
+        msg = ('nsrdb clearsky GHI time dimension {} '
+               'does not match the GCM time dimension {}'
+               .format(cs_ghi.shape[2], len(self.time_index)))
+        assert cs_ghi.shape[2] == len(self.time_index), msg
 
-        ti_deltas = ti_nsrdb - np.roll(ti_nsrdb, 1)
-        ti_deltas_hours = pd.Series(ti_deltas).dt.total_seconds()[1:-1] / 3600
-        time_freq = float(mode(ti_deltas_hours).mode)
+    def get_time_slice(self, ti_nsrdb):
+        """Get nsrdb data time slice consistent with self.time_index."""
         t_start = np.where((self.time_index[0].month == ti_nsrdb.month)
                            & (self.time_index[0].day == ti_nsrdb.day))[0][0]
         t_end = 1 + np.where(
             (self.time_index[-1].month == ti_nsrdb.month)
             & (self.time_index[-1].day == ti_nsrdb.day))[0][-1]
         t_slice = slice(t_start, t_end)
+        return t_slice
 
-        # pylint: disable=E1136
-        lat = self.lat_lon[:, :, 0].flatten()
-        lon = self.lat_lon[:, :, 1].flatten()
-        cc_meta = np.vstack((lat, lon)).T
+    def get_clearsky_ghi(self):
+        """Get clearsky ghi from an exogenous NSRDB source h5 file at the
+        target CC meta data and time index.
 
-        tree = KDTree(meta_nsrdb[['latitude', 'longitude']])
+        TODO: Replace some of this with call to Regridder?
+
+        Returns
+        -------
+        cs_ghi : np.ndarray
+            Clearsky ghi (W/m2) from the nsrdb_source_fp h5 source file. Data
+            shape is (lat, lon, time) where time is daily average values.
+        """
+        self.run_input_checks()
+
+        res = LoaderH5(self._nsrdb_source_fp)
+        ti_nsrdb = res.time_index
+        t_slice = self.get_time_slice(ti_nsrdb)
+        cc_meta = self.lat_lon.reshape((-1, 2))
+
+        tree = KDTree(res.lat_lon)
         _, i = tree.query(cc_meta, k=self._nsrdb_agg)
-        if len(i.shape) == 1:
-            i = np.expand_dims(i, axis=1)
+        i = np.expand_dims(i, axis=1) if len(i.shape) == 1 else i
 
         logger.info('Extracting clearsky_ghi data from "{}" with time slice '
                     '{} and {} locations with agg factor {}.'.format(
@@ -126,11 +137,14 @@ class ExtracterNCforCC(ExtracterNC):
                     ))
 
         cs_shape = i.shape
-        with Resource(self._nsrdb_source_fp) as res:
-            cs_ghi = res['clearsky_ghi', t_slice, i.flatten()]
+        cs_ghi = res['clearsky_ghi'][i.flatten(), t_slice].T
 
         cs_ghi = cs_ghi.reshape((len(cs_ghi), *cs_shape))
         cs_ghi = cs_ghi.mean(axis=-1)
+
+        ti_deltas = ti_nsrdb - np.roll(ti_nsrdb, 1)
+        ti_deltas_hours = pd.Series(ti_deltas).dt.total_seconds()[1:-1] / 3600
+        time_freq = float(mode(ti_deltas_hours).mode)
 
         windows = np.array_split(np.arange(len(cs_ghi)),
                                  len(cs_ghi) // (24 // time_freq))
@@ -145,14 +159,6 @@ class ExtracterNCforCC(ExtracterNC):
 
         cs_ghi = cs_ghi[..., :len(self.time_index)]
 
-        logger.info(
-            'Reshaped clearsky_ghi data to final shape {} to '
-            'correspond with CC daily average data over source '
-            'time_slice {} with (lat, lon) grid shape of {}'.format(
-                cs_ghi.shape, self.time_slice, self.grid_shape))
-        msg = ('nsrdb clearsky GHI time dimension {} '
-               'does not match the GCM time dimension {}'
-               .format(cs_ghi.shape[2], len(self.time_index)))
-        assert cs_ghi.shape[2] == len(self.time_index), msg
+        self.run_wrap_checks(cs_ghi)
 
         return cs_ghi
