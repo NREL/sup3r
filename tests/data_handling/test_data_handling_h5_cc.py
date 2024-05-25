@@ -11,7 +11,7 @@ import pytest
 from rex import Outputs, Resource
 
 from sup3r import TEST_DATA_DIR
-from sup3r.preprocessing import (
+from sup3r.containers import (
     BatchHandlerCC,
     DataHandlerH5SolarCC,
     DataHandlerH5WindCC,
