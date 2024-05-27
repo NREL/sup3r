@@ -5,6 +5,8 @@ from scipy.interpolate import interp1d
 
 from sup3r.models import LinearInterp
 
+np.random.seed(42)
+
 
 def test_linear_spatial():
     """Test the linear interp model on the spatial axis"""

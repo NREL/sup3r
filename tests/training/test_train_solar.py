@@ -27,6 +27,9 @@ FEATURES_W = ['U_100m', 'V_100m', 'temperature_100m', 'topography']
 TARGET_W = (39.01, -105.15)
 
 
+np.random.seed(42)
+
+
 def test_solar_cc_model(log=False):
     """Test the solar climate change nsrdb super res model.
 

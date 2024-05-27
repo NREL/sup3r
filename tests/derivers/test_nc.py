@@ -43,6 +43,7 @@ def test_get_just_coords_nc():
     )
     assert extracter.grid_shape == shape
     assert np.array_equal(extracter.target, target)
+    extracter.close()
 
 
 def test_get_full_domain_nc():
@@ -73,6 +74,7 @@ def test_get_full_domain_nc():
     )
     assert extracter.grid_shape == shape
     assert np.array_equal(extracter.target, target)
+    extracter.close()
 
 
 def test_get_target_nc():
@@ -85,6 +87,7 @@ def test_get_target_nc():
     )
     assert extracter.grid_shape == (4, 4)
     assert np.array_equal(extracter.target, target)
+    extracter.close()
 
 
 @pytest.mark.parametrize(
@@ -117,6 +120,7 @@ def test_data_extraction(input_files, Extracter, shape, target):
         extracter.shape[2],
     )
     assert extracter.data.dtype == np.dtype(np.float32)
+    extracter.close()
 
 
 def test_topography_h5():

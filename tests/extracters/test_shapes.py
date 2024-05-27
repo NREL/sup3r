@@ -7,7 +7,7 @@ from tempfile import TemporaryDirectory
 from rex import init_logger
 
 from sup3r import TEST_DATA_DIR
-from sup3r.containers import DirectExtracterNC
+from sup3r.containers import ExtracterNC
 from sup3r.utilities.pytest.helpers import execute_pytest, make_fake_nc_file
 
 h5_files = [
@@ -39,7 +39,7 @@ def test_5d_extract_nc():
         make_fake_nc_file(
             level_file, shape=(10, 10, 20, 3), features=['zg', 'u']
         )
-        extracter = DirectExtracterNC([wind_file, level_file])
+        extracter = ExtracterNC([wind_file, level_file])
         assert extracter.shape == (10, 10, 20, 3, 5)
         assert sorted(extracter.features) == sorted(
             ['topography', 'u_100m', 'v_100m', 'zg', 'u']

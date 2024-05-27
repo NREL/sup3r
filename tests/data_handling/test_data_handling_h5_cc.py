@@ -32,9 +32,14 @@ TARGET_W = (39.01, -105.15)
 INPUT_FILE_SURF = os.path.join(TEST_DATA_DIR, 'test_wtk_surface_vars.h5')
 TARGET_SURF = (39.1, -105.4)
 
-dh_kwargs = dict(
-    target=TARGET_S, shape=SHAPE, time_slice=slice(None, None, 2), time_roll=-7
-)
+dh_kwargs = {
+    'target': TARGET_S,
+    'shape': SHAPE,
+    'time_slice': slice(None, None, 2),
+    'time_roll': -7,
+}
+
+np.random.seed(42)
 
 
 def test_solar_handler(plot=False):

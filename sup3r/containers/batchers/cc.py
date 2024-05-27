@@ -15,8 +15,6 @@ from sup3r.utilities.utilities import (
     spatial_coarsening,
 )
 
-np.random.seed(42)
-
 logger = logging.getLogger(__name__)
 
 

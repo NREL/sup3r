@@ -4,13 +4,8 @@ features on loaded data."""
 import logging
 from abc import ABC, abstractmethod
 
-import numpy as np
-
 from sup3r.containers.base import Container
-from sup3r.containers.common import lowered
 from sup3r.containers.loaders.base import Loader
-
-np.random.seed(42)
 
 logger = logging.getLogger(__name__)
 
@@ -57,14 +52,7 @@ class Extracter(Container, ABC):
         self._time_index = None
         self._raster_index = None
         self._full_lat_lon = None
-        features = (
-            self.loader.features
-            if features == 'all'
-            else ['latitude', 'longitude', 'time']
-            if features is None
-            else lowered(features)
-        )
-        self.data = self.extract_data()[features]
+        self.data = self.extract_data().slice_dset(features=features)
 
     @property
     def time_slice(self):

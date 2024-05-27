@@ -15,8 +15,6 @@ from .batch_handling import (
     BatchMom2SF,
 )
 from .data_handling import (
-    DataHandlerH5SolarCC,
-    DataHandlerH5WindCC,
     ExoData,
     ExogenousDataHandler,
 )

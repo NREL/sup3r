@@ -6,7 +6,6 @@ import re
 from inspect import signature
 
 import dask.array as da
-import numpy as np
 import xarray as xr
 
 from sup3r.containers.abstract import Data
@@ -18,8 +17,6 @@ from sup3r.containers.derivers.methods import (
 from sup3r.utilities.interpolation import Interpolator
 from sup3r.utilities.utilities import spatial_coarsening
 
-np.random.seed(42)
-
 logger = logging.getLogger(__name__)
 
 
@@ -29,7 +26,6 @@ def parse_feature(feature):
 
     class FStruct:
         def __init__(self):
-            self.basename = '_'.join(feature.split('_')[:-1]).lower()
             height = re.findall(r'_\d+m', feature)
             pressure = re.findall(r'_\d+pa', feature)
             self.basename = (
@@ -37,6 +33,8 @@ def parse_feature(feature):
                 if height
                 else feature.replace(pressure[0], '')
                 if pressure
+                else feature.split('_(.*)')[0]
+                if '_(.*)' in feature
                 else feature
             )
             self.height = int(height[0][1:-1]) if height else None
@@ -48,9 +46,9 @@ def parse_feature(feature):
             if '(.*)' not in pattern:
                 return pattern
             return (
-                f"{pattern.split('(.*)')[0]}{self.height}m"
+                f"{pattern.split('_(.*)')[0]}_{self.height}m"
                 if self.height
-                else f"{pattern.split('(.*)')[0]}{self.pressure}pa"
+                else f"{pattern.split('_(.*)')[0]}_{self.pressure}pa"
             )
 
     return FStruct()
@@ -227,7 +225,8 @@ class BaseDeriver(Container):
                 'zg' in self.data.data_vars
                 and 'topography' in self.data.data_vars
             ), msg
-            lev_array = self.data['zg'] - self.data['topography'][..., None]
+            lev_array = self.data['zg'] - da.broadcast_to(
+                self.data['topography'].T, self.data['zg'].T.shape).T
         else:
             level = [fstruct.pressure]
             msg = (

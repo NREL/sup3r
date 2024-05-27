@@ -110,13 +110,13 @@ class Container:
             raise ValueError(msg)
         return attr
 
-    def __getattr__(self, keys):
-        if keys in dir(self):
-            return self.__getattribute__(keys)
+    def __getattr__(self, attr):
+        if attr in dir(self):
+            return self.__getattribute__(attr)
         if self.is_multi_container:
-            return self.get_multi_attr(keys)
-        if hasattr(self.data, keys):
-            return getattr(self.data, keys)
+            return self.get_multi_attr(attr)
+        if hasattr(self.data, attr):
+            return getattr(self.data, attr)
         raise AttributeError
 
 

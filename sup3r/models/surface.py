@@ -13,6 +13,8 @@ from sup3r.utilities.utilities import spatial_coarsening
 
 logger = logging.getLogger(__name__)
 
+np.random.seed(42)
+
 
 class SurfaceSpatialMetModel(LinearInterp):
     """Model to spatially downscale daily-average near-surface temperature,

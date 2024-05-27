@@ -14,6 +14,8 @@ from sup3r.containers.samplers import Sampler
 from sup3r.postprocessing.file_handling import OutputHandlerH5
 from sup3r.utilities.utilities import pd_date_range
 
+np.random.seed(42)
+
 
 def execute_pytest(fname, capture='all', flags='-rapP'):
     """Execute module as pytest with detailed summary report.

@@ -28,6 +28,8 @@ TARGET_COORD = (39.01, -105.15)
 
 init_logger('sup3r', log_level='DEBUG')
 
+np.random.seed(42)
+
 
 @pytest.mark.parametrize('CustomLayer', ['Sup3rAdder', 'Sup3rConcat'])
 def test_wind_dc_hi_res_topo(CustomLayer, log=False):

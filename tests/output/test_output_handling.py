@@ -14,6 +14,8 @@ from sup3r.postprocessing.file_handling import OutputHandlerH5, OutputHandlerNC
 from sup3r.utilities.pytest.helpers import make_fake_h5_chunks
 from sup3r.utilities.utilities import invert_uv, transform_rotate_wind
 
+np.random.seed(42)
+
 
 def test_get_lat_lon():
     """Check that regridding works correctly"""

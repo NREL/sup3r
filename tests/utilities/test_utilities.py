@@ -30,6 +30,8 @@ from sup3r.utilities.utilities import (
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 FP_ERA = os.path.join(TEST_DATA_DIR, 'test_era5_co_2012.nc')
 
+np.random.seed(42)
+
 
 def test_log_interp(log=False):
     """Make sure log interp generates reasonable output (e.g. between input

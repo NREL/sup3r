@@ -43,6 +43,8 @@ class Data:
 
     def sel(self, *args, **kwargs):
         """Override xr.Dataset.sel to return wrapped object."""
+        if 'features' in kwargs:
+            return self.slice_dset(features=kwargs['features'])
         return Data(self.dset.sel(*args, **kwargs))
 
     @property
@@ -67,7 +69,11 @@ class Data:
         xr.Dataset()."""
         keys = (slice(None),) if keys is None else keys
         slice_kwargs = dict(zip(self.dims, keys))
-        return self.dset[self._parse_features(features)].isel(**slice_kwargs)
+        parsed = self._parse_features(features)
+        parsed = (
+            parsed if len(parsed) > 0 else ['latitude', 'longitude', 'time']
+        )
+        return Data(self.dset[parsed].isel(**slice_kwargs))
 
     def to_array(self, features='all'):
         """Return xr.DataArray of contained xr.Dataset."""
@@ -173,11 +179,11 @@ class Data:
         if hasattr(data, 'dims') and len(data.dims) >= 2:
             self.dset[variable] = (self.orered_dims(data.dims), data)
         elif hasattr(data, 'shape'):
-            self.dset[variable] = self._dims_with_array(data)
+            self.dset[variable] = dims_array_tuple(data)
         else:
             self.dset[variable] = data
 
-    @ property
+    @property
     def variables(self):
         """'All "features" in the dataset in the order that they were loaded.
         Not necessarily the same as the ordered set of training features."""
@@ -187,24 +193,24 @@ class Data:
             + list(self.dset.coords)
         )
 
-    @ property
+    @property
     def features(self):
         """Features in this container."""
         if self._features is None:
             self._features = list(self.dset.data_vars)
         return self._features
 
-    @ features.setter
+    @features.setter
     def features(self, val):
         """Set features in this container."""
         self._features = self._parse_features(val)
 
-    @ property
+    @property
     def dtype(self):
         """Get data type of contained array."""
         return self.to_array().dtype
 
-    @ property
+    @property
     def shape(self):
         """Get shape of underlying xr.DataArray. Feature channel by default is
         first and time is second, so we shift these to (..., time, features).
@@ -213,29 +219,29 @@ class Data:
         dim_vals = [dim_dict[k] for k in DIM_ORDER if k in dim_dict]
         return (*dim_vals, len(self.dset.data_vars))
 
-    @ property
+    @property
     def size(self):
         """Get the "size" of the container."""
         return np.prod(self.shape)
 
-    @ property
+    @property
     def time_index(self):
         """Base time index for contained data."""
         if not self.time_independent:
             return self.dset.indexes['time']
         return None
 
-    @ time_index.setter
+    @time_index.setter
     def time_index(self, value):
         """Update the time_index attribute with given index."""
         self.dset['time'] = value
 
-    @ property
+    @property
     def lat_lon(self):
         """Base lat lon for contained data."""
         return self[['latitude', 'longitude']]
 
-    @ lat_lon.setter
+    @lat_lon.setter
     def lat_lon(self, lat_lon):
         """Update the lat_lon attribute with array values."""
         self.dset['latitude'] = (self.dset['latitude'], lat_lon[..., 0])

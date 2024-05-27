@@ -28,6 +28,8 @@ with xr.open_dataset(FP_CC) as fh:
     TARGET = (float(MIN_LAT), float(MIN_LON))
     SHAPE = (len(fh.lat.values), len(fh.lon.values))
 
+np.random.seed(42)
+
 
 @pytest.fixture(scope='module')
 def fp_fut_cc(tmpdir_factory):

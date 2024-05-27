@@ -1309,36 +1309,8 @@ def get_source_type(file_paths):
     return 'nc'
 
 
-def get_extracter_class(extracter_name):
-    """Get the DataHandler class.
-
-    Parameters
-    ----------
-    extracter_name : str
-        :class:`Extracter` class to use for input data. Provide a string name
-        to match a class in `sup3r.container.extracters`.
-    """
-
-    ExtracterClass = None
-
-    if isinstance(extracter_name, str):
-        import sup3r.containers
-
-        ExtracterClass = getattr(sup3r.containers, extracter_name, None)
-
-    if ExtracterClass is None:
-        msg = (
-            'Could not find requested :class:`Extracter` class '
-            f'"{extracter_name}" in sup3r.containers.'
-        )
-        logger.error(msg)
-        raise KeyError(msg)
-
-    return ExtracterClass
-
-
 def get_input_handler_class(file_paths, input_handler_name):
-    """Get the DataHandler class.
+    """Get the :class:`DataHandler` or :class:`Extracter` object.
 
     Parameters
     ----------
@@ -1349,12 +1321,15 @@ def get_input_handler_class(file_paths, input_handler_name):
     input_handler_name : str
         data handler class to use for input data. Provide a string name to
         match a class in data_handling.py. If None the correct handler will
-        be guessed based on file type and time series properties.
+        be guessed based on file type and time series properties. The guessed
+        handler will default to an extracter type (simple raster / time
+        extraction from raw feature data, as opposed to derivation of new
+        features)
 
     Returns
     -------
-    HandlerClass : DataHandlerH5 | DataHandlerNC
-        DataHandler subclass from sup3r.preprocessing.
+    HandlerClass : ExtracterH5 | ExtracterNC | DataHandlerH5 | DataHandlerNC
+        DataHandler or Extracter class from sup3r.containers.
     """
 
     HandlerClass = None
@@ -1363,9 +1338,9 @@ def get_input_handler_class(file_paths, input_handler_name):
 
     if input_handler_name is None:
         if input_type == 'nc':
-            input_handler_name = 'DataHandlerNC'
+            input_handler_name = 'ExtracterNC'
         elif input_type == 'h5':
-            input_handler_name = 'DataHandlerH5'
+            input_handler_name = 'ExtracterH5'
 
         logger.info(
             '"input_handler" arg was not provided. Using '
@@ -1375,14 +1350,14 @@ def get_input_handler_class(file_paths, input_handler_name):
         )
 
     if isinstance(input_handler_name, str):
-        import sup3r.preprocessing
+        import sup3r.containers
 
-        HandlerClass = getattr(sup3r.preprocessing, input_handler_name, None)
+        HandlerClass = getattr(sup3r.containers, input_handler_name, None)
 
     if HandlerClass is None:
         msg = (
             'Could not find requested data handler class '
-            f'"{input_handler_name}" in sup3r.preprocessing.'
+            f'"{input_handler_name}" in sup3r.containers.'
         )
         logger.error(msg)
         raise KeyError(msg)

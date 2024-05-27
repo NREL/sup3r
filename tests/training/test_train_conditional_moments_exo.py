@@ -39,6 +39,8 @@ TARGET_W = (39.01, -105.15)
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)
 
+np.random.seed(42)
+
 
 def make_s_gen_model(custom_layer):
     """Make simple conditional moment model with
@@ -119,7 +121,7 @@ def test_wind_non_cc_hi_res_topo_mom1(custom_layer, batch_class,
                     n_epoch=n_epoch,
                     checkpoint_int=None,
                     out_dir=os.path.join(out_dir_root, 'test_{epoch}'))
-        assert f'test_{n_epoch-1}' in os.listdir(out_dir_root)
+        assert f'test_{n_epoch - 1}' in os.listdir(out_dir_root)
         assert model.meta['hr_out_features'] == ['U_100m', 'V_100m']
         assert model.meta['class'] == 'Sup3rCondMom'
         assert model.meta['input_resolution'] == input_resolution
