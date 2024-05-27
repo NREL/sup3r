@@ -20,7 +20,7 @@ from sup3r.containers.extracters import (
 )
 from sup3r.containers.factories.common import FactoryMeta
 from sup3r.containers.loaders import LoaderH5, LoaderNC
-from sup3r.utilities.utilities import _get_class_kwargs
+from sup3r.utilities.utilities import get_class_kwargs
 
 np.random.seed(42)
 
@@ -103,23 +103,31 @@ def DataHandlerFactory(
     class Handler(Deriver, metaclass=FactoryMeta):
         __name__ = name
 
-        def __init__(self, file_paths, **kwargs):
+        def __init__(
+            self, file_paths, features, load_features='all', **kwargs
+        ):
             """
             Parameters
             ----------
             file_paths : str | list | pathlib.Path
                 file_paths input to DirectExtracterClass
+            features : list
+                Features to derive from loaded data.
+            load_features : list
+                Features to load for use in derivations.
             **kwargs : dict
                 Dictionary of keyword args for DirectExtracter, Deriver, and
                 Cacher
             """
             cache_kwargs = kwargs.pop('cache_kwargs', None)
-            deriver_kwargs = _get_class_kwargs(Deriver, kwargs)
-            extracter_kwargs = _get_class_kwargs(DirectExtracterClass, kwargs)
-            extracter_kwargs['features'] = 'all'
-            extracter = DirectExtracterClass(file_paths, **extracter_kwargs)
+            deriver_kwargs = get_class_kwargs(Deriver, kwargs)
+            extracter_kwargs = get_class_kwargs(DirectExtracterClass, kwargs)
+            extracter = DirectExtracterClass(
+                file_paths, features=load_features, **extracter_kwargs
+            )
             super().__init__(
                 extracter.data,
+                features=features,
                 **deriver_kwargs,
                 FeatureRegistry=FeatureRegistry,
             )
@@ -153,5 +161,5 @@ DataHandlerNCforCCwithPowerLaw = DataHandlerFactory(
     ExtracterNCforCC,
     LoaderNC,
     FeatureRegistry=RegistryNCforCCwithPowerLaw,
-    name='DataHandlerNCforCCwithPowerLaw'
+    name='DataHandlerNCforCCwithPowerLaw',
 )

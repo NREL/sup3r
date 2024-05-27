@@ -28,6 +28,20 @@ features = ['windspeed_100m', 'winddirection_100m']
 init_logger('sup3r', log_level='DEBUG')
 
 
+def test_time_independent_loading():
+    """Make sure loaders work with time independent files."""
+    with TemporaryDirectory() as td:
+        out_file = os.path.join(td, 'topo.nc')
+        nc = make_fake_dset((20, 20, 1), features=['topography'])
+        nc = nc.isel(time=0)
+        nc = nc.drop('time')
+        assert 'time' not in nc.dims
+        assert 'time' not in nc.coords
+        nc.to_netcdf(out_file)
+        loader = LoaderNC(out_file)
+        assert loader.dims == ('south_north', 'west_east')
+
+
 def test_dim_ordering():
     """Make sure standard reordering works with dimensions not in the standard
     list."""

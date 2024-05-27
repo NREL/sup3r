@@ -11,6 +11,7 @@ import xarray as xr
 
 from sup3r.containers.abstract import Data
 from sup3r.containers.base import Container
+from sup3r.containers.common import lowered
 from sup3r.containers.derivers.methods import (
     RegistryBase,
 )
@@ -27,12 +28,32 @@ def parse_feature(feature):
     (100 for U_100m), and pressure if available (1000 for U_1000pa)."""
 
     class FStruct:
-        fend = feature.split('_')[-1]
-        basename = '_'.join(feature.split('_')[:-1]).lower()
-        height = None if not fend or fend[-1] != 'm' else int(fend[:-1])
-        pressure = None if not fend or fend[-2:] != 'pa' else int(fend[:-2])
+        def __init__(self):
+            self.basename = '_'.join(feature.split('_')[:-1]).lower()
+            height = re.findall(r'_\d+m', feature)
+            pressure = re.findall(r'_\d+pa', feature)
+            self.basename = (
+                feature.replace(height[0], '')
+                if height
+                else feature.replace(pressure[0], '')
+                if pressure
+                else feature
+            )
+            self.height = int(height[0][1:-1]) if height else None
+            self.pressure = int(pressure[0][1:-2]) if pressure else None
 
-    return FStruct
+        def map_wildcard(self, pattern):
+            """Return given pattern with wildcard replaced with height if
+            available, pressure if available, or just return the basename."""
+            if '(.*)' not in pattern:
+                return pattern
+            return (
+                f"{pattern.split('(.*)')[0]}{self.height}m"
+                if self.height
+                else f"{pattern.split('(.*)')[0]}{self.pressure}pa"
+            )
+
+    return FStruct()
 
 
 class BaseDeriver(Container):
@@ -64,7 +85,7 @@ class BaseDeriver(Container):
             self.FEATURE_REGISTRY = FeatureRegistry
 
         super().__init__(data=data)
-        for f in features:
+        for f in lowered(features):
             self.data[f] = self.derive(f)
         self.data = self.data.slice_dset(features=features)
 
@@ -78,16 +99,22 @@ class BaseDeriver(Container):
                 method = self.FEATURE_REGISTRY[pattern]
                 if isinstance(method, str):
                     return method
-                compute = method.compute
-                params = signature(compute).parameters
-                fstruct = parse_feature(feature)
-                kwargs = {
-                    k: getattr(fstruct, k)
-                    for k in params
-                    if hasattr(fstruct, k)
-                }
-                return compute(self.data, **kwargs)
+                if hasattr(method, 'inputs'):
+                    fstruct = parse_feature(feature)
+                    inputs = [fstruct.map_wildcard(i) for i in method.inputs]
+                    if inputs in self.data:
+                        return self._run_compute(feature, method)
         return None
+
+    def _run_compute(self, feature, method):
+        """If we have all the inputs we can run the compute method."""
+        compute = method.compute
+        params = signature(compute).parameters
+        fstruct = parse_feature(feature)
+        kwargs = {
+            k: getattr(fstruct, k) for k in params if hasattr(fstruct, k)
+        }
+        return compute(self.data, **kwargs)
 
     def map_new_name(self, feature, pattern):
         """If the search for a derivation method first finds an alternative
@@ -124,11 +151,7 @@ class BaseDeriver(Container):
         """
 
         fstruct = parse_feature(feature)
-        if feature not in self.data.variables:
-            if fstruct.basename in self.data.variables:
-                logger.debug(f'Attempting level interpolation for {feature}.')
-                return self.do_level_interpolation(feature)
-
+        if feature not in self.data.data_vars:
             compute_check = self._check_for_compute(feature)
             if compute_check is not None and isinstance(compute_check, str):
                 new_feature = self.map_new_name(feature, compute_check)
@@ -140,6 +163,11 @@ class BaseDeriver(Container):
                     'with derivation.'
                 )
                 return compute_check
+
+            if fstruct.basename in self.data.data_vars:
+                logger.debug(f'Attempting level interpolation for {feature}.')
+                return self.do_level_interpolation(feature)
+
             msg = (
                 f'Could not find {feature} in contained data or in the '
                 'available compute methods.'
@@ -158,7 +186,7 @@ class BaseDeriver(Container):
         pattern = fstruct.basename + '_(.*)'
         var_list = []
         lev_list = []
-        for f in self.data.variables:
+        for f in self.data.features:
             if re.match(pattern.lower(), f):
                 var_list.append(self.data[f])
                 pstruct = parse_feature(f)
@@ -174,19 +202,16 @@ class BaseDeriver(Container):
                 [var_array, da.stack(var_list, axis=-1)], axis=-1
             )
             lev_array = da.concatenate(
-                [lev_array, self._shape_lev_data(lev_list, var_array.shape)],
+                [
+                    lev_array,
+                    da.broadcast_to(
+                        da.from_array(lev_list),
+                        (*var_array.shape[:-1], len(lev_list)),
+                    ),
+                ],
                 axis=-1,
             )
         return lev_array, var_array
-
-    def _shape_lev_data(self, levels, shape):
-        """Convert list / 1D array of levels into array with shape (lat, lon,
-        time, levels)."""
-        lev_array = da.from_array(levels)
-        lev_array = da.repeat(lev_array[None], shape[2], axis=0)
-        lev_array = da.repeat(lev_array[None], shape[1], axis=0)
-        lev_array = da.repeat(lev_array[None], shape[0], axis=0)
-        return lev_array
 
     def do_level_interpolation(self, feature):
         """Interpolate over height or pressure to derive the given feature."""
@@ -199,8 +224,8 @@ class BaseDeriver(Container):
                 'data needs to include "zg" and "topography".'
             )
             assert (
-                'zg' in self.data.variables
-                and 'topography' in self.data.variables
+                'zg' in self.data.data_vars
+                and 'topography' in self.data.data_vars
             ), msg
             lev_array = self.data['zg'] - self.data['topography'][..., None]
         else:
@@ -211,9 +236,7 @@ class BaseDeriver(Container):
                 'levels).'
             )
             assert 'level' in self.data.dset, msg
-            lev_array = self._shape_lev_data(
-                self.data['level'], var_array.shape
-            )
+            lev_array = da.broadcast_to(self.data['level'], var_array.shape)
 
         lev_array, var_array = self.add_single_level_data(
             feature, lev_array, var_array

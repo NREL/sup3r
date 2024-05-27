@@ -18,7 +18,7 @@ from sup3r.containers.collections.stats import StatsCollection
 from sup3r.containers.factories.common import FactoryMeta
 from sup3r.containers.samplers.base import Sampler
 from sup3r.containers.samplers.dual import DualSampler
-from sup3r.utilities.utilities import _get_class_kwargs
+from sup3r.utilities.utilities import get_class_kwargs
 
 np.random.seed(42)
 
@@ -73,11 +73,11 @@ def BatchHandlerFactory(QueueClass, SamplerClass, name='BatchHandler'):
             stds: Optional[Union[Dict, str]] = None,
             **kwargs,
         ):
-            sampler_kwargs = _get_class_kwargs(
+            sampler_kwargs = get_class_kwargs(
                 SamplerClass,
                 {'s_enhance': s_enhance, 't_enhance': t_enhance, **kwargs},
             )
-            queue_kwargs = _get_class_kwargs(QueueClass, kwargs)
+            queue_kwargs = get_class_kwargs(QueueClass, kwargs)
 
             train_samplers = [
                 self.SAMPLER(c, **sampler_kwargs) for c in train_containers

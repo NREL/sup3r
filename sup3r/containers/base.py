@@ -95,35 +95,28 @@ class Container:
             return tuple([d[key] for d, key in zip(self.data, keys)])
         return self.data[keys]
 
-    def consistency_check(self, keys):
+    def get_multi_attr(self, attr):
         """Check if all Data objects contained have the same value for
-        `keys`."""
+        `attr` and return attribute."""
         msg = (
-            f'Requested {keys} attribute from a container with '
+            f'Requested {attr} attribute from a container with '
             f'{len(self.data)} Data objects but these objects do not all '
-            f'have the same value for {keys}.'
+            f'have the same value for {attr}.'
         )
-        attr = getattr(self.data[0], keys, None)
-        check = all(getattr(d, keys, None) == attr for d in self.data)
+        attr = getattr(self.data[0], attr, None)
+        check = all(getattr(d, attr, None) == attr for d in self.data)
         if not check:
             logger.error(msg)
             raise ValueError(msg)
-
-    def get_multi_attr(self, keys):
-        """Get attribute while containing multiple :class:`Data` objects."""
-        if hasattr(self.data[0], keys):
-            self.consistency_check(keys)
-        return getattr(self.data[0], keys)
+        return attr
 
     def __getattr__(self, keys):
-        if keys in self.__dict__:
-            return self.__dict__[keys]
+        if keys in dir(self):
+            return self.__getattribute__(keys)
         if self.is_multi_container:
             return self.get_multi_attr(keys)
         if hasattr(self.data, keys):
             return getattr(self.data, keys)
-        if keys in dir(self):
-            return super().__getattribute__(keys)
         raise AttributeError
 
 

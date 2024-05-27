@@ -22,7 +22,14 @@ logger = logging.getLogger(__name__)
 class DerivedFeature(ABC):
     """Abstract class for special features which need to be derived from raw
     features
+
+    Notes
+    -----
+    `inputs` list will be used to search already derived / loaded data so this
+    should include all features required for a successful `.compute` call.
     """
+
+    inputs = []
 
     @classmethod
     @abstractmethod
@@ -49,6 +56,8 @@ class DerivedFeature(ABC):
 
 class ClearSkyRatioH5(DerivedFeature):
     """Clear Sky Ratio feature class for computing from H5 data"""
+
+    inputs = ['ghi', 'clearsky_ghi']
 
     @classmethod
     def compute(cls, container):
@@ -79,6 +88,8 @@ class ClearSkyRatioCC(DerivedFeature):
     data
     """
 
+    inputs = ['rsds', 'clearsky_ghi']
+
     @classmethod
     def compute(cls, container):
         """Compute the daily average climate change clearsky ratio
@@ -102,6 +113,8 @@ class ClearSkyRatioCC(DerivedFeature):
 
 class CloudMaskH5(DerivedFeature):
     """Cloud Mask feature class for computing from H5 data"""
+
+    inputs = ['ghi', 'clearky_ghi']
 
     @classmethod
     def compute(cls, container):
@@ -133,22 +146,26 @@ class PressureNC(DerivedFeature):
     pressure.
     """
 
+    inputs = ['p_(.*)', 'pb_(.*)']
+
     @classmethod
     def compute(cls, container, height):
         """Method to compute pressure from NETCDF data"""
-        return container[f'P_{height}m'] + container[f'PB_{height}m']
+        return container[f'p_{height}m'] + container[f'pb_{height}m']
 
 
 class WindspeedNC(DerivedFeature):
     """Windspeed feature from netcdf data"""
+
+    inputs = ['u_(.*)', 'v_(.*)']
 
     @classmethod
     def compute(cls, container, height):
         """Compute windspeed"""
 
         ws, _ = invert_uv(
-            container[f'U_{height}m'],
-            container[f'V_{height}m'],
+            container[f'u_{height}m'],
+            container[f'v_{height}m'],
             container['lat_lon'],
         )
         return ws
@@ -156,6 +173,8 @@ class WindspeedNC(DerivedFeature):
 
 class WinddirectionNC(DerivedFeature):
     """Winddirection feature from netcdf data"""
+
+    inputs = ['u_(.*)', 'v_(.*)']
 
     @classmethod
     def compute(cls, container, height):
@@ -178,6 +197,8 @@ class UWindPowerLaw(DerivedFeature):
 
     ALPHA = 0.2
     NEAR_SFC_HEIGHT = 10
+
+    inputs = ['uas']
 
     @classmethod
     def compute(cls, container, height):
@@ -213,6 +234,8 @@ class VWindPowerLaw(DerivedFeature):
     ALPHA = 0.2
     NEAR_SFC_HEIGHT = 10
 
+    inputs = ['vas']
+
     @classmethod
     def compute(cls, container, height):
         """Method to compute V wind component from data"""
@@ -227,6 +250,8 @@ class UWind(DerivedFeature):
     """U wind component feature class with needed inputs method and compute
     method
     """
+
+    inputs = ['windspeed_(.*)', 'winddirection_(.*)']
 
     @classmethod
     def compute(cls, container, height):
@@ -244,6 +269,8 @@ class VWind(DerivedFeature):
     method
     """
 
+    inputs = ['windspeed_(.*)', 'winddirection_(.*)']
+
     @classmethod
     def compute(cls, container, height):
         """Method to compute V wind component from data"""
@@ -259,6 +286,8 @@ class VWind(DerivedFeature):
 class TempNCforCC(DerivedFeature):
     """Air temperature variable from climate change nc files"""
 
+    inputs = ['ta_(.*)']
+
     @classmethod
     def compute(cls, container, height):
         """Method to compute ta in Celsius from ta source in Kelvin"""
@@ -272,6 +301,11 @@ class Tas(DerivedFeature):
     CC_FEATURE_NAME = 'tas'
     """Source CC.nc dataset name for air temperature variable. This can be
     changed in subclasses for other temperature datasets."""
+
+    @property
+    def inputs(self):
+        """Get inputs dynamically for subclasses."""
+        return [self.CC_FEATURE_NAME]
 
     @classmethod
     def compute(cls, container):

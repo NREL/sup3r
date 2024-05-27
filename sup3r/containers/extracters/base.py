@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 
 from sup3r.containers.base import Container
+from sup3r.containers.common import lowered
 from sup3r.containers.loaders.base import Loader
 
 np.random.seed(42)
@@ -61,19 +62,19 @@ class Extracter(Container, ABC):
             if features == 'all'
             else ['latitude', 'longitude', 'time']
             if features is None
-            else features
+            else lowered(features)
         )
         self.data = self.extract_data()[features]
 
-    def __enter__(self):
-        return self
+    @property
+    def time_slice(self):
+        """Return time slice for extracted time period."""
+        return self._time_slice
 
-    def __exit__(self, exc_type, exc_value, trace):
-        self.close()
-
-    def close(self):
-        """Close Loader."""
-        self.loader.close()
+    @time_slice.setter
+    def time_slice(self, value):
+        """Set and sanitize the time slice."""
+        self._time_slice = value if value is not None else slice(None)
 
     @property
     def target(self):

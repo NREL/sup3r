@@ -71,7 +71,7 @@ class Cacher(Container):
             if not os.path.exists(out_file):
                 logger.info(f'Writing {feature} to {out_file}.')
                 if ext == '.h5':
-                    self._write_h5(
+                    self.write_h5(
                         out_file,
                         feature,
                         np.transpose(self.data[feature], axes=(2, 0, 1)),
@@ -79,10 +79,10 @@ class Cacher(Container):
                         chunks,
                     )
                 elif ext == '.nc':
-                    self._write_netcdf(
+                    self.write_netcdf(
                         out_file,
                         feature,
-                        np.transpose(self.data[feature], axes=(2, 0, 1)),
+                        self.data[feature],
                         self.data.coords,
                     )
                 else:
@@ -95,7 +95,8 @@ class Cacher(Container):
         logger.info(f'Finished writing {out_files}.')
         return out_files
 
-    def _write_h5(self, out_file, feature, data, coords, chunks=None):
+    @classmethod
+    def write_h5(cls, out_file, feature, data, coords, chunks=None):
         """Cache data to h5 file using user provided chunks value."""
         chunks = chunks or {}
         with h5py.File(out_file, 'w') as f:
@@ -120,8 +121,18 @@ class Cacher(Container):
                 da.store(vals, d)
                 logger.debug(f'Added {dset} to {out_file}.')
 
-    def _write_netcdf(self, out_file, feature, data, coords):
+    @classmethod
+    def write_netcdf(cls, out_file, feature, data, coords):
         """Cache data to a netcdf file."""
-        data_vars = {feature: (('time', 'south_north', 'west_east'), data)}
+        if isinstance(coords, dict):
+            dims = (*coords['latitude'][0], 'time')
+        else:
+            dims = (*coords['latitude'].dims, 'time')
+        data_vars = {
+            feature: (
+                dims[: len(data.shape)],
+                data,
+            )
+        }
         out = xr.Dataset(data_vars=data_vars, coords=coords)
         out.to_netcdf(out_file)

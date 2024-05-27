@@ -58,8 +58,10 @@ class ExtracterNC(Extracter, ABC):
 
     def extract_data(self):
         """Get rasterized data."""
-        return self.loader.data.slice_dset(
-            (*self.raster_index, self.time_slice)
+        return self.loader.isel(
+            south_north=self.raster_index[0],
+            west_east=self.raster_index[1],
+            time=self.time_slice,
         )
 
     def check_target_and_shape(self, full_lat_lon):

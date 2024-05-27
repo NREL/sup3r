@@ -2,11 +2,11 @@
 
 import logging
 import os
-import pickle
 import shutil
 from abc import ABC, abstractmethod
 from warnings import warn
 
+import dask.array as da
 import numpy as np
 import pandas as pd
 from rex import Resource
@@ -14,10 +14,17 @@ from rex.utilities.solar_position import SolarPosition
 from scipy.spatial import KDTree
 
 import sup3r.containers
-from sup3r.containers import DataHandlerH5, DataHandlerNC
+from sup3r.containers import (
+    Cacher,
+    DirectExtracterH5,
+    DirectExtracterNC,
+    LoaderH5,
+    LoaderNC,
+)
 from sup3r.postprocessing.file_handling import OutputHandler
 from sup3r.utilities.utilities import (
     generate_random_string,
+    get_class_kwargs,
     get_source_type,
     nn_fill_array,
 )
@@ -32,22 +39,24 @@ class ExoExtract(ABC):
     (e.g. WTK or NSRDB)
     """
 
-    def __init__(self,
-                 file_paths,
-                 exo_source,
-                 s_enhance,
-                 t_enhance,
-                 t_agg_factor,
-                 target=None,
-                 shape=None,
-                 time_slice=None,
-                 raster_file=None,
-                 max_delta=20,
-                 input_handler=None,
-                 cache_data=True,
-                 cache_dir='./exo_cache/',
-                 distance_upper_bound=None,
-                 res_kwargs=None):
+    def __init__(
+        self,
+        file_paths,
+        exo_source,
+        s_enhance,
+        t_enhance,
+        t_agg_factor,
+        target=None,
+        shape=None,
+        time_slice=None,
+        raster_file=None,
+        max_delta=20,
+        input_handler=None,
+        cache_data=True,
+        cache_dir='./exo_cache/',
+        distance_upper_bound=None,
+        res_kwargs=None,
+    ):
         """Parameters
         ----------
         file_paths : str | list
@@ -106,7 +115,7 @@ class ExoExtract(ABC):
             non-regular grids that curve over large distances, by default 20
         input_handler : str
             data handler class to use for input data. Provide a string name to
-            match a class in data_handling.py. If None the correct handler will
+            match a :class:`Extracter`. If None the correct handler will
             be guessed based on file type and time series properties.
         cache_data : bool
             Flag to cache exogeneous data in <cache_dir>/exo_cache/ this can
@@ -125,6 +134,7 @@ class ExoExtract(ABC):
         logger.info(f'Initializing {self.__class__.__name__} utility.')
 
         self._exo_source = exo_source
+        self._source_data = None
         self._s_enhance = s_enhance
         self._t_enhance = t_enhance
         self._t_agg_factor = t_agg_factor
@@ -143,37 +153,47 @@ class ExoExtract(ABC):
 
         # for subclasses
         self._source_handler = None
+        input_handler = self.get_input_handler(file_paths, input_handler)
+        kwargs = {
+            'file_paths': file_paths,
+            'target': target,
+            'shape': shape,
+            'time_slice': time_slice,
+            'raster_file': raster_file,
+            'max_delta': max_delta,
+            'res_kwargs': self.res_kwargs,
+        }
+        self.input_handler = input_handler(
+            **get_class_kwargs(input_handler, kwargs)
+        )
 
+    def get_input_handler(self, file_paths, input_handler):
+        """Get input_handler object from given input_handler arg."""
         if input_handler is None:
             in_type = get_source_type(file_paths)
             if in_type == 'nc':
-                input_handler = DataHandlerNC
+                input_handler = DirectExtracterNC
             elif in_type == 'h5':
-                input_handler = DataHandlerH5
+                input_handler = DirectExtracterH5
             else:
-                msg = (f'Did not recognize input type "{in_type}" for file '
-                       f'paths: {file_paths}')
+                msg = (
+                    f'Did not recognize input type "{in_type}" for file '
+                    f'paths: {file_paths}'
+                )
                 logger.error(msg)
                 raise RuntimeError(msg)
         elif isinstance(input_handler, str):
-            input_handler = getattr(sup3r.containers,
-                                    input_handler, None)
-            if input_handler is None:
-                msg = ('Could not find requested data handler class '
-                       f'"{input_handler}" in '
-                       'sup3r.containers.')
+            out = getattr(sup3r.containers, input_handler, None)
+            if out is None:
+                msg = (
+                    'Could not find requested data handler class '
+                    f'"{input_handler}" in '
+                    'sup3r.containers.'
+                )
                 logger.error(msg)
                 raise KeyError(msg)
-
-        self.input_handler = input_handler(
-            file_paths, [],
-            target=target,
-            shape=shape,
-            time_slice=time_slice,
-            raster_file=raster_file,
-            max_delta=max_delta,
-            res_kwargs=self.res_kwargs
-        )
+            input_handler = out
+        return input_handler
 
     @property
     @abstractmethod
@@ -200,15 +220,19 @@ class ExoExtract(ABC):
         Returns
         -------
         cache_fp : str
-            Name of cache file
+            Name of cache file. This is a netcdf files which will be saved with
+            :class:`Cacher` and loaded with :class:`LoaderNC`
         """
-        tsteps = (None if self.time_slice is None
-                  or self.time_slice.start is None
-                  or self.time_slice.stop is None
-                  else self.time_slice.stop - self.time_slice.start)
+        tsteps = (
+            None
+            if self.time_slice is None
+            or self.time_slice.start is None
+            or self.time_slice.stop is None
+            else self.time_slice.stop - self.time_slice.start
+        )
         fn = f'exo_{feature}_{self.target}_{self.shape},{tsteps}'
         fn += f'_tagg{t_agg_factor}_{s_enhance}x_'
-        fn += f'{t_enhance}x.pkl'
+        fn += f'{t_enhance}x.nc'
         fn = fn.replace('(', '').replace(')', '')
         fn = fn.replace('[', '').replace(']', '')
         fn = fn.replace(',', 'x').replace(' ', '')
@@ -227,15 +251,20 @@ class ExoExtract(ABC):
     @property
     def lr_shape(self):
         """Get the low-resolution spatial shape tuple"""
-        return (self.lr_lat_lon.shape[0], self.lr_lat_lon.shape[1],
-                len(self.input_handler.time_index))
+        return (
+            self.lr_lat_lon.shape[0],
+            self.lr_lat_lon.shape[1],
+            len(self.input_handler.time_index),
+        )
 
     @property
     def hr_shape(self):
         """Get the high-resolution spatial shape tuple"""
-        return (self._s_enhance * self.lr_lat_lon.shape[0],
-                self._s_enhance * self.lr_lat_lon.shape[1],
-                self._t_enhance * len(self.input_handler.time_index))
+        return (
+            self._s_enhance * self.lr_lat_lon.shape[0],
+            self._s_enhance * self.lr_lat_lon.shape[1],
+            self._t_enhance * len(self.input_handler.time_index),
+        )
 
     @property
     def lr_lat_lon(self):
@@ -262,7 +291,8 @@ class ExoExtract(ABC):
         if self._hr_lat_lon is None:
             if self._s_enhance > 1:
                 self._hr_lat_lon = OutputHandler.get_lat_lon(
-                    self.lr_lat_lon, self.hr_shape[:-1])
+                    self.lr_lat_lon, self.hr_shape[:-1]
+                )
             else:
                 self._hr_lat_lon = self.lr_lat_lon
         return self._hr_lat_lon
@@ -274,7 +304,8 @@ class ExoExtract(ABC):
             if self._t_agg_factor > 1:
                 self._src_time_index = OutputHandler.get_times(
                     self.input_handler.time_index,
-                    self.hr_shape[-1] * self._t_agg_factor)
+                    self.hr_shape[-1] * self._t_agg_factor,
+                )
             else:
                 self._src_time_index = self.hr_time_index
         return self._src_time_index
@@ -285,7 +316,8 @@ class ExoExtract(ABC):
         if self._hr_time_index is None:
             if self._t_enhance > 1:
                 self._hr_time_index = OutputHandler.get_times(
-                    self.input_handler.time_index, self.hr_shape[-1])
+                    self.input_handler.time_index, self.hr_shape[-1]
+                )
             else:
                 self._hr_time_index = self.input_handler.time_index
         return self._hr_time_index
@@ -295,11 +327,14 @@ class ExoExtract(ABC):
         """Maximum distance (float) to map high-resolution data from exo_source
         to the low-resolution file_paths input."""
         if self._distance_upper_bound is None:
-            diff = np.diff(self.source_lat_lon, axis=0)
-            diff = np.max(np.median(diff, axis=0))
+            diff = da.diff(self.source_lat_lon, axis=0)
+            diff = da.median(diff, axis=0).max()
             self._distance_upper_bound = diff
-            logger.info('Set distance upper bound to {:.4f}'
-                        .format(self._distance_upper_bound))
+            logger.info(
+                'Set distance upper bound to {:.4f}'.format(
+                    self._distance_upper_bound.compute()
+                )
+            )
         return self._distance_upper_bound
 
     @property
@@ -307,17 +342,17 @@ class ExoExtract(ABC):
         """Get the KDTree built on the target lat lon data from the file_paths
         input with s_enhance"""
         if self._tree is None:
-            lat = self.hr_lat_lon[..., 0].flatten()
-            lon = self.hr_lat_lon[..., 1].flatten()
-            hr_meta = np.vstack((lat, lon)).T
-            self._tree = KDTree(hr_meta)
+            self._tree = KDTree(self.hr_lat_lon.reshape((-1, 2)))
         return self._tree
 
     @property
     def nn(self):
         """Get the nearest neighbor indices"""
-        _, nn = self.tree.query(self.source_lat_lon, k=1,
-                                distance_upper_bound=self.distance_upper_bound)
+        _, nn = self.tree.query(
+            self.source_lat_lon,
+            k=1,
+            distance_upper_bound=self.distance_upper_bound,
+        )
         return nn
 
     @property
@@ -326,27 +361,43 @@ class ExoExtract(ABC):
         high-resolution grid (the file_paths input grid * s_enhance *
         t_enhance). The shape is (lats, lons, temporal, 1)
         """
-        cache_fp = self.get_cache_file(feature=self.__class__.__name__,
-                                       s_enhance=self._s_enhance,
-                                       t_enhance=self._t_enhance,
-                                       t_agg_factor=self._t_agg_factor)
+        cache_fp = self.get_cache_file(
+            feature=self.__class__.__name__,
+            s_enhance=self._s_enhance,
+            t_enhance=self._t_enhance,
+            t_agg_factor=self._t_agg_factor,
+        )
         tmp_fp = cache_fp + f'.{generate_random_string(10)}.tmp'
         if os.path.exists(cache_fp):
-            with open(cache_fp, 'rb') as f:
-                data = pickle.load(f)
+            data = LoaderNC(cache_fp)[self.__class__.__name__]
 
         else:
             data = self.get_data()
 
             if self.cache_data:
-                with open(tmp_fp, 'wb') as f:
-                    pickle.dump(data, f)
+                coords = {
+                    'latitude': (
+                        ('south_north', 'west_east'),
+                        self.hr_lat_lon[..., 0],
+                    ),
+                    'longitude': (
+                        ('south_north', 'west_east'),
+                        self.hr_lat_lon[..., 1],
+                    ),
+                    'time': self.hr_time_index.values,
+                }
+                Cacher.write_netcdf(
+                    tmp_fp,
+                    feature=self.__class__.__name__,
+                    data=da.broadcast_to(data, self.hr_shape),
+                    coords=coords,
+                )
                 shutil.move(tmp_fp, cache_fp)
 
         if data.shape[-1] == 1 and self.hr_shape[-1] > 1:
-            data = np.repeat(data, self.hr_shape[-1], axis=-1)
+            data = da.repeat(data, self.hr_shape[-1], axis=-1)
 
-        return data[..., np.newaxis]
+        return data[..., None]
 
     @abstractmethod
     def get_data(self):
@@ -356,20 +407,22 @@ class ExoExtract(ABC):
         """
 
     @classmethod
-    def get_exo_raster(cls,
-                       file_paths,
-                       s_enhance,
-                       t_enhance,
-                       t_agg_factor,
-                       exo_source=None,
-                       target=None,
-                       shape=None,
-                       time_slice=None,
-                       raster_file=None,
-                       max_delta=20,
-                       input_handler=None,
-                       cache_data=True,
-                       cache_dir='./exo_cache/'):
+    def get_exo_raster(
+        cls,
+        file_paths,
+        s_enhance,
+        t_enhance,
+        t_agg_factor,
+        exo_source=None,
+        target=None,
+        shape=None,
+        time_slice=None,
+        raster_file=None,
+        max_delta=20,
+        input_handler=None,
+        cache_data=True,
+        cache_dir='./exo_cache/',
+    ):
         """Get the exo feature raster corresponding to the spatially enhanced
         grid from the file_paths input
 
@@ -441,19 +494,21 @@ class ExoExtract(ABC):
             to the source units in exo_source_h5. This is usually meters when
             feature='topography'
         """
-        exo = cls(file_paths,
-                  s_enhance,
-                  t_enhance,
-                  t_agg_factor,
-                  exo_source=exo_source,
-                  target=target,
-                  shape=shape,
-                  time_slice=time_slice,
-                  raster_file=raster_file,
-                  max_delta=max_delta,
-                  input_handler=input_handler,
-                  cache_data=cache_data,
-                  cache_dir=cache_dir)
+        exo = cls(
+            file_paths,
+            s_enhance,
+            t_enhance,
+            t_agg_factor,
+            exo_source=exo_source,
+            target=target,
+            shape=shape,
+            time_slice=time_slice,
+            raster_file=raster_file,
+            max_delta=max_delta,
+            input_handler=input_handler,
+            cache_data=cache_data,
+            cache_dir=cache_dir,
+        )
         return exo.data
 
 
@@ -463,9 +518,10 @@ class TopoExtractH5(ExoExtract):
     @property
     def source_data(self):
         """Get the 1D array of elevation data from the exo_source_h5"""
-        with Resource(self._exo_source) as res:
-            elev = res.get_meta_arr('elevation')
-        return elev[:, np.newaxis]
+        if self._source_data is None:
+            with LoaderH5(self._exo_source) as res:
+                self._source_data = res['topography'][..., None]
+        return self._source_data
 
     @property
     def source_time_index(self):
@@ -484,8 +540,9 @@ class TopoExtractH5(ExoExtract):
         assert len(self.source_data.shape) == 2
         assert self.source_data.shape[1] == 1
 
-        df = pd.DataFrame({'topo': self.source_data.flatten(),
-                           'gid_target': self.nn})
+        df = pd.DataFrame(
+            {'topo': self.source_data.flatten(), 'gid_target': self.nn}
+        )
         n_target = np.prod(self.hr_shape[:-1])
         df = df[df['gid_target'] != n_target]
         df = df.sort_values('gid_target')
@@ -493,11 +550,13 @@ class TopoExtractH5(ExoExtract):
 
         missing = set(np.arange(n_target)) - set(df.index)
         if any(missing):
-            msg = (f'{len(missing)} target pixels did not have unique '
-                   'high-resolution source data to map from. If there are a '
-                   'lot of target pixels missing source data this probably '
-                   'means the source data is not high enough resolution. '
-                   'Filling raster with NN.')
+            msg = (
+                f'{len(missing)} target pixels did not have unique '
+                'high-resolution source data to map from. If there are a '
+                'lot of target pixels missing source data this probably '
+                'means the source data is not high enough resolution. '
+                'Filling raster with NN.'
+            )
             logger.warning(msg)
             warn(msg)
             temp_df = pd.DataFrame({'topo': np.nan}, index=sorted(missing))
@@ -511,7 +570,7 @@ class TopoExtractH5(ExoExtract):
 
         logger.info('Finished mapping raster from {}'.format(self._exo_source))
 
-        return hr_data
+        return da.from_array(hr_data)
 
     def get_cache_file(self, feature, s_enhance, t_enhance, t_agg_factor):
         """Get cache file name. This uses a time independent naming convention.
@@ -537,7 +596,7 @@ class TopoExtractH5(ExoExtract):
         """
         fn = f'exo_{feature}_{self.target}_{self.shape}'
         fn += f'_tagg{t_agg_factor}_{s_enhance}x_'
-        fn += f'{t_enhance}x.pkl'
+        fn += f'{t_enhance}x.nc'
         fn = fn.replace('(', '').replace(')', '')
         fn = fn.replace('[', '').replace(']', '')
         fn = fn.replace(',', 'x').replace(' ', '')
@@ -552,23 +611,23 @@ class TopoExtractNC(TopoExtractH5):
 
     @property
     def source_handler(self):
-        """Get the DataHandlerNC object that handles the .nc source topography
+        """Get the LoaderNC object that handles the .nc source topography
         data file."""
         if self._source_handler is None:
-            logger.info('Getting topography for full domain from '
-                        f'{self._exo_source}')
-            self._source_handler = DataHandlerNC(
+            logger.info(
+                'Getting topography for full domain from '
+                f'{self._exo_source}'
+            )
+            self._source_handler = LoaderNC(
                 self._exo_source,
                 features=['topography'],
-                val_split=0.0,
             )
         return self._source_handler
 
     @property
     def source_data(self):
         """Get the 1D array of elevation data from the exo_source_nc"""
-        elev = self.source_handler.data[..., 0, 0].flatten()
-        return elev[..., np.newaxis]
+        return self.source_handler['topography'].flatten()[..., None]
 
     @property
     def source_lat_lon(self):
@@ -583,8 +642,9 @@ class SzaExtract(ExoExtract):
     @property
     def source_data(self):
         """Get the 1D array of sza data from the exo_source_h5"""
-        return SolarPosition(self.hr_time_index,
-                             self.hr_lat_lon.reshape((-1, 2))).zenith.T
+        return SolarPosition(
+            self.hr_time_index, self.hr_lat_lon.reshape((-1, 2))
+        ).zenith.T
 
     def get_data(self):
         """Get a raster of source values corresponding to the
