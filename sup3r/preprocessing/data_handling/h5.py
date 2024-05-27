@@ -26,12 +26,16 @@ logger = logging.getLogger(__name__)
 BaseH5WindCC = DataHandlerFactory(
     ExtracterH5, LoaderH5, FeatureRegistry=RegistryH5WindCC
 )
+
+
+def _base_loader(file_paths, **kwargs):
+    return MultiFileNSRDBX(file_paths, **kwargs)
+
+
 BaseH5SolarCC = DataHandlerFactory(
     ExtracterH5,
     LoaderH5,
-    BaseLoader=lambda file_paths, **kwargs: MultiFileNSRDBX(
-        file_paths, **kwargs
-    ),
+    BaseLoader=_base_loader,
     FeatureRegistry=RegistryH5SolarCC,
 )
 

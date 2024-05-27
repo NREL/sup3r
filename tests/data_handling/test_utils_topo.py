@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """pytests for topography utilities"""
+
 import os
 import shutil
 import tempfile
@@ -8,10 +9,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pytest
-from rex import Outputs, Resource
+from rex import Outputs, Resource, init_logger
 
 from sup3r import TEST_DATA_DIR
-from sup3r.preprocessing.exo_extraction import (
+from sup3r.preprocessing.data_handling.exo_extraction import (
     TopoExtractH5,
     TopoExtractNC,
 )
@@ -22,6 +23,9 @@ SHAPE = (20, 20)
 FP_WRF = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
 WRF_TARGET = (19.3, -123.5)
 WRF_SHAPE = (8, 8)
+
+
+init_logger('sup3r', log_level='DEBUG')
 
 
 def get_lat_lon_range_h5(fp):
@@ -35,6 +39,7 @@ def get_lat_lon_range_h5(fp):
 def get_lat_lon_range_nc(fp):
     """Get the min/max lat/lon from a netcdf file"""
     import xarray as xr
+
     dset = xr.open_dataset(fp)
     lat_range = (dset['lat'].values.min(), dset['lat'].values.max())
     lon_range = (dset['lon'].values.min(), dset['lon'].values.max())
@@ -57,8 +62,9 @@ def make_topo_file(fp, td, N=100, offset=0.1):
     idy, idx = idy.flatten(), idx.flatten()
     scale = 30
     elevation = np.sin(scale * np.deg2rad(idy) + scale * np.deg2rad(idx))
-    meta = pd.DataFrame({'latitude': lat, 'longitude': lon,
-                         'elevation': elevation})
+    meta = pd.DataFrame(
+        {'latitude': lat, 'longitude': lon, 'elevation': elevation}
+    )
 
     fp_temp = os.path.join(td, 'elevation.h5')
     with Outputs(fp_temp, mode='w') as out:
@@ -74,9 +80,15 @@ def test_topo_extraction_h5(s_enhance, plot=False):
     with tempfile.TemporaryDirectory() as td:
         fp_exo_topo = make_topo_file(FP_WTK, td)
 
-        te = TopoExtractH5(FP_WTK, fp_exo_topo, s_enhance=s_enhance,
-                           t_enhance=1, t_agg_factor=1,
-                           target=TARGET, shape=SHAPE)
+        te = TopoExtractH5(
+            FP_WTK,
+            fp_exo_topo,
+            s_enhance=s_enhance,
+            t_enhance=1,
+            t_agg_factor=1,
+            target=TARGET,
+            shape=SHAPE,
+        )
 
         hr_elev = te.data
 
@@ -99,15 +111,20 @@ def test_topo_extraction_h5(s_enhance, plot=False):
                 assert np.argmin(dist) == gid
 
             # make sure the mean elevation makes sense
-            test_out = hr_elev[idy, idx, 0, 0]
+            test_out = hr_elev.compute()[idy, idx, 0, 0]
             true_out = te.source_data[iloc].mean()
             assert np.allclose(test_out, true_out)
 
         shutil.rmtree('./exo_cache/', ignore_errors=True)
 
         if plot:
-            a = plt.scatter(te.source_lat_lon[:, 1], te.source_lat_lon[:, 0],
-                            c=te.source_data, marker='s', s=5)
+            a = plt.scatter(
+                te.source_lat_lon[:, 1],
+                te.source_lat_lon[:, 0],
+                c=te.source_data,
+                marker='s',
+                s=5,
+            )
             plt.colorbar(a)
             plt.savefig(f'./source_elevation_{s_enhance}.png')
             plt.close()
@@ -125,14 +142,22 @@ def test_bad_s_enhance(s_enhance=10):
         fp_exo_topo = make_topo_file(FP_WTK, td)
 
         with pytest.warns(UserWarning) as warnings:
-            te = TopoExtractH5(FP_WTK, fp_exo_topo, s_enhance=s_enhance,
-                               t_enhance=1, t_agg_factor=1,
-                               target=TARGET, shape=SHAPE,
-                               cache_data=False)
+            te = TopoExtractH5(
+                FP_WTK,
+                fp_exo_topo,
+                s_enhance=s_enhance,
+                t_enhance=1,
+                t_agg_factor=1,
+                target=TARGET,
+                shape=SHAPE,
+                cache_data=False,
+            )
             _ = te.data
 
-    good = ['target pixels did not have unique' in str(w.message)
-            for w in warnings.list]
+    good = [
+        'target pixels did not have unique' in str(w.message)
+        for w in warnings.list
+    ]
     assert any(good)
 
 
@@ -143,7 +168,14 @@ def test_topo_extraction_nc():
     We already test proper topo mapping and aggregation in the h5 test so this
     just makes sure that the data can be extracted from a WRF file.
     """
-    te = TopoExtractNC(FP_WRF, FP_WRF, s_enhance=1, t_enhance=1,
-                       t_agg_factor=1, target=None, shape=None)
+    te = TopoExtractNC(
+        FP_WRF,
+        FP_WRF,
+        s_enhance=1,
+        t_enhance=1,
+        t_agg_factor=1,
+        target=None,
+        shape=None,
+    )
     hr_elev = te.data
     assert np.allclose(te.source_data.flatten(), hr_elev.flatten())

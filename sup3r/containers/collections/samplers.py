@@ -25,27 +25,31 @@ class SamplerCollection(Collection):
         super().__init__(containers=samplers)
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
-        self.set_attrs()
-        self.check_collection_consistency()
+        self.check_shape_consistency()
         self.all_container_pairs = self.check_all_container_pairs()
 
-    def set_attrs(self):
-        """Set self attributes from the first container in the collection.
-        These are enforced to be the same across all containers in the
+    def __getattr__(self, attr):
+        """Get attributes from self or the first container in the
         collection."""
-        for attr in [
-            'lr_features',
-            'hr_exo_features',
-            'hr_out_features',
-            'lr_sample_shape',
-            'hr_sample_shape',
-            'sample_shape'
-        ]:
+        if attr in dir(self):
+            return self.__getattribute__(attr)
+        return self.get_multi_attr(attr)
 
-            if hasattr(self.containers[0], attr):
-                setattr(self, attr, getattr(self.containers[0], attr))
+    def get_multi_attr(self, attr):
+        """Check if all containers have the same value for `attr`."""
+        msg = (
+            f'Requested {attr} attribute from a collection with '
+            f'{len(self.containers)} container objects but these objects do '
+            f'not all have the same value for {attr}.'
+        )
+        attr = getattr(self.containers[0], attr, None)
+        check = all(getattr(c, attr, None) == attr for c in self.containers)
+        if not check:
+            logger.error(msg)
+            raise ValueError(msg)
+        return attr
 
-    def check_collection_consistency(self):
+    def check_shape_consistency(self):
         """Make sure all samplers in the collection have the same sample
         shape."""
         sample_shapes = [c.sample_shape for c in self.containers]

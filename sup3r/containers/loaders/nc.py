@@ -8,6 +8,7 @@ import dask.array as da
 import numpy as np
 import xarray as xr
 
+from sup3r.containers.common import ordered_dims
 from sup3r.containers.loaders import Loader
 
 logger = logging.getLogger(__name__)
@@ -54,13 +55,21 @@ class LoaderNC(Loader):
 
     def load(self):
         """Load netcdf xarray.Dataset()."""
-        res = self._standardize(self.res, self.DIM_NAMES)
-        lats = res['south_north'].data
-        lons = res['west_east'].data
-        times = res.indexes['time']
+        res = self.rename(self.res, self.DIM_NAMES)
+        lats = res['south_north'].data.squeeze()
+        lons = res['west_east'].data.squeeze()
 
-        if hasattr(times, 'to_datetimeindex'):
-            times = times.to_datetimeindex()
+        time_independent = 'time' not in res.coords and 'time' not in res.dims
+
+        if not time_independent:
+            times = (
+                res.indexes['time'] if 'time' in res.indexes else res['time']
+            )
+
+            if hasattr(times, 'to_datetimeindex'):
+                times = times.to_datetimeindex()
+
+            res = res.assign_coords({'time': times})
 
         if len(lats.shape) == 1:
             lons, lats = da.meshgrid(lons, lats)
@@ -68,14 +77,12 @@ class LoaderNC(Loader):
         coords = {
             'latitude': (('south_north', 'west_east'), lats),
             'longitude': (('south_north', 'west_east'), lons),
-            'time': times,
         }
         out = res.assign_coords(coords)
         out = out.drop_vars(('south_north', 'west_east'))
+
         if isinstance(self.chunks, tuple):
-            chunks = dict(
-                zip(['south_north', 'west_east', 'time', 'level'], self.chunks)
-            )
+            chunks = dict(zip(ordered_dims(out.dims), self.chunks))
             out = out.chunk(chunks)
         out = self.enforce_descending_lats(out)
         return self.enforce_descending_levels(out).astype(np.float32)

@@ -119,8 +119,8 @@ def test_uv_transform(input_files, DirectExtracter, Deriver, shape, target):
         extracter['winddirection_100m'],
         extracter['lat_lon'],
     )
-    assert da.map_blocks(lambda x, y: x == y, u, deriver['U_100m']).all()
-    assert da.map_blocks(lambda x, y: x == y, v, deriver['V_100m']).all()
+    assert np.array_equal(u, deriver['U_100m'])
+    assert np.array_equal(v, deriver['V_100m'])
 
 
 @pytest.mark.parametrize(

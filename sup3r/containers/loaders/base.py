@@ -22,14 +22,18 @@ class Loader(Container, ABC):
     FEATURE_NAMES: ClassVar = {
         'elevation': 'topography',
         'orog': 'topography',
+        'hgt': 'topography',
     }
 
     DIM_NAMES: ClassVar = {
         'lat': 'south_north',
         'lon': 'west_east',
+        'xlat': 'south_north',
+        'xlong': 'west_east',
         'latitude': 'south_north',
         'longitude': 'west_east',
-        'plev': 'level'
+        'plev': 'level',
+        'xtime': 'time',
     }
 
     def __init__(
@@ -62,20 +66,29 @@ class Loader(Container, ABC):
         self.file_paths = file_paths
         self.chunks = chunks
         self.res = self.BASE_LOADER(self.file_paths, **self.res_kwargs)
-        self.data = self._standardize(self.load(), self.FEATURE_NAMES).astype(
+        self.data = self.rename(self.load(), self.FEATURE_NAMES).astype(
             np.float32
         )
-        features = (
-            list(self.data.features)
-            if features == 'all'
-            else features
-        )
+        features = list(self.data.features) if features == 'all' else features
         self.data = self.data.slice_dset(features=features)
 
-    def _standardize(self, data, standard_names):
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, trace):
+        self.res.close()
+
+    def rename(self, data, standard_names):
         """Standardize fields in the dataset using the `standard_names`
         dictionary."""
-        rename_map = {feat: feat.lower() for feat in data.data_vars}
+        rename_map = {
+            feat: feat.lower()
+            for feat in [
+                *list(data.data_vars),
+                *list(data.coords),
+                *list(data.dims),
+            ]
+        }
         data = data.rename(rename_map)
         data = data.rename(
             {k: v for k, v in standard_names.items() if k in data}

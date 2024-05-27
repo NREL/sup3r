@@ -164,7 +164,7 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         """Make sure the enhancement factors evenly divide the sample_shape."""
         msg = (
             f'The sample_shape {self.sample_shape} is not consistent with '
-            f'the enhancement factors ({self.s_enhance, self.t_enhance}).'
+            f'the enhancement factors {self.s_enhance, self.t_enhance}.'
         )
         assert all(
             samp % enhance == 0

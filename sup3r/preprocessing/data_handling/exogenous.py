@@ -1,7 +1,7 @@
 """Sup3r exogenous data handling"""
+
 import logging
 import re
-from inspect import signature
 from typing import ClassVar
 
 import numpy as np
@@ -12,7 +12,7 @@ from sup3r.preprocessing.data_handling.exo_extraction import (
     TopoExtractH5,
     TopoExtractNC,
 )
-from sup3r.utilities.utilities import get_source_type
+from sup3r.utilities.utilities import get_class_kwargs, get_source_type
 
 logger = logging.getLogger(__name__)
 
@@ -102,8 +102,9 @@ class ExoData(dict):
         """
         model_step_exo = {}
         for feature, entry in self.items():
-            steps = [step for step in entry['steps']
-                     if step['model'] == model_step]
+            steps = [
+                step for step in entry['steps'] if step['model'] == model_step
+            ]
             if steps:
                 model_step_exo[feature] = {'steps': steps}
         return ExoData(model_step_exo)
@@ -133,12 +134,14 @@ class ExoData(dict):
         split_exo_1 = {}
         split_exo_2 = {}
         for feature, entry in self.items():
-            steps = [step for step in entry['steps']
-                     if step['model'] < split_step]
+            steps = [
+                step for step in entry['steps'] if step['model'] < split_step
+            ]
             if steps:
                 split_exo_1[feature] = {'steps': steps}
-            steps = [step for step in entry['steps']
-                     if step['model'] >= split_step]
+            steps = [
+                step for step in entry['steps'] if step['model'] >= split_step
+            ]
             for step in steps:
                 step.update({'model': step['model'] - split_step})
             if steps:
@@ -169,8 +172,10 @@ class ExoData(dict):
         if model_step is not None:
             tmp = {k: v for k, v in tmp.items() if v['model'] == model_step}
         combine_types = [step['combine_type'] for step in tmp['steps']]
-        msg = ('Received exogenous_data without any combine_type '
-               f'= "{combine_type}" steps')
+        msg = (
+            'Received exogenous_data without any combine_type '
+            f'= "{combine_type}" steps'
+        )
         assert combine_type in combine_types, msg
         idx = combine_types.index(combine_type)
         return tmp['steps'][idx]['data']
@@ -182,33 +187,29 @@ class ExogenousDataHandler:
     enhancement steps."""
 
     AVAILABLE_HANDLERS: ClassVar[dict] = {
-        'topography': {
-            'h5': TopoExtractH5,
-            'nc': TopoExtractNC
-        },
-        'sza': {
-            'h5': SzaExtract,
-            'nc': SzaExtract
-        }
+        'topography': {'h5': TopoExtractH5, 'nc': TopoExtractNC},
+        'sza': {'h5': SzaExtract, 'nc': SzaExtract},
     }
 
-    def __init__(self,
-                 file_paths,
-                 feature,
-                 steps,
-                 models=None,
-                 exo_resolution=None,
-                 source_file=None,
-                 target=None,
-                 shape=None,
-                 time_slice=None,
-                 raster_file=None,
-                 max_delta=20,
-                 input_handler=None,
-                 exo_handler=None,
-                 cache_data=True,
-                 cache_dir='./exo_cache',
-                 res_kwargs=None):
+    def __init__(
+        self,
+        file_paths,
+        feature,
+        steps,
+        models=None,
+        exo_resolution=None,
+        source_file=None,
+        target=None,
+        shape=None,
+        time_slice=slice(None),
+        raster_file=None,
+        max_delta=20,
+        input_handler=None,
+        exo_handler=None,
+        cache_data=True,
+        cache_dir='./exo_cache',
+        res_kwargs=None,
+    ):
         """
         Parameters
         ----------
@@ -315,17 +316,23 @@ class ExogenousDataHandler:
         self.s_agg_factors = agg_enhance['s_agg_factors']
         self.t_agg_factors = agg_enhance['t_agg_factors']
 
-        msg = ('Need to provide the same number of enhancement factors and '
-               f'agg factors. Received s_enhancements={self.s_enhancements}, '
-               f'and s_agg_factors={self.s_agg_factors}.')
+        msg = (
+            'Need to provide the same number of enhancement factors and '
+            f'agg factors. Received s_enhancements={self.s_enhancements}, '
+            f'and s_agg_factors={self.s_agg_factors}.'
+        )
         assert len(self.s_enhancements) == len(self.s_agg_factors), msg
-        msg = ('Need to provide the same number of enhancement factors and '
-               f'agg factors. Received t_enhancements={self.t_enhancements}, '
-               f'and t_agg_factors={self.t_agg_factors}.')
+        msg = (
+            'Need to provide the same number of enhancement factors and '
+            f'agg factors. Received t_enhancements={self.t_enhancements}, '
+            f'and t_agg_factors={self.t_agg_factors}.'
+        )
         assert len(self.t_enhancements) == len(self.t_agg_factors), msg
 
-        msg = ('Need to provide an integer enhancement factor for each model'
-               'step. If the step is temporal enhancement then s_enhance=1')
+        msg = (
+            'Need to provide an integer enhancement factor for each model'
+            'step. If the step is temporal enhancement then s_enhance=1'
+        )
         assert not any(s is None for s in self.s_enhancements), msg
 
         for i, _ in enumerate(self.s_enhancements):
@@ -334,23 +341,32 @@ class ExogenousDataHandler:
             s_agg_factor = self.s_agg_factors[i]
             t_agg_factor = self.t_agg_factors[i]
             if feature in list(self.AVAILABLE_HANDLERS):
-                data = self.get_exo_data(feature=feature,
-                                         s_enhance=s_enhance,
-                                         t_enhance=t_enhance,
-                                         s_agg_factor=s_agg_factor,
-                                         t_agg_factor=t_agg_factor)
-                step = SingleExoDataStep(feature, steps[i]['combine_type'],
-                                         steps[i]['model'], data)
+                data = self.get_exo_data(
+                    feature=feature,
+                    s_enhance=s_enhance,
+                    t_enhance=t_enhance,
+                    s_agg_factor=s_agg_factor,
+                    t_agg_factor=t_agg_factor,
+                )
+                step = SingleExoDataStep(
+                    feature, steps[i]['combine_type'], steps[i]['model'], data
+                )
                 self.data[feature]['steps'].append(step)
             else:
-                msg = (f"Can only extract {list(self.AVAILABLE_HANDLERS)}."
-                       f" Received {feature}.")
+                msg = (
+                    f'Can only extract {list(self.AVAILABLE_HANDLERS)}.'
+                    f' Received {feature}.'
+                )
                 raise NotImplementedError(msg)
-        shapes = [None if step is None else step.shape
-                  for step in self.data[feature]['steps']]
+        shapes = [
+            None if step is None else step.shape
+            for step in self.data[feature]['steps']
+        ]
         logger.info(
             'Got exogenous_data of length {} with shapes: {}'.format(
-                len(self.data[feature]['steps']), shapes))
+                len(self.data[feature]['steps']), shapes
+            )
+        )
 
     def input_check(self):
         """Make sure agg factors are provided or exo_resolution and models are
@@ -358,17 +374,22 @@ class ExogenousDataHandler:
         provided"""
         agg_check = all('s_agg_factor' in v for v in self.steps)
         agg_check = agg_check and all('t_agg_factor' in v for v in self.steps)
-        agg_check = (agg_check
-                     or self.models is not None and self.exo_res is not None)
-        msg = ("ExogenousDataHandler needs s_agg_factor and t_agg_factor "
-               "provided in each step in steps list or models and "
-               "exo_resolution")
+        agg_check = (
+            agg_check or (self.models is not None and self.exo_res is not None)
+        )
+        msg = (
+            'ExogenousDataHandler needs s_agg_factor and t_agg_factor '
+            'provided in each step in steps list or models and '
+            'exo_resolution'
+        )
         assert agg_check, msg
         en_check = all('s_enhance' in v for v in self.steps)
         en_check = en_check and all('t_enhance' in v for v in self.steps)
         en_check = en_check or self.models is not None
-        msg = ("ExogenousDataHandler needs s_enhance and t_enhance "
-               "provided in each step in steps list or models")
+        msg = (
+            'ExogenousDataHandler needs s_enhance and t_enhance '
+            'provided in each step in steps list or models'
+        )
         assert en_check, msg
 
     def _get_res_ratio(self, input_res, exo_res):
@@ -386,14 +407,22 @@ class ExogenousDataHandler:
         res_ratio : int | None
             Ratio of input / exo resolution
         """
-        ires_num = (None if input_res is None
-                    else int(re.search(r'\d+', input_res).group(0)))
-        eres_num = (None if exo_res is None
-                    else int(re.search(r'\d+', exo_res).group(0)))
-        i_units = (None if input_res is None
-                   else input_res.replace(str(ires_num), ''))
-        e_units = (None if exo_res is None
-                   else exo_res.replace(str(eres_num), ''))
+        ires_num = (
+            None
+            if input_res is None
+            else int(re.search(r'\d+', input_res).group(0))
+        )
+        eres_num = (
+            None
+            if exo_res is None
+            else int(re.search(r'\d+', exo_res).group(0))
+        )
+        i_units = (
+            None if input_res is None else input_res.replace(str(ires_num), '')
+        )
+        e_units = (
+            None if exo_res is None else exo_res.replace(str(eres_num), '')
+        )
         msg = 'Received conflicting units for input and exo resolution'
         if e_units is not None:
             assert i_units == e_units, msg
@@ -425,7 +454,7 @@ class ExogenousDataHandler:
         input_s_res = None if input_res is None else input_res['spatial']
         exo_s_res = None if exo_res is None else exo_res['spatial']
         s_res_ratio = self._get_res_ratio(input_s_res, exo_s_res)
-        s_agg_factor = None if s_res_ratio is None else int(s_res_ratio)**2
+        s_agg_factor = None if s_res_ratio is None else int(s_res_ratio) ** 2
         input_t_res = None if input_res is None else input_res['temporal']
         exo_t_res = None if exo_res is None else exo_res['temporal']
         t_agg_factor = self._get_res_ratio(input_t_res, exo_t_res)
@@ -452,27 +481,34 @@ class ExogenousDataHandler:
 
         model_step = step['model']
         combine_type = step.get('combine_type', None)
-        msg = (f'Model index from exo_kwargs ({model_step} exceeds number '
-               f'of model steps ({len(self.models)})')
+        msg = (
+            f'Model index from exo_kwargs ({model_step} exceeds number '
+            f'of model steps ({len(self.models)})'
+        )
         assert len(self.models) > model_step, msg
         model = self.models[model_step]
         input_res = model.input_resolution
         output_res = model.output_resolution
         if combine_type.lower() == 'input':
             s_agg_factor, t_agg_factor = self.get_agg_factors(
-                input_res, self.exo_res)
+                input_res, self.exo_res
+            )
 
         elif combine_type.lower() in ('output', 'layer'):
             s_agg_factor, t_agg_factor = self.get_agg_factors(
-                output_res, self.exo_res)
+                output_res, self.exo_res
+            )
 
         else:
-            msg = ('Received exo_kwargs entry without valid combine_type '
-                   '(input/layer/output)')
+            msg = (
+                'Received exo_kwargs entry without valid combine_type '
+                '(input/layer/output)'
+            )
             raise OSError(msg)
 
-        step.update({'s_agg_factor': s_agg_factor,
-                     't_agg_factor': t_agg_factor})
+        step.update(
+            {'s_agg_factor': s_agg_factor, 't_agg_factor': t_agg_factor}
+        )
         return step
 
     def _get_single_step_enhance(self, step):
@@ -497,8 +533,10 @@ class ExogenousDataHandler:
 
         model_step = step['model']
         combine_type = step.get('combine_type', None)
-        msg = (f'Model index from exo_kwargs ({model_step} exceeds number '
-               f'of model steps ({len(self.models)})')
+        msg = (
+            f'Model index from exo_kwargs ({model_step} exceeds number '
+            f'of model steps ({len(self.models)})'
+        )
         assert len(self.models) > model_step, msg
 
         s_enhancements = [model.s_enhance for model in self.models]
@@ -512,12 +550,14 @@ class ExogenousDataHandler:
                 t_enhance = np.prod(t_enhancements[:model_step])
 
         elif combine_type.lower() in ('output', 'layer'):
-            s_enhance = np.prod(s_enhancements[:model_step + 1])
-            t_enhance = np.prod(t_enhancements[:model_step + 1])
+            s_enhance = np.prod(s_enhancements[: model_step + 1])
+            t_enhance = np.prod(t_enhancements[: model_step + 1])
 
         else:
-            msg = ('Received exo_kwargs entry without valid combine_type '
-                   '(input/layer/output)')
+            msg = (
+                'Received exo_kwargs entry without valid combine_type '
+                '(input/layer/output)'
+            )
             raise OSError(msg)
 
         step.update({'s_enhance': s_enhance, 't_enhance': t_enhance})
@@ -538,18 +578,23 @@ class ExogenousDataHandler:
             out = self._get_single_step_agg(step)
             out = self._get_single_step_enhance(out)
             self.steps[i] = out
-        agg_enhance_dict['s_agg_factors'] = [step['s_agg_factor']
-                                             for step in self.steps]
-        agg_enhance_dict['t_agg_factors'] = [step['t_agg_factor']
-                                             for step in self.steps]
-        agg_enhance_dict['s_enhancements'] = [step['s_enhance']
-                                              for step in self.steps]
-        agg_enhance_dict['t_enhancements'] = [step['t_enhance']
-                                              for step in self.steps]
+        agg_enhance_dict['s_agg_factors'] = [
+            step['s_agg_factor'] for step in self.steps
+        ]
+        agg_enhance_dict['t_agg_factors'] = [
+            step['t_agg_factor'] for step in self.steps
+        ]
+        agg_enhance_dict['s_enhancements'] = [
+            step['s_enhance'] for step in self.steps
+        ]
+        agg_enhance_dict['t_enhancements'] = [
+            step['t_enhance'] for step in self.steps
+        ]
         return agg_enhance_dict
 
-    def get_exo_data(self, feature, s_enhance, t_enhance, s_agg_factor,
-                     t_agg_factor):
+    def get_exo_data(
+        self, feature, s_enhance, t_enhance, s_agg_factor, t_agg_factor
+    ):
         """Get the exogenous topography data
 
         Parameters
@@ -576,26 +621,27 @@ class ExogenousDataHandler:
             lon, temporal)
         """
 
-        exo_handler = self.get_exo_handler(feature, self.source_file,
-                                           self.exo_handler)
-        kwargs = dict(file_paths=self.file_paths,
-                      exo_source=self.source_file,
-                      s_enhance=s_enhance,
-                      t_enhance=t_enhance,
-                      s_agg_factor=s_agg_factor,
-                      t_agg_factor=t_agg_factor,
-                      target=self.target,
-                      shape=self.shape,
-                      time_slice=self.time_slice,
-                      raster_file=self.raster_file,
-                      max_delta=self.max_delta,
-                      input_handler=self.input_handler,
-                      cache_data=self.cache_data,
-                      cache_dir=self.cache_dir,
-                      res_kwargs=self.res_kwargs)
-        sig = signature(exo_handler)
-        kwargs = {k: v for k, v in kwargs.items() if k in sig.parameters}
-        data = exo_handler(**kwargs).data
+        exo_handler = self.get_exo_handler(
+            feature, self.source_file, self.exo_handler
+        )
+        kwargs = {
+            'file_paths': self.file_paths,
+            'exo_source': self.source_file,
+            's_enhance': s_enhance,
+            't_enhance': t_enhance,
+            's_agg_factor': s_agg_factor,
+            't_agg_factor': t_agg_factor,
+            'target': self.target,
+            'shape': self.shape,
+            'time_slice': self.time_slice,
+            'raster_file': self.raster_file,
+            'max_delta': self.max_delta,
+            'input_handler': self.input_handler,
+            'cache_data': self.cache_data,
+            'cache_dir': self.cache_dir,
+            'res_kwargs': self.res_kwargs,
+        }
+        data = exo_handler(**get_class_kwargs(exo_handler, kwargs)).data
         return data
 
     @classmethod
@@ -624,17 +670,22 @@ class ExogenousDataHandler:
         if exo_handler is None:
             in_type = get_source_type(source_file)
             if in_type not in ('h5', 'nc'):
-                msg = ('Did not recognize input type "{}" for file paths: {}'.
-                       format(in_type, source_file))
+                msg = 'Did not recognize input type "{}" for file paths: {}'.format(
+                    in_type, source_file
+                )
                 logger.error(msg)
                 raise RuntimeError(msg)
-            check = (feature in cls.AVAILABLE_HANDLERS
-                     and in_type in cls.AVAILABLE_HANDLERS[feature])
+            check = (
+                feature in cls.AVAILABLE_HANDLERS
+                and in_type in cls.AVAILABLE_HANDLERS[feature]
+            )
             if check:
                 exo_handler = cls.AVAILABLE_HANDLERS[feature][in_type]
             else:
-                msg = ('Could not find exo handler class for '
-                       f'feature={feature} and input_type={in_type}.')
+                msg = (
+                    'Could not find exo handler class for '
+                    f'feature={feature} and input_type={in_type}.'
+                )
                 logger.error(msg)
                 raise KeyError(msg)
         elif isinstance(exo_handler, str):

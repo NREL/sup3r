@@ -24,28 +24,44 @@ class LoaderH5(Loader):
 
     BASE_LOADER = MultiFileWindX
 
+    @property
+    def _time_independent(self):
+        return 'time_index' not in self.res
+
+    def _meta_shape(self):
+        """Get shape of spatial domain only."""
+        return self.res.h5['meta']['latitude'].shape
+
     def _res_shape(self):
         """Get shape of H5 file. Flattened files are 2D but we have 3D H5 files
         available through caching."""
         return (
-            len(self.res['time_index']),
-            *self.res.h5['meta']['latitude'].shape,
+            self._meta_shape()
+            if self._time_independent
+            else (len(self.res['time_index']), *self._meta_shape())
         )
 
     def load(self) -> xr.Dataset:
         """Wrap data in xarray.Dataset(). Handle differences with flattened and
         cached h5."""
         data_vars: Dict[str, Tuple] = {}
-        dims: Tuple[str, ...] = ('time', 'south_north', 'west_east')
-        if len(self._res_shape()) == 2:
-            dims = ('time', 'space')
-            elev = da.expand_dims(self.res.meta['elevation'].values, axis=0)
+        coords: Dict[str, Tuple] = {}
+        if len(self._meta_shape()) == 2:
+            dims: Tuple[str, ...] = ('south_north', 'west_east')
+        else:
+            dims: Tuple[str, ...] = ('space',)
+        if not self._time_independent:
+            dims = ('time', *dims)
+            coords['time'] = self.res['time_index']
+
+        if len(self._meta_shape()) == 1:
             data_vars['elevation'] = (
                 dims,
-                da.repeat(
-                    da.asarray(elev, dtype=np.float32),
-                    len(self.res.h5['time_index']),
-                    axis=0,
+                da.broadcast_to(
+                    da.asarray(
+                        self.res.meta['elevation'].values, dtype=np.float32
+                    ),
+                    self._res_shape(),
                 ),
             )
         data_vars = {
@@ -62,17 +78,18 @@ class LoaderH5(Loader):
                 if f not in ('meta', 'time_index')
             },
         }
-        coords = {
-            'time': self.res['time_index'],
-            'latitude': (
-                dims[1:],
-                da.from_array(self.res.h5['meta']['latitude']),
-            ),
-            'longitude': (
-                dims[1:],
-                da.from_array(self.res.h5['meta']['longitude']),
-            ),
-        }
+        coords.update(
+            {
+                'latitude': (
+                    dims[-len(self._meta_shape()) :],
+                    da.from_array(self.res.h5['meta']['latitude']),
+                ),
+                'longitude': (
+                    dims[-len(self._meta_shape()) :],
+                    da.from_array(self.res.h5['meta']['longitude']),
+                ),
+            }
+        )
         return xr.Dataset(coords=coords, data_vars=data_vars).astype(
             np.float32
         )

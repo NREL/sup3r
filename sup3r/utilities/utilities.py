@@ -37,7 +37,8 @@ def _get_possible_class_args(Class):
     return class_args
 
 
-def _get_class_kwargs(Class, kwargs):
+def get_class_kwargs(Class, kwargs):
+    """Go through class and class parents and get matching kwargs."""
     class_args = _get_possible_class_args(Class)
     return {k: v for k, v in kwargs.items() if k in class_args}
 
