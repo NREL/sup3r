@@ -617,9 +617,12 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
 class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
     """PresRat bias correction method (precipitation)
 
-    The PresRat correction is defined as the combination of using the
-    model-predicted change ratio, the treatment of zero-precipitation days,
-    and the final correction factor (K) [Pierce2015]_.
+    The PresRat correction [Pierce2015]_ is defined as the combination of
+    three steps:
+    * Use the model-predicted change ratio - require CDFs;
+    * The treatment of zero-precipitation days - require fraction of dry days;
+    * The final correction factor (K) to preserve the mean - require mean
+      estimate;
 
     References
     ----------
