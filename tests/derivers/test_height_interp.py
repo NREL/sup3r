@@ -11,7 +11,7 @@ from rex import init_logger
 from sup3r import TEST_DATA_DIR
 from sup3r.containers import (
     Deriver,
-    DirectExtracterNC,
+    ExtracterNC,
 )
 from sup3r.utilities.interpolation import Interpolator
 from sup3r.utilities.pytest.helpers import execute_pytest, make_fake_nc_file
@@ -30,7 +30,7 @@ init_logger('sup3r', log_level='DEBUG')
 @pytest.mark.parametrize(
     ['DirectExtracter', 'Deriver', 'shape', 'target'],
     [
-        (DirectExtracterNC, Deriver, (10, 10), (37.25, -107)),
+        (ExtracterNC, Deriver, (10, 10), (37.25, -107)),
     ],
 )
 def test_height_interp_nc(DirectExtracter, Deriver, shape, target):
@@ -60,7 +60,7 @@ def test_height_interp_nc(DirectExtracter, Deriver, shape, target):
 @pytest.mark.parametrize(
     ['DirectExtracter', 'Deriver', 'shape', 'target'],
     [
-        (DirectExtracterNC, Deriver, (10, 10), (37.25, -107)),
+        (ExtracterNC, Deriver, (10, 10), (37.25, -107)),
     ],
 )
 def test_height_interp_with_single_lev_data_nc(

@@ -6,8 +6,6 @@ Sup3r batch_handling module.
 import logging
 from typing import Dict, List, Optional, Union
 
-import numpy as np
-
 from sup3r.containers.base import (
     Container,
     DualContainer,
@@ -19,8 +17,6 @@ from sup3r.containers.factories.common import FactoryMeta
 from sup3r.containers.samplers.base import Sampler
 from sup3r.containers.samplers.dual import DualSampler
 from sup3r.utilities.utilities import get_class_kwargs
-
-np.random.seed(42)
 
 logger = logging.getLogger(__name__)
 

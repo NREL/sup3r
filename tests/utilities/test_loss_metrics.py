@@ -1,13 +1,19 @@
 # -*- coding: utf-8 -*-
 """Test the basic training of super resolution GAN"""
 import numpy as np
-import tensorflow as tf
 import pytest
+import tensorflow as tf
 
-from sup3r.utilities.loss_metrics import (MmdMseLoss, CoarseMseLoss,
-                                          TemporalExtremesLoss, LowResLoss,
-                                          MaterialDerivativeLoss)
+from sup3r.utilities.loss_metrics import (
+    CoarseMseLoss,
+    LowResLoss,
+    MaterialDerivativeLoss,
+    MmdMseLoss,
+    TemporalExtremesLoss,
+)
 from sup3r.utilities.utilities import spatial_coarsening, temporal_coarsening
+
+np.random.seed(42)
 
 
 def test_mmd_loss():

@@ -374,8 +374,8 @@ class ExogenousDataHandler:
         provided"""
         agg_check = all('s_agg_factor' in v for v in self.steps)
         agg_check = agg_check and all('t_agg_factor' in v for v in self.steps)
-        agg_check = (
-            agg_check or (self.models is not None and self.exo_res is not None)
+        agg_check = agg_check or (
+            self.models is not None and self.exo_res is not None
         )
         msg = (
             'ExogenousDataHandler needs s_agg_factor and t_agg_factor '
@@ -670,8 +670,9 @@ class ExogenousDataHandler:
         if exo_handler is None:
             in_type = get_source_type(source_file)
             if in_type not in ('h5', 'nc'):
-                msg = 'Did not recognize input type "{}" for file paths: {}'.format(
-                    in_type, source_file
+                msg = (
+                    f'Did not recognize input type "{in_type}" for file '
+                    f'paths: {source_file}'
                 )
                 logger.error(msg)
                 raise RuntimeError(msg)

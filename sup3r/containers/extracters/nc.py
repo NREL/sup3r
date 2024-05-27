@@ -11,12 +11,10 @@ import numpy as np
 from sup3r.containers.extracters.base import Extracter
 from sup3r.containers.loaders import Loader
 
-np.random.seed(42)
-
 logger = logging.getLogger(__name__)
 
 
-class ExtracterNC(Extracter, ABC):
+class BaseExtracterNC(Extracter, ABC):
     """Extracter subclass for h5 files specifically."""
 
     def __init__(

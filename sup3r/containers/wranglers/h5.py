@@ -8,23 +8,24 @@ import logging
 import numpy as np
 from rex import MultiFileNSRDBX
 
-from sup3r.containers import ExtracterH5, LoaderH5
 from sup3r.containers.derivers.methods import (
     RegistryH5SolarCC,
     RegistryH5WindCC,
 )
-from sup3r.containers.factories.data_handlers import DataHandlerFactory
+from sup3r.containers.extracters import BaseExtracterH5
+from sup3r.containers.factories.data_handlers import (
+    DataHandlerFactory,
+)
+from sup3r.containers.loaders import LoaderH5
 from sup3r.utilities.utilities import (
     daily_temporal_coarsening,
 )
-
-np.random.seed(42)
 
 logger = logging.getLogger(__name__)
 
 
 BaseH5WindCC = DataHandlerFactory(
-    ExtracterH5, LoaderH5, FeatureRegistry=RegistryH5WindCC
+    BaseExtracterH5, LoaderH5, FeatureRegistry=RegistryH5WindCC
 )
 
 
@@ -33,7 +34,7 @@ def _base_loader(file_paths, **kwargs):
 
 
 BaseH5SolarCC = DataHandlerFactory(
-    ExtracterH5,
+    BaseExtracterH5,
     LoaderH5,
     BaseLoader=_base_loader,
     FeatureRegistry=RegistryH5SolarCC,

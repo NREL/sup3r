@@ -12,8 +12,8 @@ from rex import init_logger
 from sup3r import TEST_DATA_DIR
 from sup3r.containers import (
     Cacher,
-    DirectExtracterH5,
-    DirectExtracterNC,
+    ExtracterH5,
+    ExtracterNC,
     LoaderH5,
     LoaderNC,
 )
@@ -38,11 +38,11 @@ def test_raster_index_caching():
     # saving raster file
     with tempfile.TemporaryDirectory() as td:
         raster_file = os.path.join(td, 'raster.txt')
-        extracter = DirectExtracterH5(
+        extracter = ExtracterH5(
             h5_files[0], raster_file=raster_file, target=target, shape=shape
         )
         # loading raster file
-        extracter = DirectExtracterH5(h5_files[0], raster_file=raster_file)
+        extracter = ExtracterH5(h5_files[0], raster_file=raster_file)
     assert np.allclose(extracter.target, target, atol=1)
     assert extracter.shape[:3] == (
         shape[0],
@@ -65,7 +65,7 @@ def test_raster_index_caching():
         (
             h5_files,
             LoaderH5,
-            DirectExtracterH5,
+            ExtracterH5,
             'h5',
             (20, 20),
             (39.01, -105.15),
@@ -74,7 +74,7 @@ def test_raster_index_caching():
         (
             nc_files,
             LoaderNC,
-            DirectExtracterNC,
+            ExtracterNC,
             'nc',
             (10, 10),
             (37.25, -107),

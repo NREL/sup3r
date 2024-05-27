@@ -6,8 +6,6 @@ from .batch_handlers import BatchHandler, DualBatchHandler
 from .data_handlers import (
     DataHandlerH5,
     DataHandlerNC,
-    DataHandlerNCforCC,
-    DataHandlerNCforCCwithPowerLaw,
-    DirectExtracterH5,
-    DirectExtracterNC,
+    ExtracterH5,
+    ExtracterNC,
 )

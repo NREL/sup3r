@@ -11,12 +11,10 @@ import xarray as xr
 from sup3r.containers.extracters.base import Extracter
 from sup3r.containers.loaders import LoaderH5
 
-np.random.seed(42)
-
 logger = logging.getLogger(__name__)
 
 
-class ExtracterH5(Extracter, ABC):
+class BaseExtracterH5(Extracter, ABC):
     """Extracter subclass for h5 files specifically."""
 
     def __init__(

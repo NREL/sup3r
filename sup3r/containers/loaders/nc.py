@@ -75,8 +75,14 @@ class LoaderNC(Loader):
             lons, lats = da.meshgrid(lons, lats)
 
         coords = {
-            'latitude': (('south_north', 'west_east'), lats),
-            'longitude': (('south_north', 'west_east'), lons),
+            'latitude': (
+                ('south_north', 'west_east'),
+                lats.astype(np.float32),
+            ),
+            'longitude': (
+                ('south_north', 'west_east'),
+                lons.astype(np.float32),
+            ),
         }
         out = res.assign_coords(coords)
         out = out.drop_vars(('south_north', 'west_east'))

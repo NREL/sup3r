@@ -12,11 +12,36 @@ from sup3r import TEST_DATA_DIR
 from sup3r.containers import (
     DataHandlerNCforCC,
     DataHandlerNCforCCwithPowerLaw,
+    LoaderNC,
 )
 from sup3r.containers.derivers.methods import UWindPowerLaw
 from sup3r.utilities.pytest.helpers import execute_pytest
 
 init_logger('sup3r', log_level='DEBUG')
+
+
+def test_get_just_coords_nc():
+    """Test data handling without features, target, shape, or raster_file
+    input"""
+
+    input_files = [os.path.join(TEST_DATA_DIR, 'uas_test.nc')]
+    handler = DataHandlerNCforCC(file_paths=input_files, features=[])
+    nc_res = LoaderNC(input_files)
+    shape = (len(nc_res['latitude']), len(nc_res['longitude']))
+    target = (
+        nc_res['latitude'].min(),
+        nc_res['longitude'].min(),
+    )
+    assert np.array_equal(
+        handler.lat_lon[-1, 0, :],
+        (
+            handler.loader['latitude'].min(),
+            handler.loader['longitude'].min(),
+        ),
+    )
+    assert not handler.data_vars
+    assert handler.grid_shape == shape
+    assert np.array_equal(handler.target, target)
 
 
 def test_data_handling_nc_cc_power_law(hh=100):

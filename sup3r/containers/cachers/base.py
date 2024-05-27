@@ -12,8 +12,6 @@ import xarray as xr
 from sup3r.containers.abstract import Data
 from sup3r.containers.base import Container
 
-np.random.seed(42)
-
 logger = logging.getLogger(__name__)
 
 

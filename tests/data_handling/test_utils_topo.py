@@ -24,6 +24,7 @@ FP_WRF = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
 WRF_TARGET = (19.3, -123.5)
 WRF_SHAPE = (8, 8)
 
+np.random.seed(42)
 
 init_logger('sup3r', log_level='DEBUG')
 

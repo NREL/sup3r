@@ -11,6 +11,8 @@ from sup3r.containers.samplers.dual import DualSampler
 
 logger = logging.getLogger(__name__)
 
+np.random.seed(42)
+
 
 class SamplerCollection(Collection):
     """Collection of :class:`Sampler` containers with methods for

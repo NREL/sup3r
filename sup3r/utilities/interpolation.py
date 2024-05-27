@@ -8,6 +8,8 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
+np.random.seed(42)
+
 
 class Interpolator:
     """Class for handling pressure and height interpolation"""

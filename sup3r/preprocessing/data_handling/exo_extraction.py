@@ -13,11 +13,8 @@ from rex import Resource
 from rex.utilities.solar_position import SolarPosition
 from scipy.spatial import KDTree
 
-import sup3r.containers
 from sup3r.containers import (
     Cacher,
-    DirectExtracterH5,
-    DirectExtracterNC,
     LoaderH5,
     LoaderNC,
 )
@@ -25,7 +22,7 @@ from sup3r.postprocessing.file_handling import OutputHandler
 from sup3r.utilities.utilities import (
     generate_random_string,
     get_class_kwargs,
-    get_source_type,
+    get_input_handler_class,
     nn_fill_array,
 )
 
@@ -150,10 +147,8 @@ class ExoExtract(ABC):
         self.target = target
         self.shape = shape
         self.res_kwargs = res_kwargs
-
-        # for subclasses
         self._source_handler = None
-        input_handler = self.get_input_handler(file_paths, input_handler)
+        InputHandler = get_input_handler_class(file_paths, input_handler)
         kwargs = {
             'file_paths': file_paths,
             'target': target,
@@ -163,37 +158,10 @@ class ExoExtract(ABC):
             'max_delta': max_delta,
             'res_kwargs': self.res_kwargs,
         }
-        self.input_handler = input_handler(
-            **get_class_kwargs(input_handler, kwargs)
+        self.input_handler = InputHandler(
+            **get_class_kwargs(InputHandler, kwargs)
         )
-
-    def get_input_handler(self, file_paths, input_handler):
-        """Get input_handler object from given input_handler arg."""
-        if input_handler is None:
-            in_type = get_source_type(file_paths)
-            if in_type == 'nc':
-                input_handler = DirectExtracterNC
-            elif in_type == 'h5':
-                input_handler = DirectExtracterH5
-            else:
-                msg = (
-                    f'Did not recognize input type "{in_type}" for file '
-                    f'paths: {file_paths}'
-                )
-                logger.error(msg)
-                raise RuntimeError(msg)
-        elif isinstance(input_handler, str):
-            out = getattr(sup3r.containers, input_handler, None)
-            if out is None:
-                msg = (
-                    'Could not find requested data handler class '
-                    f'"{input_handler}" in '
-                    'sup3r.containers.'
-                )
-                logger.error(msg)
-                raise KeyError(msg)
-            input_handler = out
-        return input_handler
+        self.lr_lat_lon = self.input_handler.lat_lon
 
     @property
     @abstractmethod
@@ -244,9 +212,10 @@ class ExoExtract(ABC):
     @property
     def source_lat_lon(self):
         """Get the 2D array (n, 2) of lat, lon data from the exo_source_h5"""
-        with Resource(self._exo_source) as res:
-            source_lat_lon = res.lat_lon
-        return source_lat_lon
+        if self._source_lat_lon is None:
+            with LoaderH5(self._exo_source) as res:
+                self._source_lat_lon = res.lat_lon
+        return self._source_lat_lon
 
     @property
     def lr_shape(self):
@@ -265,18 +234,6 @@ class ExoExtract(ABC):
             self._s_enhance * self.lr_lat_lon.shape[1],
             self._t_enhance * len(self.input_handler.time_index),
         )
-
-    @property
-    def lr_lat_lon(self):
-        """Lat lon grid for data in format (spatial_1, spatial_2, 2) Lat/Lon
-        array with same ordering in last dimension. This corresponds to the raw
-        meta data from the file_paths input.
-
-        Returns
-        -------
-        ndarray
-        """
-        return self.input_handler.lat_lon
 
     @property
     def hr_lat_lon(self):
@@ -405,111 +362,6 @@ class ExoExtract(ABC):
         high-resolution grid (the file_paths input grid * s_enhance *
         t_enhance). The shape is (lats, lons, temporal)
         """
-
-    @classmethod
-    def get_exo_raster(
-        cls,
-        file_paths,
-        s_enhance,
-        t_enhance,
-        t_agg_factor,
-        exo_source=None,
-        target=None,
-        shape=None,
-        time_slice=None,
-        raster_file=None,
-        max_delta=20,
-        input_handler=None,
-        cache_data=True,
-        cache_dir='./exo_cache/',
-    ):
-        """Get the exo feature raster corresponding to the spatially enhanced
-        grid from the file_paths input
-
-        Parameters
-        ----------
-        file_paths : str | list
-            A single source h5 file to extract raster data from or a list
-            of netcdf files with identical grid. The string can be a unix-style
-            file path which will be passed through glob.glob
-        s_enhance : int
-            Factor by which the Sup3rGan model will enhance the spatial
-            dimensions of low resolution data from file_paths input. For
-            example, if file_paths has 100km data and s_enhance is 4, this
-            class will output a topography raster corresponding to the
-            file_paths grid enhanced 4x to ~25km
-        t_enhance : int
-            Factor by which the Sup3rGan model will enhance the temporal
-            dimension of low resolution data from file_paths input. For
-            example, if getting sza data, file_paths has hourly data, and
-            t_enhance is 4, this class will output a sza raster
-            corresponding to the file_paths temporally enhanced 4x to 15 min
-        t_agg_factor : int
-            Factor by which to aggregate the exo_source data to the resolution
-            of the file_paths input enhanced by t_enhance. For example, if
-            getting sza data, file_paths have hourly data, and t_enhance
-            is 4 resulting in a desired resolution of 5 min and exo_source
-            has a resolution of 5 min, the t_agg_factor should be 4 so that
-            every fourth timestep in the exo_source data is skipped.
-        exo_source : str
-            Filepath to source wtk, nsrdb, or netcdf file to get hi-res (2km or
-            4km) data from which will be mapped to the enhanced grid of the
-            file_paths input
-        target : tuple
-            (lat, lon) lower left corner of raster. Either need target+shape or
-            raster_file.
-        shape : tuple
-            (rows, cols) grid size. Either need target+shape or raster_file.
-        time_slice : slice | None
-            slice used to extract interval from temporal dimension for input
-            data and source data
-        raster_file : str | None
-            File for raster_index array for the corresponding target and shape.
-            If specified the raster_index will be loaded from the file if it
-            exists or written to the file if it does not yet exist.  If None
-            raster_index will be calculated directly. Either need target+shape
-            or raster_file.
-        max_delta : int, optional
-            Optional maximum limit on the raster shape that is retrieved at
-            once. If shape is (20, 20) and max_delta=10, the full raster will
-            be retrieved in four chunks of (10, 10). This helps adapt to
-            non-regular grids that curve over large distances, by default 20
-        input_handler : str
-            data handler class to use for input data. Provide a string name to
-            match a class in data_handling.py. If None the correct handler will
-            be guessed based on file type and time series properties.
-        cache_data : bool
-            Flag to cache exogeneous data in <cache_dir>/exo_cache/ this can
-            speed up forward passes with large temporal extents when the exo
-            data is time independent.
-        cache_dir : str
-            Directory for storing cache data. Default is './exo_cache'
-
-        Returns
-        -------
-        exo_raster : np.ndarray
-            Exo feature raster with shape (hr_rows, hr_cols, h_temporal)
-            corresponding to the shape of the spatiotemporally enhanced data
-            from file_paths * s_enhance * t_enhance.  The data units correspond
-            to the source units in exo_source_h5. This is usually meters when
-            feature='topography'
-        """
-        exo = cls(
-            file_paths,
-            s_enhance,
-            t_enhance,
-            t_agg_factor,
-            exo_source=exo_source,
-            target=target,
-            shape=shape,
-            time_slice=time_slice,
-            raster_file=raster_file,
-            max_delta=max_delta,
-            input_handler=input_handler,
-            cache_data=cache_data,
-            cache_dir=cache_dir,
-        )
-        return exo.data
 
 
 class TopoExtractH5(ExoExtract):

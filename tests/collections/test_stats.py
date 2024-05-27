@@ -8,7 +8,7 @@ import numpy as np
 from rex import safe_json_load
 
 from sup3r import TEST_DATA_DIR
-from sup3r.containers import DirectExtracterH5, StatsCollection
+from sup3r.containers import ExtracterH5, StatsCollection
 from sup3r.utilities.pytest.helpers import execute_pytest
 
 input_files = [
@@ -31,7 +31,7 @@ def test_stats_calc():
     stats files."""
     features = ['windspeed_100m', 'winddirection_100m']
     extracters = [
-        DirectExtracterH5(file, features=features, **kwargs)
+        ExtracterH5(file, features=features, **kwargs)
         for file in input_files
     ]
     with TemporaryDirectory() as td:

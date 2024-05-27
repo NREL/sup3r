@@ -14,8 +14,6 @@ from sup3r.utilities.utilities import (
     transform_rotate_wind,
 )
 
-np.random.seed(42)
-
 logger = logging.getLogger(__name__)
 
 

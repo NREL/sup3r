@@ -43,9 +43,9 @@ class DistributedProcess:
         self._n_chunks = n_chunks
         self._max_nodes = max_nodes
         self._max_chunks = max_chunks
-        self._out_files = None
         self._failed_chunks = False
         self.incremental = incremental
+        self.out_files = None
 
     def __len__(self):
         """Get total number of process chunks"""
@@ -97,11 +97,6 @@ class DistributedProcess:
     def all_finished(self):
         """Check if all out files have been saved"""
         return all(self.node_finished(i) for i in range(self.nodes))
-
-    @property
-    def out_files(self):
-        """Get list of out files to write process output to"""
-        return self._out_files
 
     @property
     def max_nodes(self):

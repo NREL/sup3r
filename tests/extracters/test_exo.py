@@ -43,7 +43,7 @@ def test_exo_cache(feature):
                                     source_file=fp_topo,
                                     steps=steps,
                                     target=TARGET, shape=SHAPE,
-                                    input_handler='DirectExtracterNC',
+                                    input_handler='ExtracterNC',
                                     cache_dir=os.path.join(td, 'exo_cache'))
         for i, arr in enumerate(base.data[feature]['steps']):
             assert arr.shape[0] == SHAPE[0] * S_ENHANCE[i]
@@ -56,7 +56,7 @@ def test_exo_cache(feature):
                                      source_file=FP_WTK,
                                      steps=steps,
                                      target=TARGET, shape=SHAPE,
-                                     input_handler='DirectExtracterNC',
+                                     input_handler='ExtracterNC',
                                      cache_dir=os.path.join(td, 'exo_cache'))
         assert len(os.listdir(f'{td}/exo_cache')) == 2
 
