@@ -635,28 +635,38 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
     #   - Estimate K = <x> / <hat{x}>
     """
 
-    def correction_factor():
-        """Preserve the mean precipitation change (K factor)
+    @staticmethod
+    def _window_mask(d, d0, window_size=31):
+        d_start = d0 - window_size
+        d_end = d0 + window_size
+        if d_start < 0:
+            idx = (d >= 365 + d_start) | (d <= d_end)
+        elif d_end > 365:
+            idx = (d >= d_start) | (d <= 365 - d_end)
+        else:
+            idx = (d >= d_start) & (d <= d_end)
+        return idx
 
-        When bias correcting, the mean can fall in a different quantile, thus
-        modifying the corrected mean if the shape of the distribution changes.
-        That effect is more pronounced in skewed distributions, such as
-        precipitation.
-        """
-        pass
-        self.bias_dh.bias_ti
+    @staticmethod
+    def _single_quantile(da, d0, window_size, quantiles):
+        idx = self._window_mask(
+            da.time.dt.dayofyear, d0, window_size=window_size
+        )
+        q = (
+            da.where(idx, drop=True)
+            .chunk(dict(time=-1))
+            .quantile(quantiles, dim=['time'])
+        )
+        return q.expand_dims({'day_of_year': [d0]})
 
-    def dev():
-        # Estimate means per month. Later will split this into resolution (n
-        # of chunks and window width such as 30 days) and end up with one
-        # value per month to be used later as the K numberator.
-        t = self.base_dh.time_index
-        t.month
-
-        base_data, base_ti = cls.get_base_data(base_fps,
-                                               base_dset,
-                                               base_gid,
-                                               base_handler,
-                                               daily_reduction=daily_reduction,
-                                               decimals=decimals,
-                                               base_dh_inst=base_dh_inst)
+    @staticmethod
+    def windowed_quantiles(
+        da: xr.DataArray, day_of_year, quantiles, window_size=90
+    ):
+        q = (
+            _single_quantile(
+                da, d0, window_size=window_size, quantiles=quantiles
+            )
+            for d0 in day_of_year
+        )
+        return xr.merge(q)
