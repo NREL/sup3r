@@ -60,24 +60,27 @@ class ForwardPass:
         self.model = get_model(strategy.model_class, strategy.model_kwargs)
         self.node_index = node_index
         self.chunk_index = None
+        self.output_handler_class = None
 
         msg = f'Received bad output type {strategy.output_type}'
-        assert strategy.output_type in list(self.OUTPUT_HANDLER_CLASS), msg
-        self.output_handler_class = self.OUTPUT_HANDLER_CLASS[
-            strategy.output_type
-        ]
+        if strategy.output_type is not None:
+            assert strategy.output_type in list(self.OUTPUT_HANDLER_CLASS), msg
+            self.output_handler_class = self.OUTPUT_HANDLER_CLASS[
+                strategy.output_type
+            ]
 
-    def get_chunk(self, chunk_index=0):
+    def get_chunk(self, chunk_index=0, mode='reflect'):
         """Get :class:`FowardPassChunk` instance for the given chunk index."""
 
         chunk = self.strategy.init_chunk(chunk_index)
+
         chunk.input_data = self.bias_correct_source_data(
             chunk.input_data,
             self.strategy.lr_lat_lon,
             lr_pad_slice=chunk.lr_pad_slice,
         )
         chunk.input_data, chunk.exo_data = self.pad_source_data(
-            chunk.input_data, chunk.pad_width, chunk.exo_data
+            chunk.input_data, chunk.pad_width, chunk.exo_data, mode=mode
         )
         return chunk
 
@@ -171,6 +174,16 @@ class ForwardPass:
 
         """
         out = np.pad(input_data, (*pad_width, (0, 0)), mode=mode)
+        msg = (
+            f'Using mode="reflect" with pad_width {pad_width} greater than '
+            f'half the width of the input_data {input_data.shape}. Use a '
+            'larger chunk size or a different padding mode.'
+        )
+        if mode == 'reflect':
+            assert all(
+                dw // 2 > pw[0] and dw // 2 > pw[1]
+                for dw, pw in zip(input_data.shape[:-1], pad_width)
+            ), msg
 
         logger.info(
             'Padded input data shape from {} to {} using mode "{}" '
@@ -534,35 +547,38 @@ class ForwardPass:
         logger.debug(
             f'Running forward passes on node {node_index} in ' 'serial.'
         )
-        fwp = cls(
-            strategy
-        )  # , chunk_index=chunk_index, node_index=node_index)
+        fwp = cls(strategy, node_index=node_index)
         for i, chunk_index in enumerate(strategy.node_chunks[node_index]):
             now = dt.now()
-            failed = cls.run_chunk(
-                chunk=fwp.get_chunk(chunk_index=chunk_index),
-                model_kwargs=fwp.model_kwargs,
-                model_class=fwp.model_class,
-                allowed_const=fwp.allowed_const,
-                output_handler_class=fwp.output_handler_class,
-                meta=fwp.meta,
-                output_workers=fwp.output_workers,
-            )
-            mem = psutil.virtual_memory()
-            logger.info(
-                'Finished forward pass on chunk_index='
-                f'{chunk_index} in {dt.now() - now}. {i + 1} of '
-                f'{len(strategy.node_chunks[node_index])} '
-                'complete. Current memory usage is '
-                f'{mem.used / 1e9:.3f} GB out of '
-                f'{mem.total / 1e9:.3f} GB total.'
-            )
-            if failed:
-                msg = (
-                    f'Forward pass for chunk_index {chunk_index} failed '
-                    'with constant output.'
+            chunk = fwp.get_chunk(chunk_index=chunk_index)
+            if strategy.incremental and chunk.file_exists:
+                logger.info(f'{chunk.out_file} already exists and '
+                            'incremental = True. Skipping this forward pass.')
+            else:
+                failed, _ = cls.run_chunk(
+                    chunk=chunk,
+                    model_kwargs=fwp.model_kwargs,
+                    model_class=fwp.model_class,
+                    allowed_const=fwp.allowed_const,
+                    output_handler_class=fwp.output_handler_class,
+                    meta=fwp.meta,
+                    output_workers=fwp.output_workers,
                 )
-                raise MemoryError(msg)
+                mem = psutil.virtual_memory()
+                logger.info(
+                    'Finished forward pass on chunk_index='
+                    f'{chunk_index} in {dt.now() - now}. {i + 1} of '
+                    f'{len(strategy.node_chunks[node_index])} '
+                    'complete. Current memory usage is '
+                    f'{mem.used / 1e9:.3f} GB out of '
+                    f'{mem.total / 1e9:.3f} GB total.'
+                )
+                if failed:
+                    msg = (
+                        f'Forward pass for chunk_index {chunk_index} failed '
+                        'with constant output.'
+                    )
+                    raise MemoryError(msg)
 
         logger.info(
             'Finished forward passes on '
@@ -597,20 +613,26 @@ class ForwardPass:
         with SpawnProcessPool(**pool_kws) as exe:
             now = dt.now()
             for _i, chunk_index in enumerate(strategy.node_chunks[node_index]):
-                fut = exe.submit(
-                    fwp.run_chunk,
-                    chunk=fwp.get_chunk(chunk_index=chunk_index),
-                    model_kwargs=fwp.model_kwargs,
-                    model_class=fwp.model_class,
-                    allowed_const=fwp.allowed_const,
-                    output_handler_class=fwp.output_handler_class,
-                    meta=fwp.meta,
-                    output_workers=fwp.output_workers,
-                )
-                futures[fut] = {
-                    'chunk_index': chunk_index,
-                    'start_time': dt.now(),
-                }
+                chunk = fwp.get_chunk(chunk_index=chunk_index)
+                if strategy.incremental and chunk.file_exists:
+                    logger.info(f'{chunk.out_file} already exists and '
+                                'incremental = True. Skipping this forward '
+                                'pass.')
+                else:
+                    fut = exe.submit(
+                        fwp.run_chunk,
+                        chunk=chunk,
+                        model_kwargs=fwp.model_kwargs,
+                        model_class=fwp.model_class,
+                        allowed_const=fwp.allowed_const,
+                        output_handler_class=fwp.output_handler_class,
+                        meta=fwp.meta,
+                        output_workers=fwp.output_workers,
+                    )
+                    futures[fut] = {
+                        'chunk_index': chunk_index,
+                        'start_time': dt.now(),
+                    }
 
             logger.info(
                 f'Started {len(futures)} forward pass runs in '
@@ -619,7 +641,7 @@ class ForwardPass:
 
             try:
                 for i, future in enumerate(as_completed(futures)):
-                    failed = future.result()
+                    failed, _ = future.result()
                     chunk_idx = futures[future]['chunk_index']
                     start_time = futures[future]['start_time']
                     if failed:
@@ -669,7 +691,37 @@ class ForwardPass:
         chunk : FowardPassChunk
             Struct with chunk data (including exo data if applicable) and
             chunk attributes (e.g. chunk specific slices, times, lat/lon, etc)
+        model_kwargs : str | list
+            Keyword arguments to send to `model_class.load(**model_kwargs)` to
+            initialize the GAN. Typically this is just the string path to the
+            model directory, but can be multiple models or arguments for more
+            complex models.
+        model_class : str
+            Name of the sup3r model class for the GAN model to load. The
+            default is the basic spatial / spatiotemporal Sup3rGan model. This
+            will be loaded from sup3r.models
+        allowed_const : list | bool
+            Tensorflow has a tensor memory limit of 2GB (result of protobuf
+            limitation) and when exceeded can return a tensor with a
+            constant output. sup3r will raise a ``MemoryError`` in response. If
+            your model is allowed to output a constant output, set this to True
+            to allow any constant output or a list of allowed possible constant
+            outputs. For example, a precipitation model should be allowed to
+            output all zeros so set this to ``[0]``. For details on this limit:
+            https://github.com/tensorflow/tensorflow/issues/51870
+        output_handler : str
+            Name of class to use for writing output
+        meta : dict
+            Meta data to write to forward pass output file.
+        output_workers : int | None
+            Max number of workers to use for writing forward pass output.
 
+        Returns
+        -------
+        failed : bool
+            Whether the forward pass failed due to constant output.
+        output_data : ndarray
+            Array of high-resolution output from generator
         """
 
         msg = f'Running forward pass for chunk_index={chunk.index}.'
@@ -702,4 +754,4 @@ class ForwardPass:
                 max_workers=output_workers,
                 gids=chunk.gids,
             )
-        return failed
+        return failed, output_data

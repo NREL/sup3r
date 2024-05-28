@@ -59,7 +59,7 @@ def make_fake_dset(shape, features):
         f: (
             dims[: len(shape)],
             da.transpose(
-                da.random.random(shape), axes=trans_axes
+                100 * da.random.random(shape), axes=trans_axes
             ),
         )
         for f in features

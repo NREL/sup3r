@@ -288,9 +288,9 @@ class OutputHandler(OutputMixIn):
         data : ndarray
             Array of feature data with physical limits enforced
         """
-        maxs = []
+        maxes = []
         mins = []
-        for fn in features:
+        for fidx, fn in enumerate(features):
             dset_name = Feature.get_basename(fn)
             if dset_name not in H5_ATTRS:
                 msg = ('Could not find "{dset_name}" in H5_ATTRS dict!')
@@ -300,11 +300,22 @@ class OutputHandler(OutputMixIn):
             max = H5_ATTRS[dset_name].get('max', np.inf)
             min = H5_ATTRS[dset_name].get('min', -np.inf)
             logger.debug(f'Enforcing range of ({min}, {max} for "{fn}")')
-            maxs.append(max)
+
+            f_max = data[..., fidx].max()
+            f_min = data[..., fidx].min()
+            msg = f'{fn} has a max of {f_max} > {max}'
+            if f_max > max:
+                logger.warning(msg)
+                warn(msg)
+            msg = f'{fn} has a min of {f_min} > {min}'
+            if f_min < min:
+                logger.warning(msg)
+                warn(msg)
+            maxes.append(max)
             mins.append(min)
 
         data = np.maximum(data, mins)
-        return np.minimum(data, maxs)
+        return np.minimum(data, maxes)
 
     @staticmethod
     def pad_lat_lon(lat_lon):

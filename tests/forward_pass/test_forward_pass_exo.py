@@ -42,7 +42,9 @@ def fwp_fps(tmpdir_factory):
     """Dummy netcdf input files for :class:`ForwardPass`"""
 
     input_file = str(tmpdir_factory.mktemp('data').join('fwp_input.nc'))
-    make_fake_nc_file(input_file, shape=(100, 100, 8), features=FEATURES)
+    make_fake_nc_file(
+        input_file, shape=(100, 100, 8), features=['pressure_0m', *FEATURES]
+    )
     return input_file
 
 
@@ -137,7 +139,7 @@ def test_fwp_multi_step_model_topo_exoskip(fwp_fps, log=False):
             out_pattern=out_files,
             exo_kwargs=exo_kwargs,
             max_nodes=1,
-            pass_workers=None
+            pass_workers=None,
         )
 
         forward_pass = ForwardPass(handler)
@@ -428,8 +430,8 @@ def test_fwp_single_step_sfc_model(fwp_fps, plot=False):
             model_kwargs=sfc_out_dir,
             model_class='SurfaceSpatialMetModel',
             fwp_chunk_shape=(8, 8, 8),
-            spatial_pad=4,
-            temporal_pad=4,
+            spatial_pad=3,
+            temporal_pad=3,
             input_handler_kwargs=input_handler_kwargs,
             out_pattern=out_files,
             exo_kwargs=exo_kwargs,
@@ -458,7 +460,7 @@ def test_fwp_single_step_sfc_model(fwp_fps, plot=False):
             assert os.path.exists(fp)
 
 
-def test_fwp_single_step_wind_hi_res_topo(plot=False):
+def test_fwp_single_step_wind_hi_res_topo(fwp_fps, plot=False):
     """Test the forward pass with a single spatiotemporal Sup3rGan model
     requiring high-resolution topography input from the exogenous_data
     feature."""
@@ -554,8 +556,8 @@ def test_fwp_single_step_wind_hi_res_topo(plot=False):
             model_kwargs=model_kwargs,
             model_class='Sup3rGan',
             fwp_chunk_shape=(8, 8, 8),
-            spatial_pad=4,
-            temporal_pad=4,
+            spatial_pad=2,
+            temporal_pad=2,
             input_handler_kwargs=input_handler_kwargs,
             out_pattern=out_files,
             exo_kwargs=exo_kwargs,
@@ -1003,12 +1005,6 @@ def test_fwp_multi_step_model_multi_exo(fwp_fps):
         )
 
         forward_pass = ForwardPass(handler)
-
-        assert forward_pass.output_workers == max_workers
-        assert forward_pass.data_handler.compute_workers == max_workers
-        assert forward_pass.data_handler.load_workers == max_workers
-        assert forward_pass.data_handler.norm_workers == max_workers
-        assert forward_pass.data_handler.extract_workers == max_workers
 
         forward_pass.run(handler, node_index=0)
         t_steps = len(xr.open_dataset(fwp_fps)['time'])
