@@ -6,6 +6,7 @@
 
 import logging
 import os
+import threading
 
 import numpy as np
 
@@ -43,7 +44,7 @@ class DistributedProcess:
         self._n_chunks = n_chunks
         self._max_nodes = max_nodes
         self._max_chunks = max_chunks
-        self._failed_chunks = False
+        self.failure_event = threading.Event()
         self.incremental = incremental
         self.out_files = None
 
@@ -87,8 +88,9 @@ class DistributedProcess:
         out_file = self.out_files[chunk_index]
         if os.path.exists(out_file) and self.incremental:
             logger.info(
-                'Not running chunk index {}, output file '
-                'exists: {}'.format(chunk_index, out_file)
+                'Not running chunk index {}, output file ' 'exists: {}'.format(
+                    chunk_index, out_file
+                )
             )
             return True
         return False
@@ -133,14 +135,3 @@ class DistributedProcess:
             n_chunks = min(self.max_nodes, self.chunks)
             self._node_files = np.array_split(self.out_files, n_chunks)
         return self._node_files
-
-    @property
-    def failed_chunks(self):
-        """Check whether any processes have failed."""
-        return self._failed_chunks
-
-    @failed_chunks.setter
-    def failed_chunks(self, failed):
-        """Set failed_chunks value. Should be set to True if there is a failed
-        chunk"""
-        self._failed_chunks = failed

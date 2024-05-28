@@ -9,6 +9,7 @@ import copy
 import logging
 import os
 import warnings
+from inspect import signature
 
 import numpy as np
 
@@ -17,13 +18,45 @@ from sup3r.pipeline.slicer import ForwardPassSlicer
 from sup3r.postprocessing import (
     OutputHandler,
 )
-from sup3r.utilities.execution import DistributedProcess
-from sup3r.utilities.utilities import (
-    get_input_handler_class,
-    get_source_type,
+from sup3r.preprocessing import (
+    ExoData,
+    ExogenousDataHandler,
 )
+from sup3r.utilities.execution import DistributedProcess
+from sup3r.utilities.utilities import get_input_handler_class, get_source_type
 
 logger = logging.getLogger(__name__)
+
+
+class ForwardPassChunk:
+    """Structure storing chunk data and attributes for a specific chunk going
+    through the generator."""
+
+    def __init__(
+        self,
+        input_data,
+        exo_data,
+        hr_crop_slice,
+        lr_pad_slice,
+        hr_lat_lon,
+        hr_times,
+        gids,
+        out_file,
+        chunk_index,
+        pad_width,
+    ):
+        self.input_data = input_data
+        self.exo_data = exo_data
+        self.hr_crop_slice = hr_crop_slice
+        self.lr_pad_slice = lr_pad_slice
+        self.hr_lat_lon = hr_lat_lon
+        self.hr_times = hr_times
+        self.gids = gids
+        self.out_file = out_file
+        self.file_exists = os.path.exists(out_file)
+        self.index = chunk_index
+        self.shape = input_data.shape
+        self.pad_width = pad_width
 
 
 class ForwardPassStrategy(DistributedProcess):
@@ -48,12 +81,12 @@ class ForwardPassStrategy(DistributedProcess):
         out_pattern=None,
         input_handler=None,
         input_handler_kwargs=None,
-        incremental=True,
         exo_kwargs=None,
         bias_correct_method=None,
         bias_correct_kwargs=None,
         max_nodes=None,
         allowed_const=False,
+        incremental=True,
         output_workers=None,
         pass_workers=None,
     ):
@@ -110,10 +143,6 @@ class ForwardPassStrategy(DistributedProcess):
             extracter or handler class in `sup3r.containers`
         input_handler_kwargs : dict | None
             Any kwargs for initializing the `input_handler` class.
-        incremental : bool
-            Allow the forward pass iteration to skip spatiotemporal chunks that
-            already have an output file (True, default) or iterate through all
-            chunks and overwrite any pre-existing outputs (False).
         exo_kwargs : dict | None
             Dictionary of args to pass to :class:`ExogenousDataHandler` for
             extracting exogenous features for multistep foward pass. This
@@ -149,6 +178,10 @@ class ForwardPassStrategy(DistributedProcess):
             outputs. For example, a precipitation model should be allowed to
             output all zeros so set this to ``[0]``. For details on this limit:
             https://github.com/tensorflow/tensorflow/issues/51870
+        incremental : bool
+            Allow the forward pass iteration to skip spatiotemporal chunks that
+            already have an output file (True, default) or iterate through all
+            chunks and overwrite any pre-existing outputs (False).
         output_workers : int | None
             Max number of workers to use for writing forward pass output.
         pass_workers : int | None
@@ -194,14 +227,15 @@ class ForwardPassStrategy(DistributedProcess):
         self.input_handler_kwargs.update(
             {'file_paths': self.file_paths, 'features': self.features}
         )
-        input_kwargs = copy.deepcopy(self.input_handler_kwargs)
-        input_kwargs['features'] = []
         self.input_handler_class = get_input_handler_class(
             file_paths, input_handler
         )
-        input_handler = self.input_handler_class(**input_kwargs)
-        self.lr_lat_lon = input_handler.lat_lon
-        self.time_index = input_handler.time_index
+        self.input_handler = self.input_handler_class(
+            **self.input_handler_kwargs
+        )
+        self.exo_data = self.load_exo_data(model)
+        self.lr_lat_lon = self.input_handler.lat_lon
+        self.time_index = self.input_handler.time_index
         self.hr_lat_lon = self.get_hr_lat_lon()
         self.raw_tsteps = self.get_raw_tsteps()
         self.gids = np.arange(np.prod(self.hr_lat_lon.shape[:-1]))
@@ -209,9 +243,9 @@ class ForwardPassStrategy(DistributedProcess):
         self.grid_shape = self.lr_lat_lon.shape[:-1]
 
         self.fwp_slicer = ForwardPassSlicer(
-            input_handler.lat_lon.shape[:-1],
-            self.raw_tsteps,
-            input_handler.time_slice,
+            self.input_handler.lat_lon.shape[:-1],
+            self.get_raw_tsteps(),
+            self.input_handler.time_slice,
             self.fwp_chunk_shape,
             self.s_enhancements,
             self.t_enhancements,
@@ -277,7 +311,7 @@ class ForwardPassStrategy(DistributedProcess):
     def get_hr_lat_lon(self):
         """Get high resolution lat lons"""
         logger.info('Getting high-resolution grid for full output domain.')
-        lr_lat_lon = self.lr_lat_lon.copy()
+        lr_lat_lon = self.input_handler.lat_lon
         shape = tuple([d * self.s_enhance for d in lr_lat_lon.shape[:-1]])
         return OutputHandler.get_lat_lon(lr_lat_lon, shape)
 
@@ -327,62 +361,17 @@ class ForwardPassStrategy(DistributedProcess):
         file_ids = self.get_file_ids()
         out_file_list = []
         if out_files is not None:
-            if '{times}' in out_files:
-                out_files = out_files.replace('{times}', '{file_id}')
-            if '{file_id}' not in out_files:
-                out_files = out_files.split('.')
-                tmp = '.'.join(out_files[:-1]) + '_{file_id}'
-                tmp += '.' + out_files[-1]
-                out_files = tmp
-            dirname = os.path.dirname(out_files)
-            if not os.path.exists(dirname):
-                os.makedirs(dirname, exist_ok=True)
-            for file_id in file_ids:
-                out_file = out_files.replace('{file_id}', file_id)
-                out_file_list.append(out_file)
+            msg = 'out_pattern must include a {file_id} format key'
+            assert '{file_id}' in out_files, msg
+            os.makedirs(os.path.dirname(out_files), exist_ok=True)
+            out_file_list = [
+                out_files.format(file_id=file_id) for file_id in file_ids
+            ]
         else:
             out_file_list = [None] * len(file_ids)
         return out_file_list
 
-    def get_chunk_description(self, chunk_index):
-        """Get the target, shape, and set of slices for the current chunk."""
-
-        s_chunk_idx = self._get_spatial_chunk_index(chunk_index)
-        t_chunk_idx = self._get_temporal_chunk_index(chunk_index)
-        lr_pad_slice = self.lr_pad_slices[s_chunk_idx]
-        spatial_slice = lr_pad_slice[0], lr_pad_slice[1]
-        ti_pad_slice = self.ti_pad_slices[t_chunk_idx]
-        lr_slice = self.lr_slices[s_chunk_idx]
-        hr_slice = self.hr_slices[s_chunk_idx]
-        chunk_shape = (
-            lr_pad_slice[0].stop - lr_pad_slice[0].start,
-            lr_pad_slice[1].stop - lr_pad_slice[1].start,
-            ti_pad_slice.stop - ti_pad_slice.start,
-        )
-
-        chunk_desc = {
-            'target': self.lr_lat_lon[spatial_slice][-1, 0],
-            'shape': self.lr_lat_lon[spatial_slice].shape[:-1],
-            'lr_slice': self.lr_slices[s_chunk_idx],
-            'hr_slice': self.hr_slices[s_chunk_idx],
-            'lr_pad_slice': self.lr_pad_slices[s_chunk_idx],
-            'ti_pad_slice': self.ti_pad_slices[t_chunk_idx],
-            'ti_slice': self.ti_slices[t_chunk_idx],
-            'ti_crop_slice': self.fwp_slicer.t_lr_crop_slices[t_chunk_idx],
-            'lr_crop_slice': self.fwp_slicer.s_lr_crop_slices[s_chunk_idx],
-            'hr_crop_slice': self.fwp_slicer.hr_crop_slices[t_chunk_idx][
-                s_chunk_idx
-            ],
-            'lr_lat_lon': self.lr_lat_lon[lr_slice[0], hr_slice[1]],
-            'hr_lat_lon': self.hr_lat_lon[hr_slice[0], hr_slice[1]],
-            'chunk_shape': chunk_shape,
-            'pad_width': self.get_pad_width(
-                self.ti_slices[t_chunk_idx], self.lr_slices[s_chunk_idx]
-            ),
-        }
-        return chunk_desc
-
-    def get_pad_width(self, ti_slice, lr_slice):
+    def get_pad_width(self, chunk_index):
         """Get padding for the current spatiotemporal chunk
 
         Returns
@@ -392,6 +381,11 @@ class ForwardPassStrategy(DistributedProcess):
             dimensions. Each tuple includes the start and end of padding for
             that dimension. Ordering is spatial_1, spatial_2, temporal.
         """
+        s_chunk_idx = self._get_spatial_chunk_index(chunk_index)
+        t_chunk_idx = self._get_temporal_chunk_index(chunk_index)
+        ti_slice = self.ti_slices[t_chunk_idx]
+        lr_slice = self.lr_slices[s_chunk_idx]
+
         ti_start = ti_slice.start or 0
         ti_stop = ti_slice.stop or self.raw_tsteps
         pad_t_start = int(np.maximum(0, (self.temporal_pad - ti_start)))
@@ -414,3 +408,141 @@ class ForwardPassStrategy(DistributedProcess):
             (pad_s2_start, pad_s2_end),
             (pad_t_start, pad_t_end),
         )
+
+    def init_chunk(self, chunk_index=0):
+        """Get :class:`FowardPassChunk` instance for the given chunk index."""
+
+        s_chunk_idx = self._get_spatial_chunk_index(chunk_index)
+        t_chunk_idx = self._get_temporal_chunk_index(chunk_index)
+
+        logger.info(
+            f'Initializing ForwardPass for chunk={chunk_index} '
+            f'(temporal_chunk={t_chunk_idx}, '
+            f'spatial_chunk={s_chunk_idx}). {self.chunks}'
+            f' total chunks for the current node.'
+        )
+
+        msg = (
+            f'Requested forward pass on chunk_index={chunk_index} > '
+            f'n_chunks={self.chunks}'
+        )
+        assert chunk_index <= self.chunks, msg
+
+        hr_slice = self.hr_slices[s_chunk_idx]
+        ti_crop_slice = self.fwp_slicer.t_lr_crop_slices[t_chunk_idx]
+        lr_times = self.input_handler.time_index[ti_crop_slice]
+        lr_pad_slice = self.lr_pad_slices[s_chunk_idx]
+        ti_pad_slice = self.ti_pad_slices[t_chunk_idx]
+
+        logger.info(f'Getting input data for chunk_index={chunk_index}.')
+
+        return ForwardPassChunk(
+            input_data=self.input_handler.data[
+                lr_pad_slice[0], lr_pad_slice[1], ti_pad_slice
+            ],
+            exo_data=self.get_exo_chunk(
+                self.exo_data,
+                self.input_handler.data.shape,
+                lr_pad_slice,
+                ti_pad_slice,
+            ),
+            lr_pad_slice=lr_pad_slice,
+            hr_crop_slice=self.fwp_slicer.hr_crop_slices[t_chunk_idx][
+                s_chunk_idx
+            ],
+            hr_lat_lon=self.hr_lat_lon[hr_slice[0], hr_slice[1]],
+            hr_times=OutputHandler.get_times(
+                lr_times, self.t_enhance * len(lr_times)
+            ),
+            gids=self.gids[hr_slice[0], hr_slice[1]],
+            out_file=self.out_files[chunk_index],
+            chunk_index=chunk_index,
+            pad_width=self.get_pad_width(chunk_index),
+        )
+
+    @staticmethod
+    def _get_enhanced_slices(lr_slices, input_data_shape, exo_data_shape):
+        """Get lr_slices enhanced by the ratio of exo_data_shape to
+        input_data_shape. Used to slice exo data for each model step."""
+        return [
+            slice(
+                lr_slices[i].start * exo_data_shape[i] // input_data_shape[i],
+                lr_slices[i].stop * exo_data_shape[i] // input_data_shape[i],
+            )
+            for i in range(len(lr_slices))
+        ]
+
+    @classmethod
+    def get_exo_chunk(
+        cls, exo_data, input_data_shape, lr_pad_slice, ti_pad_slice
+    ):
+        """Get exo data for the current chunk from the exo data for the full
+        extent.
+
+        Parameters
+        ----------
+        exo_data : ExoData
+           :class:`ExoData` object composed of multiple
+           :class:`SingleExoDataStep` objects. This includes the exo data for
+           the full spatiotemporal extent for each model step.
+        input_data_shape : tuple
+            Spatiotemporal shape of the full low-resolution extent.
+            (lats, lons, time)
+        lr_pad_slice : list
+            List of spatial slices for the low-resolution input data for the
+            current chunk.
+        ti_pad_slice : slice
+            Temporal slice for the low-resolution input data for the current
+            chunk.
+
+        Returns
+        -------
+        exo_data : ExoData
+           :class:`ExoData` object composed of multiple
+           :class:`SingleExoDataStep` objects. This is the sliced exo data for
+           the current chunk.
+        """
+        exo_chunk = {}
+        if exo_data is not None:
+            for feature in exo_data:
+                exo_chunk[feature] = {}
+                exo_chunk[feature]['steps'] = []
+                for step in exo_data[feature]['steps']:
+                    chunk_step = {k: step[k] for k in step if k != 'data'}
+                    exo_shape = step['data'].shape
+                    enhanced_slices = cls._get_enhanced_slices(
+                        [*lr_pad_slice[:2], ti_pad_slice],
+                        input_data_shape=input_data_shape,
+                        exo_data_shape=exo_shape,
+                    )
+                    chunk_step['data'] = step['data'][*enhanced_slices]
+                    exo_chunk[feature]['steps'].append(chunk_step)
+        return exo_chunk
+
+    def load_exo_data(self, model):
+        """Extract exogenous data for each exo feature and store data in
+        dictionary with key for each exo feature
+
+        Returns
+        -------
+        exo_data : ExoData
+           :class:`ExoData` object composed of multiple
+           :class:`SingleExoDataStep` objects. This is the exo data for the
+           full spatiotemporal extent.
+        """
+        data = {}
+        exo_data = None
+        if self.exo_kwargs:
+            for feature in self.exo_features:
+                exo_kwargs = copy.deepcopy(self.exo_kwargs[feature])
+                exo_kwargs['feature'] = feature
+                exo_kwargs['target'] = self.input_handler.target
+                exo_kwargs['shape'] = self.input_handler.grid_shape
+                exo_kwargs['models'] = getattr(model, 'models', [model])
+                sig = signature(ExogenousDataHandler)
+                exo_kwargs = {
+                    k: v for k, v in exo_kwargs.items() if k in sig.parameters
+                }
+                data.update(ExogenousDataHandler(**exo_kwargs).data)
+            exo_data = ExoData(data)
+        return exo_data

@@ -18,8 +18,8 @@ class Extracter(Container, ABC):
         self,
         loader: Loader,
         features='all',
-        target=(),
-        shape=(),
+        target=None,
+        shape=None,
         time_slice=slice(None),
     ):
         """

@@ -66,9 +66,9 @@ class BaseExtracterNC(Extracter, ABC):
         """NETCDF files tend to use a regular grid so if either target or shape
         is not given we can easily find the values that give the maximum
         extent."""
-        if not self._target:
+        if self._target is None:
             self._target = full_lat_lon[-1, 0, :]
-        if not self._grid_shape:
+        if self._grid_shape is None:
             self._grid_shape = full_lat_lon.shape[:-1]
 
     def get_raster_index(self):
