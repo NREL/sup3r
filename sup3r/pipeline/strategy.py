@@ -53,7 +53,7 @@ class ForwardPassChunk:
         self.hr_times = hr_times
         self.gids = gids
         self.out_file = out_file
-        self.file_exists = os.path.exists(out_file)
+        self.file_exists = out_file is not None and os.path.exists(out_file)
         self.index = chunk_index
         self.shape = input_data.shape
         self.pad_width = pad_width
@@ -227,6 +227,9 @@ class ForwardPassStrategy(DistributedProcess):
         self.input_handler_kwargs.update(
             {'file_paths': self.file_paths, 'features': self.features}
         )
+        self.time_slice = self.input_handler_kwargs.pop(
+            'time_slice', slice(None)
+        )
         self.input_handler_class = get_input_handler_class(
             file_paths, input_handler
         )
@@ -245,7 +248,7 @@ class ForwardPassStrategy(DistributedProcess):
         self.fwp_slicer = ForwardPassSlicer(
             self.input_handler.lat_lon.shape[:-1],
             self.get_raw_tsteps(),
-            self.input_handler.time_slice,
+            self.time_slice,
             self.fwp_chunk_shape,
             self.s_enhancements,
             self.t_enhancements,
@@ -293,13 +296,10 @@ class ForwardPassStrategy(DistributedProcess):
         out = self.fwp_slicer.get_spatial_slices()
         self.lr_slices, self.lr_pad_slices, self.hr_slices = out
 
-    def _get_spatial_chunk_index(self, chunk_index):
-        """Get the spatial index for the given chunk index"""
-        return chunk_index % self.fwp_slicer.n_spatial_chunks
-
-    def _get_temporal_chunk_index(self, chunk_index):
-        """Get the temporal index for the given chunk index"""
-        return chunk_index // self.fwp_slicer.n_spatial_chunks
+    def get_chunk_indices(self, chunk_index):
+        """Get (spatial, temporal) indices for the given chunk index"""
+        return (chunk_index % self.fwp_slicer.n_spatial_chunks,
+                chunk_index // self.fwp_slicer.n_spatial_chunks)
 
     def get_raw_tsteps(self):
         """Get number of time steps available in the raw data, which is useful
@@ -381,8 +381,7 @@ class ForwardPassStrategy(DistributedProcess):
             dimensions. Each tuple includes the start and end of padding for
             that dimension. Ordering is spatial_1, spatial_2, temporal.
         """
-        s_chunk_idx = self._get_spatial_chunk_index(chunk_index)
-        t_chunk_idx = self._get_temporal_chunk_index(chunk_index)
+        s_chunk_idx, t_chunk_idx = self.get_chunk_indices(chunk_index)
         ti_slice = self.ti_slices[t_chunk_idx]
         lr_slice = self.lr_slices[s_chunk_idx]
 
@@ -412,8 +411,7 @@ class ForwardPassStrategy(DistributedProcess):
     def init_chunk(self, chunk_index=0):
         """Get :class:`FowardPassChunk` instance for the given chunk index."""
 
-        s_chunk_idx = self._get_spatial_chunk_index(chunk_index)
-        t_chunk_idx = self._get_temporal_chunk_index(chunk_index)
+        s_chunk_idx, t_chunk_idx = self.get_chunk_indices(chunk_index)
 
         logger.info(
             f'Initializing ForwardPass for chunk={chunk_index} '
@@ -429,8 +427,8 @@ class ForwardPassStrategy(DistributedProcess):
         assert chunk_index <= self.chunks, msg
 
         hr_slice = self.hr_slices[s_chunk_idx]
-        ti_crop_slice = self.fwp_slicer.t_lr_crop_slices[t_chunk_idx]
-        lr_times = self.input_handler.time_index[ti_crop_slice]
+        ti_slice = self.ti_slices[t_chunk_idx]
+        lr_times = self.input_handler.time_index[ti_slice]
         lr_pad_slice = self.lr_pad_slices[s_chunk_idx]
         ti_pad_slice = self.ti_pad_slices[t_chunk_idx]
 
@@ -438,7 +436,7 @@ class ForwardPassStrategy(DistributedProcess):
 
         return ForwardPassChunk(
             input_data=self.input_handler.data[
-                lr_pad_slice[0], lr_pad_slice[1], ti_pad_slice
+                *lr_pad_slice[:2], ti_pad_slice
             ],
             exo_data=self.get_exo_chunk(
                 self.exo_data,

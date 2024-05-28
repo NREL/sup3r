@@ -128,9 +128,9 @@ class Interpolator:
         # does not correspond to the lowest or highest height. Interpolation
         # can be performed without issue in this case.
         if bad_min.any():
-            if hasattr(bad_min, 'compute'):
+            if isinstance(bad_min, da.core.Array):
                 bad_min = bad_min.compute()
-            if hasattr(lev_array, 'compute'):
+            if isinstance(lev_array, da.core.Array):
                 lev_array = lev_array.compute()
             msg = (
                 'Approximately {:.2f}% of the lowest vertical levels '
@@ -146,9 +146,9 @@ class Interpolator:
             warn(msg)
 
         if bad_max.any():
-            if hasattr(bad_min, 'compute'):
+            if isinstance(bad_max, da.core.Array):
                 bad_max = bad_max.compute()
-            if hasattr(lev_array, 'compute'):
+            if isinstance(lev_array, da.core.Array):
                 lev_array = lev_array.compute()
             msg = (
                 'Approximately {:.2f}% of the highest vertical levels '

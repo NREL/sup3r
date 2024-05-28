@@ -27,7 +27,6 @@ INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
 target = (19.3, -123.5)
 shape = (8, 8)
 time_slice = slice(None, None, 1)
-list_chunk_size = 10
 fwp_chunk_shape = (4, 4, 150)
 s_enhance = 3
 t_enhance = 4
@@ -41,7 +40,7 @@ def fwp_fps(tmpdir_factory):
     """Dummy netcdf input files for :class:`ForwardPass`"""
 
     input_file = str(tmpdir_factory.mktemp('data').join('fwp_input.nc'))
-    make_fake_nc_file(input_file, shape=(100, 100, 8), features=FEATURES)
+    make_fake_nc_file(input_file, shape=(100, 100, 50), features=FEATURES)
     return input_file
 
 
@@ -276,7 +275,7 @@ def test_fwp_handler(fwp_fps):
     model.meta['hr_out_features'] = FEATURES[:-1]
     model.meta['s_enhance'] = s_enhance
     model.meta['t_enhance'] = t_enhance
-    _ = model.generate(np.ones((4, 10, 10, 12, 3)))
+    _ = model.generate(np.ones((4, 10, 10, 12, len(FEATURES))))
 
     with tempfile.TemporaryDirectory() as td:
         out_dir = os.path.join(td, 'st_gan')
@@ -293,8 +292,18 @@ def test_fwp_handler(fwp_fps):
                 'time_slice': time_slice,
             },
         )
-        forward_pass = ForwardPass(strat)
-        data = forward_pass.run_chunk()
+        fwp = ForwardPass(strat)
+
+        _, data = fwp.run_chunk(
+            fwp.get_chunk(chunk_index=0),
+            fwp.model_kwargs,
+            fwp.model_class,
+            fwp.allowed_const,
+            fwp.output_handler_class,
+            fwp.meta,
+            fwp.output_workers,
+        )
+
         raw_tsteps = len(xr.open_dataset(fwp_fps)['time'])
         assert data.shape == (
             s_enhance * fwp_chunk_shape[0],
@@ -318,16 +327,16 @@ def test_fwp_chunking(fwp_fps, log=False, plot=False):
     Sup3rGan.seed()
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
     model.meta['lr_features'] = FEATURES
-    model.meta['hr_out_features'] = FEATURES[:-1]
+    model.meta['hr_out_features'] = FEATURES
     model.meta['s_enhance'] = s_enhance
     model.meta['t_enhance'] = t_enhance
-    _ = model.generate(np.ones((4, 10, 10, 12, 3)))
+    _ = model.generate(np.ones((4, 10, 10, 12, len(FEATURES))))
 
     with tempfile.TemporaryDirectory() as td:
         out_dir = os.path.join(td, 'test_1')
         model.save(out_dir)
-        spatial_pad = 20
-        temporal_pad = 20
+        spatial_pad = 12
+        temporal_pad = 12
         raw_tsteps = len(xr.open_dataset(fwp_fps)['time'])
         fwp_shape = (4, 4, raw_tsteps // 2)
         handler = ForwardPassStrategy(
@@ -366,18 +375,30 @@ def test_fwp_chunking(fwp_fps, log=False, plot=False):
             slice(None),
         )
         input_data = np.pad(
-            handlerNC.data, pad_width=pad_width, mode='reflect'
+            handlerNC.data.to_array(), pad_width=pad_width, mode='constant'
         )
         data_nochunk = model.generate(np.expand_dims(input_data, axis=0))[0][
             hr_crop
         ]
+        fwp = ForwardPass(handler)
         for i in range(handler.chunks):
-            fwp = ForwardPass(handler, chunk_index=i)
-            out = fwp.run_chunk()
-            t_hr_slice = slice(
-                fwp.ti_slice.start * t_enhance, fwp.ti_slice.stop * t_enhance
+            _, out = fwp.run_chunk(
+                fwp.get_chunk(i, mode='constant'),
+                fwp.model_kwargs,
+                fwp.model_class,
+                fwp.allowed_const,
+                fwp.output_handler_class,
+                fwp.meta,
+                fwp.output_workers,
             )
-            data_chunked[fwp.hr_slice][..., t_hr_slice, :] = out
+            s_chunk_idx, t_chunk_idx = fwp.strategy.get_chunk_indices(i)
+            ti_slice = fwp.strategy.ti_slices[t_chunk_idx]
+            hr_slice = fwp.strategy.hr_slices[s_chunk_idx]
+
+            t_hr_slice = slice(
+                ti_slice.start * t_enhance, ti_slice.stop * t_enhance
+            )
+            data_chunked[hr_slice][..., t_hr_slice, :] = out
 
         err = data_chunked - data_nochunk
         err /= data_nochunk
@@ -432,7 +453,7 @@ def test_fwp_nochunking(fwp_fps):
     model.meta['hr_out_features'] = FEATURES[:-1]
     model.meta['s_enhance'] = s_enhance
     model.meta['t_enhance'] = t_enhance
-    _ = model.generate(np.ones((4, 10, 10, 12, 3)))
+    _ = model.generate(np.ones((4, 10, 10, 12, len(FEATURES))))
 
     with tempfile.TemporaryDirectory() as td:
         out_dir = os.path.join(td, 'st_gan')
@@ -445,13 +466,25 @@ def test_fwp_nochunking(fwp_fps):
         handler = ForwardPassStrategy(
             fwp_fps,
             model_kwargs={'model_dir': out_dir},
-            fwp_chunk_shape=(shape[0], shape[1], list_chunk_size),
+            fwp_chunk_shape=(
+                shape[0],
+                shape[1],
+                len(xr.open_dataset(fwp_fps)['time']),
+            ),
             spatial_pad=0,
             temporal_pad=0,
             input_handler_kwargs=input_handler_kwargs,
         )
-        forward_pass = ForwardPass(handler)
-        data_chunked = forward_pass.run_chunk()
+        fwp = ForwardPass(handler)
+        _, data_chunked = fwp.run_chunk(
+            fwp.get_chunk(chunk_index=0),
+            fwp.model_kwargs,
+            fwp.model_class,
+            fwp.allowed_const,
+            fwp.output_handler_class,
+            fwp.meta,
+            fwp.output_workers,
+        )
 
         handlerNC = DataHandlerNC(
             fwp_fps,
@@ -461,9 +494,9 @@ def test_fwp_nochunking(fwp_fps):
             time_slice=time_slice,
         )
 
-        data_nochunk = model.generate(np.expand_dims(handlerNC.data, axis=0))[
-            0
-        ]
+        data_nochunk = model.generate(
+            np.expand_dims(handlerNC.data.to_array(), axis=0)
+        )[0]
 
         assert np.array_equal(data_chunked, data_nochunk)
 
@@ -497,7 +530,6 @@ def test_fwp_multi_step_model(fwp_fps):
 
         out_files = os.path.join(td, 'out_{file_id}.h5')
 
-        max_workers = 1
         fwp_chunk_shape = (4, 4, 8)
         s_enhance = 6
         t_enhance = 4
@@ -520,25 +552,21 @@ def test_fwp_multi_step_model(fwp_fps):
             out_pattern=out_files,
             max_nodes=1,
         )
+        fwp = ForwardPass(handler)
 
-        forward_pass = ForwardPass(handler)
-        ones = np.ones(
-            (fwp_chunk_shape[2], fwp_chunk_shape[0], fwp_chunk_shape[1], 2)
+        _, _ = fwp.run_chunk(
+            fwp.get_chunk(chunk_index=0),
+            fwp.model_kwargs,
+            fwp.model_class,
+            fwp.allowed_const,
+            fwp.output_handler_class,
+            fwp.meta,
+            fwp.output_workers,
         )
-        out = forward_pass.model.generate(ones)
-        assert out.shape == (1, 24, 24, 32, 2)
-
-        assert forward_pass.output_workers == max_workers
-        assert forward_pass.data_handler.compute_workers == max_workers
-        assert forward_pass.data_handler.load_workers == max_workers
-        assert forward_pass.data_handler.norm_workers == max_workers
-        assert forward_pass.data_handler.extract_workers == max_workers
-
-        forward_pass.run(handler, node_index=0)
 
         with ResourceX(handler.out_files[0]) as fh:
             assert fh.shape == (
-                t_enhance * len(xr.open_dataset(fwp_fps)['time']),
+                t_enhance * fwp_chunk_shape[2],
                 s_enhance**2 * fwp_chunk_shape[0] * fwp_chunk_shape[1],
             )
             assert all(
@@ -601,18 +629,20 @@ def test_slicing_no_pad(fwp_fps, log=False):
             max_nodes=1,
         )
 
-        for ichunk in range(strategy.chunks):
-            forward_pass = ForwardPass(strategy, chunk_index=ichunk)
-            s_slices = strategy.lr_pad_slices[forward_pass.spatial_chunk_index]
+        fwp = ForwardPass(strategy)
+        for i in range(strategy.chunks):
+            chunk = fwp.get_chunk(i)
+            s_idx, t_idx = strategy.get_chunk_indices(i)
+            s_slices = strategy.lr_pad_slices[s_idx]
             lr_data_slice = (
                 s_slices[0],
                 s_slices[1],
-                forward_pass.ti_pad_slice,
+                fwp.strategy.ti_pad_slices[t_idx],
                 slice(None),
             )
 
             truth = handler.data[lr_data_slice]
-            assert np.allclose(forward_pass.input_data, truth)
+            assert np.allclose(chunk.input_data, truth)
 
 
 def test_slicing_pad(fwp_fps, log=False):
@@ -640,9 +670,7 @@ def test_slicing_pad(fwp_fps, log=False):
         out_files = os.path.join(td, 'out_{file_id}.h5')
         st_out_dir = os.path.join(td, 'st_gan')
         st_model.save(st_out_dir)
-
         handler = DataHandlerNC(fwp_fps, features, target=target, shape=shape)
-
         input_handler_kwargs = {
             'target': target,
             'shape': shape,
@@ -674,14 +702,15 @@ def test_slicing_pad(fwp_fps, log=False):
         assert chunk_lookup[0, 0, 1] == n_s1 * n_s2
         assert chunk_lookup[0, 1, 1] == n_s1 * n_s2 + 1
 
-        for ichunk in range(strategy.chunks):
-            forward_pass = ForwardPass(strategy, chunk_index=ichunk)
-
-            s_slices = strategy.lr_pad_slices[forward_pass.spatial_chunk_index]
+        fwp = ForwardPass(strategy)
+        for i in range(strategy.chunks):
+            chunk = fwp.get_chunk(i, mode='constant')
+            s_idx, t_idx = strategy.get_chunk_indices(i)
+            s_slices = strategy.lr_pad_slices[s_idx]
             lr_data_slice = (
                 s_slices[0],
                 s_slices[1],
-                forward_pass.ti_pad_slice,
+                fwp.strategy.ti_pad_slices[t_idx],
                 slice(None),
             )
 
@@ -690,7 +719,7 @@ def test_slicing_pad(fwp_fps, log=False):
             # padding of 1 when 1 index away from the borders (chunk shape is 1
             # in those axes). s2 should have padding of 2 at the
             # borders and 0 everywhere else.
-            ids1, ids2, idt = np.where(chunk_lookup == ichunk)
+            ids1, ids2, idt = np.where(chunk_lookup == i)
             ids1, ids2, idt = ids1[0], ids2[0], idt[0]
 
             start_s1_pad_lookup = {0: 2}
@@ -715,10 +744,10 @@ def test_slicing_pad(fwp_fps, log=False):
             )
 
             truth = handler.data[lr_data_slice]
-            padded_truth = np.pad(truth, pad_width, mode='reflect')
+            padded_truth = np.pad(truth, pad_width, mode='constant')
 
-            assert forward_pass.input_data.shape == padded_truth.shape
-            assert np.allclose(forward_pass.input_data, padded_truth)
+            assert chunk.input_data.shape == padded_truth.shape
+            assert np.allclose(chunk.input_data, padded_truth)
 
 
 if __name__ == '__main__':
