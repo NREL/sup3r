@@ -5,7 +5,6 @@ Sup3r forward pass handling module.
 @author: bbenton
 """
 
-import copy
 import logging
 from concurrent.futures import as_completed
 from datetime import datetime as dt
@@ -20,14 +19,10 @@ from rex.utilities.fun_utils import get_fun_call_str
 import sup3r.bias.bias_transforms
 import sup3r.models
 from sup3r.pipeline.common import get_model
-from sup3r.pipeline.strategy import ForwardPassStrategy
+from sup3r.pipeline.strategy import ForwardPassChunk, ForwardPassStrategy
 from sup3r.postprocessing import (
     OutputHandlerH5,
     OutputHandlerNC,
-)
-from sup3r.preprocessing import (
-    ExoData,
-    ExogenousDataHandler,
 )
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
@@ -46,7 +41,7 @@ class ForwardPass:
         'h5': OutputHandlerH5,
     }
 
-    def __init__(self, strategy, chunk_index=0, node_index=0):
+    def __init__(self, strategy, node_index=0):
         """Initialize ForwardPass with ForwardPassStrategy. The strategy
         provides the data chunks to run forward passes on
 
@@ -62,114 +57,40 @@ class ForwardPass:
             Index of node used to run forward pass
         """
         self.strategy = strategy
-        self.chunk_index = chunk_index
+        self.model = get_model(strategy.model_class, strategy.model_kwargs)
         self.node_index = node_index
-        self.output_data = None
-        self.input_handler = strategy.input_handler_class(
-            **self.strategy.input_handler_kwargs
-        )
-        chunk_description = strategy.get_chunk_description(chunk_index)
-        self.update_attrs(chunk_description)
-
-        msg = (
-            f'Requested forward pass on chunk_index={chunk_index} > '
-            f'n_chunks={strategy.chunks}'
-        )
-        assert chunk_index <= strategy.chunks, msg
-
-        logger.info(
-            f'Initializing ForwardPass for chunk={chunk_index} '
-            f'(temporal_chunk={self.temporal_chunk_index}, '
-            f'spatial_chunk={self.spatial_chunk_index}). {self.chunks}'
-            f' total chunks for the current node.'
-        )
+        self.chunk_index = None
 
         msg = f'Received bad output type {strategy.output_type}'
-        if strategy.output_type in list(self.OUTPUT_HANDLER_CLASS):
-            self.output_handler_class = self.OUTPUT_HANDLER_CLASS[
-                strategy.output_type
-            ]
-
-        logger.info(f'Getting input data for chunk_index={chunk_index}.')
-        self.input_data, self.exogenous_data = self.get_input_and_exo_data()
-        self.model = get_model(strategy.model_class, strategy.model_kwargs)
-
-    def get_input_and_exo_data(self):
-        """Get input and exo data chunks."""
-        input_data = self.input_handler.data[
-            self.lr_pad_slice[0], self.lr_pad_slice[1], self.ti_pad_slice
+        assert strategy.output_type in list(self.OUTPUT_HANDLER_CLASS), msg
+        self.output_handler_class = self.OUTPUT_HANDLER_CLASS[
+            strategy.output_type
         ]
-        exo_data = self.load_exo_data()
-        input_data = self.bias_correct_source_data(
-            input_data, self.strategy.lr_lat_lon
+
+    def get_chunk(self, chunk_index=0):
+        """Get :class:`FowardPassChunk` instance for the given chunk index."""
+
+        chunk = self.strategy.init_chunk(chunk_index)
+        chunk.input_data = self.bias_correct_source_data(
+            chunk.input_data,
+            self.strategy.lr_lat_lon,
+            lr_pad_slice=chunk.lr_pad_slice,
         )
-        input_data, exo_data = self.pad_source_data(
-            input_data, self.pad_width, exo_data
+        chunk.input_data, chunk.exo_data = self.pad_source_data(
+            chunk.input_data, chunk.pad_width, chunk.exo_data
         )
-        return input_data, exo_data
-
-    def update_attrs(self, chunk_desc):
-        """Update self attributes with values for the current chunk."""
-        for attr, val in chunk_desc.items():
-            setattr(self, attr, val)
-
-    def load_exo_data(self):
-        """Extract exogenous data for each exo feature and store data in
-        dictionary with key for each exo feature
-
-        Returns
-        -------
-        exo_data : ExoData
-           :class:`ExoData` object composed of multiple
-           :class:`SingleExoDataStep` objects.
-        """
-        data = {}
-        exo_data = None
-        if self.exo_kwargs:
-            for feature in self.exo_features:
-                exo_kwargs = copy.deepcopy(self.exo_kwargs[feature])
-                exo_kwargs['feature'] = feature
-                exo_kwargs['target'] = self.target
-                exo_kwargs['shape'] = self.shape
-                exo_kwargs['time_slice'] = self.ti_pad_slice
-                exo_kwargs['models'] = getattr(
-                    self.model, 'models', [self.model]
-                )
-                sig = signature(ExogenousDataHandler)
-                exo_kwargs = {
-                    k: v for k, v in exo_kwargs.items() if k in sig.parameters
-                }
-                data.update(ExogenousDataHandler(**exo_kwargs).data)
-            exo_data = ExoData(data)
-        return exo_data
-
-    @property
-    def hr_times(self):
-        """Get high resolution times for the current chunk"""
-        lr_times = self.input_handler.time_index[self.ti_crop_slice]
-        return self.output_handler_class.get_times(
-            lr_times, self.t_enhance * len(lr_times)
-        )
-
-    @property
-    def chunk_specific_meta(self):
-        """Meta with chunk specific info. To be included in chunk output file
-        global attributes."""
-        meta_data = {
-            'node_index': self.node_index,
-            'creation_date': dt.now().strftime('%d/%m/%Y %H:%M:%S'),
-            'fwp_chunk_shape': self.strategy.fwp_chunk_shape,
-            'spatial_pad': self.strategy.spatial_pad,
-            'temporal_pad': self.strategy.temporal_pad,
-        }
-        return meta_data
+        return chunk
 
     @property
     def meta(self):
         """Meta data dictionary for the forward pass run (to write to output
         files)."""
         meta_data = {
-            'chunk_meta': self.chunk_specific_meta,
+            'node_index': self.node_index,
+            'creation_date': dt.now().strftime('%d/%m/%Y %H:%M:%S'),
+            'fwp_chunk_shape': self.strategy.fwp_chunk_shape,
+            'spatial_pad': self.strategy.spatial_pad,
+            'temporal_pad': self.strategy.temporal_pad,
             'gan_meta': self.model.meta,
             'gan_params': self.model.model_params,
             'model_kwargs': self.model_kwargs,
@@ -188,31 +109,6 @@ class ForwardPass:
         if attr in dir(self):
             return self.__getattribute__(attr)
         return getattr(self.strategy, attr)
-
-    @property
-    def gids(self):
-        """Get gids for the current chunk"""
-        return self.strategy.gids[self.hr_slice[0], self.hr_slice[1]]
-
-    @property
-    def chunks(self):
-        """Number of chunks for current node"""
-        return len(self.strategy.node_chunks[self.node_index])
-
-    @property
-    def spatial_chunk_index(self):
-        """Spatial index for the current chunk going through forward pass"""
-        return self.strategy._get_spatial_chunk_index(self.chunk_index)
-
-    @property
-    def temporal_chunk_index(self):
-        """Temporal index for the current chunk going through forward pass"""
-        return self.strategy._get_temporal_chunk_index(self.chunk_index)
-
-    @property
-    def out_file(self):
-        """Get output file name for the current chunk"""
-        return self.strategy.out_files[self.chunk_index]
 
     def _get_step_enhance(self, step):
         """Get enhancement factors for a given step and combine type.
@@ -306,7 +202,7 @@ class ForwardPass:
                     exo_data[feature]['steps'][i]['data'] = new_exo
         return out, exo_data
 
-    def bias_correct_source_data(self, data, lat_lon):
+    def bias_correct_source_data(self, data, lat_lon, lr_pad_slice=None):
         """Bias correct data using a method defined by the bias_correct_method
         input to ForwardPassStrategy
 
@@ -335,7 +231,7 @@ class ForwardPass:
                 idf = self.input_handler.features.index(feature)
 
                 if 'lr_padded_slice' in signature(method).parameters:
-                    feature_kwargs['lr_padded_slice'] = self.lr_padded_slice
+                    feature_kwargs['lr_padded_slice'] = lr_pad_slice
                 if 'time_index' in signature(method).parameters:
                     feature_kwargs['time_index'] = (
                         self.input_handler.time_index
@@ -359,9 +255,7 @@ class ForwardPass:
         cls,
         data_chunk,
         hr_crop_slices,
-        model=None,
-        model_kwargs=None,
-        model_class=None,
+        model,
         s_enhance=None,
         t_enhance=None,
         exo_data=None,
@@ -380,21 +274,6 @@ class ForwardPass:
             before stitching chunks.
         model : Sup3rGan
             A loaded Sup3rGan model (any model imported from sup3r.models).
-            You need to provide either model or (model_kwargs and model_class)
-        model_kwargs : str | list
-            Keyword arguments to send to `model_class.load(**model_kwargs)` to
-            initialize the GAN. Typically this is just the string path to the
-            model directory, but can be multiple models or arguments for more
-            complex models.
-            You need to provide either model or (model_kwargs and model_class)
-        model_class : str
-            Name of the sup3r model class for the GAN model to load. The
-            default is the basic spatial / spatiotemporal Sup3rGan model. This
-            will be loaded from sup3r.models
-            You need to provide either model or (model_kwargs and model_class)
-        model_path : str
-            Path to file for Sup3rGan used to generate high resolution
-            data
         t_enhance : int
             Factor by which to enhance temporal resolution
         s_enhance : int
@@ -414,13 +293,6 @@ class ForwardPass:
         ndarray
             High resolution data generated by GAN
         """
-        if model is None:
-            msg = 'If model not provided, model_kwargs and model_class must be'
-            assert model_kwargs is not None, msg
-            assert model_class is not None, msg
-            model_class = getattr(sup3r.models, model_class)
-            model = model_class.load(**model_kwargs, verbose=False)
-
         temp = cls._reshape_data_chunk(model, data_chunk, exo_data)
         data_chunk, exo_data, i_lr_t, i_lr_s = temp
 
@@ -584,7 +456,8 @@ class ForwardPass:
 
         return cmd.replace('\\', '/')
 
-    def _constant_output_check(self, out_data):
+    @classmethod
+    def _constant_output_check(cls, out_data, allowed_const):
         """Check if forward pass output is constant. This can happen when the
         chunk going through the forward pass is too big.
 
@@ -592,65 +465,33 @@ class ForwardPass:
         ----------
         out_data : ndarray
             Forward pass output corresponding to the given chunk index
+        allowed_const : list | bool
+            Tensorflow has a tensor memory limit of 2GB (result of protobuf
+            limitation) and when exceeded can return a tensor with a
+            constant output. sup3r will raise a ``MemoryError`` in response. If
+            your model is allowed to output a constant output, set this to True
+            to allow any constant output or a list of allowed possible constant
+            outputs. For example, a precipitation model should be allowed to
+            output all zeros so set this to ``[0]``. For details on this limit:
+            https://github.com/tensorflow/tensorflow/issues/51870
         """
-
-        allowed_const = self.strategy.allowed_const
+        failed = False
         if allowed_const is True:
-            return
+            return failed
         if allowed_const is False:
             allowed_const = []
         elif not isinstance(allowed_const, (list, tuple)):
             allowed_const = [allowed_const]
 
-        for i, f in enumerate(self.strategy.output_features):
-            msg = f'All spatiotemporal values are the same for {f} output!'
+        for i in range(out_data.shape[-1]):
+            msg = f'All values are the same for feature channel {i}!'
             value0 = out_data[0, 0, 0, i]
             all_same = (value0 == out_data[..., i]).all()
             if all_same and value0 not in allowed_const:
-                self.strategy.failed_chunks = True
+                failed = True
                 logger.error(msg)
-                raise MemoryError(msg)
-
-    @classmethod
-    def _single_proc_run(cls, strategy, node_index, chunk_index):
-        """Load forward pass object for given chunk and run through generator,
-        this method is meant to be called as a single process in a parallel
-        pool.
-
-        Parameters
-        ----------
-        strategy : ForwardPassStrategy
-            ForwardPassStrategy instance with information on data chunks to run
-            forward passes on.
-        node_index : int
-            Index of node on which the forward pass for the given chunk will
-            be run.
-        chunk_index : int
-            Index to select chunk specific variables. This index selects the
-            corresponding file set, cropped_file_slice, padded_file_slice,
-            and padded/overlapping/cropped spatial slice for a spatiotemporal
-            chunk
-
-        Returns
-        -------
-        ForwardPass | None
-            If the forward pass for the given chunk is not finished this
-            returns an initialized forward pass object, otherwise returns None
-        """
-        fwp = None
-        check = (
-            not strategy.chunk_finished(chunk_index)
-            and not strategy.failed_chunks
-        )
-
-        if strategy.failed_chunks:
-            msg = 'A forward pass has failed. Aborting all jobs.'
-            logger.error(msg)
-            raise MemoryError(msg)
-
-        if check:
-            fwp = cls(strategy, chunk_index=chunk_index, node_index=node_index)
-            fwp.run_chunk()
+                break
+        return failed
 
     @classmethod
     def run(cls, strategy, node_index):
@@ -693,12 +534,19 @@ class ForwardPass:
         logger.debug(
             f'Running forward passes on node {node_index} in ' 'serial.'
         )
+        fwp = cls(
+            strategy
+        )  # , chunk_index=chunk_index, node_index=node_index)
         for i, chunk_index in enumerate(strategy.node_chunks[node_index]):
             now = dt.now()
-            cls._single_proc_run(
-                strategy=strategy,
-                node_index=node_index,
-                chunk_index=chunk_index,
+            failed = cls.run_chunk(
+                chunk=fwp.get_chunk(chunk_index=chunk_index),
+                model_kwargs=fwp.model_kwargs,
+                model_class=fwp.model_class,
+                allowed_const=fwp.allowed_const,
+                output_handler_class=fwp.output_handler_class,
+                meta=fwp.meta,
+                output_workers=fwp.output_workers,
             )
             mem = psutil.virtual_memory()
             logger.info(
@@ -709,6 +557,12 @@ class ForwardPass:
                 f'{mem.used / 1e9:.3f} GB out of '
                 f'{mem.total / 1e9:.3f} GB total.'
             )
+            if failed:
+                msg = (
+                    f'Forward pass for chunk_index {chunk_index} failed '
+                    'with constant output.'
+                )
+                raise MemoryError(msg)
 
         logger.info(
             'Finished forward passes on '
@@ -739,14 +593,19 @@ class ForwardPass:
         futures = {}
         start = dt.now()
         pool_kws = {'max_workers': strategy.pass_workers, 'loggers': ['sup3r']}
+        fwp = cls(strategy, node_index=node_index)
         with SpawnProcessPool(**pool_kws) as exe:
             now = dt.now()
             for _i, chunk_index in enumerate(strategy.node_chunks[node_index]):
                 fut = exe.submit(
-                    cls._single_proc_run,
-                    strategy=strategy,
-                    node_index=node_index,
-                    chunk_index=chunk_index,
+                    fwp.run_chunk,
+                    chunk=fwp.get_chunk(chunk_index=chunk_index),
+                    model_kwargs=fwp.model_kwargs,
+                    model_class=fwp.model_class,
+                    allowed_const=fwp.allowed_const,
+                    output_handler_class=fwp.output_handler_class,
+                    meta=fwp.meta,
+                    output_workers=fwp.output_workers,
                 )
                 futures[fut] = {
                     'chunk_index': chunk_index,
@@ -758,26 +617,33 @@ class ForwardPass:
                 f'{dt.now() - now}.'
             )
 
-            for i, future in enumerate(as_completed(futures)):
-                try:
-                    future.result()
+            try:
+                for i, future in enumerate(as_completed(futures)):
+                    failed = future.result()
+                    chunk_idx = futures[future]['chunk_index']
+                    start_time = futures[future]['start_time']
+                    if failed:
+                        msg = (
+                            f'Forward pass for chunk_index {chunk_idx} failed '
+                            'with constant output.'
+                        )
+                        raise MemoryError(msg)
                     mem = psutil.virtual_memory()
                     msg = (
                         'Finished forward pass on chunk_index='
-                        f'{futures[future]["chunk_index"]} in '
-                        f'{dt.now() - futures[future]["start_time"]}. '
+                        f'{chunk_idx} in {dt.now() - start_time}. '
                         f'{i + 1} of {len(futures)} complete. '
                         f'Current memory usage is {mem.used / 1e9:.3f} GB '
                         f'out of {mem.total / 1e9:.3f} GB total.'
                     )
                     logger.info(msg)
-                except Exception as e:
-                    msg = (
-                        'Error running forward pass on chunk_index='
-                        f'{futures[future]["chunk_index"]}.'
-                    )
-                    logger.exception(msg)
-                    raise RuntimeError(msg) from e
+            except Exception as e:
+                msg = (
+                    'Error running forward pass on chunk_index='
+                    f'{futures[future]["chunk_index"]}.'
+                )
+                logger.exception(msg)
+                raise RuntimeError(msg) from e
 
         logger.info(
             'Finished asynchronous forward passes on '
@@ -785,41 +651,55 @@ class ForwardPass:
             f'{dt.now() - start}'
         )
 
-    def run_chunk(self):
-        """Run a forward pass on single spatiotemporal chunk."""
+    @classmethod
+    def run_chunk(
+        cls,
+        chunk: ForwardPassChunk,
+        model_kwargs,
+        model_class,
+        allowed_const,
+        output_handler_class,
+        meta,
+        output_workers=None,
+    ):
+        """Run a forward pass on single spatiotemporal chunk.
 
-        msg = (
-            f'Running forward pass for chunk_index={self.chunk_index}, '
-            f'node_index={self.node_index}, file_paths={self.file_paths}. '
-            f'Starting forward pass on chunk_shape={self.chunk_shape} with '
-            f'spatial_pad={self.strategy.spatial_pad} and temporal_pad='
-            f'{self.strategy.temporal_pad}.'
-        )
+        Parameters
+        ----------
+        chunk : FowardPassChunk
+            Struct with chunk data (including exo data if applicable) and
+            chunk attributes (e.g. chunk specific slices, times, lat/lon, etc)
+
+        """
+
+        msg = f'Running forward pass for chunk_index={chunk.index}.'
         logger.info(msg)
 
-        self.output_data = self._run_generator(
-            self.input_data,
-            hr_crop_slices=self.hr_crop_slice,
-            model=self.model,
-            model_kwargs=self.model_kwargs,
-            model_class=self.model_class,
-            s_enhance=self.s_enhance,
-            t_enhance=self.t_enhance,
-            exo_data=self.exogenous_data,
+        model = get_model(model_class, model_kwargs)
+
+        output_data = cls._run_generator(
+            chunk.input_data,
+            hr_crop_slices=chunk.hr_crop_slice,
+            model=model,
+            s_enhance=model.s_enhance,
+            t_enhance=model.t_enhance,
+            exo_data=chunk.exo_data,
         )
 
-        self._constant_output_check(self.output_data)
+        failed = cls._constant_output_check(
+            output_data, allowed_const=allowed_const
+        )
 
-        if self.out_file is not None:
-            logger.info(f'Saving forward pass output to {self.out_file}.')
-            self.output_handler_class._write_output(
-                data=self.output_data,
-                features=self.model.hr_out_features,
-                lat_lon=self.hr_lat_lon,
-                times=self.hr_times,
-                out_file=self.out_file,
-                meta_data=self.meta,
-                max_workers=self.output_workers,
-                gids=self.gids,
+        if chunk.out_file is not None and not failed:
+            logger.info(f'Saving forward pass output to {chunk.out_file}.')
+            output_handler_class._write_output(
+                data=output_data,
+                features=model.hr_out_features,
+                lat_lon=chunk.hr_lat_lon,
+                times=chunk.hr_times,
+                out_file=chunk.out_file,
+                meta_data=meta,
+                max_workers=output_workers,
+                gids=chunk.gids,
             )
-        return self.output_data
+        return failed

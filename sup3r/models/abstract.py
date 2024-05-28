@@ -203,7 +203,15 @@ class AbstractInterface(ABC):
     def s_enhance(self):
         """Factor by which model will enhance spatial resolution. Used in
         model training during high res coarsening"""
-        s_enhance = self.meta.get('s_enhance', None)
+        if isinstance(self.meta, tuple):
+            s_enhances = [m['s_enhance'] for m in self.meta]
+            s_enhance = (
+                None
+                if any(s is None for s in s_enhances)
+                else np.prod(s_enhances)
+            )
+        else:
+            s_enhance = self.meta.get('s_enhance', None)
         if s_enhance is None:
             s_enhance = self.get_s_enhance_from_layers()
             self.meta['s_enhance'] = s_enhance
@@ -213,7 +221,15 @@ class AbstractInterface(ABC):
     def t_enhance(self):
         """Factor by which model will enhance temporal resolution. Used in
         model training during high res coarsening"""
-        t_enhance = self.meta.get('t_enhance', None)
+        if isinstance(self.meta, tuple):
+            t_enhances = [m['t_enhance'] for m in self.meta]
+            t_enhance = (
+                None
+                if any(t is None for t in t_enhances)
+                else np.prod(t_enhances)
+            )
+        else:
+            t_enhance = self.meta.get('t_enhance', None)
         if t_enhance is None:
             t_enhance = self.get_t_enhance_from_layers()
             self.meta['t_enhance'] = t_enhance

@@ -56,12 +56,9 @@ class LoaderH5(Loader):
 
         if len(self._meta_shape()) == 1:
             data_vars['elevation'] = (
-                dims,
-                da.broadcast_to(
-                    da.asarray(
-                        self.res.meta['elevation'].values, dtype=np.float32
-                    ),
-                    self._res_shape(),
+                ('space'),
+                da.asarray(
+                    self.res.meta['elevation'].values, dtype=np.float32
                 ),
             )
         data_vars = {

@@ -88,7 +88,7 @@ def test_fwp_nc_cc(log=False):
             },
             out_pattern=out_files,
             input_handler='DataHandlerNCforCC',
-            pass_workers=2
+            pass_workers=None,
         )
         forward_pass = ForwardPass(strat)
         forward_pass.run(strat, node_index=0)
@@ -194,12 +194,12 @@ def test_fwp_nc(fwp_fps):
 
         with xr.open_dataset(strat.out_files[0]) as fh:
             assert fh[FEATURES[0]].shape == (
-                t_enhance * len(strat.input_handler.time_index),
+                t_enhance * len(strat.time_index),
                 s_enhance * fwp_chunk_shape[0],
                 s_enhance * fwp_chunk_shape[1],
             )
             assert fh[FEATURES[1]].shape == (
-                t_enhance * len(strat.input_handler.time_index),
+                t_enhance * len(strat.time_index),
                 s_enhance * fwp_chunk_shape[0],
                 s_enhance * fwp_chunk_shape[1],
             )
@@ -238,7 +238,7 @@ def test_fwp_time_slice(fwp_fps):
                 'time_slice': time_slice,
             },
             out_pattern=out_files,
-            pass_workers=1
+            pass_workers=1,
         )
         forward_pass = ForwardPass(strat)
         forward_pass.run(strat, node_index=0)
@@ -490,7 +490,6 @@ def test_fwp_multi_step_model(fwp_fps):
     _ = st_model.generate(np.ones((4, 10, 10, 6, 2)))
 
     with tempfile.TemporaryDirectory() as td:
-
         st_out_dir = os.path.join(td, 'st_gan')
         s_out_dir = os.path.join(td, 's_gan')
         st_model.save(st_out_dir)
@@ -583,9 +582,7 @@ def test_slicing_no_pad(fwp_fps, log=False):
         st_out_dir = os.path.join(td, 'st_gan')
         st_model.save(st_out_dir)
 
-        handler = DataHandlerNC(
-            fwp_fps, features, target=target, shape=shape
-        )
+        handler = DataHandlerNC(fwp_fps, features, target=target, shape=shape)
 
         input_handler_kwargs = {
             'target': target,
@@ -644,9 +641,7 @@ def test_slicing_pad(fwp_fps, log=False):
         st_out_dir = os.path.join(td, 'st_gan')
         st_model.save(st_out_dir)
 
-        handler = DataHandlerNC(
-            fwp_fps, features, target=target, shape=shape
-        )
+        handler = DataHandlerNC(fwp_fps, features, target=target, shape=shape)
 
         input_handler_kwargs = {
             'target': target,

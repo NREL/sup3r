@@ -42,6 +42,12 @@ def test_time_independent_loading():
         assert loader.dims == ('south_north', 'west_east')
 
 
+def test_time_independent_loading_h5():
+    """Make sure loaders work with time independent files."""
+    loader = LoaderH5(h5_files[0], features=['topography'])
+    assert len(loader['topography'].shape) == 1
+
+
 def test_dim_ordering():
     """Make sure standard reordering works with dimensions not in the standard
     list."""

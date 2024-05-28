@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 import tensorflow as tf
+import xarray as xr
 from rex import ResourceX, init_logger
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR, __version__
@@ -31,6 +32,9 @@ s_enhance = 3
 t_enhance = 4
 
 np.random.seed(42)
+
+
+init_logger('sup3r', log_level='DEBUG')
 
 
 @pytest.fixture(scope='module')
@@ -133,14 +137,16 @@ def test_fwp_multi_step_model_topo_exoskip(fwp_fps, log=False):
             out_pattern=out_files,
             exo_kwargs=exo_kwargs,
             max_nodes=1,
+            pass_workers=None
         )
 
         forward_pass = ForwardPass(handler)
         forward_pass.run(handler, node_index=0)
+        t_steps = len(xr.open_dataset(fwp_fps)['time'])
 
         with ResourceX(handler.out_files[0]) as fh:
             assert fh.shape == (
-                t_enhance * len(fwp_fps),
+                t_enhance * t_steps,
                 s_enhance**2 * fwp_chunk_shape[0] * fwp_chunk_shape[1],
             )
             assert all(
@@ -235,10 +241,11 @@ def test_fwp_multi_step_spatial_model_topo_noskip(fwp_fps):
 
         forward_pass = ForwardPass(handler)
         forward_pass.run(handler, node_index=0)
+        t_steps = len(xr.open_dataset(fwp_fps)['time'])
 
         with ResourceX(handler.out_files[0]) as fh:
             assert fh.shape == (
-                len(fwp_fps),
+                t_steps,
                 s_enhance**2 * fwp_chunk_shape[0] * fwp_chunk_shape[1],
             )
             assert all(
@@ -334,7 +341,9 @@ def test_fwp_multi_step_model_topo_noskip(fwp_fps):
 
         out_files = os.path.join(td, 'out_{file_id}.h5')
         input_handler_kwargs = {
-            'target': target, 'shape': shape, 'time_slice': time_slice
+            'target': target,
+            'shape': shape,
+            'time_slice': time_slice,
         }
         handler = ForwardPassStrategy(
             fwp_fps,
@@ -351,10 +360,11 @@ def test_fwp_multi_step_model_topo_noskip(fwp_fps):
 
         forward_pass = ForwardPass(handler)
         forward_pass.run(handler, node_index=0)
+        t_steps = len(xr.open_dataset(fwp_fps)['time'])
 
         with ResourceX(handler.out_files[0]) as fh:
             assert fh.shape == (
-                t_enhance * len(fwp_fps),
+                t_enhance * t_steps,
                 s_enhance**2 * fwp_chunk_shape[0] * fwp_chunk_shape[1],
             )
             assert all(
@@ -408,7 +418,9 @@ def test_fwp_single_step_sfc_model(fwp_fps, plot=False):
 
         out_files = os.path.join(td, 'out_{file_id}.h5')
         input_handler_kwargs = {
-            'target': target, 'shape': shape, 'time_slice': time_slice
+            'target': target,
+            'shape': shape,
+            'time_slice': time_slice,
         }
 
         handler = ForwardPassStrategy(
@@ -532,7 +544,9 @@ def test_fwp_single_step_wind_hi_res_topo(plot=False):
         model_kwargs = {'model_dir': st_out_dir}
         out_files = os.path.join(td, 'out_{file_id}.h5')
         input_handler_kwargs = {
-            'target': target, 'shape': shape, 'time_slice': time_slice
+            'target': target,
+            'shape': shape,
+            'time_slice': time_slice,
         }
 
         handler = ForwardPassStrategy(
@@ -997,10 +1011,10 @@ def test_fwp_multi_step_model_multi_exo(fwp_fps):
         assert forward_pass.data_handler.extract_workers == max_workers
 
         forward_pass.run(handler, node_index=0)
-
+        t_steps = len(xr.open_dataset(fwp_fps)['time'])
         with ResourceX(handler.out_files[0]) as fh:
             assert fh.shape == (
-                t_enhance * len(fwp_fps),
+                t_enhance * t_steps,
                 s_enhance**2 * fwp_chunk_shape[0] * fwp_chunk_shape[1],
             )
             assert all(
