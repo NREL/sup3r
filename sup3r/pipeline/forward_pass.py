@@ -70,13 +70,17 @@ class ForwardPass:
             ]
 
     def get_chunk(self, chunk_index=0, mode='reflect'):
-        """Get :class:`FowardPassChunk` instance for the given chunk index."""
+        """Get :class:`FowardPassChunk` instance for the given chunk index.
+
+        TODO: Remove call to input_handler.lat_lon. Can be reworked to make
+        unneeded
+        """
 
         chunk = self.strategy.init_chunk(chunk_index)
 
         chunk.input_data = self.bias_correct_source_data(
             chunk.input_data,
-            self.strategy.lr_lat_lon,
+            self.input_handler.lat_lon,
             lr_pad_slice=chunk.lr_pad_slice,
         )
         chunk.input_data, chunk.exo_data = self.pad_source_data(

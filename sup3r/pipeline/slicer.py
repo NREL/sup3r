@@ -448,12 +448,12 @@ class ForwardPassSlicer:
     @property
     def chunk_lookup(self):
         """Get a 3D array with shape
-        (n_spatial_1_chunks, n_spatial_2_chunks, n_temporal_chunks)
+        (n_spatial_1_chunks, n_spatial_2_chunks, n_time_chunks)
         where each value is the chunk index."""
         if self._chunk_lookup is None:
             n_s1 = len(self.s1_lr_slices)
             n_s2 = len(self.s2_lr_slices)
-            n_t = self.n_temporal_chunks
+            n_t = self.n_time_chunks
             lookup = np.arange(self.n_chunks).reshape((n_t, n_s1, n_s2))
             self._chunk_lookup = np.transpose(lookup, axes=(1, 2, 0))
         return self._chunk_lookup
@@ -472,14 +472,14 @@ class ForwardPassSlicer:
         return len(self.hr_crop_slices[0])
 
     @property
-    def n_temporal_chunks(self):
+    def n_time_chunks(self):
         """Get the number of temporal chunks"""
         return len(self.t_hr_crop_slices)
 
     @property
     def n_chunks(self):
         """Get total number of spatiotemporal chunks"""
-        return self.n_spatial_chunks * self.n_temporal_chunks
+        return self.n_spatial_chunks * self.n_time_chunks
 
     @staticmethod
     def get_padded_slices(slices, shape, enhancement, padding, step=None):

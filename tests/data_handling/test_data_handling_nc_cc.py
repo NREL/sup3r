@@ -152,6 +152,4 @@ def test_solar_cc():
 
 
 if __name__ == '__main__':
-    if False:
-        execute_pytest(__file__)
-    test_data_handling_nc_cc()
+    execute_pytest(__file__)

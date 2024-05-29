@@ -21,9 +21,7 @@ from sup3r.utilities.pytest.helpers import (
 )
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
-TARGET_COORD = (39.01, -105.15)
 FEATURES = ['U_100m', 'V_100m']
-INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
 target = (19.3, -123.5)
 shape = (8, 8)
 time_slice = slice(None, None, 1)
@@ -94,12 +92,12 @@ def test_fwp_nc_cc(log=False):
 
         with xr.open_dataset(strat.out_files[0]) as fh:
             assert fh[FEATURES[0]].shape == (
-                t_enhance * len(strat.time_index),
+                t_enhance * len(strat.input_handler.time_index),
                 s_enhance * fwp_chunk_shape[0],
                 s_enhance * fwp_chunk_shape[1],
             )
             assert fh[FEATURES[1]].shape == (
-                t_enhance * len(strat.time_index),
+                t_enhance * len(strat.input_handler.time_index),
                 s_enhance * fwp_chunk_shape[0],
                 s_enhance * fwp_chunk_shape[1],
             )
@@ -122,7 +120,7 @@ def test_fwp_spatial_only(fwp_fps):
         out_dir = os.path.join(td, 's_gan')
         model.save(out_dir)
         out_files = os.path.join(td, 'out_{file_id}.nc')
-        handler = ForwardPassStrategy(
+        strat = ForwardPassStrategy(
             fwp_fps,
             model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=fwp_chunk_shape,
@@ -138,19 +136,19 @@ def test_fwp_spatial_only(fwp_fps):
             pass_workers=1,
             output_workers=1,
         )
-        forward_pass = ForwardPass(handler)
+        forward_pass = ForwardPass(strat)
         assert forward_pass.output_workers == 1
         assert forward_pass.pass_workers == 1
-        forward_pass.run(handler, node_index=0)
+        forward_pass.run(strat, node_index=0)
 
-        with xr.open_dataset(handler.out_files[0]) as fh:
+        with xr.open_dataset(strat.out_files[0]) as fh:
             assert fh[FEATURES[0]].shape == (
-                len(handler.time_index),
+                len(strat.input_handler.time_index),
                 2 * fwp_chunk_shape[0],
                 2 * fwp_chunk_shape[1],
             )
             assert fh[FEATURES[1]].shape == (
-                len(handler.time_index),
+                len(strat.input_handler.time_index),
                 2 * fwp_chunk_shape[0],
                 2 * fwp_chunk_shape[1],
             )
@@ -339,7 +337,7 @@ def test_fwp_chunking(fwp_fps, log=False, plot=False):
         temporal_pad = 12
         raw_tsteps = len(xr.open_dataset(fwp_fps)['time'])
         fwp_shape = (4, 4, raw_tsteps // 2)
-        handler = ForwardPassStrategy(
+        strat = ForwardPassStrategy(
             fwp_fps,
             model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=fwp_shape,
@@ -380,8 +378,8 @@ def test_fwp_chunking(fwp_fps, log=False, plot=False):
         data_nochunk = model.generate(np.expand_dims(input_data, axis=0))[0][
             hr_crop
         ]
-        fwp = ForwardPass(handler)
-        for i in range(handler.chunks):
+        fwp = ForwardPass(strat)
+        for i in range(strat.chunks):
             _, out = fwp.run_chunk(
                 fwp.get_chunk(i, mode='constant'),
                 fwp.model_kwargs,
@@ -463,7 +461,7 @@ def test_fwp_nochunking(fwp_fps):
             'shape': shape,
             'time_slice': time_slice,
         }
-        handler = ForwardPassStrategy(
+        strat = ForwardPassStrategy(
             fwp_fps,
             model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=(
@@ -475,7 +473,7 @@ def test_fwp_nochunking(fwp_fps):
             temporal_pad=0,
             input_handler_kwargs=input_handler_kwargs,
         )
-        fwp = ForwardPass(handler)
+        fwp = ForwardPass(strat)
         _, data_chunked = fwp.run_chunk(
             fwp.get_chunk(chunk_index=0),
             fwp.model_kwargs,
@@ -541,7 +539,7 @@ def test_fwp_multi_step_model(fwp_fps):
             'shape': shape,
             'time_slice': time_slice,
         }
-        handler = ForwardPassStrategy(
+        strat = ForwardPassStrategy(
             fwp_fps,
             model_kwargs=model_kwargs,
             model_class='MultiStepGan',
@@ -552,7 +550,7 @@ def test_fwp_multi_step_model(fwp_fps):
             out_pattern=out_files,
             max_nodes=1,
         )
-        fwp = ForwardPass(handler)
+        fwp = ForwardPass(strat)
 
         _, _ = fwp.run_chunk(
             fwp.get_chunk(chunk_index=0),
@@ -564,7 +562,7 @@ def test_fwp_multi_step_model(fwp_fps):
             fwp.output_workers,
         )
 
-        with ResourceX(handler.out_files[0]) as fh:
+        with ResourceX(strat.out_files[0]) as fh:
             assert fh.shape == (
                 t_enhance * fwp_chunk_shape[2],
                 s_enhance**2 * fwp_chunk_shape[0] * fwp_chunk_shape[1],
