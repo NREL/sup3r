@@ -8,7 +8,7 @@ import numpy as np
 from rex import safe_json_load
 
 from sup3r import TEST_DATA_DIR
-from sup3r.containers import ExtracterH5, StatsCollection
+from sup3r.preprocessing import ExtracterH5, StatsCollection
 from sup3r.utilities.pytest.helpers import execute_pytest
 
 input_files = [

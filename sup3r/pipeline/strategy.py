@@ -18,7 +18,6 @@ from typing import Dict, Tuple
 import numpy as np
 import pandas as pd
 
-from sup3r.containers.common import log_args
 from sup3r.pipeline.common import get_model
 from sup3r.pipeline.slicer import ForwardPassSlicer
 from sup3r.postprocessing import (
@@ -28,6 +27,7 @@ from sup3r.preprocessing import (
     ExoData,
     ExogenousDataHandler,
 )
+from sup3r.preprocessing.common import log_args
 from sup3r.utilities.execution import DistributedProcess
 from sup3r.utilities.utilities import (
     expand_paths,
@@ -118,7 +118,7 @@ class ForwardPassStrategy(DistributedProcess):
         in an array and not saved.
     input_handler : str | None
         Class to use for input data. Provide a string name to match an
-        extracter or handler class in `sup3r.containers`
+        extracter or handler class in `sup3r.preprocessing`
     input_handler_kwargs : dict | None
         Any kwargs for initializing the `input_handler` class.
     exo_kwargs : dict | None

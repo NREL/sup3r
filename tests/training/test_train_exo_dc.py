@@ -9,8 +9,8 @@ import pytest
 from rex import init_logger
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
-from sup3r.containers import BatchHandlerDC, DataHandlerH5
 from sup3r.models.data_centric import Sup3rGanDC
+from sup3r.preprocessing import BatchHandlerDC, DataHandlerH5
 
 SHAPE = (20, 20)
 

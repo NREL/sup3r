@@ -12,7 +12,7 @@ import pytest
 from rex import Outputs, Resource, init_logger
 
 from sup3r import TEST_DATA_DIR
-from sup3r.preprocessing.data_handling.exo_extraction import (
+from sup3r.preprocessing import (
     TopoExtractH5,
     TopoExtractNC,
 )

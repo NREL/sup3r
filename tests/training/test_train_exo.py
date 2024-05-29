@@ -9,11 +9,11 @@ import pytest
 from rex import init_logger
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
-from sup3r.containers import (
+from sup3r.models import Sup3rGan
+from sup3r.preprocessing import (
     BatchHandler,
     DataHandlerH5,
 )
-from sup3r.models import Sup3rGan
 from sup3r.utilities.pytest.helpers import execute_pytest
 
 SHAPE = (20, 20)

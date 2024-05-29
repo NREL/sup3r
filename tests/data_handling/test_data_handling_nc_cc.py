@@ -9,12 +9,12 @@ from rex import Resource, init_logger
 from scipy.spatial import KDTree
 
 from sup3r import TEST_DATA_DIR
-from sup3r.containers import (
+from sup3r.preprocessing import (
     DataHandlerNCforCC,
     DataHandlerNCforCCwithPowerLaw,
     LoaderNC,
 )
-from sup3r.containers.derivers.methods import UWindPowerLaw
+from sup3r.preprocessing.derivers.methods import UWindPowerLaw
 from sup3r.utilities.pytest.helpers import execute_pytest
 
 init_logger('sup3r', log_level='DEBUG')

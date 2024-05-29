@@ -8,9 +8,9 @@ import numpy as np
 from rex import init_logger
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
-from sup3r.containers import BatchHandlerDC, DataHandlerDCforH5
 from sup3r.models import Sup3rGan
 from sup3r.models.data_centric import Sup3rGanDC, Sup3rGanSpatialDC
+from sup3r.preprocessing import BatchHandlerDC, DataHandlerDCforH5
 from sup3r.utilities.loss_metrics import MmdMseLoss
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')

@@ -9,7 +9,7 @@ import pytest
 from rex import init_logger
 
 from sup3r import TEST_DATA_DIR
-from sup3r.containers import (
+from sup3r.preprocessing import (
     Cacher,
     DataHandlerH5,
     DataHandlerNC,
