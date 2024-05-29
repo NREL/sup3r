@@ -67,6 +67,7 @@ def test_lat_inversion():
     with TemporaryDirectory() as td:
         nc = make_fake_dset((20, 20, 100, 5), features=['u', 'v'])
         nc['latitude'] = (nc['latitude'].dims, nc['latitude'].data[::-1])
+        nc['u'] = (nc['u'].dims, nc['u'].data[:, :, ::-1, :])
         out_file = os.path.join(td, 'inverted.nc')
         nc.to_netcdf(out_file)
         loader = LoaderNC(out_file)
@@ -77,6 +78,26 @@ def test_lat_inversion():
             nc['u']
             .transpose('south_north', 'west_east', 'time', 'level')
             .data[::-1],
+            loader['u'],
+        )
+
+
+def test_level_inversion():
+    """Write temp file with descending pressure levels and load. Needs to be
+    corrected so surface pressure is first."""
+    with TemporaryDirectory() as td:
+        nc = make_fake_dset((20, 20, 100, 5), features=['u', 'v'])
+        nc['level'] = (nc['level'].dims, nc['level'].data[::-1])
+        nc['u'] = (nc['u'].dims, nc['u'].data[:, ::-1, :, :])
+        out_file = os.path.join(td, 'inverted.nc')
+        nc.to_netcdf(out_file)
+        loader = LoaderNC(out_file)
+        assert nc['level'][0] < nc['level'][-1]
+
+        assert np.array_equal(
+            nc['u']
+            .transpose('south_north', 'west_east', 'time', 'level')
+            .data[..., ::-1],
             loader['u'],
         )
 
