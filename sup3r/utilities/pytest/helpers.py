@@ -44,7 +44,7 @@ def make_fake_dset(shape, features):
     coords = {}
 
     if len(shape) == 4:
-        levels = np.linspace(0, 1000, shape[3])
+        levels = np.linspace(1000, 0, shape[3])
         coords['level'] = levels
     coords['time'] = time
     coords['latitude'] = (('south_north', 'west_east'), lats)
