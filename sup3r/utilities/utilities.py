@@ -1329,7 +1329,7 @@ def get_input_handler_class(file_paths, input_handler_name):
     Returns
     -------
     HandlerClass : ExtracterH5 | ExtracterNC | DataHandlerH5 | DataHandlerNC
-        DataHandler or Extracter class from sup3r.containers.
+        DataHandler or Extracter class from sup3r.preprocessing.
     """
 
     HandlerClass = None
@@ -1350,14 +1350,14 @@ def get_input_handler_class(file_paths, input_handler_name):
         )
 
     if isinstance(input_handler_name, str):
-        import sup3r.containers
+        import sup3r.preprocessing
 
-        HandlerClass = getattr(sup3r.containers, input_handler_name, None)
+        HandlerClass = getattr(sup3r.preprocessing, input_handler_name, None)
 
     if HandlerClass is None:
         msg = (
             'Could not find requested data handler class '
-            f'"{input_handler_name}" in sup3r.containers.'
+            f'"{input_handler_name}" in sup3r.preprocessing.'
         )
         logger.error(msg)
         raise KeyError(msg)

@@ -12,9 +12,9 @@ import xarray as xr
 from rex import ResourceX, init_logger
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR, __version__
-from sup3r.containers import DataHandlerNC
 from sup3r.models import Sup3rGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
+from sup3r.preprocessing import DataHandlerNC
 from sup3r.utilities.pytest.helpers import (
     execute_pytest,
     make_fake_nc_file,

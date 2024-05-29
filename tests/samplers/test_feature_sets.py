@@ -3,7 +3,7 @@
 
 import pytest
 
-from sup3r.containers import DualContainer, DualSampler, Sampler
+from sup3r.preprocessing import DualContainer, DualSampler, Sampler
 from sup3r.utilities.pytest.helpers import DummyData, execute_pytest
 
 

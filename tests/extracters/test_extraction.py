@@ -9,7 +9,7 @@ import xarray as xr
 from rex import Resource, init_logger
 
 from sup3r import TEST_DATA_DIR
-from sup3r.containers import ExtracterH5, ExtracterNC
+from sup3r.preprocessing import ExtracterH5, ExtracterNC
 from sup3r.utilities.pytest.helpers import execute_pytest
 
 h5_files = [

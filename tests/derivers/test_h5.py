@@ -6,7 +6,7 @@ import os
 import numpy as np
 
 from sup3r import TEST_DATA_DIR
-from sup3r.containers import BatchHandler, DataHandlerH5, Sampler
+from sup3r.preprocessing import BatchHandler, DataHandlerH5, Sampler
 from sup3r.utilities.pytest.helpers import execute_pytest
 
 sample_shape = (10, 10, 12)

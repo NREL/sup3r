@@ -12,8 +12,8 @@ from rex import init_logger
 from tensorflow.python.framework.errors_impl import InvalidArgumentError
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
-from sup3r.containers import BatchHandler, DataHandlerH5
 from sup3r.models import Sup3rGan
+from sup3r.preprocessing import BatchHandler, DataHandlerH5
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)

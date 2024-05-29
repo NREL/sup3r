@@ -5,7 +5,7 @@ import pytest
 from rex import init_logger
 from scipy.ndimage import gaussian_filter
 
-from sup3r.containers import (
+from sup3r.preprocessing import (
     BatchHandler,
     DualBatchQueue,
     DualContainer,

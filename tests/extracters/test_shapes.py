@@ -7,7 +7,7 @@ from tempfile import TemporaryDirectory
 from rex import init_logger
 
 from sup3r import TEST_DATA_DIR
-from sup3r.containers import ExtracterNC
+from sup3r.preprocessing import ExtracterNC
 from sup3r.utilities.pytest.helpers import execute_pytest, make_fake_nc_file
 
 h5_files = [

@@ -8,7 +8,7 @@ import numpy as np
 from rex import init_logger
 
 from sup3r import TEST_DATA_DIR
-from sup3r.containers import (
+from sup3r.preprocessing import (
     DataHandlerH5,
     DataHandlerNC,
     DualExtracter,
