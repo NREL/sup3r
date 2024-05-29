@@ -42,8 +42,8 @@ class DistributedProcess:
         self._node_chunks = None
         self._node_files = None
         self._n_chunks = n_chunks
-        self._max_nodes = max_nodes
         self._max_chunks = max_chunks
+        self.max_nodes = max_nodes
         self.failure_event = threading.Event()
         self.incremental = incremental
         self.out_files = None
@@ -99,11 +99,6 @@ class DistributedProcess:
     def all_finished(self):
         """Check if all out files have been saved"""
         return all(self.node_finished(i) for i in range(self.nodes))
-
-    @property
-    def max_nodes(self):
-        """Get uncapped max number of nodes to distribute processes across"""
-        return self._max_nodes
 
     @property
     def chunks(self):

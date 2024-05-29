@@ -1,7 +1,9 @@
 """Methods used across container objects."""
 
 import logging
-from typing import Tuple
+import pprint
+from inspect import getfullargspec
+from typing import ClassVar, Tuple
 from warnings import warn
 
 import xarray as xr
@@ -10,13 +12,51 @@ logger = logging.getLogger(__name__)
 
 
 DIM_ORDER = (
-        'space',
-        'south_north',
-        'west_east',
-        'time',
-        'level',
-        'variable',
+    'space',
+    'south_north',
+    'west_east',
+    'time',
+    'level',
+    'variable',
+)
+
+
+def _log_args(thing, func, *args, **kwargs):
+    """Log annotated attributes and args."""
+
+    ann_dict = {
+        name: getattr(thing, name)
+        for name, val in thing.__annotations__.items()
+        if val is not ClassVar
+    }
+    arg_spec = getfullargspec(func)
+    args = args or []
+    defaults = arg_spec.defaults or []
+    arg_names = arg_spec.args[1 : len(args) + 1]
+    kwargs_names = arg_spec.args[-len(defaults) :]
+    args_dict = dict(zip(kwargs_names, defaults))
+    args_dict.update(dict(zip(arg_names, args)))
+    args_dict.update(kwargs)
+    args_dict.update(ann_dict)
+
+    name = (
+        thing.__name__
+        if hasattr(thing, '__name__')
+        else thing.__class__.__name__
     )
+    logger.info(
+        f'Initialized {name} with:\n' f'{pprint.pformat(args_dict, indent=2)}'
+    )
+
+
+def log_args(func):
+    """Decorator to log annotations and args."""
+
+    def wrapper(self, *args, **kwargs):
+        _log_args(self, func, *args, **kwargs)
+        return func(self, *args, **kwargs)
+
+    return wrapper
 
 
 def lowered(features):

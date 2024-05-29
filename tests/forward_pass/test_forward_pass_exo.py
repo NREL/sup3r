@@ -953,7 +953,6 @@ def test_fwp_multi_step_model_multi_exo(fwp_fps):
         s1_model.save(s1_out_dir)
         s2_model.save(s2_out_dir)
 
-        max_workers = 1
         fwp_chunk_shape = (4, 4, 8)
         s_enhancements = [2, 2, 3]
         s_enhance = np.prod(s_enhancements)

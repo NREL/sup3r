@@ -3,50 +3,36 @@ wranglers, data samplers, data loaders, batch handlers, etc are all
 containers."""
 
 import copy
-import inspect
 import logging
-import pprint
+from dataclasses import dataclass
 from typing import Optional
 
 import numpy as np
 import xarray as xr
 
 from sup3r.containers.abstract import Data
-from sup3r.containers.common import lowered
+from sup3r.containers.common import _log_args, lowered
 
 logger = logging.getLogger(__name__)
 
 
+@dataclass
 class Container:
     """Basic fundamental object used to build preprocessing objects. Contains
     a (or multiple) wrapped xr.Dataset objects (:class:`Data`) and some methods
     for getting data / attributes."""
 
-    def __init__(self, data: Optional[xr.Dataset] = None):
-        self.data = data
-        self._features = None
+    data: Optional[xr.Dataset] = None
+    _features: Optional[list] = None
+
+    def __repr__(self):
+        return self.__class__.__name__
 
     def __new__(cls, *args, **kwargs):
         """Include arg logging in construction."""
         instance = super().__new__(cls)
-        cls._log_args(args, kwargs)
+        _log_args(cls, cls.__init__, *args, **kwargs)
         return instance
-
-    @classmethod
-    def _log_args(cls, args, kwargs):
-        """Log argument names and values."""
-        arg_spec = inspect.getfullargspec(cls.__init__)
-        args = args or []
-        defaults = arg_spec.defaults or []
-        arg_names = arg_spec.args[1 : len(args) + 1]
-        kwargs_names = arg_spec.args[-len(defaults) :]
-        args_dict = dict(zip(kwargs_names, defaults))
-        args_dict.update(dict(zip(arg_names, args)))
-        args_dict.update(kwargs)
-        logger.info(
-            f'Initialized {cls.__name__} with:\n'
-            f'{pprint.pformat(args_dict, indent=2)}'
-        )
 
     @property
     def is_multi_container(self):
@@ -71,10 +57,9 @@ class Container:
     def data(self, data):
         """Wrap given data in :class:`Data` to provide additional
         attributes on top of xr.Dataset."""
+        self._data = data
         if isinstance(data, xr.Dataset):
-            self._data = Data(data)
-        else:
-            self._data = data
+            self._data = Data(self._data)
 
     @property
     def features(self):
