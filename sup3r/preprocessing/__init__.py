@@ -16,7 +16,7 @@ containing pairs of low / high res data, rather than coarsening high-res to get
 low res then use :class:`DualBatchQueue` with :class:`DualSampler` objects.
 """
 
-from .base import Container, DualContainer
+from .base import Container
 from .batch_handlers import (
     BatchHandler,
     BatchHandlerCC,

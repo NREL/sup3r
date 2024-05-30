@@ -1,8 +1,8 @@
 """Base container classes - object that contains data. All objects that
 interact with data are containers. e.g. loaders, extracters, data handlers,
-samplers, batch queues, batch handlers."""
+samplers, batch queues, batch handlers.
+"""
 
-import copy
 import logging
 from typing import Optional
 
@@ -103,24 +103,3 @@ class Container:
         if hasattr(self.data, attr):
             return getattr(self.data, attr)
         raise AttributeError
-
-
-class DualContainer(Container):
-    """Pair of two Containers, one for low resolution and one for high
-    resolution data."""
-
-    def __init__(self, lr_data: Data, hr_data: Data):
-        """
-        Parameters
-        ----------
-        lr_data : Data
-            :class:`Data` object containing low-resolution data.
-        hr_data : Data
-            :class:`Data` object containing high-resolution data.
-        """
-        self.lr_data = lr_data
-        self.hr_data = hr_data
-        self.data = (self.lr_data, self.hr_data)
-        feats = list(copy.deepcopy(self.lr_data.features))
-        feats += [fn for fn in self.hr_data.features if fn not in feats]
-        self._features = feats

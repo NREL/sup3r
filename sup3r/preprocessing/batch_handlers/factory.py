@@ -8,7 +8,6 @@ from typing import Dict, List, Optional, Union
 
 from sup3r.preprocessing.base import (
     Container,
-    DualContainer,
 )
 from sup3r.preprocessing.batch_queues.base import SingleBatchQueue
 from sup3r.preprocessing.batch_queues.dual import DualBatchQueue
@@ -59,8 +58,8 @@ def BatchHandlerFactory(QueueClass, SamplerClass, name='BatchHandler'):
 
         def __init__(
             self,
-            train_containers: Union[List[Container], List[DualContainer]],
-            val_containers: Union[List[Container], List[DualContainer]],
+            train_containers: List[Container],
+            val_containers: List[Container],
             batch_size,
             n_batches,
             s_enhance=1,
