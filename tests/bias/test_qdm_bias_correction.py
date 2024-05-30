@@ -9,10 +9,10 @@ import pytest
 import xarray as xr
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
+from sup3r.bias import QuantileDeltaMappingCorrection, local_qdm_bc
 from sup3r.models import Sup3rGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
-from sup3r.bias import local_qdm_bc, QuantileDeltaMappingCorrection
-from sup3r.preprocessing.data_handling import DataHandlerNC, DataHandlerNCforCC
+from sup3r.preprocessing import DataHandlerNC, DataHandlerNCforCC
 
 FP_NSRDB = os.path.join(TEST_DATA_DIR, "test_nsrdb_co_2018.h5")
 FP_CC = os.path.join(TEST_DATA_DIR, "rsds_test.nc")

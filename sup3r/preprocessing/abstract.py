@@ -151,6 +151,8 @@ class Data:
     def __getitem__(self, keys):
         """Method for accessing self.dset or attributes. keys can optionally
         include a feature name as the last element of a keys tuple"""
+        if keys == 'time':
+            return self.time_index
         if keys in self:
             return self.to_array(keys).squeeze()
         if isinstance(keys, str) and hasattr(self, keys):
@@ -195,7 +197,7 @@ class Data:
     @property
     def features(self):
         """Features in this container."""
-        if self._features is None:
+        if not self._features:
             self._features = list(self.dset.data_vars)
         return self._features
 
