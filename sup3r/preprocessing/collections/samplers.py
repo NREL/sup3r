@@ -28,7 +28,6 @@ class SamplerCollection(Collection):
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
         self.check_shape_consistency()
-        self.all_container_pairs = self.check_all_container_pairs()
 
     def __getattr__(self, attr):
         """Get attributes from self or the first container in the

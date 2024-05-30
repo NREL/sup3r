@@ -26,12 +26,10 @@ class DualExtracter(Container):
 
     Notes
     -----
-    When initializing the lr_data it's important to pick a shape argument that
-    will produce a low res domain that completely overlaps with the high res
-    domain. When the high res data is not on a regular grid (WTK uses lambert)
-    the low res shape is not simply the high res shape divided by s_enhance. It
-    is easiest to not provide a shape argument at all for lr_data and to
-    get the full domain.
+    When first extracting the low_res data make sure to extract a region that
+    completely overlaps the high_res region.  It is easiest to load the full
+    low_res domain and let :class:`DualExtracter` select the appropriate region
+    through regridding.
     """
 
     def __init__(
@@ -44,17 +42,14 @@ class DualExtracter(Container):
         lr_cache_kwargs=None,
         hr_cache_kwargs=None,
     ):
-        """Initialize data container using hr and lr data containers for h5
-        data and nc data
+        """Initialize data container lr and hr :class:`Data` instances.
+        Typically lr = ERA5 data and hr = WTK data.
 
         Parameters
         ----------
-        hr_data : Wrangler | Container
-            Wrangler for high_res data. Needs to have `.cache_data` method if
-            you want to cache the regridded data.
-        lr_data : Wrangler | Container
-            Wrangler for low_res data. Needs to have `.cache_data` method if
-            you want to cache the regridded data.
+        data : Tuple[Data, Data]
+            Tuple of :class:`Data` instances. The first must be low-res and the
+            second must be high-res data
         regrid_workers : int | None
             Number of workers to use for regridding routine.
         regrid_lr : bool
@@ -77,6 +72,10 @@ class DualExtracter(Container):
         super().__init__(data=data)
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
+        msg = ('The DualExtracter requires a data tuple with two members, low '
+               'and high resolution in that order. Received inconsistent data '
+               'argument.')
+        assert isinstance(data, tuple) and len(data) == 2, msg
         self.lr_data = data[0]
         self.hr_data = data[1]
         self.regrid_workers = regrid_workers
