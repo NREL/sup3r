@@ -5,6 +5,7 @@
 import copy
 import logging
 
+import dask.array as da
 import numpy as np
 from rex import MultiFileNSRDBX
 
@@ -70,18 +71,11 @@ class DataHandlerH5WindCC(BaseH5WindCC):
         assert self.data.shape[2] > 24, msg
 
         n_data_days = int(self.data.shape[2] / 24)
-        daily_data_shape = (
-            *self.data.shape[0:2],
-            n_data_days,
-            self.data.shape[3],
-        )
 
         logger.info(
             'Calculating daily average datasets for {} training '
             'data days.'.format(n_data_days)
         )
-
-        self.daily_data = np.zeros(daily_data_shape, dtype=np.float32)
 
         self.daily_data_slices = np.array_split(
             np.arange(self.data.shape[2]), n_data_days
@@ -89,19 +83,21 @@ class DataHandlerH5WindCC(BaseH5WindCC):
         self.daily_data_slices = [
             slice(x[0], x[-1] + 1) for x in self.daily_data_slices
         ]
+        feature_arr_list = []
         for idf, fname in enumerate(self.features):
-            for d, t_slice in enumerate(self.daily_data_slices):
+            daily_arr_list = []
+            for t_slice in self.daily_data_slices:
                 if '_max_' in fname:
                     tmp = np.max(self.data[:, :, t_slice, idf], axis=2)
-                    self.daily_data[:, :, d, idf] = tmp[:, :]
                 elif '_min_' in fname:
                     tmp = np.min(self.data[:, :, t_slice, idf], axis=2)
-                    self.daily_data[:, :, d, idf] = tmp[:, :]
                 else:
                     tmp = daily_temporal_coarsening(
                         self.data[:, :, t_slice, idf], temporal_axis=2
-                    )
-                    self.daily_data[:, :, d, idf] = tmp[:, :, 0]
+                    )[..., 0]
+                daily_arr_list.append(tmp)
+            feature_arr_list.append(da.stack(daily_arr_list), axis=-1)
+        self.daily_data = da.stack(feature_arr_list, axis=-1)
 
         logger.info(
             'Finished calculating daily average datasets for {} '
@@ -146,6 +142,10 @@ class DataHandlerH5SolarCC(BaseH5WindCC):
         the climate change dataset of daily average GHI / daily average CS_GHI.
         This target climate change dataset is not equivalent to the average of
         instantaneous hourly clearsky ratios
+
+        TODO: can probably remove the feature pop at the end of this. Also,
+        maybe some combination of Wind / Solar handlers would work. Some
+        overlapping logic.
         """
 
         msg = (
@@ -156,18 +156,11 @@ class DataHandlerH5SolarCC(BaseH5WindCC):
         assert self.data.shape[2] > 24, msg
 
         n_data_days = int(self.data.shape[2] / 24)
-        daily_data_shape = (
-            *self.data.shape[0:2],
-            n_data_days,
-            self.data.shape[3],
-        )
 
         logger.info(
             'Calculating daily average datasets for {} training '
             'data days.'.format(n_data_days)
         )
-
-        self.daily_data = np.zeros(daily_data_shape, dtype=np.float32)
 
         self.daily_data_slices = np.array_split(
             np.arange(self.data.shape[2]), n_data_days
@@ -180,18 +173,28 @@ class DataHandlerH5SolarCC(BaseH5WindCC):
         i_cs = self.features.index('clearsky_ghi')
         i_ratio = self.features.index('clearsky_ratio')
 
-        for d, t_slice in enumerate(self.daily_data_slices):
-            for idf in range(self.data.shape[-1]):
-                self.daily_data[:, :, d, idf] = daily_temporal_coarsening(
-                    self.data[:, :, t_slice, idf], temporal_axis=2
-                )[:, :, 0]
+        feature_arr_list = []
+        for idf in range(self.data.shape[-1]):
+            daily_arr_list = []
+            for t_slice in self.daily_data_slices:
 
+                daily_arr_list.append(daily_temporal_coarsening(
+                    self.data[:, :, t_slice, idf], temporal_axis=2
+                )[:, :, 0])
+            feature_arr_list.append(da.stack(daily_arr_list, axis=-1))
+
+        avg_cs_ratio_list = []
+        for t_slice in self.daily_data_slices:
             # note that this ratio of daily irradiance sums is not the same as
             # the average of hourly ratios.
             total_ghi = np.nansum(self.data[:, :, t_slice, i_ghi], axis=2)
             total_cs_ghi = np.nansum(self.data[:, :, t_slice, i_cs], axis=2)
             avg_cs_ratio = total_ghi / total_cs_ghi
-            self.daily_data[:, :, d, i_ratio] = avg_cs_ratio
+            avg_cs_ratio_list.append(avg_cs_ratio)
+        avg_cs_ratio = da.stack(avg_cs_ratio_list, axis=-1)
+        feature_arr_list.insert(i_ratio, avg_cs_ratio)
+
+        self.daily_data = da.stack(feature_arr_list, axis=-1)
 
         # remove ghi and clearsky ghi from feature set. These shouldn't be used
         # downstream for solar cc and keeping them confuses the batch handler

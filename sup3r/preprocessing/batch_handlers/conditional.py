@@ -1,6 +1,10 @@
-# -*- coding: utf-8 -*-
 """
 Sup3r conditional moment batch_handling module.
+
+TODO: Remove BatchMom classes - this functionality should be handled by the
+BatchQueue. Validation classes can be removed - these are now just additional
+queues given to BatchHandlers. Remove __next__ methods - these are handling by
+samplers.
 """
 import logging
 from datetime import datetime as dt
