@@ -175,12 +175,12 @@ class DataHandlerH5SolarCC(BaseH5WindCC):
 
         feature_arr_list = []
         for idf in range(self.data.shape[-1]):
-            daily_arr_list = []
-            for t_slice in self.daily_data_slices:
-
-                daily_arr_list.append(daily_temporal_coarsening(
+            daily_arr_list = [
+                daily_temporal_coarsening(
                     self.data[:, :, t_slice, idf], temporal_axis=2
-                )[:, :, 0])
+                )[:, :, 0]
+                for t_slice in self.daily_data_slices
+            ]
             feature_arr_list.append(da.stack(daily_arr_list, axis=-1))
 
         avg_cs_ratio_list = []
