@@ -44,7 +44,7 @@ def test_dual_extracter_shapes(full_shape=(20, 20)):
     )
 
     pair_extracter = DualExtracter(
-        lr_container.data, hr_container.data, s_enhance=2, t_enhance=1
+        (lr_container.data, hr_container.data), s_enhance=2, t_enhance=1
     )
     assert pair_extracter.lr_data.shape == (
         pair_extracter.hr_data.shape[0] // 2,
@@ -74,8 +74,7 @@ def test_regrid_caching(full_shape=(20, 20)):
         lr_cache_pattern = os.path.join(td, 'lr_{feature}.h5')
         hr_cache_pattern = os.path.join(td, 'hr_{feature}.h5')
         pair_extracter = DualExtracter(
-            lr_container.data,
-            hr_container.data,
+            (lr_container.data, hr_container.data),
             s_enhance=2,
             t_enhance=1,
             lr_cache_kwargs={'cache_pattern': lr_cache_pattern},

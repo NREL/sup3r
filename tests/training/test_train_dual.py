@@ -77,8 +77,7 @@ def test_train(
     )
 
     dual_extracter = DualExtracter(
-        hr_handler.data,
-        lr_handler.data,
+        (lr_handler.data, hr_handler.data),
         s_enhance=s_enhance,
         t_enhance=t_enhance,
     )
@@ -111,11 +110,10 @@ def test_train(
             'train_gen': True,
             'train_disc': False,
             'checkpoint_int': 1,
-            'out_dir': os.path.join(td, 'test_{epoch}')}
+            'out_dir': os.path.join(td, 'test_{epoch}'),
+        }
 
-        model.train(
-            batch_handler,
-            **model_kwargs)
+        model.train(batch_handler, **model_kwargs)
 
         assert 'config_generator' in model.meta
         assert 'config_discriminator' in model.meta
@@ -181,9 +179,7 @@ def test_train(
             assert y_test.shape[3] == test_data.shape[3] * t_enhance
 
         else:
-            test_data = np.ones(
-                (3, 10, 10, len(FEATURES)), dtype=np.float32
-            )
+            test_data = np.ones((3, 10, 10, len(FEATURES)), dtype=np.float32)
             y_test = model._tf_generate(test_data)
 
         assert y_test.shape[0] == test_data.shape[0]

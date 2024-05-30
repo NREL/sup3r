@@ -24,7 +24,6 @@ class Collection(Container):
     ):
         self._containers = containers
         self.data = tuple([c.data for c in self._containers])
-        self.all_container_pairs = self.check_all_container_pairs()
         self.features = self.containers[0].features
 
     @property
@@ -45,10 +44,3 @@ class Collection(Container):
         sizes = [c.size for c in self.containers]
         weights = sizes / np.sum(sizes)
         return weights.astype(np.float32)
-
-    def check_all_container_pairs(self):
-        """Check if all containers are pairs of low and high res or single
-        containers"""
-        return all(
-            isinstance(c, tuple) and len(c.data) == 2 for c in self.containers
-        )
