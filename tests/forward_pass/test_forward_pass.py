@@ -34,7 +34,7 @@ init_logger('sup3r', log_level='DEBUG')
 
 
 @pytest.fixture(scope='module')
-def fwp_fps(tmpdir_factory):
+def input_files(tmpdir_factory):
     """Dummy netcdf input files for :class:`ForwardPass`"""
 
     input_file = str(tmpdir_factory.mktemp('data').join('fwp_input.nc'))
@@ -103,7 +103,7 @@ def test_fwp_nc_cc(log=False):
             )
 
 
-def test_fwp_spatial_only(fwp_fps):
+def test_fwp_spatial_only(input_files):
     """Test forward pass handler output for spatial only model."""
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
@@ -121,7 +121,7 @@ def test_fwp_spatial_only(fwp_fps):
         model.save(out_dir)
         out_files = os.path.join(td, 'out_{file_id}.nc')
         strat = ForwardPassStrategy(
-            fwp_fps,
+            input_files,
             model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=1,
@@ -154,7 +154,7 @@ def test_fwp_spatial_only(fwp_fps):
             )
 
 
-def test_fwp_nc(fwp_fps):
+def test_fwp_nc(input_files):
     """Test forward pass handler output for netcdf write."""
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
@@ -172,7 +172,7 @@ def test_fwp_nc(fwp_fps):
         model.save(out_dir)
         out_files = os.path.join(td, 'out_{file_id}.nc')
         strat = ForwardPassStrategy(
-            fwp_fps,
+            input_files,
             model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=1,
@@ -202,7 +202,7 @@ def test_fwp_nc(fwp_fps):
             )
 
 
-def test_fwp_time_slice(fwp_fps):
+def test_fwp_time_slice(input_files):
     """Test forward pass handler output to h5 file. Includes temporal
     slicing."""
 
@@ -224,7 +224,7 @@ def test_fwp_time_slice(fwp_fps):
         raw_time_index = np.arange(20)
         n_tsteps = len(raw_time_index[time_slice])
         strat = ForwardPassStrategy(
-            fwp_fps,
+            input_files,
             model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=1,
@@ -260,7 +260,7 @@ def test_fwp_time_slice(fwp_fps):
             assert gan_meta['lr_features'] == ['U_100m', 'V_100m']
 
 
-def test_fwp_handler(fwp_fps):
+def test_fwp_handler(input_files):
     """Test forward pass handler. Make sure it is
     returning the correct data shape"""
 
@@ -279,7 +279,7 @@ def test_fwp_handler(fwp_fps):
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
         strat = ForwardPassStrategy(
-            fwp_fps,
+            input_files,
             model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=1,
@@ -302,7 +302,7 @@ def test_fwp_handler(fwp_fps):
             fwp.output_workers,
         )
 
-        raw_tsteps = len(xr.open_dataset(fwp_fps)['time'])
+        raw_tsteps = len(xr.open_dataset(input_files)['time'])
         assert data.shape == (
             s_enhance * fwp_chunk_shape[0],
             s_enhance * fwp_chunk_shape[1],
@@ -311,7 +311,7 @@ def test_fwp_handler(fwp_fps):
         )
 
 
-def test_fwp_chunking(fwp_fps, log=False, plot=False):
+def test_fwp_chunking(input_files, log=False, plot=False):
     """Test forward pass spatialtemporal chunking. Make sure chunking agrees
     closely with non chunking forward pass.
     """
@@ -335,10 +335,10 @@ def test_fwp_chunking(fwp_fps, log=False, plot=False):
         model.save(out_dir)
         spatial_pad = 12
         temporal_pad = 12
-        raw_tsteps = len(xr.open_dataset(fwp_fps)['time'])
+        raw_tsteps = len(xr.open_dataset(input_files)['time'])
         fwp_shape = (4, 4, raw_tsteps // 2)
         strat = ForwardPassStrategy(
-            fwp_fps,
+            input_files,
             model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=fwp_shape,
             spatial_pad=spatial_pad,
@@ -358,7 +358,7 @@ def test_fwp_chunking(fwp_fps, log=False, plot=False):
             )
         )
         handlerNC = DataHandlerNC(
-            fwp_fps, FEATURES, target=target, shape=shape
+            input_files, FEATURES, target=target, shape=shape
         )
         pad_width = (
             (spatial_pad, spatial_pad),
@@ -437,7 +437,7 @@ def test_fwp_chunking(fwp_fps, log=False, plot=False):
         assert np.mean(np.abs(err.flatten())) < 0.01
 
 
-def test_fwp_nochunking(fwp_fps):
+def test_fwp_nochunking(input_files):
     """Test forward pass without chunking. Make sure using a single chunk
     (a.k.a nochunking) matches direct forward pass of full dataset.
     """
@@ -462,12 +462,12 @@ def test_fwp_nochunking(fwp_fps):
             'time_slice': time_slice,
         }
         strat = ForwardPassStrategy(
-            fwp_fps,
+            input_files,
             model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=(
                 shape[0],
                 shape[1],
-                len(xr.open_dataset(fwp_fps)['time']),
+                len(xr.open_dataset(input_files)['time']),
             ),
             spatial_pad=0,
             temporal_pad=0,
@@ -485,7 +485,7 @@ def test_fwp_nochunking(fwp_fps):
         )
 
         handlerNC = DataHandlerNC(
-            fwp_fps,
+            input_files,
             FEATURES,
             target=target,
             shape=shape,
@@ -499,7 +499,7 @@ def test_fwp_nochunking(fwp_fps):
         assert np.array_equal(data_chunked, data_nochunk)
 
 
-def test_fwp_multi_step_model(fwp_fps):
+def test_fwp_multi_step_model(input_files):
     """Test the forward pass with a multi step model class"""
     Sup3rGan.seed()
     fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
@@ -540,7 +540,7 @@ def test_fwp_multi_step_model(fwp_fps):
             'time_slice': time_slice,
         }
         strat = ForwardPassStrategy(
-            fwp_fps,
+            input_files,
             model_kwargs=model_kwargs,
             model_class='MultiStepGan',
             fwp_chunk_shape=fwp_chunk_shape,
@@ -582,7 +582,7 @@ def test_fwp_multi_step_model(fwp_fps):
             assert gan_meta[0]['lr_features'] == ['U_100m', 'V_100m']
 
 
-def test_slicing_no_pad(fwp_fps, log=False):
+def test_slicing_no_pad(input_files, log=False):
     """Test the slicing of input data via the ForwardPassStrategy +
     ForwardPassSlicer vs. the actual source data. Does not include any
     reflected padding at the edges."""
@@ -608,7 +608,7 @@ def test_slicing_no_pad(fwp_fps, log=False):
         st_out_dir = os.path.join(td, 'st_gan')
         st_model.save(st_out_dir)
 
-        handler = DataHandlerNC(fwp_fps, features, target=target, shape=shape)
+        handler = DataHandlerNC(input_files, features, target=target, shape=shape)
 
         input_handler_kwargs = {
             'target': target,
@@ -616,7 +616,7 @@ def test_slicing_no_pad(fwp_fps, log=False):
             'time_slice': time_slice,
         }
         strategy = ForwardPassStrategy(
-            fwp_fps,
+            input_files,
             model_kwargs={'model_dir': st_out_dir},
             model_class='Sup3rGan',
             fwp_chunk_shape=(3, 2, 4),
@@ -643,7 +643,7 @@ def test_slicing_no_pad(fwp_fps, log=False):
             assert np.allclose(chunk.input_data, truth)
 
 
-def test_slicing_pad(fwp_fps, log=False):
+def test_slicing_pad(input_files, log=False):
     """Test the slicing of input data via the ForwardPassStrategy +
     ForwardPassSlicer vs. the actual source data. Includes reflected padding
     at the edges."""
@@ -668,14 +668,14 @@ def test_slicing_pad(fwp_fps, log=False):
         out_files = os.path.join(td, 'out_{file_id}.h5')
         st_out_dir = os.path.join(td, 'st_gan')
         st_model.save(st_out_dir)
-        handler = DataHandlerNC(fwp_fps, features, target=target, shape=shape)
+        handler = DataHandlerNC(input_files, features, target=target, shape=shape)
         input_handler_kwargs = {
             'target': target,
             'shape': shape,
             'time_slice': time_slice,
         }
         strategy = ForwardPassStrategy(
-            fwp_fps,
+            input_files,
             model_kwargs={'model_dir': st_out_dir},
             model_class='Sup3rGan',
             fwp_chunk_shape=(2, 1, 4),

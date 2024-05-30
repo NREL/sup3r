@@ -38,7 +38,7 @@ init_logger('sup3r', log_level='DEBUG')
 
 
 @pytest.fixture(scope='module')
-def fwp_fps(tmpdir_factory):
+def input_files(tmpdir_factory):
     """Dummy netcdf input files for :class:`ForwardPass`"""
 
     input_file = str(tmpdir_factory.mktemp('data').join('fwp_input.nc'))
@@ -48,7 +48,7 @@ def fwp_fps(tmpdir_factory):
     return input_file
 
 
-def test_fwp_multi_step_model_topo_exoskip(fwp_fps, log=False):
+def test_fwp_multi_step_model_topo_exoskip(input_files, log=False):
     """Test the forward pass with a multi step model class using exogenous data
     for the first two steps and not the last"""
 
@@ -107,7 +107,7 @@ def test_fwp_multi_step_model_topo_exoskip(fwp_fps, log=False):
 
         exo_kwargs = {
             'topography': {
-                'file_paths': fwp_fps,
+                'file_paths': input_files,
                 'source_file': FP_WTK,
                 'target': target,
                 'shape': shape,
@@ -129,7 +129,7 @@ def test_fwp_multi_step_model_topo_exoskip(fwp_fps, log=False):
             'time_slice': time_slice,
         }
         handler = ForwardPassStrategy(
-            fwp_fps,
+            input_files,
             model_kwargs=model_kwargs,
             model_class='MultiStepGan',
             fwp_chunk_shape=fwp_chunk_shape,
@@ -144,7 +144,7 @@ def test_fwp_multi_step_model_topo_exoskip(fwp_fps, log=False):
 
         forward_pass = ForwardPass(handler)
         forward_pass.run(handler, node_index=0)
-        t_steps = len(xr.open_dataset(fwp_fps)['time'])
+        t_steps = len(xr.open_dataset(input_files)['time'])
 
         with ResourceX(handler.out_files[0]) as fh:
             assert fh.shape == (
@@ -170,7 +170,7 @@ def test_fwp_multi_step_model_topo_exoskip(fwp_fps, log=False):
             ]
 
 
-def test_fwp_multi_step_spatial_model_topo_noskip(fwp_fps):
+def test_fwp_multi_step_spatial_model_topo_noskip(input_files):
     """Test the forward pass with a multi step spatial only model class using
     exogenous data for all model steps"""
     Sup3rGan.seed()
@@ -207,7 +207,7 @@ def test_fwp_multi_step_spatial_model_topo_noskip(fwp_fps):
 
         exo_kwargs = {
             'topography': {
-                'file_paths': fwp_fps,
+                'file_paths': input_files,
                 'source_file': FP_WTK,
                 'target': target,
                 'shape': shape,
@@ -229,7 +229,7 @@ def test_fwp_multi_step_spatial_model_topo_noskip(fwp_fps):
             'time_slice': time_slice,
         }
         handler = ForwardPassStrategy(
-            fwp_fps,
+            input_files,
             model_kwargs=model_kwargs,
             model_class='MultiStepGan',
             fwp_chunk_shape=fwp_chunk_shape,
@@ -243,7 +243,7 @@ def test_fwp_multi_step_spatial_model_topo_noskip(fwp_fps):
 
         forward_pass = ForwardPass(handler)
         forward_pass.run(handler, node_index=0)
-        t_steps = len(xr.open_dataset(fwp_fps)['time'])
+        t_steps = len(xr.open_dataset(input_files)['time'])
 
         with ResourceX(handler.out_files[0]) as fh:
             assert fh.shape == (
@@ -269,7 +269,7 @@ def test_fwp_multi_step_spatial_model_topo_noskip(fwp_fps):
             ]
 
 
-def test_fwp_multi_step_model_topo_noskip(fwp_fps):
+def test_fwp_multi_step_model_topo_noskip(input_files):
     """Test the forward pass with a multi step model class using exogenous data
     for all model steps"""
     Sup3rGan.seed()
@@ -325,7 +325,7 @@ def test_fwp_multi_step_model_topo_noskip(fwp_fps):
 
         exo_kwargs = {
             'topography': {
-                'file_paths': fwp_fps,
+                'file_paths': input_files,
                 'source_file': FP_WTK,
                 'target': target,
                 'shape': shape,
@@ -348,7 +348,7 @@ def test_fwp_multi_step_model_topo_noskip(fwp_fps):
             'time_slice': time_slice,
         }
         handler = ForwardPassStrategy(
-            fwp_fps,
+            input_files,
             model_kwargs=model_kwargs,
             model_class='MultiStepGan',
             fwp_chunk_shape=fwp_chunk_shape,
@@ -362,7 +362,7 @@ def test_fwp_multi_step_model_topo_noskip(fwp_fps):
 
         forward_pass = ForwardPass(handler)
         forward_pass.run(handler, node_index=0)
-        t_steps = len(xr.open_dataset(fwp_fps)['time'])
+        t_steps = len(xr.open_dataset(input_files)['time'])
 
         with ResourceX(handler.out_files[0]) as fh:
             assert fh.shape == (
@@ -388,7 +388,7 @@ def test_fwp_multi_step_model_topo_noskip(fwp_fps):
             ]
 
 
-def test_fwp_single_step_sfc_model(fwp_fps, plot=False):
+def test_fwp_single_step_sfc_model(input_files, plot=False):
     """Test the forward pass with a single SurfaceSpatialMetModel model
     which requires low and high-resolution topography input from the
     exogenous_data feature."""
@@ -405,7 +405,7 @@ def test_fwp_single_step_sfc_model(fwp_fps, plot=False):
 
         exo_kwargs = {
             'topography': {
-                'file_paths': fwp_fps,
+                'file_paths': input_files,
                 'source_file': FP_WTK,
                 'target': target,
                 'shape': shape,
@@ -426,7 +426,7 @@ def test_fwp_single_step_sfc_model(fwp_fps, plot=False):
         }
 
         handler = ForwardPassStrategy(
-            fwp_fps,
+            input_files,
             model_kwargs=sfc_out_dir,
             model_class='SurfaceSpatialMetModel',
             fwp_chunk_shape=(8, 8, 8),
@@ -460,7 +460,7 @@ def test_fwp_single_step_sfc_model(fwp_fps, plot=False):
             assert os.path.exists(fp)
 
 
-def test_fwp_single_step_wind_hi_res_topo(fwp_fps, plot=False):
+def test_fwp_single_step_wind_hi_res_topo(input_files, plot=False):
     """Test the forward pass with a single spatiotemporal Sup3rGan model
     requiring high-resolution topography input from the exogenous_data
     feature."""
@@ -530,7 +530,7 @@ def test_fwp_single_step_wind_hi_res_topo(fwp_fps, plot=False):
 
         exo_kwargs = {
             'topography': {
-                'file_paths': fwp_fps,
+                'file_paths': input_files,
                 'source_file': FP_WTK,
                 'target': target,
                 'shape': shape,
@@ -552,7 +552,7 @@ def test_fwp_single_step_wind_hi_res_topo(fwp_fps, plot=False):
         }
 
         handler = ForwardPassStrategy(
-            fwp_fps,
+            input_files,
             model_kwargs=model_kwargs,
             model_class='Sup3rGan',
             fwp_chunk_shape=(8, 8, 8),
@@ -586,7 +586,7 @@ def test_fwp_single_step_wind_hi_res_topo(fwp_fps, plot=False):
             assert os.path.exists(fp)
 
 
-def test_fwp_multi_step_wind_hi_res_topo(fwp_fps):
+def test_fwp_multi_step_wind_hi_res_topo(input_files):
     """Test the forward pass with multiple Sup3rGan models requiring
     high-resolution topograph input from the exogenous_data feature."""
     Sup3rGan.seed()
@@ -706,7 +706,7 @@ def test_fwp_multi_step_wind_hi_res_topo(fwp_fps):
 
         exo_kwargs = {
             'topography': {
-                'file_paths': fwp_fps,
+                'file_paths': input_files,
                 'source_file': FP_WTK,
                 'target': target,
                 'shape': shape,
@@ -734,7 +734,7 @@ def test_fwp_multi_step_wind_hi_res_topo(fwp_fps):
             ]
             exo_kwargs['topography']['steps'] = steps
             handler = ForwardPassStrategy(
-                fwp_fps,
+                input_files,
                 model_kwargs=model_kwargs,
                 model_class='MultiStepGan',
                 fwp_chunk_shape=(4, 4, 8),
@@ -757,7 +757,7 @@ def test_fwp_multi_step_wind_hi_res_topo(fwp_fps):
         ]
         exo_kwargs['topography']['steps'] = steps
         handler = ForwardPassStrategy(
-            fwp_fps,
+            input_files,
             model_kwargs=model_kwargs,
             model_class='MultiStepGan',
             fwp_chunk_shape=(4, 4, 8),
@@ -775,7 +775,7 @@ def test_fwp_multi_step_wind_hi_res_topo(fwp_fps):
             assert os.path.exists(fp)
 
 
-def test_fwp_wind_hi_res_topo_plus_linear(fwp_fps):
+def test_fwp_wind_hi_res_topo_plus_linear(input_files):
     """Test the forward pass with a Sup3rGan model requiring high-res topo
     input from exo data for spatial enhancement and a linear interpolation
     model for temporal enhancement."""
@@ -864,7 +864,7 @@ def test_fwp_wind_hi_res_topo_plus_linear(fwp_fps):
 
         exo_kwargs = {
             'topography': {
-                'file_paths': fwp_fps,
+                'file_paths': input_files,
                 'source_file': FP_WTK,
                 'target': target,
                 'shape': shape,
@@ -886,7 +886,7 @@ def test_fwp_wind_hi_res_topo_plus_linear(fwp_fps):
         }
 
         handler = ForwardPassStrategy(
-            fwp_fps,
+            input_files,
             model_kwargs=model_kwargs,
             model_class='MultiStepGan',
             fwp_chunk_shape=(4, 4, 8),
@@ -904,7 +904,7 @@ def test_fwp_wind_hi_res_topo_plus_linear(fwp_fps):
             assert os.path.exists(fp)
 
 
-def test_fwp_multi_step_model_multi_exo(fwp_fps):
+def test_fwp_multi_step_model_multi_exo(input_files):
     """Test the forward pass with a multi step model class using 2 exogenous
     data features"""
     Sup3rGan.seed()
@@ -960,7 +960,7 @@ def test_fwp_multi_step_model_multi_exo(fwp_fps):
 
         exo_kwargs = {
             'topography': {
-                'file_paths': fwp_fps,
+                'file_paths': input_files,
                 'source_file': FP_WTK,
                 'target': target,
                 'shape': shape,
@@ -972,7 +972,7 @@ def test_fwp_multi_step_model_multi_exo(fwp_fps):
                 ],
             },
             'sza': {
-                'file_paths': fwp_fps,
+                'file_paths': input_files,
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
@@ -991,7 +991,7 @@ def test_fwp_multi_step_model_multi_exo(fwp_fps):
             'time_slice': time_slice,
         }
         handler = ForwardPassStrategy(
-            fwp_fps,
+            input_files,
             model_kwargs=model_kwargs,
             model_class='MultiStepGan',
             fwp_chunk_shape=fwp_chunk_shape,
@@ -1006,7 +1006,7 @@ def test_fwp_multi_step_model_multi_exo(fwp_fps):
         forward_pass = ForwardPass(handler)
 
         forward_pass.run(handler, node_index=0)
-        t_steps = len(xr.open_dataset(fwp_fps)['time'])
+        t_steps = len(xr.open_dataset(input_files)['time'])
         with ResourceX(handler.out_files[0]) as fh:
             assert fh.shape == (
                 t_enhance * t_steps,
@@ -1033,7 +1033,7 @@ def test_fwp_multi_step_model_multi_exo(fwp_fps):
     shutil.rmtree('./exo_cache', ignore_errors=True)
 
 
-def test_fwp_multi_step_exo_hi_res_topo_and_sza(fwp_fps):
+def test_fwp_multi_step_exo_hi_res_topo_and_sza(input_files):
     """Test the forward pass with multiple ExoGan models requiring
     high-resolution topography and sza input from the exogenous_data
     feature."""
@@ -1213,7 +1213,7 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza(fwp_fps):
 
         exo_kwargs = {
             'topography': {
-                'file_paths': fwp_fps,
+                'file_paths': input_files,
                 'source_file': FP_WTK,
                 'target': target,
                 'shape': shape,
@@ -1227,7 +1227,7 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza(fwp_fps):
                 ],
             },
             'sza': {
-                'file_paths': fwp_fps,
+                'file_paths': input_files,
                 'exo_handler': 'SzaExtract',
                 'target': target,
                 'shape': shape,
@@ -1253,7 +1253,7 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza(fwp_fps):
         }
 
         handler = ForwardPassStrategy(
-            fwp_fps,
+            input_files,
             model_kwargs=model_kwargs,
             model_class='MultiStepGan',
             fwp_chunk_shape=(4, 4, 8),

@@ -12,47 +12,36 @@ logger = logging.getLogger(__name__)
 
 class Extracter(Container, ABC):
     """Container subclass with additional methods for extracting a
-    spatiotemporal extent from contained data."""
+    spatiotemporal extent from contained data.
 
-    def __init__(
-        self,
-        loader: Loader,
-        features='all',
-        target=None,
-        shape=None,
-        time_slice=slice(None),
-    ):
-        """
-        Parameters
-        ----------
-        loader : Loader
-            Loader type container with `.data` attribute exposing data to
-            extract.
-        features : str | None | list
-            List of features in include in the final extracted data. If 'all'
-            this includes all features available in the loader. If None this
-            results in a dataset with just lat / lon / time. To select specific
-            features provide a list.
-        target : tuple
-            (lat, lon) lower left corner of raster. Either need target+shape or
-            raster_file.
-        shape : tuple
-            (rows, cols) grid size. Either need target+shape or raster_file.
-        time_slice : slice
-            Slice specifying extent and step of temporal extraction. e.g.
-            slice(start, stop, step). If equal to slice(None, None, 1)
-        the full time dimension is selected.
-        """
-        super().__init__()
-        self.loader = loader
-        self.time_slice = time_slice
-        self._grid_shape = shape
-        self._target = target
-        self._lat_lon = None
-        self._time_index = None
-        self._raster_index = None
-        self._full_lat_lon = None
-        self.data = self.extract_data().slice_dset(features=features)
+    Parameters
+    ----------
+    loader : Loader
+        Loader type container with `.data` attribute exposing data to
+        extract.
+    features : str | None | list
+        List of features in include in the final extracted data. If 'all'
+        this includes all features available in the loader. If None this
+        results in a dataset with just lat / lon / time. To select specific
+        features provide a list.
+    target : tuple
+        (lat, lon) lower left corner of raster.
+    grid_shape : tuple
+        (rows, cols) grid size.
+    time_slice : slice
+        Slice specifying extent and step of temporal extraction. e.g.
+        slice(start, stop, step). If equal to slice(None, None, 1) the full
+        time dimension is selected.
+    """
+
+    loader: Loader
+    features: list | str | None = 'all'
+    target: list | tuple | None = None
+    grid_shape: list | tuple | None = None
+    time_slice: slice | None = None
+
+    def __post_init__(self):
+        self.data = self.extract_data().slice_dset(features=self.features)
 
     @property
     def time_slice(self):
@@ -77,6 +66,13 @@ class Extracter(Container, ABC):
         self._grid_shape does not need to be provided as an input if the
         raster_file is."""
         return self.lat_lon.shape[:-1]
+
+    @grid_shape.setter
+    def grid_shape(self, value):
+        """Set private grid_shape attr. grid_shape will ultimately be
+        determined by the lat_lon, which is determined by _grid_shape. If
+        _grid_shape is None it is set to the full domain extent."""
+        self._grid_shape = value
 
     @property
     def raster_index(self):

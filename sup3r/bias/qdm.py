@@ -18,8 +18,9 @@ from rex.utilities.bc_utils import (
     sample_q_log,
 )
 
-from sup3r.preprocessing.data_handling.base import DataHandler
+from sup3r.preprocessing.data_handlers import DataHandlerNC as DataHandler
 from sup3r.utilities.utilities import expand_paths
+
 from .bias_calc import DataRetrievalBase
 from .mixins import FillAndSmoothMixin
 

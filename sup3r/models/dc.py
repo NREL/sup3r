@@ -25,7 +25,7 @@ class Sup3rGanDC(Sup3rGan):
 
         Parameters
         ----------
-        batch_handler : sup3r.data_handling.preprocessing.BatchHandlerDC
+        batch_handler : sup3r.preprocessing.BatchHandlerDC
             BatchHandler object to iterate through
         weight_gen_advers : float
             Weight factor for the adversarial loss component of the generator
@@ -56,7 +56,7 @@ class Sup3rGanDC(Sup3rGan):
 
         Parameters
         ----------
-        batch_handler : sup3r.data_handling.preprocessing.BatchHandlerDC
+        batch_handler : sup3r.preprocessing.BatchHandlerDC
             BatchHandler object to iterate through
 
         Returns
@@ -79,7 +79,7 @@ class Sup3rGanDC(Sup3rGan):
 
         Parameters
         ----------
-        batch_handler : sup3r.data_handling.preprocessing.BatchHandler
+        batch_handler : sup3r.preprocessing.BatchHandler
             BatchHandler object to iterate through
         weight_gen_advers : float
             Weight factor for the adversarial loss component of the generator
@@ -117,7 +117,7 @@ class Sup3rGanDC(Sup3rGan):
             Array of total loss values across all validation sample bins
         content_losses : array
             Array of content loss values across all validation sample bins
-        batch_handler : sup3r.data_handling.preprocessing.BatchHandler
+        batch_handler : sup3r.preprocessing.BatchHandler
             BatchHandler object to iterate through
         """
         t_losses = total_losses[:batch_handler.val_data.N_TIME_BINS]
@@ -149,7 +149,7 @@ class Sup3rGanSpatialDC(Sup3rGanDC):
 
         Parameters
         ----------
-        batch_handler : sup3r.data_handling.preprocessing.BatchHandler
+        batch_handler : sup3r.preprocessing.BatchHandler
             BatchHandler object to iterate through
         weight_gen_advers : float
             Weight factor for the adversarial loss component of the generator
@@ -186,7 +186,7 @@ class Sup3rGanSpatialDC(Sup3rGanDC):
             Array of total loss values across all validation sample bins
         content_losses : array
             Array of content loss values across all validation sample bins
-        batch_handler : sup3r.data_handling.preprocessing.BatchHandler
+        batch_handler : sup3r.preprocessing.BatchHandler
             BatchHandler object to iterate through
         """
         s_losses = total_losses[-batch_handler.val_data.N_SPACE_BINS:]

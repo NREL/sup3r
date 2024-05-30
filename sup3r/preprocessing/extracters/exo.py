@@ -14,8 +14,8 @@ from rex.utilities.solar_position import SolarPosition
 from scipy.spatial import KDTree
 
 from sup3r.postprocessing.file_handling import OutputHandler
-from sup3r.preprocessing import (
-    Cacher,
+from sup3r.preprocessing.cachers import Cacher
+from sup3r.preprocessing.loaders import (
     LoaderH5,
     LoaderNC,
 )

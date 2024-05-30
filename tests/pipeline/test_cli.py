@@ -15,18 +15,26 @@ from sup3r.models.base import Sup3rGan
 from sup3r.pipeline.forward_pass_cli import from_config as fwp_main
 from sup3r.pipeline.pipeline_cli import from_config as pipe_main
 from sup3r.postprocessing.data_collect_cli import from_config as dc_main
-from sup3r.qa.visual_qa_cli import from_config as vqa_main
 from sup3r.utilities.pytest.helpers import (
     make_fake_h5_chunks,
-    make_fake_nc_files,
+    make_fake_nc_file,
 )
 from sup3r.utilities.utilities import correct_path
 
 INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
-FEATURES = ['U_100m', 'V_100m', 'BVF2_200m']
+FEATURES = ['U_100m', 'V_100m', 'pressure_0m']
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 fwp_chunk_shape = (4, 4, 6)
 shape = (8, 8)
+
+
+@pytest.fixture(scope='module')
+def input_files(tmpdir_factory):
+    """Dummy netcdf input files for qa testing"""
+
+    input_file = str(tmpdir_factory.mktemp('data').join('qa_input.nc'))
+    make_fake_nc_file(input_file, shape=(100, 100, 8), features=FEATURES)
+    return input_file
 
 
 @pytest.fixture(scope='module')
@@ -35,7 +43,7 @@ def runner():
     return CliRunner()
 
 
-def test_pipeline_fwp_collect(runner, log=False):
+def test_pipeline_fwp_collect(runner, input_files, log=False):
     """Test pipeline with forward pass and data collection"""
     if log:
         init_logger('sup3r', log_level='DEBUG')
@@ -52,7 +60,6 @@ def test_pipeline_fwp_collect(runner, log=False):
     model.meta['t_enhance'] = 4
 
     with tempfile.TemporaryDirectory() as td:
-        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
         fp_out = os.path.join(td, 'fwp_combined.h5')
@@ -198,7 +205,7 @@ def test_data_collection_cli(runner):
             assert np.allclose(wd_true, fh['winddirection_100m'], atol=0.1)
 
 
-def test_fwd_pass_cli(runner, log=False):
+def test_fwd_pass_cli(runner, input_files, log=False):
     """Test cli call to run forward pass"""
     if log:
         init_logger('sup3r', log_level='DEBUG')
@@ -215,7 +222,6 @@ def test_fwd_pass_cli(runner, log=False):
     assert model.t_enhance == 4
 
     with tempfile.TemporaryDirectory() as td:
-        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
         t_chunks = len(input_files) // fwp_chunk_shape[2] + 1
@@ -259,7 +265,7 @@ def test_fwd_pass_cli(runner, log=False):
         assert len(glob.glob(f'{td}/out*')) == n_chunks
 
 
-def test_pipeline_fwp_qa(runner, log=False):
+def test_pipeline_fwp_qa(runner, input_files, log=False):
     """Test the sup3r pipeline with Forward Pass and QA modules
     via pipeline cli"""
 
@@ -282,7 +288,6 @@ def test_pipeline_fwp_qa(runner, log=False):
     assert model.t_enhance == 4
 
     with tempfile.TemporaryDirectory() as td:
-        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
 
@@ -360,43 +365,3 @@ def test_pipeline_fwp_qa(runner, log=False):
         qa_status = next(iter(qa_status.values()))
         assert qa_status['job_status'] == 'successful'
         assert qa_status['time'] > 0
-
-
-def test_visual_qa(runner, log=False):
-    """Make sure visual qa module creates the right number of plots"""
-
-    if log:
-        init_logger('sup3r', log_level='DEBUG')
-
-    time_step = 500
-    plot_features = ['windspeed_100m', 'winddirection_100m']
-    with ResourceX(FP_WTK) as res:
-        time_index = res.time_index
-
-    n_files = len(time_index[::time_step]) * len(plot_features)
-
-    with tempfile.TemporaryDirectory() as td:
-        out_pattern = os.path.join(td, 'plot_{feature}_{index}.png')
-
-        config = {'file_paths': FP_WTK,
-                  'features': plot_features,
-                  'out_pattern': out_pattern,
-                  'time_step': time_step,
-                  'spatial_slice': [0, 100, 10],
-                  'max_workers': 1}
-
-        config_path = os.path.join(td, 'config.json')
-        with open(config_path, 'w') as fh:
-            json.dump(config, fh)
-
-        result = runner.invoke(vqa_main, ['-c', config_path, '-v'])
-
-        if result.exit_code != 0:
-            import traceback
-            msg = ('Failed with error {}'
-                   .format(traceback.print_exception(*result.exc_info)))
-            raise RuntimeError(msg)
-
-        n_out_files = len(glob.glob(out_pattern.format(feature='*',
-                                                       index='*')))
-        assert n_out_files == n_files

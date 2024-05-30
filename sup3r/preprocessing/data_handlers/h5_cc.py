@@ -8,14 +8,14 @@ import logging
 import numpy as np
 from rex import MultiFileNSRDBX
 
+from sup3r.preprocessing.data_handlers.factory import (
+    DataHandlerFactory,
+)
 from sup3r.preprocessing.derivers.methods import (
     RegistryH5SolarCC,
     RegistryH5WindCC,
 )
 from sup3r.preprocessing.extracters import BaseExtracterH5
-from sup3r.preprocessing.factories.data_handlers import (
-    DataHandlerFactory,
-)
 from sup3r.preprocessing.loaders import LoaderH5
 from sup3r.utilities.utilities import (
     daily_temporal_coarsening,

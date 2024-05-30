@@ -1,6 +1,6 @@
-"""Base Container classes. These are general objects that contain data. Data
-wranglers, data samplers, data loaders, batch handlers, etc are all
-containers."""
+"""Base container classes - object that contains data. All objects that
+interact with data are containers. e.g. loaders, extracters, data handlers,
+samplers, batch queues, batch handlers."""
 
 import copy
 import logging
@@ -23,10 +23,7 @@ class Container:
     for getting data / attributes."""
 
     data: Optional[xr.Dataset] = None
-    _features: Optional[list] = None
-
-    def __repr__(self):
-        return self.__class__.__name__
+    features: Optional[list] = None
 
     def __new__(cls, *args, **kwargs):
         """Include arg logging in construction."""

@@ -8,10 +8,10 @@ from datetime import datetime as dt
 import numpy as np
 from rex.utilities import log_mem
 
-from sup3r.preprocessing import (
+from sup3r.preprocessing.batch_handlers.factory import (
     BatchHandler,
 )
-from sup3r.preprocessing.batchers.abstract import Batch
+from sup3r.preprocessing.batch_queues.abstract import Batch
 from sup3r.utilities.utilities import (
     smooth_data,
     spatial_coarsening,
@@ -967,43 +967,6 @@ class BatchHandlerMom1(BatchHandler):
         raise StopIteration
 
 
-class SpatialBatchHandlerMom1(BatchHandlerMom1):
-    """Sup3r spatial batch handling class"""
-
-    def __next__(self):
-        if self._i < self.n_batches:
-            handler_index = np.random.randint(0, len(self.data_handlers))
-            handler = self.data_handlers[handler_index]
-            high_res = np.zeros(
-                (
-                    self.batch_size,
-                    self.sample_shape[0],
-                    self.sample_shape[1],
-                    self.shape[-1],
-                ),
-                dtype=np.float32,
-            )
-            for i in range(self.batch_size):
-                high_res[i, ...] = handler.get_next()[..., 0, :]
-
-            batch = self.BATCH_CLASS.get_coarse_batch(
-                high_res,
-                self.s_enhance,
-                hr_features_ind=self.hr_features_ind,
-                features=self.features,
-                smoothing=self.smoothing,
-                smoothing_ignore=self.smoothing_ignore,
-                model_mom1=self.model_mom1,
-                s_padding=self.s_padding,
-                t_padding=self.t_padding,
-                end_t_padding=self.end_t_padding,
-            )
-
-            self._i += 1
-            return batch
-        raise StopIteration
-
-
 class ValidationDataMom1SF(ValidationDataMom1):
     """Iterator for validation data for first conditional moment of subfilter
     velocity"""
@@ -1046,14 +1009,6 @@ class BatchHandlerMom1SF(BatchHandlerMom1):
     BATCH_CLASS = VAL_CLASS.BATCH_CLASS
 
 
-class SpatialBatchHandlerMom1SF(SpatialBatchHandlerMom1):
-    """Sup3r spatial batch handling class for first conditional moment of
-    subfilter velocity"""
-
-    VAL_CLASS = ValidationDataMom1SF
-    BATCH_CLASS = VAL_CLASS.BATCH_CLASS
-
-
 class BatchHandlerMom2(BatchHandlerMom1):
     """Sup3r batch handling class for second conditional moment"""
 
@@ -1064,21 +1019,6 @@ class BatchHandlerMom2(BatchHandlerMom1):
 class BatchHandlerMom2Sep(BatchHandlerMom1):
     """Sup3r batch handling class for second conditional moment separate from
     first moment"""
-
-    VAL_CLASS = ValidationDataMom2Sep
-    BATCH_CLASS = VAL_CLASS.BATCH_CLASS
-
-
-class SpatialBatchHandlerMom2(SpatialBatchHandlerMom1):
-    """Sup3r spatial batch handling class for second conditional moment"""
-
-    VAL_CLASS = ValidationDataMom2
-    BATCH_CLASS = VAL_CLASS.BATCH_CLASS
-
-
-class SpatialBatchHandlerMom2Sep(SpatialBatchHandlerMom1):
-    """Sup3r spatial batch handling class for second conditional moment
-    separate from first moment"""
 
     VAL_CLASS = ValidationDataMom2Sep
     BATCH_CLASS = VAL_CLASS.BATCH_CLASS
@@ -1095,22 +1035,6 @@ class BatchHandlerMom2SF(BatchHandlerMom1):
 class BatchHandlerMom2SepSF(BatchHandlerMom1):
     """Sup3r batch handling class for second conditional moment of subfilter
     velocity separate from first moment"""
-
-    VAL_CLASS = ValidationDataMom2SepSF
-    BATCH_CLASS = VAL_CLASS.BATCH_CLASS
-
-
-class SpatialBatchHandlerMom2SF(SpatialBatchHandlerMom1):
-    """Sup3r spatial batch handling class for second conditional moment of
-    subfilter velocity"""
-
-    VAL_CLASS = ValidationDataMom2SF
-    BATCH_CLASS = VAL_CLASS.BATCH_CLASS
-
-
-class SpatialBatchHandlerMom2SepSF(SpatialBatchHandlerMom1):
-    """Sup3r spatial batch handling class for second conditional moment of
-    subfilter velocity separate from first moment"""
 
     VAL_CLASS = ValidationDataMom2SepSF
     BATCH_CLASS = VAL_CLASS.BATCH_CLASS

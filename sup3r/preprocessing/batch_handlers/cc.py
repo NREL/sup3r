@@ -8,7 +8,7 @@ import logging
 import numpy as np
 from scipy.ndimage import gaussian_filter
 
-from sup3r.preprocessing.factories.batch_handlers import BatchHandler
+from sup3r.preprocessing.batch_handlers.factory import BatchHandler
 from sup3r.utilities.utilities import (
     nn_fill_array,
     nsrdb_reduce_daily_data,
@@ -48,8 +48,6 @@ class BatchHandlerCC(BatchHandler):
             Batch object with batch.low_res and batch.high_res attributes
             with the appropriate coarsening.
         """
-        self.current_batch_indices = []
-
         if self._i >= self.n_batches:
             raise StopIteration
 
@@ -60,8 +58,6 @@ class BatchHandlerCC(BatchHandler):
 
         for i in range(self.batch_size):
             obs_hourly, obs_daily_avg = handler.get_next()
-            self.current_batch_indices.append(handler.current_obs_index)
-
             obs_hourly = obs_hourly[..., self.hr_features_ind]
 
             if low_res is None:

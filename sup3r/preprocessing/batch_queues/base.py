@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Union
 
 import tensorflow as tf
 
-from sup3r.preprocessing.batchers.abstract import (
+from sup3r.preprocessing.batch_queues.abstract import (
     AbstractBatchQueue,
 )
 from sup3r.preprocessing.samplers import Sampler

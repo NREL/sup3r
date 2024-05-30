@@ -10,13 +10,15 @@ import pandas as pd
 from scipy.spatial import KDTree
 from scipy.stats import mode
 
+from sup3r.preprocessing.data_handlers.factory import (
+    DataHandlerFactory,
+)
 from sup3r.preprocessing.derivers.methods import (
     RegistryNCforCC,
     RegistryNCforCCwithPowerLaw,
 )
-from sup3r.preprocessing.factories.data_handlers import (
+from sup3r.preprocessing.extracters import (
     BaseExtracterNC,
-    DataHandlerFactory,
 )
 from sup3r.preprocessing.loaders import LoaderH5, LoaderNC
 

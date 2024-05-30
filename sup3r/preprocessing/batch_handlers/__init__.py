@@ -1,6 +1,4 @@
-"""Container collection objects used to build batches for training."""
-
-from .base import SingleBatchQueue
+"""Composite objects built from batch queues and samplers."""
 from .cc import BatchHandlerCC
 from .conditional import (
     BatchHandlerMom1,
@@ -17,4 +15,4 @@ from .conditional import (
     BatchMom2SF,
 )
 from .dc import BatchHandlerDC
-from .dual import DualBatchQueue
+from .factory import BatchHandler, DualBatchHandler
