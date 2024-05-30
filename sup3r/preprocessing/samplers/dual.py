@@ -5,19 +5,20 @@ import copy
 import logging
 from typing import Dict, Optional
 
-from sup3r.preprocessing.base import DualContainer
+from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.samplers.base import Sampler
 
 logger = logging.getLogger(__name__)
 
 
-class DualSampler(DualContainer, Sampler):
+class DualSampler(Container, Sampler):
     """Pair of sampler objects, one for low resolution and one for high
-    resolution, initialized from a :class:`DualContainer` object."""
+    resolution, initialized from a :class:`Container` object with low and high
+    resolution :class:`Data` objects."""
 
     def __init__(
         self,
-        container: DualContainer,
+        container: Container,
         sample_shape,
         s_enhance,
         t_enhance,
@@ -26,9 +27,9 @@ class DualSampler(DualContainer, Sampler):
         """
         Parameters
         ----------
-        container : DualContainer
-            DualContainer instance composed of a low-res and high-res
-            container.
+        container : Container
+            Container instance with `.data = (low_res, high_res)`, with each
+            tuple member a :class:`Data` instance.
         sample_shape : tuple
             Size of arrays to sample from the high-res data. The sample shape
             for the low-res sampler will be determined from the enhancement
@@ -60,17 +61,24 @@ class DualSampler(DualContainer, Sampler):
         )
         self._lr_only_features = feature_sets.get('lr_only_features', [])
         self._hr_exo_features = feature_sets.get('hr_exo_features', [])
-        hr_sampler = Sampler(container.hr_data, self.hr_sample_shape)
-        lr_sampler = Sampler(container.lr_data, self.lr_sample_shape)
-        super().__init__(lr_sampler, hr_sampler)
 
-        feats = list(copy.deepcopy(self.lr_data.features))
-        feats += [fn for fn in self.hr_data.features if fn not in feats]
+        msg = (
+            'DualSamplers require a low-res and high-res Data object. '
+            'Recieved an inconsistent Container.'
+        )
+        assert (
+            isinstance(container.data, tuple) and len(container.data) == 2
+        ), msg
+        self.hr_sampler = Sampler(container.data[1], self.hr_sample_shape)
+        self.lr_sampler = Sampler(container.data[0], self.lr_sample_shape)
 
-        self.features = feats
-
-        self.lr_features = self.lr_data.features
-        self.hr_features = self.hr_data.features
+        features = list(copy.deepcopy(self.lr_sampler.features))
+        features += [
+            fn for fn in self.hr_sampler.features if fn not in features
+        ]
+        self.features = features
+        self.lr_features = self.lr_sampler.features
+        self.hr_features = self.hr_sampler.features
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
         self.check_for_consistent_shapes()
@@ -79,22 +87,22 @@ class DualSampler(DualContainer, Sampler):
         """Make sure container shapes are compatible with enhancement
         factors."""
         enhanced_shape = (
-            self.lr_data.shape[0] * self.s_enhance,
-            self.lr_data.shape[1] * self.s_enhance,
-            self.lr_data.shape[2] * self.t_enhance,
+            self.lr_sampler.shape[0] * self.s_enhance,
+            self.lr_sampler.shape[1] * self.s_enhance,
+            self.lr_sampler.shape[2] * self.t_enhance,
         )
         msg = (
-            f'hr_data.shape {self.hr_data.shape} and enhanced '
-            f'lr_data.shape {enhanced_shape} are not compatible with '
+            f'hr_sampler.shape {self.hr_sampler.shape} and enhanced '
+            f'lr_sampler.shape {enhanced_shape} are not compatible with '
             'the given enhancement factors'
         )
-        assert self.hr_data.shape[:3] == enhanced_shape, msg
+        assert self.hr_sampler.shape[:3] == enhanced_shape, msg
 
     def get_sample_index(self):
         """Get paired sample index, consisting of index for the low res sample
         and the index for the high res sample with the same spatiotemporal
         extent."""
-        lr_index = self.lr_data.get_sample_index()
+        lr_index = self.lr_sampler.get_sample_index()
         hr_index = [
             slice(s.start * self.s_enhance, s.stop * self.s_enhance)
             for s in lr_index[:2]

@@ -4,8 +4,8 @@ import pytest
 from rex import init_logger
 
 from sup3r.preprocessing import (
+    Container,
     DualBatchQueue,
-    DualContainer,
     DualSampler,
     SingleBatchQueue,
 )
@@ -144,7 +144,10 @@ def test_dual_batch_queue():
     ]
     sampler_pairs = [
         DualSampler(
-            DualContainer(lr, hr), hr_sample_shape, s_enhance=2, t_enhance=2
+            Container((lr.data, hr.data)),
+            hr_sample_shape,
+            s_enhance=2,
+            t_enhance=2,
         )
         for lr, hr in zip(lr_containers, hr_containers)
     ]
@@ -195,7 +198,7 @@ def test_pair_batch_queue_with_lr_only_features():
     ]
     sampler_pairs = [
         DualSampler(
-            DualContainer(lr, hr),
+            Container(lr, hr),
             hr_sample_shape,
             s_enhance=2,
             t_enhance=2,
@@ -253,7 +256,7 @@ def test_bad_enhancement_factors():
         with pytest.raises(AssertionError):
             sampler_pairs = [
                 DualSampler(
-                    DualContainer(lr, hr),
+                    Container(lr, hr),
                     hr_sample_shape,
                     s_enhance=s_enhance,
                     t_enhance=t_enhance,

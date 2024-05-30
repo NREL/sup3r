@@ -2,13 +2,14 @@
 datasets"""
 
 import logging
+from typing import Tuple
 from warnings import warn
 
 import numpy as np
 import pandas as pd
 
 from sup3r.preprocessing.abstract import Data
-from sup3r.preprocessing.base import DualContainer
+from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.cachers import Cacher
 from sup3r.utilities.regridder import Regridder
 from sup3r.utilities.utilities import nn_fill_array, spatial_coarsening
@@ -16,7 +17,7 @@ from sup3r.utilities.utilities import nn_fill_array, spatial_coarsening
 logger = logging.getLogger(__name__)
 
 
-class DualExtracter(DualContainer):
+class DualExtracter(Container):
     """Object containing wrapped xr.Dataset() (:class:`Data`) objects for low
     and high-res data.  (Usually ERA5 and WTK, respectively). This essentially
     just regrids the low-res data to the coarsened high-res grid.  This is
@@ -35,8 +36,7 @@ class DualExtracter(DualContainer):
 
     def __init__(
         self,
-        lr_data: Data,
-        hr_data: Data,
+        data: Tuple[Data, Data],
         regrid_workers=1,
         regrid_lr=True,
         s_enhance=1,
@@ -74,12 +74,14 @@ class DualExtracter(DualContainer):
             Must include 'cache_pattern' key if not None, and can also include
             dictionary of chunk tuples with feature keys
         """
-        super().__init__(lr_data, hr_data)
+        super().__init__(data=data)
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
+        self.lr_data = data[0]
+        self.hr_data = data[1]
         self.regrid_workers = regrid_workers
-        self.lr_time_index = lr_data.time_index
-        self.hr_time_index = hr_data.time_index
+        self.lr_time_index = self.lr_data.time_index
+        self.hr_time_index = self.hr_data.time_index
         self.lr_required_shape = (
             self.hr_data.shape[0] // self.s_enhance,
             self.hr_data.shape[1] // self.s_enhance,

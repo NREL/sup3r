@@ -3,7 +3,7 @@
 
 import pytest
 
-from sup3r.preprocessing import DualContainer, DualSampler, Sampler
+from sup3r.preprocessing import DualSampler, Sampler
 from sup3r.utilities.pytest.helpers import DummyData, execute_pytest
 
 
@@ -71,7 +71,7 @@ def test_mixed_lr_hr_features(lr_features, hr_features, hr_exo_features):
     ]
     sampler_pairs = [
         DualSampler(
-            DualContainer(lr, hr),
+            Container((lr.data, hr.data)),
             hr_sample_shape,
             s_enhance=2,
             t_enhance=2,
