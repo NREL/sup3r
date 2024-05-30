@@ -17,10 +17,12 @@ from rex.utilities.fun_utils import get_fun_call_str
 from scipy import stats
 from scipy.spatial import KDTree
 
-import sup3r.preprocessing.data_handling
+import sup3r.preprocessing
+from sup3r.preprocessing import DataHandlerNC as DataHandler
 from sup3r.utilities import VERSION_RECORD, ModuleName
 from sup3r.utilities.cli import BaseCLI
 from sup3r.utilities.utilities import expand_paths
+
 from .mixins import FillAndSmoothMixin
 
 logger = logging.getLogger(__name__)
@@ -75,14 +77,14 @@ class DataRetrievalBase:
             (rows, cols) grid size to retrieve from bias_fps. If None then the
             full domain shape will be used.
         base_handler : str
-            Name of rex resource handler or sup3r.preprocessing.data_handling
-            class to be retrieved from the rex/sup3r library. If a
-            sup3r.preprocessing.data_handling class is used, all data will be
-            loaded in this class' initialization and the subsequent bias
-            calculation will be done in serial
+            Name of rex resource handler or sup3r.preprocessing class to be
+            retrieved from the rex/sup3r library. If a sup3r.preprocessing
+            class is used, all data will be loaded in this class'
+            initialization and the subsequent bias calculation will be done in
+            serial
         bias_handler : str
             Name of the bias data handler class to be retrieved from the
-            sup3r.preprocessing.data_handling library.
+            sup3r.preprocessing library.
         base_handler_kwargs : dict | None
             Optional kwargs to send to the initialization of the base_handler
             class
@@ -90,10 +92,9 @@ class DataRetrievalBase:
             Optional kwargs to send to the initialization of the bias_handler
             class
         decimals : int | None
-            Option to round bias and base data to this number of
-            decimals, this gets passed to np.around(). If decimals
-            is negative, it specifies the number of positions to
-            the left of the decimal point.
+            Option to round bias and base data to this number of decimals, this
+            gets passed to np.around(). If decimals is negative, it specifies
+            the number of positions to the left of the decimal point.
         match_zero_rate : bool
             Option to fix the frequency of zero values in the biased data. The
             lowest percentile of values in the biased data will be set to zero
@@ -130,7 +131,7 @@ class DataRetrievalBase:
         self.base_fps = expand_paths(self.base_fps)
         self.bias_fps = expand_paths(self.bias_fps)
 
-        base_sup3r_handler = getattr(sup3r.preprocessing.data_handling,
+        base_sup3r_handler = getattr(sup3r.preprocessing,
                                      base_handler, None)
         base_rex_handler = getattr(rex, base_handler, None)
 
@@ -151,7 +152,7 @@ class DataRetrievalBase:
             logger.error(msg)
             raise RuntimeError(msg)
 
-        self.bias_handler = getattr(sup3r.preprocessing.data_handling,
+        self.bias_handler = getattr(sup3r.preprocessing,
                                     bias_handler)
         self.base_meta = self.base_dh.meta
         self.bias_dh = self.bias_handler(self.bias_fps, [self.bias_feature],
@@ -376,9 +377,9 @@ class DataRetrievalBase:
             The gids for this data source are the enumerated indices of the
             flattened coordinate array.
         bias_dh : DataHandler, default=self.bias_dh
-            Any ``DataHandler`` from :mod:`sup3r.preprocessing.data_handling`.
-            This optional argument allows an alternative handler other than
-            the usual :attr:`bias_dh`. For instance, the derived
+            Any ``DataHandler`` from :mod:`sup3r.preprocessing`. This optional
+            argument allows an alternative handler other than the usual
+            :attr:`bias_dh`. For instance, the derived
             :class:`~qdm.QuantileDeltaMappingCorrection` uses it to access the
             reference biased dataset as well as the target biased dataset.
 

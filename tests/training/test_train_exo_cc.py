@@ -34,7 +34,7 @@ init_logger('sup3r', log_level='DEBUG')
 np.random.seed(42)
 
 
-@pytest.mark.parametrize([('CustomLayer', 'features', 'lr_only_features')],
+@pytest.mark.parametrize(('CustomLayer', 'features', 'lr_only_features'),
                          [('Sup3rAdder', FEATURES_W, ['temperature_100m']),
                          ('Sup3rConcat', FEATURES_W, ['temperature_100m']),
                          ('Sup3rAdder', FEATURES_W[1:], []),

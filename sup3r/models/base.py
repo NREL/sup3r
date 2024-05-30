@@ -592,7 +592,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
 
         Parameters
         ----------
-        batch_handler : sup3r.data_handling.preprocessing.BatchHandler
+        batch_handler : sup3r.preprocessing.BatchHandler
             BatchHandler object to iterate through
         weight_gen_advers : float
             Weight factor for the adversarial loss component of the generator
@@ -632,7 +632,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
 
         Parameters
         ----------
-        batch_handler : sup3r.data_handling.preprocessing.BatchHandler
+        batch_handler : sup3r.preprocessing.BatchHandler
             BatchHandler object to iterate through
         weight_gen_advers : float
             Weight factor for the adversarial loss component of the generator
@@ -816,7 +816,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
 
         Parameters
         ----------
-        batch_handler : sup3r.data_handling.preprocessing.BatchHandler
+        batch_handler : sup3r.preprocessing.BatchHandler
             BatchHandler object to iterate through
         input_resolution : dict
             Dictionary specifying spatiotemporal input resolution. e.g.

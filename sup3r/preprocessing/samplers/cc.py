@@ -24,8 +24,9 @@ class SamplerH5CC(Sampler):
         """
         Parameters
         ----------
-        *args : list
-            Same positional args as Sampler
+        container : DataHandler
+            DataHandlerH5 type container. Needs to have `.daily_data` and
+            `.daily_data_slices`. See `sup3r.preprocessing.data_handlers.h5_cc`
         **kwargs : dict
             Same keyword args as Sampler
         """
@@ -35,16 +36,20 @@ class SamplerH5CC(Sampler):
         if len(sample_shape) == 2:
             logger.info(
                 'Found 2D sample shape of {}. Adding spatial dim of 24'.format(
-                    sample_shape))
+                    sample_shape
+                )
+            )
             sample_shape = (*sample_shape, 24)
             t_shape = sample_shape[-1]
             kwargs['sample_shape'] = sample_shape
 
         if t_shape < 24 or t_shape % 24 != 0:
-            msg = ('Climate Change DataHandler can only work with temporal '
-                   'sample shapes that are one or more days of hourly data '
-                   '(e.g. 24, 48, 72...). The requested temporal sample '
-                   'shape was: {}'.format(t_shape))
+            msg = (
+                'Climate Change DataHandler can only work with temporal '
+                'sample shapes that are one or more days of hourly data '
+                '(e.g. 24, 48, 72...). The requested temporal sample '
+                'shape was: {}'.format(t_shape)
+            )
             logger.error(msg)
             raise RuntimeError(msg)
 
@@ -63,21 +68,30 @@ class SamplerH5CC(Sampler):
             Same as obs_ind_hourly but the temporal index (i=2) is a slice of
             the daily data (self.daily_data) with day integers.
         """
-        spatial_slice = uniform_box_sampler(self.data.shape,
-                                            self.sample_shape[:2])
+        spatial_slice = uniform_box_sampler(
+            self.data.shape, self.sample_shape[:2]
+        )
 
         n_days = int(self.sample_shape[2] / 24)
-        rand_day_ind = np.random.choice(len(self.daily_data_slices) - n_days)
+        rand_day_ind = np.random.choice(
+            len(self.container.daily_data_slices) - n_days
+        )
         t_slice_0 = self.container.daily_data_slices[rand_day_ind]
         t_slice_1 = self.container.daily_data_slices[rand_day_ind + n_days - 1]
         t_slice_hourly = slice(t_slice_0.start, t_slice_1.stop)
         t_slice_daily = slice(rand_day_ind, rand_day_ind + n_days)
 
-        obs_ind_hourly = (*spatial_slice, t_slice_hourly,
-                          np.arange(len(self.features)))
+        obs_ind_hourly = (
+            *spatial_slice,
+            t_slice_hourly,
+            np.arange(len(self.features)),
+        )
 
-        obs_ind_daily = (*spatial_slice, t_slice_daily,
-                         np.arange(len(self.features)))
+        obs_ind_daily = (
+            *spatial_slice,
+            t_slice_daily,
+            np.arange(len(self.features)),
+        )
 
         return obs_ind_hourly, obs_ind_daily
 

@@ -1,6 +1,5 @@
-"""Abstract container classes. These are the fundamental objects that all
-classes which interact with data (e.g. handlers, wranglers, loaders, samplers,
-batchers) are based on."""
+"""Abstract data object. These are the fundamental objects that are contained
+by :class:`Container` objects."""
 
 import logging
 

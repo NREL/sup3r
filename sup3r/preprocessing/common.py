@@ -2,6 +2,7 @@
 
 import logging
 import pprint
+from abc import ABCMeta
 from inspect import getfullargspec
 from typing import ClassVar, Tuple
 from warnings import warn
@@ -19,6 +20,15 @@ DIM_ORDER = (
     'level',
     'variable',
 )
+
+
+class FactoryMeta(ABCMeta, type):
+    """Meta class to define __name__ attribute of factory generated classes."""
+
+    def __new__(cls, name, bases, namespace, **kwargs):
+        """Define __name__"""
+        name = namespace.get("__name__", name)
+        return super().__new__(cls, name, bases, namespace, **kwargs)
 
 
 def _log_args(thing, func, *args, **kwargs):

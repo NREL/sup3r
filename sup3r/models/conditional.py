@@ -270,7 +270,7 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
 
         Parameters
         ----------
-        batch_handler : sup3r.data_handling.preprocessing.BatchHandler
+        batch_handler : sup3r.preprocessing.BatchHandler
             BatchHandler object to iterate through
         loss_details : dict
             Namespace of the breakdown of loss components
@@ -300,7 +300,7 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
 
         Parameters
         ----------
-        batch_handler : sup3r.data_handling.preprocessing.BatchHandler
+        batch_handler : sup3r.preprocessing.BatchHandler
             BatchHandler object to iterate through
         multi_gpu : bool
             Flag to break up the batch for parallel gradient descent
@@ -353,7 +353,7 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
 
         Parameters
         ----------
-        batch_handler : sup3r.data_handling.preprocessing.BatchHandler
+        batch_handler : sup3r.preprocessing.BatchHandler
             BatchHandler object to iterate through
         input_resolution : dict
             Dictionary specifying spatiotemporal input resolution. e.g.

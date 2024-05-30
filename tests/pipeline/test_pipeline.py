@@ -8,19 +8,31 @@ import tempfile
 
 import click
 import numpy as np
+import pytest
 from gaps import Pipeline
 from rex import ResourceX
 from rex.utilities.loggers import LOGGERS
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.models.base import Sup3rGan
-from sup3r.utilities.pytest.helpers import make_fake_nc_files
+from sup3r.utilities.pytest.helpers import make_fake_nc_file
 
 INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
-FEATURES = ['U_100m', 'V_100m', 'BVF2_200m']
+FEATURES = ['U_100m', 'V_100m', 'pressure_0m']
 
 
-def test_fwp_pipeline():
+@pytest.fixture(scope='module')
+def input_files(tmpdir_factory):
+    """Dummy netcdf input files for :class:`ForwardPass`"""
+
+    input_file = str(tmpdir_factory.mktemp('data').join('fwp_input.nc'))
+    make_fake_nc_file(
+        input_file, shape=(100, 100, 8), features=FEATURES
+    )
+    return input_file
+
+
+def test_fwp_pipeline(input_files):
     """Test sup3r pipeline"""
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
@@ -45,7 +57,6 @@ def test_fwp_pipeline():
         ctx.obj['NAME'] = 'test'
         ctx.obj['VERBOSE'] = False
 
-        input_files = make_fake_nc_files(td, INPUT_FILE, 20)
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
 
@@ -127,7 +138,7 @@ def test_fwp_pipeline():
             assert 'successful' in str(status)
 
 
-def test_multiple_fwp_pipeline():
+def test_multiple_fwp_pipeline(input_files):
     """Test sup3r pipeline with multiple fwp steps"""
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
@@ -152,7 +163,6 @@ def test_multiple_fwp_pipeline():
         ctx.obj['NAME'] = 'test'
         ctx.obj['VERBOSE'] = False
 
-        input_files = make_fake_nc_files(td, INPUT_FILE, 20)
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
 

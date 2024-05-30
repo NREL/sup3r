@@ -6,7 +6,7 @@ import logging
 
 import numpy as np
 
-from sup3r.preprocessing.factories.batch_handlers import BatchHandler
+from sup3r.preprocessing.batch_handlers.factory import BatchHandler
 from sup3r.preprocessing.samplers.dc import DataCentricSampler
 
 logger = logging.getLogger(__name__)
