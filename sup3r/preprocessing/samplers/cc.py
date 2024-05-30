@@ -16,23 +16,40 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
-class SamplerH5CC(Sampler):
+class SamplerH5forCC(Sampler):
     """Special sampling for h5 wtk or nsrdb data for climate change
-    applications"""
+    applications
 
-    def __init__(self, *args, **kwargs):
+    TODO: refactor according to DualSampler pattern. Maybe create base
+    MixedSampler class since this wont be lr + hr but still has two data
+    objects to sample from.
+    """
+
+    def __init__(self, container, sample_shape=None, feature_sets=None):
         """
         Parameters
         ----------
         container : DataHandler
             DataHandlerH5 type container. Needs to have `.daily_data` and
             `.daily_data_slices`. See `sup3r.preprocessing.data_handlers.h5_cc`
-        **kwargs : dict
-            Same keyword args as Sampler
         """
-        sample_shape = kwargs.get('sample_shape', (10, 10, 24))
-        t_shape = sample_shape[-1]
+        self.data = (container.data, container.daily_data)
+        sample_shape = (
+            sample_shape if sample_shape is not None else (10, 10, 24)
+        )
+        sample_shape = self.check_sample_shape(sample_shape)
 
+        super().__init__(
+            data=self.data,
+            sample_shape=sample_shape,
+            feature_sets=feature_sets,
+        )
+
+    @staticmethod
+    def check_sample_shape(sample_shape):
+        """Make sure sample_shape is consistent with required number of time
+        steps in the sample data."""
+        t_shape = sample_shape[-1]
         if len(sample_shape) == 2:
             logger.info(
                 'Found 2D sample shape of {}. Adding spatial dim of 24'.format(
@@ -41,7 +58,6 @@ class SamplerH5CC(Sampler):
             )
             sample_shape = (*sample_shape, 24)
             t_shape = sample_shape[-1]
-            kwargs['sample_shape'] = sample_shape
 
         if t_shape < 24 or t_shape % 24 != 0:
             msg = (
@@ -52,11 +68,17 @@ class SamplerH5CC(Sampler):
             )
             logger.error(msg)
             raise RuntimeError(msg)
-
-        super().__init__(*args, **kwargs)
+        return sample_shape
 
     def get_sample_index(self):
-        """Randomly gets spatial sample and time sample
+        """Randomly gets spatial sample and time sample.
+
+        Notes
+        -----
+        This pair of hourly
+        and daily observation indices will be used to sample from self.data =
+        (hourly_data, daily_data) through the standard
+        :meth:`Container.__getitem__((obs_ind_hourly, obs_ind_daily))`
 
         Returns
         -------
@@ -94,21 +116,3 @@ class SamplerH5CC(Sampler):
         )
 
         return obs_ind_hourly, obs_ind_daily
-
-    def get_next(self):
-        """Get data for observation using random observation index. Loops
-        repeatedly over randomized time index
-
-        Returns
-        -------
-        obs_hourly : np.ndarray
-            4D array
-            (spatial_1, spatial_2, temporal_hourly, features)
-        obs_daily_avg : np.ndarray
-            4D array but the temporal axis is temporal_hourly//24
-            (spatial_1, spatial_2, temporal_daily, features)
-        """
-        obs_ind_hourly, obs_ind_daily = self.get_sample_index()
-        obs_hourly = self.data[obs_ind_hourly]
-        obs_daily_avg = self.container.daily_data[obs_ind_daily]
-        return obs_hourly, obs_daily_avg

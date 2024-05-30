@@ -124,8 +124,3 @@ class DualContainer(Container):
         feats = list(copy.deepcopy(self.lr_data.features))
         feats += [fn for fn in self.hr_data.features if fn not in feats]
         self._features = feats
-
-    def __getitem__(self, keys):
-        """Method for accessing self.data."""
-        lr_key, hr_key = keys
-        return (self.lr_data[lr_key], self.hr_data[hr_key])

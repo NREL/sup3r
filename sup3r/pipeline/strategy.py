@@ -387,11 +387,15 @@ class ForwardPassStrategy(DistributedProcess):
 
         s_chunk_idx, t_chunk_idx = self.get_chunk_indices(chunk_index)
 
+        args_dict = {
+            'chunk': chunk_index,
+            'temporal_chunk': t_chunk_idx,
+            'spatial_chunk': s_chunk_idx,
+            'n_node_chunks': self.chunks,
+        }
         logger.info(
-            f'Initializing ForwardPass for chunk={chunk_index} '
-            f'(temporal_chunk={t_chunk_idx}, '
-            f'spatial_chunk={s_chunk_idx}). {self.chunks}'
-            f' total chunks for the current node.'
+            'Initializing ForwardPass with: '
+            f'{pprint.pformat(args_dict, indent=2)}'
         )
 
         msg = (
