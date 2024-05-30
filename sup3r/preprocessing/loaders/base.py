@@ -59,7 +59,7 @@ class Loader(Container, ABC):
             Note: The ordering here corresponds to the default ordering given
             by `.res`.
         """
-        super().__init__()
+        super().__init__(features=features)
         self._res = None
         self._data = None
         self.res_kwargs = res_kwargs or {}

@@ -44,12 +44,12 @@ class SamplerCollection(Collection):
             f'{len(self.containers)} container objects but these objects do '
             f'not all have the same value for {attr}.'
         )
-        attr = getattr(self.containers[0], attr, None)
-        check = all(getattr(c, attr, None) == attr for c in self.containers)
+        out = getattr(self.containers[0], attr, None)
+        check = all(getattr(c, attr, None) == out for c in self.containers)
         if not check:
             logger.error(msg)
             raise ValueError(msg)
-        return attr
+        return out
 
     def check_shape_consistency(self):
         """Make sure all samplers in the collection have the same sample

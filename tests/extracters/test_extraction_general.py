@@ -127,11 +127,12 @@ def test_topography_h5():
             file_paths=h5_files[0],
             target=(39.01, -105.15),
             shape=(20, 20),
+            features='topography'
         )
         ri = extracter.raster_index
         topo = res.get_meta_arr('elevation')[(ri.flatten(),)]
         topo = topo.reshape((ri.shape[0], ri.shape[1]))
-    assert np.allclose(topo, extracter['topography'][..., 0])
+    assert np.allclose(topo, extracter['topography'])
 
 
 if __name__ == '__main__':

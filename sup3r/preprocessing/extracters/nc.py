@@ -59,8 +59,7 @@ class BaseExtracterNC(Extracter, ABC):
         return self.loader.isel(
             south_north=self.raster_index[0],
             west_east=self.raster_index[1],
-            time=self.time_slice,
-        )
+            time=self.time_slice)
 
     def check_target_and_shape(self, full_lat_lon):
         """NETCDF files tend to use a regular grid so if either target or shape

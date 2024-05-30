@@ -4,7 +4,6 @@ samplers, batch queues, batch handlers."""
 
 import copy
 import logging
-from dataclasses import dataclass
 from typing import Optional
 
 import numpy as np
@@ -16,14 +15,18 @@ from sup3r.preprocessing.common import _log_args, lowered
 logger = logging.getLogger(__name__)
 
 
-@dataclass
 class Container:
     """Basic fundamental object used to build preprocessing objects. Contains
     a (or multiple) wrapped xr.Dataset objects (:class:`Data`) and some methods
     for getting data / attributes."""
 
-    data: Optional[xr.Dataset] = None
-    features: Optional[list] = None
+    def __init__(
+        self,
+        data: Optional[xr.Dataset] = None,
+        features: Optional[list] = None,
+    ):
+        self.data = data
+        self.features = features
 
     def __new__(cls, *args, **kwargs):
         """Include arg logging in construction."""
@@ -61,7 +64,7 @@ class Container:
     @property
     def features(self):
         """Features in this container."""
-        if self._features is None:
+        if not self._features or 'all' in self._features:
             self._features = self.data.features
         return self._features
 

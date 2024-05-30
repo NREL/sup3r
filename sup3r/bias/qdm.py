@@ -113,14 +113,14 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
             (rows, cols) grid size to retrieve from bias_fps. If None then the
             full domain shape will be used.
         base_handler : str
-            Name of rex resource handler or sup3r.preprocessing.data_handling
-            class to be retrieved from the rex/sup3r library. If a
-            sup3r.preprocessing.data_handling class is used, all data will be
-            loaded in this class' initialization and the subsequent bias
-            calculation will be done in serial
+            Name of rex resource handler or sup3r.preprocessing class to be
+            retrieved from the rex/sup3r library. If a sup3r.preprocessing
+            class is used, all data will be loaded in this class'
+            initialization and the subsequent bias calculation will be done in
+            serial
         bias_handler : str
             Name of the bias data handler class to be retrieved from the
-            sup3r.preprocessing.data_handling library.
+            sup3r.preprocessing library.
         base_handler_kwargs : dict | None
             Optional kwargs to send to the initialization of the base_handler
             class
@@ -168,7 +168,7 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
         --------
         sup3r.bias.bias_transforms.local_qdm_bc :
             Bias correction using QDM.
-        sup3r.preprocessing.data_handling.DataHandler :
+        sup3r.preprocessing.DataHandler :
             Bias correction using QDM directly from a derived handler.
         rex.utilities.bc_utils.QuantileDeltaMapping
             Quantile Delta Mapping method and support functions. Since
@@ -181,7 +181,7 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
         One way of using this class is by saving the distributions definitions
         obtained here with the method :meth:`.write_outputs` and then use that
         file with :func:`~sup3r.bias.bias_transforms.local_qdm_bc` or through
-        a derived :class:`~sup3r.preprocessing.data_handling.base.DataHandler`.
+        a derived :class:`~sup3r.preprocessing.DataHandler`.
         **ATTENTION**, be careful handling that file of parameters. There is
         no checking process and one could missuse the correction estimated for
         the wrong dataset.

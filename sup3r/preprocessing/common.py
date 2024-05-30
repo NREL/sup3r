@@ -27,7 +27,7 @@ class FactoryMeta(ABCMeta, type):
 
     def __new__(cls, name, bases, namespace, **kwargs):
         """Define __name__"""
-        name = namespace.get("__name__", name)
+        name = namespace.get('__name__', name)
         return super().__new__(cls, name, bases, namespace, **kwargs)
 
 
@@ -73,10 +73,17 @@ def lowered(features):
     """Return a lower case version of the given str or list of strings. Used to
     standardize storage and lookup of features."""
 
-    feats = (
-        features.lower()
+    features = (
+        [features]
         if isinstance(features, str)
-        else [f.lower() for f in features]
+        else features
+        if isinstance(features, list)
+        else []
+    )
+    feats = (
+        [f.lower() for f in features]
+        if isinstance(features, list)
+        else features
     )
     if features != feats:
         msg = (

@@ -16,7 +16,10 @@ logger = logging.getLogger(__name__)
 
 
 class Cacher(Container):
-    """Base extracter object."""
+    """Base extracter object.
+
+    TODO: Add meta data to write methods.
+    """
 
     def __init__(
         self,

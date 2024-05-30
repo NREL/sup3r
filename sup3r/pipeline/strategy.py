@@ -65,6 +65,9 @@ class ForwardPassChunk:
 class ForwardPassStrategy(DistributedProcess):
     """Class to prepare data for forward passes through generator.
 
+    TODO: Seems like this could be cleaned up further. Lots of attrs in the
+    init
+
     A full file list of contiguous times is provided. The corresponding data is
     split into spatiotemporal chunks which can overlap in time and space. These
     chunks are distributed across nodes according to the max nodes input or
