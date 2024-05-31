@@ -187,7 +187,7 @@ class OutputMixIn:
             Pre-existing H5 file output path
         dset : str
             Dataset name
-        data : np.ndarray | None
+        data : T_Array | None
             Optional data to write to dataset if initializing.
         """
 

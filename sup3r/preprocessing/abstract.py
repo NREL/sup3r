@@ -2,6 +2,7 @@
 by :class:`Container` objects."""
 
 import logging
+from typing import List, Union
 
 import dask.array as da
 import numpy as np
@@ -247,3 +248,60 @@ class Data:
         """Update the lat_lon attribute with array values."""
         self.dset['latitude'] = (self.dset['latitude'], lat_lon[..., 0])
         self.dset['longitude'] = (self.dset['longitude'], lat_lon[..., 1])
+
+
+class DataGroup:
+    """Interface for interacting with tuples / lists of :class:`Data`
+    objects."""
+
+    def __init__(self, data: Union[xr.Dataset, List[xr.Dataset]]):
+        dset = (
+            (data,) if not isinstance(data, (list, tuple)) else tuple(data)
+        )
+        self.dset = tuple(Data(d) for d in dset)
+        self.n_members = len(self.dset)
+
+    def __getattr__(self, attr):
+        return self.check_shared_attr(attr)
+
+    def __getitem__(self, keys):
+        """Method for accessing self.dset or attributes. If keys is a list of
+        tuples or list this is interpreted as a request for
+        `self.dset[i][keys[i]] for i in range(len(keys)).` Otherwise the we
+        will get keys from each member of self.dset.  """
+        if all(isinstance(k, (tuple, list)) for k in keys):
+            out = tuple([d[key] for d, key in zip(self.dset, keys)])
+        else:
+            out = tuple(d[keys] for d in self.dset)
+        if self.n_members == 1:
+            return out[0]
+        return out
+
+    def isel(self, *args, **kwargs):
+        """Multi index selection method."""
+        out = tuple(d.isel(*args, **kwargs) for d in self.dset)
+        if self.n_members == 1:
+            return out[0]
+        return out
+
+    def sel(self, *args, **kwargs):
+        """Multi dimension selection method."""
+        out = tuple(d.sel(*args, **kwargs) for d in self.dset)
+        if self.n_members == 1:
+            return out[0]
+        return out
+
+    def check_shared_attr(self, attr):
+        """Check if all :class:`Data` members have the same value for
+        `attr`."""
+        msg = (
+            f'Requested attribute {attr} but not all Data members have '
+            'the same value.'
+        )
+        out = getattr(self.dset[0], attr)
+        if hasattr(out, '__iter__'):
+            check = all((getattr(d, attr) == out).all() for d in self.dset)
+        else:
+            check = all(getattr(d, attr) == out for d in self.dset)
+        assert check, msg
+        return out

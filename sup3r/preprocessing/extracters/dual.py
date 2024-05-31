@@ -72,9 +72,11 @@ class DualExtracter(Container):
         super().__init__(data=data)
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
-        msg = ('The DualExtracter requires a data tuple with two members, low '
-               'and high resolution in that order. Received inconsistent data '
-               'argument.')
+        msg = (
+            'The DualExtracter requires a data tuple with two members, low '
+            'and high resolution in that order. Received inconsistent data '
+            'argument.'
+        )
         assert isinstance(data, tuple) and len(data) == 2, msg
         self.lr_data = data[0]
         self.hr_data = data[1]
@@ -91,6 +93,19 @@ class DualExtracter(Container):
             self.s_enhance * self.lr_required_shape[1],
             self.t_enhance * self.lr_required_shape[2],
         )
+
+        msg = (
+            f'The required low-res shape {self.lr_required_shape} is '
+            'inconsistent with the shape of the raw data '
+            f'{self.lr_data.shape}'
+        )
+        assert all(
+            req_s <= true_s
+            for req_s, true_s in zip(
+                self.lr_required_shape, self.lr_data.shape
+            )
+        ), msg
+
         self.hr_lat_lon = self.hr_data.lat_lon[
             *map(slice, self.hr_required_shape[:2])
         ]

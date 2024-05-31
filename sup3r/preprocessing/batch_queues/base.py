@@ -119,7 +119,7 @@ class SingleBatchQueue(AbstractBatchQueue):
 
         Parameters
         ----------
-        high_res : np.ndarray
+        high_res : T_Array
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
@@ -138,7 +138,7 @@ class SingleBatchQueue(AbstractBatchQueue):
 
         Returns
         -------
-        low_res : np.ndarray
+        low_res : T_Array
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)

@@ -11,7 +11,7 @@ from sup3r.preprocessing.samplers.base import Sampler
 logger = logging.getLogger(__name__)
 
 
-class DualSampler(Container, Sampler):
+class DualSampler(Container):
     """Pair of sampler objects, one for low resolution and one for high
     resolution, initialized from a :class:`Container` object with low and high
     resolution :class:`Data` objects."""

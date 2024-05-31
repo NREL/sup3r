@@ -1,6 +1,7 @@
 """Composite objects built from loaders, extracters, and derivers."""
 
-from .exo import ExoData, ExogenousDataHandler
+from .base import ExoData, SingleExoDataStep
+from .exo import ExogenousDataHandler
 from .factory import (
     DataHandlerH5,
     DataHandlerNC,

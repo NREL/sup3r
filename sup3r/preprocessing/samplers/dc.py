@@ -75,7 +75,7 @@ class DataCentricSampler(Sampler):
 
         Returns
         -------
-        observation : np.ndarray
+        observation : T_Array
             4D array
             (spatial_1, spatial_2, temporal, features)
         """

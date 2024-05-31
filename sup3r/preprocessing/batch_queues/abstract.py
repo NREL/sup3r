@@ -4,6 +4,7 @@ import logging
 import threading
 import time
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -12,30 +13,32 @@ from rex import safe_json_load
 
 from sup3r.preprocessing.collections.samplers import SamplerCollection
 from sup3r.preprocessing.samplers import DualSampler, Sampler
+from sup3r.typing import T_Array
 
 logger = logging.getLogger(__name__)
 
 
+@dataclass
 class Batch:
-    """Basic single batch object, containing low_res and high_res data"""
+    """Basic single batch object, containing low_res and high_res data
 
-    def __init__(self, low_res, high_res):
-        """Store low and high res data
+    Parameters
+    ----------
+    low_res : T_Array
+        4D | 5D array
+        (batch_size, spatial_1, spatial_2, features)
+        (batch_size, spatial_1, spatial_2, temporal, features)
+    high_res : T_Array
+        4D | 5D array
+        (batch_size, spatial_1, spatial_2, features)
+        (batch_size, spatial_1, spatial_2, temporal, features)
+    """
 
-        Parameters
-        ----------
-        low_res : np.ndarray
-            4D | 5D array
-            (batch_size, spatial_1, spatial_2, features)
-            (batch_size, spatial_1, spatial_2, temporal, features)
-        high_res : np.ndarray
-            4D | 5D array
-            (batch_size, spatial_1, spatial_2, features)
-            (batch_size, spatial_1, spatial_2, temporal, features)
-        """
-        self.low_res = low_res
-        self.high_res = high_res
-        self.shape = (low_res.shape, high_res.shape)
+    low_res: T_Array
+    high_res: T_Array
+
+    def __post_init__(self):
+        self.shape = (self.low_res.shape, self.high_res.shape)
 
     def __len__(self):
         """Get the number of samples in this batch."""
@@ -260,9 +263,10 @@ class AbstractBatchQueue(SamplerCollection, ABC):
 
     def start(self) -> None:
         """Start thread to keep sample queue full for batches."""
-        logger.info(f'Starting {self.queue_thread.name} queue.')
-        self.run_queue.set()
-        self.queue_thread.start()
+        if not self.queue_thread.is_alive():
+            logger.info(f'Starting {self.queue_thread.name} queue.')
+            self.run_queue.set()
+            self.queue_thread.start()
 
     def join(self) -> None:
         """Join thread to exit gracefully."""
@@ -273,9 +277,10 @@ class AbstractBatchQueue(SamplerCollection, ABC):
 
     def stop(self) -> None:
         """Stop loading batches."""
-        logger.info(f'Stopping {self.queue_thread.name} queue.')
-        self.run_queue.clear()
-        self.join()
+        if self.queue_thread.is_alive():
+            logger.info(f'Stopping {self.queue_thread.name} queue.')
+            self.run_queue.clear()
+            self.join()
 
     def __len__(self):
         return self.n_batches

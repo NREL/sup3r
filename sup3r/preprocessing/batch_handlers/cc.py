@@ -104,13 +104,13 @@ class BatchHandlerCC(BatchHandler):
 
         Parameters
         ----------
-        high_res : np.ndarray
+        high_res : T_Array
             5D array with dimensions (n_obs, spatial_1, spatial_2, temporal,
             n_features) where temporal >= 24 (set by the data handler).
 
         Returns
         -------
-        high_res : np.ndarray
+        high_res : T_Array
             5D array with dimensions (n_obs, spatial_1, spatial_2, temporal,
             n_features) where temporal has been reduced down to the integer
             self.sub_daily_shape. For example if the input temporal shape is 72

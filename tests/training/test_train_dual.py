@@ -73,7 +73,7 @@ def test_train(
     lr_handler = DataHandlerNC(
         file_paths=FP_ERA,
         features=FEATURES,
-        time_slice=slice(None, None, 40),
+        time_slice=slice(None, None, 10),
     )
 
     dual_extracter = DualExtracter(

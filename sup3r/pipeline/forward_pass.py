@@ -152,7 +152,7 @@ class ForwardPass:
 
         Parameters
         ----------
-        input_data : np.ndarray
+        input_data : T_Array
             Source input data from data handler class, shape is:
             (spatial_1, spatial_2, temporal, features)
         pad_width : tuple
@@ -169,7 +169,7 @@ class ForwardPass:
 
         Returns
         -------
-        out : np.ndarray
+        out : T_Array
             Padded copy of source input data from data handler class, shape is:
             (spatial_1, spatial_2, temporal, features)
         exo_data : dict
@@ -225,17 +225,17 @@ class ForwardPass:
 
         Parameters
         ----------
-        data : np.ndarray
+        data : T_Array
             Any source data to be bias corrected, with the feature channel in
             the last axis.
-        lat_lon : np.ndarray
+        lat_lon : T_Array
             Latitude longitude array for the given data. Used to get the
             correct bc factors for the appropriate domain.
             (n_lats, n_lons, 2)
 
         Returns
         -------
-        data : np.ndarray
+        data : T_Array
             Data corrected by the bias_correct_method ready for input to the
             forward pass through the generative model.
         """
@@ -369,7 +369,7 @@ class ForwardPass:
         ----------
         model : Sup3rGan
             Sup3rGan or similar sup3r model
-        data_chunk : np.ndarray
+        data_chunk : T_Array
             Low resolution data for a single spatiotemporal chunk that is going
             to be passed to the model generate function.
         exo_data : dict | None
@@ -384,7 +384,7 @@ class ForwardPass:
 
         Returns
         -------
-        data_chunk : np.ndarray
+        data_chunk : T_Array
             Same as input but reshaped to (temporal, spatial_1, spatial_2,
             features) if the model is a spatial-first model or
             (n_obs, spatial_1, spatial_2, temporal, features) if the

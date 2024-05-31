@@ -65,7 +65,10 @@ class Container:
     def features(self):
         """Features in this container."""
         if not self._features or 'all' in self._features:
-            self._features = self.data.features
+            if self.is_multi_container:
+                self._features = self.check_shared_attr('features')
+            else:
+                self._features = self.data.features
         return self._features
 
     @features.setter
@@ -80,26 +83,20 @@ class Container:
             return tuple([d[key] for d, key in zip(self.data, keys)])
         return self.data[keys]
 
-    def get_multi_attr(self, attr):
-        """Check if all Data objects contained have the same value for
-        `attr` and return attribute."""
-        msg = (
-            f'Requested {attr} attribute from a container with '
-            f'{len(self.data)} Data objects but these objects do not all '
-            f'have the same value for {attr}.'
-        )
-        attr = getattr(self.data[0], attr, None)
-        check = all(getattr(d, attr, None) == attr for d in self.data)
-        if not check:
-            logger.error(msg)
-            raise ValueError(msg)
-        return attr
+    def check_shared_attr(self, attr):
+        """Check if all :class:`Data` members have the same value for
+        `attr`."""
+        msg = (f'Requested attribute {attr} but not all Data members have '
+               'the same value.')
+        out = getattr(self.data[0], attr)
+        assert all(getattr(d, attr) == out for d in self.data), msg
+        return out
 
     def __getattr__(self, attr):
         if attr in dir(self):
             return self.__getattribute__(attr)
         if self.is_multi_container:
-            return self.get_multi_attr(attr)
+            return self.check_shared_attr(attr)
         if hasattr(self.data, attr):
             return getattr(self.data, attr)
         raise AttributeError

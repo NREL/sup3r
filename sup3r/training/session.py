@@ -1,4 +1,7 @@
-"""Multi-threaded training session."""
+"""Multi-threaded training session.
+
+TODO: Flesh this out to walk through users for implementation.
+"""
 import threading
 from time import sleep
 
@@ -16,12 +19,11 @@ class TrainingSession:
                                              kwargs=kwargs)
 
         self.train_thread.start()
+        self.batch_handler.start()
 
         try:
             while True:
                 sleep(0.01)
         except KeyboardInterrupt:
             self.train_thread.join()
-            self.batch_handler.queue_thread.join()
-            sleep(5.0)
-            # self.batch_handler.stop()
+            self.batch_handler.stop()
