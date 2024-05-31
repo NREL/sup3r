@@ -23,7 +23,7 @@ class Collection(Container):
         ],
     ):
         self._containers = containers
-        self.data = tuple([c.data for c in self._containers])
+        self.data = tuple(c.data for c in self._containers)
         self.features = self.containers[0].features
 
     @property

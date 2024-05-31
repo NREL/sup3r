@@ -37,19 +37,19 @@ class BatchMom1(Batch):
 
         Parameters
         ----------
-        low_res : np.ndarray
+        low_res : T_Array
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
-        high_res : np.ndarray
+        high_res : T_Array
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
-        output : np.ndarray
+        output : T_Array
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
-        mask : np.ndarray
+        mask : T_Array
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
@@ -89,11 +89,11 @@ class BatchMom1(Batch):
 
         Parameters
         ----------
-        low_res : np.ndarray
+        low_res : T_Array
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
-        high_res : np.ndarray
+        high_res : T_Array
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
@@ -112,7 +112,7 @@ class BatchMom1(Batch):
 
         Returns
         -------
-        HR: np.ndarray
+        HR: T_Array
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
@@ -148,7 +148,7 @@ class BatchMom1(Batch):
 
         Parameters
         ----------
-        high_res : np.ndarray
+        high_res : T_Array
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
@@ -174,7 +174,7 @@ class BatchMom1(Batch):
 
         Returns
         -------
-        mask: np.ndarray
+        mask: T_Array
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
@@ -220,7 +220,7 @@ class BatchMom1(Batch):
 
         Parameters
         ----------
-        high_res : np.ndarray
+        high_res : T_Array
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
@@ -331,11 +331,11 @@ class BatchMom1SF(BatchMom1):
 
         Parameters
         ----------
-        low_res : np.ndarray
+        low_res : T_Array
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
-        high_res : np.ndarray
+        high_res : T_Array
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
@@ -354,7 +354,7 @@ class BatchMom1SF(BatchMom1):
 
         Returns
         -------
-        SF: np.ndarray
+        SF: T_Array
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
@@ -389,11 +389,11 @@ class BatchMom2(BatchMom1):
 
         Parameters
         ----------
-        low_res : np.ndarray
+        low_res : T_Array
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
-        high_res : np.ndarray
+        high_res : T_Array
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
@@ -412,7 +412,7 @@ class BatchMom2(BatchMom1):
 
         Returns
         -------
-        (HR - <HR|LR>)**2: np.ndarray
+        (HR - <HR|LR>)**2: T_Array
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
@@ -443,11 +443,11 @@ class BatchMom2Sep(BatchMom1):
 
         Parameters
         ----------
-        low_res : np.ndarray
+        low_res : T_Array
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
-        high_res : np.ndarray
+        high_res : T_Array
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
@@ -466,7 +466,7 @@ class BatchMom2Sep(BatchMom1):
 
         Returns
         -------
-        HR**2: np.ndarray
+        HR**2: T_Array
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
@@ -504,11 +504,11 @@ class BatchMom2SF(BatchMom1):
 
         Parameters
         ----------
-        low_res : np.ndarray
+        low_res : T_Array
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
-        high_res : np.ndarray
+        high_res : T_Array
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
@@ -527,7 +527,7 @@ class BatchMom2SF(BatchMom1):
 
         Returns
         -------
-        (SF - <SF|LR>)**2: np.ndarray
+        (SF - <SF|LR>)**2: T_Array
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
@@ -564,11 +564,11 @@ class BatchMom2SepSF(BatchMom1SF):
 
         Parameters
         ----------
-        low_res : np.ndarray
+        low_res : T_Array
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
-        high_res : np.ndarray
+        high_res : T_Array
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
@@ -587,7 +587,7 @@ class BatchMom2SepSF(BatchMom1SF):
 
         Returns
         -------
-        SF**2: np.ndarray
+        SF**2: T_Array
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
@@ -713,7 +713,7 @@ class ValidationDataMom1:
 
         Parameters
         ----------
-        high_res : np.ndarray
+        high_res : T_Array
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
@@ -778,12 +778,12 @@ class BatchHandlerMom1(BatchHandler):
         t_enhance : int
             Factor by which to coarsen temporal dimension of the high
             resolution data to generate low res data
-        means : np.ndarray
+        means : T_Array
             dimensions (features)
             array of means for all features with same ordering as data
             features. If not None and norm is True these will be used for
             normalization
-        stds : np.ndarray
+        stds : T_Array
             dimensions (features)
             array of means for all features with same ordering as data
             features.  If not None and norm is True these will be used form

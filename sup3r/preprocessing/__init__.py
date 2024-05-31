@@ -35,10 +35,7 @@ from .batch_handlers import (
     BatchMom2SF,
     DualBatchHandler,
 )
-from .batch_queues import (
-    DualBatchQueue,
-    SingleBatchQueue,
-)
+from .batch_queues import Batch, DualBatchQueue, SingleBatchQueue
 from .cachers import Cacher
 from .collections import Collection, SamplerCollection, StatsCollection
 from .data_handlers import (

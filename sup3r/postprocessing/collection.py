@@ -304,7 +304,7 @@ class CollectorH5(BaseCollector):
 
         Returns
         -------
-        f_data : np.ndarray
+        f_data : T_Array
             Data array from the fpath cast as input dtype.
         row_slice : slice
             final_time_index[row_slice] = new_time_index

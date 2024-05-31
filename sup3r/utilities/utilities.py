@@ -539,7 +539,7 @@ def daily_time_sampler(data, shape, time_index):
 
     Parameters
     ----------
-    data : np.ndarray
+    data : T_Array
         Data array with dimensions
         (spatial_1, spatial_2, temporal, features)
     shape : int
@@ -586,7 +586,7 @@ def nsrdb_sub_daily_sampler(data, shape, time_index, csr_ind=0):
 
     Parameters
     ----------
-    data : np.ndarray
+    data : T_Array
         Data array with dimensions, where [..., csr_ind] is assumed to be
         clearsky ratio with NaN at night.
         (spatial_1, spatial_2, temporal, features)
@@ -633,7 +633,7 @@ def nsrdb_reduce_daily_data(data, shape, csr_ind=0):
 
     Parameters
     ----------
-    data : np.ndarray
+    data : T_Array
         Data array 5D, where [..., csr_ind] is assumed to be
         clearsky ratio with NaN at night.
         (n_obs, spatial_1, spatial_2, temporal, features)
@@ -646,7 +646,7 @@ def nsrdb_reduce_daily_data(data, shape, csr_ind=0):
 
     Returns
     -------
-    data : np.ndarray
+    data : T_Array
         Same as input but with axis=3 reduced to dailylight hours with
         requested shape.
     """
@@ -676,24 +676,24 @@ def transform_rotate_wind(ws, wd, lat_lon):
 
     Parameters
     ----------
-    ws : np.ndarray
+    ws : T_Array
         3D array of high res windspeed data
         (spatial_1, spatial_2, temporal)
-    wd : np.ndarray
+    wd : T_Array
         3D array of high res winddirection data. Angle is in degrees and
         measured relative to the south_north direction.
         (spatial_1, spatial_2, temporal)
-    lat_lon : np.ndarray
+    lat_lon : T_Array
         3D array of lat lon
         (spatial_1, spatial_2, 2)
         Last dimension has lat / lon in that order
 
     Returns
     -------
-    u : np.ndarray
+    u : T_Array
         3D array of high res U data
         (spatial_1, spatial_2, temporal)
-    v : np.ndarray
+    v : T_Array
         3D array of high res V data
         (spatial_1, spatial_2, temporal)
     """
@@ -733,23 +733,23 @@ def invert_uv(u, v, lat_lon):
 
     Parameters
     ----------
-    u : np.ndarray
+    u : T_Array
         3D array of high res U data
         (spatial_1, spatial_2, temporal)
-    v : np.ndarray
+    v : T_Array
         3D array of high res V data
         (spatial_1, spatial_2, temporal)
-    lat_lon : np.ndarray
+    lat_lon : T_Array
         3D array of lat lon
         (spatial_1, spatial_2, 2)
         Last dimension has lat / lon in that order
 
     Returns
     -------
-    ws : np.ndarray
+    ws : T_Array
         3D array of high res windspeed data
         (spatial_1, spatial_2, temporal)
-    wd : np.ndarray
+    wd : T_Array
         3D array of high res winddirection data. Angle is in degrees and
         measured relative to the south_north direction.
         (spatial_1, spatial_2, temporal)
@@ -790,7 +790,7 @@ def temporal_coarsening(data, t_enhance=4, method='subsample'):
 
     Parameters
     ----------
-    data : np.ndarray
+    data : T_Array
         5D array with dimensions
         (observations, spatial_1, spatial_2, temporal, features)
     t_enhance : int
@@ -802,7 +802,7 @@ def temporal_coarsening(data, t_enhance=4, method='subsample'):
 
     Returns
     -------
-    coarse_data : np.ndarray
+    coarse_data : T_Array
         5D array with same dimensions as data with new coarse resolution
     """
 
@@ -894,7 +894,7 @@ def temporal_simple_enhancing(data, t_enhance=4, mode='constant'):
 
     Parameters
     ----------
-    data : np.ndarray
+    data : T_Array
         5D array with dimensions
         (observations, spatial_1, spatial_2, temporal, features)
     t_enhance : int
@@ -904,7 +904,7 @@ def temporal_simple_enhancing(data, t_enhance=4, mode='constant'):
 
     Returns
     -------
-    enhanced_data : np.ndarray
+    enhanced_data : T_Array
         5D array with same dimensions as data with new enhanced resolution
     """
 
@@ -944,7 +944,7 @@ def daily_temporal_coarsening(data, temporal_axis=3):
 
     Parameters
     ----------
-    data : np.ndarray
+    data : T_Array
         Array of data with a temporal axis as determined by the temporal_axis
         input. Example 4D or 5D input shapes:
         (spatial_1, spatial_2, temporal, features)
@@ -955,7 +955,7 @@ def daily_temporal_coarsening(data, temporal_axis=3):
 
     Returns
     -------
-    coarse_data : np.ndarray
+    coarse_data : T_Array
         Array with same dimensions as data with new coarse resolution,
         temporal dimension is size 1
     """
@@ -968,7 +968,7 @@ def smooth_data(low_res, training_features, smoothing_ignore, smoothing=None):
 
     Parameters
     ----------
-    low_res : np.ndarray
+    low_res : T_Array
         4D | 5D array
         (batch_size, spatial_1, spatial_2, features)
         (batch_size, spatial_1, spatial_2, temporal, features)
@@ -986,7 +986,7 @@ def smooth_data(low_res, training_features, smoothing_ignore, smoothing=None):
 
     Returns
     -------
-    low_res : np.ndarray
+    low_res : T_Array
         4D | 5D array
         (batch_size, spatial_1, spatial_2, features)
         (batch_size, spatial_1, spatial_2, temporal, features)
@@ -1017,7 +1017,7 @@ def spatial_coarsening(data, s_enhance=2, obs_axis=True):
 
     Parameters
     ----------
-    data : np.ndarray
+    data : T_Array
         5D | 4D | 3D | 2D array with dimensions:
         (n_obs, spatial_1, spatial_2, temporal, features) (obs_axis=True)
         (n_obs, spatial_1, spatial_2, features) (obs_axis=True)
@@ -1032,7 +1032,7 @@ def spatial_coarsening(data, s_enhance=2, obs_axis=True):
 
     Returns
     -------
-    data : np.ndarray
+    data : T_Array
         2D, 3D | 4D | 5D array with same dimensions as data with new coarse
         resolution
     """
@@ -1129,7 +1129,7 @@ def spatial_simple_enhancing(data, s_enhance=2, obs_axis=True):
 
     Parameters
     ----------
-    data : np.ndarray
+    data : T_Array
         5D | 4D | 3D array with dimensions:
         (n_obs, spatial_1, spatial_2, temporal, features) (obs_axis=True)
         (n_obs, spatial_1, spatial_2, features) (obs_axis=True)
@@ -1143,7 +1143,7 @@ def spatial_simple_enhancing(data, s_enhance=2, obs_axis=True):
 
     Returns
     -------
-    enhanced_data : np.ndarray
+    enhanced_data : T_Array
         3D | 4D | 5D array with same dimensions as data with new enhanced
         resolution
     """
@@ -1199,7 +1199,7 @@ def lat_lon_coarsening(lat_lon, s_enhance=2):
 
     Parameters
     ----------
-    lat_lon : np.ndarray
+    lat_lon : T_Array
         2D array with dimensions
         (spatial_1, spatial_2)
     s_enhance : int
@@ -1207,7 +1207,7 @@ def lat_lon_coarsening(lat_lon, s_enhance=2):
 
     Returns
     -------
-    coarse_lat_lon : np.ndarray
+    coarse_lat_lon : T_Array
         2D array with same dimensions as lat_lon with new coarse resolution
     """
     coarse_lat_lon = lat_lon.reshape(
@@ -1239,12 +1239,12 @@ def nn_fill_array(array):
 
     Parameters
     ----------
-    array : np.ndarray
+    array : T_Array
         Input array with NaN values
 
     Returns
     -------
-    array : np.ndarray
+    array : T_Array
         Output array with NaN values filled
     """
 

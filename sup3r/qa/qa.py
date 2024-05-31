@@ -356,10 +356,10 @@ class Sup3rQa:
 
         Parameters
         ----------
-        data : np.ndarray
+        data : T_Array
             Any source data to be bias corrected, with the feature channel in
             the last axis.
-        lat_lon : np.ndarray
+        lat_lon : T_Array
             Latitude longitude array for the given data. Used to get the
             correct bc factors for the appropriate domain.
             (n_lats, n_lons, 2)
@@ -368,7 +368,7 @@ class Sup3rQa:
 
         Returns
         -------
-        data : np.ndarray
+        data : T_Array
             Data corrected by the bias_correct_method ready for input to the
             forward pass through the generative model.
         """
@@ -462,7 +462,7 @@ class Sup3rQa:
 
         Returns
         -------
-        out : np.ndarray
+        out : T_Array
             A copy of the high-resolution output data as a numpy
             array of shape (spatial_1, spatial_2, temporal)
         """
@@ -493,13 +493,13 @@ class Sup3rQa:
             Feature index
         feature : str
             Feature name
-        data : np.ndarray
+        data : T_Array
             A copy of the high-resolution output data as a numpy
             array of shape (spatial_1, spatial_2, temporal)
 
         Returns
         -------
-        data : np.ndarray
+        data : T_Array
             A spatiotemporally coarsened copy of the input dataset, still with
             shape (spatial_1, spatial_2, temporal)
         """
@@ -577,7 +577,7 @@ class Sup3rQa:
         ----------
         qa_fp : str | None
             Optional filepath to output QA file (only .h5 is supported)
-        data : np.ndarray
+        data : T_Array
             An array with shape (space1, space2, time) that represents the
             re-coarsened synthetic data minus the source true low-res data, or
             another dataset of the same shape to be written to disk

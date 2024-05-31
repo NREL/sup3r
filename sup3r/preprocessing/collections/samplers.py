@@ -27,38 +27,23 @@ class SamplerCollection(Collection):
         super().__init__(containers=samplers)
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
-        self.check_shape_consistency()
+        self.container_index = self.get_container_index()
+        _ = self.check_shared_attr('sample_shape')
 
     def __getattr__(self, attr):
         """Get attributes from self or the first container in the
         collection."""
         if attr in dir(self):
             return self.__getattribute__(attr)
-        return self.get_multi_attr(attr)
+        return self.check_shared_attr(attr)
 
-    def get_multi_attr(self, attr):
+    def check_shared_attr(self, attr):
         """Check if all containers have the same value for `attr`."""
-        msg = (
-            f'Requested {attr} attribute from a collection with '
-            f'{len(self.containers)} container objects but these objects do '
-            f'not all have the same value for {attr}.'
-        )
+        msg = ('Not all containers in the collection have the same value for '
+               f'{attr}')
         out = getattr(self.containers[0], attr, None)
-        check = all(getattr(c, attr, None) == out for c in self.containers)
-        if not check:
-            logger.error(msg)
-            raise ValueError(msg)
+        assert all(getattr(c, attr, None) == out for c in self.containers), msg
         return out
-
-    def check_shape_consistency(self):
-        """Make sure all samplers in the collection have the same sample
-        shape."""
-        sample_shapes = [c.sample_shape for c in self.containers]
-        msg = (
-            'All samplers must have the same sample_shape. Received '
-            'inconsistent collection.'
-        )
-        assert all(s == sample_shapes[0] for s in sample_shapes), msg
 
     def get_container_index(self):
         """Get random container index based on weights"""

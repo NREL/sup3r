@@ -28,6 +28,7 @@ from sup3r.preprocessing import (
     ExogenousDataHandler,
 )
 from sup3r.preprocessing.common import log_args
+from sup3r.typing import T_Array
 from sup3r.utilities.execution import DistributedProcess
 from sup3r.utilities.utilities import (
     expand_paths,
@@ -43,13 +44,13 @@ class ForwardPassChunk:
     """Structure storing chunk data and attributes for a specific chunk going
     through the generator."""
 
-    input_data: np.ndarray
+    input_data: T_Array
     exo_data: Dict
     hr_crop_slice: slice
     lr_pad_slice: slice
-    hr_lat_lon: np.ndarray
+    hr_lat_lon: T_Array
     hr_times: pd.DatetimeIndex
-    gids: np.ndarray
+    gids: T_Array
     out_file: str
     pad_width: Tuple[tuple, tuple, tuple]
     index: int
