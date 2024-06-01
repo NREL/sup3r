@@ -326,7 +326,7 @@ class ExoExtract(ABC):
         )
         tmp_fp = cache_fp + f'.{generate_random_string(10)}.tmp'
         if os.path.exists(cache_fp):
-            data = LoaderNC(cache_fp)[self.__class__.__name__]
+            data = LoaderNC(cache_fp)[self.__class__.__name__.lower()].data
 
         else:
             data = self.get_data()
@@ -372,7 +372,7 @@ class TopoExtractH5(ExoExtract):
         """Get the 1D array of elevation data from the exo_source_h5"""
         if self._source_data is None:
             with LoaderH5(self._exo_source) as res:
-                self._source_data = res['topography'][..., None]
+                self._source_data = res['topography'].data[..., None]
         return self._source_data
 
     @property
@@ -479,7 +479,7 @@ class TopoExtractNC(TopoExtractH5):
     @property
     def source_data(self):
         """Get the 1D array of elevation data from the exo_source_nc"""
-        return self.source_handler['topography'].flatten()[..., None]
+        return self.source_handler['topography'].data.flatten()[..., None]
 
     @property
     def source_lat_lon(self):

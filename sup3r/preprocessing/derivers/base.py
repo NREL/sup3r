@@ -8,9 +8,8 @@ from inspect import signature
 import dask.array as da
 import xarray as xr
 
-from sup3r.preprocessing.abstract import Data
+from sup3r.preprocessing.abstract import Data, XArrayWrapper
 from sup3r.preprocessing.base import Container
-from sup3r.preprocessing.common import lowered
 from sup3r.preprocessing.derivers.methods import (
     RegistryBase,
 )
@@ -82,10 +81,10 @@ class BaseDeriver(Container):
         if FeatureRegistry is not None:
             self.FEATURE_REGISTRY = FeatureRegistry
 
-        super().__init__(data=data)
-        for f in lowered(features):
-            self.data[f] = self.derive(f)
-        self.data = self.data.slice_dset(features=features)
+        super().__init__(data=data, features=features)
+        for f in self.features:
+            self.data[f] = self.derive(f).data
+        self.data = self.data.slice_dset(features=self.features)
 
     def _check_for_compute(self, feature):
         """Get compute method from the registry if available. Will check for
@@ -135,7 +134,7 @@ class BaseDeriver(Container):
         )
         return new_feature
 
-    def derive(self, feature):
+    def derive(self, feature) -> xr.DataArray:
         """Routine to derive requested features. Employs a little recursion to
         locate differently named features with a name map in the feture
         registry. i.e. if  `FEATURE_REGISTRY` containers a key, value pair like
@@ -234,7 +233,7 @@ class BaseDeriver(Container):
                 'data needs to include "level" (a.k.a pressure at multiple '
                 'levels).'
             )
-            assert 'level' in self.data.dset, msg
+            assert 'level' in self.data, msg
             lev_array = da.broadcast_to(self.data['level'], var_array.shape)
 
         lev_array, var_array = self.add_single_level_data(
@@ -280,13 +279,13 @@ class Deriver(BaseDeriver):
             }
             data_vars = {}
             for feat in self.features:
-                dat = self.data[feat]
+                dat = self.data[feat].data
                 data_vars[feat] = (
-                    (self.dims[: len(dat.shape)]),
+                    (self.data[feat].dims),
                     spatial_coarsening(
                         dat,
                         s_enhance=hr_spatial_coarsen,
                         obs_axis=False,
                     ),
                 )
-            self.data = Data(xr.Dataset(coords=coords, data_vars=data_vars))
+            self.data = XArrayWrapper(coords=coords, data_vars=data_vars)

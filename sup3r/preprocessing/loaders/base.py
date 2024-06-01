@@ -59,7 +59,7 @@ class Loader(Container, ABC):
             Note: The ordering here corresponds to the default ordering given
             by `.res`.
         """
-        super().__init__(features=features)
+        super().__init__()
         self._res = None
         self._data = None
         self.res_kwargs = res_kwargs or {}
@@ -69,7 +69,6 @@ class Loader(Container, ABC):
         self.data = self.rename(self.load(), self.FEATURE_NAMES).astype(
             np.float32
         )
-        features = list(self.data.features) if features == 'all' else features
         self.data = self.data.slice_dset(features=features)
 
     def __enter__(self):

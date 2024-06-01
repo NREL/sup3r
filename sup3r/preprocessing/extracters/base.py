@@ -4,6 +4,7 @@ features on loaded data."""
 import logging
 from abc import ABC, abstractmethod
 
+from sup3r.preprocessing.abstract import XArrayWrapper
 from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.loaders.base import Loader
 
@@ -43,7 +44,7 @@ class Extracter(Container, ABC):
             slice(start, stop, step). If equal to slice(None, None, 1)
         the full time dimension is selected.
         """
-        super().__init__(features=features)
+        super().__init__()
         self.loader = loader
         self.time_slice = time_slice
         self.grid_shape = shape
@@ -117,15 +118,12 @@ class Extracter(Container, ABC):
         coordinate. (lats, lons, 2)"""
 
     @abstractmethod
-    def extract_data(self):
+    def extract_data(self) -> XArrayWrapper:
         """Get extracted data by slicing loader.data with calculated
         raster_index and time_slice.
 
         Returns
         -------
-        xr.Dataset
-            xr.Dataset() object with extracted features. When `self.data` is
-            set with this, `self._data` will be wrapped with
-            :class:`DataWrapper` class so that `self.data` will return a
-            :class:`DataWrapper` object.
+        XArrayWrapper
+            Wrapped xr.Dataset() object with extracted features.
         """

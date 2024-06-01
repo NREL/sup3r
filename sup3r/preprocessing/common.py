@@ -73,16 +73,12 @@ def lowered(features):
     """Return a lower case version of the given str or list of strings. Used to
     standardize storage and lookup of features."""
 
-    features = (
-        [features]
-        if isinstance(features, str)
-        else features
-        if isinstance(features, list)
-        else []
-    )
     feats = (
-        [f.lower() for f in features]
+        features.lower()
+        if isinstance(features, str)
+        else [f.lower() for f in features]
         if isinstance(features, list)
+        and all(isinstance(f, str) for f in features)
         else features
     )
     if features != feats:

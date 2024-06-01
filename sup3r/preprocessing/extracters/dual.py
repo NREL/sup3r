@@ -34,7 +34,7 @@ class DualExtracter(Container):
 
     def __init__(
         self,
-        data: Tuple[Data, Data],
+        data: Data | Tuple[Data, Data],
         regrid_workers=1,
         regrid_lr=True,
         s_enhance=1,
@@ -47,9 +47,10 @@ class DualExtracter(Container):
 
         Parameters
         ----------
-        data : Tuple[Data, Data]
-            Tuple of :class:`Data` instances. The first must be low-res and the
-            second must be high-res data
+        data : Data | Tuple[Data, Data]
+            A :class:`Data` instance with two data members or a tuple of
+            :class`Data` instances each with one member. The first must be
+            low-res and the second must be high-res data
         regrid_workers : int | None
             Number of workers to use for regridding routine.
         regrid_lr : bool
@@ -69,7 +70,6 @@ class DualExtracter(Container):
             Must include 'cache_pattern' key if not None, and can also include
             dictionary of chunk tuples with feature keys
         """
-        super().__init__(data=data)
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
         msg = (
@@ -77,9 +77,10 @@ class DualExtracter(Container):
             'and high resolution in that order. Received inconsistent data '
             'argument.'
         )
-        assert isinstance(data, tuple) and len(data) == 2, msg
-        self.lr_data = data[0]
-        self.hr_data = data[1]
+        assert (
+            isinstance(data, tuple) and len(data) == 2
+        ) or data.n_members == 2, msg
+        self.lr_data, self.hr_data = data
         self.regrid_workers = regrid_workers
         self.lr_time_index = self.lr_data.time_index
         self.hr_time_index = self.hr_data.time_index
@@ -125,6 +126,8 @@ class DualExtracter(Container):
         if hr_cache_kwargs is not None:
             Cacher(self.hr_data, hr_cache_kwargs)
 
+        super().__init__(data=(self.lr_data, self.hr_data))
+
     def update_hr_data(self):
         """Set the high resolution data attribute and check if
         hr_data.shape is divisible by s_enhance. If not, take the largest
@@ -139,7 +142,7 @@ class DualExtracter(Container):
             warn(msg)
 
         hr_data_new = {
-            f: self.hr_data[f][*map(slice, self.hr_required_shape)]
+            f: self.hr_data[f][*map(slice, self.hr_required_shape)].data
             for f in self.lr_data.features
         }
         hr_coords_new = {
@@ -147,7 +150,7 @@ class DualExtracter(Container):
             'longitude': self.hr_lat_lon[..., 1],
             'time': self.hr_data.time_index[: self.hr_required_shape[2]],
         }
-        self.hr_data.update({**hr_coords_new, **hr_data_new})
+        self.hr_data = self.hr_data.init_new({**hr_coords_new, **hr_data_new})
 
     def get_regridder(self):
         """Get regridder object"""
@@ -177,7 +180,7 @@ class DualExtracter(Container):
 
             lr_data_new = {
                 f: regridder(
-                    self.lr_data[f][..., : self.lr_required_shape[2]]
+                    self.lr_data[f][..., : self.lr_required_shape[2]].data
                 ).reshape(self.lr_required_shape)
                 for f in self.lr_data.features
             }
@@ -186,7 +189,9 @@ class DualExtracter(Container):
                 'longitude': self.lr_lat_lon[..., 1],
                 'time': self.lr_data.time_index[: self.lr_required_shape[2]],
             }
-            self.lr_data.update({**lr_coords_new, **lr_data_new})
+            self.lr_data = self.lr_data.init_new(
+                {**lr_coords_new, **lr_data_new}
+            )
 
     def check_regridded_lr_data(self):
         """Check for NaNs after regridding and do NN fill if needed."""

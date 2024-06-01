@@ -10,7 +10,8 @@ import numpy as np
 import xarray as xr
 
 from sup3r.preprocessing.abstract import Data
-from sup3r.preprocessing.common import _log_args, lowered
+from sup3r.preprocessing.common import _log_args
+from sup3r.typing import T_Data
 
 logger = logging.getLogger(__name__)
 
@@ -35,21 +36,13 @@ class Container:
         return instance
 
     @property
-    def is_multi_container(self):
-        """Return true if this is contains more than one :class:`Data`
-        object."""
-        return isinstance(self.data, (tuple, list))
-
-    @property
     def size(self):
         """Get size of contained data. Accounts for possibility of containing
         multiple datasets."""
-        if not self.is_multi_container:
-            return self.data.size
         return np.sum([d.size for d in self.data])
 
     @property
-    def data(self) -> Data:
+    def data(self) -> T_Data:
         """Wrapped xr.Dataset."""
         return self._data
 
@@ -58,45 +51,29 @@ class Container:
         """Wrap given data in :class:`Data` to provide additional
         attributes on top of xr.Dataset."""
         self._data = data
-        if isinstance(data, xr.Dataset):
+        if not isinstance(self._data, Data):
             self._data = Data(self._data)
 
     @property
     def features(self):
         """Features in this container."""
         if not self._features or 'all' in self._features:
-            if self.is_multi_container:
-                self._features = self.check_shared_attr('features')
-            else:
-                self._features = self.data.features
+            self._features = self.data.features
         return self._features
 
     @features.setter
     def features(self, val):
         """Set features in this container."""
-        self._features = lowered(val)
+        self._features = [val] if isinstance(val, str) else val
 
     def __getitem__(self, keys):
         """Method for accessing self.data or attributes. keys can optionally
         include a feature name as the first element of a keys tuple"""
-        if self.is_multi_container:
-            return tuple([d[key] for d, key in zip(self.data, keys)])
         return self.data[keys]
-
-    def check_shared_attr(self, attr):
-        """Check if all :class:`Data` members have the same value for
-        `attr`."""
-        msg = (f'Requested attribute {attr} but not all Data members have '
-               'the same value.')
-        out = getattr(self.data[0], attr)
-        assert all(getattr(d, attr) == out for d in self.data), msg
-        return out
 
     def __getattr__(self, attr):
         if attr in dir(self):
             return self.__getattribute__(attr)
-        if self.is_multi_container:
-            return self.check_shared_attr(attr)
         if hasattr(self.data, attr):
             return getattr(self.data, attr)
         raise AttributeError
