@@ -16,7 +16,7 @@ np.random.seed(42)
 logger = logging.getLogger(__name__)
 
 
-class SamplerH5forCC(Sampler):
+class DualSamplerCC(Sampler):
     """Special sampling for h5 wtk or nsrdb data for climate change
     applications
 
@@ -38,6 +38,12 @@ class SamplerH5forCC(Sampler):
             sample_shape if sample_shape is not None else (10, 10, 24)
         )
         sample_shape = self.check_sample_shape(sample_shape)
+        n_hours = len(container.time_index)
+        n_days = n_hours // 24
+        self.daily_data_slices = [
+            slice(x[0], x[-1] + 1)
+            for x in np.array_split(np.arange(n_hours), n_days)
+        ]
 
         super().__init__(
             data=self.data,
@@ -77,42 +83,35 @@ class SamplerH5forCC(Sampler):
         -----
         This pair of hourly
         and daily observation indices will be used to sample from self.data =
-        (hourly_data, daily_data) through the standard
-        :meth:`Container.__getitem__((obs_ind_hourly, obs_ind_daily))`
+        (daily_data, hourly_data) through the standard
+        :meth:`Container.__getitem__((obs_ind_daily, obs_ind_hourly))` This
+        follows the pattern of (low-res, high-res) ordering.
 
         Returns
         -------
+        obs_ind_daily : tuple
+            Tuple of sampled spatial grid, time slice, and feature names.
+            Used to get single observation like self.data[observation_index].
+            Temporal index (i=2) is a slice of the daily data (self.daily_data)
+            with day integers.
         obs_ind_hourly : tuple
-            Tuple of sampled spatial grid, time slice, and features indices.
+            Tuple of sampled spatial grid, time slice, and feature names.
             Used to get single observation like self.data[observation_index].
             This is for hourly high-res data slicing.
-        obs_ind_daily : tuple
-            Same as obs_ind_hourly but the temporal index (i=2) is a slice of
-            the daily data (self.daily_data) with day integers.
         """
         spatial_slice = uniform_box_sampler(
             self.data.shape, self.sample_shape[:2]
         )
 
         n_days = int(self.sample_shape[2] / 24)
-        rand_day_ind = np.random.choice(
-            len(self.container.daily_data_slices) - n_days
-        )
-        t_slice_0 = self.container.daily_data_slices[rand_day_ind]
-        t_slice_1 = self.container.daily_data_slices[rand_day_ind + n_days - 1]
+        rand_day_ind = np.random.choice(len(self.daily_data_slices) - n_days)
+        t_slice_0 = self.daily_data_slices[rand_day_ind]
+        t_slice_1 = self.daily_data_slices[rand_day_ind + n_days - 1]
         t_slice_hourly = slice(t_slice_0.start, t_slice_1.stop)
         t_slice_daily = slice(rand_day_ind, rand_day_ind + n_days)
 
-        obs_ind_hourly = (
-            *spatial_slice,
-            t_slice_hourly,
-            np.arange(len(self.features)),
-        )
+        obs_ind_hourly = (*spatial_slice, t_slice_hourly, self.features)
 
-        obs_ind_daily = (
-            *spatial_slice,
-            t_slice_daily,
-            np.arange(len(self.features)),
-        )
+        obs_ind_daily = (*spatial_slice, t_slice_daily, self.features)
 
-        return obs_ind_hourly, obs_ind_daily
+        return (obs_ind_daily, obs_ind_hourly)

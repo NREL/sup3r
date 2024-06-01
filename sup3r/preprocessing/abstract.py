@@ -61,8 +61,8 @@ class ArrayTuple(tuple):
 
 class XArrayWrapper(xr.Dataset):
     """Lowest level object. This contains an xarray.Dataset and some methods
-    for selecting data from the dataset. This is the thing contained by
-    :class:`Container` objects."""
+    for selecting data from the dataset. This is the simplest version of the
+    `.data` attribute for :class:`Container` objects."""
 
     __slots__ = [
         '_features',
@@ -294,7 +294,11 @@ def single_member_check(func):
 
 class Data:
     """Interface for interacting with tuples / lists of :class:`XArrayWrapper`
-    objects."""
+    objects. These objects are distinct from :class:`Collection` objects, which
+    also contain multiple data members, because these members have some
+    relationship with each other (they can be low / high res pairs, they can be
+    hourly / daily versions of the same data, etc). Collections contain
+    completely independent instances."""
 
     def __init__(self, data: Union[List[xr.Dataset], List[XArrayWrapper]]):
         if not isinstance(data, (list, tuple)):
