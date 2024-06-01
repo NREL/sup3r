@@ -99,10 +99,12 @@ class DataHandlerH5SolarCC(BaseH5SolarCC):
 
         super().__init__(file_paths, features, **kwargs)
 
-        self.daily_data = DailyH5SolarCC(file_paths, features, **kwargs)
+        self.daily_data = DailyH5SolarCC(file_paths, features, **kwargs).data
         features = [
             f
             for f in self.daily_data.features
             if f not in ('clearsky_ghi', 'ghi')
         ]
+        self.features = features
+        self.data = self.data.slice_dset(features=features)
         self.daily_data = self.daily_data.slice_dset(features=features)

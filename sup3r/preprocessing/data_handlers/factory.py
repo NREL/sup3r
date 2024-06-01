@@ -3,6 +3,8 @@ data."""
 
 import logging
 
+import pandas as pd
+
 from sup3r.preprocessing.cachers import Cacher
 from sup3r.preprocessing.common import FactoryMeta, lowered
 from sup3r.preprocessing.derivers import Deriver
@@ -146,7 +148,9 @@ def DailyDataHandlerFactory(
     )
 
     class DailyHandler(BaseHandler):
-        """General data handler class for daily data."""
+        """General data handler class for daily data. XArrayWrapper coarsen
+        method inherited from xr.Dataset employed to compute averages / mins /
+        maxes over daily windows."""
 
         def _extracter_hook(self):
             """Hook to run daily coarsening calculations after extraction and
@@ -167,13 +171,13 @@ def DailyDataHandlerFactory(
                 'data days.'.format(n_data_days)
             )
             daily_data = self.extracter.data.coarsen(time=24).mean()
-            for fname in self.features:
+            for fname in self.extracter.features:
                 if '_max_' in fname:
-                    self.daily_data[fname] = (
+                    daily_data[fname] = (
                         self.extracter.data[fname].coarsen(time=24).max()
                     )
                 if '_min_' in fname:
-                    self.daily_data[fname] = (
+                    daily_data[fname] = (
                         self.extracter.data[fname].coarsen(time=24).min()
                     )
 
@@ -181,8 +185,12 @@ def DailyDataHandlerFactory(
                 'Finished calculating daily average datasets for {} '
                 'training data days.'.format(n_data_days)
             )
-
             self.extracter.data = daily_data
+            self.extracter.time_index = pd.to_datetime(
+                daily_data.indexes['time']
+            )
+
+    return DailyHandler
 
 
 DataHandlerH5 = DataHandlerFactory(
