@@ -4,15 +4,16 @@ extracted features."""
 import logging
 import re
 from inspect import signature
+from typing import Union
 
 import dask.array as da
-import xarray as xr
 
 from sup3r.preprocessing.abstract import Data, XArrayWrapper
 from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.derivers.methods import (
     RegistryBase,
 )
+from sup3r.typing import T_Array
 from sup3r.utilities.interpolation import Interpolator
 from sup3r.utilities.utilities import spatial_coarsening
 
@@ -83,10 +84,10 @@ class BaseDeriver(Container):
 
         super().__init__(data=data, features=features)
         for f in self.features:
-            self.data[f] = self.derive(f).data
+            self.data[f] = self.derive(f)
         self.data = self.data.slice_dset(features=self.features)
 
-    def _check_for_compute(self, feature):
+    def _check_for_compute(self, feature) -> Union[T_Array, str]:
         """Get compute method from the registry if available. Will check for
         pattern feature match in feature registry. e.g. if U_100m matches a
         feature registry entry of U_(.*)m
@@ -100,7 +101,11 @@ class BaseDeriver(Container):
                     fstruct = parse_feature(feature)
                     inputs = [fstruct.map_wildcard(i) for i in method.inputs]
                     if inputs in self.data:
-                        return self._run_compute(feature, method)
+                        logger.debug(
+                            f'Found compute method for {feature}. Proceeding '
+                            'with derivation.'
+                        )
+                        return self._run_compute(feature, method).data
         return None
 
     def _run_compute(self, feature, method):
@@ -134,7 +139,7 @@ class BaseDeriver(Container):
         )
         return new_feature
 
-    def derive(self, feature) -> xr.DataArray:
+    def derive(self, feature) -> T_Array:
         """Routine to derive requested features. Employs a little recursion to
         locate differently named features with a name map in the feture
         registry. i.e. if  `FEATURE_REGISTRY` containers a key, value pair like
@@ -155,10 +160,6 @@ class BaseDeriver(Container):
                 return self.derive(new_feature)
 
             if compute_check is not None:
-                logger.debug(
-                    f'Found compute method for {feature}. Proceeding '
-                    'with derivation.'
-                )
                 return compute_check
 
             if fstruct.basename in self.data.data_vars:
@@ -171,7 +172,7 @@ class BaseDeriver(Container):
             )
             logger.error(msg)
             raise RuntimeError(msg)
-        return self.data[feature]
+        return self.data[feature].data
 
     def add_single_level_data(self, feature, lev_array, var_array):
         """When doing level interpolation we should include the single level
@@ -210,10 +211,10 @@ class BaseDeriver(Container):
             )
         return lev_array, var_array
 
-    def do_level_interpolation(self, feature):
+    def do_level_interpolation(self, feature) -> T_Array:
         """Interpolate over height or pressure to derive the given feature."""
         fstruct = parse_feature(feature)
-        var_array = self.data[fstruct.basename]
+        var_array = self.data[fstruct.basename].data
         if fstruct.height is not None:
             level = [fstruct.height]
             msg = (
@@ -224,8 +225,12 @@ class BaseDeriver(Container):
                 'zg' in self.data.data_vars
                 and 'topography' in self.data.data_vars
             ), msg
-            lev_array = self.data['zg'] - da.broadcast_to(
-                self.data['topography'].T, self.data['zg'].T.shape).T
+            lev_array = (
+                self.data['zg'].data
+                - da.broadcast_to(
+                    self.data['topography'].data.T, self.data['zg'].T.shape
+                ).T
+            )
         else:
             level = [fstruct.pressure]
             msg = (
@@ -234,7 +239,9 @@ class BaseDeriver(Container):
                 'levels).'
             )
             assert 'level' in self.data, msg
-            lev_array = da.broadcast_to(self.data['level'], var_array.shape)
+            lev_array = da.broadcast_to(
+                self.data['level'].data, var_array.shape
+            )
 
         lev_array, var_array = self.add_single_level_data(
             feature, lev_array, var_array
@@ -268,9 +275,9 @@ class Deriver(BaseDeriver):
             coords = self.data.coords
             coords = {
                 coord: (
-                    self.dims[:2],
+                    (self.data[coord].dims),
                     spatial_coarsening(
-                        self.data[coord],
+                        self.data[coord].data,
                         s_enhance=hr_spatial_coarsen,
                         obs_axis=False,
                     ),
@@ -279,11 +286,10 @@ class Deriver(BaseDeriver):
             }
             data_vars = {}
             for feat in self.features:
-                dat = self.data[feat].data
                 data_vars[feat] = (
                     (self.data[feat].dims),
                     spatial_coarsening(
-                        dat,
+                        self.data[feat].data,
                         s_enhance=hr_spatial_coarsen,
                         obs_axis=False,
                     ),

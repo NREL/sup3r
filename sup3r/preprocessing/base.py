@@ -10,7 +10,7 @@ import numpy as np
 import xarray as xr
 
 from sup3r.preprocessing.abstract import Data
-from sup3r.preprocessing.common import _log_args
+from sup3r.preprocessing.common import _log_args, lowered
 from sup3r.typing import T_Data
 
 logger = logging.getLogger(__name__)
@@ -64,7 +64,9 @@ class Container:
     @features.setter
     def features(self, val):
         """Set features in this container."""
-        self._features = [val] if isinstance(val, str) else val
+        self._features = (
+            lowered([val]) if isinstance(val, str) else lowered(val)
+        )
 
     def __getitem__(self, keys):
         """Method for accessing self.data or attributes. keys can optionally

@@ -51,10 +51,15 @@ def test_height_interp_nc(DirectExtracter, Deriver, shape, target):
 
         transform = Deriver(no_transform.data, derive_features)
 
-        hgt_array = no_transform['zg'] - no_transform['topography'][..., None]
-        out = Interpolator.interp_to_level(hgt_array, no_transform['u'], [100])
+        hgt_array = (
+            no_transform['zg'].data
+            - no_transform['topography'].data[..., None]
+        )
+        out = Interpolator.interp_to_level(
+            hgt_array, no_transform['u'].data, [100]
+        )
 
-    assert np.array_equal(out, transform.data['u_100m'])
+    assert np.array_equal(out, transform.data['u_100m'].data)
 
 
 @pytest.mark.parametrize(
@@ -88,16 +93,19 @@ def test_height_interp_with_single_lev_data_nc(
             derive_features,
         )
 
-    hgt_array = no_transform['zg'] - no_transform['topography'][..., None]
+    hgt_array = (
+        no_transform['zg'].data - no_transform['topography'].data[..., None]
+    )
     h10 = np.zeros(hgt_array.shape[:-1])[..., None]
     h10[:] = 10
     hgt_array = np.concatenate([hgt_array, h10], axis=-1)
     u = np.concatenate(
-        [no_transform['u'], no_transform['u_10m'][..., None]], axis=-1
+        [no_transform['u'].data, no_transform['u_10m'].data[..., None]],
+        axis=-1,
     )
     out = Interpolator.interp_to_level(hgt_array, u, [100])
 
-    assert np.array_equal(out, transform.data['u_100m'])
+    assert np.array_equal(out, transform.data['u_100m'].data)
 
 
 if __name__ == '__main__':

@@ -31,6 +31,11 @@ class ExogenousDataHandler:
     Multiple topography arrays at different resolutions for multiple spatial
     enhancement steps.
 
+    This takes a list of models and information about model
+    steps and uses that info to compute needed enhancement factors for each
+    step and extract exo data corresponding to those enhancement factors. The
+    list of steps are then updated with the exo data for each step.
+
     Parameters
     ----------
     file_paths : str | list
@@ -143,42 +148,7 @@ class ExogenousDataHandler:
         self.s_agg_factors = agg_enhance['s_agg_factors']
         self.t_agg_factors = agg_enhance['t_agg_factors']
         self.step_number_check()
-
-        for i, _ in enumerate(self.s_enhancements):
-            s_enhance = self.s_enhancements[i]
-            t_enhance = self.t_enhancements[i]
-            s_agg_factor = self.s_agg_factors[i]
-            t_agg_factor = self.t_agg_factors[i]
-            if self.feature in list(self.AVAILABLE_HANDLERS):
-                data = self.get_exo_data(
-                    feature=self.feature,
-                    s_enhance=s_enhance,
-                    t_enhance=t_enhance,
-                    s_agg_factor=s_agg_factor,
-                    t_agg_factor=t_agg_factor,
-                )
-                step = SingleExoDataStep(
-                    self.feature,
-                    self.steps[i]['combine_type'],
-                    self.steps[i]['model'],
-                    data,
-                )
-                self.data[self.feature]['steps'].append(step)
-            else:
-                msg = (
-                    f'Can only extract {list(self.AVAILABLE_HANDLERS)}. '
-                    f'Received {self.feature}.'
-                )
-                raise NotImplementedError(msg)
-        shapes = [
-            None if step is None else step.shape
-            for step in self.data[self.feature]['steps']
-        ]
-        logger.info(
-            'Got exogenous_data of length {} with shapes: {}'.format(
-                len(self.data[self.feature]['steps']), shapes
-            )
-        )
+        self.get_step_data()
 
     def input_check(self):
         """Make sure agg factors are provided or exo_resolution and models are
@@ -225,6 +195,44 @@ class ExogenousDataHandler:
             'step. If the step is temporal enhancement then s_enhance=1'
         )
         assert not any(s is None for s in self.s_enhancements), msg
+
+    def get_all_step_data(self):
+        """Get exo data for each model step."""
+        for i, _ in enumerate(self.s_enhancements):
+            s_enhance = self.s_enhancements[i]
+            t_enhance = self.t_enhancements[i]
+            s_agg_factor = self.s_agg_factors[i]
+            t_agg_factor = self.t_agg_factors[i]
+            if self.feature in list(self.AVAILABLE_HANDLERS):
+                data = self.get_single_step_data(
+                    feature=self.feature,
+                    s_enhance=s_enhance,
+                    t_enhance=t_enhance,
+                    s_agg_factor=s_agg_factor,
+                    t_agg_factor=t_agg_factor,
+                )
+                step = SingleExoDataStep(
+                    self.feature,
+                    self.steps[i]['combine_type'],
+                    self.steps[i]['model'],
+                    data,
+                )
+                self.data[self.feature]['steps'].append(step)
+            else:
+                msg = (
+                    f'Can only extract {list(self.AVAILABLE_HANDLERS)}. '
+                    f'Received {self.feature}.'
+                )
+                raise NotImplementedError(msg)
+        shapes = [
+            None if step is None else step.shape
+            for step in self.data[self.feature]['steps']
+        ]
+        logger.info(
+            'Got exogenous_data of length {} with shapes: {}'.format(
+                len(self.data[self.feature]['steps']), shapes
+            )
+        )
 
     def _get_res_ratio(self, input_res, exo_res):
         """Compute resolution ratio given input and output resolution
@@ -426,7 +434,7 @@ class ExogenousDataHandler:
         ]
         return agg_enhance_dict
 
-    def get_exo_data(
+    def get_single_step_data(
         self, feature, s_enhance, t_enhance, s_agg_factor, t_agg_factor
     ):
         """Get the exogenous topography data
