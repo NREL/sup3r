@@ -79,10 +79,10 @@ def test_unneeded_uv_transform(
     deriver = Deriver(extracter.data, features=derive_features)
 
     assert da.map_blocks(
-        lambda x, y: x == y, extracter['U_100m'], deriver['U_100m']
+        lambda x, y: x == y, extracter['U_100m'].data, deriver['U_100m'].data
     ).all()
     assert da.map_blocks(
-        lambda x, y: x == y, extracter['V_100m'], deriver['V_100m']
+        lambda x, y: x == y, extracter['V_100m'].data, deriver['V_100m'].data
     ).all()
 
 
@@ -117,7 +117,7 @@ def test_uv_transform(input_files, DirectExtracter, Deriver, shape, target):
     u, v = transform_rotate_wind(
         extracter['windspeed_100m'],
         extracter['winddirection_100m'],
-        extracter['lat_lon'],
+        extracter.lat_lon,
     )
     assert np.array_equal(u, deriver['U_100m'])
     assert np.array_equal(v, deriver['V_100m'])

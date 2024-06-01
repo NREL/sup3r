@@ -5,6 +5,7 @@ from warnings import warn
 
 import dask.array as da
 import numpy as np
+import xarray as xr
 
 logger = logging.getLogger(__name__)
 
@@ -58,15 +59,17 @@ class Interpolator:
         return mask1, mask2
 
     @classmethod
-    def interp_to_level(cls, lev_array, var_array, level):
+    def interp_to_level(
+        cls, lev_array: xr.DataArray, var_array: xr.DataArray, level
+    ):
         """Interpolate var_array to the given level.
 
         Parameters
         ----------
-        var_array : ndarray
+        var_array : xr.DataArray
             Array of variable data, for example u-wind in a 4D array of shape
             (lat, lon, time, level)
-        lev_array : ndarray
+        lev_array : xr.DataArray
             Height or pressure values for the corresponding entries in
             var_array, in the same shape as var_array. If this is height and
             the requested levels are hub heights above surface, lev_array
@@ -107,8 +110,8 @@ class Interpolator:
         nans = np.isnan(lev_array)
         logger.debug('Level array shape: {}'.format(lev_array.shape))
 
-        lowest_height = np.min(lev_array[0, ...])
-        highest_height = np.max(lev_array[0, ...])
+        lowest_height = np.min(lev_array, axis=-1)
+        highest_height = np.max(lev_array, axis=-1)
         bad_min = min(levels) < lowest_height
         bad_max = max(levels) > highest_height
 
@@ -137,8 +140,8 @@ class Interpolator:
                 '(maximum value of {:.3f}, minimum value of {:.3f}) '
                 'were greater than the minimum requested level: {}'.format(
                     100 * bad_min.sum() / bad_min.size,
-                    lev_array[:, 0, :, :].max(),
-                    lev_array[:, 0, :, :].min(),
+                    lev_array[..., 0].max(),
+                    lev_array[..., 0].min(),
                     min(levels),
                 )
             )
@@ -155,8 +158,8 @@ class Interpolator:
                 '(minimum value of {:.3f}, maximum value of {:.3f}) '
                 'were lower than the maximum requested level: {}'.format(
                     100 * bad_max.sum() / bad_max.size,
-                    lev_array[:, -1, :, :].min(),
-                    lev_array[:, -1, :, :].max(),
+                    lev_array[..., -1].min(),
+                    lev_array[..., -1].max(),
                     max(levels),
                 )
             )
