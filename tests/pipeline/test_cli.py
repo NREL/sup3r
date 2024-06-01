@@ -4,6 +4,7 @@ import glob
 import json
 import os
 import tempfile
+import traceback
 
 import numpy as np
 import pytest
@@ -108,7 +109,6 @@ def test_pipeline_fwp_collect(runner, input_files, log=False):
         result = runner.invoke(pipe_main, ['-c', pipe_config_path, '-v',
                                            '--monitor'])
         if result.exit_code != 0:
-            import traceback
             msg = ('Failed with error {}'
                    .format(traceback.print_exception(*result.exc_info)))
             raise RuntimeError(msg)
@@ -159,7 +159,6 @@ def test_data_collection_cli(runner):
         result = runner.invoke(dc_main, ['-c', config_path, '-v'])
 
         if result.exit_code != 0:
-            import traceback
             msg = ('Failed with error {}'
                    .format(traceback.print_exception(*result.exc_info)))
             raise RuntimeError(msg)
@@ -253,7 +252,6 @@ def test_fwd_pass_cli(runner, input_files, log=False):
         result = runner.invoke(fwp_main, ['-c', config_path, '-v'])
 
         if result.exit_code != 0:
-            import traceback
             msg = ('Failed with error {}'
                    .format(traceback.print_exception(*result.exc_info)))
             raise RuntimeError(msg)
@@ -339,7 +337,6 @@ def test_pipeline_fwp_qa(runner, input_files, log=False):
         result = runner.invoke(pipe_main, ['-c', pipe_config_path, '-v',
                                            '--monitor'])
         if result.exit_code != 0:
-            import traceback
             msg = ('Failed with error {}'
                    .format(traceback.print_exception(*result.exc_info)))
             raise RuntimeError(msg)

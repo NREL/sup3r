@@ -8,6 +8,7 @@ from abc import ABC
 import numpy as np
 
 from sup3r.preprocessing.abstract import XArrayWrapper
+from sup3r.preprocessing.common import Dimension
 from sup3r.preprocessing.extracters.base import Extracter
 from sup3r.preprocessing.loaders import LoaderH5
 
@@ -80,20 +81,20 @@ class BaseExtracterH5(Extracter, ABC):
         TODO: Generalize this to handle non-flattened H5 data. Would need to
         encapsulate the flatten call somewhere.
         """
-        dims = ('south_north', 'west_east')
+        dims = (Dimension.SOUTH_NORTH, Dimension.WEST_EAST)
         coords = {
-            'latitude': (dims, self.lat_lon[..., 0]),
-            'longitude': (dims, self.lat_lon[..., 1]),
-            'time': self.time_index,
+            Dimension.LATITUDE: (dims, self.lat_lon[..., 0]),
+            Dimension.LONGITUDE: (dims, self.lat_lon[..., 1]),
+            Dimension.TIME: self.time_index,
         }
         data_vars = {}
         for f in self.loader.features:
             dat = self.loader[f].data[self.raster_index.flatten()]
-            if 'time' in self.loader[f].dims:
+            if Dimension.TIME in self.loader[f].dims:
                 dat = dat[..., self.time_slice].reshape(
                     (*self.grid_shape, len(self.time_index))
                 )
-                data_vars[f] = ((*dims, 'time'), dat)
+                data_vars[f] = ((*dims, Dimension.TIME), dat)
             else:
                 dat = dat.reshape(self.grid_shape)
                 data_vars[f] = (dims, dat)

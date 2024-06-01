@@ -73,7 +73,7 @@ class ClearSkyRatioH5(DerivedFeature):
 
         # set any timestep with any nighttime equal to NaN to avoid weird
         # sunrise/sunset artifacts.
-        night_mask = night_mask.any(axis=(0, 1))
+        night_mask = night_mask.any(axis=(0, 1)).compute()
         container['clearsky_ghi'][..., night_mask] = np.nan
 
         cs_ratio = container['ghi'] / container['clearsky_ghi']
@@ -130,7 +130,7 @@ class CloudMaskH5(DerivedFeature):
 
         # set any timestep with any nighttime equal to NaN to avoid weird
         # sunrise/sunset artifacts.
-        night_mask = night_mask.any(axis=(0, 1))
+        night_mask = night_mask.any(axis=(0, 1)).compute()
 
         cloud_mask = container['ghi'] < container['clearsky_ghi']
         cloud_mask = cloud_mask.astype(np.float32)
@@ -280,6 +280,42 @@ class VWind(DerivedFeature):
         return v
 
 
+class USolar(DerivedFeature):
+    """U wind component feature class with needed inputs method and compute
+    method for NSRDB data (which has just a single windspeed hub height)
+    """
+
+    inputs = ('wind_speed', 'wind_direction')
+
+    @classmethod
+    def compute(cls, container):
+        """Method to compute U wind component from data"""
+        u, _ = transform_rotate_wind(
+            container['wind_speed'],
+            container['wind_direction'],
+            container.lat_lon,
+        )
+        return u
+
+
+class VSolar(DerivedFeature):
+    """V wind component feature class with needed inputs method and compute
+    method for NSRDB data (which has just a single windspeed hub height)
+    """
+
+    inputs = ('wind_speed', 'wind_direction')
+
+    @classmethod
+    def compute(cls, container):
+        """Method to compute U wind component from data"""
+        _, v = transform_rotate_wind(
+            container['wind_speed'],
+            container['wind_direction'],
+            container.lat_lon,
+        )
+        return v
+
+
 class TempNCforCC(DerivedFeature):
     """Air temperature variable from climate change nc files"""
 
@@ -355,8 +391,8 @@ RegistryH5SolarCC = {
     **RegistryH5WindCC,
     'windspeed': 'wind_speed',
     'winddirection': 'wind_direction',
-    'U': UWind,
-    'V': VWind,
+    'U': USolar,
+    'V': VSolar,
 }
 
 RegistryNCforCC = {

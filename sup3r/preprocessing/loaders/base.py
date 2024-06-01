@@ -7,6 +7,7 @@ from typing import ClassVar
 import numpy as np
 
 from sup3r.preprocessing.base import Container
+from sup3r.preprocessing.common import Dimension
 from sup3r.utilities.utilities import expand_paths
 
 
@@ -26,14 +27,14 @@ class Loader(Container, ABC):
     }
 
     DIM_NAMES: ClassVar = {
-        'lat': 'south_north',
-        'lon': 'west_east',
-        'xlat': 'south_north',
-        'xlong': 'west_east',
-        'latitude': 'south_north',
-        'longitude': 'west_east',
-        'plev': 'level',
-        'xtime': 'time',
+        'lat': Dimension.SOUTH_NORTH,
+        'lon': Dimension.WEST_EAST,
+        'xlat': Dimension.SOUTH_NORTH,
+        'xlong': Dimension.WEST_EAST,
+        'latitude': Dimension.SOUTH_NORTH,
+        'longitude': Dimension.WEST_EAST,
+        'plev': Dimension.PRESSURE_LEVEL,
+        'xtime': Dimension.TIME,
     }
 
     def __init__(
@@ -89,6 +90,13 @@ class Loader(Container, ABC):
             ]
         }
         data = data.rename(rename_map)
+        data = data.swap_dims(
+            {
+                k: v
+                for k, v in rename_map.items()
+                if v == Dimension.TIME and k in data
+            }
+        )
         data = data.rename(
             {k: v for k, v in standard_names.items() if k in data}
         )

@@ -3,6 +3,7 @@
 import logging
 import pprint
 from abc import ABCMeta
+from enum import Enum
 from inspect import getfullargspec
 from typing import ClassVar, Tuple
 from warnings import warn
@@ -12,14 +13,37 @@ import xarray as xr
 logger = logging.getLogger(__name__)
 
 
-DIM_ORDER = (
-    'space',
-    'south_north',
-    'west_east',
-    'time',
-    'level',
-    'variable',
-)
+class Dimension(str, Enum):
+    """Dimension names used for XArrayWrapper."""
+
+    FLATTENED_SPATIAL = 'space'
+    SOUTH_NORTH = 'south_north'
+    WEST_EAST = 'west_east'
+    TIME = 'time'
+    PRESSURE_LEVEL = 'level'
+    VARIABLE = 'variable'
+    LATITUDE = 'latitude'
+    LONGITUDE = 'longitude'
+
+    def __str__(self):
+        return self.value
+
+    @classmethod
+    def order(cls):
+        """Return standard dimension order."""
+        return (
+            cls.FLATTENED_SPATIAL,
+            cls.SOUTH_NORTH,
+            cls.WEST_EAST,
+            cls.TIME,
+            cls.PRESSURE_LEVEL,
+            cls.VARIABLE,
+        )
+
+    @classmethod
+    def spatial_2d(cls):
+        """Return ordered tuple for 2d spatial coordinates."""
+        return (cls.SOUTH_NORTH, cls.WEST_EAST)
 
 
 class FactoryMeta(ABCMeta, type):
@@ -92,11 +116,11 @@ def lowered(features):
 
 
 def ordered_dims(dims: Tuple):
-    """Return the order of dims that follows the ordering of self.DIM_ORDER
+    """Return the order of dims that follows the ordering of Dimension.order()
     for the common dim names. e.g dims = ('time', 'south_north', 'dummy',
     'west_east') will return ('south_north', 'west_east', 'time',
     'dummy')."""
-    standard = [dim for dim in DIM_ORDER if dim in dims]
+    standard = [dim for dim in Dimension.order() if dim in dims]
     non_standard = [dim for dim in dims if dim not in standard]
     return tuple(standard + non_standard)
 
@@ -115,7 +139,8 @@ def ordered_array(data: xr.DataArray):
 
 def enforce_standard_dim_order(dset: xr.Dataset):
     """Ensure that data dimensions have a (space, time, ...) or (latitude,
-    longitude, time, ...) ordering consistent with the order of `DIM_ORDER`"""
+    longitude, time, ...) ordering consistent with the order of
+    `Dimension.order()`"""
 
     reordered_vars = {
         var: (
@@ -130,10 +155,10 @@ def enforce_standard_dim_order(dset: xr.Dataset):
 
 def dims_array_tuple(arr):
     """Return a tuple of (dims, array) with dims equal to the ordered slice
-    of DIM_ORDER with the same len as arr.shape. This is used to set xr.Dataset
-    entries. e.g. dset[var] = (dims, array)"""
+    of Dimension.order() with the same len as arr.shape. This is used to set
+    xr.Dataset entries. e.g. dset[var] = (dims, array)"""
     if len(arr.shape) > 1:
-        arr = (DIM_ORDER[1 : len(arr.shape) + 1], arr)
+        arr = (Dimension.order()[1 : len(arr.shape) + 1], arr)
     return arr
 
 

@@ -25,6 +25,18 @@ import xarray as xr
 
 from sup3r.utilities.interpolate_log_profile import LogLinInterpolator
 
+try:
+    import cdsapi
+except ImportError as e:
+    msg = f'Could not import cdsapi package. {e}'
+    raise ImportError(msg) from e
+
+msg = ('To download ERA5 data you need to have a ~/.cdsapirc file '
+       'with a valid url and api key. Follow the instructions here: '
+       'https://cds.climate.copernicus.eu/api-how-to')
+req_file = os.path.join(os.path.expanduser('~'), '.cdsapirc')
+assert os.path.exists(req_file), msg
+
 logger = logging.getLogger(__name__)
 
 
@@ -86,7 +98,7 @@ class EraDownloader:
         'v_component_of_wind': 'v'
     }
 
-    CHUNKS = {'latitude': 100, 'longitude': 100, 'time': 20}
+    CHUNKS: ClassVar = {'latitude': 100, 'longitude': 100, 'time': 20}
 
     def __init__(self,
                  year,
@@ -289,21 +301,7 @@ class EraDownloader:
     def get_cds_client():
         """Get the copernicus climate data store (CDS) API object for ERA
         downloads."""
-        try:
-            import cdsapi
-            cds_api_client = cdsapi.Client()
-        except ImportError as e:
-            msg = f'Could not import cdsapi package. {e}'
-            logger.error(msg)
-            raise ImportError(msg) from e
-
-        msg = ('To download ERA5 data you need to have a ~/.cdsapirc file '
-               'with a valid url and api key. Follow the instructions here: '
-               'https://cds.climate.copernicus.eu/api-how-to')
-        req_file = os.path.join(os.path.expanduser('~'), '.cdsapirc')
-        assert os.path.exists(req_file), msg
-
-        return cds_api_client
+        return cdsapi.Client()
 
     def download_process_combine(self):
         """Run the download routine."""

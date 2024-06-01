@@ -15,6 +15,7 @@ from sup3r import CONFIG_DIR, TEST_DATA_DIR, __version__
 from sup3r.models import Sup3rGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.preprocessing import DataHandlerNC
+from sup3r.preprocessing.common import Dimension
 from sup3r.utilities.pytest.helpers import (
     execute_pytest,
     make_fake_nc_file,
@@ -302,7 +303,7 @@ def test_fwp_handler(input_files):
             fwp.output_workers,
         )
 
-        raw_tsteps = len(xr.open_dataset(input_files)['time'])
+        raw_tsteps = len(xr.open_dataset(input_files)[Dimension.TIME])
         assert data.shape == (
             s_enhance * fwp_chunk_shape[0],
             s_enhance * fwp_chunk_shape[1],
@@ -335,7 +336,7 @@ def test_fwp_chunking(input_files, log=False, plot=False):
         model.save(out_dir)
         spatial_pad = 12
         temporal_pad = 12
-        raw_tsteps = len(xr.open_dataset(input_files)['time'])
+        raw_tsteps = len(xr.open_dataset(input_files)[Dimension.TIME])
         fwp_shape = (4, 4, raw_tsteps // 2)
         strat = ForwardPassStrategy(
             input_files,
@@ -467,7 +468,7 @@ def test_fwp_nochunking(input_files):
             fwp_chunk_shape=(
                 shape[0],
                 shape[1],
-                len(xr.open_dataset(input_files)['time']),
+                len(xr.open_dataset(input_files)[Dimension.TIME]),
             ),
             spatial_pad=0,
             temporal_pad=0,
@@ -608,7 +609,9 @@ def test_slicing_no_pad(input_files, log=False):
         st_out_dir = os.path.join(td, 'st_gan')
         st_model.save(st_out_dir)
 
-        handler = DataHandlerNC(input_files, features, target=target, shape=shape)
+        handler = DataHandlerNC(
+            input_files, features, target=target, shape=shape
+        )
 
         input_handler_kwargs = {
             'target': target,
@@ -668,7 +671,9 @@ def test_slicing_pad(input_files, log=False):
         out_files = os.path.join(td, 'out_{file_id}.h5')
         st_out_dir = os.path.join(td, 'st_gan')
         st_model.save(st_out_dir)
-        handler = DataHandlerNC(input_files, features, target=target, shape=shape)
+        handler = DataHandlerNC(
+            input_files, features, target=target, shape=shape
+        )
         input_handler_kwargs = {
             'target': target,
             'shape': shape,

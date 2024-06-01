@@ -11,6 +11,7 @@ import xarray as xr
 from sup3r.postprocessing.file_handling import OutputHandlerH5
 from sup3r.preprocessing.abstract import Data
 from sup3r.preprocessing.base import Container
+from sup3r.preprocessing.common import Dimension
 from sup3r.preprocessing.samplers import Sampler
 from sup3r.utilities.utilities import pd_date_range
 
@@ -40,17 +41,33 @@ def make_fake_dset(shape, features):
     lons = np.linspace(-150, 150, shape[1])
     lons, lats = np.meshgrid(lons, lats)
     time = pd.date_range('2023-01-01', '2023-12-31', freq='60min')[: shape[2]]
-    dims = ('time', 'level', 'south_north', 'west_east')
+    dims = (
+        'time',
+        Dimension.PRESSURE_LEVEL,
+        Dimension.SOUTH_NORTH,
+        Dimension.WEST_EAST,
+    )
     coords = {}
 
     if len(shape) == 4:
         levels = np.linspace(1000, 0, shape[3])
-        coords['level'] = levels
+        coords[Dimension.PRESSURE_LEVEL] = levels
     coords['time'] = time
-    coords['latitude'] = (('south_north', 'west_east'), lats)
-    coords['longitude'] = (('south_north', 'west_east'), lons)
+    coords[Dimension.LATITUDE] = (
+        (Dimension.SOUTH_NORTH, Dimension.WEST_EAST),
+        lats,
+    )
+    coords[Dimension.LONGITUDE] = (
+        (Dimension.SOUTH_NORTH, Dimension.WEST_EAST),
+        lons,
+    )
 
-    dims = ('time', 'level', 'south_north', 'west_east')
+    dims = (
+        'time',
+        Dimension.PRESSURE_LEVEL,
+        Dimension.SOUTH_NORTH,
+        Dimension.WEST_EAST,
+    )
     trans_axes = (2, 3, 0, 1)
     if len(shape) == 3:
         dims = ('time', *dims[2:])
@@ -58,9 +75,7 @@ def make_fake_dset(shape, features):
     data_vars = {
         f: (
             dims[: len(shape)],
-            da.transpose(
-                100 * da.random.random(shape), axes=trans_axes
-            ),
+            da.transpose(100 * da.random.random(shape), axes=trans_axes),
         )
         for f in features
     }

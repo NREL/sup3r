@@ -148,7 +148,7 @@ class ExogenousDataHandler:
         self.s_agg_factors = agg_enhance['s_agg_factors']
         self.t_agg_factors = agg_enhance['t_agg_factors']
         self.step_number_check()
-        self.get_step_data()
+        self.get_all_step_data()
 
     def input_check(self):
         """Make sure agg factors are provided or exo_resolution and models are
@@ -176,7 +176,7 @@ class ExogenousDataHandler:
 
     def step_number_check(self):
         """Make sure the number of enhancement factors / agg factors provided
-        is interally consistent and consistent with number of model steps."""
+        is internally consistent and consistent with number of model steps."""
         msg = (
             'Need to provide the same number of enhancement factors and '
             f'agg factors. Received s_enhancements={self.s_enhancements}, '

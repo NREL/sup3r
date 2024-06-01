@@ -76,7 +76,7 @@ class DataHandlerNCforCC(BaseNCforCC):
         self._nsrdb_source_fp = nsrdb_source_fp
         self._nsrdb_agg = nsrdb_agg
         self._nsrdb_smoothing = nsrdb_smoothing
-        self._cc_features = features
+        self._features = features
         super().__init__(file_paths, features=features, **kwargs)
 
     def _extracter_hook(self):
@@ -84,7 +84,7 @@ class DataHandlerNCforCC(BaseNCforCC):
         extracted data, which will then be used when the :class:`Deriver` is
         called."""
         if any(
-            f in self._cc_features
+            f in self._features
             for f in ('clearsky_ratio', 'clearsky_ghi', 'all')
         ):
             self.extracter.data['clearsky_ghi'] = self.get_clearsky_ghi()
