@@ -14,6 +14,7 @@ from sup3r.preprocessing.batch_queues.dual import DualBatchQueue
 from sup3r.preprocessing.collections.stats import StatsCollection
 from sup3r.preprocessing.common import FactoryMeta
 from sup3r.preprocessing.samplers.base import Sampler
+from sup3r.preprocessing.samplers.cc import DualSamplerCC
 from sup3r.preprocessing.samplers.dual import DualSampler
 from sup3r.utilities.utilities import get_class_kwargs
 
@@ -141,4 +142,8 @@ BatchHandler = BatchHandlerFactory(
 )
 DualBatchHandler = BatchHandlerFactory(
     DualBatchQueue, DualSampler, name='DualBatchHandler'
+)
+
+DualBatchHandlerCC = BatchHandlerFactory(
+    DualBatchQueue, DualSamplerCC, name='DualBatchHandlerCC'
 )
