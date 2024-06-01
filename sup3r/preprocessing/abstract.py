@@ -9,7 +9,7 @@ import numpy as np
 import xarray as xr
 
 from sup3r.preprocessing.common import (
-    DIM_ORDER,
+    Dimension,
     dims_array_tuple,
     lowered,
     ordered_array,
@@ -18,6 +18,14 @@ from sup3r.preprocessing.common import (
 from sup3r.typing import T_Array, T_XArray
 
 logger = logging.getLogger(__name__)
+
+
+def _contains_ellipsis(vals):
+    return (
+        vals is Ellipsis
+        or (isinstance(vals, list)
+        and any(v is Ellipsis for v in vals))
+    )
 
 
 def _is_str_list(vals):
@@ -56,7 +64,9 @@ class XArrayWrapper(xr.Dataset):
     for selecting data from the dataset. This is the thing contained by
     :class:`Container` objects."""
 
-    __slots__ = ['_features',]
+    __slots__ = [
+        '_features',
+    ]
 
     def __init__(self, data: xr.Dataset = None, coords=None, data_vars=None):
         if data is not None:
@@ -118,7 +128,9 @@ class XArrayWrapper(xr.Dataset):
         slice_kwargs = dict(zip(self.dims, keys))
         parsed = self._parse_features(features)
         parsed = (
-            parsed if len(parsed) > 0 else ['latitude', 'longitude', 'time']
+            parsed
+            if len(parsed) > 0
+            else [Dimension.LATITUDE, Dimension.LONGITUDE, Dimension.TIME]
         )
         sliced = super().__getitem__(parsed).isel(**slice_kwargs)
         return XArrayWrapper(sliced)
@@ -156,13 +168,15 @@ class XArrayWrapper(xr.Dataset):
         keys = lowered(keys)
         if isinstance(keys, (list, tuple)):
             return self._get_from_list(keys)
+        if _contains_ellipsis(keys):
+            return self.as_array().squeeze()[keys]
         return super().__getitem__(keys)
 
     def __contains__(self, vals):
         if isinstance(vals, (list, tuple)) and all(
             isinstance(s, str) for s in vals
         ):
-            return all(s in self for s in vals)
+            return all(s.lower() in self for s in vals)
         return super().__contains__(vals)
 
     def init_new(self, new_dset):
@@ -230,7 +244,7 @@ class XArrayWrapper(xr.Dataset):
         first and time is second, so we shift these to (..., time, features).
         We also sometimes have a level dimension for pressure level data."""
         dim_dict = dict(self.sizes)
-        dim_vals = [dim_dict[k] for k in DIM_ORDER if k in dim_dict]
+        dim_vals = [dim_dict[k] for k in Dimension.order() if k in dim_dict]
         return (*dim_vals, len(self.data_vars))
 
     @property
@@ -253,13 +267,16 @@ class XArrayWrapper(xr.Dataset):
     @property
     def lat_lon(self) -> T_Array:
         """Base lat lon for contained data."""
-        return self.as_array(['latitude', 'longitude'])
+        return self.as_array([Dimension.LATITUDE, Dimension.LONGITUDE])
 
     @lat_lon.setter
     def lat_lon(self, lat_lon):
         """Update the lat_lon attribute with array values."""
-        self['latitude'] = (self['latitude'], lat_lon[..., 0])
-        self['longitude'] = (self['longitude'], lat_lon[..., 1])
+        self[Dimension.LATITUDE] = (self[Dimension.LATITUDE], lat_lon[..., 0])
+        self[Dimension.LONGITUDE] = (
+            self[Dimension.LONGITUDE],
+            lat_lon[..., 1],
+        )
 
 
 def single_member_check(func):

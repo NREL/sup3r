@@ -10,6 +10,7 @@ import numpy as np
 import xarray as xr
 from rex import MultiFileWindX
 
+from sup3r.preprocessing.common import Dimension
 from sup3r.preprocessing.loaders import Loader
 
 logger = logging.getLogger(__name__)
@@ -47,16 +48,19 @@ class LoaderH5(Loader):
         data_vars: Dict[str, Tuple] = {}
         coords: Dict[str, Tuple] = {}
         if len(self._meta_shape()) == 2:
-            dims: Tuple[str, ...] = ('south_north', 'west_east')
+            dims: Tuple[str, ...] = (
+                Dimension.SOUTH_NORTH,
+                Dimension.WEST_EAST,
+            )
         else:
-            dims: Tuple[str, ...] = ('space',)
+            dims: Tuple[str, ...] = (Dimension.FLATTENED_SPATIAL,)
         if not self._time_independent:
-            dims = ('time', *dims)
-            coords['time'] = self.res['time_index']
+            dims = (Dimension.TIME, *dims)
+            coords[Dimension.TIME] = self.res['time_index']
 
         if len(self._meta_shape()) == 1:
             data_vars['elevation'] = (
-                ('space'),
+                (Dimension.FLATTENED_SPATIAL),
                 da.asarray(
                     self.res.meta['elevation'].values, dtype=np.float32
                 ),
@@ -77,11 +81,11 @@ class LoaderH5(Loader):
         }
         coords.update(
             {
-                'latitude': (
+                Dimension.LATITUDE: (
                     dims[-len(self._meta_shape()) :],
                     da.from_array(self.res.h5['meta']['latitude']),
                 ),
-                'longitude': (
+                Dimension.LONGITUDE: (
                     dims[-len(self._meta_shape()) :],
                     da.from_array(self.res.h5['meta']['longitude']),
                 ),

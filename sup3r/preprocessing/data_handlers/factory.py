@@ -128,6 +128,63 @@ def DataHandlerFactory(
     return Handler
 
 
+def DailyDataHandlerFactory(
+    ExtracterClass,
+    LoaderClass,
+    BaseLoader=None,
+    FeatureRegistry=None,
+    name='Handler',
+):
+    """Handler factory for daily data handlers."""
+
+    BaseHandler = DataHandlerFactory(
+        ExtracterClass,
+        LoaderClass=LoaderClass,
+        BaseLoader=BaseLoader,
+        FeatureRegistry=FeatureRegistry,
+        name=name,
+    )
+
+    class DailyHandler(BaseHandler):
+        """General data handler class for daily data."""
+
+        def _extracter_hook(self):
+            """Hook to run daily coarsening calculations after extraction and
+            replaces data with daily averages / maxes / mins to then be used in
+            derivations."""
+
+            msg = (
+                'Data needs to be hourly with at least 24 hours, but data '
+                'shape is {}.'.format(self.extracter.data.shape)
+            )
+            assert self.extracter.data.shape[2] % 24 == 0, msg
+            assert self.extracter.data.shape[2] > 24, msg
+
+            n_data_days = int(self.extracter.data.shape[2] / 24)
+
+            logger.info(
+                'Calculating daily average datasets for {} training '
+                'data days.'.format(n_data_days)
+            )
+            daily_data = self.extracter.data.coarsen(time=24).mean()
+            for fname in self.features:
+                if '_max_' in fname:
+                    self.daily_data[fname] = (
+                        self.extracter.data[fname].coarsen(time=24).max()
+                    )
+                if '_min_' in fname:
+                    self.daily_data[fname] = (
+                        self.extracter.data[fname].coarsen(time=24).min()
+                    )
+
+            logger.info(
+                'Finished calculating daily average datasets for {} '
+                'training data days.'.format(n_data_days)
+            )
+
+            self.extracter.data = daily_data
+
+
 DataHandlerH5 = DataHandlerFactory(
     BaseExtracterH5, LoaderH5, FeatureRegistry=RegistryH5, name='DataHandlerH5'
 )

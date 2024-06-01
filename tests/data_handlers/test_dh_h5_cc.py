@@ -54,17 +54,15 @@ def test_solar_handler():
             target=TARGET_S,
             shape=SHAPE,
         )
-    dh_kwargs_new = dh_kwargs.copy()
-    dh_kwargs_new['val_split'] = 0
     handler = DataHandlerH5SolarCC(
-        INPUT_FILE_S, features=FEATURES_S, **dh_kwargs_new
+        INPUT_FILE_S, features=FEATURES_S, **dh_kwargs
     )
 
     assert handler.data.shape[2] % 24 == 0
 
     # some of the raw clearsky ghi and clearsky ratio data should be loaded in
     # the handler as NaN
-    assert np.isnan(handler.data).any()
+    assert np.isnan(handler.as_array()).any()
 
 
 def test_solar_handler_w_wind():
@@ -92,6 +90,7 @@ def test_solar_handler_w_wind():
         handler = DataHandlerH5SolarCC(res_fp, features_s, **dh_kwargs)
 
         assert handler.data.shape[2] % 24 == 0
+        assert features_s in handler.data
 
 
 def test_solar_ancillary_vars():
@@ -105,8 +104,7 @@ def test_solar_ancillary_vars():
         'ghi',
         'clearsky_ghi',
     ]
-    dh_kwargs_new = dh_kwargs.copy()
-    handler = DataHandlerH5SolarCC(INPUT_FILE_S, features, **dh_kwargs_new)
+    handler = DataHandlerH5SolarCC(INPUT_FILE_S, features, **dh_kwargs)
 
     assert handler.data.shape[-1] == 4
 

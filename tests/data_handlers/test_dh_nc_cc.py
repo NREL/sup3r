@@ -14,6 +14,7 @@ from sup3r.preprocessing import (
     DataHandlerNCforCCwithPowerLaw,
     LoaderNC,
 )
+from sup3r.preprocessing.common import Dimension
 from sup3r.preprocessing.derivers.methods import UWindPowerLaw
 from sup3r.utilities.pytest.helpers import execute_pytest
 
@@ -27,16 +28,16 @@ def test_get_just_coords_nc():
     input_files = [os.path.join(TEST_DATA_DIR, 'uas_test.nc')]
     handler = DataHandlerNCforCC(file_paths=input_files, features=[])
     nc_res = LoaderNC(input_files)
-    shape = (len(nc_res['latitude']), len(nc_res['longitude']))
+    shape = (len(nc_res[Dimension.LATITUDE]), len(nc_res[Dimension.LONGITUDE]))
     target = (
-        nc_res['latitude'].min(),
-        nc_res['longitude'].min(),
+        nc_res[Dimension.LATITUDE].min(),
+        nc_res[Dimension.LONGITUDE].min(),
     )
     assert np.array_equal(
         handler.lat_lon[-1, 0, :],
         (
-            handler.loader['latitude'].min(),
-            handler.loader['longitude'].min(),
+            handler.loader[Dimension.LATITUDE].min(),
+            handler.loader[Dimension.LONGITUDE].min(),
         ),
     )
     assert not handler.data_vars
@@ -139,7 +140,7 @@ def test_solar_cc():
 
     with Resource(nsrdb_source_fp) as res:
         meta = res.meta
-        tree = KDTree(meta[['latitude', 'longitude']])
+        tree = KDTree(meta[[Dimension.LATITUDE, Dimension.LONGITUDE]])
         cs_ghi_true = res['clearsky_ghi']
 
     # check a few sites against NSRDB source file

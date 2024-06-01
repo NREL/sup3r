@@ -16,6 +16,7 @@ from rex import ResourceX, init_logger
 from sup3r import CONFIG_DIR, TEST_DATA_DIR, __version__
 from sup3r.models import LinearInterp, Sup3rGan, SurfaceSpatialMetModel
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
+from sup3r.preprocessing.common import Dimension
 from sup3r.utilities.pytest.helpers import make_fake_nc_file
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
@@ -144,7 +145,7 @@ def test_fwp_multi_step_model_topo_exoskip(input_files, log=False):
 
         forward_pass = ForwardPass(handler)
         forward_pass.run(handler, node_index=0)
-        t_steps = len(xr.open_dataset(input_files)['time'])
+        t_steps = len(xr.open_dataset(input_files)[Dimension.TIME])
 
         with ResourceX(handler.out_files[0]) as fh:
             assert fh.shape == (
@@ -243,7 +244,7 @@ def test_fwp_multi_step_spatial_model_topo_noskip(input_files):
 
         forward_pass = ForwardPass(handler)
         forward_pass.run(handler, node_index=0)
-        t_steps = len(xr.open_dataset(input_files)['time'])
+        t_steps = len(xr.open_dataset(input_files)[Dimension.TIME])
 
         with ResourceX(handler.out_files[0]) as fh:
             assert fh.shape == (
@@ -362,7 +363,7 @@ def test_fwp_multi_step_model_topo_noskip(input_files):
 
         forward_pass = ForwardPass(handler)
         forward_pass.run(handler, node_index=0)
-        t_steps = len(xr.open_dataset(input_files)['time'])
+        t_steps = len(xr.open_dataset(input_files)[Dimension.TIME])
 
         with ResourceX(handler.out_files[0]) as fh:
             assert fh.shape == (
@@ -1006,7 +1007,7 @@ def test_fwp_multi_step_model_multi_exo(input_files):
         forward_pass = ForwardPass(handler)
 
         forward_pass.run(handler, node_index=0)
-        t_steps = len(xr.open_dataset(input_files)['time'])
+        t_steps = len(xr.open_dataset(input_files)[Dimension.TIME])
         with ResourceX(handler.out_files[0]) as fh:
             assert fh.shape == (
                 t_enhance * t_steps,

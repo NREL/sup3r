@@ -7,6 +7,7 @@ import pytest
 from rex import init_logger
 
 from sup3r.preprocessing.abstract import Data, XArrayWrapper
+from sup3r.preprocessing.common import Dimension
 from sup3r.utilities.pytest.helpers import (
     execute_pytest,
     make_fake_dset,
@@ -22,7 +23,7 @@ def test_correct_access_wrapper():
 
     _ = data['u']
     _ = data[['u', 'v']]
-    out = data[['latitude', 'longitude']]
+    out = data[[Dimension.LATITUDE, Dimension.LONGITUDE]]
     assert ['u', 'v'] in data
     assert out.shape == (20, 20, 2)
     assert np.array_equal(out, data.lat_lon)
@@ -59,7 +60,7 @@ def test_correct_access_data(data):
 
     _ = data['u']
     _ = data[['u', 'v']]
-    out = data[['latitude', 'longitude']]
+    out = data[[Dimension.LATITUDE, Dimension.LONGITUDE]]
     if data.n_members == 1:
         out = (out,)
     lat_lon = data.lat_lon

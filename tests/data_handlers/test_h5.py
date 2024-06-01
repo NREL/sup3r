@@ -7,6 +7,7 @@ import numpy as np
 
 from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing import BatchHandler, DataHandlerH5, Sampler
+from sup3r.preprocessing.common import Dimension
 from sup3r.utilities.pytest.helpers import execute_pytest
 
 sample_shape = (10, 10, 12)
@@ -29,7 +30,7 @@ def test_solar_spatial_h5():
     nan_mask = np.isnan(dh.to_array()).any(axis=(0, 1, 3))
     new_shape = (20, 20, np.sum(~nan_mask))
     new_data = {
-        'time': dh.time_index[~nan_mask],
+        Dimension.TIME: dh.time_index[~nan_mask],
         **{
             f: dh[f][..., ~nan_mask].compute_chunk_sizes().reshape(new_shape)
             for f in dh.features

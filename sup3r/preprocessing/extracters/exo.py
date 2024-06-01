@@ -16,7 +16,7 @@ from scipy.spatial import KDTree
 
 from sup3r.postprocessing.file_handling import OutputHandler
 from sup3r.preprocessing.cachers import Cacher
-from sup3r.preprocessing.common import log_args
+from sup3r.preprocessing.common import Dimension, log_args
 from sup3r.preprocessing.loaders import (
     LoaderH5,
     LoaderNC,
@@ -161,22 +161,13 @@ class ExoExtract(ABC):
     def source_data(self):
         """Get the 1D array of source data from the exo_source_h5"""
 
-    def get_cache_file(self, feature, s_enhance, t_enhance, t_agg_factor):
+    def get_cache_file(self, feature):
         """Get cache file name
 
         Parameters
         ----------
         feature : str
             Name of feature to get cache file for
-        s_enhance : int
-            Spatial enhancement for this exogeneous data step (cumulative for
-            all model steps up to the current step).
-        t_enhance : int
-            Temporal enhancement for this exogeneous data step (cumulative for
-            all model steps up to the current step).
-        t_agg_factor : int
-            Factor by which to aggregate the exo_source data to the temporal
-            resolution of the file_paths input enhanced by t_enhance.
 
         Returns
         -------
@@ -192,8 +183,8 @@ class ExoExtract(ABC):
             else self.time_slice.stop - self.time_slice.start
         )
         fn = f'exo_{feature}_{self.target}_{self.shape},{tsteps}'
-        fn += f'_tagg{t_agg_factor}_{s_enhance}x_'
-        fn += f'{t_enhance}x.nc'
+        fn += f'_tagg{self.t_agg_factor}_{self.s_enhance}x_'
+        fn += f'{self.t_enhance}x.nc'
         fn = fn.replace('(', '').replace(')', '')
         fn = fn.replace('[', '').replace(']', '')
         fn = fn.replace(',', 'x').replace(' ', '')
@@ -309,13 +300,10 @@ class ExoExtract(ABC):
         """Get a raster of source values corresponding to the
         high-resolution grid (the file_paths input grid * s_enhance *
         t_enhance). The shape is (lats, lons, temporal, 1)
+
+        TODO: Get actual feature name for cache file?
         """
-        cache_fp = self.get_cache_file(
-            feature=self.__class__.__name__,
-            s_enhance=self.s_enhance,
-            t_enhance=self.t_enhance,
-            t_agg_factor=self.t_agg_factor,
-        )
+        cache_fp = self.get_cache_file(feature=self.__class__.__name__)
         tmp_fp = cache_fp + f'.{generate_random_string(10)}.tmp'
         if os.path.exists(cache_fp):
             data = LoaderNC(cache_fp)[self.__class__.__name__.lower()].data
@@ -325,15 +313,15 @@ class ExoExtract(ABC):
 
             if self.cache_data:
                 coords = {
-                    'latitude': (
-                        ('south_north', 'west_east'),
+                    Dimension.LATITUDE: (
+                        (Dimension.SOUTH_NORTH, Dimension.WEST_EAST),
                         self.hr_lat_lon[..., 0],
                     ),
-                    'longitude': (
-                        ('south_north', 'west_east'),
+                    Dimension.LONGITUDE: (
+                        (Dimension.SOUTH_NORTH, Dimension.WEST_EAST),
                         self.hr_lat_lon[..., 1],
                     ),
-                    'time': self.hr_time_index.values,
+                    Dimension.TIME: self.hr_time_index.values,
                 }
                 Cacher.write_netcdf(
                     tmp_fp,
@@ -416,22 +404,13 @@ class TopoExtractH5(ExoExtract):
 
         return da.from_array(hr_data)
 
-    def get_cache_file(self, feature, s_enhance, t_enhance, t_agg_factor):
+    def get_cache_file(self, feature):
         """Get cache file name. This uses a time independent naming convention.
 
         Parameters
         ----------
         feature : str
             Name of feature to get cache file for
-        s_enhance : int
-            Spatial enhancement for this exogeneous data step (cumulative for
-            all model steps up to the current step).
-        t_enhance : int
-            Temporal enhancement for this exogeneous data step (cumulative for
-            all model steps up to the current step).
-        t_agg_factor : int
-            Factor by which to aggregate the exo_source data to the temporal
-            resolution of the file_paths input enhanced by t_enhance.
 
         Returns
         -------
@@ -439,8 +418,8 @@ class TopoExtractH5(ExoExtract):
             Name of cache file
         """
         fn = f'exo_{feature}_{self.target}_{self.shape}'
-        fn += f'_tagg{t_agg_factor}_{s_enhance}x_'
-        fn += f'{t_enhance}x.nc'
+        fn += f'_tagg{self.t_agg_factor}_{self.s_enhance}x_'
+        fn += f'{self.t_enhance}x.nc'
         fn = fn.replace('(', '').replace(')', '')
         fn = fn.replace('[', '').replace(']', '')
         fn = fn.replace(',', 'x').replace(' ', '')

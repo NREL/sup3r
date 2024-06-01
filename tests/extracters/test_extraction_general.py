@@ -10,6 +10,7 @@ from rex import Resource, init_logger
 
 from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing import ExtracterH5, ExtracterNC
+from sup3r.preprocessing.common import Dimension
 from sup3r.utilities.pytest.helpers import execute_pytest
 
 h5_files = [
@@ -29,16 +30,16 @@ def test_get_just_coords_nc():
 
     extracter = ExtracterNC(file_paths=nc_files, features=[])
     nc_res = xr.open_mfdataset(nc_files)
-    shape = (len(nc_res['latitude']), len(nc_res['longitude']))
+    shape = (len(nc_res[Dimension.LATITUDE]), len(nc_res[Dimension.LONGITUDE]))
     target = (
-        nc_res['latitude'].values.min(),
-        nc_res['longitude'].values.min(),
+        nc_res[Dimension.LATITUDE].values.min(),
+        nc_res[Dimension.LONGITUDE].values.min(),
     )
     assert np.array_equal(
         extracter.lat_lon[-1, 0, :],
         (
-            extracter.loader['latitude'].min(),
-            extracter.loader['longitude'].min(),
+            extracter.loader[Dimension.LATITUDE].min(),
+            extracter.loader[Dimension.LONGITUDE].min(),
         ),
     )
     assert extracter.grid_shape == shape
@@ -50,19 +51,19 @@ def test_get_full_domain_nc():
 
     extracter = ExtracterNC(file_paths=nc_files)
     nc_res = xr.open_mfdataset(nc_files)
-    shape = (len(nc_res['latitude']), len(nc_res['longitude']))
+    shape = (len(nc_res[Dimension.LATITUDE]), len(nc_res[Dimension.LONGITUDE]))
     target = (
-        nc_res['latitude'].values.min(),
-        nc_res['longitude'].values.min(),
+        nc_res[Dimension.LATITUDE].values.min(),
+        nc_res[Dimension.LONGITUDE].values.min(),
     )
     assert np.array_equal(
         extracter.lat_lon[-1, 0, :],
         (
-            extracter.loader['latitude'].min(),
-            extracter.loader['longitude'].min(),
+            extracter.loader[Dimension.LATITUDE].min(),
+            extracter.loader[Dimension.LONGITUDE].min(),
         ),
     )
-    dim_order = ('latitude', 'longitude', 'time')
+    dim_order = (Dimension.LATITUDE, Dimension.LONGITUDE, Dimension.TIME)
     assert np.array_equal(
         extracter['u_100m'],
         nc_res['u_100m'].transpose(*dim_order).data.astype(np.float32),
@@ -80,8 +81,8 @@ def test_get_target_nc():
     extracter = ExtracterNC(file_paths=nc_files, shape=(4, 4))
     nc_res = xr.open_mfdataset(nc_files)
     target = (
-        nc_res['latitude'].values.min(),
-        nc_res['longitude'].values.min(),
+        nc_res[Dimension.LATITUDE].values.min(),
+        nc_res[Dimension.LONGITUDE].values.min(),
     )
     assert extracter.grid_shape == (4, 4)
     assert np.array_equal(extracter.target, target)
@@ -127,7 +128,7 @@ def test_topography_h5():
             file_paths=h5_files[0],
             target=(39.01, -105.15),
             shape=(20, 20),
-            features='topography'
+            features='topography',
         )
         ri = extracter.raster_index
         topo = res.get_meta_arr('elevation')[(ri.flatten(),)]

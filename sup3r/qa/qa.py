@@ -1,4 +1,5 @@
 """sup3r QA module."""
+
 import logging
 import os
 from inspect import signature
@@ -12,6 +13,7 @@ from rex.utilities.fun_utils import get_fun_call_str
 
 import sup3r.bias.bias_transforms
 from sup3r.postprocessing.file_handling import H5_ATTRS, RexOutputs
+from sup3r.preprocessing.common import Dimension
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
 from sup3r.utilities.utilities import (
@@ -268,8 +270,16 @@ class Sup3rQa:
         list
         """
         # all lower case
-        ignore = ('meta', 'time_index', 'times', 'time', 'xlat', 'xlong',
-                  'south_north', 'west_east')
+        ignore = (
+            'meta',
+            'time_index',
+            'times',
+            'xlat',
+            'xlong',
+            Dimension.TIME,
+            Dimension.SOUTH_NORTH,
+            Dimension.WEST_EAST,
+        )
 
         if self._features is None or self._features == [None]:
             if self.output_type == 'nc':
@@ -349,6 +359,7 @@ class Sup3rQa:
             return xr.open_dataset
         if self.output_type == 'h5':
             return Resource
+        return None
 
     def bias_correct_source_data(self, data, lat_lon, source_feature):
         """Bias correct data using a method defined by the bias_correct_method
@@ -556,17 +567,17 @@ class Sup3rQa:
             log_arg_str += f', log_file="{log_file}"'
 
         cmd = (
-            f"python -c \'{import_str}\n"
-            "t0 = time.time();\n"
-            f"logger = init_logger({log_arg_str});\n"
-            f"qa = {qa_init_str};\n"
-            "qa.run();\n"
-            "t_elap = time.time() - t0;\n"
+            f"python -c '{import_str}\n"
+            't0 = time.time();\n'
+            f'logger = init_logger({log_arg_str});\n'
+            f'qa = {qa_init_str};\n'
+            'qa.run();\n'
+            't_elap = time.time() - t0;\n'
         )
 
         pipeline_step = config.get('pipeline_step') or ModuleName.QA
         cmd = BaseCLI.add_status_cmd(config, pipeline_step, cmd)
-        cmd += ";\'\n"
+        cmd += ";'\n"
 
         return cmd.replace('\\', '/')
 

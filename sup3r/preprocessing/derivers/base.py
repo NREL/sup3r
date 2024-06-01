@@ -10,12 +10,12 @@ import dask.array as da
 
 from sup3r.preprocessing.abstract import Data, XArrayWrapper
 from sup3r.preprocessing.base import Container
+from sup3r.preprocessing.common import Dimension
 from sup3r.preprocessing.derivers.methods import (
     RegistryBase,
 )
 from sup3r.typing import T_Array
 from sup3r.utilities.interpolation import Interpolator
-from sup3r.utilities.utilities import spatial_coarsening
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ def parse_feature(feature):
     """Parse feature name to get the "basename" (i.e. U for U_100m), the height
     (100 for U_100m), and pressure if available (1000 for U_1000pa)."""
 
-    class FStruct:
+    class FeatureStruct:
         def __init__(self):
             height = re.findall(r'_\d+m', feature)
             pressure = re.findall(r'_\d+pa', feature)
@@ -49,9 +49,11 @@ def parse_feature(feature):
                 f"{pattern.split('_(.*)')[0]}_{self.height}m"
                 if self.height
                 else f"{pattern.split('_(.*)')[0]}_{self.pressure}pa"
+                if self.pressure
+                else f"{pattern.split('_(.*)')[0]}"
             )
 
-    return FStruct()
+    return FeatureStruct()
 
 
 class BaseDeriver(Container):
@@ -238,9 +240,9 @@ class BaseDeriver(Container):
                 'data needs to include "level" (a.k.a pressure at multiple '
                 'levels).'
             )
-            assert 'level' in self.data, msg
+            assert Dimension.PRESSURE_LEVEL in self.data, msg
             lev_array = da.broadcast_to(
-                self.data['level'].data, var_array.shape
+                self.data[Dimension.PRESSURE_LEVEL].data, var_array.shape
             )
 
         lev_array, var_array = self.add_single_level_data(
@@ -267,31 +269,21 @@ class Deriver(BaseDeriver):
         super().__init__(data, features, FeatureRegistry=FeatureRegistry)
 
         if time_roll != 0:
-            logger.debug('Applying time roll to data array')
+            logger.debug(f'Applying time_roll={time_roll} to data array')
             self.data = self.data.roll(time=time_roll)
 
         if hr_spatial_coarsen > 1:
-            logger.debug('Applying hr spatial coarsening to data array')
-            coords = self.data.coords
-            coords = {
-                coord: (
-                    (self.data[coord].dims),
-                    spatial_coarsening(
-                        self.data[coord].data,
-                        s_enhance=hr_spatial_coarsen,
-                        obs_axis=False,
-                    ),
-                )
-                for coord in ['latitude', 'longitude']
-            }
-            data_vars = {}
-            for feat in self.features:
-                data_vars[feat] = (
-                    (self.data[feat].dims),
-                    spatial_coarsening(
-                        self.data[feat].data,
-                        s_enhance=hr_spatial_coarsen,
-                        obs_axis=False,
-                    ),
-                )
-            self.data = XArrayWrapper(coords=coords, data_vars=data_vars)
+            logger.debug(
+                f'Applying hr_spatial_coarsen={hr_spatial_coarsen} '
+                'to data array'
+            )
+            out = self.data.coarsen(
+                {
+                    Dimension.SOUTH_NORTH: hr_spatial_coarsen,
+                    Dimension.WEST_EAST: hr_spatial_coarsen,
+                }
+            ).mean()
+
+            self.data = XArrayWrapper(
+                coords=out.coords, data_vars=out.data_vars
+            )

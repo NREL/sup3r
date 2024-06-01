@@ -11,6 +11,7 @@ import pandas as pd
 from sup3r.preprocessing.abstract import Data
 from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.cachers import Cacher
+from sup3r.preprocessing.common import Dimension
 from sup3r.utilities.regridder import Regridder
 from sup3r.utilities.utilities import nn_fill_array, spatial_coarsening
 
@@ -146,9 +147,11 @@ class DualExtracter(Container):
             for f in self.lr_data.features
         }
         hr_coords_new = {
-            'latitude': self.hr_lat_lon[..., 0],
-            'longitude': self.hr_lat_lon[..., 1],
-            'time': self.hr_data.time_index[: self.hr_required_shape[2]],
+            Dimension.LATITUDE: self.hr_lat_lon[..., 0],
+            Dimension.LONGITUDE: self.hr_lat_lon[..., 1],
+            Dimension.TIME: self.hr_data.time_index[
+                : self.hr_required_shape[2]
+            ],
         }
         self.hr_data = self.hr_data.init_new({**hr_coords_new, **hr_data_new})
 
@@ -156,14 +159,14 @@ class DualExtracter(Container):
         """Get regridder object"""
         input_meta = pd.DataFrame.from_dict(
             {
-                'latitude': self.lr_data.lat_lon[..., 0].flatten(),
-                'longitude': self.lr_data.lat_lon[..., 1].flatten(),
+                Dimension.LATITUDE: self.lr_data.lat_lon[..., 0].flatten(),
+                Dimension.LONGITUDE: self.lr_data.lat_lon[..., 1].flatten(),
             }
         )
         target_meta = pd.DataFrame.from_dict(
             {
-                'latitude': self.lr_lat_lon[..., 0].flatten(),
-                'longitude': self.lr_lat_lon[..., 1].flatten(),
+                Dimension.LATITUDE: self.lr_lat_lon[..., 0].flatten(),
+                Dimension.LONGITUDE: self.lr_lat_lon[..., 1].flatten(),
             }
         )
         return Regridder(
@@ -185,9 +188,11 @@ class DualExtracter(Container):
                 for f in self.lr_data.features
             }
             lr_coords_new = {
-                'latitude': self.lr_lat_lon[..., 0],
-                'longitude': self.lr_lat_lon[..., 1],
-                'time': self.lr_data.time_index[: self.lr_required_shape[2]],
+                Dimension.LATITUDE: self.lr_lat_lon[..., 0],
+                Dimension.LONGITUDE: self.lr_lat_lon[..., 1],
+                Dimension.TIME: self.lr_data.time_index[
+                    : self.lr_required_shape[2]
+                ],
             }
             self.lr_data = self.lr_data.init_new(
                 {**lr_coords_new, **lr_data_new}

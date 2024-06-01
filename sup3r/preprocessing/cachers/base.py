@@ -11,6 +11,7 @@ import xarray as xr
 
 from sup3r.preprocessing.abstract import Data
 from sup3r.preprocessing.base import Container
+from sup3r.preprocessing.common import Dimension
 
 logger = logging.getLogger(__name__)
 
@@ -101,17 +102,22 @@ class Cacher(Container):
         """Cache data to h5 file using user provided chunks value."""
         chunks = chunks or {}
         with h5py.File(out_file, 'w') as f:
-            lats = coords['latitude'].data
-            lons = coords['longitude'].data
-            times = coords['time'].astype(int)
+            lats = coords[Dimension.LATITUDE].data
+            lons = coords[Dimension.LONGITUDE].data
+            times = coords[Dimension.TIME].astype(int)
             data_dict = dict(
                 zip(
-                    ['time_index', 'latitude', 'longitude', feature],
+                    [
+                        'time_index',
+                        Dimension.LATITUDE,
+                        Dimension.LONGITUDE,
+                        feature,
+                    ],
                     [da.from_array(times), lats, lons, data],
                 )
             )
             for dset, vals in data_dict.items():
-                if dset in ('latitude', 'longitude'):
+                if dset in (Dimension.LATITUDE, Dimension.LONGITUDE):
                     dset = f'meta/{dset}'
                 d = f.require_dataset(
                     f'/{dset}',
@@ -126,9 +132,9 @@ class Cacher(Container):
     def write_netcdf(cls, out_file, feature, data, coords):
         """Cache data to a netcdf file."""
         if isinstance(coords, dict):
-            dims = (*coords['latitude'][0], 'time')
+            dims = (*coords[Dimension.LATITUDE][0], Dimension.TIME)
         else:
-            dims = (*coords['latitude'].dims, 'time')
+            dims = (*coords[Dimension.LATITUDE].dims, Dimension.TIME)
         data_vars = {
             feature: (
                 dims[: len(data.shape)],

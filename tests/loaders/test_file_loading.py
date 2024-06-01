@@ -10,6 +10,7 @@ from rex import init_logger
 
 from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing import LoaderH5, LoaderNC
+from sup3r.preprocessing.common import Dimension
 from sup3r.utilities.pytest.helpers import (
     execute_pytest,
     make_fake_dset,
@@ -34,12 +35,15 @@ def test_time_independent_loading():
         out_file = os.path.join(td, 'topo.nc')
         nc = make_fake_dset((20, 20, 1), features=['topography'])
         nc = nc.isel(time=0)
-        nc = nc.drop('time')
-        assert 'time' not in nc.dims
-        assert 'time' not in nc.coords
+        nc = nc.drop(Dimension.TIME)
+        assert Dimension.TIME not in nc.dims
+        assert Dimension.TIME not in nc.coords
         nc.to_netcdf(out_file)
         loader = LoaderNC(out_file)
-        assert tuple(loader.dims) == ('south_north', 'west_east')
+        assert tuple(loader.dims) == (
+            Dimension.SOUTH_NORTH,
+            Dimension.WEST_EAST,
+        )
 
 
 def test_time_independent_loading_h5():
@@ -59,10 +63,10 @@ def test_dim_ordering():
     ]
     loader = LoaderNC(input_files)
     assert tuple(loader.dims) == (
-        'south_north',
-        'west_east',
-        'time',
-        'level',
+        Dimension.SOUTH_NORTH,
+        Dimension.WEST_EAST,
+        Dimension.TIME,
+        Dimension.PRESSURE_LEVEL,
         'nbnd',
     )
 
@@ -72,17 +76,25 @@ def test_lat_inversion():
     descending lats."""
     with TemporaryDirectory() as td:
         nc = make_fake_dset((20, 20, 100, 5), features=['u', 'v'])
-        nc['latitude'] = (nc['latitude'].dims, nc['latitude'].data[::-1])
+        nc[Dimension.LATITUDE] = (
+            nc[Dimension.LATITUDE].dims,
+            nc[Dimension.LATITUDE].data[::-1],
+        )
         nc['u'] = (nc['u'].dims, nc['u'].data[:, :, ::-1, :])
         out_file = os.path.join(td, 'inverted.nc')
         nc.to_netcdf(out_file)
         loader = LoaderNC(out_file)
-        assert nc['latitude'][0, 0] < nc['latitude'][-1, 0]
+        assert nc[Dimension.LATITUDE][0, 0] < nc[Dimension.LATITUDE][-1, 0]
         assert loader.lat_lon[-1, 0, 0] < loader.lat_lon[0, 0, 0]
 
         assert np.array_equal(
             nc['u']
-            .transpose('south_north', 'west_east', 'time', 'level')
+            .transpose(
+                Dimension.SOUTH_NORTH,
+                Dimension.WEST_EAST,
+                Dimension.TIME,
+                Dimension.PRESSURE_LEVEL,
+            )
             .data[::-1],
             loader['u'],
         )
@@ -93,16 +105,26 @@ def test_level_inversion():
     corrected so surface pressure is first."""
     with TemporaryDirectory() as td:
         nc = make_fake_dset((20, 20, 100, 5), features=['u', 'v'])
-        nc['level'] = (nc['level'].dims, nc['level'].data[::-1])
+        nc[Dimension.PRESSURE_LEVEL] = (
+            nc[Dimension.PRESSURE_LEVEL].dims,
+            nc[Dimension.PRESSURE_LEVEL].data[::-1],
+        )
         nc['u'] = (nc['u'].dims, nc['u'].data[:, ::-1, :, :])
         out_file = os.path.join(td, 'inverted.nc')
         nc.to_netcdf(out_file)
         loader = LoaderNC(out_file)
-        assert nc['level'][0] < nc['level'][-1]
+        assert (
+            nc[Dimension.PRESSURE_LEVEL][0] < nc[Dimension.PRESSURE_LEVEL][-1]
+        )
 
         assert np.array_equal(
             nc['u']
-            .transpose('south_north', 'west_east', 'time', 'level')
+            .transpose(
+                Dimension.SOUTH_NORTH,
+                Dimension.WEST_EAST,
+                Dimension.TIME,
+                Dimension.PRESSURE_LEVEL,
+            )
             .data[..., ::-1],
             loader['u'],
         )
@@ -118,7 +140,11 @@ def test_load_cc():
         if len(loader[f].data.shape) == 3
     )
     assert isinstance(loader.time_index, pd.DatetimeIndex)
-    assert loader.dims[:3] == ('south_north', 'west_east', 'time')
+    assert loader.dims[:3] == (
+        Dimension.SOUTH_NORTH,
+        Dimension.WEST_EAST,
+        Dimension.TIME,
+    )
 
 
 def test_load_era5():
@@ -131,7 +157,11 @@ def test_load_era5():
         if len(loader[f].data.shape) == 3
     )
     assert isinstance(loader.time_index, pd.DatetimeIndex)
-    assert loader.dims[:3] == ('south_north', 'west_east', 'time')
+    assert loader.dims[:3] == (
+        Dimension.SOUTH_NORTH,
+        Dimension.WEST_EAST,
+        Dimension.TIME,
+    )
 
 
 def test_load_nc():

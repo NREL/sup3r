@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """pytests for exogenous data handling"""
+
 import os
-import shutil
 import tempfile
 from tempfile import TemporaryDirectory
 
@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pytest
+import xarray as xr
 from rex import Outputs, Resource, init_logger
 
 from sup3r import TEST_DATA_DIR
@@ -17,14 +18,17 @@ from sup3r.preprocessing import (
     TopoExtractH5,
     TopoExtractNC,
 )
+from sup3r.preprocessing.common import Dimension
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 FP_WRF = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
 
-FILE_PATHS = [os.path.join(TEST_DATA_DIR, 'ua_test.nc'),
-              os.path.join(TEST_DATA_DIR, 'va_test.nc'),
-              os.path.join(TEST_DATA_DIR, 'orog_test.nc'),
-              os.path.join(TEST_DATA_DIR, 'zg_test.nc')]
+FILE_PATHS = [
+    os.path.join(TEST_DATA_DIR, 'ua_test.nc'),
+    os.path.join(TEST_DATA_DIR, 'va_test.nc'),
+    os.path.join(TEST_DATA_DIR, 'orog_test.nc'),
+    os.path.join(TEST_DATA_DIR, 'zg_test.nc'),
+]
 TARGET = (13.67, 125.0)
 SHAPE = (8, 8)
 S_ENHANCE = [1, 4]
@@ -42,22 +46,31 @@ def test_exo_cache(feature):
     """Test exogenous data caching and re-load"""
     # no cached data
     steps = []
-    for s_en, t_en, s_agg, t_agg in zip(S_ENHANCE, T_ENHANCE, S_AGG_FACTORS,
-                                        T_AGG_FACTORS):
-        steps.append({'s_enhance': s_en,
-                      't_enhance': t_en,
-                      's_agg_factor': s_agg,
-                      't_agg_factor': t_agg,
-                      'combine_type': 'input',
-                      'model': 0})
+    for s_en, t_en, s_agg, t_agg in zip(
+        S_ENHANCE, T_ENHANCE, S_AGG_FACTORS, T_AGG_FACTORS
+    ):
+        steps.append(
+            {
+                's_enhance': s_en,
+                't_enhance': t_en,
+                's_agg_factor': s_agg,
+                't_agg_factor': t_agg,
+                'combine_type': 'input',
+                'model': 0,
+            }
+        )
     with TemporaryDirectory() as td:
         fp_topo = make_topo_file(FILE_PATHS[0], td)
-        base = ExogenousDataHandler(FILE_PATHS, feature,
-                                    source_file=fp_topo,
-                                    steps=steps,
-                                    target=TARGET, shape=SHAPE,
-                                    input_handler='ExtracterNC',
-                                    cache_dir=os.path.join(td, 'exo_cache'))
+        base = ExogenousDataHandler(
+            FILE_PATHS,
+            feature,
+            source_file=fp_topo,
+            steps=steps,
+            target=TARGET,
+            shape=SHAPE,
+            input_handler='ExtracterNC',
+            cache_dir=os.path.join(td, 'exo_cache'),
+        )
         for i, arr in enumerate(base.data[feature]['steps']):
             assert arr.shape[0] == SHAPE[0] * S_ENHANCE[i]
             assert arr.shape[1] == SHAPE[1] * S_ENHANCE[i]
@@ -65,30 +78,40 @@ def test_exo_cache(feature):
         assert len(os.listdir(f'{td}/exo_cache')) == 2
 
         # load cached data
-        cache = ExogenousDataHandler(FILE_PATHS, feature,
-                                     source_file=FP_WTK,
-                                     steps=steps,
-                                     target=TARGET, shape=SHAPE,
-                                     input_handler='ExtracterNC',
-                                     cache_dir=os.path.join(td, 'exo_cache'))
+        cache = ExogenousDataHandler(
+            FILE_PATHS,
+            feature,
+            source_file=FP_WTK,
+            steps=steps,
+            target=TARGET,
+            shape=SHAPE,
+            input_handler='ExtracterNC',
+            cache_dir=os.path.join(td, 'exo_cache'),
+        )
         assert len(os.listdir(f'{td}/exo_cache')) == 2
 
-        for arr1, arr2 in zip(base.data[feature]['steps'],
-                              cache.data[feature]['steps']):
+        for arr1, arr2 in zip(
+            base.data[feature]['steps'], cache.data[feature]['steps']
+        ):
             assert np.allclose(arr1['data'], arr2['data'])
 
 
 def get_lat_lon_range_h5(fp):
     """Get the min/max lat/lon from an h5 file"""
     with Resource(fp) as wtk:
-        lat_range = (wtk.meta['latitude'].min(), wtk.meta['latitude'].max())
-        lon_range = (wtk.meta['longitude'].min(), wtk.meta['longitude'].max())
+        lat_range = (
+            wtk.meta[Dimension.LATITUDE].min(),
+            wtk.meta[Dimension.LATITUDE].max(),
+        )
+        lon_range = (
+            wtk.meta[Dimension.LONGITUDE].min(),
+            wtk.meta[Dimension.LONGITUDE].max(),
+        )
     return lat_range, lon_range
 
 
 def get_lat_lon_range_nc(fp):
     """Get the min/max lat/lon from a netcdf file"""
-    import xarray as xr
 
     dset = xr.open_dataset(fp)
     lat_range = (dset['lat'].values.min(), dset['lat'].values.max())
@@ -113,7 +136,11 @@ def make_topo_file(fp, td, N=100, offset=0.1):
     scale = 30
     elevation = np.sin(scale * np.deg2rad(idy) + scale * np.deg2rad(idx))
     meta = pd.DataFrame(
-        {'latitude': lat, 'longitude': lon, 'elevation': elevation}
+        {
+            Dimension.LATITUDE: lat,
+            Dimension.LONGITUDE: lon,
+            'elevation': elevation,
+        }
     )
 
     fp_temp = os.path.join(td, 'elevation.h5')
@@ -138,6 +165,7 @@ def test_topo_extraction_h5(s_enhance, plot=False):
             t_agg_factor=1,
             target=(39.01, -105.15),
             shape=(20, 20),
+            exo_dir=f'{td}/exo_cache/',
         )
 
         hr_elev = te.data
@@ -164,8 +192,6 @@ def test_topo_extraction_h5(s_enhance, plot=False):
             test_out = hr_elev.compute()[idy, idx, 0, 0]
             true_out = te.source_data[iloc].mean()
             assert np.allclose(test_out, true_out)
-
-        shutil.rmtree('./exo_cache/', ignore_errors=True)
 
         if plot:
             a = plt.scatter(
@@ -218,14 +244,16 @@ def test_topo_extraction_nc():
     We already test proper topo mapping and aggregation in the h5 test so this
     just makes sure that the data can be extracted from a WRF file.
     """
-    te = TopoExtractNC(
-        FP_WRF,
-        FP_WRF,
-        s_enhance=1,
-        t_enhance=1,
-        t_agg_factor=1,
-        target=None,
-        shape=None,
-    )
-    hr_elev = te.data
+    with TemporaryDirectory() as td:
+        te = TopoExtractNC(
+            FP_WRF,
+            FP_WRF,
+            s_enhance=1,
+            t_enhance=1,
+            t_agg_factor=1,
+            target=None,
+            shape=None,
+            cache_dir=f'{td}/exo_cache/',
+        )
+        hr_elev = te.data
     assert np.allclose(te.source_data.flatten(), hr_elev.flatten())
