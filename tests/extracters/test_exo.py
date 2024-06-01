@@ -136,8 +136,8 @@ def test_topo_extraction_h5(s_enhance, plot=False):
             s_enhance=s_enhance,
             t_enhance=1,
             t_agg_factor=1,
-            target=TARGET,
-            shape=SHAPE,
+            target=(39.01, -105.15),
+            shape=(20, 20),
         )
 
         hr_elev = te.data
@@ -198,8 +198,8 @@ def test_bad_s_enhance(s_enhance=10):
                 s_enhance=s_enhance,
                 t_enhance=1,
                 t_agg_factor=1,
-                target=TARGET,
-                shape=SHAPE,
+                target=(39.01, -105.15),
+                shape=(20, 20),
                 cache_data=False,
             )
             _ = te.data

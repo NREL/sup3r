@@ -6,9 +6,8 @@ import os
 from abc import ABC
 
 import numpy as np
-import xarray as xr
 
-from sup3r.preprocessing.abstract import Data
+from sup3r.preprocessing.abstract import XArrayWrapper
 from sup3r.preprocessing.extracters.base import Extracter
 from sup3r.preprocessing.loaders import LoaderH5
 
@@ -89,8 +88,8 @@ class BaseExtracterH5(Extracter, ABC):
         }
         data_vars = {}
         for f in self.loader.features:
-            dat = self.loader[f][self.raster_index.flatten()]
-            if 'time' in self.loader.dset[f].dims:
+            dat = self.loader[f].data[self.raster_index.flatten()]
+            if 'time' in self.loader[f].dims:
                 dat = dat[..., self.time_slice].reshape(
                     (*self.grid_shape, len(self.time_index))
                 )
@@ -98,7 +97,7 @@ class BaseExtracterH5(Extracter, ABC):
             else:
                 dat = dat.reshape(self.grid_shape)
                 data_vars[f] = (dims, dat)
-        return Data(xr.Dataset(coords=coords, data_vars=data_vars))
+        return XArrayWrapper(coords=coords, data_vars=data_vars)
 
     def save_raster_index(self):
         """Save raster index to cache file."""

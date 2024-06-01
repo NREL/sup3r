@@ -4,7 +4,7 @@ data."""
 import logging
 
 from sup3r.preprocessing.cachers import Cacher
-from sup3r.preprocessing.common import FactoryMeta
+from sup3r.preprocessing.common import FactoryMeta, lowered
 from sup3r.preprocessing.derivers import Deriver
 from sup3r.preprocessing.derivers.methods import (
     RegistryH5,
@@ -71,12 +71,16 @@ def DataHandlerFactory(
             loader_kwargs = get_class_kwargs(LoaderClass, kwargs)
             deriver_kwargs = get_class_kwargs(Deriver, kwargs)
             extracter_kwargs = get_class_kwargs(ExtracterClass, kwargs)
+            features = lowered(features)
+            load_features = lowered(load_features)
             self.loader = LoaderClass(
                 file_paths, features=load_features, **loader_kwargs
             )
             self._loader_hook()
             self.extracter = ExtracterClass(
-                self.loader, features=load_features, **extracter_kwargs
+                self.loader,
+                features=load_features,
+                **extracter_kwargs,
             )
             self._extracter_hook()
             super().__init__(

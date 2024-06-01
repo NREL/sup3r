@@ -75,16 +75,16 @@ class Cacher(Container):
                     self.write_h5(
                         out_file,
                         feature,
-                        np.transpose(self.data[feature], axes=(2, 0, 1)),
-                        self.data.coords,
+                        np.transpose(self[feature].data, axes=(2, 0, 1)),
+                        self.coords,
                         chunks,
                     )
                 elif ext == '.nc':
                     self.write_netcdf(
                         out_file,
                         feature,
-                        self.data[feature],
-                        self.data.coords,
+                        self[feature].data,
+                        self.coords,
                     )
                 else:
                     msg = (

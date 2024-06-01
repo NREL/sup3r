@@ -39,7 +39,7 @@ def test_time_independent_loading():
         assert 'time' not in nc.coords
         nc.to_netcdf(out_file)
         loader = LoaderNC(out_file)
-        assert loader.dims == ('south_north', 'west_east')
+        assert tuple(loader.dims) == ('south_north', 'west_east')
 
 
 def test_time_independent_loading_h5():
@@ -58,7 +58,13 @@ def test_dim_ordering():
         os.path.join(TEST_DATA_DIR, 'zg_test.nc'),
     ]
     loader = LoaderNC(input_files)
-    assert loader.dims == ('south_north', 'west_east', 'time', 'level', 'nbnd')
+    assert tuple(loader.dims) == (
+        'south_north',
+        'west_east',
+        'time',
+        'level',
+        'nbnd',
+    )
 
 
 def test_lat_inversion():
@@ -107,9 +113,9 @@ def test_load_cc():
     chunks = (5, 5, 5)
     loader = LoaderNC(cc_files, chunks=chunks)
     assert all(
-        loader.data[f].chunksize == chunks
+        loader[f].data.chunksize == chunks
         for f in loader.features
-        if len(loader.data[f].shape) == 3
+        if len(loader[f].data.shape) == 3
     )
     assert isinstance(loader.time_index, pd.DatetimeIndex)
     assert loader.dims[:3] == ('south_north', 'west_east', 'time')
@@ -120,9 +126,9 @@ def test_load_era5():
     chunks = (5, 5, 5)
     loader = LoaderNC(nc_files, chunks=chunks)
     assert all(
-        loader.data[f].chunksize == chunks
+        loader[f].data.chunksize == chunks
         for f in loader.features
-        if len(loader.data[f].shape) == 3
+        if len(loader[f].data.shape) == 3
     )
     assert isinstance(loader.time_index, pd.DatetimeIndex)
     assert loader.dims[:3] == ('south_north', 'west_east', 'time')
@@ -138,7 +144,7 @@ def test_load_nc():
         chunks = (5, 5, 5)
         loader = LoaderNC(temp_file, chunks=chunks)
         assert loader.shape == (10, 10, 20, 2)
-        assert all(loader.data[f].chunksize == chunks for f in loader.features)
+        assert all(loader[f].data.chunksize == chunks for f in loader.features)
 
 
 def test_load_h5():
@@ -158,7 +164,7 @@ def test_load_h5():
     ]
     assert loader.data.shape == (400, 8784, len(feats))
     assert sorted(loader.features) == sorted(feats)
-    assert all(loader[f].chunksize == chunks for f in feats[:-1])
+    assert all(loader[f].data.chunksize == chunks for f in feats[:-1])
 
 
 def test_multi_file_load_nc():

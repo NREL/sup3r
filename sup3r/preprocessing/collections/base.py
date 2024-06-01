@@ -22,20 +22,9 @@ class Collection(Container):
             List[DualSampler],
         ],
     ):
-        self._containers = containers
-        self.data = tuple(c.data for c in self._containers)
-        self.features = self.containers[0].features
-
-    @property
-    def containers(
-        self,
-    ) -> Union[List[Container], List[Sampler], List[DualSampler]]:
-        """Returns a list of containers."""
-        return self._containers
-
-    @containers.setter
-    def containers(self, containers: List[Container]):
-        self._containers = containers
+        super().__init__()
+        self.data = tuple(c.data for c in containers)
+        self.containers = containers
 
     @property
     def container_weights(self):

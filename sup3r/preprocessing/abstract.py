@@ -10,24 +10,69 @@ import xarray as xr
 
 from sup3r.preprocessing.common import (
     DIM_ORDER,
-    all_dtype,
     dims_array_tuple,
-    enforce_standard_dim_order,
     lowered,
+    ordered_array,
     ordered_dims,
 )
+from sup3r.typing import T_Array, T_XArray
 
 logger = logging.getLogger(__name__)
 
 
-class Data:
+def _is_str_list(vals):
+    return isinstance(vals, str) or (
+        isinstance(vals, list) and all(isinstance(v, str) for v in vals)
+    )
+
+
+def _is_int_list(vals):
+    return isinstance(vals, int) or (
+        isinstance(vals, list) and all(isinstance(v, int) for v in vals)
+    )
+
+
+class ArrayTuple(tuple):
+    """Wrapper to add some useful methods to tuples of arrays. These are
+    frequently returned from the :class:`Data` class, especially when there
+    are multiple members of `.dsets`. We want to be able to calculate shapes,
+    sizes, means, stds on these tuples."""
+
+    def size(self):
+        """Compute the total size across all tuple members."""
+        return np.sum(d.size for d in self)
+
+    def mean(self):
+        """Compute the mean across all tuple members."""
+        return da.mean(da.array([d.mean() for d in self]))
+
+    def std(self):
+        """Compute the standard deviation across all tuple members."""
+        return da.mean(da.array([d.std() for d in self]))
+
+
+class XArrayWrapper(xr.Dataset):
     """Lowest level object. This contains an xarray.Dataset and some methods
     for selecting data from the dataset. This is the thing contained by
     :class:`Container` objects."""
 
-    def __init__(self, data: xr.Dataset):
+    __slots__ = ['_features',]
+
+    def __init__(self, data: xr.Dataset = None, coords=None, data_vars=None):
+        if data is not None:
+            reordered_vars = {
+                var: (
+                    ordered_dims(data.data_vars[var].dims),
+                    ordered_array(data.data_vars[var]).data,
+                )
+                for var in data.data_vars
+            }
+            coords = data.coords
+            data_vars = reordered_vars
+
         try:
-            self.dset = enforce_standard_dim_order(data)
+            super().__init__(coords=coords, data_vars=data_vars)
+
         except Exception as e:
             msg = (
                 'Unable to enforce standard dimension order for the given '
@@ -37,15 +82,11 @@ class Data:
             raise OSError(msg) from e
         self._features = None
 
-    def isel(self, *args, **kwargs):
-        """Override xr.Dataset.isel to return wrapped object."""
-        return Data(self.dset.isel(*args, **kwargs))
-
     def sel(self, *args, **kwargs):
         """Override xr.Dataset.sel to return wrapped object."""
         if 'features' in kwargs:
             return self.slice_dset(features=kwargs['features'])
-        return Data(self.dset.sel(*args, **kwargs))
+        return super().sel(*args, **kwargs)
 
     @property
     def time_independent(self):
@@ -55,14 +96,20 @@ class Data:
 
     def _parse_features(self, features):
         """Parse possible inputs for features (list, str, None, 'all')"""
-        out = (
-            list(self.dset.data_vars)
+        return lowered(
+            list(self.data_vars)
             if features == 'all'
+            else [features]
+            if isinstance(features, str)
             else features
             if features is not None
             else []
         )
-        return lowered(out)
+
+    @property
+    def dims(self):
+        """Return dims with our own enforced ordering."""
+        return ordered_dims(super().dims)
 
     def slice_dset(self, features='all', keys=None):
         """Use given keys to return a sliced version of the underlying
@@ -73,31 +120,54 @@ class Data:
         parsed = (
             parsed if len(parsed) > 0 else ['latitude', 'longitude', 'time']
         )
-        return Data(self.dset[parsed].isel(**slice_kwargs))
+        sliced = super().__getitem__(parsed).isel(**slice_kwargs)
+        return XArrayWrapper(sliced)
 
-    def to_array(self, features='all'):
-        """Return xr.DataArray of contained xr.Dataset."""
+    def as_array(self, features='all') -> T_Array:
+        """Return dask.array for the contained xr.Dataset."""
         features = self._parse_features(features)
-        features = features if isinstance(features, list) else [features]
-        shapes = [self.dset[f].data.shape for f in features]
-        if all(s == shapes[0] for s in shapes):
-            return da.stack([self.dset[f] for f in features], axis=-1)
-        return da.moveaxis(self.dset[features].to_dataarray().data, 0, -1)
+        arrs = [self[f].data for f in features]
+        if all(arr.shape == arrs[0].shape for arr in arrs):
+            return da.stack(arrs, axis=-1)
+        return (
+            super()
+            .__getitem__(features)
+            .to_dataarray()
+            .transpose(*self.dims, ...)
+            .data
+        )
 
-    @property
-    def dims(self):
-        """Get ordered dim names for datasets."""
-        return ordered_dims(self.dset.dims)
+    def _get_from_list(self, keys):
+        if _is_str_list(keys):
+            return self.as_array(keys).squeeze()
+        if _is_str_list(keys[0]):
+            return self.as_array(keys[0]).squeeze()[*keys[1:], :]
+        if _is_str_list(keys[-1]):
+            return self.as_array(keys[-1]).squeeze()[*keys[:-1], :]
+        if _is_int_list(keys):
+            return self.as_array().squeeze()[..., keys]
+        if _is_int_list(keys[-1]):
+            return self.as_array().squeeze()[*keys[:-1]][..., keys[-1]]
+        return self.as_array()[keys]
 
-    def __contains__(self, val):
-        vals = val if isinstance(val, (tuple, list)) else [val]
-        if all_dtype(vals, str):
-            return all(v.lower() in self.variables for v in vals)
-        return False
+    def __getitem__(self, keys):
+        """Method for accessing variables or attributes. keys can optionally
+        include a feature name as the last element of a keys tuple"""
+        keys = lowered(keys)
+        if isinstance(keys, (list, tuple)):
+            return self._get_from_list(keys)
+        return super().__getitem__(keys)
 
-    def update(self, new_dset):
-        """Update the underlying xr.Dataset with given coordinates and / or
-        data variables. These are both provided as dictionaries {name:
+    def __contains__(self, vals):
+        if isinstance(vals, (list, tuple)) and all(
+            isinstance(s, str) for s in vals
+        ):
+            return all(s in self for s in vals)
+        return super().__contains__(vals)
+
+    def init_new(self, new_dset):
+        """Return an updated XArrayWrapper with coords and data_vars replaced
+        with those provided.  These are both provided as dictionaries {name:
         dask.array}.
 
         Parmeters
@@ -106,8 +176,8 @@ class Data:
             Can contain any existing or new variable / coordinate as long as
             they all have a consistent shape.
         """
-        coords = dict(self.dset.coords)
-        data_vars = dict(self.dset.data_vars)
+        coords = dict(self.coords)
+        data_vars = dict(self.data_vars)
         coords.update(
             {
                 k: dims_array_tuple(v)
@@ -122,84 +192,26 @@ class Data:
                 if k not in coords
             }
         )
-        self.dset = enforce_standard_dim_order(
-            xr.Dataset(coords=coords, data_vars=data_vars)
-        )
-
-    def get_from_list(self, keys):
-        """Check if key list contains strings which are attributes or in
-        `.data` or if the list is a set of slices to select a region of
-        data."""
-        if all_dtype(keys, slice):
-            out = self.to_array()[keys]
-        elif all_dtype(keys[0], str):
-            out = self.to_array(keys[0])[*keys[1:], :]
-            out = out.squeeze() if isinstance(keys[0], str) else out
-        elif all_dtype(keys[-1], str):
-            out = self.get_from_list((keys[-1], *keys[:-1]))
-        else:
-            try:
-                out = self.to_array()[keys]
-            except Exception as e:
-                msg = (
-                    'Do not know what to do with the provided key set: '
-                    f'{keys}.'
-                )
-                logger.error(msg)
-                raise KeyError(msg) from e
-        return out
-
-    def __getitem__(self, keys):
-        """Method for accessing self.dset or attributes. keys can optionally
-        include a feature name as the last element of a keys tuple"""
-        if keys == 'time':
-            return self.time_index
-        if keys in self:
-            return self.to_array(keys).squeeze()
-        if isinstance(keys, str) and hasattr(self, keys):
-            return getattr(self, keys)
-        if isinstance(keys, (tuple, list)):
-            return self.get_from_list(keys)
-        return self.to_array()[keys]
-
-    def __getattr__(self, keys):
-        if keys in dir(self):
-            return self.__getattribute__(keys)
-        if hasattr(self.dset, keys):
-            return getattr(self.dset, keys)
-        msg = f'Could not get attribute {keys} from {self.__class__.__name__}'
-        raise AttributeError(msg)
-
-    def __setattr__(self, keys, value):
-        self.__dict__[keys] = value
+        return XArrayWrapper(coords=coords, data_vars=data_vars)
 
     def __setitem__(self, variable, data):
         if isinstance(variable, (list, tuple)):
             for i, v in enumerate(variable):
-                self[v] = data[..., i]
-        variable = variable.lower()
-        if hasattr(data, 'dims') and len(data.dims) >= 2:
-            self.dset[variable] = (self.orered_dims(data.dims), data)
-        elif hasattr(data, 'shape'):
-            self.dset[variable] = dims_array_tuple(data)
+                self.update({v: dims_array_tuple(data[..., i])})
         else:
-            self.dset[variable] = data
-
-    @property
-    def variables(self):
-        """'All "features" in the dataset in the order that they were loaded.
-        Not necessarily the same as the ordered set of training features."""
-        return (
-            list(self.dset.dims)
-            + list(self.dset.data_vars)
-            + list(self.dset.coords)
-        )
+            variable = variable.lower()
+            if hasattr(data, 'dims') and len(data.dims) >= 2:
+                self.update({variable: (ordered_dims(data.dims), data)})
+            elif hasattr(data, 'shape'):
+                self.update({variable: dims_array_tuple(data)})
+            else:
+                self.update({variable: data})
 
     @property
     def features(self):
         """Features in this container."""
         if not self._features:
-            self._features = list(self.dset.data_vars)
+            self._features = list(self.data_vars)
         return self._features
 
     @features.setter
@@ -217,9 +229,9 @@ class Data:
         """Get shape of underlying xr.DataArray. Feature channel by default is
         first and time is second, so we shift these to (..., time, features).
         We also sometimes have a level dimension for pressure level data."""
-        dim_dict = dict(self.dset.sizes)
+        dim_dict = dict(self.sizes)
         dim_vals = [dim_dict[k] for k in DIM_ORDER if k in dim_dict]
-        return (*dim_vals, len(self.dset.data_vars))
+        return (*dim_vals, len(self.data_vars))
 
     @property
     def size(self):
@@ -230,78 +242,93 @@ class Data:
     def time_index(self):
         """Base time index for contained data."""
         if not self.time_independent:
-            return self.dset.indexes['time']
+            return self.indexes['time']
         return None
 
     @time_index.setter
     def time_index(self, value):
         """Update the time_index attribute with given index."""
-        self.dset['time'] = value
+        self['time'] = value
 
     @property
-    def lat_lon(self):
+    def lat_lon(self) -> T_Array:
         """Base lat lon for contained data."""
-        return self[['latitude', 'longitude']]
+        return self.as_array(['latitude', 'longitude'])
 
     @lat_lon.setter
     def lat_lon(self, lat_lon):
         """Update the lat_lon attribute with array values."""
-        self.dset['latitude'] = (self.dset['latitude'], lat_lon[..., 0])
-        self.dset['longitude'] = (self.dset['longitude'], lat_lon[..., 1])
+        self['latitude'] = (self['latitude'], lat_lon[..., 0])
+        self['longitude'] = (self['longitude'], lat_lon[..., 1])
 
 
-class DataGroup:
-    """Interface for interacting with tuples / lists of :class:`Data`
+def single_member_check(func):
+    """Decorator to return first item of list if there is only one data
+    member."""
+
+    def wrapper(self, *args, **kwargs):
+        out = func(self, *args, **kwargs)
+        if self.n_members == 1:
+            return out[0]
+        return out
+
+    return wrapper
+
+
+class Data:
+    """Interface for interacting with tuples / lists of :class:`XArrayWrapper`
     objects."""
 
-    def __init__(self, data: Union[xr.Dataset, List[xr.Dataset]]):
-        dset = (
-            (data,) if not isinstance(data, (list, tuple)) else tuple(data)
-        )
-        self.dset = tuple(Data(d) for d in dset)
-        self.n_members = len(self.dset)
+    def __init__(self, data: Union[List[xr.Dataset], List[XArrayWrapper]]):
+        if not isinstance(data, (list, tuple)):
+            data = (data,)
+        self.dsets = tuple(XArrayWrapper(d) for d in data)
+        self.n_members = len(self.dsets)
 
+    @single_member_check
     def __getattr__(self, attr):
-        return self.check_shared_attr(attr)
+        if attr in dir(self):
+            return self.__getattribute__(attr)
+        out = [getattr(d, attr) for d in self.dsets]
+        return out
 
+    @single_member_check
     def __getitem__(self, keys):
         """Method for accessing self.dset or attributes. If keys is a list of
         tuples or list this is interpreted as a request for
         `self.dset[i][keys[i]] for i in range(len(keys)).` Otherwise the we
-        will get keys from each member of self.dset.  """
-        if all(isinstance(k, (tuple, list)) for k in keys):
-            out = tuple([d[key] for d, key in zip(self.dset, keys)])
+        will get keys from each member of self.dset."""
+        if isinstance(keys, (tuple, list)) and all(
+            isinstance(k, (tuple, list)) for k in keys
+        ):
+            out = ArrayTuple([d[key] for d, key in zip(self.dsets, keys)])
         else:
-            out = tuple(d[keys] for d in self.dset)
-        if self.n_members == 1:
-            return out[0]
+            out = ArrayTuple(d[keys] for d in self.dsets)
         return out
 
-    def isel(self, *args, **kwargs):
+    @single_member_check
+    def isel(self, *args, **kwargs) -> T_XArray:
         """Multi index selection method."""
-        out = tuple(d.isel(*args, **kwargs) for d in self.dset)
-        if self.n_members == 1:
-            return out[0]
+        out = tuple(d.isel(*args, **kwargs) for d in self.dsets)
         return out
 
-    def sel(self, *args, **kwargs):
+    @single_member_check
+    def sel(self, *args, **kwargs) -> T_XArray:
         """Multi dimension selection method."""
-        out = tuple(d.sel(*args, **kwargs) for d in self.dset)
-        if self.n_members == 1:
-            return out[0]
+        out = tuple(d.sel(*args, **kwargs) for d in self.dsets)
         return out
 
-    def check_shared_attr(self, attr):
-        """Check if all :class:`Data` members have the same value for
-        `attr`."""
-        msg = (
-            f'Requested attribute {attr} but not all Data members have '
-            'the same value.'
-        )
-        out = getattr(self.dset[0], attr)
-        if hasattr(out, '__iter__'):
-            check = all((getattr(d, attr) == out).all() for d in self.dset)
-        else:
-            check = all(getattr(d, attr) == out for d in self.dset)
-        assert check, msg
-        return out
+    def __contains__(self, vals):
+        """Check for vals in all of the dset members."""
+        return any(d.__contains__(vals) for d in self.dsets)
+
+    def __setitem__(self, variable, data):
+        """Set dset member values. Check if values is a tuple / list and if
+        so interpret this as sending a tuple / list element to each dset
+        member. e.g. `vals[0] -> dsets[0]`, `vals[1] -> dsets[1]`, etc"""
+        for i, d in enumerate(self.dsets):
+            dat = data[i] if isinstance(data, (tuple, list)) else data
+            d.__setitem__(variable, dat)
+
+    def __iter__(self):
+        yield from self.dsets

@@ -27,7 +27,7 @@ class DerivedFeature(ABC):
     should include all features required for a successful `.compute` call.
     """
 
-    inputs = []
+    inputs = ()
 
     @classmethod
     @abstractmethod
@@ -36,7 +36,6 @@ class DerivedFeature(ABC):
         contained in the :class:`Extracter` data and the attributes (e.g.
         `.lat_lon`, `.time_index`). To access the data contained in the
         extracter just use the feature name. e.g. container['windspeed_100m'].
-        This will also work for attributes e.g. container['lat_lon'].
 
         Parameters
         ----------
@@ -55,7 +54,7 @@ class DerivedFeature(ABC):
 class ClearSkyRatioH5(DerivedFeature):
     """Clear Sky Ratio feature class for computing from H5 data"""
 
-    inputs = ['ghi', 'clearsky_ghi']
+    inputs = ('ghi', 'clearsky_ghi')
 
     @classmethod
     def compute(cls, container):
@@ -86,7 +85,7 @@ class ClearSkyRatioCC(DerivedFeature):
     data
     """
 
-    inputs = ['rsds', 'clearsky_ghi']
+    inputs = ('rsds', 'clearsky_ghi')
 
     @classmethod
     def compute(cls, container):
@@ -112,7 +111,7 @@ class ClearSkyRatioCC(DerivedFeature):
 class CloudMaskH5(DerivedFeature):
     """Cloud Mask feature class for computing from H5 data"""
 
-    inputs = ['ghi', 'clearky_ghi']
+    inputs = ('ghi', 'clearky_ghi')
 
     @classmethod
     def compute(cls, container):
@@ -144,7 +143,7 @@ class PressureNC(DerivedFeature):
     pressure.
     """
 
-    inputs = ['p_(.*)', 'pb_(.*)']
+    inputs = ('p_(.*)', 'pb_(.*)')
 
     @classmethod
     def compute(cls, container, height):
@@ -155,7 +154,7 @@ class PressureNC(DerivedFeature):
 class WindspeedNC(DerivedFeature):
     """Windspeed feature from netcdf data"""
 
-    inputs = ['u_(.*)', 'v_(.*)']
+    inputs = ('u_(.*)', 'v_(.*)')
 
     @classmethod
     def compute(cls, container, height):
@@ -164,7 +163,7 @@ class WindspeedNC(DerivedFeature):
         ws, _ = invert_uv(
             container[f'u_{height}m'],
             container[f'v_{height}m'],
-            container['lat_lon'],
+            container.lat_lon,
         )
         return ws
 
@@ -172,7 +171,7 @@ class WindspeedNC(DerivedFeature):
 class WinddirectionNC(DerivedFeature):
     """Winddirection feature from netcdf data"""
 
-    inputs = ['u_(.*)', 'v_(.*)']
+    inputs = ('u_(.*)', 'v_(.*)')
 
     @classmethod
     def compute(cls, container, height):
@@ -180,7 +179,7 @@ class WinddirectionNC(DerivedFeature):
         _, wd = invert_uv(
             container[f'U_{height}m'],
             container[f'V_{height}m'],
-            container['lat_lon'],
+            container.lat_lon,
         )
         return wd
 
@@ -196,7 +195,7 @@ class UWindPowerLaw(DerivedFeature):
     ALPHA = 0.2
     NEAR_SFC_HEIGHT = 10
 
-    inputs = ['uas']
+    inputs = ('uas')
 
     @classmethod
     def compute(cls, container, height):
@@ -232,7 +231,7 @@ class VWindPowerLaw(DerivedFeature):
     ALPHA = 0.2
     NEAR_SFC_HEIGHT = 10
 
-    inputs = ['vas']
+    inputs = ('vas')
 
     @classmethod
     def compute(cls, container, height):
@@ -249,7 +248,7 @@ class UWind(DerivedFeature):
     method
     """
 
-    inputs = ['windspeed_(.*)', 'winddirection_(.*)']
+    inputs = ('windspeed_(.*)', 'winddirection_(.*)')
 
     @classmethod
     def compute(cls, container, height):
@@ -257,7 +256,7 @@ class UWind(DerivedFeature):
         u, _ = transform_rotate_wind(
             container[f'windspeed_{height}m'],
             container[f'winddirection_{height}m'],
-            container['lat_lon'],
+            container.lat_lon,
         )
         return u
 
@@ -267,7 +266,7 @@ class VWind(DerivedFeature):
     method
     """
 
-    inputs = ['windspeed_(.*)', 'winddirection_(.*)']
+    inputs = ('windspeed_(.*)', 'winddirection_(.*)')
 
     @classmethod
     def compute(cls, container, height):
@@ -276,7 +275,7 @@ class VWind(DerivedFeature):
         _, v = transform_rotate_wind(
             container[f'windspeed_{height}m'],
             container[f'winddirection_{height}m'],
-            container['lat_lon'],
+            container.lat_lon,
         )
         return v
 
@@ -284,7 +283,7 @@ class VWind(DerivedFeature):
 class TempNCforCC(DerivedFeature):
     """Air temperature variable from climate change nc files"""
 
-    inputs = ['ta_(.*)']
+    inputs = ('ta_(.*)')
 
     @classmethod
     def compute(cls, container, height):

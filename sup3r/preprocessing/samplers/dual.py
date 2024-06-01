@@ -11,7 +11,7 @@ from sup3r.preprocessing.samplers.base import Sampler
 logger = logging.getLogger(__name__)
 
 
-class DualSampler(Container):
+class DualSampler(Sampler):
     """Pair of sampler objects, one for low resolution and one for high
     resolution, initialized from a :class:`Container` object with low and high
     resolution :class:`Data` objects."""
@@ -61,42 +61,39 @@ class DualSampler(Container):
         )
         self._lr_only_features = feature_sets.get('lr_only_features', [])
         self._hr_exo_features = feature_sets.get('hr_exo_features', [])
-
         msg = (
-            'DualSamplers require a low-res and high-res Data object. '
+            'DualSampler requires a low-res and high-res Data object. '
             'Recieved an inconsistent Container.'
         )
-        assert (
-            isinstance(container.data, tuple) and len(container.data) == 2
-        ), msg
-        self.hr_sampler = Sampler(container.data[1], self.hr_sample_shape)
-        self.lr_sampler = Sampler(container.data[0], self.lr_sample_shape)
-
-        features = list(copy.deepcopy(self.lr_sampler.features))
-        features += [
-            fn for fn in self.hr_sampler.features if fn not in features
-        ]
+        assert container.data.n_members == 2, msg
+        self.lr_data, self.hr_data = container.data
+        self.lr_sampler = Sampler(
+            self.lr_data, sample_shape=self.lr_sample_shape
+        )
+        features = list(copy.deepcopy(self.lr_data.features))
+        features += [fn for fn in self.hr_data.features if fn not in features]
         self.features = features
-        self.lr_features = self.lr_sampler.features
-        self.hr_features = self.hr_sampler.features
+        self.lr_features = self.lr_data.features
+        self.hr_features = self.hr_data.features
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
         self.check_for_consistent_shapes()
+        super().__init__(container.data, sample_shape=sample_shape)
 
     def check_for_consistent_shapes(self):
         """Make sure container shapes are compatible with enhancement
         factors."""
         enhanced_shape = (
-            self.lr_sampler.shape[0] * self.s_enhance,
-            self.lr_sampler.shape[1] * self.s_enhance,
-            self.lr_sampler.shape[2] * self.t_enhance,
+            self.lr_data.shape[0] * self.s_enhance,
+            self.lr_data.shape[1] * self.s_enhance,
+            self.lr_data.shape[2] * self.t_enhance,
         )
         msg = (
-            f'hr_sampler.shape {self.hr_sampler.shape} and enhanced '
-            f'lr_sampler.shape {enhanced_shape} are not compatible with '
+            f'hr_data.shape {self.hr_data.shape} and enhanced '
+            f'lr_data.shape {enhanced_shape} are not compatible with '
             'the given enhancement factors'
         )
-        assert self.hr_sampler.shape[:3] == enhanced_shape, msg
+        assert self.hr_data.shape[:3] == enhanced_shape, msg
 
     def get_sample_index(self):
         """Get paired sample index, consisting of index for the low res sample
