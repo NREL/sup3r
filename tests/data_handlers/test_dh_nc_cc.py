@@ -100,7 +100,8 @@ def test_data_handling_nc_cc():
     assert np.allclose(va[::-1], handler.data[..., 1])
 
 
-def test_solar_cc():
+@pytest.mark.parametrize('agg', (1, 4))
+def test_solar_cc(agg):
     """Test solar data handling from CC data file with clearsky ratio
     calculated using clearsky ratio from NSRDB h5 file."""
 
@@ -123,6 +124,7 @@ def test_solar_cc():
         input_files,
         features=features,
         nsrdb_source_fp=nsrdb_source_fp,
+        nsrdb_agg=agg,
         target=target,
         shape=shape,
         time_slice=slice(0, 1),

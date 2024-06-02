@@ -20,7 +20,6 @@ class BaseExtracterNC(Extracter, ABC):
     def __init__(
         self,
         loader: Loader,
-        features='all',
         target=None,
         shape=None,
         time_slice=slice(None),
@@ -31,11 +30,6 @@ class BaseExtracterNC(Extracter, ABC):
         loader : Loader
             Loader type container with `.data` attribute exposing data to
             extract.
-        features : str | None | list
-            List of features in include in the final extracted data. If 'all'
-            this includes all features available in the loader. If None this
-            results in a dataset with just lat / lon / time. To select specific
-            features provide a list.
         target : tuple
             (lat, lon) lower left corner of raster. Either need target+shape or
             raster_file.
@@ -48,7 +42,6 @@ class BaseExtracterNC(Extracter, ABC):
         """
         super().__init__(
             loader=loader,
-            features=features,
             target=target,
             shape=shape,
             time_slice=time_slice,

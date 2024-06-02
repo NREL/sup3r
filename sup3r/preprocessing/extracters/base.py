@@ -18,7 +18,6 @@ class Extracter(Container, ABC):
     def __init__(
         self,
         loader: Loader,
-        features='all',
         target=None,
         shape=None,
         time_slice=slice(None),
@@ -29,11 +28,6 @@ class Extracter(Container, ABC):
         loader : Loader
             Loader type container with `.data` attribute exposing data to
             extract.
-        features : str | None | list
-            List of features in include in the final extracted data. If 'all'
-            this includes all features available in the loader. If None this
-            results in a dataset with just lat / lon / time. To select specific
-            features provide a list.
         target : tuple
             (lat, lon) lower left corner of raster. Either need target+shape or
             raster_file.
@@ -57,7 +51,7 @@ class Extracter(Container, ABC):
             else None
         )
         self._lat_lon = None
-        self.data = self.extract_data().slice_dset(features=features)
+        self.data = self.extract_data()
 
     @property
     def time_slice(self):

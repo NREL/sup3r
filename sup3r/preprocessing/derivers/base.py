@@ -87,7 +87,7 @@ class BaseDeriver(Container):
         super().__init__(data=data, features=features)
         for f in self.features:
             self.data[f] = self.derive(f)
-        self.data = self.data.slice_dset(features=self.features)
+        self.data = self.data[self.features]
 
     def _check_for_compute(self, feature) -> Union[T_Array, str]:
         """Get compute method from the registry if available. Will check for
