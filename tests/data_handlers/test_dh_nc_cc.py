@@ -149,7 +149,7 @@ def test_solar_cc(agg):
     for i in range(4):
         for j in range(4):
             test_coord = handler.lat_lon[i, j]
-            _, inn = tree.query(test_coord)
+            _, inn = tree.query(test_coord, k=agg)
 
             assert np.allclose(cs_ghi_true[0:48, inn].mean(), cs_ghi[i, j])
 

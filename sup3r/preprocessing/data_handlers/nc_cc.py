@@ -5,6 +5,7 @@
 import logging
 import os
 
+import dask.array as da
 import numpy as np
 import pandas as pd
 from scipy.spatial import KDTree
@@ -193,13 +194,7 @@ class DataHandlerNCforCC(BaseNCforCC):
             )
         )
 
-        cs_shape = i.shape
-        cs_ghi = res['clearsky_ghi'][i.flatten(), t_slice].T
-
-        cs_ghi = cs_ghi.data.reshape((len(cs_ghi), *cs_shape))
-        cs_ghi = cs_ghi.mean(axis=-1)
-
-        cs_ghi_test = (
+        cs_ghi = (
             res[['clearsky_ghi']]
             .isel(
                 {
@@ -215,17 +210,7 @@ class DataHandlerNCforCC(BaseNCforCC):
         ti_deltas_hours = pd.Series(ti_deltas).dt.total_seconds()[1:-1] / 3600
         time_freq = float(mode(ti_deltas_hours).mode)
 
-        windows = np.array_split(
-            np.arange(len(cs_ghi)), len(cs_ghi) // (24 // time_freq)
-        )
-        cs_ghi = [cs_ghi[window].mean(axis=0) for window in windows]
-        cs_ghi = np.vstack(cs_ghi)
-        cs_ghi = cs_ghi.reshape(
-            (len(cs_ghi), *tuple(self.extracter.grid_shape))
-        )
-        cs_ghi = np.transpose(cs_ghi, axes=(1, 2, 0))
-
-        cs_ghi_test = cs_ghi_test.coarsen(
+        cs_ghi = cs_ghi.coarsen(
             {Dimension.TIME: int(24 // time_freq)}
         ).mean()
         lat_idx, lon_idx = (
@@ -236,13 +221,18 @@ class DataHandlerNCforCC(BaseNCforCC):
             (lat_idx, lon_idx),
             names=(Dimension.SOUTH_NORTH, Dimension.WEST_EAST),
         )
-        cs_ghi_test = cs_ghi_test.assign(
+        cs_ghi = cs_ghi.assign(
             {Dimension.FLATTENED_SPATIAL: ind}
         ).unstack(Dimension.FLATTENED_SPATIAL)
 
+        cs_ghi = cs_ghi.transpose(
+            Dimension.SOUTH_NORTH, Dimension.WEST_EAST, Dimension.TIME
+        )
+
+        cs_ghi = cs_ghi['clearsky_ghi'].data
         if cs_ghi.shape[-1] < len(self.extracter.time_index):
-            n = int(np.ceil(len(self.extracter.time_index) / cs_ghi.shape[-1]))
-            cs_ghi = np.repeat(cs_ghi, n, axis=2)
+            n = int(da.ceil(len(self.extracter.time_index) / cs_ghi.shape[-1]))
+            cs_ghi = da.repeat(cs_ghi, n, axis=2)
 
         cs_ghi = cs_ghi[..., : len(self.extracter.time_index)]
 
