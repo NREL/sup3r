@@ -13,7 +13,7 @@ from rex import Outputs
 from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing import (
     DataHandlerH5SolarCC,
-    SamplerH5forCC,
+    DualSamplerCC,
 )
 from sup3r.utilities.pytest.helpers import execute_pytest
 from sup3r.utilities.utilities import nsrdb_sub_daily_sampler, pd_date_range
@@ -56,7 +56,7 @@ def test_solar_handler(plot=False):
     handler = DataHandlerH5SolarCC(
         INPUT_FILE_S, features=FEATURES_S, **dh_kwargs)
 
-    sampler = SamplerH5forCC(handler, sample_shape)
+    sampler = DualSamplerCC(handler, sample_shape)
 
     assert handler.data.shape[2] % 24 == 0
     assert sampler.data[0].shape[2] % 24 == 0
@@ -134,7 +134,7 @@ def test_solar_handler_w_wind():
             )
 
         handler = DataHandlerH5SolarCC(res_fp, features_s, **dh_kwargs)
-        sampler = SamplerH5forCC(handler, sample_shape=sample_shape)
+        sampler = DualSamplerCC(handler, sample_shape=sample_shape)
         assert handler.data.shape[2] % 24 == 0
 
         # some of the raw clearsky ghi and clearsky ratio data should be loaded

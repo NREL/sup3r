@@ -8,7 +8,9 @@ import logging
 import numpy as np
 from scipy.ndimage import gaussian_filter
 
-from sup3r.preprocessing.batch_handlers.factory import BatchHandler
+from sup3r.preprocessing.batch_handlers.factory import BatchHandlerFactory
+from sup3r.preprocessing.batch_queues import DualBatchQueue
+from sup3r.preprocessing.samplers.cc import DualSamplerCC
 from sup3r.utilities.utilities import (
     nn_fill_array,
     nsrdb_reduce_daily_data,
@@ -18,7 +20,12 @@ from sup3r.utilities.utilities import (
 logger = logging.getLogger(__name__)
 
 
-class BatchHandlerCC(BatchHandler):
+BaseHandlerCC = BatchHandlerFactory(
+    DualBatchQueue, DualSamplerCC, name='BatchHandlerCC'
+)
+
+
+class BatchHandlerCC(BaseHandlerCC):
     """Batch handling class for climate change data with daily averages as the
     coarse dataset."""
 
@@ -39,36 +46,11 @@ class BatchHandlerCC(BatchHandler):
         super().__init__(*args, **kwargs)
         self.sub_daily_shape = sub_daily_shape
 
-    def __next__(self):
-        """Get the next iterator output.
-
-        Returns
-        -------
-        batch : Batch
-            Batch object with batch.low_res and batch.high_res attributes
-            with the appropriate coarsening.
-        """
-        if self._i >= self.n_batches:
-            raise StopIteration
-
-        handler = self.get_random_container()
-
-        low_res = None
-        high_res = None
-
-        for i in range(self.batch_size):
-            obs_hourly, obs_daily_avg = handler.get_next()
-            obs_hourly = obs_hourly[..., self.hr_features_ind]
-
-            if low_res is None:
-                lr_shape = (self.batch_size, *obs_daily_avg.shape)
-                hr_shape = (self.batch_size, *obs_hourly.shape)
-                low_res = np.zeros(lr_shape, dtype=np.float32)
-                high_res = np.zeros(hr_shape, dtype=np.float32)
-
-            low_res[i] = obs_daily_avg
-            high_res[i] = obs_hourly
-
+    def coarsen(self, samples):
+        """Subsample hourly data to the daylight window and coarsen the daily
+        data. Smooth if requested."""
+        low_res, high_res = samples
+        high_res = high_res[..., self.hr_features_ind]
         high_res = self.reduce_high_res_sub_daily(high_res)
         low_res = spatial_coarsening(low_res, self.s_enhance)
 
@@ -91,11 +73,7 @@ class BatchHandlerCC(BatchHandler):
                     low_res[i, ..., j] = gaussian_filter(
                         low_res[i, ..., j], self.smoothing, mode='nearest'
                     )
-
-        batch = self.BATCH_CLASS(low_res, high_res)
-
-        self._i += 1
-        return batch
+        return low_res, high_res
 
     def reduce_high_res_sub_daily(self, high_res):
         """Take an hourly high-res observation and reduce the temporal axis

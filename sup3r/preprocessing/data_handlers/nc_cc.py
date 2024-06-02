@@ -159,7 +159,8 @@ class DataHandlerNCforCC(BaseNCforCC):
         """Get clearsky ghi from an exogenous NSRDB source h5 file at the
         target CC meta data and time index.
 
-        TODO: Replace some of this with call to Regridder?
+        TODO: Replace some of this with call to Regridder? Perform daily
+        means with self.loader.coarsen?
 
         Returns
         -------
