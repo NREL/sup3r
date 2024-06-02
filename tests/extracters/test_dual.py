@@ -38,7 +38,6 @@ def test_dual_extracter_shapes(full_shape=(20, 20)):
     )
     lr_container = DataHandlerNC(
         file_paths=FP_ERA,
-        load_features=FEATURES,
         features=FEATURES,
         time_slice=slice(None, None, 10),
     )
@@ -67,7 +66,6 @@ def test_regrid_caching(full_shape=(20, 20)):
         )
         lr_container = DataHandlerNC(
             file_paths=FP_ERA,
-            load_features=FEATURES,
             features=FEATURES,
             time_slice=slice(None, None, 10),
         )

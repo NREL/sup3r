@@ -10,6 +10,9 @@ import xarray as xr
 
 from sup3r.preprocessing.common import (
     Dimension,
+    _contains_ellipsis,
+    _is_ints,
+    _is_strings,
     dims_array_tuple,
     lowered,
     ordered_array,
@@ -18,26 +21,6 @@ from sup3r.preprocessing.common import (
 from sup3r.typing import T_Array, T_XArray
 
 logger = logging.getLogger(__name__)
-
-
-def _contains_ellipsis(vals):
-    return (
-        vals is Ellipsis
-        or (isinstance(vals, list)
-        and any(v is Ellipsis for v in vals))
-    )
-
-
-def _is_str_list(vals):
-    return isinstance(vals, str) or (
-        isinstance(vals, list) and all(isinstance(v, str) for v in vals)
-    )
-
-
-def _is_int_list(vals):
-    return isinstance(vals, int) or (
-        isinstance(vals, list) and all(isinstance(v, int) for v in vals)
-    )
 
 
 class ArrayTuple(tuple):
@@ -94,8 +77,9 @@ class XArrayWrapper(xr.Dataset):
 
     def sel(self, *args, **kwargs):
         """Override xr.Dataset.sel to return wrapped object."""
-        if 'features' in kwargs:
-            return self.slice_dset(features=kwargs['features'])
+        features = kwargs.pop('features', None)
+        if features is not None:
+            return self[features].sel(**kwargs)
         return super().sel(*args, **kwargs)
 
     @property
@@ -108,7 +92,7 @@ class XArrayWrapper(xr.Dataset):
         """Parse possible inputs for features (list, str, None, 'all')"""
         return lowered(
             list(self.data_vars)
-            if features == 'all'
+            if 'all' in features
             else [features]
             if isinstance(features, str)
             else features
@@ -132,8 +116,8 @@ class XArrayWrapper(xr.Dataset):
             if len(parsed) > 0
             else [Dimension.LATITUDE, Dimension.LONGITUDE, Dimension.TIME]
         )
-        sliced = super().__getitem__(parsed).isel(**slice_kwargs)
-        return XArrayWrapper(sliced)
+        return super().__getitem__(parsed).isel(**slice_kwargs)
+        # return XArrayWrapper(sliced)
 
     def as_array(self, features='all') -> T_Array:
         """Return dask.array for the contained xr.Dataset."""
@@ -149,28 +133,40 @@ class XArrayWrapper(xr.Dataset):
             .data
         )
 
-    def _get_from_list(self, keys):
-        if _is_str_list(keys):
-            return self.as_array(keys).squeeze()
-        if _is_str_list(keys[0]):
-            return self.as_array(keys[0]).squeeze()[*keys[1:], :]
-        if _is_str_list(keys[-1]):
-            return self.as_array(keys[-1]).squeeze()[*keys[:-1], :]
-        if _is_int_list(keys):
-            return self.as_array().squeeze()[..., keys]
-        if _is_int_list(keys[-1]):
-            return self.as_array().squeeze()[*keys[:-1]][..., keys[-1]]
+    def _get_from_tuple(self, keys):
+        if _is_strings(keys[0]):
+            return self.as_array(keys[0])[*keys[1:], ...].squeeze()
+        if _is_strings(keys[-1]):
+            return self.as_array(keys[-1])[*keys[:-1], ...].squeeze()
+        if _is_ints(keys[-1]):
+            return self.as_array()[*keys[:-1]][..., keys[-1]].squeeze()
         return self.as_array()[keys]
 
     def __getitem__(self, keys):
         """Method for accessing variables or attributes. keys can optionally
-        include a feature name as the last element of a keys tuple"""
-        keys = lowered(keys)
-        if isinstance(keys, (list, tuple)):
-            return self._get_from_list(keys)
+        include a feature name as the last element of a keys tuple.
+
+        TODO: Get this to return a XArrayWrapper instead of xr.Dataset when
+        super().__getitem__() is called.
+        """
+        logger.info(f'Requested keys: {keys}')
+        # keys = self._parse_features(lowered(keys))
+        # logger.info(f'Parsed keys: {keys}')
+        if isinstance(keys, slice):
+            return self._get_from_tuple((keys,))
+        if isinstance(keys, tuple):
+            return self._get_from_tuple(keys)
         if _contains_ellipsis(keys):
             return self.as_array().squeeze()[keys]
+        if _is_ints(keys):
+            return self.as_array().squeeze()[..., keys]
         return super().__getitem__(keys)
+
+    def _contains_vars(self, vars):
+        return (
+            isinstance(vars, (tuple, list))
+            and all(v in self.data_vars for v in vars)
+        ) or (isinstance(vars, str) and vars in self.data_vars)
 
     def __contains__(self, vals):
         if isinstance(vals, (list, tuple)) and all(
@@ -319,6 +315,7 @@ class Data:
         tuples or list this is interpreted as a request for
         `self.dset[i][keys[i]] for i in range(len(keys)).` Otherwise the we
         will get keys from each member of self.dset."""
+        logger.info(f'Requested keys from Data: {keys}.')
         if isinstance(keys, (tuple, list)) and all(
             isinstance(k, (tuple, list)) for k in keys
         ):

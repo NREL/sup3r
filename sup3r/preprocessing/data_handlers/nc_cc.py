@@ -10,6 +10,7 @@ import pandas as pd
 from scipy.spatial import KDTree
 from scipy.stats import mode
 
+from sup3r.preprocessing.common import Dimension
 from sup3r.preprocessing.data_handlers.factory import (
     DataHandlerFactory,
 )
@@ -90,14 +91,17 @@ class DataHandlerNCforCC(BaseNCforCC):
             self.extracter.data['clearsky_ghi'] = self.get_clearsky_ghi()
 
     def run_input_checks(self):
-        """Run checks on the files provided for extracting clearksky_ghi."""
+        """Run checks on the files provided for extracting clearksky_ghi. Make
+        sure the loaded data is daily data and the step size is one day."""
 
         msg = (
             'Need nsrdb_source_fp input arg as a valid filepath to '
             'retrieve clearsky_ghi (maybe for clearsky_ratio) but '
             'received: {}'.format(self._nsrdb_source_fp)
         )
-        assert os.path.exists(self._nsrdb_source_fp), msg
+        assert self._nsrdb_source_fp is not None and os.path.exists(
+            self._nsrdb_source_fp
+        ), msg
 
         ti_deltas = self.loader.time_index - np.roll(self.loader.time_index, 1)
         ti_deltas_hours = pd.Series(ti_deltas).dt.total_seconds()[1:-1] / 3600
@@ -116,7 +120,7 @@ class DataHandlerNCforCC(BaseNCforCC):
             'Can only handle source CC data with time_slice.step == 1 '
             'but received: {}'.format(self.extracter.time_slice.step)
         )
-        assert (self.self.extracter.time_slice.step is None) | (
+        assert (self.extracter.time_slice.step is None) | (
             self.extracter.time_slice.step == 1
         ), msg
 
@@ -192,8 +196,20 @@ class DataHandlerNCforCC(BaseNCforCC):
         cs_shape = i.shape
         cs_ghi = res['clearsky_ghi'][i.flatten(), t_slice].T
 
-        cs_ghi = cs_ghi.reshape((len(cs_ghi), *cs_shape))
+        cs_ghi = cs_ghi.data.reshape((len(cs_ghi), *cs_shape))
         cs_ghi = cs_ghi.mean(axis=-1)
+
+        cs_ghi_test = (
+            res[['clearsky_ghi']]
+            .isel(
+                {
+                    Dimension.FLATTENED_SPATIAL: i.flatten(),
+                    Dimension.TIME: t_slice,
+                }
+            )
+            .coarsen({Dimension.FLATTENED_SPATIAL: self._nsrdb_agg})
+            .mean()
+        )
 
         ti_deltas = ti_nsrdb - np.roll(ti_nsrdb, 1)
         ti_deltas_hours = pd.Series(ti_deltas).dt.total_seconds()[1:-1] / 3600
@@ -208,6 +224,21 @@ class DataHandlerNCforCC(BaseNCforCC):
             (len(cs_ghi), *tuple(self.extracter.grid_shape))
         )
         cs_ghi = np.transpose(cs_ghi, axes=(1, 2, 0))
+
+        cs_ghi_test = cs_ghi_test.coarsen(
+            {Dimension.TIME: int(24 // time_freq)}
+        ).mean()
+        lat_idx, lon_idx = (
+            np.arange(self.extracter.grid_shape[0]),
+            np.arange(self.extracter.grid_shape[1]),
+        )
+        ind = pd.MultiIndex.from_product(
+            (lat_idx, lon_idx),
+            names=(Dimension.SOUTH_NORTH, Dimension.WEST_EAST),
+        )
+        cs_ghi_test = cs_ghi_test.assign(
+            {Dimension.FLATTENED_SPATIAL: ind}
+        ).unstack(Dimension.FLATTENED_SPATIAL)
 
         if cs_ghi.shape[-1] < len(self.extracter.time_index):
             n = int(np.ceil(len(self.extracter.time_index) / cs_ghi.shape[-1]))

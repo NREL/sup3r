@@ -4,12 +4,15 @@ data."""
 import logging
 
 import pandas as pd
+from rex import MultiFileNSRDBX
 
 from sup3r.preprocessing.cachers import Cacher
 from sup3r.preprocessing.common import FactoryMeta, lowered
 from sup3r.preprocessing.derivers import Deriver
 from sup3r.preprocessing.derivers.methods import (
     RegistryH5,
+    RegistryH5SolarCC,
+    RegistryH5WindCC,
     RegistryNC,
 )
 from sup3r.preprocessing.extracters import (
@@ -53,9 +56,7 @@ def DataHandlerFactory(
         if BaseLoader is not None:
             BASE_LOADER = BaseLoader
 
-        def __init__(
-            self, file_paths, features, load_features='all', **kwargs
-        ):
+        def __init__(self, file_paths, features, **kwargs):
             """
             Parameters
             ----------
@@ -63,8 +64,6 @@ def DataHandlerFactory(
                 file_paths input to DirectExtracterClass
             features : list
                 Features to derive from loaded data.
-            load_features : list
-                Features to load for use in derivations.
             **kwargs : dict
                 Dictionary of keyword args for DirectExtracter, Deriver, and
                 Cacher
@@ -74,14 +73,10 @@ def DataHandlerFactory(
             deriver_kwargs = get_class_kwargs(Deriver, kwargs)
             extracter_kwargs = get_class_kwargs(ExtracterClass, kwargs)
             features = lowered(features)
-            load_features = lowered(load_features)
-            self.loader = LoaderClass(
-                file_paths, features=load_features, **loader_kwargs
-            )
+            self.loader = LoaderClass(file_paths, **loader_kwargs)
             self._loader_hook()
             self.extracter = ExtracterClass(
                 self.loader,
-                features=load_features,
                 **extracter_kwargs,
             )
             self._extracter_hook()
@@ -143,14 +138,15 @@ def DailyDataHandlerFactory(
         ExtracterClass,
         LoaderClass=LoaderClass,
         BaseLoader=BaseLoader,
-        FeatureRegistry=FeatureRegistry,
-        name=name,
+        FeatureRegistry=FeatureRegistry
     )
 
     class DailyHandler(BaseHandler):
         """General data handler class for daily data. XArrayWrapper coarsen
         method inherited from xr.Dataset employed to compute averages / mins /
         maxes over daily windows."""
+
+        __name__ = name
 
         def _extracter_hook(self):
             """Hook to run daily coarsening calculations after extraction and
@@ -193,9 +189,82 @@ def DailyDataHandlerFactory(
     return DailyHandler
 
 
+def CompositeDailyHandlerFactory(
+    ExtracterClass,
+    LoaderClass,
+    BaseLoader=None,
+    FeatureRegistry=None,
+    name='Handler',
+):
+    """Builds a data handler with `.data` and `.daily_data` attributes coming
+    from a standard data handler and a :class:`DailyDataHandler`,
+    respectively."""
+
+    BaseHandler = DataHandlerFactory(
+        ExtracterClass=ExtracterClass,
+        LoaderClass=LoaderClass,
+        BaseLoader=BaseLoader,
+        FeatureRegistry=FeatureRegistry)
+
+    DailyHandler = DailyDataHandlerFactory(
+        ExtracterClass=ExtracterClass,
+        LoaderClass=LoaderClass,
+        BaseLoader=BaseLoader,
+        FeatureRegistry=FeatureRegistry,
+    )
+
+    class CompositeDailyHandler(BaseHandler):
+        """Handler composed of a daily handler and standard handler, which
+        provide `.daily_data` and `.data` respectively."""
+
+        __name__ = name
+
+        def __init__(self, file_paths, features, **kwargs):
+            """
+            Parameters
+            ----------
+            file_paths : str | list | pathlib.Path
+                file_paths input to Loader
+            features : list
+                Features to derive from loaded data.
+            **kwargs : dict
+                Dictionary of keyword args for Loader, Extracter, Deriver, and
+                Cacher
+            """
+            super().__init__(file_paths, features, **kwargs)
+
+            self.daily_data = DailyHandler(
+                file_paths, features, **kwargs
+            ).data
+
+    return CompositeDailyHandler
+
+
 DataHandlerH5 = DataHandlerFactory(
     BaseExtracterH5, LoaderH5, FeatureRegistry=RegistryH5, name='DataHandlerH5'
 )
 DataHandlerNC = DataHandlerFactory(
     BaseExtracterNC, LoaderNC, FeatureRegistry=RegistryNC, name='DataHandlerNC'
+)
+
+
+def _base_loader(file_paths, **kwargs):
+    return MultiFileNSRDBX(file_paths, **kwargs)
+
+
+DataHandlerH5SolarCC = CompositeDailyHandlerFactory(
+    BaseExtracterH5,
+    LoaderH5,
+    BaseLoader=_base_loader,
+    FeatureRegistry=RegistryH5SolarCC,
+    name='DataHandlerH5SolarCC',
+)
+
+
+DataHandlerH5WindCC = CompositeDailyHandlerFactory(
+    BaseExtracterH5,
+    LoaderH5,
+    BaseLoader=_base_loader,
+    FeatureRegistry=RegistryH5WindCC,
+    name='DataHandlerH5WindCC',
 )

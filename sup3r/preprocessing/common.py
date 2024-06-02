@@ -8,6 +8,7 @@ from inspect import getfullargspec
 from typing import ClassVar, Tuple
 from warnings import warn
 
+import numpy as np
 import xarray as xr
 
 logger = logging.getLogger(__name__)
@@ -93,6 +94,25 @@ def log_args(func):
     return wrapper
 
 
+def _contains_ellipsis(vals):
+    return vals is Ellipsis or (
+        isinstance(vals, list) and any(v is Ellipsis for v in vals)
+    )
+
+
+def _is_strings(vals):
+    return isinstance(vals, str) or (
+        isinstance(vals, list) and all(isinstance(v, str) for v in vals)
+    )
+
+
+def _is_ints(vals):
+    return isinstance(vals, int) or (
+        isinstance(vals, (list, np.ndarray))
+        and all(isinstance(v, int) for v in vals)
+    )
+
+
 def lowered(features):
     """Return a lower case version of the given str or list of strings. Used to
     standardize storage and lookup of features."""
@@ -105,7 +125,7 @@ def lowered(features):
         and all(isinstance(f, str) for f in features)
         else features
     )
-    if features != feats:
+    if _is_strings(features) and features != feats:
         msg = (
             f'Received some upper case features: {features}. '
             f'Using {feats} instead.'

@@ -29,9 +29,10 @@ class DualSamplerCC(Sampler):
         """
         Parameters
         ----------
-        container : DataHandler
-            DataHandlerH5 type container. Needs to have `.daily_data` and
-            `.daily_data_slices`. See `sup3r.preprocessing.data_handlers.h5_cc`
+        container : CompositeDailyDataHandler
+            :class:`CompositeDailyDataHandler` type container. Needs to have
+            `.daily_data` and `.daily_data_slices`. See
+            `sup3r.preprocessing.factory`
         """
         self.data = (container.data, container.daily_data)
         sample_shape = (

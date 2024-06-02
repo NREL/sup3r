@@ -161,7 +161,7 @@ def test_nsrdb_sub_daily_sampler():
     hours."""
     handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S, **dh_kwargs)
     ti = pd_date_range('20220101', '20230101', freq='1h', inclusive='left')
-    ti = ti[0 : handler.data.shape[2]]
+    ti = ti[0: handler.data.shape[2]]
 
     for _ in range(100):
         tslice = nsrdb_sub_daily_sampler(handler.data, 4, ti)

@@ -24,28 +24,6 @@ features = ['windspeed_100m', 'winddirection_100m']
 init_logger('sup3r', log_level='DEBUG')
 
 
-def test_get_just_coords_nc():
-    """Test data handling without features, target, shape, or raster_file
-    input"""
-
-    extracter = ExtracterNC(file_paths=nc_files, features=[])
-    nc_res = xr.open_mfdataset(nc_files)
-    shape = (len(nc_res[Dimension.LATITUDE]), len(nc_res[Dimension.LONGITUDE]))
-    target = (
-        nc_res[Dimension.LATITUDE].values.min(),
-        nc_res[Dimension.LONGITUDE].values.min(),
-    )
-    assert np.array_equal(
-        extracter.lat_lon[-1, 0, :],
-        (
-            extracter.loader[Dimension.LATITUDE].min(),
-            extracter.loader[Dimension.LONGITUDE].min(),
-        ),
-    )
-    assert extracter.grid_shape == shape
-    assert np.array_equal(extracter.target, target)
-
-
 def test_get_full_domain_nc():
     """Test data handling without target, shape, or raster_file input"""
 
@@ -128,7 +106,6 @@ def test_topography_h5():
             file_paths=h5_files[0],
             target=(39.01, -105.15),
             shape=(20, 20),
-            features='topography',
         )
         ri = extracter.raster_index
         topo = res.get_meta_arr('elevation')[(ri.flatten(),)]
