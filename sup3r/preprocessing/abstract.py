@@ -105,24 +105,12 @@ class XArrayWrapper(xr.Dataset):
         """Return dims with our own enforced ordering."""
         return ordered_dims(super().dims)
 
-    def slice_dset(self, features='all', keys=None):
-        """Use given keys to return a sliced version of the underlying
-        xr.Dataset()."""
-        keys = (slice(None),) if keys is None else keys
-        slice_kwargs = dict(zip(self.dims, keys))
-        parsed = self._parse_features(features)
-        parsed = (
-            parsed
-            if len(parsed) > 0
-            else [Dimension.LATITUDE, Dimension.LONGITUDE, Dimension.TIME]
-        )
-        return super().__getitem__(parsed).isel(**slice_kwargs)
-        # return XArrayWrapper(sliced)
-
     def as_array(self, features='all') -> T_Array:
         """Return dask.array for the contained xr.Dataset."""
         features = self._parse_features(features)
-        arrs = [self[f].data for f in features]
+        arrs = [
+            super(XArrayWrapper, self).__getitem__(f) for f in features
+        ]
         if all(arr.shape == arrs[0].shape for arr in arrs):
             return da.stack(arrs, axis=-1)
         return (
@@ -149,9 +137,7 @@ class XArrayWrapper(xr.Dataset):
         TODO: Get this to return a XArrayWrapper instead of xr.Dataset when
         super().__getitem__() is called.
         """
-        logger.info(f'Requested keys: {keys}')
-        # keys = self._parse_features(lowered(keys))
-        # logger.info(f'Parsed keys: {keys}')
+        keys = lowered(keys)
         if isinstance(keys, slice):
             return self._get_from_tuple((keys,))
         if isinstance(keys, tuple):
@@ -315,7 +301,6 @@ class Data:
         tuples or list this is interpreted as a request for
         `self.dset[i][keys[i]] for i in range(len(keys)).` Otherwise the we
         will get keys from each member of self.dset."""
-        logger.info(f'Requested keys from Data: {keys}.')
         if isinstance(keys, (tuple, list)) and all(
             isinstance(k, (tuple, list)) for k in keys
         ):
