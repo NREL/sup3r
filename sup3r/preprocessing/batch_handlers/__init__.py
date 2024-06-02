@@ -15,4 +15,4 @@ from .conditional import (
     BatchMom2SF,
 )
 from .dc import BatchHandlerDC
-from .factory import BatchHandler, DualBatchHandler, DualBatchHandlerCC
+from .factory import BatchHandler, DualBatchHandler

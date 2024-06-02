@@ -104,7 +104,7 @@ class SingleBatchQueue(AbstractBatchQueue):
     def batch_next(self, samples):
         """Coarsens high res samples, normalizes low / high res and returns
         wrapped collection of samples / observations."""
-        lr, hr = self.coarsen(high_res=samples, **self.coarsen_kwargs)
+        lr, hr = self.coarsen(samples, **self.coarsen_kwargs)
         lr, hr = self.normalize(lr, hr)
         return self.BATCH_CLASS(low_res=lr, high_res=hr)
 
