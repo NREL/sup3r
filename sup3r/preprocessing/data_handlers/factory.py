@@ -3,9 +3,11 @@ data."""
 
 import logging
 
-import pandas as pd
+import numpy as np
 from rex import MultiFileNSRDBX
+from scipy.stats import mode
 
+from sup3r.preprocessing.abstract import DatasetWrapper
 from sup3r.preprocessing.cachers import Cacher
 from sup3r.preprocessing.common import FactoryMeta, lowered
 from sup3r.preprocessing.derivers import Deriver
@@ -118,9 +120,13 @@ def DataHandlerFactory(
         def __getattr__(self, attr):
             """Look for attribute in extracter and then loader if not found in
             self."""
-            if attr in ['lat_lon', 'grid_shape', 'time_slice']:
+            if attr in ['lat_lon', 'grid_shape', 'time_slice', 'time_index']:
                 return getattr(self.extracter, attr)
-            return super().__getattr__(attr)
+            try:
+                return Deriver.__getattr__(self, attr)
+            except Exception as e:
+                msg = f'{self.__class__.__name__} has no attribute "{attr}"'
+                raise AttributeError(msg) from e
 
     return Handler
 
@@ -132,112 +138,86 @@ def DailyDataHandlerFactory(
     FeatureRegistry=None,
     name='Handler',
 ):
-    """Handler factory for daily data handlers."""
+    """Handler factory for data handlers with additional daily_data."""
 
     BaseHandler = DataHandlerFactory(
         ExtracterClass,
         LoaderClass=LoaderClass,
         BaseLoader=BaseLoader,
-        FeatureRegistry=FeatureRegistry
+        FeatureRegistry=FeatureRegistry,
     )
 
     class DailyHandler(BaseHandler):
-        """General data handler class for daily data. DatasetWrapper coarsen
-        method inherited from xr.Dataset employed to compute averages / mins /
-        maxes over daily windows."""
+        """General data handler class with daily data as an additional
+        attribute. DatasetWrapper coarsen method inherited from xr.Dataset
+        employed to compute averages / mins / maxes over daily windows. Special
+        treatment of clearsky_ratio, which requires derivation from total
+        clearsky_ghi and total ghi"""
 
         __name__ = name
 
-        def _extracter_hook(self):
-            """Hook to run daily coarsening calculations after extraction and
-            replaces data with daily averages / maxes / mins to then be used in
-            derivations."""
-
+        def _deriver_hook(self):
+            """Hook to run daily coarsening calculations after derivations of
+            hourly variables. Replaces data with daily averages / maxes / mins
+            / sums"""
             msg = (
                 'Data needs to be hourly with at least 24 hours, but data '
-                'shape is {}.'.format(self.extracter.data.shape)
+                'shape is {}.'.format(self.data.shape)
             )
-            assert self.extracter.data.shape[2] % 24 == 0, msg
-            assert self.extracter.data.shape[2] > 24, msg
 
-            n_data_days = int(self.extracter.data.shape[2] / 24)
+            day_steps = int(
+                24 // float(mode(self.time_index.diff().seconds / 3600).mode)
+            )
+            assert len(self.time_index) % day_steps == 0, msg
+            assert len(self.time_index) > day_steps, msg
+
+            n_data_days = int(len(self.time_index) / day_steps)
 
             logger.info(
                 'Calculating daily average datasets for {} training '
                 'data days.'.format(n_data_days)
             )
-            daily_data = self.extracter.data.coarsen(time=24).mean()
-            for fname in self.extracter.features:
+            daily_data = self.data.coarsen(time=day_steps).mean()
+            feats = [f for f in self.features if 'clearsky_ratio' not in f]
+            feats = (
+                feats
+                if 'clearsky_ratio' not in self.features
+                else [*feats, 'total_clearsky_ghi', 'total_ghi']
+            )
+            for fname in feats:
                 if '_max_' in fname:
                     daily_data[fname] = (
-                        self.extracter.data[fname].coarsen(time=24).max()
+                        self.data[fname].coarsen(time=day_steps).max()
                     )
                 if '_min_' in fname:
                     daily_data[fname] = (
-                        self.extracter.data[fname].coarsen(time=24).min()
+                        self.data[fname].coarsen(time=day_steps).min()
                     )
+                if 'total_' in fname:
+                    daily_data[fname] = (
+                        self.data[fname.split('total_')[-1]]
+                        .coarsen(time=day_steps)
+                        .sum()
+                    )
+
+            if 'clearsky_ratio' in self.features:
+                daily_data['clearsky_ratio'] = (
+                    daily_data['total_ghi'] / daily_data['total_clearsky_ghi']
+                )
 
             logger.info(
                 'Finished calculating daily average datasets for {} '
                 'training data days.'.format(n_data_days)
             )
-            self.extracter.data = daily_data
-            self.extracter.time_index = pd.to_datetime(
-                daily_data.indexes['time']
-            )
+            self.daily_data = DatasetWrapper(daily_data)
+            self.daily_data_slices = [
+                slice(x[0], x[-1] + 1)
+                for x in np.array_split(
+                    np.arange(len(self.time_index)), n_data_days
+                )
+            ]
 
     return DailyHandler
-
-
-def CompositeDailyHandlerFactory(
-    ExtracterClass,
-    LoaderClass,
-    BaseLoader=None,
-    FeatureRegistry=None,
-    name='Handler',
-):
-    """Builds a data handler with `.data` and `.daily_data` attributes coming
-    from a standard data handler and a :class:`DailyDataHandler`,
-    respectively."""
-
-    BaseHandler = DataHandlerFactory(
-        ExtracterClass=ExtracterClass,
-        LoaderClass=LoaderClass,
-        BaseLoader=BaseLoader,
-        FeatureRegistry=FeatureRegistry)
-
-    DailyHandler = DailyDataHandlerFactory(
-        ExtracterClass=ExtracterClass,
-        LoaderClass=LoaderClass,
-        BaseLoader=BaseLoader,
-        FeatureRegistry=FeatureRegistry,
-    )
-
-    class CompositeDailyHandler(BaseHandler):
-        """Handler composed of a daily handler and standard handler, which
-        provide `.daily_data` and `.data` respectively."""
-
-        __name__ = name
-
-        def __init__(self, file_paths, features, **kwargs):
-            """
-            Parameters
-            ----------
-            file_paths : str | list | pathlib.Path
-                file_paths input to Loader
-            features : list
-                Features to derive from loaded data.
-            **kwargs : dict
-                Dictionary of keyword args for Loader, Extracter, Deriver, and
-                Cacher
-            """
-            super().__init__(file_paths, features, **kwargs)
-
-            self.daily_data = DailyHandler(
-                file_paths, features, **kwargs
-            ).data
-
-    return CompositeDailyHandler
 
 
 DataHandlerH5 = DataHandlerFactory(
@@ -252,7 +232,7 @@ def _base_loader(file_paths, **kwargs):
     return MultiFileNSRDBX(file_paths, **kwargs)
 
 
-DataHandlerH5SolarCC = CompositeDailyHandlerFactory(
+DataHandlerH5SolarCC = DailyDataHandlerFactory(
     BaseExtracterH5,
     LoaderH5,
     BaseLoader=_base_loader,
@@ -261,7 +241,7 @@ DataHandlerH5SolarCC = CompositeDailyHandlerFactory(
 )
 
 
-DataHandlerH5WindCC = CompositeDailyHandlerFactory(
+DataHandlerH5WindCC = DailyDataHandlerFactory(
     BaseExtracterH5,
     LoaderH5,
     BaseLoader=_base_loader,

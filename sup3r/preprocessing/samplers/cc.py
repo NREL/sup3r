@@ -34,17 +34,12 @@ class DualSamplerCC(Sampler):
             `.daily_data` and `.daily_data_slices`. See
             `sup3r.preprocessing.factory`
         """
+        self.daily_data_slices = container.daily_data_slices
         self.data = (container.data, container.daily_data)
         sample_shape = (
             sample_shape if sample_shape is not None else (10, 10, 24)
         )
         sample_shape = self.check_sample_shape(sample_shape)
-        n_hours = len(container.time_index)
-        n_days = n_hours // 24
-        self.daily_data_slices = [
-            slice(x[0], x[-1] + 1)
-            for x in np.array_split(np.arange(n_hours), n_days)
-        ]
 
         super().__init__(
             data=self.data,
