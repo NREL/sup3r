@@ -8,7 +8,7 @@ import tempfile
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
-from rex import Outputs
+from rex import Outputs, init_logger
 
 from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing import (
@@ -40,6 +40,9 @@ dh_kwargs = {
 sample_shape = (8, 20, 20, 5)
 
 np.random.seed(42)
+
+
+init_logger('sup3r', log_level='DEBUG')
 
 
 def test_solar_handler(plot=False):

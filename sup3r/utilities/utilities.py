@@ -64,7 +64,11 @@ def parse_keys(keys):
         key_slice = keys[1:]
     else:
         key = keys
-        key_slice = (slice(None), slice(None), slice(None),)
+        key_slice = (
+            slice(None),
+            slice(None),
+            slice(None),
+        )
 
     return key, key_slice
 
@@ -580,38 +584,37 @@ def daily_time_sampler(data, shape, time_index):
     return slice(start, stop)
 
 
-def nsrdb_sub_daily_sampler(data, shape, time_index, csr_ind=0):
+def nsrdb_sub_daily_sampler(data, shape, time_index=None):
     """Finds a random sample during daylight hours of a day. Nightime is
     assumed to be marked as NaN in feature axis == csr_ind in the data input.
 
     Parameters
     ----------
-    data : T_Array
-        Data array with dimensions, where [..., csr_ind] is assumed to be
-        clearsky ratio with NaN at night.
-        (spatial_1, spatial_2, temporal, features)
+    data : T_Dataset
+        Dataset object with 'clearsky_ratio' accessible as
+        data['clearsky_ratio'] (spatial_1, spatial_2, temporal, features)
     shape : int
         (time_steps) Size of time slice to sample from data, must be an integer
         less than or equal to 24.
-    time_index : pd.Datetimeindex
-        Time index that matches the data axis=2
-    csr_ind : int
-        Index of the feature axis where clearsky ratio is located and NaN's can
-        be found at night.
+    time_index : pd.DatetimeIndex
+        Time index corresponding the the time axis of `data`. If None then
+        data.time_index will be used.
 
     Returns
     -------
     tslice : slice
         time slice with size shape of data starting at the beginning of the day
     """
-
+    time_index = time_index if time_index is not None else data.time_index
     tslice = daily_time_sampler(data, 24, time_index)
-    night_mask = np.isnan(data[:, :, tslice, csr_ind]).any(axis=(0, 1))
+    day_mask = (
+        data['clearsky_ratio'][:, :, tslice].notnull().all(axis=(0, 1))
+    )
 
     if shape == 24:
         return tslice
 
-    if night_mask.all():
+    if (~day_mask).all():
         msg = (
             f'No daylight data found for tslice {tslice} '
             f'{time_index[tslice]}'
@@ -620,7 +623,7 @@ def nsrdb_sub_daily_sampler(data, shape, time_index, csr_ind=0):
         warn(msg)
         return tslice
 
-    day_ilocs = np.where(~night_mask)[0]
+    day_ilocs = np.where(day_mask)[0]
     padding = shape - len(day_ilocs)
     half_pad = int(np.round(padding / 2))
     new_start = tslice.start + day_ilocs[0] - half_pad
@@ -1069,8 +1072,8 @@ def spatial_coarsening(data, s_enhance=2, obs_axis=True):
                     data.shape[1] // s_enhance,
                     s_enhance,
                     data.shape[2] // s_enhance,
-                    s_enhance
-                )
+                    s_enhance,
+                ),
             )
             data = data.sum(axis=(2, 4)) / s_enhance**2
 
@@ -1083,8 +1086,8 @@ def spatial_coarsening(data, s_enhance=2, obs_axis=True):
                     s_enhance,
                     data.shape[2] // s_enhance,
                     s_enhance,
-                    *data.shape[3:]
-                )
+                    *data.shape[3:],
+                ),
             )
             data = data.sum(axis=(2, 4)) / s_enhance**2
 
@@ -1095,7 +1098,7 @@ def spatial_coarsening(data, s_enhance=2, obs_axis=True):
                     data.shape[0] // s_enhance,
                     s_enhance,
                     data.shape[1] // s_enhance,
-                    s_enhance
+                    s_enhance,
                 ),
             )
             data = data.sum(axis=(1, 3)) / s_enhance**2
@@ -1108,7 +1111,7 @@ def spatial_coarsening(data, s_enhance=2, obs_axis=True):
                     s_enhance,
                     data.shape[1] // s_enhance,
                     s_enhance,
-                    *data.shape[2:]
+                    *data.shape[2:],
                 ),
             )
             data = data.sum(axis=(1, 3)) / s_enhance**2

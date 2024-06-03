@@ -73,8 +73,8 @@ class Container:
         return self.data[keys]
 
     def __getattr__(self, attr):
-        if attr in dir(self):
-            return self.__getattribute__(attr)
-        if hasattr(self.data, attr):
-            return getattr(self.data, attr)
-        raise AttributeError
+        try:
+            return self.data.__getattr__(attr)
+        except Exception as e:
+            msg = f'{self.__class__.__name__} object has no attribute "{attr}"'
+            raise AttributeError(msg) from e

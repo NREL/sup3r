@@ -6,6 +6,7 @@ from typing import List, Union
 
 import dask.array as da
 import numpy as np
+import pandas as pd
 import xarray as xr
 from xarray import Dataset
 
@@ -46,10 +47,20 @@ class ArrayTuple(tuple):
 class DatasetWrapper(Dataset):
     """Lowest level object. This contains an xarray.Dataset and some methods
     for selecting data from the dataset. This is the simplest version of the
-    `.data` attribute for :class:`Container` objects."""
+    `.data` attribute for :class:`Container` objects.
+
+    Notes
+    -----
+    Data is accessed through the `__getitem__`. A DatasetWrapper is returned
+    when a list of features is requested. e.g __getitem__(['u', 'v']).
+    When a single feature is requested a DataArray is returned. e.g.
+    `__getitem__('u')`
+    When numpy style indexing is used a dask array is returned. e.g.
+    `__getitem__('u', ...)` `or self['u', :, slice(0, 10)]`
+    """
 
     __slots__ = [
-        '_features',
+        '_features'
     ]
 
     def __init__(self, data: xr.Dataset = None, coords=None, data_vars=None):
@@ -126,18 +137,14 @@ class DatasetWrapper(Dataset):
         elif _is_strings(keys[-1]):
             out = self.as_array(keys[-1])[*keys[:-1], :]
         elif _is_ints(keys[-1]) and not _contains_ellipsis(keys):
-            out = self.as_array()[keys[:-1], ..., keys[-1]]
+            out = self.as_array()[*keys[:-1], ..., keys[-1]]
         else:
             out = self.as_array()[keys]
         return out.squeeze(axis=-1) if out.shape[-1] == 1 else out
 
     def __getitem__(self, keys):
         """Method for accessing variables or attributes. keys can optionally
-        include a feature name as the last element of a keys tuple.
-
-        TODO: Get this to return a DatasetWrapper instead of xr.Dataset when
-        super().__getitem__() is called.
-        """
+        include a feature name as the last element of a keys tuple."""
         keys = lowered(keys)
         if isinstance(keys, slice):
             out = self._get_from_tuple((keys,))
@@ -235,13 +242,13 @@ class DatasetWrapper(Dataset):
     def time_index(self):
         """Base time index for contained data."""
         if not self.time_independent:
-            return self.indexes['time']
+            return pd.to_datetime(self.indexes['time'])
         return None
 
     @time_index.setter
     def time_index(self, value):
         """Update the time_index attribute with given index."""
-        self['time'] = value
+        self.indexes['time'] = value
 
     @property
     def lat_lon(self) -> T_Array:
@@ -262,11 +269,9 @@ def single_member_check(func):
     """Decorator to return first item of list if there is only one data
     member."""
 
-    def wrapper(self, *args, **kwargs):
-        out = func(self, *args, **kwargs)
-        if self.n_members == 1:
-            return out[0]
-        return out
+    def wrapper(*args, **kwargs):
+        out = func(*args, **kwargs)
+        return out if len(out) > 1 else out[0]
 
     return wrapper
 
@@ -285,12 +290,13 @@ class Data:
         self.dsets = tuple(DatasetWrapper(d) for d in data)
         self.n_members = len(self.dsets)
 
-    @single_member_check
     def __getattr__(self, attr):
-        if attr in dir(self):
-            return self.__getattribute__(attr)
-        out = [getattr(d, attr) for d in self.dsets]
-        return out
+        try:
+            out = [getattr(d, attr) for d in self.dsets]
+        except Exception as e:
+            msg = f'{self.__class__.__name__} has no attribute "{attr}"'
+            raise AttributeError(msg) from e
+        return out if len(out) > 1 else out[0]
 
     @single_member_check
     def __getitem__(self, keys):

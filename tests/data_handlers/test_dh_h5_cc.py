@@ -14,8 +14,12 @@ from sup3r.preprocessing import (
     DataHandlerH5SolarCC,
     DataHandlerH5WindCC,
 )
+from sup3r.preprocessing.common import lowered
 from sup3r.utilities.pytest.helpers import execute_pytest
-from sup3r.utilities.utilities import nsrdb_sub_daily_sampler, pd_date_range
+from sup3r.utilities.utilities import (
+    nsrdb_sub_daily_sampler,
+    pd_date_range,
+)
 
 SHAPE = (20, 20)
 
@@ -41,6 +45,22 @@ np.random.seed(42)
 
 
 init_logger('sup3r', log_level='DEBUG')
+
+
+def test_daily_handler():
+    """Make sure the daily handler is performing averages correctly."""
+
+    dh_kwargs_new = dh_kwargs.copy()
+    dh_kwargs_new['target'] = TARGET_W
+    handler = DataHandlerH5WindCC(INPUT_FILE_W, FEATURES_W, **dh_kwargs_new)
+    daily_og = handler.daily_data
+    tstep = handler.time_slice.step
+    daily = handler.coarsen(time=int(24 / tstep)).mean()
+
+    assert np.array_equal(
+        daily[lowered(FEATURES_W)].to_dataarray(),
+        daily_og[lowered(FEATURES_W)].to_dataarray(),
+    )
 
 
 def test_solar_handler():
@@ -106,8 +126,6 @@ def test_solar_ancillary_vars():
     ]
     handler = DataHandlerH5SolarCC(INPUT_FILE_S, features, **dh_kwargs)
 
-    assert handler.data.shape[-1] == 4
-
     assert np.allclose(np.min(handler.data[:, :, :, 1]), -6.1, atol=1)
     assert np.allclose(np.max(handler.data[:, :, :, 1]), 9.7, atol=1)
 
@@ -137,45 +155,49 @@ def test_nsrdb_sub_daily_sampler():
     """Test the nsrdb data sampler which does centered sampling on daylight
     hours."""
     handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S, **dh_kwargs)
-    ti = pd_date_range('20220101', '20230101', freq='1h', inclusive='left')
-    ti = ti[0 : handler.data.shape[2]]
+    ti = pd_date_range(
+        '20220101',
+        '20230101',
+        freq='1h',
+        inclusive='left',
+    )
+    ti = ti[0 : len(handler.time_index)]
 
     for _ in range(100):
         tslice = nsrdb_sub_daily_sampler(handler.data, 4, ti)
         # with only 4 samples, there should never be any NaN data
-        assert not np.isnan(handler.data[0, 0, tslice, 0]).any()
+        assert not np.isnan(handler['clearsky_ratio'][0, 0, tslice]).any()
 
     for _ in range(100):
         tslice = nsrdb_sub_daily_sampler(handler.data, 8, ti)
         # with only 8 samples, there should never be any NaN data
-        assert not np.isnan(handler.data[0, 0, tslice, 0]).any()
+        assert not np.isnan(handler['clearsky_ratio'][0, 0, tslice]).any()
 
     for _ in range(100):
         tslice = nsrdb_sub_daily_sampler(handler.data, 20, ti)
         # there should be ~8 hours of non-NaN data
         # the beginning and ending timesteps should be nan
-        assert (~np.isnan(handler.data[0, 0, tslice, 0])).sum() > 7
-        assert np.isnan(handler.data[0, 0, tslice, 0])[:3].all()
-        assert np.isnan(handler.data[0, 0, tslice, 0])[-3:].all()
+        assert (~np.isnan(handler['clearsky_ratio'][0, 0, tslice])).sum() > 7
+        assert np.isnan(handler['clearsky_ratio'][0, 0, tslice])[:3].all()
+        assert np.isnan(handler['clearsky_ratio'][0, 0, tslice])[-3:].all()
 
 
 def test_wind_handler():
-    """Test the wind climinate change data handler object."""
+    """Test the wind climate change data handler object."""
     dh_kwargs_new = dh_kwargs.copy()
     dh_kwargs_new['target'] = TARGET_W
     handler = DataHandlerH5WindCC(INPUT_FILE_W, FEATURES_W, **dh_kwargs_new)
 
-    assert handler.data.shape[2] % 24 == 0
-    assert handler.val_data is None
-    assert not np.isnan(handler.data).any()
-
-    assert handler.daily_data.shape[2] == handler.data.shape[2] / 24
+    tstep = handler.time_slice.step
+    assert handler.data.shape[2] % (24 // tstep) == 0
+    assert not np.isnan(handler.data.as_array()).any()
+    assert handler.daily_data.shape[2] == handler.data.shape[2] / (24 // tstep)
 
     for i, islice in enumerate(handler.daily_data_slices):
-        hourly = handler.data[:, :, islice, :]
-        truth = np.mean(hourly, axis=2)
-        daily = handler.daily_data[:, :, i, :]
-        assert np.allclose(daily, truth, atol=1e-6)
+        hourly = handler.data.isel(time=islice)
+        truth = hourly.mean(dim='time')
+        daily = handler.daily_data.isel(time=i)
+        assert np.allclose(daily.as_array(), truth.as_array(), atol=1e-6)
 
 
 def test_surf_min_max_vars():

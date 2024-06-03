@@ -206,9 +206,7 @@ class DataHandlerNCforCC(BaseNCforCC):
             .mean()
         )
 
-        ti_deltas = ti_nsrdb - np.roll(ti_nsrdb, 1)
-        ti_deltas_hours = pd.Series(ti_deltas).dt.total_seconds()[1:-1] / 3600
-        time_freq = float(mode(ti_deltas_hours).mode)
+        time_freq = float(mode(ti_nsrdb.diff().seconds[1:-1] / 3600).mode)
 
         cs_ghi = cs_ghi.coarsen(
             {Dimension.TIME: int(24 // time_freq)}
