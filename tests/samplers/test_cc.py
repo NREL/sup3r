@@ -37,7 +37,7 @@ dh_kwargs = {
     'time_slice': slice(None, None, 2),
     'time_roll': -7,
 }
-sample_shape = (8, 20, 20, 5)
+sample_shape = (20, 20, 24)
 
 np.random.seed(42)
 
@@ -45,7 +45,7 @@ np.random.seed(42)
 init_logger('sup3r', log_level='DEBUG')
 
 
-def test_solar_handler(plot=False):
+def test_solar_handler_sampling(plot=False):
     """Test loading irrad data from NSRDB file and calculating clearsky ratio
     with NaN values for nighttime."""
 
@@ -62,11 +62,12 @@ def test_solar_handler(plot=False):
     sampler = DualSamplerCC(handler, sample_shape)
 
     assert handler.data.shape[2] % 24 == 0
-    assert sampler.data[0].shape[2] % 24 == 0
+    assert sampler.data.shape[2] % 24 == 0
 
     # some of the raw clearsky ghi and clearsky ratio data should be loaded in
     # the handler as NaN
-    assert np.isnan(sampler.data[0]).any()
+    assert np.isnan(sampler.data.dsets[0]).any()
+    assert np.isnan(sampler.data.dsets[1]).any()
 
     for _ in range(10):
         obs_ind_hourly, obs_ind_daily = sampler.get_sample_index()

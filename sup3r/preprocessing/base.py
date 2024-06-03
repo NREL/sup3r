@@ -6,7 +6,6 @@ samplers, batch queues, batch handlers.
 import logging
 from typing import Optional
 
-import numpy as np
 import xarray as xr
 
 from sup3r.preprocessing.abstract import Data
@@ -33,12 +32,6 @@ class Container:
         instance = super().__new__(cls)
         _log_args(cls, cls.__init__, *args, **kwargs)
         return instance
-
-    @property
-    def size(self):
-        """Get size of contained data. Accounts for possibility of containing
-        multiple datasets."""
-        return np.sum([d.size for d in self.data])
 
     @property
     def data(self) -> Data:
@@ -74,7 +67,7 @@ class Container:
 
     def __getattr__(self, attr):
         try:
-            return self.data.__getattr__(attr)
+            return getattr(self.data, attr)
         except Exception as e:
             msg = f'{self.__class__.__name__} object has no attribute "{attr}"'
             raise AttributeError(msg) from e

@@ -61,6 +61,8 @@ def test_daily_handler():
         daily[lowered(FEATURES_W)].to_dataarray(),
         daily_og[lowered(FEATURES_W)].to_dataarray(),
     )
+    assert handler.data.name == 'hourly'
+    assert handler.daily_data.name == 'daily'
 
 
 def test_solar_handler():
