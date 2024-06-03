@@ -619,10 +619,10 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
 
     The PresRat correction [Pierce2015]_ is defined as the combination of
     three steps:
-    * Use the model-predicted change ratio - require CDFs;
-    * The treatment of zero-precipitation days - require fraction of dry days;
-    * The final correction factor (K) to preserve the mean - require mean
-      estimate;
+    * Use the model-predicted change ratio (with the CDFs);
+    * The treatment of zero-precipitation days (with the fraction of dry days);
+    * The final correction factor (K) to preserve the mean (ratio between both
+      estimated means);
 
     References
     ----------
