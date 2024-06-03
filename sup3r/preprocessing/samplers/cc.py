@@ -35,7 +35,7 @@ class DualSamplerCC(Sampler):
             `sup3r.preprocessing.factory`
         """
         self.daily_data_slices = container.daily_data_slices
-        self.data = (container.data, container.daily_data)
+        self.data = (container.daily_data, container.data)
         sample_shape = (
             sample_shape if sample_shape is not None else (10, 10, 24)
         )

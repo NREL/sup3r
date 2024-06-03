@@ -59,11 +59,27 @@ class DatasetWrapper(Dataset):
     `__getitem__('u', ...)` `or self['u', :, slice(0, 10)]`
     """
 
-    __slots__ = [
-        '_features'
-    ]
+    __slots__ = ['_features']
 
-    def __init__(self, data: xr.Dataset = None, coords=None, data_vars=None):
+    def __init__(
+        self, data: xr.Dataset = None, coords=None, data_vars=None, attrs=None
+    ):
+        """
+        Parameters
+        ----------
+        data : xr.Dataset
+            An xarray Dataset instance to wrap with our custom interface
+        coords : dict
+            Dictionary like object with tuples of (dims, array) for each
+            coordinate. e.g. {"latitude": (("south_north", "west_east"), lats)}
+        data_vars : dict
+            Dictionary like object with tuples of (dims, array) for each
+            variable. e.g. {"temperature": (("south_north", "west_east",
+            "time", "level"), temp)}
+        attrs : dict
+            Optional dictionary of attributes to include in the meta data. This
+            can be accessed through self.attrs
+        """
         if data is not None:
             reordered_vars = {
                 var: (
@@ -76,7 +92,7 @@ class DatasetWrapper(Dataset):
             data_vars = reordered_vars
 
         try:
-            super().__init__(coords=coords, data_vars=data_vars)
+            super().__init__(coords=coords, data_vars=data_vars, attrs=attrs)
 
         except Exception as e:
             msg = (
@@ -86,6 +102,13 @@ class DatasetWrapper(Dataset):
             )
             raise OSError(msg) from e
         self._features = None
+
+    @property
+    def name(self):
+        """Name of dataset. Used to label datasets when grouped in
+        :class:`Data` objects. e.g. for low / high res pairs or daily / hourly
+        data."""
+        return self.attrs.get('name', None)
 
     def sel(self, *args, **kwargs):
         """Override xr.Dataset.sel to return wrapped object."""
@@ -281,7 +304,7 @@ class Data:
     objects. These objects are distinct from :class:`Collection` objects, which
     also contain multiple data members, because these members have some
     relationship with each other (they can be low / high res pairs, they can be
-    hourly / daily versions of the same data, etc). Collections contain
+    daily / hourly versions of the same data, etc). Collections contain
     completely independent instances."""
 
     def __init__(self, data: Union[List[xr.Dataset], List[DatasetWrapper]]):
@@ -289,6 +312,18 @@ class Data:
             data = (data,)
         self.dsets = tuple(DatasetWrapper(d) for d in data)
         self.n_members = len(self.dsets)
+
+    @property
+    def attrs(self):
+        """Return meta data attributes of members."""
+        return [d.attrs for d in self.dsets]
+
+    @attrs.setter
+    def attrs(self, value):
+        """Set meta data attributes of all data members."""
+        for d in self.dsets:
+            for k, v in value.items():
+                d.attrs[k] = v
 
     def __getattr__(self, attr):
         try:
@@ -302,8 +337,8 @@ class Data:
     def __getitem__(self, keys):
         """Method for accessing self.dset or attributes. If keys is a list of
         tuples or list this is interpreted as a request for
-        `self.dset[i][keys[i]] for i in range(len(keys)).` Otherwise the we
-        will get keys from each member of self.dset."""
+        `self.dset[i][keys[i]] for i in range(len(keys)).` Otherwise we will
+        get keys from each member of self.dset."""
         if isinstance(keys, (tuple, list)) and all(
             isinstance(k, (tuple, list)) for k in keys
         ):
@@ -323,6 +358,12 @@ class Data:
         """Multi dimension selection method."""
         out = tuple(d.sel(*args, **kwargs) for d in self.dsets)
         return out
+
+    @property
+    def shape(self):
+        """We use the shape of the largest data member. These are assumed to be
+        ordered as (low-res, high-res) if there are two members."""
+        return [d.shape for d in self.dsets][-1]
 
     def __contains__(self, vals):
         """Check for vals in all of the dset members."""

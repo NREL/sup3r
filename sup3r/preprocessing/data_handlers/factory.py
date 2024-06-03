@@ -217,6 +217,9 @@ def DailyDataHandlerFactory(
                 )
             ]
 
+            self.data.attrs = {'name': 'hourly'}
+            self.daily_data.attrs = {'name': 'daily'}
+
     return DailyHandler
 
 
