@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class Dimension(str, Enum):
-    """Dimension names used for XArrayWrapper."""
+    """Dimension names used for DatasetWrapper."""
 
     FLATTENED_SPATIAL = 'space'
     SOUTH_NORTH = 'south_north'
@@ -96,19 +96,19 @@ def log_args(func):
 
 def _contains_ellipsis(vals):
     return vals is Ellipsis or (
-        isinstance(vals, list) and any(v is Ellipsis for v in vals)
+        isinstance(vals, (tuple, list)) and any(v is Ellipsis for v in vals)
     )
 
 
 def _is_strings(vals):
     return isinstance(vals, str) or (
-        isinstance(vals, list) and all(isinstance(v, str) for v in vals)
+        isinstance(vals, (tuple, list)) and all(isinstance(v, str) for v in vals)
     )
 
 
 def _is_ints(vals):
     return isinstance(vals, int) or (
-        isinstance(vals, (list, np.ndarray))
+        isinstance(vals, (list, tuple, np.ndarray))
         and all(isinstance(v, int) for v in vals)
     )
 

@@ -142,7 +142,7 @@ def DailyDataHandlerFactory(
     )
 
     class DailyHandler(BaseHandler):
-        """General data handler class for daily data. XArrayWrapper coarsen
+        """General data handler class for daily data. DatasetWrapper coarsen
         method inherited from xr.Dataset employed to compute averages / mins /
         maxes over daily windows."""
 
