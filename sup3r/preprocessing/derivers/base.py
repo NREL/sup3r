@@ -8,7 +8,7 @@ from typing import Union
 
 import dask.array as da
 
-from sup3r.preprocessing.abstract import Data, XArrayWrapper
+from sup3r.preprocessing.abstract import Data, DatasetWrapper
 from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.common import Dimension
 from sup3r.preprocessing.derivers.methods import (
@@ -284,6 +284,6 @@ class Deriver(BaseDeriver):
                 }
             ).mean()
 
-            self.data = XArrayWrapper(
+            self.data = DatasetWrapper(
                 coords=out.coords, data_vars=out.data_vars
             )

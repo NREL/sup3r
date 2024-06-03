@@ -4,7 +4,7 @@ features on loaded data."""
 import logging
 from abc import ABC, abstractmethod
 
-from sup3r.preprocessing.abstract import XArrayWrapper
+from sup3r.preprocessing.abstract import DatasetWrapper
 from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.loaders.base import Loader
 
@@ -112,12 +112,12 @@ class Extracter(Container, ABC):
         coordinate. (lats, lons, 2)"""
 
     @abstractmethod
-    def extract_data(self) -> XArrayWrapper:
+    def extract_data(self) -> DatasetWrapper:
         """Get extracted data by slicing loader.data with calculated
         raster_index and time_slice.
 
         Returns
         -------
-        XArrayWrapper
+        DatasetWrapper
             Wrapped xr.Dataset() object with extracted features.
         """

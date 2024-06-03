@@ -11,7 +11,6 @@ import xarray as xr
 
 from sup3r.preprocessing.abstract import Data
 from sup3r.preprocessing.common import _log_args, lowered
-from sup3r.typing import T_Data
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +41,7 @@ class Container:
         return np.sum([d.size for d in self.data])
 
     @property
-    def data(self) -> T_Data:
+    def data(self) -> Data:
         """Wrapped xr.Dataset."""
         return self._data
 

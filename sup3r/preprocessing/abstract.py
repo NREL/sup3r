@@ -7,6 +7,7 @@ from typing import List, Union
 import dask.array as da
 import numpy as np
 import xarray as xr
+from xarray import Dataset
 
 from sup3r.preprocessing.common import (
     Dimension,
@@ -18,7 +19,7 @@ from sup3r.preprocessing.common import (
     ordered_array,
     ordered_dims,
 )
-from sup3r.typing import T_Array, T_XArray
+from sup3r.typing import T_Array
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,7 @@ class ArrayTuple(tuple):
         return da.mean(da.array([d.std() for d in self]))
 
 
-class XArrayWrapper(xr.Dataset):
+class DatasetWrapper(Dataset):
     """Lowest level object. This contains an xarray.Dataset and some methods
     for selecting data from the dataset. This is the simplest version of the
     `.data` attribute for :class:`Container` objects."""
@@ -108,9 +109,7 @@ class XArrayWrapper(xr.Dataset):
     def as_array(self, features='all') -> T_Array:
         """Return dask.array for the contained xr.Dataset."""
         features = self._parse_features(features)
-        arrs = [
-            super(XArrayWrapper, self).__getitem__(f) for f in features
-        ]
+        arrs = [super(DatasetWrapper, self).__getitem__(f) for f in features]
         if all(arr.shape == arrs[0].shape for arr in arrs):
             return da.stack(arrs, axis=-1)
         return (
@@ -123,36 +122,34 @@ class XArrayWrapper(xr.Dataset):
 
     def _get_from_tuple(self, keys):
         if _is_strings(keys[0]):
-            return self.as_array(keys[0])[*keys[1:], ...].squeeze()
-        if _is_strings(keys[-1]):
-            return self.as_array(keys[-1])[*keys[:-1], ...].squeeze()
-        if _is_ints(keys[-1]):
-            return self.as_array()[*keys[:-1]][..., keys[-1]].squeeze()
-        return self.as_array()[keys]
+            out = self.as_array(keys[0])[*keys[1:], :]
+        elif _is_strings(keys[-1]):
+            out = self.as_array(keys[-1])[*keys[:-1], :]
+        elif _is_ints(keys[-1]) and not _contains_ellipsis(keys):
+            out = self.as_array()[keys[:-1], ..., keys[-1]]
+        else:
+            out = self.as_array()[keys]
+        return out.squeeze(axis=-1) if out.shape[-1] == 1 else out
 
     def __getitem__(self, keys):
         """Method for accessing variables or attributes. keys can optionally
         include a feature name as the last element of a keys tuple.
 
-        TODO: Get this to return a XArrayWrapper instead of xr.Dataset when
+        TODO: Get this to return a DatasetWrapper instead of xr.Dataset when
         super().__getitem__() is called.
         """
         keys = lowered(keys)
         if isinstance(keys, slice):
-            return self._get_from_tuple((keys,))
-        if isinstance(keys, tuple):
-            return self._get_from_tuple(keys)
-        if _contains_ellipsis(keys):
-            return self.as_array().squeeze()[keys]
-        if _is_ints(keys):
-            return self.as_array().squeeze()[..., keys]
-        return super().__getitem__(keys)
-
-    def _contains_vars(self, vars):
-        return (
-            isinstance(vars, (tuple, list))
-            and all(v in self.data_vars for v in vars)
-        ) or (isinstance(vars, str) and vars in self.data_vars)
+            out = self._get_from_tuple((keys,))
+        elif isinstance(keys, tuple):
+            out = self._get_from_tuple(keys)
+        elif _contains_ellipsis(keys):
+            out = self.as_array()[keys]
+        elif _is_ints(keys):
+            out = self.as_array()[..., keys]
+        else:
+            out = super().__getitem__(keys)
+        return out
 
     def __contains__(self, vals):
         if isinstance(vals, (list, tuple)) and all(
@@ -162,7 +159,7 @@ class XArrayWrapper(xr.Dataset):
         return super().__contains__(vals)
 
     def init_new(self, new_dset):
-        """Return an updated XArrayWrapper with coords and data_vars replaced
+        """Return an updated DatasetWrapper with coords and data_vars replaced
         with those provided.  These are both provided as dictionaries {name:
         dask.array}.
 
@@ -188,7 +185,7 @@ class XArrayWrapper(xr.Dataset):
                 if k not in coords
             }
         )
-        return XArrayWrapper(coords=coords, data_vars=data_vars)
+        return DatasetWrapper(coords=coords, data_vars=data_vars)
 
     def __setitem__(self, variable, data):
         if isinstance(variable, (list, tuple)):
@@ -275,17 +272,17 @@ def single_member_check(func):
 
 
 class Data:
-    """Interface for interacting with tuples / lists of :class:`XArrayWrapper`
+    """Interface for interacting with tuples / lists of :class:`DatasetWrapper`
     objects. These objects are distinct from :class:`Collection` objects, which
     also contain multiple data members, because these members have some
     relationship with each other (they can be low / high res pairs, they can be
     hourly / daily versions of the same data, etc). Collections contain
     completely independent instances."""
 
-    def __init__(self, data: Union[List[xr.Dataset], List[XArrayWrapper]]):
+    def __init__(self, data: Union[List[xr.Dataset], List[DatasetWrapper]]):
         if not isinstance(data, (list, tuple)):
             data = (data,)
-        self.dsets = tuple(XArrayWrapper(d) for d in data)
+        self.dsets = tuple(DatasetWrapper(d) for d in data)
         self.n_members = len(self.dsets)
 
     @single_member_check
@@ -310,13 +307,13 @@ class Data:
         return out
 
     @single_member_check
-    def isel(self, *args, **kwargs) -> T_XArray:
+    def isel(self, *args, **kwargs):
         """Multi index selection method."""
         out = tuple(d.isel(*args, **kwargs) for d in self.dsets)
         return out
 
     @single_member_check
-    def sel(self, *args, **kwargs) -> T_XArray:
+    def sel(self, *args, **kwargs):
         """Multi dimension selection method."""
         out = tuple(d.sel(*args, **kwargs) for d in self.dsets)
         return out
