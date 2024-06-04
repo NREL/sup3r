@@ -102,7 +102,8 @@ def _contains_ellipsis(vals):
 
 def _is_strings(vals):
     return isinstance(vals, str) or (
-        isinstance(vals, (tuple, list)) and all(isinstance(v, str) for v in vals)
+        isinstance(vals, (tuple, list))
+        and all(isinstance(v, str) for v in vals)
     )
 
 
@@ -170,7 +171,9 @@ def enforce_standard_dim_order(dset: xr.Dataset):
         for var in dset.data_vars
     }
 
-    return xr.Dataset(coords=dset.coords, data_vars=reordered_vars)
+    return xr.Dataset(
+        coords=dset.coords, data_vars=reordered_vars, attrs=dset.attrs
+    )
 
 
 def dims_array_tuple(arr):

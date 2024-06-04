@@ -5,8 +5,8 @@ import dask.array as da
 import numpy as np
 from rex import init_logger
 
+from sup3r.preprocessing.base import Data
 from sup3r.preprocessing.common import Dimension
-from sup3r.preprocessing.wrapper import Data
 from sup3r.utilities.pytest.helpers import (
     execute_pytest,
     make_fake_dset,
