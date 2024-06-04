@@ -21,8 +21,8 @@ class DerivedFeature(ABC):
     """Abstract class for special features which need to be derived from raw
     features
 
-    Notes
-    -----
+    Note
+    ----
     `inputs` list will be used to search already derived / loaded data so this
     should include all features required for a successful `.compute` call.
     """

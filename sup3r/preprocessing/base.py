@@ -10,6 +10,7 @@ import dask.array as da
 import numpy as np
 import xarray as xr
 
+import sup3r.preprocessing.accessor  # noqa: F401
 from sup3r.preprocessing.common import _log_args, lowered
 
 logger = logging.getLogger(__name__)

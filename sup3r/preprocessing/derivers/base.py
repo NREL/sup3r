@@ -147,8 +147,8 @@ class BaseDeriver(Container):
         "windspeed": "wind_speed" then requesting "windspeed" will ultimately
         return a compute method (or fetch from raw data) for "wind_speed
 
-        Notes
-        -----
+        Note
+        ----
         Features are all saved as lower case names and __contains__ checks will
         use feature.lower()
         """

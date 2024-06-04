@@ -121,6 +121,9 @@ class MaterialDerivativeLoss(tf.keras.losses.Loss):
     """Loss class for the material derivative. This is the left hand side of
     the Navier-Stokes equation and is equal to internal + external forces
     divided by density.
+
+    References
+    ----------
     https://en.wikipedia.org/wiki/Material_derivative
     """
 
@@ -129,8 +132,8 @@ class MaterialDerivativeLoss(tf.keras.losses.Loss):
     def _derivative(self, x, axis=1):
         """Custom derivative function for compatibility with tensorflow.
 
-        Notes
-        -----
+        Note
+        ----
         Matches np.gradient by using the central difference approximation.
 
         Parameters

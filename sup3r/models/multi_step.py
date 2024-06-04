@@ -115,8 +115,8 @@ class MultiStepGan(AbstractInterface):
     def _transpose_model_input(self, model, hi_res):
         """Transpose input data according to mdel input dimensions.
 
-        Notes
-        -----
+        Note
+        ----
         If hi_res.shape == 4, it is assumed that the dimensions have the
         ordering (n_obs, spatial_1, spatial_2, features)
 
@@ -273,8 +273,8 @@ class MultiStepSurfaceMetGan(MultiStepGan):
     4D tensor of near-surface temperature and relative humidity data, and the
     second step is a (spatio)temporal enhancement on a 5D tensor.
 
-    Notes
-    -----
+    Note
+    ----
     No inputs are needed for the first spatial-only surface meteorology
     model. The spatial enhancement is determined by the low and high res
     topography inputs in the exogenous_data kwargs in the

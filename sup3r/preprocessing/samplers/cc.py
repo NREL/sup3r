@@ -75,11 +75,10 @@ class DualSamplerCC(Sampler):
     def get_sample_index(self):
         """Randomly gets spatial sample and time sample.
 
-        Notes
-        -----
-        This pair of hourly
-        and daily observation indices will be used to sample from self.data =
-        (daily_data, hourly_data) through the standard
+        Note
+        ----
+        This pair of hourly and daily observation indices will be used to
+        sample from self.data = (daily_data, hourly_data) through the standard
         :meth:`Container.__getitem__((obs_ind_daily, obs_ind_hourly))` This
         follows the pattern of (low-res, high-res) ordering.
 

@@ -145,7 +145,7 @@ def test_solar_handler_w_wind():
 
         # some of the raw clearsky ghi and clearsky ratio data should be loaded
         # in the handler as NaN
-        assert np.isnan(handler.data).any()
+        assert np.isnan(handler.data[...]).any()
 
         for _ in range(10):
             obs_ind_daily, obs_ind_hourly = sampler.get_sample_index()

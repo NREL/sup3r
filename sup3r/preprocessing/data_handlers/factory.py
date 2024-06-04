@@ -54,8 +54,14 @@ def DataHandlerFactory(
     class Handler(Deriver, metaclass=FactoryMeta):
         __name__ = name
 
-        if BaseLoader is not None:
-            BASE_LOADER = BaseLoader
+        BASE_LOADER = (
+            BaseLoader if BaseLoader is not None else LoaderClass.BASE_LOADER
+        )
+        FEATURE_REGISTRY = (
+            FeatureRegistry
+            if FeatureRegistry is not None
+            else Deriver.FEATURE_REGISTRY
+        )
 
         def __init__(self, file_paths, features, **kwargs):
             """
@@ -84,9 +90,7 @@ def DataHandlerFactory(
             super().__init__(
                 self.extracter.data,
                 features=features,
-                **deriver_kwargs,
-                FeatureRegistry=FeatureRegistry,
-            )
+                **deriver_kwargs)
             self._deriver_hook()
             if cache_kwargs is not None:
                 _ = Cacher(self, cache_kwargs)
@@ -167,7 +171,9 @@ def DailyDataHandlerFactory(
             self.requested_features = lowered(features.copy())
             if 'clearsky_ratio' in features:
                 needed = [
-                    f for f in ['clearsky_ghi', 'ghi'] if f not in features
+                    f
+                    for f in self.FEATURE_REGISTRY['clearsky_ratio'].inputs
+                    if f not in features
                 ]
                 features.extend(needed)
             super().__init__(file_paths, features, **kwargs)
