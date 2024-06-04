@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class Dimension(str, Enum):
-    """Dimension names used for DatasetWrapper."""
+    """Dimension names used for Sup3rX accessor."""
 
     FLATTENED_SPATIAL = 'space'
     SOUTH_NORTH = 'south_north'

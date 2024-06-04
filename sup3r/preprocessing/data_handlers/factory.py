@@ -7,7 +7,6 @@ import numpy as np
 from rex import MultiFileNSRDBX
 from scipy.stats import mode
 
-from sup3r.preprocessing.abstract import DatasetWrapper
 from sup3r.preprocessing.cachers import Cacher
 from sup3r.preprocessing.common import FactoryMeta, lowered
 from sup3r.preprocessing.derivers import Deriver
@@ -149,12 +148,23 @@ def DailyDataHandlerFactory(
 
     class DailyHandler(BaseHandler):
         """General data handler class with daily data as an additional
-        attribute. DatasetWrapper coarsen method inherited from xr.Dataset
-        employed to compute averages / mins / maxes over daily windows. Special
-        treatment of clearsky_ratio, which requires derivation from total
-        clearsky_ghi and total ghi"""
+        attribute. xr.Dataset coarsen method employed to compute averages /
+        mins / maxes over daily windows. Special treatment of clearsky_ratio,
+        which requires derivation from total clearsky_ghi and total ghi"""
 
         __name__ = name
+
+        def __init__(self, file_paths, features, **kwargs):
+            """Add features required for daily cs ratio derivation if not
+            requested."""
+
+            self.requested_features = features.copy()
+            if 'clearsky_ratio' in features:
+                needed = [
+                    f for f in ['clearsky_ghi', 'ghi'] if f not in features
+                ]
+                features.extend(needed)
+            super().__init__(file_paths, features, **kwargs)
 
         def _deriver_hook(self):
             """Hook to run daily coarsening calculations after derivations of
@@ -209,14 +219,14 @@ def DailyDataHandlerFactory(
                 'Finished calculating daily average datasets for {} '
                 'training data days.'.format(n_data_days)
             )
-            self.daily_data = DatasetWrapper(daily_data)
+            self.data = self.data[self.requested_features]
+            self.daily_data = daily_data[self.requested_features]
             self.daily_data_slices = [
                 slice(x[0], x[-1] + 1)
                 for x in np.array_split(
                     np.arange(len(self.time_index)), n_data_days
                 )
             ]
-
             self.data.attrs = {'name': 'hourly'}
             self.daily_data.attrs = {'name': 'daily'}
 

@@ -16,10 +16,6 @@ from sup3r.preprocessing import (
 )
 from sup3r.preprocessing.common import lowered
 from sup3r.utilities.pytest.helpers import execute_pytest
-from sup3r.utilities.utilities import (
-    nsrdb_sub_daily_sampler,
-    pd_date_range,
-)
 
 SHAPE = (20, 20)
 
@@ -151,37 +147,6 @@ def test_solar_ancillary_vars():
     ws_test = np.sqrt(handler.data[..., 1] ** 2 + handler.data[..., 2] ** 2)
     ws_test = np.mean(ws_test, axis=(0, 1))
     assert np.allclose(ws_true, ws_test)
-
-
-def test_nsrdb_sub_daily_sampler():
-    """Test the nsrdb data sampler which does centered sampling on daylight
-    hours."""
-    handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S, **dh_kwargs)
-    ti = pd_date_range(
-        '20220101',
-        '20230101',
-        freq='1h',
-        inclusive='left',
-    )
-    ti = ti[0 : len(handler.time_index)]
-
-    for _ in range(100):
-        tslice = nsrdb_sub_daily_sampler(handler.data, 4, ti)
-        # with only 4 samples, there should never be any NaN data
-        assert not np.isnan(handler['clearsky_ratio'][0, 0, tslice]).any()
-
-    for _ in range(100):
-        tslice = nsrdb_sub_daily_sampler(handler.data, 8, ti)
-        # with only 8 samples, there should never be any NaN data
-        assert not np.isnan(handler['clearsky_ratio'][0, 0, tslice]).any()
-
-    for _ in range(100):
-        tslice = nsrdb_sub_daily_sampler(handler.data, 20, ti)
-        # there should be ~8 hours of non-NaN data
-        # the beginning and ending timesteps should be nan
-        assert (~np.isnan(handler['clearsky_ratio'][0, 0, tslice])).sum() > 7
-        assert np.isnan(handler['clearsky_ratio'][0, 0, tslice])[:3].all()
-        assert np.isnan(handler['clearsky_ratio'][0, 0, tslice])[-3:].all()
 
 
 def test_wind_handler():

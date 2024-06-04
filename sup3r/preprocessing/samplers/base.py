@@ -7,9 +7,9 @@ from fnmatch import fnmatch
 from typing import Dict, Optional, Tuple
 from warnings import warn
 
-from sup3r.preprocessing.abstract import Data
 from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.common import lowered
+from sup3r.preprocessing.wrapper import Data
 from sup3r.utilities.utilities import uniform_box_sampler, uniform_time_sampler
 
 logger = logging.getLogger(__name__)

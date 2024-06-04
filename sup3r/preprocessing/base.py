@@ -8,8 +8,8 @@ from typing import Optional
 
 import xarray as xr
 
-from sup3r.preprocessing.abstract import Data
 from sup3r.preprocessing.common import _log_args, lowered
+from sup3r.preprocessing.wrapper import Data
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +33,9 @@ class Container:
         _log_args(cls, cls.__init__, *args, **kwargs)
         return instance
 
+    def __contains__(self, vals):
+        return vals in self.data
+
     @property
     def data(self) -> Data:
         """Wrapped xr.Dataset."""
@@ -43,7 +46,7 @@ class Container:
         """Wrap given data in :class:`Data` to provide additional
         attributes on top of xr.Dataset."""
         self._data = data
-        if not isinstance(self._data, Data):
+        if not isinstance(self._data, Data) and self._data is not None:
             self._data = Data(self._data)
 
     @property

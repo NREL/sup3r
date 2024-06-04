@@ -6,8 +6,8 @@ import os
 from abc import ABC
 
 import numpy as np
+import xarray as xr
 
-from sup3r.preprocessing.abstract import DatasetWrapper
 from sup3r.preprocessing.common import Dimension
 from sup3r.preprocessing.extracters.base import Extracter
 from sup3r.preprocessing.loaders import LoaderH5
@@ -91,7 +91,8 @@ class BaseExtracterH5(Extracter, ABC):
             else:
                 dat = dat.reshape(self.grid_shape)
                 data_vars[f] = (dims, dat)
-        return DatasetWrapper(coords=coords, data_vars=data_vars)
+        attrs = {'source_files': self.loader.file_paths}
+        return xr.Dataset(coords=coords, data_vars=data_vars, attrs=attrs)
 
     def save_raster_index(self):
         """Save raster index to cache file."""

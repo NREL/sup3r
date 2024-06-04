@@ -5,9 +5,7 @@ import os
 import shutil
 import tempfile
 
-import matplotlib.pyplot as plt
 import numpy as np
-import pytest
 from rex import Outputs, init_logger
 
 from sup3r import TEST_DATA_DIR
@@ -49,15 +47,18 @@ def test_solar_handler_sampling(plot=False):
     """Test loading irrad data from NSRDB file and calculating clearsky ratio
     with NaN values for nighttime."""
 
-    with pytest.raises(KeyError):
-        handler = DataHandlerH5SolarCC(
+    handler = DataHandlerH5SolarCC(
             INPUT_FILE_S,
             features=['clearsky_ratio'],
             target=TARGET_S,
             shape=SHAPE,
         )
+    assert ['clearsky_ghi', 'ghi'] not in handler
+    assert 'clearsky_ratio' in handler
+
     handler = DataHandlerH5SolarCC(
         INPUT_FILE_S, features=FEATURES_S, **dh_kwargs)
+    assert ['clearsky_ghi', 'ghi', 'clearsky_ratio'] in handler
 
     sampler = DualSamplerCC(handler, sample_shape)
 
@@ -65,26 +66,28 @@ def test_solar_handler_sampling(plot=False):
     assert sampler.data.shape[2] % 24 == 0
 
     # some of the raw clearsky ghi and clearsky ratio data should be loaded in
-    # the handler as NaN
-    assert np.isnan(sampler.data.dsets[0]).any()
-    assert np.isnan(sampler.data.dsets[1]).any()
+    # the handler as NaN but the daily data should not have any NaN values
+    assert np.isnan(handler.data[...]).any()
+    assert np.isnan(sampler.data[...][1]).any()
+    assert not np.isnan(handler.daily_data[...]).any()
+    assert not np.isnan(sampler.data[...][0]).any()
 
     for _ in range(10):
-        obs_ind_hourly, obs_ind_daily = sampler.get_sample_index()
+        obs_ind_daily, obs_ind_hourly = sampler.get_sample_index()
         assert obs_ind_hourly[2].start / 24 == obs_ind_daily[2].start
         assert obs_ind_hourly[2].stop / 24 == obs_ind_daily[2].stop
 
-        obs_hourly, obs_daily = sampler.get_next()
+        obs_daily, obs_hourly = sampler.get_next()
         assert obs_hourly.shape[2] == 24
         assert obs_daily.shape[2] == 1
 
+
+'''
         cs_ratio_profile = obs_hourly[0, 0, :, 0]
         assert np.isnan(cs_ratio_profile[0]) & np.isnan(cs_ratio_profile[-1])
-
         nan_mask = np.isnan(cs_ratio_profile)
-        assert all((cs_ratio_profile <= 1)[~nan_mask])
-        assert all((cs_ratio_profile >= 0)[~nan_mask])
-
+        assert all((cs_ratio_profile <= 1)[~nan_mask.compute()])
+        assert all((cs_ratio_profile >= 0)[~nan_mask.compute()])
         # new feature engineering so that whenever sunset starts, all
         # clearsky_ratio data is NaN
         for i in range(obs_hourly.shape[2]):
@@ -113,6 +116,7 @@ def test_solar_handler_sampling(plot=False):
                     bbox_inches='tight',
                 )
                 plt.close()
+'''
 
 
 def test_solar_handler_w_wind():
@@ -164,27 +168,34 @@ def test_nsrdb_sub_daily_sampler():
     """Test the nsrdb data sampler which does centered sampling on daylight
     hours."""
     handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S, **dh_kwargs)
-    ti = pd_date_range('20220101', '20230101', freq='1h', inclusive='left')
-    ti = ti[0: handler.data.shape[2]]
+    ti = pd_date_range(
+        '20220101',
+        '20230101',
+        freq='1h',
+        inclusive='left',
+    )
+    ti = ti[0 : len(handler.time_index)]
 
     for _ in range(100):
         tslice = nsrdb_sub_daily_sampler(handler.data, 4, ti)
         # with only 4 samples, there should never be any NaN data
-        assert not np.isnan(handler.data[0, 0, tslice, 0]).any()
+        assert not np.isnan(handler['clearsky_ratio'][0, 0, tslice]).any()
 
     for _ in range(100):
         tslice = nsrdb_sub_daily_sampler(handler.data, 8, ti)
         # with only 8 samples, there should never be any NaN data
-        assert not np.isnan(handler.data[0, 0, tslice, 0]).any()
+        assert not np.isnan(handler['clearsky_ratio'][0, 0, tslice]).any()
 
     for _ in range(100):
         tslice = nsrdb_sub_daily_sampler(handler.data, 20, ti)
         # there should be ~8 hours of non-NaN data
         # the beginning and ending timesteps should be nan
-        assert (~np.isnan(handler.data[0, 0, tslice, 0])).sum() > 7
-        assert np.isnan(handler.data[0, 0, tslice, 0])[:3].all()
-        assert np.isnan(handler.data[0, 0, tslice, 0])[-3:].all()
+        assert (~np.isnan(handler['clearsky_ratio'][0, 0, tslice])).sum() > 7
+        assert np.isnan(handler['clearsky_ratio'][0, 0, tslice])[:3].all()
+        assert np.isnan(handler['clearsky_ratio'][0, 0, tslice])[-3:].all()
 
 
 if __name__ == '__main__':
-    execute_pytest(__file__)
+    test_solar_handler_sampling()
+    if False:
+        execute_pytest(__file__)

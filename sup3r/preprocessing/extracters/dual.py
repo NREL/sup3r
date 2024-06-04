@@ -8,10 +8,10 @@ from warnings import warn
 import numpy as np
 import pandas as pd
 
-from sup3r.preprocessing.abstract import Data
 from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.cachers import Cacher
 from sup3r.preprocessing.common import Dimension
+from sup3r.preprocessing.wrapper import Data
 from sup3r.utilities.regridder import Regridder
 from sup3r.utilities.utilities import nn_fill_array, spatial_coarsening
 

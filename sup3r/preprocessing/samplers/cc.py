@@ -105,9 +105,8 @@ class DualSamplerCC(Sampler):
         t_slice_1 = self.daily_data_slices[rand_day_ind + n_days - 1]
         t_slice_hourly = slice(t_slice_0.start, t_slice_1.stop)
         t_slice_daily = slice(rand_day_ind, rand_day_ind + n_days)
-
-        obs_ind_hourly = (*spatial_slice, t_slice_hourly, self.features)
-
-        obs_ind_daily = (*spatial_slice, t_slice_daily, self.features)
+        daily_feats, hourly_feats = self.data.features
+        obs_ind_daily = (*spatial_slice, t_slice_daily, daily_feats)
+        obs_ind_hourly = (*spatial_slice, t_slice_hourly, hourly_feats)
 
         return (obs_ind_daily, obs_ind_hourly)
