@@ -8,12 +8,11 @@ from typing import Union
 
 import dask.array as da
 
-from sup3r.preprocessing.base import Container
+from sup3r.preprocessing.base import Container, Data
 from sup3r.preprocessing.common import Dimension
 from sup3r.preprocessing.derivers.methods import (
     RegistryBase,
 )
-from sup3r.preprocessing.wrapper import Data
 from sup3r.typing import T_Array
 from sup3r.utilities.interpolation import Interpolator
 

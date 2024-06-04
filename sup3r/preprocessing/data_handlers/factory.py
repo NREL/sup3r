@@ -118,7 +118,10 @@ def DataHandlerFactory(
 
         def __getattr__(self, attr):
             """Look for attribute in extracter and then loader if not found in
-            self."""
+            self.
+
+            TODO: Not a fan of the hardcoded list here. Find better way.
+            """
             if attr in ['lat_lon', 'grid_shape', 'time_slice', 'time_index']:
                 return getattr(self.extracter, attr)
             try:
@@ -137,7 +140,10 @@ def DailyDataHandlerFactory(
     FeatureRegistry=None,
     name='Handler',
 ):
-    """Handler factory for data handlers with additional daily_data."""
+    """Handler factory for data handlers with additional daily_data.
+
+    TODO: Not a fan of manually adding cs_ghi / ghi and then removing
+    """
 
     BaseHandler = DataHandlerFactory(
         ExtracterClass,
@@ -158,7 +164,7 @@ def DailyDataHandlerFactory(
             """Add features required for daily cs ratio derivation if not
             requested."""
 
-            self.requested_features = features.copy()
+            self.requested_features = lowered(features.copy())
             if 'clearsky_ratio' in features:
                 needed = [
                     f for f in ['clearsky_ghi', 'ghi'] if f not in features
@@ -227,8 +233,8 @@ def DailyDataHandlerFactory(
                     np.arange(len(self.time_index)), n_data_days
                 )
             ]
-            self.data.attrs = {'name': 'hourly'}
-            self.daily_data.attrs = {'name': 'daily'}
+            self.data.attrs.update({'name': 'hourly'})
+            self.daily_data.attrs.update({'name': 'daily'})
 
     return DailyHandler
 

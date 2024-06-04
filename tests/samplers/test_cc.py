@@ -5,6 +5,7 @@ import os
 import shutil
 import tempfile
 
+import matplotlib.pyplot as plt
 import numpy as np
 from rex import Outputs, init_logger
 
@@ -69,7 +70,7 @@ def test_solar_handler_sampling(plot=False):
     # the handler as NaN but the daily data should not have any NaN values
     assert np.isnan(handler.data[...]).any()
     assert np.isnan(sampler.data[...][1]).any()
-    assert not np.isnan(handler.daily_data[...]).any()
+    assert not np.isnan(handler.daily_data.sx[...]).any()
     assert not np.isnan(sampler.data[...][0]).any()
 
     for _ in range(10):
@@ -81,8 +82,6 @@ def test_solar_handler_sampling(plot=False):
         assert obs_hourly.shape[2] == 24
         assert obs_daily.shape[2] == 1
 
-
-'''
         cs_ratio_profile = obs_hourly[0, 0, :, 0]
         assert np.isnan(cs_ratio_profile[0]) & np.isnan(cs_ratio_profile[-1])
         nan_mask = np.isnan(cs_ratio_profile)
@@ -116,7 +115,6 @@ def test_solar_handler_sampling(plot=False):
                     bbox_inches='tight',
                 )
                 plt.close()
-'''
 
 
 def test_solar_handler_w_wind():
@@ -150,11 +148,11 @@ def test_solar_handler_w_wind():
         assert np.isnan(handler.data).any()
 
         for _ in range(10):
-            obs_ind_hourly, obs_ind_daily = sampler.get_sample_index()
+            obs_ind_daily, obs_ind_hourly = sampler.get_sample_index()
             assert obs_ind_hourly[2].start / 24 == obs_ind_daily[2].start
             assert obs_ind_hourly[2].stop / 24 == obs_ind_daily[2].stop
 
-            obs_hourly, obs_daily = sampler.get_next()
+            obs_daily, obs_hourly = sampler.get_next()
             assert obs_hourly.shape[2] == 24
             assert obs_daily.shape[2] == 1
 

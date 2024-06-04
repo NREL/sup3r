@@ -9,10 +9,9 @@ import pytest
 import xarray as xr
 
 from sup3r.postprocessing.file_handling import OutputHandlerH5
-from sup3r.preprocessing.base import Container
+from sup3r.preprocessing.base import Container, Data
 from sup3r.preprocessing.common import Dimension
 from sup3r.preprocessing.samplers import Sampler
-from sup3r.preprocessing.wrapper import Data
 from sup3r.utilities.utilities import pd_date_range
 
 np.random.seed(42)

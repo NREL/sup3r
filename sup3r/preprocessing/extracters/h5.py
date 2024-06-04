@@ -82,17 +82,21 @@ class BaseExtracterH5(Extracter, ABC):
         }
         data_vars = {}
         for f in self.loader.features:
-            dat = self.loader[f].data[self.raster_index.flatten()]
+            dat = self.loader[f].isel(
+                {Dimension.FLATTENED_SPATIAL: self.raster_index.flatten()}
+            )
             if Dimension.TIME in self.loader[f].dims:
-                dat = dat[..., self.time_slice].reshape(
+                dat = dat.isel({Dimension.TIME: self.time_slice}).data.reshape(
                     (*self.grid_shape, len(self.time_index))
                 )
                 data_vars[f] = ((*dims, Dimension.TIME), dat)
             else:
-                dat = dat.reshape(self.grid_shape)
+                dat = dat.data.reshape(self.grid_shape)
                 data_vars[f] = (dims, dat)
-        attrs = {'source_files': self.loader.file_paths}
-        return xr.Dataset(coords=coords, data_vars=data_vars, attrs=attrs)
+
+        return xr.Dataset(
+            coords=coords, data_vars=data_vars, attrs=self.loader.attrs
+        )
 
     def save_raster_index(self):
         """Save raster index to cache file."""

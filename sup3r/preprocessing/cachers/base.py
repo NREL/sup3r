@@ -9,9 +9,8 @@ import h5py
 import numpy as np
 import xarray as xr
 
-from sup3r.preprocessing.base import Container
+from sup3r.preprocessing.base import Container, Data
 from sup3r.preprocessing.common import Dimension
-from sup3r.preprocessing.wrapper import Data
 
 logger = logging.getLogger(__name__)
 
@@ -141,5 +140,5 @@ class Cacher(Container):
                 data,
             )
         }
-        out = xr.Dataset(data_vars=data_vars, coords=coords)
+        out = xr.Dataset(data_vars=data_vars, coords=coords, attrs=data.attrs)
         out.to_netcdf(out_file)

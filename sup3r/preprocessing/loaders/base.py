@@ -65,6 +65,12 @@ class Loader(Container, ABC):
         self.data = self.rename(self.load(), self.FEATURE_NAMES).astype(
             np.float32
         )
+        self.add_attrs()
+
+    def add_attrs(self):
+        """Add meta data to dataset."""
+        attrs = {'source_files': self.file_paths}
+        self.data.attrs.update(attrs)
 
     def __enter__(self):
         return self
