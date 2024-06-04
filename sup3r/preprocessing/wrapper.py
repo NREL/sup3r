@@ -2,7 +2,7 @@
 by :class:`Container` objects."""
 
 import logging
-from typing import List, Union
+from typing import List, Self, Union
 
 import dask.array as da
 import numpy as np
@@ -10,6 +10,7 @@ import pandas as pd
 import xarray as xr
 from xarray import Dataset
 
+import sup3r.preprocessing.accessor  # noqa: F401
 from sup3r.preprocessing.common import (
     Dimension,
     _contains_ellipsis,
@@ -33,7 +34,7 @@ class ArrayTuple(tuple):
 
     def size(self):
         """Compute the total size across all tuple members."""
-        return np.sum(d.size for d in self)
+        return np.sum(d.sx.size for d in self)
 
     def mean(self):
         """Compute the mean across all tuple members."""
@@ -90,6 +91,7 @@ class DatasetWrapper(Dataset):
             }
             coords = data.coords
             data_vars = reordered_vars
+            attrs = data.attrs
 
         try:
             super().__init__(coords=coords, data_vars=data_vars, attrs=attrs)
@@ -300,34 +302,40 @@ def single_member_check(func):
 
 
 class Data:
-    """Interface for interacting with tuples / lists of :class:`DatasetWrapper`
-    objects. These objects are distinct from :class:`Collection` objects, which
-    also contain multiple data members, because these members have some
+    """Interface for interacting with tuples / lists of `xarray.Dataset`
+    objects. This class is distinct from :class:`Collection`, which also can
+    contain multiple data members, because the members contained here have some
     relationship with each other (they can be low / high res pairs, they can be
     daily / hourly versions of the same data, etc). Collections contain
     completely independent instances."""
 
-    def __init__(self, data: Union[List[xr.Dataset], List[DatasetWrapper]]):
+    def __init__(self, data: Union[List[xr.Dataset], xr.Dataset, Self]):
+        dsets = []
         if not isinstance(data, (list, tuple)):
             data = (data,)
-        self.dsets = tuple(DatasetWrapper(d) for d in data)
+        for d in data:
+            if hasattr(d, 'dsets'):
+                dsets.extend([*d.dsets])
+            else:
+                dsets.append(d)
+        self.dsets = tuple(dsets)
+        self.init_member_names()
         self.n_members = len(self.dsets)
 
-    @property
-    def attrs(self):
-        """Return meta data attributes of members."""
-        return [d.attrs for d in self.dsets]
-
-    @attrs.setter
-    def attrs(self, value):
-        """Set meta data attributes of all data members."""
-        for d in self.dsets:
-            for k, v in value.items():
-                d.attrs[k] = v
+    def init_member_names(self):
+        """Give members unique names if they do not already exist."""
+        for i, d in enumerate(self.dsets):
+            if d.sx.name is None:
+                d.attrs['name'] = f'member_{i}'
 
     def __getattr__(self, attr):
         try:
-            out = [getattr(d, attr) for d in self.dsets]
+            out = []
+            for d in self.dsets:
+                if hasattr(d.sx, attr):
+                    out.append(getattr(d.sx, attr))
+                else:
+                    out.append(getattr(d, attr))
         except Exception as e:
             msg = f'{self.__class__.__name__} has no attribute "{attr}"'
             raise AttributeError(msg) from e
@@ -342,32 +350,32 @@ class Data:
         if isinstance(keys, (tuple, list)) and all(
             isinstance(k, (tuple, list)) for k in keys
         ):
-            out = ArrayTuple([d[key] for d, key in zip(self.dsets, keys)])
+            out = ArrayTuple([d.sx[key] for d, key in zip(self.dsets, keys)])
         else:
-            out = ArrayTuple(d[keys] for d in self.dsets)
+            out = ArrayTuple(d.sx[keys] for d in self.dsets)
         return out
 
     @single_member_check
     def isel(self, *args, **kwargs):
         """Multi index selection method."""
-        out = tuple(d.isel(*args, **kwargs) for d in self.dsets)
+        out = tuple(d.sx.isel(*args, **kwargs) for d in self.dsets)
         return out
 
     @single_member_check
     def sel(self, *args, **kwargs):
         """Multi dimension selection method."""
-        out = tuple(d.sel(*args, **kwargs) for d in self.dsets)
+        out = tuple(d.sx.sel(*args, **kwargs) for d in self.dsets)
         return out
 
     @property
     def shape(self):
         """We use the shape of the largest data member. These are assumed to be
         ordered as (low-res, high-res) if there are two members."""
-        return [d.shape for d in self.dsets][-1]
+        return [d.sx.shape for d in self.dsets][-1]
 
     def __contains__(self, vals):
         """Check for vals in all of the dset members."""
-        return any(d.__contains__(vals) for d in self.dsets)
+        return any(d.sx.__contains__(vals) for d in self.dsets)
 
     def __setitem__(self, variable, data):
         """Set dset member values. Check if values is a tuple / list and if
@@ -375,7 +383,7 @@ class Data:
         member. e.g. `vals[0] -> dsets[0]`, `vals[1] -> dsets[1]`, etc"""
         for i, d in enumerate(self.dsets):
             dat = data[i] if isinstance(data, (tuple, list)) else data
-            d.__setitem__(variable, dat)
+            d.sx.__setitem__(variable, dat)
 
     def __iter__(self):
         yield from self.dsets

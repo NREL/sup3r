@@ -9,9 +9,9 @@ import h5py
 import numpy as np
 import xarray as xr
 
-from sup3r.preprocessing.abstract import Data
 from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.common import Dimension
+from sup3r.preprocessing.wrapper import Data
 
 logger = logging.getLogger(__name__)
 

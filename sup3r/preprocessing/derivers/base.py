@@ -8,12 +8,12 @@ from typing import Union
 
 import dask.array as da
 
-from sup3r.preprocessing.abstract import Data, DatasetWrapper
 from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.common import Dimension
 from sup3r.preprocessing.derivers.methods import (
     RegistryBase,
 )
+from sup3r.preprocessing.wrapper import Data
 from sup3r.typing import T_Array
 from sup3r.utilities.interpolation import Interpolator
 
@@ -155,7 +155,7 @@ class BaseDeriver(Container):
         """
 
         fstruct = parse_feature(feature)
-        if feature not in self.data.data_vars:
+        if feature not in self.data:
             compute_check = self._check_for_compute(feature)
             if compute_check is not None and isinstance(compute_check, str):
                 new_feature = self.map_new_name(feature, compute_check)
@@ -277,13 +277,9 @@ class Deriver(BaseDeriver):
                 f'Applying hr_spatial_coarsen={hr_spatial_coarsen} '
                 'to data array'
             )
-            out = self.data.coarsen(
+            self.data = self.data.coarsen(
                 {
                     Dimension.SOUTH_NORTH: hr_spatial_coarsen,
                     Dimension.WEST_EAST: hr_spatial_coarsen,
                 }
             ).mean()
-
-            self.data = DatasetWrapper(
-                coords=out.coords, data_vars=out.data_vars
-            )

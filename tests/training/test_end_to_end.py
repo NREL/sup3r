@@ -75,9 +75,14 @@ def test_end_to_end():
         means = os.path.join(td, 'means.json')
         stds = os.path.join(td, 'stds.json')
 
+        train_containers = LoaderH5(train_files)
+        train_containers.data = train_containers.data[derive_features]
+        val_containers = LoaderH5(val_files)
+        val_containers.data = val_containers.data[derive_features]
+
         batcher = BatchHandler(
-            train_containers=[LoaderH5(train_files, derive_features)],
-            val_containers=[LoaderH5(val_files, derive_features)],
+            train_containers=[train_containers],
+            val_containers=[val_containers],
             n_batches=2,
             batch_size=10,
             sample_shape=(12, 12, 16),
