@@ -24,8 +24,8 @@ class DualExtracter(Container):
     useful for caching data which then can go directly to a
     :class:`DualSampler` object for a :class:`DualBatchQueue`.
 
-    Notes
-    -----
+    Note
+    ----
     When first extracting the low_res data make sure to extract a region that
     completely overlaps the high_res region.  It is easiest to load the full
     low_res domain and let :class:`DualExtracter` select the appropriate region

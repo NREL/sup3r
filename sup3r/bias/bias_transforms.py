@@ -520,8 +520,8 @@ def local_qdm_bc(data: np.ndarray,
     sup3r.bias.qdm.QuantileDeltaMappingCorrection :
         Estimate probability distributions required by QDM method
 
-    Notes
-    -----
+    Note
+    ----
     Be careful selecting `bias_fp`. Usually, the input `data` used here would
     be related to the dataset used to estimate
     "bias_fut_{feature_name}_params".

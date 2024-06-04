@@ -18,8 +18,8 @@ class StatsCollection(Collection):
     """Extended collection object with methods for computing means and stds and
     saving these to files.
 
-    Notes
-    -----
+    Note
+    ----
     We write stats as float64 because float32 is not json serializable
     """
 

@@ -50,8 +50,8 @@ class AbstractBatchQueue(SamplerCollection, ABC):
     generator and maintains a queue of normalized batches in a dedicated thread
     so the training routine can proceed as soon as batches as available.
 
-    Notes
-    -----
+    Warning
+    -------
     If using a batch queue directly, rather than a :class:`BatchHandler` you
     will need to manually start the queue thread with self.start()
     """

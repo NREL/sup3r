@@ -176,8 +176,8 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
             ``dist``, ``n_quantiles``, ``sampling``, and ``log_base``
             must be consitent with that package/module.
 
-        Notes
-        -----
+        Note
+        ----
         One way of using this class is by saving the distributions definitions
         obtained here with the method :meth:`.write_outputs` and then use that
         file with :func:`~sup3r.bias.bias_transforms.local_qdm_bc` or through

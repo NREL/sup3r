@@ -27,8 +27,8 @@ def BatchHandlerFactory(QueueClass, SamplerClass, name='BatchHandler'):
     :class:`DualBatchHandler` use :class:`DualBatchQueue` and
     :class:`DualSampler`.
 
-    Notes
-    -----
+    Note
+    ----
     There is no need to generate "Spatial" batch handlers. Using
     :class:`Sampler` objects with a single time step in the sample shape will
     produce batches without a time dimension.
@@ -40,8 +40,8 @@ def BatchHandlerFactory(QueueClass, SamplerClass, name='BatchHandler'):
         lists will be used to initialize lists of class:`Sampler` objects that
         will then be used to build batches at run time.
 
-        Notes
-        -----
+        Note
+        ----
         These lists of containers can contain data from the same underlying
         data source (e.g. CONUS WTK) (e.g. initialize train / val containers
         with different time period and / or regions.  , or they can be used to

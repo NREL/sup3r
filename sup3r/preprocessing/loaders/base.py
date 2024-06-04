@@ -40,6 +40,7 @@ class Loader(Container, ABC):
     def __init__(
         self,
         file_paths,
+        features='all',
         res_kwargs=None,
         chunks='auto',
     ):
@@ -48,6 +49,9 @@ class Loader(Container, ABC):
         ----------
         file_paths : str | pathlib.Path | list
             Location(s) of files to load
+        features : list | str
+            Features to return in loaded dataset. If 'all' then all available
+            features will be returned.
         res_kwargs : dict
             kwargs for `.res` object
         chunks : tuple
@@ -63,8 +67,8 @@ class Loader(Container, ABC):
         self.chunks = chunks
         self.res = self.BASE_LOADER(self.file_paths, **self.res_kwargs)
         self.data = self.rename(self.load(), self.FEATURE_NAMES).astype(
-            np.float32
-        )
+            np.float32)
+        self.data = self.data[features]
         self.add_attrs()
 
     def add_attrs(self):

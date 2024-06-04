@@ -1,7 +1,7 @@
 """Download ERA5 file for the given year and month
 
-Notes
------
+Note
+----
 To use this you need to have cdsapi package installed and a ~/.cdsapirc file
 with a url and api key. Follow the instructions here:
 https://cds.climate.copernicus.eu/api-how-to
