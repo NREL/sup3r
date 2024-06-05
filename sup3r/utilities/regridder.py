@@ -390,12 +390,12 @@ class Regridder:
             data = data.reshape((data.shape[0] * data.shape[1], -1))
         msg = 'Input data must be 2D (spatial, temporal)'
         assert len(data.shape) == 2, msg
-        vals = [
-            data[np.array(self.indices), i][np.newaxis]
-            for i in range(data.shape[-1])
-        ]
-        vals = np.concatenate(vals, axis=0)
-        return np.einsum('ijk,jk->ij', vals, self.weights).T
+
+        vals = data[np.array(self.indices), :]  # index to (space, 4, time)
+        vals = np.transpose(vals, (2, 0, 1))  # shuffle to (time, space, 4)
+
+        out = np.einsum('ijk,jk->ij', vals, self.weights).T
+        return out
 
 
 class WindRegridder(Regridder):
