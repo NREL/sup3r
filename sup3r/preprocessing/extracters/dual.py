@@ -7,8 +7,9 @@ from warnings import warn
 
 import numpy as np
 import pandas as pd
+import xarray as xr
 
-from sup3r.preprocessing.base import Container, Data
+from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.cachers import Cacher
 from sup3r.preprocessing.common import Dimension
 from sup3r.utilities.regridder import Regridder
@@ -34,7 +35,7 @@ class DualExtracter(Container):
 
     def __init__(
         self,
-        data: Data | Tuple[Data, Data],
+        data: Tuple[xr.Dataset, xr.Dataset],
         regrid_workers=1,
         regrid_lr=True,
         s_enhance=1,
@@ -47,16 +48,15 @@ class DualExtracter(Container):
 
         Parameters
         ----------
-        data : Data | Tuple[Data, Data]
-            A :class:`Data` instance with two data members or a tuple of
-            :class`Data` instances each with one member. The first must be
-            low-res and the second must be high-res data
+        data : Tuple[xr.Dataset, xr.Dataset]
+            A tuple of xr.Dataset instances. The first must be low-res and the
+            second must be high-res data
         regrid_workers : int | None
             Number of workers to use for regridding routine.
         regrid_lr : bool
-            Flag to regrid the low-res container data to the high-res container
-            grid. This will take care of any minor inconsistencies in different
-            projections. Disable this if the grids are known to be the same.
+            Flag to regrid the low-res data to the high-res grid. This will
+            take care of any minor inconsistencies in different projections.
+            Disable this if the grids are known to be the same.
         s_enhance : int
             Spatial enhancement factor
         t_enhance : int
@@ -77,17 +77,16 @@ class DualExtracter(Container):
             'and high resolution in that order. Received inconsistent data '
             'argument.'
         )
-        assert (
-            isinstance(data, tuple) and len(data) == 2
-        ) or data.n_members == 2, msg
+        assert isinstance(data, tuple) and len(data) == 2, msg
         self.lr_data, self.hr_data = data
         self.regrid_workers = regrid_workers
-        self.lr_time_index = self.lr_data.time_index
-        self.hr_time_index = self.hr_data.time_index
+        self.lr_time_index = self.lr_data.indexes['time']
+        self.hr_time_index = self.hr_data.indexes['time']
+        hr_shape = self.hr_data.sx.shape
         self.lr_required_shape = (
-            self.hr_data.shape[0] // self.s_enhance,
-            self.hr_data.shape[1] // self.s_enhance,
-            self.hr_data.shape[2] // self.t_enhance,
+            hr_shape[0] // self.s_enhance,
+            hr_shape[1] // self.s_enhance,
+            hr_shape[2] // self.t_enhance,
         )
         self.hr_required_shape = (
             self.s_enhance * self.lr_required_shape[0],
@@ -98,16 +97,16 @@ class DualExtracter(Container):
         msg = (
             f'The required low-res shape {self.lr_required_shape} is '
             'inconsistent with the shape of the raw data '
-            f'{self.lr_data.shape}'
+            f'{self.lr_data.sx.shape}'
         )
         assert all(
             req_s <= true_s
             for req_s, true_s in zip(
-                self.lr_required_shape, self.lr_data.shape
+                self.lr_required_shape, self.lr_data.sx.shape
             )
         ), msg
 
-        self.hr_lat_lon = self.hr_data.lat_lon[
+        self.hr_lat_lon = self.hr_data.sx.lat_lon[
             *map(slice, self.hr_required_shape[:2])
         ]
         self.lr_lat_lon = spatial_coarsening(
@@ -133,33 +132,33 @@ class DualExtracter(Container):
         hr_data.shape is divisible by s_enhance. If not, take the largest
         shape that can be."""
         msg = (
-            f'hr_data.shape {self.hr_data.shape[:3]} is not '
+            f'hr_data.shape {self.hr_data.sx.shape[:3]} is not '
             f'divisible by s_enhance ({self.s_enhance}). Using shape = '
             f'{self.hr_required_shape} instead.'
         )
-        if self.hr_data.shape[:3] != self.hr_required_shape[:3]:
+        if self.hr_data.sx.shape[:3] != self.hr_required_shape[:3]:
             logger.warning(msg)
             warn(msg)
 
         hr_data_new = {
             f: self.hr_data[f][*map(slice, self.hr_required_shape)].data
-            for f in self.lr_data.features
+            for f in self.hr_data.data_vars
         }
         hr_coords_new = {
             Dimension.LATITUDE: self.hr_lat_lon[..., 0],
             Dimension.LONGITUDE: self.hr_lat_lon[..., 1],
-            Dimension.TIME: self.hr_data.time_index[
+            Dimension.TIME: self.hr_data.indexes['time'][
                 : self.hr_required_shape[2]
             ],
         }
-        self.hr_data = self.hr_data.init_new({**hr_coords_new, **hr_data_new})
+        self.hr_data = self.hr_data.sx.update({**hr_coords_new, **hr_data_new})
 
     def get_regridder(self):
         """Get regridder object"""
         input_meta = pd.DataFrame.from_dict(
             {
-                Dimension.LATITUDE: self.lr_data.lat_lon[..., 0].flatten(),
-                Dimension.LONGITUDE: self.lr_data.lat_lon[..., 1].flatten(),
+                Dimension.LATITUDE: self.lr_data.sx.lat_lon[..., 0].flatten(),
+                Dimension.LONGITUDE: self.lr_data.sx.lat_lon[..., 1].flatten(),
             }
         )
         target_meta = pd.DataFrame.from_dict(
@@ -184,22 +183,22 @@ class DualExtracter(Container):
                 f: regridder(
                     self.lr_data[f][..., : self.lr_required_shape[2]].data
                 ).reshape(self.lr_required_shape)
-                for f in self.lr_data.features
+                for f in self.lr_data.data_vars
             }
             lr_coords_new = {
                 Dimension.LATITUDE: self.lr_lat_lon[..., 0],
                 Dimension.LONGITUDE: self.lr_lat_lon[..., 1],
-                Dimension.TIME: self.lr_data.time_index[
+                Dimension.TIME: self.lr_data.indexes['time'][
                     : self.lr_required_shape[2]
                 ],
             }
-            self.lr_data = self.lr_data.init_new(
+            self.lr_data = self.lr_data.sx.update(
                 {**lr_coords_new, **lr_data_new}
             )
 
     def check_regridded_lr_data(self):
         """Check for NaNs after regridding and do NN fill if needed."""
-        for f in self.lr_data.features:
+        for f in self.lr_data.data_vars:
             nan_perc = (
                 100 * np.isnan(self.lr_data[f]).sum() / self.lr_data[f].size
             )

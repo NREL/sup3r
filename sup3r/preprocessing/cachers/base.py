@@ -9,7 +9,7 @@ import h5py
 import numpy as np
 import xarray as xr
 
-from sup3r.preprocessing.base import Container, Data
+from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.common import Dimension
 
 logger = logging.getLogger(__name__)
@@ -23,14 +23,14 @@ class Cacher(Container):
 
     def __init__(
         self,
-        data: Data,
+        data: xr.Dataset,
         cache_kwargs: Dict,
     ):
         """
         Parameters
         ----------
-        data : Data
-            Data object with underlying xr.Dataset()
+        data : xr.Dataset
+            xarray dataset to write to file
         cache_kwargs : dict
             Dictionary with kwargs for caching wrangled data. This should at
             minimum include a 'cache_pattern' key, value. This pattern must

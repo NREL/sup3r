@@ -43,21 +43,20 @@ class Extracter(Container, ABC):
             slice(start, stop, step). If equal to slice(None, None, 1)
         the full time dimension is selected.
         """
-        super().__init__()
+        super().__init__(loader.data)
         self.loader = loader
         self.time_slice = time_slice
         self.grid_shape = shape
         self.target = target
-        self.full_lat_lon = self.loader.lat_lon
+        self.full_lat_lon = self.data.sx.lat_lon
         self.raster_index = self.get_raster_index()
         self.time_index = (
-            loader.time_index[self.time_slice]
-            if not loader.time_independent
+            loader.data.indexes['time'][self.time_slice]
+            if 'time' in loader.data.indexes
             else None
         )
         self._lat_lon = None
-        self.data = self.extract_data()
-        self.data = self.data[features]
+        self.data = self.extract_data().sx[features]
 
     @property
     def time_slice(self):

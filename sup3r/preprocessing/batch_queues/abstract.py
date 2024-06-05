@@ -146,7 +146,7 @@ class AbstractBatchQueue(SamplerCollection, ABC):
 
     def check_features(self):
         """Make sure all samplers have the same sets of features."""
-        features = [c.features for c in self.containers]
+        features = [list(c.data.data_vars) for c in self.containers]
         msg = 'Received samplers with different sets of features.'
         assert all(feats == features[0] for feats in features), msg
 

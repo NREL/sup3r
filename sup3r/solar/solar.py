@@ -456,8 +456,8 @@ class Solar:
             fp.replace('.h5', '').split('_')[-2] for fp in all_fps
         ]
 
-        all_id_spatial = sorted(list(set(all_id_spatial)))
-        all_id_temporal = sorted(list(set(all_id_temporal)))
+        all_id_spatial = sorted(set(all_id_spatial))
+        all_id_temporal = sorted(set(all_id_temporal))
 
         fp_sets = []
         t_slices = []
@@ -683,12 +683,12 @@ class Solar:
                     i + 1, len(fp_sets)
                 )
             )
-            kwargs = dict(
-                t_slice=t_slice,
-                tz=tz,
-                agg_factor=agg_factor,
-                nn_threshold=nn_threshold,
-                cloud_threshold=cloud_threshold,
-            )
+            kwargs = {
+                't_slice': t_slice,
+                'tz': tz,
+                'agg_factor': agg_factor,
+                'nn_threshold': nn_threshold,
+                'cloud_threshold': cloud_threshold,
+            }
             with Solar(fp_set, nsrdb_fp, **kwargs) as solar:
                 solar.write(fp_out, features=features)

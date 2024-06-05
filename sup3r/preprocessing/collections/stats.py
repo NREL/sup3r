@@ -62,7 +62,7 @@ class StatsCollection(Collection):
             isinstance(means, str) and not os.path.exists(means)
         ):
             means = {}
-            for f in self.containers[0].features:
+            for f in self.containers[0].data_vars:
                 cmeans = [
                     w * self.container_mean(c, f)
                     for c, w in zip(self.containers, self.container_weights)
@@ -79,7 +79,7 @@ class StatsCollection(Collection):
             isinstance(stds, str) and not os.path.exists(stds)
         ):
             stds = {}
-            for f in self.containers[0].features:
+            for f in self.containers[0].data_vars:
                 cstds = [
                     w * self.container_std(c, f) ** 2
                     for c, w in zip(self.containers, self.container_weights)

@@ -1,14 +1,10 @@
-# -*- coding: utf-8 -*-
-"""pytests for data handling with NSRDB files"""
+"""pytests for H5 climate change data batch handlers"""
 
 import os
-import shutil
-import tempfile
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pytest
-from rex import Outputs, Resource
+from rex import init_logger
 
 from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing import (
@@ -17,7 +13,6 @@ from sup3r.preprocessing import (
     DataHandlerH5WindCC,
 )
 from sup3r.utilities.pytest.helpers import execute_pytest
-from sup3r.utilities.utilities import nsrdb_sub_daily_sampler, pd_date_range
 
 SHAPE = (20, 20)
 
@@ -41,130 +36,21 @@ dh_kwargs = {
 
 np.random.seed(42)
 
-
-def test_solar_handler(plot=False):
-    """Test loading irrad data from NSRDB file and calculating clearsky ratio
-    with NaN values for nighttime."""
-
-    with pytest.raises(KeyError):
-        handler = DataHandlerH5SolarCC(
-            INPUT_FILE_S,
-            features=['clearsky_ratio'],
-            target=TARGET_S,
-            shape=SHAPE,
-        )
-    dh_kwargs_new = dh_kwargs.copy()
-    dh_kwargs_new['val_split'] = 0
-    handler = DataHandlerH5SolarCC(
-        INPUT_FILE_S, features=FEATURES_S, **dh_kwargs_new
-    )
-
-    assert handler.data.shape[2] % 24 == 0
-
-    # some of the raw clearsky ghi and clearsky ratio data should be loaded in
-    # the handler as NaN
-    assert np.isnan(handler.data).any()
-
-    for _ in range(10):
-        obs_ind_hourly, obs_ind_daily = handler.get_sample_index()
-        assert obs_ind_hourly[2].start / 24 == obs_ind_daily[2].start
-        assert obs_ind_hourly[2].stop / 24 == obs_ind_daily[2].stop
-
-        obs_hourly, obs_daily = handler.get_next()
-        assert obs_hourly.shape[2] == 24
-        assert obs_daily.shape[2] == 1
-
-        cs_ratio_profile = obs_hourly[0, 0, :, 0]
-        assert np.isnan(cs_ratio_profile[0]) & np.isnan(cs_ratio_profile[-1])
-
-        nan_mask = np.isnan(cs_ratio_profile)
-        assert all((cs_ratio_profile <= 1)[~nan_mask])
-        assert all((cs_ratio_profile >= 0)[~nan_mask])
-
-        # new feature engineering so that whenever sunset starts, all
-        # clearsky_ratio data is NaN
-        for i in range(obs_hourly.shape[2]):
-            if np.isnan(obs_hourly[:, :, i, 0]).any():
-                assert np.isnan(obs_hourly[:, :, i, 0]).all()
-
-    if plot:
-        for p in range(2):
-            obs_hourly, obs_daily = handler.get_next()
-            for i in range(obs_hourly.shape[2]):
-                _, axes = plt.subplots(1, 2, figsize=(15, 8))
-
-                a = axes[0].imshow(obs_hourly[:, :, i, 0], vmin=0, vmax=1)
-                plt.colorbar(a, ax=axes[0])
-                axes[0].set_title('Clearsky Ratio')
-
-                tmp = obs_daily[:, :, 0, 0]
-                a = axes[1].imshow(tmp, vmin=tmp.min(), vmax=tmp.max())
-                plt.colorbar(a, ax=axes[1])
-                axes[1].set_title('Daily Average Clearsky Ratio')
-
-                plt.title(i)
-                plt.savefig(
-                    './test_nsrdb_handler_{}_{}.png'.format(p, i),
-                    dpi=300,
-                    bbox_inches='tight',
-                )
-                plt.close()
-
-
-def test_solar_handler_w_wind():
-    """Test loading irrad data from NSRDB file and calculating clearsky ratio
-    with NaN values for nighttime. Also test the inclusion of wind features"""
-
-    features_s = ['clearsky_ratio', 'U_200m', 'V_200m', 'ghi', 'clearsky_ghi']
-
-    with tempfile.TemporaryDirectory() as td:
-        res_fp = os.path.join(td, 'solar_w_wind.h5')
-        shutil.copy(INPUT_FILE_S, res_fp)
-
-        with Outputs(res_fp, mode='a') as res:
-            res.write_dataset(
-                'windspeed_200m',
-                np.random.uniform(0, 20, res.shape),
-                np.float32,
-            )
-            res.write_dataset(
-                'winddirection_200m',
-                np.random.uniform(0, 359.9, res.shape),
-                np.float32,
-            )
-
-        handler = DataHandlerH5SolarCC(res_fp, features_s, **dh_kwargs)
-
-        assert handler.data.shape[2] % 24 == 0
-        assert handler.val_data is None
-
-        # some of the raw clearsky ghi and clearsky ratio data should be loaded
-        # in the handler as NaN
-        assert np.isnan(handler.data).any()
-
-        for _ in range(10):
-            obs_ind_hourly, obs_ind_daily = handler.get_sample_index()
-            assert obs_ind_hourly[2].start / 24 == obs_ind_daily[2].start
-            assert obs_ind_hourly[2].stop / 24 == obs_ind_daily[2].stop
-
-            obs_hourly, obs_daily = handler.get_next()
-            assert obs_hourly.shape[2] == 24
-            assert obs_daily.shape[2] == 1
-
-            for idf in (1, 2):
-                msg = f'Wind feature "{features_s[idf]}" got messed up'
-                assert not (obs_daily[..., idf] == 0).any(), msg
-                assert not (np.abs(obs_daily[..., idf]) > 20).any(), msg
+init_logger('sup3r', log_level='DEBUG')
 
 
 def test_solar_batching(plot=False):
     """Test batching of nsrdb data against hand-calc coarsening"""
-    dh_kwargs_new = dh_kwargs.copy()
-    dh_kwargs_new['sample_shape'] = (20, 20, 72)
-    handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S, **dh_kwargs_new)
+    handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S, **dh_kwargs)
 
     batcher = BatchHandlerCC(
-        [handler], batch_size=1, n_batches=10, s_enhance=1, sub_daily_shape=8
+        [handler],
+        val_containers=[],
+        batch_size=1,
+        n_batches=10,
+        s_enhance=1,
+        sample_shape=(20, 20, 72),
+        sub_daily_shape=8,
     )
 
     for batch in batcher:
@@ -343,74 +229,6 @@ def test_solar_val_data():
     assert not batcher.val_data.any()
 
 
-def test_solar_ancillary_vars():
-    """Test the handling of the "final" feature set from the NSRDB including
-    windspeed components and air temperature near the surface."""
-    features = [
-        'clearsky_ratio',
-        'U',
-        'V',
-        'air_temperature',
-        'ghi',
-        'clearsky_ghi',
-    ]
-    dh_kwargs_new = dh_kwargs.copy()
-    dh_kwargs_new['val_split'] = 0.001
-    handler = DataHandlerH5SolarCC(INPUT_FILE_S, features, **dh_kwargs_new)
-
-    assert handler.data.shape[-1] == 4
-
-    assert np.allclose(np.min(handler.data[:, :, :, 1]), -6.1, atol=1)
-    assert np.allclose(np.max(handler.data[:, :, :, 1]), 9.7, atol=1)
-
-    assert np.allclose(np.min(handler.data[:, :, :, 2]), -9.8, atol=1)
-    assert np.allclose(np.max(handler.data[:, :, :, 2]), 9.3, atol=1)
-
-    assert np.allclose(np.min(handler.data[:, :, :, 3]), -18.3, atol=1)
-    assert np.allclose(np.max(handler.data[:, :, :, 3]), 22.9, atol=1)
-
-    with Resource(INPUT_FILE_S) as res:
-        ws_source = res['wind_speed']
-
-    ws_true = np.roll(ws_source[::2, 0], -7, axis=0)
-    ws_test = np.sqrt(
-        handler.data[0, 0, :, 1] ** 2 + handler.data[0, 0, :, 2] ** 2
-    )
-    assert np.allclose(ws_true, ws_test)
-
-    ws_true = np.roll(ws_source[::2], -7, axis=0)
-    ws_true = np.mean(ws_true, axis=1)
-    ws_test = np.sqrt(handler.data[..., 1] ** 2 + handler.data[..., 2] ** 2)
-    ws_test = np.mean(ws_test, axis=(0, 1))
-    assert np.allclose(ws_true, ws_test)
-
-
-def test_nsrdb_sub_daily_sampler():
-    """Test the nsrdb data sampler which does centered sampling on daylight
-    hours."""
-    handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S, **dh_kwargs)
-    ti = pd_date_range('20220101', '20230101', freq='1h', inclusive='left')
-    ti = ti[0 : handler.data.shape[2]]
-
-    for _ in range(100):
-        tslice = nsrdb_sub_daily_sampler(handler.data, 4, ti)
-        # with only 4 samples, there should never be any NaN data
-        assert not np.isnan(handler.data[0, 0, tslice, 0]).any()
-
-    for _ in range(100):
-        tslice = nsrdb_sub_daily_sampler(handler.data, 8, ti)
-        # with only 8 samples, there should never be any NaN data
-        assert not np.isnan(handler.data[0, 0, tslice, 0]).any()
-
-    for _ in range(100):
-        tslice = nsrdb_sub_daily_sampler(handler.data, 20, ti)
-        # there should be ~8 hours of non-NaN data
-        # the beginning and ending timesteps should be nan
-        assert (~np.isnan(handler.data[0, 0, tslice, 0])).sum() > 7
-        assert np.isnan(handler.data[0, 0, tslice, 0])[:3].all()
-        assert np.isnan(handler.data[0, 0, tslice, 0])[-3:].all()
-
-
 def test_solar_multi_day_coarse_data():
     """Test a multi day sample with only 9 hours of high res data output"""
     dh_kwargs_new = dh_kwargs.copy()
@@ -445,25 +263,6 @@ def test_solar_multi_day_coarse_data():
     for batch in batcher.val_data:
         assert batch.low_res.shape == (4, 5, 5, 3, 3)
         assert batch.high_res.shape == (4, 20, 20, 9, 1)
-
-
-def test_wind_handler():
-    """Test the wind climinate change data handler object."""
-    dh_kwargs_new = dh_kwargs.copy()
-    dh_kwargs_new['target'] = TARGET_W
-    handler = DataHandlerH5WindCC(INPUT_FILE_W, FEATURES_W, **dh_kwargs_new)
-
-    assert handler.data.shape[2] % 24 == 0
-    assert handler.val_data is None
-    assert not np.isnan(handler.data).any()
-
-    assert handler.daily_data.shape[2] == handler.data.shape[2] / 24
-
-    for i, islice in enumerate(handler.daily_data_slices):
-        hourly = handler.data[:, :, islice, :]
-        truth = np.mean(hourly, axis=2)
-        daily = handler.daily_data[:, :, i, :]
-        assert np.allclose(daily, truth, atol=1e-6)
 
 
 def test_wind_batching():
@@ -564,12 +363,6 @@ def test_surf_min_max_vars():
     handler = DataHandlerH5WindCC(
         INPUT_FILE_SURF, surf_features, **dh_kwargs_new
     )
-
-    # all of the source hi-res hourly temperature data should be the same
-    assert np.allclose(handler.data[..., 0], handler.data[..., 2])
-    assert np.allclose(handler.data[..., 0], handler.data[..., 3])
-    assert np.allclose(handler.data[..., 1], handler.data[..., 4])
-    assert np.allclose(handler.data[..., 1], handler.data[..., 5])
 
     batcher = BatchHandlerCC(
         [handler],

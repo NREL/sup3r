@@ -29,11 +29,23 @@ class Collection(Container):
         super().__init__()
         self.data = tuple(c.data for c in containers)
         self.containers = containers
+        self._data_vars = []
+
+    @property
+    def data_vars(self):
+        """Get all data vars contained in data."""
+        if not self._data_vars:
+            [
+                self._data_vars.append(f)
+                for f in np.concatenate([d.data_vars for d in self.data])
+                if f not in self._data_vars
+            ]
+        return self._data_vars
 
     @property
     def container_weights(self):
         """Get weights used to sample from different containers based on
         relative sizes"""
-        sizes = [c.size for c in self.containers]
+        sizes = [c.sx.size for c in self.containers]
         weights = sizes / np.sum(sizes)
         return weights.astype(np.float32)
