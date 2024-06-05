@@ -39,10 +39,10 @@ class Sup3rX:
 
         Parameters
         ----------
-        ds : xr.Dataset
+        ds : xr.Dataset | xr.DataArray
             xarray Dataset instance to access with the following methods
         """
-        self._ds = ds
+        self._ds = ds.to_dataset() if isinstance(ds, xr.DataArray) else ds
         self._ds = self.reorder()
         self._features = None
 
@@ -122,6 +122,14 @@ class Sup3rX:
         self._ds = self.reorder()
         return self._ds
 
+    def __getattr__(self, attr):
+        """Get attribute and cast to type(self) if a xr.Dataset is returned
+        first."""
+        out = getattr(self._ds, attr)
+        if isinstance(out, (xr.Dataset, xr.DataArray)):
+            out = type(self)(out)
+        return out
+
     @property
     def name(self):
         """Name of dataset. Used to label datasets when grouped in
@@ -138,22 +146,20 @@ class Sup3rX:
         """Override xr.Dataset.sel to enable feature selection."""
         features = kwargs.pop('features', None)
         if features is not None:
-            return self._ds[features].sel(**kwargs)
-        return self._ds.sel(*args, **kwargs)
+            out = self._ds[features].sel(*args, **kwargs)
+        else:
+            out = self._ds.sel(*args, **kwargs)
+        return type(self)(out)
 
     def isel(self, *args, **kwargs):
         """Override xr.Dataset.sel to enable feature selection."""
         findices = kwargs.pop('features', None)
         if findices is not None:
             features = [list(self._ds.data_vars)[fidx] for fidx in findices]
-            return self._ds[features].sel(**kwargs)
-        return self._ds.isel(*args, **kwargs)
-
-    def to_dataarray(self):
-        """Override xr.Dataset.to_dataarray to make sure feature channel is
-        last and to append `.data` to return an array"""
-        out = self._ds.to_dataarray()
-        return out.transpose(..., 'variable').data
+            out = self._ds[features].isel(*args, **kwargs)
+        else:
+            out = self._ds.isel(*args, **kwargs)
+        return type(self)(out)
 
     @property
     def time_independent(self):
@@ -179,6 +185,7 @@ class Sup3rX:
     def as_array(self, features='all') -> T_Array:
         """Return dask.array for the contained xr.Dataset."""
         features = parse_features(data=self._ds, features=features)
+        features = features if isinstance(features, list) else [features]
         arrs = [self._ds[f].data for f in features]
         if all(arr.shape == arrs[0].shape for arr in arrs):
             return da.stack(arrs, axis=-1)
@@ -188,11 +195,11 @@ class Sup3rX:
 
     def mean(self):
         """Get mean directly from dataset object."""
-        return self.to_dataarray().mean()
+        return self.as_array().mean()
 
     def std(self):
         """Get std directly from dataset object."""
-        return self.to_dataarray().mean()
+        return self.as_array().mean()
 
     def _get_from_tuple(self, keys) -> T_Array:
         """
@@ -228,6 +235,8 @@ class Sup3rX:
             out = self.as_array()[..., keys]
         else:
             out = self._ds[keys]
+        if isinstance(out, (xr.Dataset, xr.DataArray)):
+            out = type(self)(out)
         return out
 
     def __contains__(self, vals):

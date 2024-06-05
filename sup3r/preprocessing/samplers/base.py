@@ -80,14 +80,14 @@ class Sampler(Container):
     def preflight(self):
         """Check if the sample_shape is larger than the requested raster
         size"""
-        shape = self.data.sx.shape
         bad_shape = (
-            self.sample_shape[0] > shape[0] and self.sample_shape[1] > shape[1]
+            self.sample_shape[0] > self.data.shape[0]
+            and self.sample_shape[1] > self.data.shape[1]
         )
         if bad_shape:
             msg = (
                 f'spatial_sample_shape {self.sample_shape[:2]} is '
-                f'larger than the raster size {shape[:2]}'
+                f'larger than the raster size {self.data.shape[:2]}'
             )
             logger.warning(msg)
             warn(msg)
@@ -103,18 +103,18 @@ class Sampler(Container):
         msg = (
             f'sample_shape[2] ({self.sample_shape[2]}) cannot be larger '
             'than the number of time steps in the raw data '
-            f'({shape[2]}).'
+            f'({self.data.shape[2]}).'
         )
 
-        if shape[2] < self.sample_shape[2]:
+        if self.data.shape[2] < self.sample_shape[2]:
             logger.warning(msg)
             warn(msg)
 
     def get_next(self):
-        """Get "next" thing in the container. e.g. data observation or batch of
-        observations. If this is for a spatial model then we remove the time
-        dimension."""
-        return self[self.get_sample_index()]
+        """Get next sample. This retrieves a sample of size = sample_shape
+        from the `.data` (a xr.Dataset or DatasetTuple) through the Sup3rX
+        accessor."""
+        return self.data[self.get_sample_index()]
 
     @property
     def sample_shape(self) -> Tuple:

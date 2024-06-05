@@ -85,6 +85,7 @@ class BaseDeriver(Container):
 
         super().__init__(data=data)
         features = parse_features(data=data, features=features)
+        features = [features] if isinstance(features, str) else features
         for f in features:
             self.data.sx[f] = self.derive(f)
         self.data = self.data.sx[features]
@@ -104,10 +105,10 @@ class BaseDeriver(Container):
                     inputs = [fstruct.map_wildcard(i) for i in method.inputs]
                     if all(f in self.data for f in inputs):
                         logger.debug(
-                            f'Found compute method for {feature}. Proceeding '
-                            'with derivation.'
+                            f'Found compute method ({method}) for {feature}. '
+                            'Proceeding with derivation.'
                         )
-                        return self._run_compute(feature, method).data
+                        return self._run_compute(feature, method)
         return None
 
     def _run_compute(self, feature, method):
@@ -174,7 +175,7 @@ class BaseDeriver(Container):
             )
             logger.error(msg)
             raise RuntimeError(msg)
-        return self.data[feature].data
+        return self.data[feature, ...]
 
     def add_single_level_data(self, feature, lev_array, var_array):
         """When doing level interpolation we should include the single level

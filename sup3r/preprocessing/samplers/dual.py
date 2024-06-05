@@ -7,6 +7,7 @@ from typing import Dict, Optional, Tuple
 
 import xarray as xr
 
+from sup3r.preprocessing.base import DatasetTuple
 from sup3r.preprocessing.samplers.base import Sampler
 
 logger = logging.getLogger(__name__)
@@ -56,8 +57,9 @@ class DualSampler(Sampler):
             'DualSampler requires a low-res and high-res xr.Datatset. '
             'Recieved an inconsistent data argument.'
         )
-        assert isinstance(data, tuple) and len(data) == 2, msg
-        self.lr_data, self.hr_data = data
+        super().__init__(data, sample_shape=sample_shape)
+        assert isinstance(self.data, DatasetTuple) and len(self.data) == 2, msg
+        self.lr_data, self.hr_data = self.data.low_res, self.data.high_res
         feature_sets = feature_sets or {}
         self.hr_sample_shape = sample_shape
         self.lr_sample_shape = (
@@ -78,23 +80,22 @@ class DualSampler(Sampler):
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
         self.check_for_consistent_shapes()
-        super().__init__(data, sample_shape=sample_shape)
 
     def check_for_consistent_shapes(self):
         """Make sure container shapes are compatible with enhancement
         factors."""
-        lr_shape = self.lr_data.sx.shape
+        lr_shape = self.lr_data.shape
         enhanced_shape = (
             lr_shape[0] * self.s_enhance,
             lr_shape[1] * self.s_enhance,
             lr_shape[2] * self.t_enhance,
         )
         msg = (
-            f'hr_data.shape {self.hr_data.sx.shape} and enhanced '
+            f'hr_data.shape {self.hr_data.shape} and enhanced '
             f'lr_data.shape {enhanced_shape} are not compatible with '
             'the given enhancement factors'
         )
-        assert self.hr_data.sx.shape[:3] == enhanced_shape, msg
+        assert self.hr_data.shape[:3] == enhanced_shape, msg
 
     def get_sample_index(self):
         """Get paired sample index, consisting of index for the low res sample

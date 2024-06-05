@@ -48,7 +48,7 @@ class Extracter(Container, ABC):
         self.time_slice = time_slice
         self.grid_shape = shape
         self.target = target
-        self.full_lat_lon = self.data.sx.lat_lon
+        self.full_lat_lon = self.data.lat_lon
         self.raster_index = self.get_raster_index()
         self.time_index = (
             loader.data.indexes['time'][self.time_slice]

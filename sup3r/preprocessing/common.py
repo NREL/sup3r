@@ -94,8 +94,14 @@ def log_args(func):
     return wrapper
 
 
-def parse_features(data, features):
-    """Parse possible inputs for features (list, str, None, 'all')
+def parse_features(data: xr.Dataset, features: str | list | None):
+    """Parse possible inputs for features (list, str, None, 'all'). If 'all'
+    this returns all data_vars in data. If None this returns an empty list.
+
+    Note
+    ----
+    Returns a string if input is a string and list otherwise. Need to manually
+    get [features] if a list is required.
 
     Parameters
     ----------

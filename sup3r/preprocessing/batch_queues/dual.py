@@ -91,7 +91,7 @@ class DualBatchQueue(AbstractBatchQueue):
     def _parallel_map(self):
         """Perform call to map function for dual containers to enable parallel
         sampling."""
-        return self.data.map(
+        return self.data_gen.map(
             lambda x, y: (x, y), num_parallel_calls=self.max_workers
         )
 
