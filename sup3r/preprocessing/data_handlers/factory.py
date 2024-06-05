@@ -3,10 +3,10 @@ data."""
 
 import logging
 
-import numpy as np
 from rex import MultiFileNSRDBX
 from scipy.stats import mode
 
+from sup3r.preprocessing.base import Sup3rDataset
 from sup3r.preprocessing.cachers import Cacher
 from sup3r.preprocessing.common import FactoryMeta, lowered
 from sup3r.preprocessing.derivers import Deriver
@@ -88,9 +88,8 @@ def DataHandlerFactory(
             )
             self._extracter_hook()
             super().__init__(
-                self.extracter.data,
-                features=features,
-                **deriver_kwargs)
+                self.extracter.data, features=features, **deriver_kwargs
+            )
             self._deriver_hook()
             if cache_kwargs is not None:
                 _ = Cacher(self, cache_kwargs)
@@ -209,17 +208,27 @@ def DailyDataHandlerFactory(
             for fname in feats:
                 if '_max_' in fname:
                     daily_data[fname] = (
-                        self.data[fname].coarsen(time=day_steps).max()
+                        self.data[fname]
+                        .coarsen(time=day_steps)
+                        .max()
+                        .to_dataarray()
+                        .squeeze()
                     )
                 if '_min_' in fname:
                     daily_data[fname] = (
-                        self.data[fname].coarsen(time=day_steps).min()
+                        self.data[fname]
+                        .coarsen(time=day_steps)
+                        .min()
+                        .to_dataarray()
+                        .squeeze()
                     )
                 if 'total_' in fname:
                     daily_data[fname] = (
                         self.data[fname.split('total_')[-1]]
                         .coarsen(time=day_steps)
                         .sum()
+                        .to_dataarray()
+                        .squeeze()
                     )
 
             if 'clearsky_ratio' in self.features:
@@ -231,16 +240,11 @@ def DailyDataHandlerFactory(
                 'Finished calculating daily average datasets for {} '
                 'training data days.'.format(n_data_days)
             )
-            self.data = self.data[self.requested_features]
-            self.daily_data = daily_data[self.requested_features]
-            self.daily_data_slices = [
-                slice(x[0], x[-1] + 1)
-                for x in np.array_split(
-                    np.arange(len(self.time_index)), n_data_days
-                )
-            ]
-            self.data.attrs.update({'name': 'hourly'})
-            self.daily_data.attrs.update({'name': 'daily'})
+            hourly_data = self.data[self.requested_features]
+            daily_data = daily_data[self.requested_features]
+            hourly_data.attrs.update({'name': 'hourly'})
+            daily_data.attrs.update({'name': 'daily'})
+            self.data = Sup3rDataset(daily=daily_data, hourly=hourly_data)
 
     return DailyHandler
 

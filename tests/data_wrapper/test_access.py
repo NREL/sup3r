@@ -5,7 +5,7 @@ import dask.array as da
 import numpy as np
 from rex import init_logger
 
-from sup3r.preprocessing.base import DatasetTuple
+from sup3r.preprocessing.base import Sup3rDataset
 from sup3r.preprocessing.common import Dimension
 from sup3r.utilities.pytest.helpers import (
     execute_pytest,
@@ -46,7 +46,7 @@ def test_correct_access_accessor():
 
 def test_correct_access_single_member_data():
     """Make sure Data object works correctly."""
-    data = DatasetTuple(make_fake_dset((20, 20, 100, 3), features=['u', 'v']))
+    data = Sup3rDataset(make_fake_dset((20, 20, 100, 3), features=['u', 'v']))
 
     _ = data['u']
     _ = data[['u', 'v']]
@@ -74,7 +74,7 @@ def test_correct_access_single_member_data():
 
 def test_correct_access_multi_member_data():
     """Make sure Data object works correctly."""
-    data = DatasetTuple(
+    data = Sup3rDataset(
         (
             make_fake_dset((20, 20, 100, 3), features=['u', 'v']),
             make_fake_dset((20, 20, 100, 3), features=['u', 'v']),
@@ -118,7 +118,7 @@ def test_correct_access_multi_member_data():
 def test_change_values():
     """Test that we can change values in the Data object."""
     data = make_fake_dset((20, 20, 100, 3), features=['u', 'v'])
-    data = DatasetTuple(data)
+    data = Sup3rDataset(data)
 
     rand_u = np.random.uniform(0, 20, data['u'].shape)
     data['u'] = rand_u

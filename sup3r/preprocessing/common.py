@@ -105,7 +105,7 @@ def parse_features(data: xr.Dataset, features: str | list | None):
 
     Parameters
     ----------
-    data : xr.Dataset | DatasetTuple
+    data : xr.Dataset | Sup3rDataset
         Data containing available features
     features : list | str | None
         Feature request to parse.
@@ -117,6 +117,12 @@ def parse_features(data: xr.Dataset, features: str | list | None):
         if features is None
         else features
     )
+
+
+def parse_to_list(data, features):
+    """Parse features and return as a list, even if features is a string."""
+    features = parse_features(data, features)
+    return features if isinstance(features, list) else [features]
 
 
 def _contains_ellipsis(vals):

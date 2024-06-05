@@ -67,8 +67,9 @@ class Loader(Container, ABC):
         self.chunks = chunks
         self.res = self.BASE_LOADER(self.file_paths, **self.res_kwargs)
         self.data = self.rename(self.load(), self.FEATURE_NAMES).astype(
-            np.float32)
-        self.data = self.data[features]
+            np.float32
+        )
+        self.data = self.data[features] if features != 'all' else self.data
         self.add_attrs()
 
     def add_attrs(self):

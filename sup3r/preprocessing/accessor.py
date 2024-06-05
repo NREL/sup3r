@@ -14,10 +14,10 @@ from sup3r.preprocessing.common import (
     _is_ints,
     _is_strings,
     dims_array_tuple,
-    lowered,
     ordered_array,
     ordered_dims,
     parse_features,
+    parse_to_list,
 )
 from sup3r.typing import T_Array
 
@@ -34,7 +34,7 @@ class Sup3rX:
     https://docs.xarray.dev/en/latest/internals/extending-xarray.html
     """
 
-    def __init__(self, ds: xr.Dataset):
+    def __init__(self, ds: xr.Dataset | xr.DataArray):
         """Initialize accessor.
 
         Parameters
@@ -167,16 +167,6 @@ class Sup3rX:
         checked during extractions."""
         return 'time' not in self._ds.variables
 
-    def _parse_features(self, features):
-        """Parse possible inputs for features (list, str, None, 'all')"""
-        return lowered(
-            list(self._ds.data_vars)
-            if features == 'all'
-            else []
-            if features is None
-            else features
-        )
-
     @property
     def dims(self):
         """Return dims with our own enforced ordering."""
@@ -184,14 +174,21 @@ class Sup3rX:
 
     def as_array(self, features='all') -> T_Array:
         """Return dask.array for the contained xr.Dataset."""
-        features = parse_features(data=self._ds, features=features)
-        features = features if isinstance(features, list) else [features]
+        features = parse_to_list(data=self._ds, features=features)
         arrs = [self._ds[f].data for f in features]
         if all(arr.shape == arrs[0].shape for arr in arrs):
             return da.stack(arrs, axis=-1)
-        return (
-            self._ds[features].to_dataarray().transpose(*self.dims, ...).data
-        )
+        return self.as_darray(features=features).data
+
+    def as_darray(self, features='all') -> xr.DataArray:
+        """Return xr.DataArray for the contained xr.Dataset."""
+        features = parse_to_list(data=self._ds, features=features)
+        features = features if isinstance(features, list) else [features]
+        return self._ds[features].to_dataarray().transpose(*self.dims, ...)
+
+    # def coarsen(self, features='all', **kwargs):
+    #    """Compose methods to go from xr.Dataset to coarsened result."""
+    #   return self[features].coarsen(**kwargs)
 
     def mean(self):
         """Get mean directly from dataset object."""
@@ -258,29 +255,36 @@ class Sup3rX:
             return all(s.lower() in self._ds for s in vals)
         return self._ds.__contains__(vals)
 
-    def __setitem__(self, variable, data):
+    def __setitem__(self, keys, data):
         """
         Parameters
         ----------
-        variable : str | list | tuple
-            Variable to set. This can be a string like 'temperature' or a list
+        keys : str | list | tuple
+            keys to set. This can be a string like 'temperature' or a list
             like ['u', 'v']. `data` will be iterated over in the latter case.
         data : T_Array | xr.DataArray
             array object used to set variable data. If `variable` is a list
             then this is expected to have a trailing dimension with length
             equal to the length of the list.
         """
-        if isinstance(variable, (list, tuple)):
-            for i, v in enumerate(variable):
+        if isinstance(keys, (list, tuple)) and all(
+            isinstance(s, str) for s in keys
+        ):
+            for i, v in enumerate(keys):
                 self._ds.update({v: dims_array_tuple(data[..., i])})
-        else:
-            variable = variable.lower()
+        elif isinstance(keys, str):
+            keys = keys.lower()
             if hasattr(data, 'dims') and len(data.dims) >= 2:
-                self._ds.update({variable: (ordered_dims(data.dims), data)})
+                self._ds.update({keys: (ordered_dims(data.dims), data)})
             elif hasattr(data, 'shape'):
-                self._ds.update({variable: dims_array_tuple(data)})
+                self._ds.update({keys: dims_array_tuple(data)})
             else:
-                self._ds.update({variable: data})
+                self._ds.update({keys: data})
+        elif _is_strings(keys[0]):
+            self[keys[0], ...][keys[1:]] = data
+        else:
+            msg = f'Cannot set values for keys {keys}'
+            raise KeyError(msg)
 
     @property
     def features(self):

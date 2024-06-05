@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from sup3r.preprocessing.base import Container, DatasetTuple
+from sup3r.preprocessing.base import Container, Sup3rDataset
 from sup3r.preprocessing.cachers import Cacher
 from sup3r.preprocessing.common import Dimension
 from sup3r.utilities.regridder import Regridder
@@ -35,7 +35,7 @@ class DualExtracter(Container):
 
     def __init__(
         self,
-        data: DatasetTuple | Tuple[xr.Dataset, xr.Dataset],
+        data: Sup3rDataset | Tuple[xr.Dataset, xr.Dataset],
         regrid_workers=1,
         regrid_lr=True,
         s_enhance=1,
@@ -48,7 +48,7 @@ class DualExtracter(Container):
 
         Parameters
         ----------
-        data : DatasetTuple | Tuple[xr.Dataset, xr.Dataset]
+        data : Sup3rDataset | Tuple[xr.Dataset, xr.Dataset]
             A tuple of xr.Dataset instances. The first must be low-res
             and the second must be high-res data
         regrid_workers : int | None
@@ -77,7 +77,7 @@ class DualExtracter(Container):
             'and high resolution in that order. Received inconsistent data '
             'argument.'
         )
-        data = data if isinstance(data, DatasetTuple) else DatasetTuple(data)
+        data = data if isinstance(data, Sup3rDataset) else Sup3rDataset(data)
         assert isinstance(data, tuple) and len(data) == 2, msg
         self.lr_data, self.hr_data = data.low_res, data.high_res
         self.regrid_workers = regrid_workers

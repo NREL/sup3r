@@ -174,7 +174,7 @@ class SingleBatchQueue(AbstractBatchQueue):
     def _parallel_map(self):
         """Perform call to map function for single dataset containers to enable
         parallel sampling."""
-        return self.data.map(
+        return self.data_gen.map(
             lambda x: x, num_parallel_calls=self.max_workers
         )
 

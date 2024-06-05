@@ -43,6 +43,10 @@ class BatchHandlerCC(BaseHandlerCC):
         **kwargs : dict
             Same keyword args as BatchHandler
         """
+        t_enhance = kwargs.get('t_enhance', 24)
+        msg = (f'{self.__class__.__name__} does not yet support t_enhance '
+               f'!= 24. Received t_enhance = {t_enhance}.')
+        assert t_enhance == 24, msg
         super().__init__(*args, **kwargs)
         self.sub_daily_shape = sub_daily_shape
 
