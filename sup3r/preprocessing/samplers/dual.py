@@ -3,9 +3,10 @@ from them. These samples can be used to build batches."""
 
 import copy
 import logging
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
-from sup3r.preprocessing.base import Container
+import xarray as xr
+
 from sup3r.preprocessing.samplers.base import Sampler
 
 logger = logging.getLogger(__name__)
@@ -18,7 +19,7 @@ class DualSampler(Sampler):
 
     def __init__(
         self,
-        container: Container,
+        data: Tuple[xr.Dataset, xr.Dataset],
         sample_shape,
         s_enhance,
         t_enhance,
@@ -27,9 +28,8 @@ class DualSampler(Sampler):
         """
         Parameters
         ----------
-        container : Container
-            Container instance with `.data = (low_res, high_res)`, with each
-            tuple member a :class:`Data` instance.
+        data : Tuple[xr.Dataset, xr.Dataset]
+            Tuple of xr.Dataset instances corresponding to low / high res data
         sample_shape : tuple
             Size of arrays to sample from the high-res data. The sample shape
             for the low-res sampler will be determined from the enhancement
@@ -52,6 +52,12 @@ class DualSampler(Sampler):
                 output from the generative model. An example is high-res
                 topography that is to be injected mid-network.
         """
+        msg = (
+            'DualSampler requires a low-res and high-res xr.Datatset. '
+            'Recieved an inconsistent data argument.'
+        )
+        assert isinstance(data, tuple) and len(data) == 2, msg
+        self.lr_data, self.hr_data = data
         feature_sets = feature_sets or {}
         self.hr_sample_shape = sample_shape
         self.lr_sample_shape = (
@@ -61,39 +67,34 @@ class DualSampler(Sampler):
         )
         self._lr_only_features = feature_sets.get('lr_only_features', [])
         self._hr_exo_features = feature_sets.get('hr_exo_features', [])
-        msg = (
-            'DualSampler requires a low-res and high-res Data object. '
-            'Recieved an inconsistent Container.'
-        )
-        assert container.data.n_members == 2, msg
-        self.lr_data, self.hr_data = container.data
         self.lr_sampler = Sampler(
             self.lr_data, sample_shape=self.lr_sample_shape
         )
-        features = list(copy.deepcopy(self.lr_data.features))
-        features += [fn for fn in self.hr_data.features if fn not in features]
+        self.lr_features = list(self.lr_data.data_vars)
+        self.hr_features = list(self.hr_data.data_vars)
+        features = copy.deepcopy(self.lr_features)
+        features += [fn for fn in list(self.hr_features) if fn not in features]
         self.features = features
-        self.lr_features = self.lr_data.features
-        self.hr_features = self.hr_data.features
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
         self.check_for_consistent_shapes()
-        super().__init__(container.data, sample_shape=sample_shape)
+        super().__init__(data, sample_shape=sample_shape)
 
     def check_for_consistent_shapes(self):
         """Make sure container shapes are compatible with enhancement
         factors."""
+        lr_shape = self.lr_data.sx.shape
         enhanced_shape = (
-            self.lr_data.shape[0] * self.s_enhance,
-            self.lr_data.shape[1] * self.s_enhance,
-            self.lr_data.shape[2] * self.t_enhance,
+            lr_shape[0] * self.s_enhance,
+            lr_shape[1] * self.s_enhance,
+            lr_shape[2] * self.t_enhance,
         )
         msg = (
-            f'hr_data.shape {self.hr_data.shape} and enhanced '
+            f'hr_data.shape {self.hr_data.sx.shape} and enhanced '
             f'lr_data.shape {enhanced_shape} are not compatible with '
             'the given enhancement factors'
         )
-        assert self.hr_data.shape[:3] == enhanced_shape, msg
+        assert self.hr_data.sx.shape[:3] == enhanced_shape, msg
 
     def get_sample_index(self):
         """Get paired sample index, consisting of index for the low res sample

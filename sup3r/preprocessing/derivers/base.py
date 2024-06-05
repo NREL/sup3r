@@ -7,9 +7,10 @@ from inspect import signature
 from typing import Union
 
 import dask.array as da
+import xarray as xr
 
-from sup3r.preprocessing.base import Container, Data
-from sup3r.preprocessing.common import Dimension
+from sup3r.preprocessing.base import Container
+from sup3r.preprocessing.common import Dimension, parse_features
 from sup3r.preprocessing.derivers.methods import (
     RegistryBase,
 )
@@ -61,14 +62,13 @@ class BaseDeriver(Container):
 
     FEATURE_REGISTRY = RegistryBase
 
-    def __init__(self, data: Data, features, FeatureRegistry=None):
+    def __init__(self, data: xr.Dataset, features, FeatureRegistry=None):
         """
         Parameters
         ----------
-        data : Data
-            wrapped xr.Dataset() (:class:`Data`) with data to use for
-            derivations. Usually comes from the `.data` attribute of a
-            :class:`Extracter` object.
+        data : xr.Dataset
+            xr.Dataset() with data to use for derivations. Usually comes from
+            the `.data` attribute of a :class:`Extracter` object.
         features : list
             List of feature names to derive from the :class:`Extracter` data.
             The :class:`Extracter` object contains the features available to
@@ -83,10 +83,11 @@ class BaseDeriver(Container):
         if FeatureRegistry is not None:
             self.FEATURE_REGISTRY = FeatureRegistry
 
-        super().__init__(data=data, features=features)
-        for f in self.features:
-            self.data[f] = self.derive(f)
-        self.data = self.data[self.features]
+        super().__init__(data=data)
+        features = parse_features(data=data, features=features)
+        for f in features:
+            self.data.sx[f] = self.derive(f)
+        self.data = self.data.sx[features]
 
     def _check_for_compute(self, feature) -> Union[T_Array, str]:
         """Get compute method from the registry if available. Will check for
@@ -101,7 +102,7 @@ class BaseDeriver(Container):
                 if hasattr(method, 'inputs'):
                     fstruct = parse_feature(feature)
                     inputs = [fstruct.map_wildcard(i) for i in method.inputs]
-                    if inputs in self.data:
+                    if all(f in self.data for f in inputs):
                         logger.debug(
                             f'Found compute method for {feature}. Proceeding '
                             'with derivation.'
@@ -259,7 +260,7 @@ class Deriver(BaseDeriver):
 
     def __init__(
         self,
-        data: Data,
+        data: xr.Dataset,
         features,
         time_roll=0,
         hr_spatial_coarsen=1,

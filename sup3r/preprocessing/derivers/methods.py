@@ -7,8 +7,8 @@ import logging
 from abc import ABC, abstractmethod
 
 import numpy as np
+import xarray as xr
 
-from sup3r.preprocessing.extracters import Extracter
 from sup3r.utilities.utilities import (
     invert_uv,
     transform_rotate_wind,
@@ -31,20 +31,17 @@ class DerivedFeature(ABC):
 
     @classmethod
     @abstractmethod
-    def compute(cls, container: Extracter, **kwargs):
+    def compute(cls, data: xr.Dataset, **kwargs):
         """Compute method for derived feature. This can use any of the features
-        contained in the :class:`Extracter` data and the attributes (e.g.
-        `.lat_lon`, `.time_index`). To access the data contained in the
-        extracter just use the feature name. e.g. container['windspeed_100m'].
+        contained in the xr.Dataset data and the attributes (e.g.
+        `.lat_lon`, `.time_index` accessed through Sup3rX accessor).
 
         Parameters
         ----------
-        container : Extracter
-            Extracter type container. This has been initialized on a
-            :class:`Loader` object and extracted a specific spatiotemporal
-            extent for the features contained in the loader. These features are
-            exposed through a `__getitem__` method such that container[feature]
-            will return the feature data for the specified extent.
+        data : xr.Dataset
+            Initialized and standardized through a :class:`Loader` with a
+            specific spatiotemporal extent extracted for the features contained
+            using a :class:`Extracter`.
         **kwargs : dict
             Optional keyword arguments used in derivation. height is a typical
             example. Could also be pressure.
@@ -57,7 +54,7 @@ class ClearSkyRatioH5(DerivedFeature):
     inputs = ('ghi', 'clearsky_ghi')
 
     @classmethod
-    def compute(cls, container):
+    def compute(cls, data):
         """Compute the clearsky ratio
 
         Returns
@@ -69,14 +66,14 @@ class ClearSkyRatioH5(DerivedFeature):
         # need to use a nightime threshold of 1 W/m2 because cs_ghi is stored
         # in integer format and weird binning patterns happen in the clearsky
         # ratio and cloud mask between 0 and 1 W/m2 and sunrise/sunset
-        night_mask = container['clearsky_ghi'] <= 1
+        night_mask = data['clearsky_ghi'] <= 1
 
         # set any timestep with any nighttime equal to NaN to avoid weird
         # sunrise/sunset artifacts.
         night_mask = night_mask.any(axis=(0, 1)).compute()
-        container['clearsky_ghi'][..., night_mask] = np.nan
+        data['clearsky_ghi'][..., night_mask] = np.nan
 
-        cs_ratio = container['ghi'] / container['clearsky_ghi']
+        cs_ratio = data['ghi'] / data['clearsky_ghi']
         return cs_ratio.astype(np.float32)
 
 
@@ -88,13 +85,13 @@ class ClearSkyRatioCC(DerivedFeature):
     inputs = ('rsds', 'clearsky_ghi')
 
     @classmethod
-    def compute(cls, container):
+    def compute(cls, data):
         """Compute the daily average climate change clearsky ratio
 
         Parameters
         ----------
-        container : Extracter
-            data container used for this compuation, must include clearsky_ghi
+        data : xr.Dataset
+            xarray dataset used for this compuation, must include clearsky_ghi
             and rsds (rsds==ghi for cc datasets)
 
         Returns
@@ -103,7 +100,7 @@ class ClearSkyRatioCC(DerivedFeature):
             Clearsky ratio, e.g. the all-sky ghi / the clearsky ghi. This is
             assumed to be daily average data for climate change source data.
         """
-        cs_ratio = container['rsds'] / container['clearsky_ghi']
+        cs_ratio = data['rsds'] / data['clearsky_ghi']
         cs_ratio = np.minimum(cs_ratio, 1)
         return np.maximum(cs_ratio, 0)
 
@@ -114,7 +111,7 @@ class CloudMaskH5(DerivedFeature):
     inputs = ('ghi', 'clearky_ghi')
 
     @classmethod
-    def compute(cls, container):
+    def compute(cls, data):
         """
         Returns
         -------
@@ -126,13 +123,13 @@ class CloudMaskH5(DerivedFeature):
         # need to use a nightime threshold of 1 W/m2 because cs_ghi is stored
         # in integer format and weird binning patterns happen in the clearsky
         # ratio and cloud mask between 0 and 1 W/m2 and sunrise/sunset
-        night_mask = container['clearsky_ghi'] <= 1
+        night_mask = data['clearsky_ghi'] <= 1
 
         # set any timestep with any nighttime equal to NaN to avoid weird
         # sunrise/sunset artifacts.
         night_mask = night_mask.any(axis=(0, 1)).compute()
 
-        cloud_mask = container['ghi'] < container['clearsky_ghi']
+        cloud_mask = data['ghi'] < data['clearsky_ghi']
         cloud_mask = cloud_mask.astype(np.float32)
         cloud_mask[night_mask] = np.nan
         return cloud_mask.astype(np.float32)
@@ -146,9 +143,9 @@ class PressureNC(DerivedFeature):
     inputs = ('p_(.*)', 'pb_(.*)')
 
     @classmethod
-    def compute(cls, container, height):
+    def compute(cls, data, height):
         """Method to compute pressure from NETCDF data"""
-        return container[f'p_{height}m'] + container[f'pb_{height}m']
+        return data[f'p_{height}m'] + data[f'pb_{height}m']
 
 
 class WindspeedNC(DerivedFeature):
@@ -157,13 +154,13 @@ class WindspeedNC(DerivedFeature):
     inputs = ('u_(.*)', 'v_(.*)')
 
     @classmethod
-    def compute(cls, container, height):
+    def compute(cls, data, height):
         """Compute windspeed"""
 
         ws, _ = invert_uv(
-            container[f'u_{height}m'],
-            container[f'v_{height}m'],
-            container.lat_lon,
+            data[f'u_{height}m'],
+            data[f'v_{height}m'],
+            data.sx.lat_lon,
         )
         return ws
 
@@ -174,12 +171,12 @@ class WinddirectionNC(DerivedFeature):
     inputs = ('u_(.*)', 'v_(.*)')
 
     @classmethod
-    def compute(cls, container, height):
+    def compute(cls, data, height):
         """Compute winddirection"""
         _, wd = invert_uv(
-            container[f'U_{height}m'],
-            container[f'V_{height}m'],
-            container.lat_lon,
+            data[f'U_{height}m'],
+            data[f'V_{height}m'],
+            data.sx.lat_lon,
         )
         return wd
 
@@ -198,13 +195,15 @@ class UWindPowerLaw(DerivedFeature):
     inputs = ('uas')
 
     @classmethod
-    def compute(cls, container, height):
+    def compute(cls, data, height):
         """Method to compute U wind component from data
 
         Parameters
         ----------
-        container : Extracter
-            Dictionary of raw feature arrays to use for derivation
+        data : xr.Dataset
+            Initialized and standardized through a :class:`Loader` with a
+            specific spatiotemporal extent extracted for the features contained
+            using a :class:`Extracter`.
         height : str | int
             Height at which to compute the derived feature
 
@@ -215,7 +214,7 @@ class UWindPowerLaw(DerivedFeature):
 
         """
         return (
-            container['uas']
+            data['uas']
             * (float(height) / cls.NEAR_SFC_HEIGHT) ** cls.ALPHA
         )
 
@@ -234,11 +233,11 @@ class VWindPowerLaw(DerivedFeature):
     inputs = ('vas')
 
     @classmethod
-    def compute(cls, container, height):
+    def compute(cls, data, height):
         """Method to compute V wind component from data"""
 
         return (
-            container['vas']
+            data['vas']
             * (float(height) / cls.NEAR_SFC_HEIGHT) ** cls.ALPHA
         )
 
@@ -251,12 +250,12 @@ class UWind(DerivedFeature):
     inputs = ('windspeed_(.*)', 'winddirection_(.*)')
 
     @classmethod
-    def compute(cls, container, height):
+    def compute(cls, data, height):
         """Method to compute U wind component from data"""
         u, _ = transform_rotate_wind(
-            container[f'windspeed_{height}m'],
-            container[f'winddirection_{height}m'],
-            container.lat_lon,
+            data[f'windspeed_{height}m'],
+            data[f'winddirection_{height}m'],
+            data.sx.lat_lon,
         )
         return u
 
@@ -269,13 +268,13 @@ class VWind(DerivedFeature):
     inputs = ('windspeed_(.*)', 'winddirection_(.*)')
 
     @classmethod
-    def compute(cls, container, height):
+    def compute(cls, data, height):
         """Method to compute V wind component from data"""
 
         _, v = transform_rotate_wind(
-            container[f'windspeed_{height}m'],
-            container[f'winddirection_{height}m'],
-            container.lat_lon,
+            data[f'windspeed_{height}m'],
+            data[f'winddirection_{height}m'],
+            data.sx.lat_lon,
         )
         return v
 
@@ -288,12 +287,12 @@ class USolar(DerivedFeature):
     inputs = ('wind_speed', 'wind_direction')
 
     @classmethod
-    def compute(cls, container):
+    def compute(cls, data):
         """Method to compute U wind component from data"""
         u, _ = transform_rotate_wind(
-            container['wind_speed'],
-            container['wind_direction'],
-            container.lat_lon,
+            data['wind_speed'],
+            data['wind_direction'],
+            data.sx.lat_lon,
         )
         return u
 
@@ -306,12 +305,12 @@ class VSolar(DerivedFeature):
     inputs = ('wind_speed', 'wind_direction')
 
     @classmethod
-    def compute(cls, container):
+    def compute(cls, data):
         """Method to compute U wind component from data"""
         _, v = transform_rotate_wind(
-            container['wind_speed'],
-            container['wind_direction'],
-            container.lat_lon,
+            data['wind_speed'],
+            data['wind_direction'],
+            data.sx.lat_lon,
         )
         return v
 
@@ -322,10 +321,10 @@ class TempNCforCC(DerivedFeature):
     inputs = ('ta_(.*)')
 
     @classmethod
-    def compute(cls, container, height):
+    def compute(cls, data, height):
         """Method to compute ta in Celsius from ta source in Kelvin"""
 
-        return container[f'ta_{height}m'] - 273.15
+        return data[f'ta_{height}m'] - 273.15
 
 
 class Tas(DerivedFeature):
@@ -341,9 +340,9 @@ class Tas(DerivedFeature):
         return [self.CC_FEATURE_NAME]
 
     @classmethod
-    def compute(cls, container):
+    def compute(cls, data):
         """Method to compute tas in Celsius from tas source in Kelvin"""
-        return container[cls.CC_FEATURE_NAME] - 273.15
+        return data[cls.CC_FEATURE_NAME] - 273.15
 
 
 class TasMin(Tas):

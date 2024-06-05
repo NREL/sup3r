@@ -75,14 +75,16 @@ def BatchHandlerFactory(QueueClass, SamplerClass, name='BatchHandler'):
             queue_kwargs = get_class_kwargs(QueueClass, kwargs)
 
             train_samplers = [
-                self.SAMPLER(c, **sampler_kwargs) for c in train_containers
+                self.SAMPLER(c.data, **sampler_kwargs)
+                for c in train_containers
             ]
 
             val_samplers = (
                 None
                 if val_containers is None
                 else [
-                    self.SAMPLER(c, **sampler_kwargs) for c in val_containers
+                    self.SAMPLER(c.data, **sampler_kwargs)
+                    for c in val_containers
                 ]
             )
 

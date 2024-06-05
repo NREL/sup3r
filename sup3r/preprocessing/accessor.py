@@ -17,6 +17,7 @@ from sup3r.preprocessing.common import (
     lowered,
     ordered_array,
     ordered_dims,
+    parse_features,
 )
 from sup3r.typing import T_Array
 
@@ -56,7 +57,7 @@ class Sup3rX:
         """
         return all(
             tuple(self._ds[f].dims) == ordered_dims(self._ds[f].dims)
-            for f in self._ds
+            for f in self._ds.data_vars
         )
 
     def reorder(self):
@@ -177,13 +178,21 @@ class Sup3rX:
 
     def as_array(self, features='all') -> T_Array:
         """Return dask.array for the contained xr.Dataset."""
-        features = self._parse_features(features)
+        features = parse_features(data=self._ds, features=features)
         arrs = [self._ds[f].data for f in features]
         if all(arr.shape == arrs[0].shape for arr in arrs):
             return da.stack(arrs, axis=-1)
         return (
             self._ds[features].to_dataarray().transpose(*self.dims, ...).data
         )
+
+    def mean(self):
+        """Get mean directly from dataset object."""
+        return self.to_dataarray().mean()
+
+    def std(self):
+        """Get std directly from dataset object."""
+        return self.to_dataarray().mean()
 
     def _get_from_tuple(self, keys) -> T_Array:
         """
@@ -208,7 +217,7 @@ class Sup3rX:
     def __getitem__(self, keys) -> T_Array | xr.Dataset:
         """Method for accessing variables or attributes. keys can optionally
         include a feature name as the last element of a keys tuple."""
-        keys = self._parse_features(keys)
+        keys = parse_features(data=self._ds, features=keys)
         if isinstance(keys, slice):
             out = self._get_from_tuple((keys,))
         elif isinstance(keys, tuple):
@@ -267,14 +276,7 @@ class Sup3rX:
     @property
     def features(self):
         """Features in this container."""
-        if not self._features:
-            self._features = list(self._ds.data_vars)
-        return self._features
-
-    @features.setter
-    def features(self, val):
-        """Set features in this container."""
-        self._features = self._parse_features(val)
+        return list(self._ds.data_vars)
 
     @property
     def shape(self):
@@ -286,7 +288,7 @@ class Sup3rX:
 
     @property
     def size(self):
-        """Get the "size" of the container."""
+        """Get size of data contained to use in weight calculations."""
         return np.prod(self.shape)
 
     @property

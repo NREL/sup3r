@@ -81,7 +81,7 @@ class BaseExtracterH5(Extracter, ABC):
             Dimension.TIME: self.time_index,
         }
         data_vars = {}
-        for f in self.loader.features:
+        for f in self.loader.data_vars:
             dat = self.loader[f].isel(
                 {Dimension.FLATTENED_SPATIAL: self.raster_index.flatten()}
             )

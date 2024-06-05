@@ -94,6 +94,25 @@ def log_args(func):
     return wrapper
 
 
+def parse_features(data, features):
+    """Parse possible inputs for features (list, str, None, 'all')
+
+    Parameters
+    ----------
+    data : xr.Dataset | DatasetTuple
+        Data containing available features
+    features : list | str | None
+        Feature request to parse.
+    """
+    return lowered(
+        list(data.data_vars)
+        if features == 'all'
+        else []
+        if features is None
+        else features
+    )
+
+
 def _contains_ellipsis(vals):
     return vals is Ellipsis or (
         isinstance(vals, (tuple, list)) and any(v is Ellipsis for v in vals)

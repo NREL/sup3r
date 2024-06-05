@@ -9,7 +9,7 @@ import pytest
 import xarray as xr
 
 from sup3r.postprocessing.file_handling import OutputHandlerH5
-from sup3r.preprocessing.base import Container, Data
+from sup3r.preprocessing.base import Container, DatasetTuple
 from sup3r.preprocessing.common import Dimension
 from sup3r.preprocessing.samplers import Sampler
 from sup3r.utilities.utilities import pd_date_range
@@ -101,7 +101,9 @@ class DummySampler(Sampler):
 
     def __init__(self, sample_shape, data_shape, features, feature_sets=None):
         data = make_fake_dset(data_shape, features=features)
-        super().__init__(Data(data), sample_shape, feature_sets=feature_sets)
+        super().__init__(
+            DatasetTuple(data), sample_shape, feature_sets=feature_sets
+        )
 
 
 def make_fake_h5_chunks(td):
