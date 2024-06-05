@@ -115,6 +115,7 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         self._sample_counter = 0
         self._batch_counter = 0
         self._batches = None
+        self.data_gen = None
         self.batch_size = batch_size
         self.n_batches = n_batches
         self.queue_cap = queue_cap or n_batches
@@ -139,7 +140,7 @@ class AbstractBatchQueue(SamplerCollection, ABC):
 
     def preflight(self):
         """Get data generator and run checks before kicking off the queue."""
-        self.data = self.get_data_generator()
+        self.data_gen = self.get_data_generator()
         self.check_stats()
         self.check_features()
         self.check_enhancement_factors()
@@ -317,8 +318,10 @@ class AbstractBatchQueue(SamplerCollection, ABC):
 
     def get_next(self) -> Batch:
         """Get next batch. This removes sets of samples from the queue and
-        wraps them in the simple Batch class. This also removes the time
-        dimension from samples for batches for spatial models
+        wraps them in the simple Batch class. We squeeze the time dimension
+        if sample_shape[2] == 1 (axis=2 for time) since this means the samples
+        are for a spatial only model. It's not possible to have sample_shape[2]
+        for a spatiotemporal model due to padding requirements.
 
         Returns
         -------
@@ -328,9 +331,9 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         samples = self.queue.dequeue()
         if self.sample_shape[2] == 1:
             if isinstance(samples, (list, tuple)):
-                samples = tuple([s[..., 0, :] for s in samples])
+                samples = tuple([s.squeeze(axis=2) for s in samples])
             else:
-                samples = samples[..., 0, :]
+                samples = samples.squeeze(axis=2)
         return self.batch_next(samples)
 
     def __next__(self) -> Batch:

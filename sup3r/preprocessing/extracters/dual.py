@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from sup3r.preprocessing.base import Container
+from sup3r.preprocessing.base import Container, DatasetTuple
 from sup3r.preprocessing.cachers import Cacher
 from sup3r.preprocessing.common import Dimension
 from sup3r.utilities.regridder import Regridder
@@ -19,11 +19,11 @@ logger = logging.getLogger(__name__)
 
 
 class DualExtracter(Container):
-    """Object containing wrapped xr.Dataset() (:class:`Data`) objects for low
-    and high-res data.  (Usually ERA5 and WTK, respectively). This essentially
-    just regrids the low-res data to the coarsened high-res grid.  This is
-    useful for caching data which then can go directly to a
-    :class:`DualSampler` object for a :class:`DualBatchQueue`.
+    """Object containing xr.Dataset instances for low and high-res data.
+    (Usually ERA5 and WTK, respectively). This essentially just regrids the
+    low-res data to the coarsened high-res grid.  This is useful for caching
+    data which then can go directly to a :class:`DualSampler` object for a
+    :class:`DualBatchQueue`.
 
     Note
     ----
@@ -35,7 +35,7 @@ class DualExtracter(Container):
 
     def __init__(
         self,
-        data: Tuple[xr.Dataset, xr.Dataset],
+        data: DatasetTuple | Tuple[xr.Dataset, xr.Dataset],
         regrid_workers=1,
         regrid_lr=True,
         s_enhance=1,
@@ -48,9 +48,9 @@ class DualExtracter(Container):
 
         Parameters
         ----------
-        data : Tuple[xr.Dataset, xr.Dataset]
-            A tuple of xr.Dataset instances. The first must be low-res and the
-            second must be high-res data
+        data : DatasetTuple | Tuple[xr.Dataset, xr.Dataset]
+            A tuple of xr.Dataset instances. The first must be low-res
+            and the second must be high-res data
         regrid_workers : int | None
             Number of workers to use for regridding routine.
         regrid_lr : bool
@@ -77,16 +77,16 @@ class DualExtracter(Container):
             'and high resolution in that order. Received inconsistent data '
             'argument.'
         )
+        data = data if isinstance(data, DatasetTuple) else DatasetTuple(data)
         assert isinstance(data, tuple) and len(data) == 2, msg
-        self.lr_data, self.hr_data = data
+        self.lr_data, self.hr_data = data.low_res, data.high_res
         self.regrid_workers = regrid_workers
         self.lr_time_index = self.lr_data.indexes['time']
         self.hr_time_index = self.hr_data.indexes['time']
-        hr_shape = self.hr_data.sx.shape
         self.lr_required_shape = (
-            hr_shape[0] // self.s_enhance,
-            hr_shape[1] // self.s_enhance,
-            hr_shape[2] // self.t_enhance,
+            self.hr_data.shape[0] // self.s_enhance,
+            self.hr_data.shape[1] // self.s_enhance,
+            self.hr_data.shape[2] // self.t_enhance,
         )
         self.hr_required_shape = (
             self.s_enhance * self.lr_required_shape[0],
@@ -97,16 +97,16 @@ class DualExtracter(Container):
         msg = (
             f'The required low-res shape {self.lr_required_shape} is '
             'inconsistent with the shape of the raw data '
-            f'{self.lr_data.sx.shape}'
+            f'{self.lr_data.shape}'
         )
         assert all(
             req_s <= true_s
             for req_s, true_s in zip(
-                self.lr_required_shape, self.lr_data.sx.shape
+                self.lr_required_shape, self.lr_data.shape
             )
         ), msg
 
-        self.hr_lat_lon = self.hr_data.sx.lat_lon[
+        self.hr_lat_lon = self.hr_data.lat_lon[
             *map(slice, self.hr_required_shape[:2])
         ]
         self.lr_lat_lon = spatial_coarsening(
@@ -132,16 +132,16 @@ class DualExtracter(Container):
         hr_data.shape is divisible by s_enhance. If not, take the largest
         shape that can be."""
         msg = (
-            f'hr_data.shape {self.hr_data.sx.shape[:3]} is not '
+            f'hr_data.shape {self.hr_data.shape[:3]} is not '
             f'divisible by s_enhance ({self.s_enhance}). Using shape = '
             f'{self.hr_required_shape} instead.'
         )
-        if self.hr_data.sx.shape[:3] != self.hr_required_shape[:3]:
+        if self.hr_data.shape[:3] != self.hr_required_shape[:3]:
             logger.warning(msg)
             warn(msg)
 
         hr_data_new = {
-            f: self.hr_data[f][*map(slice, self.hr_required_shape)].data
+            f: self.hr_data[f, *map(slice, self.hr_required_shape)]
             for f in self.hr_data.data_vars
         }
         hr_coords_new = {
@@ -151,14 +151,14 @@ class DualExtracter(Container):
                 : self.hr_required_shape[2]
             ],
         }
-        self.hr_data = self.hr_data.sx.update({**hr_coords_new, **hr_data_new})
+        self.hr_data = self.hr_data.update({**hr_coords_new, **hr_data_new})
 
     def get_regridder(self):
         """Get regridder object"""
         input_meta = pd.DataFrame.from_dict(
             {
-                Dimension.LATITUDE: self.lr_data.sx.lat_lon[..., 0].flatten(),
-                Dimension.LONGITUDE: self.lr_data.sx.lat_lon[..., 1].flatten(),
+                Dimension.LATITUDE: self.lr_data.lat_lon[..., 0].flatten(),
+                Dimension.LONGITUDE: self.lr_data.lat_lon[..., 1].flatten(),
             }
         )
         target_meta = pd.DataFrame.from_dict(
@@ -181,7 +181,7 @@ class DualExtracter(Container):
 
             lr_data_new = {
                 f: regridder(
-                    self.lr_data[f][..., : self.lr_required_shape[2]].data
+                    self.lr_data[f, ..., :self.lr_required_shape[2]]
                 ).reshape(self.lr_required_shape)
                 for f in self.lr_data.data_vars
             }
@@ -192,7 +192,7 @@ class DualExtracter(Container):
                     : self.lr_required_shape[2]
                 ],
             }
-            self.lr_data = self.lr_data.sx.update(
+            self.lr_data = self.lr_data.update(
                 {**lr_coords_new, **lr_data_new}
             )
 
