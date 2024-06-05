@@ -4,7 +4,8 @@ samplers, batch queues, batch handlers.
 """
 
 import logging
-from typing import Optional, Tuple
+from collections import namedtuple
+from typing import Dict, Optional, Tuple
 
 import dask.array as da
 import numpy as np
@@ -17,10 +18,10 @@ from sup3r.preprocessing.common import _log_args
 logger = logging.getLogger(__name__)
 
 
-class DatasetTuple(tuple):
-    """Interface for interacting with single or pairs of `xr.Dataset` instances
-    through the Sup3rX accessor. This is always a wrapper around a 1-tuple or a
-    2-tuple of xr.Dataset instances (2-tuple used for Dual objects - e.g.
+class Sup3rDataset:
+    """Interface for interacting with one or two `xr.Dataset` instances
+    This is either a simple passthrough for a `xr.Dataset` instance or a
+    wrapper around two of them so they work well with Dual objects like
     DualSampler, DualExtracter, DualBatchHandler, etc...)
 
     Note
@@ -30,37 +31,29 @@ class DatasetTuple(tuple):
     are completely independent while here there are at most two members which
     are related as low / high res versions of the same underlying data."""
 
-    def rewrap(self, out):
-        """Rewrap out as a :class:`DatasetTuple` if out meets type
-        conditions."""
-        if isinstance(out, (xr.Dataset, xr.DataArray, Sup3rX)):
-            out = type(self)((out,))
-        elif isinstance(out, tuple) and all(
-            isinstance(o, type(self)) for o in out
-        ):
-            out = type(self)(out)
-        return out
+    def __init__(self, **dsets: Dict[str, xr.Dataset]):
+        dsets = {
+            k: Sup3rX(v) if isinstance(v, xr.Dataset) else v
+            for k, v in dsets.items()
+        }
+        self._ds = namedtuple('Dataset', list(dsets))(**dsets)
+
+    def __iter__(self):
+        yield from self._ds
 
     def __getattr__(self, attr):
         """Get attribute through accessor if available. Otherwise use standard
         xarray interface."""
-        if not self.is_dual:
-            out = self._getattr(self.low_res, attr)
-        else:
-            out = tuple(
-                self._getattr(self.low_res, attr),
-                self._getattr(self.high_res, attr),
-            )
-        return self.rewrap(out)
-
-    @property
-    def is_dual(self):
-        """Check if self is a dual object or single data member."""
-        return len(self) == 2
+        if hasattr(self._ds, attr):
+            return getattr(self._ds, attr)
+        out = [self._getattr(ds, attr) for ds in self._ds]
+        if len(self._ds) == 1:
+            out = out[0]
+        return out
 
     def _getattr(self, dset, attr):
         """Get attribute from single data member."""
-        return self.rewrap(
+        return (
             getattr(dset.sx, attr)
             if hasattr(dset.sx, attr)
             else getattr(dset, attr)
@@ -68,9 +61,7 @@ class DatasetTuple(tuple):
 
     def _getitem(self, dset, item):
         """Get item from single data member."""
-        return self.rewrap(
-            dset.sx[item] if hasattr(dset, 'sx') else dset[item]
-        )
+        return dset.sx[item] if hasattr(dset, 'sx') else dset[item]
 
     def get_dual_item(self, keys):
         """Get item method used when this is a dual object (a.k.a. a wrapped
@@ -78,9 +69,11 @@ class DatasetTuple(tuple):
         if isinstance(keys, (tuple, list)) and all(
             isinstance(k, (tuple, list)) for k in keys
         ):
-            out = tuple(self._getitem(d, key) for d, key in zip(self, keys))
+            out = tuple(
+                self._getitem(d, key) for d, key in zip(self._ds, keys)
+            )
         else:
-            out = tuple(self._getitem(d, keys) for d in self)
+            out = tuple(self._getitem(d, keys) for d in self._ds)
         return out
 
     def __getitem__(self, keys):
@@ -89,18 +82,16 @@ class DatasetTuple(tuple):
         `self.dset[i][keys[i]] for i in range(len(keys)).` Otherwise we will
         get keys from each member of self.dset."""
         if isinstance(keys, int):
-            return super().__getitem__(keys)
-        if not self.is_dual:
-            out = self._getitem(self.low_res, keys)
-        else:
-            out = self.get_dual_item(keys)
-        return self.rewrap(out)
+            return self._ds[keys]
+        if len(self._ds) == 1:
+            return self.get_dual_item(keys)
+        return self._ds[-1][keys]
 
     @property
     def shape(self):
         """We use the shape of the largest data member. These are assumed to be
         ordered as (low-res, high-res) if there are two members."""
-        return self.high_res.sx.shape
+        return self._ds[-1].shape
 
     @property
     def data_vars(self):
@@ -114,24 +105,13 @@ class DatasetTuple(tuple):
         a dset might contain ['u', 'v', 'potential_temp'] = data_vars, while
         the features we use might just be ['u','v']
         """
-        data_vars = list(self.low_res.data_vars)
+        data_vars = list(self._ds[0].data_vars)
         [
             data_vars.append(f)
-            for f in list(self.high_res.data_vars)
+            for f in list(self._ds[-1].data_vars)
             if f not in data_vars
         ]
         return data_vars
-
-    @property
-    def low_res(self):
-        """Get low res data member."""
-        return self[0]
-
-    @property
-    def high_res(self):
-        """Get high res data member (2nd tuple member if there are two
-        members)."""
-        return self[-1]
 
     @property
     def size(self):
@@ -140,7 +120,7 @@ class DatasetTuple(tuple):
 
     def __contains__(self, vals):
         """Check for vals in all of the dset members."""
-        return any(d.sx.__contains__(vals) for d in self)
+        return any(d.sx.__contains__(vals) for d in self._ds)
 
     def __setitem__(self, variable, data):
         """Set dset member values. Check if values is a tuple / list and if
@@ -152,16 +132,16 @@ class DatasetTuple(tuple):
 
     def mean(self):
         """Compute the mean across all tuple members."""
-        return da.mean(da.array([d.mean() for d in self]))
+        return da.mean(da.array([d.mean() for d in self._ds]))
 
     def std(self):
         """Compute the standard deviation across all tuple members."""
-        return da.mean(da.array([d.std() for d in self]))
+        return da.mean(da.array([d.std() for d in self._ds]))
 
 
 class Container:
     """Basic fundamental object used to build preprocessing objects. Contains
-    a xr.Dataset or wrapped tuple of xr.Dataset objects (:class:`DatasetTuple`)
+    a xr.Dataset or wrapped tuple of xr.Dataset objects (:class:`Sup3rDataset`)
     """
 
     def __init__(
@@ -178,21 +158,14 @@ class Container:
         self.data = data
 
     @property
-    def data(self) -> DatasetTuple:
+    def data(self) -> Sup3rDataset:
         """Return a wrapped 1-tuple or 2-tuple xr.Dataset."""
         return self._data
 
     @data.setter
     def data(self, data):
-        """Set data value. Wrap as :class:`DatasetTuple` if not already."""
-        self._data = data
-        if self._data is not None and not isinstance(self._data, DatasetTuple):
-            tmp = (
-                (DatasetTuple((d,)) for d in data)
-                if isinstance(data, tuple)
-                else (data,)
-            )
-            self._data = DatasetTuple(tmp)
+        """Set data value. Cast to Sup3rX accessor if not already"""
+        self._data = Sup3rX(data) if isinstance(data, xr.Dataset) else data
 
     def __new__(cls, *args, **kwargs):
         """Include arg logging in construction."""

@@ -7,7 +7,7 @@ from typing import Dict, Optional, Tuple
 
 import xarray as xr
 
-from sup3r.preprocessing.base import DatasetTuple
+from sup3r.preprocessing.base import Sup3rDataset
 from sup3r.preprocessing.samplers.base import Sampler
 
 logger = logging.getLogger(__name__)
@@ -20,7 +20,7 @@ class DualSampler(Sampler):
 
     def __init__(
         self,
-        data: Tuple[xr.Dataset, xr.Dataset],
+        data: Sup3rDataset | Tuple[xr.Dataset, xr.Dataset],
         sample_shape,
         s_enhance,
         t_enhance,
@@ -29,8 +29,9 @@ class DualSampler(Sampler):
         """
         Parameters
         ----------
-        data : Tuple[xr.Dataset, xr.Dataset]
-            Tuple of xr.Dataset instances corresponding to low / high res data
+        data : Sup3rDataset | Tuple[xr.Dataset, xr.Dataset]
+            A tuple of xr.Dataset instances. The first must be low-res
+            and the second must be high-res data
         sample_shape : tuple
             Size of arrays to sample from the high-res data. The sample shape
             for the low-res sampler will be determined from the enhancement
@@ -58,7 +59,7 @@ class DualSampler(Sampler):
             'Recieved an inconsistent data argument.'
         )
         super().__init__(data, sample_shape=sample_shape)
-        assert isinstance(self.data, DatasetTuple) and len(self.data) == 2, msg
+        assert isinstance(self.data, Sup3rDataset) and len(self.data) == 2, msg
         self.lr_data, self.hr_data = self.data.low_res, self.data.high_res
         feature_sets = feature_sets or {}
         self.hr_sample_shape = sample_shape

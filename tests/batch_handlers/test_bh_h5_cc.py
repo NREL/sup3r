@@ -44,11 +44,12 @@ def test_solar_batching(plot=False):
     handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S, **dh_kwargs)
 
     batcher = BatchHandlerCC(
-        [handler],
+        train_containers=[handler],
         val_containers=[],
         batch_size=1,
         n_batches=10,
         s_enhance=1,
+        t_enhance=24,
         sample_shape=(20, 20, 72),
         sub_daily_shape=8,
     )

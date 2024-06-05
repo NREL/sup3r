@@ -3,9 +3,12 @@
 """
 
 import logging
+from typing import Dict, Optional, Tuple
 
 import numpy as np
+import xarray as xr
 
+from sup3r.preprocessing.base import Sup3rDataset
 from sup3r.preprocessing.samplers.base import Sampler
 from sup3r.utilities.utilities import (
     uniform_box_sampler,
@@ -17,32 +20,53 @@ logger = logging.getLogger(__name__)
 
 
 class DualSamplerCC(Sampler):
-    """Special sampling for h5 wtk or nsrdb data for climate change
-    applications
+    """Special sampling of WTK or NSRDB data for climate change applications
 
-    TODO: refactor according to DualSampler pattern. Maybe create base
-    MixedSampler class since this wont be lr + hr but still has two data
-    objects to sample from.
-    """
+    Note
+    ----
+    This is a similar pattern to :class:`DualSampler` but different in
+    important ways. We are grouping `daily_data` and `hourly_data` like
+    `low_res` and `high_res` but `daily_data` is only the temporal low_res
+    version of the hourly data. It will ultimately be coarsened spatially
+    before constructing batches. Here we are constructing a sampler to sample
+    the daily / hourly pairs so we use an "lr_sample_shape" which is only
+    temporally low resolution."""
 
-    def __init__(self, container, sample_shape=None, feature_sets=None):
+    def __init__(
+        self,
+        data: Sup3rDataset | Tuple[xr.Dataset, xr.Dataset],
+        sample_shape=None,
+        s_enhance=1,
+        t_enhance=24,
+        feature_sets: Optional[Dict] = None,
+    ):
         """
         Parameters
         ----------
-        container : CompositeDailyDataHandler
-            :class:`CompositeDailyDataHandler` type container. Needs to have
-            `.daily_data` and `.daily_data_slices`. See
-            `sup3r.preprocessing.factory`
+        data : Sup3rDataset | Tuple[xr.Dataset, xr.Dataset]
+            A tuple of xr.Dataset instances. The first must be daily
+            and the second must be hourly data
         """
-        self.daily_data_slices = container.daily_data_slices
-        self.data = (container.daily_data, container.data)
+        n_hours = data.high_res.sizes['time']
+        n_days = data.low_res.sizes['time']
+        self.daily_data_slices = [
+            slice(x[0], x[-1] + 1)
+            for x in np.array_split(np.arange(n_hours), n_days)
+        ]
         sample_shape = (
             sample_shape if sample_shape is not None else (10, 10, 24)
         )
         sample_shape = self.check_sample_shape(sample_shape)
-
+        self.hr_sample_shape = sample_shape
+        self.lr_sample_shape = (
+            sample_shape[0],
+            sample_shape[1],
+            sample_shape[2] // t_enhance,
+        )
+        self.s_enhance = s_enhance
+        self.t_enhance = t_enhance
         super().__init__(
-            data=self.data,
+            data=data,
             sample_shape=sample_shape,
             feature_sets=feature_sets,
         )
@@ -104,8 +128,15 @@ class DualSamplerCC(Sampler):
         t_slice_1 = self.daily_data_slices[rand_day_ind + n_days - 1]
         t_slice_hourly = slice(t_slice_0.start, t_slice_1.stop)
         t_slice_daily = slice(rand_day_ind, rand_day_ind + n_days)
-        daily_feats, hourly_feats = self.data.features
-        obs_ind_daily = (*spatial_slice, t_slice_daily, daily_feats)
-        obs_ind_hourly = (*spatial_slice, t_slice_hourly, hourly_feats)
+        obs_ind_daily = (
+            *spatial_slice,
+            t_slice_daily,
+            self.data.low_res.features,
+        )
+        obs_ind_hourly = (
+            *spatial_slice,
+            t_slice_hourly,
+            self.data.high_res.features,
+        )
 
         return (obs_ind_daily, obs_ind_hourly)

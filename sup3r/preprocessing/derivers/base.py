@@ -10,7 +10,7 @@ import dask.array as da
 import xarray as xr
 
 from sup3r.preprocessing.base import Container
-from sup3r.preprocessing.common import Dimension, parse_features
+from sup3r.preprocessing.common import Dimension, parse_to_list
 from sup3r.preprocessing.derivers.methods import (
     RegistryBase,
 )
@@ -84,11 +84,10 @@ class BaseDeriver(Container):
             self.FEATURE_REGISTRY = FeatureRegistry
 
         super().__init__(data=data)
-        features = parse_features(data=data, features=features)
-        features = [features] if isinstance(features, str) else features
+        features = parse_to_list(data=data, features=features)
         for f in features:
-            self.data.sx[f] = self.derive(f)
-        self.data = self.data.sx[features]
+            self.data[f] = self.derive(f)
+        self.data = self.data[features]
 
     def _check_for_compute(self, feature) -> Union[T_Array, str]:
         """Get compute method from the registry if available. Will check for

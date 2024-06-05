@@ -56,7 +56,8 @@ class Extracter(Container, ABC):
             else None
         )
         self._lat_lon = None
-        self.data = self.extract_data().sx[features]
+        self.data = self.extract_data()
+        self.data = self.data[features]
 
     @property
     def time_slice(self):
