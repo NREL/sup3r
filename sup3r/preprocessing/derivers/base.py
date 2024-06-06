@@ -144,7 +144,7 @@ class BaseDeriver(Container):
     def derive(self, feature) -> T_Array:
         """Routine to derive requested features. Employs a little recursion to
         locate differently named features with a name map in the feture
-        registry. i.e. if  `FEATURE_REGISTRY` containers a key, value pair like
+        registry. i.e. if  `FEATURE_REGISTRY` contains a key, value pair like
         "windspeed": "wind_speed" then requesting "windspeed" will ultimately
         return a compute method (or fetch from raw data) for "wind_speed
 

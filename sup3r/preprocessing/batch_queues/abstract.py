@@ -109,6 +109,9 @@ class AbstractBatchQueue(SamplerCollection, ABC):
             to 'validation' for :class:`BatchQueue`, which has a training and
             validation queue.
         """
+        msg = (f'{self.__class__.__name__} requires a list of samplers. '
+               f'Received type {type(samplers)}')
+        assert isinstance(samplers, list), msg
         super().__init__(
             samplers=samplers, s_enhance=s_enhance, t_enhance=t_enhance
         )

@@ -71,9 +71,9 @@ class ClearSkyRatioH5(DerivedFeature):
         # set any timestep with any nighttime equal to NaN to avoid weird
         # sunrise/sunset artifacts.
         night_mask = night_mask.any(axis=(0, 1)).compute()
-        data['clearsky_ghi', ..., night_mask] = np.nan
 
         cs_ratio = data['ghi', ...] / data['clearsky_ghi', ...]
+        cs_ratio[..., night_mask] = np.nan
         return cs_ratio.astype(np.float32)
 
 

@@ -32,10 +32,25 @@ class Sup3rX:
     References
     ----------
     https://docs.xarray.dev/en/latest/internals/extending-xarray.html
+
+
+    Examples
+    --------
+    >>> ds = xr.Dataset(...)
+    >>> ds.sx[features]
+    >>> ds.sx.time_index
+    >>> ds.sx.lat_lon
+
+    Note
+    ----
+    The `__getitem__` and `__getattr__` methods will cast back to `type(self)`
+    if `self._ds.__getitem__` or `self._ds.__getattr__` returns an instance of
+    `type(self._ds)` (e.g. a `xr.Dataset`). This means we do not have to
+    constantly append `.sx` for successive calls to accessor methods.
     """
 
     def __init__(self, ds: xr.Dataset | xr.DataArray):
-        """Initialize accessor.
+        """Initialize accessor. Order variables to our standard order.
 
         Parameters
         ----------
@@ -162,12 +177,6 @@ class Sup3rX:
         return type(self)(out)
 
     @property
-    def time_independent(self):
-        """Check whether the data is time-independent. This will need to be
-        checked during extractions."""
-        return 'time' not in self._ds.variables
-
-    @property
     def dims(self):
         """Return dims with our own enforced ordering."""
         return ordered_dims(self._ds.dims)
@@ -185,10 +194,6 @@ class Sup3rX:
         features = parse_to_list(data=self._ds, features=features)
         features = features if isinstance(features, list) else [features]
         return self._ds[features].to_dataarray().transpose(*self.dims, ...)
-
-    # def coarsen(self, features='all', **kwargs):
-    #    """Compose methods to go from xr.Dataset to coarsened result."""
-    #   return self[features].coarsen(**kwargs)
 
     def mean(self):
         """Get mean directly from dataset object."""
@@ -210,13 +215,14 @@ class Sup3rX:
         """
         if _is_strings(keys[0]):
             out = self.as_array(keys[0])[*keys[1:], :]
+            out = out.squeeze(axis=-1) if out.shape[-1] == 1 else out
         elif _is_strings(keys[-1]):
             out = self.as_array(keys[-1])[*keys[:-1], :]
         elif _is_ints(keys[-1]) and not _contains_ellipsis(keys):
             out = self.as_array()[*keys[:-1], ..., keys[-1]]
         else:
             out = self.as_array()[keys]
-        return out.squeeze(axis=-1) if out.shape[-1] == 1 else out
+        return out
 
     def __getitem__(self, keys) -> T_Array | xr.Dataset:
         """Method for accessing variables or attributes. keys can optionally
@@ -281,7 +287,9 @@ class Sup3rX:
             else:
                 self._ds.update({keys: data})
         elif _is_strings(keys[0]):
-            self[keys[0], ...][keys[1:]] = data
+            var_array = self[keys[0]].as_array().squeeze()
+            var_array[keys[1:]] = data
+            self[keys[0]] = var_array
         else:
             msg = f'Cannot set values for keys {keys}'
             raise KeyError(msg)
@@ -307,9 +315,11 @@ class Sup3rX:
     @property
     def time_index(self):
         """Base time index for contained data."""
-        if not self.time_independent:
-            return pd.to_datetime(self._ds.indexes['time'])
-        return None
+        return (
+            pd.to_datetime(self._ds.indexes['time'])
+            if 'time' in self._ds.indexes
+            else None
+        )
 
     @time_index.setter
     def time_index(self, value):
@@ -324,8 +334,4 @@ class Sup3rX:
     @lat_lon.setter
     def lat_lon(self, lat_lon):
         """Update the lat_lon attribute with array values."""
-        self[Dimension.LATITUDE] = (self[Dimension.LATITUDE], lat_lon[..., 0])
-        self[Dimension.LONGITUDE] = (
-            self[Dimension.LONGITUDE],
-            lat_lon[..., 1],
-        )
+        self[[Dimension.LATITUDE, Dimension.LONGITUDE]] = lat_lon

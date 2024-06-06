@@ -14,7 +14,7 @@ from sup3r.preprocessing import (
     DataHandlerH5SolarCC,
     DualSamplerCC,
 )
-from sup3r.utilities.pytest.helpers import execute_pytest
+from sup3r.utilities.pytest.helpers import TestDualSamplerCC, execute_pytest
 from sup3r.utilities.utilities import nsrdb_sub_daily_sampler, pd_date_range
 
 SHAPE = (20, 20)
@@ -49,38 +49,53 @@ def test_solar_handler_sampling(plot=False):
     with NaN values for nighttime."""
 
     handler = DataHandlerH5SolarCC(
-            INPUT_FILE_S,
-            features=['clearsky_ratio'],
-            target=TARGET_S,
-            shape=SHAPE,
-        )
+        INPUT_FILE_S,
+        features=['clearsky_ratio'],
+        target=TARGET_S,
+        shape=SHAPE,
+    )
     assert ['clearsky_ghi', 'ghi'] not in handler
     assert 'clearsky_ratio' in handler
 
     handler = DataHandlerH5SolarCC(
-        INPUT_FILE_S, features=FEATURES_S, **dh_kwargs)
+        INPUT_FILE_S, features=FEATURES_S, **dh_kwargs
+    )
     assert ['clearsky_ghi', 'ghi', 'clearsky_ratio'] in handler
 
-    sampler = DualSamplerCC(handler, sample_shape)
+    sampler = TestDualSamplerCC(handler.data, sample_shape)
 
     assert handler.data.shape[2] % 24 == 0
     assert sampler.data.shape[2] % 24 == 0
 
     # some of the raw clearsky ghi and clearsky ratio data should be loaded in
     # the handler as NaN but the daily data should not have any NaN values
-    assert np.isnan(handler.data[...]).any()
-    assert np.isnan(sampler.data[...][1]).any()
-    assert not np.isnan(handler.daily_data.sx[...]).any()
-    assert not np.isnan(sampler.data[...][0]).any()
+    assert np.isnan(handler.data.hourly.as_array()).any()
+    assert np.isnan(sampler.data.hourly.as_array()).any()
+    assert not np.isnan(handler.data.daily.as_array()).any()
+    assert not np.isnan(sampler.data.daily.as_array()).any()
+
+    assert np.array_equal(
+        handler.data.daily.as_array(), sampler.data.daily.as_array()
+    )
+    assert np.allclose(
+        handler.data.hourly.as_array(),
+        sampler.data.hourly.as_array(),
+        equal_nan=True,
+    )
 
     for _ in range(10):
-        obs_ind_daily, obs_ind_hourly = sampler.get_sample_index()
-        assert obs_ind_hourly[2].start / 24 == obs_ind_daily[2].start
-        assert obs_ind_hourly[2].stop / 24 == obs_ind_daily[2].stop
-
         obs_daily, obs_hourly = sampler.get_next()
         assert obs_hourly.shape[2] == 24
         assert obs_daily.shape[2] == 1
+
+        obs_ind_daily, obs_ind_hourly = sampler.current_obs_index
+        assert obs_ind_hourly[2].start / 24 == obs_ind_daily[2].start
+        assert obs_ind_hourly[2].stop / 24 == obs_ind_daily[2].stop
+
+        assert np.array_equal(obs_daily, handler.data.daily[obs_ind_daily])
+        assert np.allclose(
+            obs_hourly, handler.data.hourly[obs_ind_hourly], equal_nan=True
+        )
 
         cs_ratio_profile = obs_hourly[0, 0, :, 0]
         assert np.isnan(cs_ratio_profile[0]) & np.isnan(cs_ratio_profile[-1])

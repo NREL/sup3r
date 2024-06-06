@@ -7,9 +7,10 @@ from fnmatch import fnmatch
 from typing import Dict, Optional, Tuple
 from warnings import warn
 
+import numpy as np
 import xarray as xr
 
-from sup3r.preprocessing.base import Container
+from sup3r.preprocessing.base import Container, Sup3rDataset, Sup3rX
 from sup3r.preprocessing.common import lowered
 from sup3r.utilities.utilities import uniform_box_sampler, uniform_time_sampler
 
@@ -21,16 +22,16 @@ class Sampler(Container):
 
     def __init__(
         self,
-        data: xr.Dataset,
+        data: xr.Dataset | Sup3rX | Sup3rDataset,
         sample_shape,
         feature_sets: Optional[Dict] = None,
     ):
         """
         Parameters
         ----------
-        data : xr.Dataset
-            xr.Dataset() object with data that will be sampled from.  Can be
-            the `.data` attribute of various :class:`Container` objects.  i.e.
+        data : xr.Dataset | Sup3rX | Sup3rDataset
+            Object with data that will be sampled from. Can be the `.data`
+            attribute of various :class:`Container` objects.  i.e.
             :class:`Loader`, :class:`Extracter`, :class:`Deriver`, as long as
             the spatial dimensions are not flattened.
         sample_shape : tuple
@@ -41,8 +42,7 @@ class Sampler(Container):
 
             features : list | tuple
                 List of full set of features to use for sampling. If no entry
-                is provided then all features / data_vars from data will be
-                used.
+                is provided then all data_vars from data will be used.
             lr_only_features : list | tuple
                 List of feature names or patt*erns that should only be
                 included in the low-res training set and not the high-res
@@ -61,7 +61,6 @@ class Sampler(Container):
         self._counter = 0
         self.sample_shape = sample_shape
         self.lr_features = self.features
-        self.hr_features = self.features
         self.preflight()
 
     def get_sample_index(self):
@@ -224,3 +223,24 @@ class Sampler(Container):
             raise RuntimeError(msg)
 
         return lowered(out)
+
+    @property
+    def hr_features_ind(self):
+        """Get the high-resolution feature channel indices that should be
+        included for training. Any high-resolution features that are only
+        included in the data handler to be coarsened for the low-res input are
+        removed"""
+        hr_features = list(self.hr_out_features) + list(self.hr_exo_features)
+        if list(self.features) == hr_features:
+            return np.arange(len(self.features))
+        return [
+            i
+            for i, feature in enumerate(self.features)
+            if feature in hr_features
+        ]
+
+    @property
+    def hr_features(self):
+        """Get the high-resolution features corresponding to
+        `hr_features_ind`"""
+        return [self.features[ind].lower() for ind in self.hr_features_ind]

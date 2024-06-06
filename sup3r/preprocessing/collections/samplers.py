@@ -39,10 +39,19 @@ class SamplerCollection(Collection):
 
     def check_shared_attr(self, attr):
         """Check if all containers have the same value for `attr`."""
-        msg = ('Not all containers in the collection have the same value for '
-               f'{attr}')
+        msg = (
+            'Not all containers in the collection have the same value for '
+            f'{attr}'
+        )
         out = getattr(self.containers[0], attr, None)
-        assert all(getattr(c, attr, None) == out for c in self.containers), msg
+        if isinstance(out, (np.ndarray, list, tuple)):
+            check = all(
+                np.array_equal(getattr(c, attr, None), out)
+                for c in self.containers
+            )
+        else:
+            check = all(getattr(c, attr, None) == out for c in self.containers)
+        assert check, msg
         return out
 
     def get_container_index(self):
@@ -72,24 +81,3 @@ class SamplerCollection(Collection):
         """Shape of high resolution sample in a low-res / high-res pair.  (e.g.
         (spatial_1, spatial_2, temporal, features))"""
         return (*self.hr_sample_shape, len(self.hr_features))
-
-    @property
-    def hr_features_ind(self):
-        """Get the high-resolution feature channel indices that should be
-        included for training. Any high-resolution features that are only
-        included in the data handler to be coarsened for the low-res input are
-        removed"""
-        hr_features = list(self.hr_out_features) + list(self.hr_exo_features)
-        if list(self.features) == hr_features:
-            return np.arange(len(self.features))
-        return [
-            i
-            for i, feature in enumerate(self.features)
-            if feature in hr_features
-        ]
-
-    @property
-    def hr_features(self):
-        """Get the high-resolution features corresponding to
-        `hr_features_ind`"""
-        return [self.features[ind].lower() for ind in self.hr_features_ind]

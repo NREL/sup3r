@@ -3,10 +3,9 @@
 """
 
 import logging
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional
 
 import numpy as np
-import xarray as xr
 
 from sup3r.preprocessing.base import Sup3rDataset
 from sup3r.preprocessing.samplers.base import Sampler
@@ -30,11 +29,19 @@ class DualSamplerCC(Sampler):
     version of the hourly data. It will ultimately be coarsened spatially
     before constructing batches. Here we are constructing a sampler to sample
     the daily / hourly pairs so we use an "lr_sample_shape" which is only
-    temporally low resolution."""
+    temporally low resolution.
+
+    TODO: With the dalyed computations from dask we could spatially coarsen
+    the daily data here and then use the standard `DualSampler` methods (most,
+    anyway, `get_sample_index` would need to be slightly different, I
+    think.). The call to `spatial_coarsening` in `coarsen` could then be
+    removed and only temporal down sampling for the hourly data would be
+    performed there.
+    """
 
     def __init__(
         self,
-        data: Sup3rDataset | Tuple[xr.Dataset, xr.Dataset],
+        data: Sup3rDataset,
         sample_shape=None,
         s_enhance=1,
         t_enhance=24,
@@ -43,12 +50,38 @@ class DualSamplerCC(Sampler):
         """
         Parameters
         ----------
-        data : Sup3rDataset | Tuple[xr.Dataset, xr.Dataset]
-            A tuple of xr.Dataset instances. The first must be daily
-            and the second must be hourly data
+        data : Sup3rDataset
+            A tuple of xr.Dataset instances wrapped in the
+            :class:`Sup3rDataset` interface. The first must be daily and the
+            second must be hourly data
+        sample_shape : tuple
+            Size of arrays to sample from the high-res data. The sample shape
+            for the low-res sampler will be determined from the enhancement
+            factors.
+        s_enhance : int
+            Spatial enhancement factor
+        t_enhance : int
+            Temporal enhancement factor
+        feature_sets : Optional[dict]
+            Optional dictionary describing how the full set of features is
+            split between `lr_only_features` and `hr_exo_features`.
+
+            lr_only_features : list | tuple
+                List of feature names or patt*erns that should only be
+                included in the low-res training set and not the high-res
+                observations.
+            hr_exo_features : list | tuple
+                List of feature names or patt*erns that should be included
+                in the high-resolution observation but not expected to be
+                output from the generative model. An example is high-res
+                topography that is to be injected mid-network.
         """
-        n_hours = data.high_res.sizes['time']
-        n_days = data.low_res.sizes['time']
+        msg = (f'{self.__class__.__name__} requires a Sup3rDataset object '
+               'with `.daily` and `.hourly` data members, in that order')
+        assert hasattr(data, 'daily') and hasattr(data, 'hourly'), msg
+        assert data.daily == data[0] and data.hourly == data[1], msg
+        n_hours = data.hourly.sizes['time']
+        n_days = data.daily.sizes['time']
         self.daily_data_slices = [
             slice(x[0], x[-1] + 1)
             for x in np.array_split(np.arange(n_hours), n_days)
@@ -131,12 +164,12 @@ class DualSamplerCC(Sampler):
         obs_ind_daily = (
             *spatial_slice,
             t_slice_daily,
-            self.data.low_res.features,
+            self.data.daily.features,
         )
         obs_ind_hourly = (
             *spatial_slice,
             t_slice_hourly,
-            self.data.high_res.features,
+            self.data.hourly.features,
         )
 
         return (obs_ind_daily, obs_ind_hourly)

@@ -1,7 +1,4 @@
-"""
-Sup3r batch_handling module.
-@author: bbenton
-"""
+"""Batch Handler for hourly -> daily climate data downscaling."""
 
 import logging
 
@@ -29,34 +26,70 @@ class BatchHandlerCC(BaseHandlerCC):
     """Batch handling class for climate change data with daily averages as the
     coarse dataset."""
 
-    def __init__(self, *args, sub_daily_shape=None, **kwargs):
+    def __init__(
+        self, *args, sub_daily_shape=None, coarsen_kwargs=None, **kwargs
+    ):
         """
         Parameters
         ----------
         *args : list
-            Same positional args as BatchHandler
+            Same positional args as parent class
         sub_daily_shape : int
             Number of hours to use in the high res sample output. This is the
             shape of the temporal dimension of the high res batch observation.
             This time window will be sampled for the daylight hours on the
             middle day of the data handler observation.
+        coarsen_kwargs : Union[Dict, None]
+            Dictionary of kwargs to be passed to `self.coarsen`.
         **kwargs : dict
-            Same keyword args as BatchHandler
+            Same keyword args as parent class
         """
         t_enhance = kwargs.get('t_enhance', 24)
-        msg = (f'{self.__class__.__name__} does not yet support t_enhance '
-               f'!= 24. Received t_enhance = {t_enhance}.')
+        msg = (
+            f'{self.__class__.__name__} does not yet support t_enhance '
+            f'!= 24. Received t_enhance = {t_enhance}.'
+        )
         assert t_enhance == 24, msg
         super().__init__(*args, **kwargs)
         self.sub_daily_shape = sub_daily_shape
+        self.coarsen_kwargs = coarsen_kwargs or {
+            'smoothing_ignore': [],
+            'smoothing': None,
+        }
 
-    def coarsen(self, samples):
-        """Subsample hourly data to the daylight window and coarsen the daily
-        data. Smooth if requested."""
-        low_res, high_res = samples
-        high_res = high_res[..., self.hr_features_ind]
-        high_res = self.reduce_high_res_sub_daily(high_res)
-        low_res = spatial_coarsening(low_res, self.s_enhance)
+    def batch_next(self, samples):
+        """Down samples and coarsens daily samples, normalizes low / high res
+        and returns wrapped collection of samples / observations."""
+        lr, hr = self.coarsen(samples, **self.coarsen_kwargs)
+        lr, hr = self.normalize(lr, hr)
+        return self.BATCH_CLASS(low_res=lr, high_res=hr)
+
+    def coarsen(
+        self,
+        samples,
+        smoothing=None,
+        smoothing_ignore=None,
+    ):
+        """Coarsen high res data to get corresponding low res batch. For this
+        special CC handler this means: subsample hourly data to the daylight
+        window and coarsen the daily data. Smooth if requested.
+
+        TODO: Remove call to `spatial_coarsening` and perform this before
+        queueing samples, so we can unify more with main `DualSampler` pattern.
+
+        Note
+        ----
+        `samples` here is a Tuple (daily, hourly), in contrast to `coarsen` in
+        `SingleBatchQueue.coarsen` which just takes `samples` = `high_res`
+
+        See Also
+        --------
+        :meth:`SingleBatchQueue.coarsen`
+        """
+        daily, hourly = samples
+        hourly = hourly.numpy()[..., self.hr_features_ind]
+        high_res = self.reduce_high_res_sub_daily(hourly)
+        low_res = spatial_coarsening(daily, self.s_enhance)
 
         if (
             self.hr_out_features is not None
@@ -66,16 +99,16 @@ class BatchHandlerCC(BaseHandlerCC):
             if np.isnan(high_res[..., i_cs]).any():
                 high_res[..., i_cs] = nn_fill_array(high_res[..., i_cs])
 
-        if self.smoothing is not None:
+        if smoothing is not None:
             feat_iter = [
                 j
                 for j in range(low_res.shape[-1])
-                if self.features[j] not in self.smoothing_ignore
+                if self.features[j] not in smoothing_ignore
             ]
             for i in range(low_res.shape[0]):
                 for j in feat_iter:
                     low_res[i, ..., j] = gaussian_filter(
-                        low_res[i, ..., j], self.smoothing, mode='nearest'
+                        low_res[i, ..., j], smoothing, mode='nearest'
                     )
         return low_res, high_res
 

@@ -74,18 +74,8 @@ def BatchHandlerFactory(QueueClass, SamplerClass, name='BatchHandler'):
             )
             queue_kwargs = get_class_kwargs(QueueClass, kwargs)
 
-            train_samplers = [
-                self.SAMPLER(c.data, **sampler_kwargs)
-                for c in train_containers
-            ]
-
-            val_samplers = (
-                None
-                if val_containers is None
-                else [
-                    self.SAMPLER(c.data, **sampler_kwargs)
-                    for c in val_containers
-                ]
+            train_samplers, val_samplers = self.init_samplers(
+                train_containers, val_containers, sampler_kwargs
             )
 
             stats = StatsCollection(
@@ -120,6 +110,25 @@ def BatchHandlerFactory(QueueClass, SamplerClass, name='BatchHandler'):
                 **queue_kwargs,
             )
             self.start()
+
+        def init_samplers(
+            self, train_containers, val_containers, sampler_kwargs
+        ):
+            """Initialize samplers from given data containers."""
+            train_samplers = [
+                self.SAMPLER(c.data, **sampler_kwargs)
+                for c in train_containers
+            ]
+
+            val_samplers = (
+                None
+                if val_containers is None
+                else [
+                    self.SAMPLER(c.data, **sampler_kwargs)
+                    for c in val_containers
+                ]
+            )
+            return train_samplers, val_samplers
 
         def start(self):
             """Start the val data batch queue in addition to the train batch

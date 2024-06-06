@@ -110,7 +110,7 @@ class SingleBatchQueue(AbstractBatchQueue):
 
     def coarsen(
         self,
-        high_res,
+        samples,
         smoothing=None,
         smoothing_ignore=None,
         temporal_coarsening_method='subsample',
@@ -119,7 +119,8 @@ class SingleBatchQueue(AbstractBatchQueue):
 
         Parameters
         ----------
-        high_res : T_Array
+        samples : T_Array
+            High resolution batch of samples.
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
@@ -142,8 +143,12 @@ class SingleBatchQueue(AbstractBatchQueue):
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
+        high_res : T_Array
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
         """
-        low_res = spatial_coarsening(high_res, self.s_enhance)
+        low_res = spatial_coarsening(samples, self.s_enhance)
         low_res = (
             low_res
             if self.t_enhance == 1
@@ -157,7 +162,7 @@ class SingleBatchQueue(AbstractBatchQueue):
         low_res = smooth_data(
             low_res, self.features, smoothing_ignore, smoothing
         )
-        high_res = high_res.numpy()[..., self.hr_features_ind]
+        high_res = samples.numpy()[..., self.hr_features_ind]
         return low_res, high_res
 
     def get_output_signature(

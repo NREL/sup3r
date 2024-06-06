@@ -159,7 +159,12 @@ def DailyDataHandlerFactory(
         """General data handler class with daily data as an additional
         attribute. xr.Dataset coarsen method employed to compute averages /
         mins / maxes over daily windows. Special treatment of clearsky_ratio,
-        which requires derivation from total clearsky_ghi and total ghi"""
+        which requires derivation from total clearsky_ghi and total ghi.
+
+        TODO: We assume daily and hourly data here but we could generalize this
+        to go from daily -> any time step. This would then enable the CC models
+        to do arbitrary temporal enhancement.
+        """
 
         __name__ = name
 
