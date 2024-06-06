@@ -3,9 +3,7 @@ from them. These samples can be used to build batches."""
 
 import copy
 import logging
-from typing import Dict, Optional, Tuple
-
-import xarray as xr
+from typing import Dict, Optional
 
 from sup3r.preprocessing.base import Sup3rDataset
 from sup3r.preprocessing.samplers.base import Sampler
@@ -20,7 +18,7 @@ class DualSampler(Sampler):
 
     def __init__(
         self,
-        data: Sup3rDataset | Tuple[xr.Dataset, xr.Dataset],
+        data: Sup3rDataset,
         sample_shape,
         s_enhance,
         t_enhance,
@@ -29,7 +27,7 @@ class DualSampler(Sampler):
         """
         Parameters
         ----------
-        data : Sup3rDataset | Tuple[xr.Dataset, xr.Dataset]
+        data : Sup3rDataset
             A tuple of xr.Dataset instances. The first must be low-res
             and the second must be high-res data
         sample_shape : tuple
@@ -55,11 +53,12 @@ class DualSampler(Sampler):
                 topography that is to be injected mid-network.
         """
         msg = (
-            'DualSampler requires a low-res and high-res xr.Datatset. '
-            'Recieved an inconsistent data argument.'
+            f'{self.__class__.__name__} requires a Sup3rDataset object '
+            'with `.low_res` and `.high_res` data members, in that order'
         )
+        assert hasattr(data, 'low_res') and hasattr(data, 'high_res'), msg
+        assert data.low_res == data[0] and data.high_res == data[1], msg
         super().__init__(data, sample_shape=sample_shape)
-        assert isinstance(self.data, Sup3rDataset) and len(self.data) == 2, msg
         self.lr_data, self.hr_data = self.data.low_res, self.data.high_res
         feature_sets = feature_sets or {}
         self.hr_sample_shape = sample_shape
@@ -73,10 +72,10 @@ class DualSampler(Sampler):
         self.lr_sampler = Sampler(
             self.lr_data, sample_shape=self.lr_sample_shape
         )
-        self.lr_features = list(self.lr_data.data_vars)
-        self.hr_features = list(self.hr_data.data_vars)
-        features = copy.deepcopy(self.lr_features)
-        features += [fn for fn in list(self.hr_features) if fn not in features]
+        features = copy.deepcopy(list(self.lr_data.data_vars))
+        features += [
+            fn for fn in list(self.hr_data.data_vars) if fn not in features
+        ]
         self.features = features
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
@@ -111,5 +110,5 @@ class DualSampler(Sampler):
             slice(s.start * self.t_enhance, s.stop * self.t_enhance)
             for s in lr_index[2:-1]
         ]
-        hr_index = (*hr_index, self.hr_features)
+        hr_index = (*hr_index, list(self.hr_data.data_vars))
         return (lr_index, hr_index)

@@ -66,11 +66,13 @@ def _log_args(thing, func, *args, **kwargs):
     }
     arg_spec = getfullargspec(func)
     args = args or []
+    names = arg_spec.args if 'self' not in arg_spec.args else arg_spec.args[1:]
+    names = ['args', *names] if arg_spec.varargs is not None else names
+    vals = [None] * len(names)
     defaults = arg_spec.defaults or []
-    arg_names = arg_spec.args[1 : len(args) + 1]
-    kwargs_names = arg_spec.args[-len(defaults) :]
-    args_dict = dict(zip(kwargs_names, defaults))
-    args_dict.update(dict(zip(arg_names, args)))
+    vals[-len(defaults) :] = defaults
+    vals[: len(args)] = args
+    args_dict = dict(zip(names, vals))
     args_dict.update(kwargs)
     args_dict.update(ann_dict)
 

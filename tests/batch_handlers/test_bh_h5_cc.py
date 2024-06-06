@@ -12,7 +12,8 @@ from sup3r.preprocessing import (
     DataHandlerH5SolarCC,
     DataHandlerH5WindCC,
 )
-from sup3r.utilities.pytest.helpers import execute_pytest
+from sup3r.utilities.pytest.helpers import TestDualSamplerCC, execute_pytest
+from sup3r.utilities.utilities import nn_fill_array
 
 SHAPE = (20, 20)
 
@@ -39,17 +40,72 @@ np.random.seed(42)
 init_logger('sup3r', log_level='DEBUG')
 
 
-def test_solar_batching(plot=False):
-    """Test batching of nsrdb data against hand-calc coarsening"""
-    handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S, **dh_kwargs)
+class TestBatchHandlerCC(BatchHandlerCC):
+    """Wrapper for tracking observation indices for testing."""
 
-    batcher = BatchHandlerCC(
+    SAMPLER = TestDualSamplerCC
+
+    @property
+    def current_obs_index(self):
+        """Track observation index as it is sampled."""
+        return self.containers[0].current_obs_index
+
+
+def test_solar_batching_no_subsample():
+    """Test batching of nsrdb data without down sampling to day hours"""
+    handler = DataHandlerH5SolarCC(
+        INPUT_FILE_S, features=['clearsky_ratio'], **dh_kwargs
+    )
+
+    batcher = TestBatchHandlerCC(
+        [handler],
+        val_containers=[],
+        batch_size=1,
+        n_batches=10,
+        s_enhance=1,
+        t_enhance=24,
+        means={'clearsky_ratio': 0},
+        stds={'clearsky_ratio': 1},
+        sample_shape=(20, 20, 72),
+        sub_daily_shape=None,
+    )
+
+    assert not np.isnan(handler.data.hourly[...]).all()
+    assert not np.isnan(handler.data.daily[...]).all()
+    for batch in batcher:
+        assert batch.high_res.shape[3] == 72
+        assert batch.low_res.shape[3] == 3
+
+        # make sure the high res sample is found in the source handler data
+        _, hourly_idx = batcher.current_obs_index
+        high_res_source = nn_fill_array(
+            handler.data.hourly[:, :, hourly_idx[2], :].compute()
+        )
+        assert np.allclose(batch.high_res[0], high_res_source)
+
+        # make sure the daily avg data corresponds to the high res data slice
+        day_start = int(hourly_idx[2].start / 24)
+        day_stop = int(hourly_idx[2].stop / 24)
+        check = handler.data.daily[:, :, slice(day_start, day_stop)]
+        assert np.allclose(batch.low_res[0], check)
+    batcher.stop()
+
+
+def test_solar_batching(plot=False):
+    """Make sure batches are coming from correct sample indices."""
+    handler = DataHandlerH5SolarCC(
+        INPUT_FILE_S, ['clearsky_ratio'], **dh_kwargs
+    )
+
+    batcher = TestBatchHandlerCC(
         train_containers=[handler],
         val_containers=[],
         batch_size=1,
         n_batches=10,
         s_enhance=1,
         t_enhance=24,
+        means={'clearsky_ratio': 0},
+        stds={'clearsky_ratio': 1},
         sample_shape=(20, 20, 72),
         sub_daily_shape=8,
     )
@@ -60,19 +116,21 @@ def test_solar_batching(plot=False):
 
         # make sure the high res sample is found in the source handler data
         found = False
-        high_res_source = handler.data[:, :, handler.current_obs_index[2], :]
-        for i in range(high_res_source.shape[2]):
-            check = high_res_source[:, :, i : i + 8, :]
-            if np.allclose(batch.high_res, check):
+        _, hourly_idx = batcher.current_obs_index
+        high_res_source = handler.data.hourly[:, :, hourly_idx[2], :]
+        for i in range(high_res_source.shape[2] - 8):
+            check = high_res_source[:, :, i : i + 8]
+            if np.allclose(batch.high_res[0], check):
                 found = True
                 break
         assert found
 
         # make sure the daily avg data corresponds to the high res data slice
-        day_start = int(handler.current_obs_index[2].start / 24)
-        day_stop = int(handler.current_obs_index[2].stop / 24)
-        check = handler.daily_data[:, :, slice(day_start, day_stop)]
-        assert np.allclose(batch.low_res, check)
+        day_start = int(hourly_idx[2].start / 24)
+        day_stop = int(hourly_idx[2].stop / 24)
+        check = handler.data.daily[:, :, slice(day_start, day_stop)]
+        assert np.nansum(batch.low_res - check) == 0
+    batcher.stop()
 
     if plot:
         handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S, **dh_kwargs)
@@ -345,7 +403,7 @@ def test_wind_batching_spatial(plot=False):
 
 
 def test_surf_min_max_vars():
-    """Test data handling of min/max training only variables"""
+    """Test data handling of min / max training only variables"""
     surf_features = [
         'temperature_2m',
         'relativehumidity_2m',

@@ -11,7 +11,7 @@ import xarray as xr
 from sup3r.postprocessing.file_handling import OutputHandlerH5
 from sup3r.preprocessing.base import Container, Sup3rDataset
 from sup3r.preprocessing.common import Dimension
-from sup3r.preprocessing.samplers import Sampler
+from sup3r.preprocessing.samplers import DualSamplerCC, Sampler
 from sup3r.utilities.utilities import pd_date_range
 
 np.random.seed(42)
@@ -104,6 +104,19 @@ class DummySampler(Sampler):
         super().__init__(
             Sup3rDataset(data), sample_shape, feature_sets=feature_sets
         )
+
+
+class TestDualSamplerCC(DualSamplerCC):
+    """Testing wrapper to track sample index."""
+
+    current_obs_index = None
+
+    def get_sample_index(self):
+        """Override get_sample_index to keep record of index accessible by
+        batch handler."""
+        idx = super().get_sample_index()
+        self.current_obs_index = idx
+        return idx
 
 
 def make_fake_h5_chunks(td):

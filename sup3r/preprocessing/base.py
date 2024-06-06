@@ -64,8 +64,17 @@ class Sup3rDataset:
         return dset.sx[item] if hasattr(dset, 'sx') else dset[item]
 
     def get_dual_item(self, keys):
-        """Get item method used when this is a dual object (a.k.a. a wrapped
-        2-tuple)"""
+        """Method for getting items from self._ds when it consists of two
+        datasets. If keys is a `List[Tuple]` or `List[List]` this is
+        interpreted as a request for `self._ds[i][keys[i]] for i in
+        range(len(keys)).` Otherwise we will get keys from each member of
+        self.dset.
+
+        Note
+        ----
+        This casts back to `type(self)` before final return if result of get
+        item from each member of `self._ds` is a tuple of `Sup3rX` instances
+        """
         if isinstance(keys, (tuple, list)) and all(
             isinstance(k, (tuple, list)) for k in keys
         ):
@@ -74,18 +83,22 @@ class Sup3rDataset:
             )
         else:
             out = tuple(self._getitem(d, keys) for d in self._ds)
-        return out
+        return (
+            type(self)(**dict(zip(self._ds._fields, out)))
+            if all(isinstance(o, Sup3rX) for o in out)
+            else out
+        )
 
     def __getitem__(self, keys):
-        """Method for accessing self.dset or attributes. If keys is a list of
-        tuples or list this is interpreted as a request for
-        `self.dset[i][keys[i]] for i in range(len(keys)).` Otherwise we will
-        get keys from each member of self.dset."""
+        """If keys is an int this is interpreted as a request for that member
+        of self._ds. If self._ds consists of two members we call
+        :meth:`get_dual_item`. Otherwise we get the item from the single member
+        of self._ds."""
         if isinstance(keys, int):
             return self._ds[keys]
         if len(self._ds) == 1:
-            return self.get_dual_item(keys)
-        return self._ds[-1][keys]
+            return self._ds[-1][keys]
+        return self.get_dual_item(keys)
 
     @property
     def shape(self):
@@ -158,7 +171,7 @@ class Container:
         self.data = data
 
     @property
-    def data(self) -> Sup3rDataset:
+    def data(self) -> Sup3rX:
         """Return a wrapped 1-tuple or 2-tuple xr.Dataset."""
         return self._data
 
