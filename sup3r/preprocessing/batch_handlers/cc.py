@@ -87,8 +87,7 @@ class BatchHandlerCC(BaseHandlerCC):
         :meth:`SingleBatchQueue.coarsen`
         """
         daily, hourly = samples
-        hourly = hourly.numpy()[..., self.hr_features_ind]
-        high_res = self.reduce_high_res_sub_daily(hourly)
+        high_res = hourly.numpy()[..., self.hr_features_ind]
         low_res = spatial_coarsening(daily, self.s_enhance)
 
         if (
@@ -96,6 +95,8 @@ class BatchHandlerCC(BaseHandlerCC):
             and 'clearsky_ratio' in self.hr_out_features
         ):
             i_cs = self.hr_out_features.index('clearsky_ratio')
+            high_res = self.reduce_high_res_sub_daily(high_res, csr_ind=i_cs)
+
             if np.isnan(high_res[..., i_cs]).any():
                 high_res[..., i_cs] = nn_fill_array(high_res[..., i_cs])
 
@@ -112,7 +113,7 @@ class BatchHandlerCC(BaseHandlerCC):
                     )
         return low_res, high_res
 
-    def reduce_high_res_sub_daily(self, high_res):
+    def reduce_high_res_sub_daily(self, high_res, csr_ind=0):
         """Take an hourly high-res observation and reduce the temporal axis
         down to the self.sub_daily_shape using only daylight hours on the
         center day.
@@ -122,6 +123,9 @@ class BatchHandlerCC(BaseHandlerCC):
         high_res : T_Array
             5D array with dimensions (n_obs, spatial_1, spatial_2, temporal,
             n_features) where temporal >= 24 (set by the data handler).
+        csr_ind : int
+            Feature index of clearsky_ratio. e.g. self.data[..., csr_ind] ->
+            cs_ratio
 
         Returns
         -------
@@ -133,7 +137,7 @@ class BatchHandlerCC(BaseHandlerCC):
             the second day will be returned in the output array.
         """
 
-        if self.sub_daily_shape is not None:
+        if self.sub_daily_shape is not None and self.sub_daily_shape < 24:
             n_days = int(high_res.shape[3] / 24)
             if n_days > 1:
                 ind = np.arange(high_res.shape[3])
@@ -143,6 +147,7 @@ class BatchHandlerCC(BaseHandlerCC):
                 i_mid = int((n_days - 1) / 2)
                 high_res = high_res[:, :, :, day_slices[i_mid], :]
 
-            high_res = nsrdb_reduce_daily_data(high_res, self.sub_daily_shape)
+            high_res = nsrdb_reduce_daily_data(high_res, self.sub_daily_shape,
+                                               csr_ind=csr_ind)
 
         return high_res

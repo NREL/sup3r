@@ -41,6 +41,12 @@ class Sup3rDataset:
     def __iter__(self):
         yield from self._ds
 
+    @property
+    def dtype(self):
+        """Get datatype of first member. Assumed to be constant for all
+        members."""
+        return self._ds[0].dtype
+
     def __getattr__(self, attr):
         """Get attribute through accessor if available. Otherwise use standard
         xarray interface."""
@@ -143,13 +149,13 @@ class Sup3rDataset:
             dat = data[i] if isinstance(data, (tuple, list)) else data
             d.sx.__setitem__(variable, dat)
 
-    def mean(self):
+    def mean(self, skipna=True):
         """Compute the mean across all tuple members."""
-        return da.mean(da.array([d.mean() for d in self._ds]))
+        return da.nanmean(da.array([d.mean(skipna=skipna) for d in self._ds]))
 
-    def std(self):
+    def std(self, skipna=True):
         """Compute the standard deviation across all tuple members."""
-        return da.mean(da.array([d.std() for d in self._ds]))
+        return da.nanmean(da.array([d.std(skipna=skipna) for d in self._ds]))
 
 
 class Container:

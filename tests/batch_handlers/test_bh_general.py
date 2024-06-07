@@ -21,6 +21,53 @@ means = dict.fromkeys(FEATURES, 0)
 stds = dict.fromkeys(FEATURES, 1)
 
 
+def test_normalization():
+    """Smoke test for batch queue."""
+
+    means = {'windspeed': 2, 'winddirection': 5}
+    stds = {'windspeed': 6.5, 'winddirection': 8.2}
+
+    dat = DummyData((10, 10, 100), FEATURES)
+    dat.data['windspeed', ...] = 1
+    dat.data['windspeed', 0:4] = np.nan
+    dat.data['winddirection', ...] = 1
+    dat.data['winddirection', 0:4] = np.nan
+
+    coarsen_kwargs = {'smoothing_ignore': [], 'smoothing': None}
+    batcher = BatchHandler(
+        train_containers=[dat],
+        val_containers=[dat],
+        sample_shape=(8, 8, 4),
+        batch_size=4,
+        n_batches=3,
+        s_enhance=2,
+        t_enhance=1,
+        queue_cap=10,
+        means=means,
+        stds=stds,
+        max_workers=1,
+        coarsen_kwargs=coarsen_kwargs,
+    )
+
+    means = list(means.values())
+    stds = list(stds.values())
+
+    assert len(batcher) == 3
+    for b in batcher:
+        assert round(np.nanmean(b.low_res[..., 0]) * stds[0] + means[0]) == 1
+        assert round(np.nanmean(b.low_res[..., 1]) * stds[1] + means[1]) == 1
+        assert round(np.nanmean(b.high_res[..., 0]) * stds[0] + means[0]) == 1
+        assert round(np.nanmean(b.high_res[..., 1]) * stds[1] + means[1]) == 1
+
+    assert len(batcher.val_data) == 3
+    for b in batcher.val_data:
+        assert round(np.nanmean(b.low_res[..., 0]) * stds[0] + means[0]) == 1
+        assert round(np.nanmean(b.low_res[..., 1]) * stds[1] + means[1]) == 1
+        assert round(np.nanmean(b.high_res[..., 0]) * stds[0] + means[0]) == 1
+        assert round(np.nanmean(b.high_res[..., 1]) * stds[1] + means[1]) == 1
+    batcher.stop()
+
+
 def test_batch_handler_with_validation():
     """Smoke test for batch queue."""
 
@@ -150,7 +197,8 @@ def test_smoothing():
             for j in range(low_res_no_smooth.shape[-1]):
                 for t in range(low_res_no_smooth.shape[-2]):
                     low_res[i, ..., t, j] = gaussian_filter(
-                        low_res_no_smooth[i, ..., t, j], 0.6, mode='nearest')
+                        low_res_no_smooth[i, ..., t, j], 0.6, mode='nearest'
+                    )
         assert np.array_equal(batch.low_res, low_res)
         assert not np.array_equal(low_res, low_res_no_smooth)
     batcher.stop()

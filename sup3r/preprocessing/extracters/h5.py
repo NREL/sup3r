@@ -3,7 +3,6 @@ data."""
 
 import logging
 import os
-from abc import ABC
 
 import numpy as np
 import xarray as xr
@@ -15,33 +14,11 @@ from sup3r.preprocessing.loaders import LoaderH5
 logger = logging.getLogger(__name__)
 
 
-class BaseExtracterH5(Extracter, ABC):
-    """Extracter subclass for h5 files specifically."""
+class BaseExtracterH5(Extracter):
+    """Extracter subclass for h5 files specifically.
 
-    def __init__(
-        self,
-        loader: LoaderH5,
-        target=None,
-        shape=None,
-        time_slice=slice(None),
-        raster_file=None,
-        max_delta=20,
-    ):
-        """
-        Parameters
-        ----------
-        loader : Loader
-            Loader type container with `.data` attribute exposing data to
-            extract.
-        target : tuple
-            (lat, lon) lower left corner of raster. Either need target+shape or
-            raster_file.
-        shape : tuple
-            (rows, cols) grid size. Either need target+shape or raster_file.
-        time_slice : slice
-            Slice specifying extent and step of temporal extraction. e.g.
-            slice(start, stop, step). If equal to slice(None, None, 1)
-            the full time dimension is selected.
+    Arguments added to parent class:
+
         raster_file : str | None
             File for raster_index array for the corresponding target and shape.
             If specified the raster_index will be loaded from the file if it
@@ -54,11 +31,27 @@ class BaseExtracterH5(Extracter, ABC):
             once. If shape is (20, 20) and max_delta=10, the full raster will
             be retrieved in four chunks of (10, 10). This helps adapt to
             non-regular grids that curve over large distances.
-        """
+
+    See Also
+    --------
+    :class:`Extracter` for description of other arguments.
+    """
+
+    def __init__(
+        self,
+        loader: LoaderH5,
+        features='all',
+        target=None,
+        shape=None,
+        time_slice=slice(None),
+        raster_file=None,
+        max_delta=20,
+    ):
         self.raster_file = raster_file
         self.max_delta = max_delta
         super().__init__(
             loader=loader,
+            features=features,
             target=target,
             shape=shape,
             time_slice=time_slice,

@@ -155,12 +155,12 @@ class DualSamplerCC(Sampler):
             self.data.shape, self.sample_shape[:2]
         )
 
-        n_days = int(self.sample_shape[2] / 24)
+        n_days = int(self.hr_sample_shape[2] / 24) - 1
         rand_day_ind = np.random.choice(len(self.daily_data_slices) - n_days)
         t_slice_0 = self.daily_data_slices[rand_day_ind]
-        t_slice_1 = self.daily_data_slices[rand_day_ind + n_days - 1]
+        t_slice_1 = self.daily_data_slices[rand_day_ind + n_days]
         t_slice_hourly = slice(t_slice_0.start, t_slice_1.stop)
-        t_slice_daily = slice(rand_day_ind, rand_day_ind + n_days)
+        t_slice_daily = slice(rand_day_ind, rand_day_ind + n_days + 1)
         obs_ind_daily = (
             *spatial_slice,
             t_slice_daily,

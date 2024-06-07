@@ -4,6 +4,7 @@ import os
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 from rex import init_logger
 
 from sup3r import TEST_DATA_DIR
@@ -41,22 +42,26 @@ init_logger('sup3r', log_level='DEBUG')
 
 
 class TestBatchHandlerCC(BatchHandlerCC):
-    """Wrapper for tracking observation indices for testing."""
+    """Batch handler with sampler with running index record."""
 
     SAMPLER = TestDualSamplerCC
 
-    @property
-    def current_obs_index(self):
-        """Track observation index as it is sampled."""
-        return self.containers[0].current_obs_index
 
-
-def test_solar_batching_no_subsample():
-    """Test batching of nsrdb data without down sampling to day hours"""
+@pytest.mark.parametrize(
+    ('sub_daily_shape', 'features'),
+    [
+        (72, ['clearsky_ratio']),
+        (8, ['clearsky_ratio']),
+        (72, FEATURES_S),
+        (8, FEATURES_S),
+    ],
+)
+def test_solar_batching(sub_daily_shape, features, plot=False):
+    """Test batching of nsrdb data with and without down sampling to day
+    hours"""
     handler = DataHandlerH5SolarCC(
-        INPUT_FILE_S, features=['clearsky_ratio'], **dh_kwargs
+        INPUT_FILE_S, features=features, **dh_kwargs
     )
-
     batcher = TestBatchHandlerCC(
         [handler],
         val_containers=[],
@@ -64,62 +69,25 @@ def test_solar_batching_no_subsample():
         n_batches=10,
         s_enhance=1,
         t_enhance=24,
-        means={'clearsky_ratio': 0},
-        stds={'clearsky_ratio': 1},
+        means=dict.fromkeys(features, 0),
+        stds=dict.fromkeys(features, 1),
         sample_shape=(20, 20, 72),
-        sub_daily_shape=None,
+        sub_daily_shape=sub_daily_shape,
     )
 
     assert not np.isnan(handler.data.hourly[...]).all()
-    assert not np.isnan(handler.data.daily[...]).all()
-    for batch in batcher:
-        assert batch.high_res.shape[3] == 72
+    assert not np.isnan(handler.data.daily[...]).any()
+    for counter, batch in enumerate(batcher):
+        assert batch.high_res.shape[3] == sub_daily_shape
         assert batch.low_res.shape[3] == 3
 
         # make sure the high res sample is found in the source handler data
-        _, hourly_idx = batcher.current_obs_index
-        high_res_source = nn_fill_array(
-            handler.data.hourly[:, :, hourly_idx[2], :].compute()
-        )
-        assert np.allclose(batch.high_res[0], high_res_source)
-
-        # make sure the daily avg data corresponds to the high res data slice
-        day_start = int(hourly_idx[2].start / 24)
-        day_stop = int(hourly_idx[2].stop / 24)
-        check = handler.data.daily[:, :, slice(day_start, day_stop)]
-        assert np.allclose(batch.low_res[0], check)
-    batcher.stop()
-
-
-def test_solar_batching(plot=False):
-    """Make sure batches are coming from correct sample indices."""
-    handler = DataHandlerH5SolarCC(
-        INPUT_FILE_S, ['clearsky_ratio'], **dh_kwargs
-    )
-
-    batcher = TestBatchHandlerCC(
-        train_containers=[handler],
-        val_containers=[],
-        batch_size=1,
-        n_batches=10,
-        s_enhance=1,
-        t_enhance=24,
-        means={'clearsky_ratio': 0},
-        stds={'clearsky_ratio': 1},
-        sample_shape=(20, 20, 72),
-        sub_daily_shape=8,
-    )
-
-    for batch in batcher:
-        assert batch.high_res.shape[3] == 8
-        assert batch.low_res.shape[3] == 3
-
-        # make sure the high res sample is found in the source handler data
+        daily_idx, hourly_idx = batcher.containers[0].index_record[counter]
+        high_res_source = handler.data.hourly[:, :, hourly_idx[2], :].compute()
+        high_res_source[..., 0] = nn_fill_array(high_res_source[..., 0])
         found = False
-        _, hourly_idx = batcher.current_obs_index
-        high_res_source = handler.data.hourly[:, :, hourly_idx[2], :]
-        for i in range(high_res_source.shape[2] - 8):
-            check = high_res_source[:, :, i : i + 8]
+        for i in range(high_res_source.shape[2] - sub_daily_shape + 1):
+            check = high_res_source[:, :, i : i + sub_daily_shape]
             if np.allclose(batch.high_res[0], check):
                 found = True
                 break
@@ -129,7 +97,9 @@ def test_solar_batching(plot=False):
         day_start = int(hourly_idx[2].start / 24)
         day_stop = int(hourly_idx[2].stop / 24)
         check = handler.data.daily[:, :, slice(day_start, day_stop)]
-        assert np.nansum(batch.low_res - check) == 0
+        assert np.allclose(batch.low_res[0].numpy(), check)
+        check = handler.data.daily[:, :, daily_idx[2]]
+        assert np.allclose(batch.low_res[0].numpy(), check)
     batcher.stop()
 
     if plot:

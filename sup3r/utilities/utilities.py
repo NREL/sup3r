@@ -656,7 +656,7 @@ def nsrdb_reduce_daily_data(data, shape, csr_ind=0):
 
     night_mask = np.isnan(data[0, :, :, :, csr_ind]).any(axis=(0, 1))
 
-    if shape == 24:
+    if shape > data.shape[3]:
         return data
 
     if night_mask.all():
