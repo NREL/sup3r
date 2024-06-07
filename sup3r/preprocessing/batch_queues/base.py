@@ -42,7 +42,7 @@ class SingleBatchQueue(AbstractBatchQueue):
         stds: Union[Dict, str],
         queue_cap: Optional[int] = None,
         max_workers: Optional[int] = None,
-        coarsen_kwargs: Optional[Dict] = None,
+        transform_kwargs: Optional[Dict] = None,
         default_device: Optional[str] = None,
         thread_name: Optional[str] = 'training',
     ):
@@ -72,7 +72,7 @@ class SingleBatchQueue(AbstractBatchQueue):
         max_workers : int
             Number of workers / threads to use for getting samples used to
             build batches.
-        coarsen_kwargs : Union[Dict, None]
+        transform_kwargs : Union[Dict, None]
             Dictionary of kwargs to be passed to `self.coarsen`.
         default_device : str
             Default device to use for batch queue (e.g. /cpu:0, /gpu:0). If
@@ -96,7 +96,7 @@ class SingleBatchQueue(AbstractBatchQueue):
             default_device=default_device,
             thread_name=thread_name,
         )
-        self.coarsen_kwargs = coarsen_kwargs or {
+        self.transform_kwargs = transform_kwargs or {
             'smoothing_ignore': [],
             'smoothing': None,
         }
@@ -104,11 +104,11 @@ class SingleBatchQueue(AbstractBatchQueue):
     def batch_next(self, samples):
         """Coarsens high res samples, normalizes low / high res and returns
         wrapped collection of samples / observations."""
-        lr, hr = self.coarsen(samples, **self.coarsen_kwargs)
+        lr, hr = self.transform(samples, **self.transform_kwargs)
         lr, hr = self.normalize(lr, hr)
         return self.BATCH_CLASS(low_res=lr, high_res=hr)
 
-    def coarsen(
+    def transform(
         self,
         samples,
         smoothing=None,

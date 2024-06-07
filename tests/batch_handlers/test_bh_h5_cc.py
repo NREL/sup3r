@@ -160,12 +160,16 @@ def test_solar_batching(sub_daily_shape, features, plot=False):
 
 def test_solar_batching_spatial(plot=False):
     """Test batching of nsrdb data with spatial only enhancement"""
-    dh_kwargs_new = dh_kwargs.copy()
-    dh_kwargs_new['sample_shape'] = (20, 20)
-    handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S, **dh_kwargs_new)
+    handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S, **dh_kwargs)
 
     batcher = BatchHandlerCC(
-        [handler], batch_size=8, n_batches=10, s_enhance=2, t_enhance=1
+        [handler],
+        val_containers=[],
+        batch_size=8,
+        n_batches=10,
+        s_enhance=2,
+        t_enhance=1,
+        sample_shape=(20, 20, 1),
     )
 
     for batch in batcher:

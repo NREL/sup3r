@@ -33,7 +33,7 @@ def test_normalization():
     dat.data['winddirection', ...] = 1
     dat.data['winddirection', 0:4] = np.nan
 
-    coarsen_kwargs = {'smoothing_ignore': [], 'smoothing': None}
+    transform_kwargs = {'smoothing_ignore': [], 'smoothing': None}
     batcher = BatchHandler(
         train_containers=[dat],
         val_containers=[dat],
@@ -46,7 +46,7 @@ def test_normalization():
         means=means,
         stds=stds,
         max_workers=1,
-        coarsen_kwargs=coarsen_kwargs,
+        transform_kwargs=transform_kwargs,
     )
 
     means = list(means.values())
@@ -71,7 +71,7 @@ def test_normalization():
 def test_batch_handler_with_validation():
     """Smoke test for batch queue."""
 
-    coarsen_kwargs = {'smoothing_ignore': [], 'smoothing': None}
+    transform_kwargs = {'smoothing_ignore': [], 'smoothing': None}
     batcher = BatchHandler(
         train_containers=[DummyData((10, 10, 100), FEATURES)],
         val_containers=[DummyData((10, 10, 100), FEATURES)],
@@ -84,7 +84,7 @@ def test_batch_handler_with_validation():
         means=means,
         stds=stds,
         max_workers=1,
-        coarsen_kwargs=coarsen_kwargs,
+        transform_kwargs=transform_kwargs,
     )
 
     assert len(batcher) == 3
@@ -123,7 +123,7 @@ def test_temporal_coarsening(method, t_enhance):
     sample_shape = (8, 8, 12)
     s_enhance = 2
     batch_size = 4
-    coarsen_kwargs = {
+    transform_kwargs = {
         'smoothing_ignore': [],
         'smoothing': None,
         'temporal_coarsening_method': method,
@@ -140,7 +140,7 @@ def test_temporal_coarsening(method, t_enhance):
         means=means,
         stds=stds,
         max_workers=1,
-        coarsen_kwargs=coarsen_kwargs,
+        transform_kwargs=transform_kwargs,
     )
 
     for batch in batcher:
@@ -165,7 +165,7 @@ def test_temporal_coarsening(method, t_enhance):
 def test_smoothing():
     """Check gaussian filtering on low res"""
 
-    coarsen_kwargs = {
+    transform_kwargs = {
         'smoothing_ignore': [],
         'smoothing': 0.6,
     }
@@ -185,7 +185,7 @@ def test_smoothing():
         means=means,
         stds=stds,
         max_workers=1,
-        coarsen_kwargs=coarsen_kwargs,
+        transform_kwargs=transform_kwargs,
     )
 
     for batch in batcher:

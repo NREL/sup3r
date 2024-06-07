@@ -110,16 +110,15 @@ class TestDualSamplerCC(DualSamplerCC):
     """Keep a record of sample indices for testing."""
 
     def __init__(self, *args, **kwargs):
-        self.current_obs_index = None
         self.index_record = []
         super().__init__(*args, **kwargs)
 
-    def get_next(self):
+    def get_sample_index(self):
         """Override get_sample_index to keep record of index accessible by
         batch handler."""
         idx = super().get_sample_index()
         self.index_record.append(idx)
-        return self[idx]
+        return idx
 
 
 def make_fake_h5_chunks(td):

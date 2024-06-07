@@ -79,7 +79,7 @@ class BatchHandlerDC(BatchHandler):
 
                 self.update_training_sample_record()
 
-            batch = self.coarsen(
+            batch = self.transform(
                 high_res,
                 temporal_coarsening_method=self.temporal_coarsening_method,
                 smoothing=self.smoothing,

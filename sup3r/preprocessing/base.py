@@ -47,6 +47,9 @@ class Sup3rDataset:
         members."""
         return self._ds[0].dtype
 
+    def __len__(self):
+        return len(self._ds)
+
     def __getattr__(self, attr):
         """Get attribute through accessor if available. Otherwise use standard
         xarray interface."""
