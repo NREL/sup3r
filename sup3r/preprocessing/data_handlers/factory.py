@@ -8,7 +8,7 @@ from scipy.stats import mode
 
 from sup3r.preprocessing.base import Sup3rDataset
 from sup3r.preprocessing.cachers import Cacher
-from sup3r.preprocessing.common import FactoryMeta, lowered
+from sup3r.preprocessing.common import FactoryMeta, parse_to_list
 from sup3r.preprocessing.derivers import Deriver
 from sup3r.preprocessing.derivers.methods import (
     RegistryH5,
@@ -79,7 +79,7 @@ def DataHandlerFactory(
             loader_kwargs = get_class_kwargs(LoaderClass, kwargs)
             deriver_kwargs = get_class_kwargs(Deriver, kwargs)
             extracter_kwargs = get_class_kwargs(ExtracterClass, kwargs)
-            features = lowered(features)
+            features = parse_to_list(features=features)
             self.loader = LoaderClass(file_paths, **loader_kwargs)
             self._loader_hook()
             self.extracter = ExtracterClass(
@@ -172,7 +172,8 @@ def DailyDataHandlerFactory(
             """Add features required for daily cs ratio derivation if not
             requested."""
 
-            self.requested_features = lowered(features.copy())
+            features = parse_to_list(features=features)
+            self.requested_features = features.copy()
             if 'clearsky_ratio' in features:
                 needed = [
                     f

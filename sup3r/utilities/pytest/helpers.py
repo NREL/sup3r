@@ -74,7 +74,7 @@ def make_fake_dset(shape, features):
     data_vars = {
         f: (
             dims[: len(shape)],
-            da.transpose(100 * da.random.random(shape), axes=trans_axes),
+            da.transpose(da.random.uniform(0, 1, shape), axes=trans_axes),
         )
         for f in features
     }
@@ -107,16 +107,19 @@ class DummySampler(Sampler):
 
 
 class TestDualSamplerCC(DualSamplerCC):
-    """Testing wrapper to track sample index."""
+    """Keep a record of sample indices for testing."""
 
-    current_obs_index = None
+    def __init__(self, *args, **kwargs):
+        self.current_obs_index = None
+        self.index_record = []
+        super().__init__(*args, **kwargs)
 
-    def get_sample_index(self):
+    def get_next(self):
         """Override get_sample_index to keep record of index accessible by
         batch handler."""
         idx = super().get_sample_index()
-        self.current_obs_index = idx
-        return idx
+        self.index_record.append(idx)
+        return self[idx]
 
 
 def make_fake_h5_chunks(td):

@@ -2,7 +2,6 @@
 data."""
 
 import logging
-from abc import ABC
 from warnings import warn
 
 import dask.array as da
@@ -14,34 +13,25 @@ from sup3r.preprocessing.loaders import Loader
 logger = logging.getLogger(__name__)
 
 
-class BaseExtracterNC(Extracter, ABC):
-    """Extracter subclass for h5 files specifically."""
+class BaseExtracterNC(Extracter):
+    """Extracter subclass for NETCDF files specifically.
+
+    See Also
+    --------
+    :class:`Extracter` for description of arguments.
+    """
 
     def __init__(
         self,
         loader: Loader,
+        features='all',
         target=None,
         shape=None,
         time_slice=slice(None),
     ):
-        """
-        Parameters
-        ----------
-        loader : Loader
-            Loader type container with `.data` attribute exposing data to
-            extract.
-        target : tuple
-            (lat, lon) lower left corner of raster. Either need target+shape or
-            raster_file.
-        shape : tuple
-            (rows, cols) grid size. Either need target+shape or raster_file.
-        time_slice : slice
-            Slice specifying extent and step of temporal extraction. e.g.
-            slice(start, stop, step). If equal to slice(None, None, 1)
-            the full time dimension is selected.
-        """
         super().__init__(
             loader=loader,
+            features=features,
             target=target,
             shape=shape,
             time_slice=time_slice,

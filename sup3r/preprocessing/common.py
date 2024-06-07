@@ -5,7 +5,7 @@ import pprint
 from abc import ABCMeta
 from enum import Enum
 from inspect import getfullargspec
-from typing import ClassVar, Tuple
+from typing import ClassVar, Optional, Tuple
 from warnings import warn
 
 import numpy as np
@@ -96,7 +96,9 @@ def log_args(func):
     return wrapper
 
 
-def parse_features(data: xr.Dataset, features: str | list | None):
+def parse_features(
+    features: Optional[str | list] = None, data: xr.Dataset = None
+):
     """Parse possible inputs for features (list, str, None, 'all'). If 'all'
     this returns all data_vars in data. If None this returns an empty list.
 
@@ -107,23 +109,23 @@ def parse_features(data: xr.Dataset, features: str | list | None):
 
     Parameters
     ----------
-    data : xr.Dataset | Sup3rDataset
-        Data containing available features
     features : list | str | None
         Feature request to parse.
+    data : xr.Dataset | Sup3rDataset
+        Data containing available features
     """
-    return lowered(
+    features = lowered(features) if features is not None else []
+    features = (
         list(data.data_vars)
-        if features == 'all'
-        else []
-        if features is None
+        if features == 'all' and data is not None
         else features
     )
+    return features
 
 
-def parse_to_list(data, features):
+def parse_to_list(features=None, data=None):
     """Parse features and return as a list, even if features is a string."""
-    features = parse_features(data, features)
+    features = parse_features(features=features, data=data)
     return features if isinstance(features, list) else [features]
 
 

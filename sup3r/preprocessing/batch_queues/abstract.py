@@ -109,8 +109,10 @@ class AbstractBatchQueue(SamplerCollection, ABC):
             to 'validation' for :class:`BatchQueue`, which has a training and
             validation queue.
         """
-        msg = (f'{self.__class__.__name__} requires a list of samplers. '
-               f'Received type {type(samplers)}')
+        msg = (
+            f'{self.__class__.__name__} requires a list of samplers. '
+            f'Received type {type(samplers)}'
+        )
         assert isinstance(samplers, list), msg
         super().__init__(
             samplers=samplers, s_enhance=s_enhance, t_enhance=t_enhance
@@ -143,7 +145,9 @@ class AbstractBatchQueue(SamplerCollection, ABC):
 
     def preflight(self):
         """Get data generator and run checks before kicking off the queue."""
-        self.data_gen = self.get_data_generator()
+        self.data_gen = tf.data.Dataset.from_generator(
+            self.generator, output_signature=self.get_output_signature()
+        )
         self.check_stats()
         self.check_features()
         self.check_enhancement_factors()
@@ -203,12 +207,6 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         container pairs then this is a tuple for low / high res batches.
         Otherwise we are just getting high res batches and coarsening to get
         the corresponding low res batches."""
-
-    def get_data_generator(self):
-        """Tensorflow dataset."""
-        return tf.data.Dataset.from_generator(
-            self.generator, output_signature=self.get_output_signature()
-        )
 
     @abstractmethod
     def _parallel_map(self):

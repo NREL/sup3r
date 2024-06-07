@@ -40,8 +40,8 @@ class Extracter(Container, ABC):
             (rows, cols) grid size. Either need target+shape or raster_file.
         time_slice : slice
             Slice specifying extent and step of temporal extraction. e.g.
-            slice(start, stop, step). If equal to slice(None, None, 1)
-        the full time dimension is selected.
+            slice(start, stop, step). If equal to slice(None, None, 1) the full
+            time dimension is selected.
         """
         super().__init__(loader.data)
         self.loader = loader

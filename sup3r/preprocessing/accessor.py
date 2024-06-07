@@ -195,13 +195,13 @@ class Sup3rX:
         features = features if isinstance(features, list) else [features]
         return self._ds[features].to_dataarray().transpose(*self.dims, ...)
 
-    def mean(self):
+    def mean(self, skipna=True):
         """Get mean directly from dataset object."""
-        return self.as_array().mean()
+        return self.as_darray().mean(skipna=skipna)
 
-    def std(self):
+    def std(self, skipna=True):
         """Get std directly from dataset object."""
-        return self.as_array().mean()
+        return self.as_darray().std(skipna=skipna)
 
     def _get_from_tuple(self, keys) -> T_Array:
         """
@@ -298,6 +298,11 @@ class Sup3rX:
     def features(self):
         """Features in this container."""
         return list(self._ds.data_vars)
+
+    @property
+    def dtype(self):
+        """Get dtype of underlying array."""
+        return self.as_array().dtype
 
     @property
     def shape(self):
