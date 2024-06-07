@@ -45,14 +45,10 @@ init_logger('sup3r', log_level='DEBUG')
 
 
 def test_solar_handler_sampling(plot=False):
-    """Test loading irrad data from NSRDB file and calculating clearsky ratio
-    with NaN values for nighttime."""
+    """Test sampling from solar cc handler for spatiotemporal models."""
 
     handler = DataHandlerH5SolarCC(
-        INPUT_FILE_S,
-        features=['clearsky_ratio'],
-        target=TARGET_S,
-        shape=SHAPE,
+        INPUT_FILE_S, features=['clearsky_ratio'], **dh_kwargs
     )
     assert ['clearsky_ghi', 'ghi'] not in handler
     assert 'clearsky_ratio' in handler
@@ -62,66 +58,70 @@ def test_solar_handler_sampling(plot=False):
     )
     assert ['clearsky_ghi', 'ghi', 'clearsky_ratio'] in handler
 
-    sampler = TestDualSamplerCC(handler.data, sample_shape)
+    sampler = TestDualSamplerCC(data=handler.data, sample_shape=sample_shape)
 
     assert handler.data.shape[2] % 24 == 0
     assert sampler.data.shape[2] % 24 == 0
 
     # some of the raw clearsky ghi and clearsky ratio data should be loaded in
-    # the handler as NaN but the daily data should not have any NaN values
+    # the handler as NaN but the low_res data should not have any NaN values
     assert np.isnan(handler.data.hourly.as_array()).any()
-    assert np.isnan(sampler.data.hourly.as_array()).any()
+    assert np.isnan(sampler.data.high_res.as_array()).any()
     assert not np.isnan(handler.data.daily.as_array()).any()
-    assert not np.isnan(sampler.data.daily.as_array()).any()
+    assert not np.isnan(sampler.data.low_res.as_array()).any()
 
     assert np.array_equal(
-        handler.data.daily.as_array(), sampler.data.daily.as_array()
+        handler.data.daily.as_array(), sampler.data.low_res.as_array()
     )
     assert np.allclose(
         handler.data.hourly.as_array(),
-        sampler.data.hourly.as_array(),
+        sampler.data.high_res.as_array(),
         equal_nan=True,
     )
 
-    for _ in range(10):
-        obs_daily, obs_hourly = sampler.get_next()
-        assert obs_hourly.shape[2] == 24
-        assert obs_daily.shape[2] == 1
+    for i in range(10):
+        obs_low_res, obs_high_res = sampler.get_next()
+        assert obs_high_res.shape[2] == 24
+        assert obs_low_res.shape[2] == 1
 
-        obs_ind_daily, obs_ind_hourly = sampler.current_obs_index
-        assert obs_ind_hourly[2].start / 24 == obs_ind_daily[2].start
-        assert obs_ind_hourly[2].stop / 24 == obs_ind_daily[2].stop
+        obs_ind_low_res, obs_ind_high_res = sampler.index_record[i]
+        assert obs_ind_high_res[2].start / 24 == obs_ind_low_res[2].start
+        assert obs_ind_high_res[2].stop / 24 == obs_ind_low_res[2].stop
 
-        assert np.array_equal(obs_daily, handler.data.daily[obs_ind_daily])
+        assert np.array_equal(
+            obs_low_res, handler.data.low_res[obs_ind_low_res]
+        )
         assert np.allclose(
-            obs_hourly, handler.data.hourly[obs_ind_hourly], equal_nan=True
+            obs_high_res,
+            handler.data.high_res[obs_ind_high_res],
+            equal_nan=True,
         )
 
-        cs_ratio_profile = obs_hourly[0, 0, :, 0]
+        cs_ratio_profile = obs_high_res[0, 0, :, 0]
         assert np.isnan(cs_ratio_profile[0]) & np.isnan(cs_ratio_profile[-1])
         nan_mask = np.isnan(cs_ratio_profile)
         assert all((cs_ratio_profile <= 1)[~nan_mask.compute()])
         assert all((cs_ratio_profile >= 0)[~nan_mask.compute()])
         # new feature engineering so that whenever sunset starts, all
         # clearsky_ratio data is NaN
-        for i in range(obs_hourly.shape[2]):
-            if np.isnan(obs_hourly[:, :, i, 0]).any():
-                assert np.isnan(obs_hourly[:, :, i, 0]).all()
+        for i in range(obs_high_res.shape[2]):
+            if np.isnan(obs_high_res[:, :, i, 0]).any():
+                assert np.isnan(obs_high_res[:, :, i, 0]).all()
 
     if plot:
         for p in range(2):
-            obs_hourly, obs_daily = sampler.get_next()
-            for i in range(obs_hourly.shape[2]):
+            obs_high_res, obs_low_res = sampler.get_next()
+            for i in range(obs_high_res.shape[2]):
                 _, axes = plt.subplots(1, 2, figsize=(15, 8))
 
-                a = axes[0].imshow(obs_hourly[:, :, i, 0], vmin=0, vmax=1)
+                a = axes[0].imshow(obs_high_res[:, :, i, 0], vmin=0, vmax=1)
                 plt.colorbar(a, ax=axes[0])
                 axes[0].set_title('Clearsky Ratio')
 
-                tmp = obs_daily[:, :, 0, 0]
+                tmp = obs_low_res[:, :, 0, 0]
                 a = axes[1].imshow(tmp, vmin=tmp.min(), vmax=tmp.max())
                 plt.colorbar(a, ax=axes[1])
-                axes[1].set_title('Daily Average Clearsky Ratio')
+                axes[1].set_title('low_res Average Clearsky Ratio')
 
                 plt.title(i)
                 plt.savefig(
@@ -130,6 +130,45 @@ def test_solar_handler_sampling(plot=False):
                     bbox_inches='tight',
                 )
                 plt.close()
+
+
+def test_solar_handler_sampling_spatial_only():
+    """Test sampling from solar cc handler for a spatial only model
+    (sample_shape[-1] = 1)"""
+
+    handler = DataHandlerH5SolarCC(
+        INPUT_FILE_S, features=['clearsky_ratio'], **dh_kwargs
+    )
+
+    sampler = TestDualSamplerCC(
+        data=handler.data, sample_shape=(20, 20, 1), t_enhance=1
+    )
+
+    assert handler.data.shape[2] % 24 == 0
+
+    # some of the raw clearsky ghi and clearsky ratio data should be loaded in
+    # the handler as NaN but the low_res data should not have any NaN values
+    assert np.isnan(handler.data.hourly.as_array()).any()
+    assert not np.isnan(sampler.data.high_res.as_array()).any()
+    assert not np.isnan(handler.data.daily.as_array()).any()
+    assert not np.isnan(sampler.data.low_res.as_array()).any()
+
+    assert np.allclose(
+        handler.data.daily.as_array(),
+        sampler.data.high_res.as_array(),
+    )
+
+    for i in range(10):
+        low_res, high_res = sampler.get_next()
+        assert high_res.shape[2] == 1
+        assert low_res.shape[2] == 1
+
+        obs_ind_low_res, obs_ind_high_res = sampler.index_record[i]
+        assert obs_ind_high_res[2].start == obs_ind_low_res[2].start
+        assert obs_ind_high_res[2].stop == obs_ind_low_res[2].stop
+
+        assert np.array_equal(low_res, handler.data.daily[obs_ind_low_res])
+        assert np.allclose(high_res, handler.data.daily[obs_ind_low_res])
 
 
 def test_solar_handler_w_wind():

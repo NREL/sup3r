@@ -69,9 +69,6 @@ class DualSampler(Sampler):
         )
         self._lr_only_features = feature_sets.get('lr_only_features', [])
         self._hr_exo_features = feature_sets.get('hr_exo_features', [])
-        self.lr_sampler = Sampler(
-            self.lr_data, sample_shape=self.lr_sample_shape
-        )
         features = copy.deepcopy(list(self.lr_data.data_vars))
         features += [
             fn for fn in list(self.hr_data.data_vars) if fn not in features
@@ -79,6 +76,9 @@ class DualSampler(Sampler):
         self.features = features
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
+        self.lr_sampler = Sampler(
+            self.lr_data, sample_shape=self.lr_sample_shape
+        )
         self.check_for_consistent_shapes()
 
     def check_for_consistent_shapes(self):

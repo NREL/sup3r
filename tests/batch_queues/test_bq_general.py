@@ -33,7 +33,7 @@ def test_not_enough_stats_for_batch_queue():
             sample_shape=(8, 8, 10), data_shape=(12, 12, 15), features=FEATURES
         ),
     ]
-    coarsen_kwargs = {'smoothing_ignore': [], 'smoothing': None}
+    transform_kwargs = {'smoothing_ignore': [], 'smoothing': None}
 
     with pytest.raises(AssertionError):
         _ = SingleBatchQueue(
@@ -46,7 +46,7 @@ def test_not_enough_stats_for_batch_queue():
             stds={'windspeed': 2},
             queue_cap=10,
             max_workers=1,
-            coarsen_kwargs=coarsen_kwargs,
+            transform_kwargs=transform_kwargs,
         )
 
 
@@ -58,7 +58,7 @@ def test_batch_queue():
         DummySampler(sample_shape, data_shape=(10, 10, 20), features=FEATURES),
         DummySampler(sample_shape, data_shape=(12, 12, 15), features=FEATURES),
     ]
-    coarsen_kwargs = {'smoothing_ignore': [], 'smoothing': None}
+    transform_kwargs = {'smoothing_ignore': [], 'smoothing': None}
     batcher = SingleBatchQueue(
         samplers=samplers,
         n_batches=3,
@@ -69,7 +69,7 @@ def test_batch_queue():
         stds=stds,
         queue_cap=10,
         max_workers=1,
-        coarsen_kwargs=coarsen_kwargs,
+        transform_kwargs=transform_kwargs,
     )
     batcher.start()
     assert len(batcher) == 3
@@ -88,7 +88,7 @@ def test_spatial_batch_queue():
     batch_size = 4
     queue_cap = 10
     n_batches = 3
-    coarsen_kwargs = {'smoothing_ignore': [], 'smoothing': None}
+    transform_kwargs = {'smoothing_ignore': [], 'smoothing': None}
     samplers = [
         DummySampler(sample_shape, data_shape=(10, 10, 20), features=FEATURES),
         DummySampler(sample_shape, data_shape=(12, 12, 15), features=FEATURES),
@@ -103,7 +103,7 @@ def test_spatial_batch_queue():
         means=means,
         stds=stds,
         max_workers=1,
-        coarsen_kwargs=coarsen_kwargs,
+        transform_kwargs=transform_kwargs,
     )
     batcher.start()
     assert len(batcher) == 3
