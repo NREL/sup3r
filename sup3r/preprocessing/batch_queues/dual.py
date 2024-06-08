@@ -5,6 +5,7 @@ import logging
 from typing import Dict, List, Optional, Tuple, Union
 
 import tensorflow as tf
+from scipy.ndimage import gaussian_filter
 
 from sup3r.preprocessing.batch_queues.abstract import AbstractBatchQueue
 from sup3r.preprocessing.samplers import DualSampler
@@ -20,7 +21,12 @@ option_no_order.experimental_optimization.apply_default_optimizations = True
 
 
 class DualBatchQueue(AbstractBatchQueue):
-    """Base BatchQueue for DualSampler containers."""
+    """Base BatchQueue for DualSampler containers.
+
+    See Also
+    --------
+    :class:`SingleBatchQueue` for description of arguments.
+    """
 
     def __init__(
         self,
@@ -33,6 +39,7 @@ class DualBatchQueue(AbstractBatchQueue):
         stds: Union[Dict, str],
         queue_cap=None,
         max_workers=None,
+        transform_kwargs: Optional[dict] = None,
         default_device: Optional[str] = None,
         thread_name: Optional[str] = "training"
     ):
@@ -54,6 +61,10 @@ class DualBatchQueue(AbstractBatchQueue):
             (self.batch_size, *self.lr_shape),
             (self.batch_size, *self.hr_shape),
         ]
+        self.transform_kwargs = transform_kwargs or {
+            'smoothing_ignore': [],
+            'smoothing': None,
+        }
 
     def check_enhancement_factors(self):
         """Make sure each DualSampler has the same enhancment factors and they
@@ -101,3 +112,30 @@ class DualBatchQueue(AbstractBatchQueue):
             (self.batch_size, *self.lr_shape),
             (self.batch_size, *self.hr_shape),
         ]
+
+    def transform(
+        self,
+        samples,
+        smoothing=None,
+        smoothing_ignore=None):
+        """Perform smoothing if requested.
+
+        Note
+        ----
+        This does not include temporal or spatial coarsening like
+        :class:`SingleBatchQueue`
+        """
+        low_res, high_res = samples
+
+        if smoothing is not None:
+            feat_iter = [
+                j
+                for j in range(low_res.shape[-1])
+                if self.features[j] not in smoothing_ignore
+            ]
+            for i in range(low_res.shape[0]):
+                for j in feat_iter:
+                    low_res[i, ..., j] = gaussian_filter(
+                        low_res[i, ..., j], smoothing, mode='nearest'
+                    )
+        return low_res, high_res

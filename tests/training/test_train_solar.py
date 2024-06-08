@@ -30,7 +30,10 @@ TARGET_W = (39.01, -105.15)
 np.random.seed(42)
 
 
-def test_solar_cc_model(log=False):
+init_logger('sup3r', log_level='DEBUG')
+
+
+def test_solar_cc_model():
     """Test the solar climate change nsrdb super res model.
 
     NOTE that the full 10x model is too big to train on the 20x20 test data.
@@ -43,16 +46,18 @@ def test_solar_cc_model(log=False):
         shape=SHAPE,
         time_slice=slice(None, None, 2),
         time_roll=-7,
-        sample_shape=(20, 20, 72),
-        worker_kwargs=dict(max_workers=1),
     )
 
     batcher = BatchHandlerCC(
-        [handler], batch_size=2, n_batches=2, s_enhance=1, sub_daily_shape=24
+        [handler],
+        [],
+        batch_size=2,
+        n_batches=2,
+        s_enhance=1,
+        sub_daily_shape=24,
+        sample_shape=(20, 20, 72),
+        feature_sets={'lr_only_features': ['clearsky_ghi', 'ghi']}
     )
-
-    if log:
-        init_logger('sup3r', log_level='DEBUG')
 
     fp_gen = os.path.join(CONFIG_DIR, 'sup3rcc/gen_solar_1x_8x_1f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
@@ -65,7 +70,7 @@ def test_solar_cc_model(log=False):
     with tempfile.TemporaryDirectory() as td:
         model.train(
             batcher,
-            input_resolution={'spatial': '4km', 'temporal': '40min'},
+            input_resolution={'spatial': '4km', 'temporal': '1440min'},
             n_epoch=1,
             weight_gen_advers=0.0,
             train_gen=True,
@@ -95,28 +100,41 @@ def test_solar_cc_model(log=False):
     assert y.shape[3] == x.shape[3] * 8
     assert y.shape[4] == x.shape[4]
 
+    batcher.stop()
 
-def test_solar_cc_model_spatial(log=False):
+
+def test_solar_cc_model_spatial():
     """Test the solar climate change nsrdb super res model with spatial
     enhancement only.
     """
 
-    handler = DataHandlerH5SolarCC(
+    val_handler = DataHandlerH5SolarCC(
         INPUT_FILE_S,
         FEATURES_S,
         target=TARGET_S,
         shape=SHAPE,
-        time_slice=slice(None, None, 2),
+        time_slice=slice(None, 720, 2),
         time_roll=-7,
-        val_split=0.1,
-        sample_shape=(20, 20),
-        worker_kwargs=dict(max_workers=1),
+    )
+    train_handler = DataHandlerH5SolarCC(
+        INPUT_FILE_S,
+        FEATURES_S,
+        target=TARGET_S,
+        shape=SHAPE,
+        time_slice=slice(720, None, 2),
+        time_roll=-7,
     )
 
-    batcher = BatchHandlerCC([handler], batch_size=2, n_batches=2, s_enhance=5)
-
-    if log:
-        init_logger('sup3r', log_level='DEBUG')
+    batcher = BatchHandlerCC(
+        [train_handler],
+        [val_handler],
+        batch_size=2,
+        n_batches=2,
+        s_enhance=5,
+        t_enhance=1,
+        sample_shape=(20, 20),
+        feature_sets={'lr_only_features': ['clearsky_ghi', 'ghi']}
+    )
 
     fp_gen = os.path.join(CONFIG_DIR, 'sup3rcc/gen_solar_5x_1x_1f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
@@ -147,8 +165,10 @@ def test_solar_cc_model_spatial(log=False):
     assert y.shape[2] == x.shape[2] * 5
     assert y.shape[3] == x.shape[3]
 
+    batcher.stop()
 
-def test_solar_custom_loss(log=False):
+
+def test_solar_custom_loss():
     """Test custom solar loss with only disc and content over daylight hours"""
     handler = DataHandlerH5SolarCC(
         INPUT_FILE_S,
@@ -157,16 +177,17 @@ def test_solar_custom_loss(log=False):
         shape=SHAPE,
         time_slice=slice(None, None, 2),
         time_roll=-7,
-        sample_shape=(5, 5, 72),
-        worker_kwargs=dict(max_workers=1),
     )
 
     batcher = BatchHandlerCC(
-        [handler], batch_size=1, n_batches=1, s_enhance=1, sub_daily_shape=24
+        [handler],
+        [],
+        batch_size=1,
+        n_batches=1,
+        s_enhance=1,
+        sub_daily_shape=24,
+        sample_shape=(5, 5, 72),
     )
-
-    if log:
-        init_logger('sup3r', log_level='DEBUG')
 
     fp_gen = os.path.join(CONFIG_DIR, 'sup3rcc/gen_solar_1x_8x_1f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
@@ -222,3 +243,5 @@ def test_solar_custom_loss(log=False):
 
         assert loss1 > loss2
         assert loss2 == 0
+
+    batcher.stop()

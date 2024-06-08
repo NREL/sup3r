@@ -88,12 +88,10 @@ def test_solar_handler_sampling(plot=False):
         assert obs_ind_high_res[2].start / 24 == obs_ind_low_res[2].start
         assert obs_ind_high_res[2].stop / 24 == obs_ind_low_res[2].stop
 
-        assert np.array_equal(
-            obs_low_res, handler.data.low_res[obs_ind_low_res]
-        )
+        assert np.array_equal(obs_low_res, handler.data.daily[obs_ind_low_res])
         assert np.allclose(
             obs_high_res,
-            handler.data.high_res[obs_ind_high_res],
+            handler.data.hourly[obs_ind_high_res],
             equal_nan=True,
         )
 
@@ -199,7 +197,7 @@ def test_solar_handler_w_wind():
 
         # some of the raw clearsky ghi and clearsky ratio data should be loaded
         # in the handler as NaN
-        assert np.isnan(handler.data[...]).any()
+        assert np.isnan(handler.data.hourly[...]).any()
 
         for _ in range(10):
             obs_ind_daily, obs_ind_hourly = sampler.get_sample_index()
@@ -229,22 +227,32 @@ def test_nsrdb_sub_daily_sampler():
     ti = ti[0 : len(handler.time_index)]
 
     for _ in range(100):
-        tslice = nsrdb_sub_daily_sampler(handler.data, 4, ti)
+        tslice = nsrdb_sub_daily_sampler(handler.hourly, 4, ti)
         # with only 4 samples, there should never be any NaN data
-        assert not np.isnan(handler['clearsky_ratio'][0, 0, tslice]).any()
+        assert not np.isnan(
+            handler.hourly['clearsky_ratio'][0, 0, tslice]
+        ).any()
 
     for _ in range(100):
-        tslice = nsrdb_sub_daily_sampler(handler.data, 8, ti)
+        tslice = nsrdb_sub_daily_sampler(handler.hourly, 8, ti)
         # with only 8 samples, there should never be any NaN data
-        assert not np.isnan(handler['clearsky_ratio'][0, 0, tslice]).any()
+        assert not np.isnan(
+            handler.hourly['clearsky_ratio'][0, 0, tslice]
+        ).any()
 
     for _ in range(100):
-        tslice = nsrdb_sub_daily_sampler(handler.data, 20, ti)
+        tslice = nsrdb_sub_daily_sampler(handler.hourly, 20, ti)
         # there should be ~8 hours of non-NaN data
         # the beginning and ending timesteps should be nan
-        assert (~np.isnan(handler['clearsky_ratio'][0, 0, tslice])).sum() > 7
-        assert np.isnan(handler['clearsky_ratio'][0, 0, tslice])[:3].all()
-        assert np.isnan(handler['clearsky_ratio'][0, 0, tslice])[-3:].all()
+        assert (
+            ~np.isnan(handler.hourly['clearsky_ratio'][0, 0, tslice])
+        ).sum() > 7
+        assert np.isnan(handler.hourly['clearsky_ratio'][0, 0, tslice])[
+            :3
+        ].all()
+        assert np.isnan(handler.hourly['clearsky_ratio'][0, 0, tslice])[
+            -3:
+        ].all()
 
 
 if __name__ == '__main__':

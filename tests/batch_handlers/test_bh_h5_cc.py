@@ -14,7 +14,6 @@ from sup3r.preprocessing import (
     DataHandlerH5WindCC,
 )
 from sup3r.utilities.pytest.helpers import TestDualSamplerCC, execute_pytest
-from sup3r.utilities.utilities import nn_fill_array
 
 SHAPE = (20, 20)
 
@@ -48,15 +47,15 @@ class TestBatchHandlerCC(BatchHandlerCC):
 
 
 @pytest.mark.parametrize(
-    ('sub_daily_shape', 'features'),
+    ('hr_tsteps', 't_enhance', 'features'),
     [
-        (72, ['clearsky_ratio']),
-        (8, ['clearsky_ratio']),
-        (72, FEATURES_S),
-        (8, FEATURES_S),
+        (72, 24, ['clearsky_ratio']),
+        (24, 8, ['clearsky_ratio']),
+        (72, 24, FEATURES_S),
+        (24, 8, FEATURES_S),
     ],
 )
-def test_solar_batching(sub_daily_shape, features, plot=False):
+def test_solar_batching(hr_tsteps, t_enhance, features, plot=False):
     """Test batching of nsrdb data with and without down sampling to day
     hours"""
     handler = DataHandlerH5SolarCC(
@@ -68,27 +67,27 @@ def test_solar_batching(sub_daily_shape, features, plot=False):
         batch_size=1,
         n_batches=10,
         s_enhance=1,
-        t_enhance=24,
+        t_enhance=t_enhance,
         means=dict.fromkeys(features, 0),
         stds=dict.fromkeys(features, 1),
-        sample_shape=(20, 20, 72),
-        sub_daily_shape=sub_daily_shape,
+        sample_shape=(20, 20, hr_tsteps),
     )
 
     assert not np.isnan(handler.data.hourly[...]).all()
     assert not np.isnan(handler.data.daily[...]).any()
+    high_res_source = handler.data.hourly[...].compute()
     for counter, batch in enumerate(batcher):
-        assert batch.high_res.shape[3] == sub_daily_shape
+        assert batch.high_res.shape[3] == hr_tsteps
         assert batch.low_res.shape[3] == 3
 
         # make sure the high res sample is found in the source handler data
         daily_idx, hourly_idx = batcher.containers[0].index_record[counter]
-        high_res_source = handler.data.hourly[:, :, hourly_idx[2], :].compute()
-        high_res_source[..., 0] = nn_fill_array(high_res_source[..., 0])
+        hr_source = high_res_source[:, :, hourly_idx[2], :]
         found = False
-        for i in range(high_res_source.shape[2] - sub_daily_shape + 1):
-            check = high_res_source[:, :, i : i + sub_daily_shape]
-            if np.allclose(batch.high_res[0], check):
+        for i in range(hr_source.shape[2] - hr_tsteps + 1):
+            check = hr_source[..., i : i + hr_tsteps, :]
+            mask = np.isnan(check)
+            if np.allclose(batch.high_res[0][~mask], check[~mask]):
                 found = True
                 break
         assert found
@@ -106,10 +105,12 @@ def test_solar_batching(sub_daily_shape, features, plot=False):
         handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S, **dh_kwargs)
         batcher = BatchHandlerCC(
             [handler],
+            [],
             batch_size=1,
             n_batches=10,
             s_enhance=1,
-            sub_daily_shape=8,
+            t_enhance=8,
+            sample_shape=(20, 20, 24),
         )
         for p, batch in enumerate(batcher):
             for i in range(batch.high_res.shape[3]):
@@ -170,11 +171,12 @@ def test_solar_batching_spatial(plot=False):
         s_enhance=2,
         t_enhance=1,
         sample_shape=(20, 20, 1),
+        feature_sets={'lr_only_features': ['clearsky_ghi', 'ghi']},
     )
 
     for batch in batcher:
         assert batch.high_res.shape == (8, 20, 20, 1)
-        assert batch.low_res.shape == (8, 10, 10, 1)
+        assert batch.low_res.shape == (8, 10, 10, len(FEATURES_S))
 
     if plot:
         for p, batch in enumerate(batcher):
@@ -206,6 +208,7 @@ def test_solar_batching_spatial(plot=False):
 
             if p > 4:
                 break
+    batcher.stop()
 
 
 def test_solar_batch_nan_stats():
@@ -213,105 +216,107 @@ def test_solar_batch_nan_stats():
     NaN data present"""
     handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S, **dh_kwargs)
 
-    true_csr_mean = np.nanmean(handler.data[..., 0])
-    true_csr_stdev = np.nanstd(handler.data[..., 0])
+    true_csr_mean = (
+        np.nanmean(handler.data.daily[..., 0])
+        + np.nanmean(handler.data.hourly[..., 0])
+    ) / 2
+    true_csr_stdev = (
+        np.nanstd(handler.data.daily[..., 0])
+        + np.nanstd(handler.data.hourly[..., 0])
+    ) / 2
 
-    orig_daily_mean = handler.daily_data[..., 0].mean()
+    orig_daily_mean = handler.data.daily[..., 0].mean()
 
     batcher = BatchHandlerCC(
-        [handler], batch_size=1, n_batches=10, s_enhance=1, sub_daily_shape=9
+        [handler],
+        [],
+        batch_size=1,
+        n_batches=10,
+        s_enhance=1,
+        sample_shape=(10, 10, 9),
     )
 
     assert np.allclose(batcher.means[FEATURES_S[0]], true_csr_mean)
     assert np.allclose(batcher.stds[FEATURES_S[0]], true_csr_stdev)
 
-    # make sure the daily means were also normalized by same values
-    new = (orig_daily_mean - true_csr_mean) / true_csr_stdev
-    assert np.allclose(new, handler.daily_data[..., 0].mean(), atol=1e-4)
-
-    handler1 = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S, **dh_kwargs)
-
-    handler2 = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S, **dh_kwargs)
-
     batcher = BatchHandlerCC(
-        [handler1, handler2],
+        [handler, handler],
+        [],
         batch_size=1,
         n_batches=10,
         s_enhance=1,
-        sub_daily_shape=9,
+        sample_shape=(10, 10, 9),
     )
 
     assert np.allclose(true_csr_mean, batcher.means[FEATURES_S[0]])
     assert np.allclose(true_csr_stdev, batcher.stds[FEATURES_S[0]])
-
-
-def test_solar_val_data():
-    """Validation data is not enabled for solar CC model, test that the batch
-    handler does not have validation data."""
-    handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S, **dh_kwargs)
-
-    batcher = BatchHandlerCC(
-        [handler], batch_size=1, n_batches=10, s_enhance=2, sub_daily_shape=8
-    )
-
-    n = 0
-    for _ in batcher.val_data:
-        n += 1
-
-    assert n == 0
-    assert not batcher.val_data.any()
+    batcher.stop()
 
 
 def test_solar_multi_day_coarse_data():
     """Test a multi day sample with only 9 hours of high res data output"""
-    dh_kwargs_new = dh_kwargs.copy()
-    dh_kwargs_new['sample_shape'] = (20, 20, 72)
-    handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S, **dh_kwargs_new)
+    handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S, **dh_kwargs)
 
     batcher = BatchHandlerCC(
-        [handler], batch_size=4, n_batches=10, s_enhance=4, sub_daily_shape=9
+        train_containers=[handler],
+        val_containers=[handler],
+        batch_size=4,
+        n_batches=10,
+        s_enhance=4,
+        t_enhance=3,
+        sample_shape=(20, 20, 9),
+        feature_sets={'lr_only_features': ['clearsky_ghi', 'ghi']}
     )
 
     for batch in batcher:
-        assert batch.low_res.shape == (4, 5, 5, 3, 1)
+        assert batch.low_res.shape == (4, 5, 5, 3, len(FEATURES_S))
         assert batch.high_res.shape == (4, 20, 20, 9, 1)
 
     for batch in batcher.val_data:
-        assert batch.low_res.shape == (4, 5, 5, 3, 1)
+        assert batch.low_res.shape == (4, 5, 5, 3, len(FEATURES_S))
         assert batch.high_res.shape == (4, 20, 20, 9, 1)
 
     # run another test with u/v on low res side but not high res
     features = ['clearsky_ratio', 'u', 'v', 'ghi', 'clearsky_ghi']
-    dh_kwargs_new['lr_only_features'] = ['u', 'v']
-    handler = DataHandlerH5SolarCC(INPUT_FILE_S, features, **dh_kwargs_new)
+    feature_sets = {'lr_only_features': ['u', 'v', 'clearsky_ghi', 'ghi']}
+    handler = DataHandlerH5SolarCC(INPUT_FILE_S, features, **dh_kwargs)
 
     batcher = BatchHandlerCC(
-        [handler], batch_size=4, n_batches=10, s_enhance=4, sub_daily_shape=9
+        train_containers=[handler],
+        val_containers=[handler],
+        batch_size=4,
+        n_batches=10,
+        s_enhance=4,
+        t_enhance=3,
+        sample_shape=(20, 20, 9),
+        feature_sets=feature_sets,
     )
 
     for batch in batcher:
-        assert batch.low_res.shape == (4, 5, 5, 3, 3)
+        assert batch.low_res.shape == (4, 5, 5, 3, len(features))
         assert batch.high_res.shape == (4, 20, 20, 9, 1)
 
     for batch in batcher.val_data:
-        assert batch.low_res.shape == (4, 5, 5, 3, 3)
+        assert batch.low_res.shape == (4, 5, 5, 3, len(features))
         assert batch.high_res.shape == (4, 20, 20, 9, 1)
+    batcher.stop()
 
 
 def test_wind_batching():
     """Test the wind climate change data batching object."""
     dh_kwargs_new = dh_kwargs.copy()
     dh_kwargs_new['target'] = TARGET_W
-    dh_kwargs_new['sample_shape'] = (20, 20, 72)
-    dh_kwargs_new['val_split'] = 0
+    dh_kwargs_new['time_slice'] = slice(None)
     handler = DataHandlerH5WindCC(INPUT_FILE_W, FEATURES_W, **dh_kwargs_new)
 
     batcher = BatchHandlerCC(
         [handler],
+        [],
         batch_size=1,
         n_batches=10,
         s_enhance=1,
-        sub_daily_shape=None,
+        t_enhance=24,
+        sample_shape=(20, 20, 72),
     )
 
     for batch in batcher:
@@ -327,17 +332,24 @@ def test_wind_batching():
             truth = np.mean(hourly, axis=3)
             daily = batch.low_res[:, :, :, i, :]
             assert np.allclose(daily, truth, atol=1e-6)
+    batcher.stop()
 
 
 def test_wind_batching_spatial(plot=False):
     """Test batching of wind data with spatial only enhancement"""
     dh_kwargs_new = dh_kwargs.copy()
     dh_kwargs_new['target'] = TARGET_W
-    dh_kwargs_new['sample_shape'] = (20, 20)
+    dh_kwargs_new['time_slice'] = slice(None)
     handler = DataHandlerH5WindCC(INPUT_FILE_W, FEATURES_W, **dh_kwargs_new)
 
     batcher = BatchHandlerCC(
-        [handler], batch_size=8, n_batches=10, s_enhance=5, t_enhance=1
+        [handler],
+        [],
+        batch_size=8,
+        n_batches=10,
+        s_enhance=5,
+        t_enhance=1,
+        sample_shape=(20, 20),
     )
 
     for batch in batcher:
@@ -374,6 +386,7 @@ def test_wind_batching_spatial(plot=False):
 
             if p > 4:
                 break
+    batcher.stop()
 
 
 def test_surf_min_max_vars():
@@ -389,20 +402,19 @@ def test_surf_min_max_vars():
 
     dh_kwargs_new = dh_kwargs.copy()
     dh_kwargs_new['target'] = TARGET_SURF
-    dh_kwargs_new['sample_shape'] = (20, 20, 72)
-    dh_kwargs_new['val_split'] = 0
     dh_kwargs_new['time_slice'] = slice(None, None, 1)
-    dh_kwargs_new['lr_only_features'] = ['*_min_*', '*_max_*']
     handler = DataHandlerH5WindCC(
         INPUT_FILE_SURF, surf_features, **dh_kwargs_new
     )
 
     batcher = BatchHandlerCC(
         [handler],
+        [],
         batch_size=1,
         n_batches=10,
         s_enhance=1,
-        sub_daily_shape=None,
+        sample_shape=(20, 20, 72),
+        feature_sets={'lr_only_features': ['*_min_*', '*_max_*']}
     )
 
     for batch in batcher:
@@ -419,6 +431,7 @@ def test_surf_min_max_vars():
         # compare daily avg rh vs min and max
         assert (batch.low_res[..., 1] > batch.low_res[..., 4]).all()
         assert (batch.low_res[..., 1] < batch.low_res[..., 5]).all()
+    batcher.stop()
 
 
 if __name__ == '__main__':

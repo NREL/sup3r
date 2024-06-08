@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 class Sampler(Container):
-    """Sampler class for iterating through contained things."""
+    """Sampler class for iterating through samples of contained data."""
 
     def __init__(
         self,

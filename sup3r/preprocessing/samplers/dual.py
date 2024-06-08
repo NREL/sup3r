@@ -7,6 +7,7 @@ from typing import Dict, Optional
 
 from sup3r.preprocessing.base import Sup3rDataset
 from sup3r.preprocessing.samplers.base import Sampler
+from sup3r.utilities.utilities import uniform_box_sampler, uniform_time_sampler
 
 logger = logging.getLogger(__name__)
 
@@ -76,19 +77,22 @@ class DualSampler(Sampler):
         self.features = features
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
-        self.lr_sampler = Sampler(
-            self.lr_data, sample_shape=self.lr_sample_shape
-        )
         self.check_for_consistent_shapes()
+        post_init_args = {
+            'lr_sample_shape': self.lr_sample_shape,
+            'hr_sample_shape': self.hr_sample_shape,
+            'lr_features': self.lr_features,
+            'hr_features': self.hr_features,
+        }
+        self.post_init_log(post_init_args)
 
     def check_for_consistent_shapes(self):
         """Make sure container shapes are compatible with enhancement
         factors."""
-        lr_shape = self.lr_data.shape
         enhanced_shape = (
-            lr_shape[0] * self.s_enhance,
-            lr_shape[1] * self.s_enhance,
-            lr_shape[2] * self.t_enhance,
+            self.lr_data.shape[0] * self.s_enhance,
+            self.lr_data.shape[1] * self.s_enhance,
+            self.lr_data.shape[2] * self.t_enhance,
         )
         msg = (
             f'hr_data.shape {self.hr_data.shape} and enhanced '
@@ -101,7 +105,13 @@ class DualSampler(Sampler):
         """Get paired sample index, consisting of index for the low res sample
         and the index for the high res sample with the same spatiotemporal
         extent."""
-        lr_index = self.lr_sampler.get_sample_index()
+        spatial_slice = uniform_box_sampler(
+            self.lr_data.shape, self.lr_sample_shape[:2]
+        )
+        time_slice = uniform_time_sampler(
+            self.lr_data.shape, self.lr_sample_shape[2]
+        )
+        lr_index = (*spatial_slice, time_slice, self.lr_features)
         hr_index = [
             slice(s.start * self.s_enhance, s.stop * self.s_enhance)
             for s in lr_index[:2]
@@ -110,5 +120,5 @@ class DualSampler(Sampler):
             slice(s.start * self.t_enhance, s.stop * self.t_enhance)
             for s in lr_index[2:-1]
         ]
-        hr_index = (*hr_index, list(self.hr_data.data_vars))
+        hr_index = (*hr_index, self.hr_features)
         return (lr_index, hr_index)
