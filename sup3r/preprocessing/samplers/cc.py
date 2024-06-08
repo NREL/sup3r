@@ -10,6 +10,7 @@ import numpy as np
 from sup3r.preprocessing.base import Sup3rDataset
 from sup3r.preprocessing.common import Dimension
 from sup3r.preprocessing.samplers.dual import DualSampler
+from sup3r.utilities.utilities import nn_fill_array, nsrdb_reduce_daily_data
 
 np.random.seed(42)
 
@@ -17,7 +18,17 @@ logger = logging.getLogger(__name__)
 
 
 class DualSamplerCC(DualSampler):
-    """Special sampling of WTK or NSRDB data for climate change applications"""
+    """Special sampling of WTK or NSRDB data for climate change applications
+
+    Note
+    ----
+    This always give daily / hourly data if t_enhance != 1. The number of days
+    / hours in the samples is determined by t_enhance. For example, if
+    t_enhance = 8 and sample_shape = (..., 24) there will be 3 days in the low
+    res sample (lr_sample_shape = (..., 3)). If t_enhance != 24 and > 1
+    :meth:`reduce_high_res_sub_daily` will be used to reduce a high sample from
+    (..., sample_shape[2] * 24 // t_enhance) to (..., sample_shape[2])
+    """
 
     def __init__(
         self,
@@ -79,6 +90,7 @@ class DualSamplerCC(DualSampler):
             for x in np.array_split(np.arange(n_hours), n_days)
         ]
         data = Sup3rDataset(low_res=lr, high_res=hr)
+        sample_shape = self.check_sample_shape(sample_shape, t_enhance)
         super().__init__(
             data=data,
             sample_shape=sample_shape,
@@ -86,29 +98,111 @@ class DualSamplerCC(DualSampler):
             s_enhance=s_enhance,
             feature_sets=feature_sets,
         )
-        sample_shape = self.check_sample_shape(sample_shape)
+        self.sub_daily_shape = (
+            self.hr_sample_shape[2] if self.t_enhance != 24 else None
+        )
 
-    def check_sample_shape(self, sample_shape):
-        """Make sure sample_shape is consistent with required number of time
-        steps in the sample data."""
-        t_shape = sample_shape[-1]
+    def check_for_consistent_shapes(self):
+        """Make sure container shapes are compatible with enhancement
+        factors."""
+        enhanced_shape = (
+            self.lr_data.shape[0] * self.s_enhance,
+            self.lr_data.shape[1] * self.s_enhance,
+            self.lr_data.shape[2] * (1 if self.t_enhance == 1 else 24),
+        )
+        msg = (
+            f'hr_data.shape {self.hr_data.shape} and enhanced '
+            f'lr_data.shape {enhanced_shape} are not compatible with '
+            f'the given enhancement factors t_enhance = {self.t_enhance}, '
+            f's_enhance = {self.s_enhance}'
+        )
+        assert self.hr_data.shape[:3] == enhanced_shape, msg
+
+    @staticmethod
+    def check_sample_shape(sample_shape, t_enhance):
+        """Add time dimension to sample shape if 2D received."""
         if len(sample_shape) == 2:
             logger.info(
                 'Found 2D sample shape of {}. Adding spatial dim of {}'.format(
-                    sample_shape, self.t_enhance
+                    sample_shape, t_enhance
                 )
             )
-            sample_shape = (*sample_shape, self.t_enhance)
-            t_shape = sample_shape[-1]
+            sample_shape = (*sample_shape, (1 if t_enhance == 1 else 24))
 
-        if self.t_enhance != 1 and t_shape % 24 != 0:
-            msg = (
-                'Climate Change Sampler can only work with temporal '
-                'sample shapes that are one or more days of hourly data '
-                '(e.g. 24, 48, 72...), or for spatial only models t_enhance = '
-                '1. The requested temporal sample '
-                'shape was: {}'.format(t_shape)
-            )
-            logger.error(msg)
-            raise RuntimeError(msg)
         return sample_shape
+
+    def reduce_high_res_sub_daily(self, high_res, csr_ind=0):
+        """Take an hourly high-res observation and reduce the temporal axis
+        down to the self.sub_daily_shape using only daylight hours on the
+        center day.
+
+        Parameters
+        ----------
+        high_res : T_Array
+            5D array with dimensions (n_obs, spatial_1, spatial_2, temporal,
+            n_features) where temporal >= 24 (set by the data handler).
+        csr_ind : int
+            Feature index of clearsky_ratio. e.g. self.data[..., csr_ind] ->
+            cs_ratio
+
+        Returns
+        -------
+        high_res : T_Array
+            5D array with dimensions (n_obs, spatial_1, spatial_2, temporal,
+            n_features) where temporal has been reduced down to the integer
+            self.sub_daily_shape. For example if the input temporal shape is 72
+            (3 days) and sub_daily_shape=9, the center daylight 9 hours from
+            the second day will be returned in the output array.
+        """
+
+        if self.sub_daily_shape is not None and self.sub_daily_shape <= 24:
+            n_days = int(high_res.shape[3] / 24)
+            if n_days > 1:
+                ind = np.arange(high_res.shape[3])
+                day_slices = np.array_split(ind, n_days)
+                day_slices = [slice(x[0], x[-1] + 1) for x in day_slices]
+                assert n_days % 2 == 1, 'Need odd days'
+                i_mid = int((n_days - 1) / 2)
+                high_res = high_res[:, :, :, day_slices[i_mid], :]
+
+            high_res = nsrdb_reduce_daily_data(
+                high_res, self.sub_daily_shape, csr_ind=csr_ind
+            )
+
+        return high_res
+
+    def get_sample_index(self):
+        """Get sample index for expanded hourly chunk which will be reduced to
+        the given sample shape."""
+        lr_ind, hr_ind = super().get_sample_index()
+        upsamp_factor = 1 if self.t_enhance == 1 else 24
+        hr_ind = (
+            *hr_ind[:2],
+            slice(
+                upsamp_factor * lr_ind[2].start, upsamp_factor * lr_ind[2].stop
+            ),
+            hr_ind[-1],
+        )
+        return lr_ind, hr_ind
+
+    def get_next(self):
+        """Slight modification of `super().get_next()` to first get a sample of
+        shape = (..., hr_sample_shape[2] * 24 // t_enhance) and then reduce
+        this to (..., hr_sample_shape[2]) with
+        :func:`nsrdb_reduce_daily_data.` If this is for a spatial only model
+        this subroutine is skipped."""
+        low_res, high_res = super().get_next()
+        high_res = high_res[..., self.hr_features_ind].compute()
+
+        if (
+            self.hr_out_features is not None
+            and 'clearsky_ratio' in self.hr_out_features
+            and self.t_enhance != 1
+        ):
+            i_cs = self.hr_out_features.index('clearsky_ratio')
+            high_res = self.reduce_high_res_sub_daily(high_res, csr_ind=i_cs)
+
+            if np.isnan(high_res[..., i_cs]).any():
+                high_res[..., i_cs] = nn_fill_array(high_res[..., i_cs])
+
+        return low_res, high_res

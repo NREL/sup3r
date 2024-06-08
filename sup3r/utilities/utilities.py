@@ -14,6 +14,7 @@ from inspect import signature
 from pathlib import Path
 from warnings import warn
 
+import dask.array as da
 import numpy as np
 import pandas as pd
 import psutil
@@ -607,14 +608,12 @@ def nsrdb_sub_daily_sampler(data, shape, time_index=None):
     """
     time_index = time_index if time_index is not None else data.time_index
     tslice = daily_time_sampler(data, 24, time_index)
-    day_mask = (
-        data['clearsky_ratio'][:, :, tslice].notnull().all(axis=(0, 1))
-    )
+    night_mask = da.isnan(data['clearsky_ratio', ..., tslice]).any(axis=(0, 1))
 
-    if shape == 24:
+    if shape >= data.shape[2]:
         return tslice
 
-    if (~day_mask).all():
+    if (night_mask).all():
         msg = (
             f'No daylight data found for tslice {tslice} '
             f'{time_index[tslice]}'
@@ -623,7 +622,7 @@ def nsrdb_sub_daily_sampler(data, shape, time_index=None):
         warn(msg)
         return tslice
 
-    day_ilocs = np.where(day_mask)[0]
+    day_ilocs = np.where(~night_mask.compute())[0]
     padding = shape - len(day_ilocs)
     half_pad = int(np.round(padding / 2))
     new_start = tslice.start + day_ilocs[0] - half_pad
@@ -637,9 +636,9 @@ def nsrdb_reduce_daily_data(data, shape, csr_ind=0):
     Parameters
     ----------
     data : T_Array
-        Data array 5D, where [..., csr_ind] is assumed to be
+        Data array 4D, where [..., csr_ind] is assumed to be
         clearsky ratio with NaN at night.
-        (n_obs, spatial_1, spatial_2, temporal, features)
+        (spatial_1, spatial_2, temporal, features)
     shape : int
         (time_steps) Size of time slice to sample from data, must be an integer
         less than or equal to 24.
@@ -654,9 +653,9 @@ def nsrdb_reduce_daily_data(data, shape, csr_ind=0):
         requested shape.
     """
 
-    night_mask = np.isnan(data[0, :, :, :, csr_ind]).any(axis=(0, 1))
+    night_mask = da.isnan(data[:, :, :, csr_ind]).any(axis=(0, 1))
 
-    if shape > data.shape[3]:
+    if shape >= data.shape[2]:
         return data
 
     if night_mask.all():
@@ -667,11 +666,10 @@ def nsrdb_reduce_daily_data(data, shape, csr_ind=0):
 
     day_ilocs = np.where(~night_mask)[0]
     padding = shape - len(day_ilocs)
-    half_pad = int(np.round(padding / 2))
+    half_pad = int(np.ceil(padding / 2))
     start = day_ilocs[0] - half_pad
-    end = start + shape
-    tslice = slice(start, end)
-    return data[:, :, :, tslice, :]
+    tslice = slice(start, start + shape)
+    return data[..., tslice, :]
 
 
 def transform_rotate_wind(ws, wd, lat_lon):

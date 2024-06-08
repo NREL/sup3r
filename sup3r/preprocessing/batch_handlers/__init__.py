@@ -1,5 +1,4 @@
 """Composite objects built from batch queues and samplers."""
-from .cc import BatchHandlerCC
 from .conditional import (
     BatchHandlerMom1,
     BatchHandlerMom1SF,
@@ -15,4 +14,4 @@ from .conditional import (
     BatchMom2SF,
 )
 from .dc import BatchHandlerDC
-from .factory import BatchHandler, DualBatchHandler
+from .factory import BatchHandler, BatchHandlerCC, DualBatchHandler

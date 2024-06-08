@@ -319,10 +319,14 @@ class AbstractBatchQueue(SamplerCollection, ABC):
 
     def get_next(self) -> Batch:
         """Get next batch. This removes sets of samples from the queue and
-        wraps them in the simple Batch class. We squeeze the time dimension
-        if sample_shape[2] == 1 (axis=2 for time) since this means the samples
-        are for a spatial only model. It's not possible to have sample_shape[2]
-        for a spatiotemporal model due to padding requirements.
+        wraps them in the simple Batch class.
+
+        Note
+        ----
+        We squeeze the time dimension if sample_shape[2] == 1 (axis=2 for time)
+        since this means the samples are for a spatial only model. It's not
+        possible to have sample_shape[2] for a spatiotemporal model due to
+        padding requirements.
 
         Returns
         -------
@@ -332,9 +336,9 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         samples = self.queue.dequeue()
         if self.sample_shape[2] == 1:
             if isinstance(samples, (list, tuple)):
-                samples = tuple([s.squeeze(axis=2) for s in samples])
+                samples = tuple([s[..., 0, :] for s in samples])
             else:
-                samples = samples.squeeze(axis=2)
+                samples = samples[..., 0, :]
         return self.batch_next(samples)
 
     def __next__(self) -> Batch:

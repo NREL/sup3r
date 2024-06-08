@@ -4,6 +4,7 @@ samplers, batch queues, batch handlers.
 """
 
 import logging
+import pprint
 from collections import namedtuple
 from typing import Dict, Optional, Tuple
 
@@ -166,6 +167,10 @@ class Container:
     a xr.Dataset or wrapped tuple of xr.Dataset objects (:class:`Sup3rDataset`)
     """
 
+    __slots__ = [
+        '_data',
+    ]
+
     def __init__(
         self,
         data: Optional[xr.Dataset | Tuple[xr.Dataset, ...]] = None,
@@ -195,6 +200,14 @@ class Container:
         _log_args(cls, cls.__init__, *args, **kwargs)
         return instance
 
+    def post_init_log(self, args_dict=None):
+        """Log additional arguments after initialization."""
+        if args_dict is not None:
+            logger.info(
+                f'Finished initializing {self.__class__.__name__} with:\n'
+                f'{pprint.pformat(args_dict, indent=2)}'
+            )
+
     @property
     def shape(self):
         """Get shape of underlying data."""
@@ -209,7 +222,9 @@ class Container:
 
     def __getattr__(self, attr):
         """Check if attribute is available from `.data`"""
-        if hasattr(self.data, attr):
-            return getattr(self.data, attr)
-        msg = f'{self.__class__.__name__} object has no attribute "{attr}"'
-        raise AttributeError(msg)
+        try:
+            data = self.__getattribute__('_data')
+            return getattr(data, attr)
+        except Exception as e:
+            msg = f'{self.__class__.__name__} object has no attribute "{attr}"'
+            raise AttributeError(msg) from e
