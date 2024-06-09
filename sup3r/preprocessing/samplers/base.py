@@ -5,7 +5,6 @@ information about how different features are used by models."""
 import logging
 from fnmatch import fnmatch
 from typing import Dict, Optional, Tuple
-from warnings import warn
 
 import numpy as np
 import xarray as xr
@@ -79,17 +78,15 @@ class Sampler(Container):
     def preflight(self):
         """Check if the sample_shape is larger than the requested raster
         size"""
-        bad_shape = (
-            self.sample_shape[0] > self.data.shape[0]
-            and self.sample_shape[1] > self.data.shape[1]
+        good_shape = (
+            self.sample_shape[0] <= self.data.shape[0]
+            and self.sample_shape[1] <= self.data.shape[1]
         )
-        if bad_shape:
-            msg = (
-                f'spatial_sample_shape {self.sample_shape[:2]} is '
-                f'larger than the raster size {self.data.shape[:2]}'
-            )
-            logger.warning(msg)
-            warn(msg)
+        msg = (
+            f'spatial_sample_shape {self.sample_shape[:2]} is '
+            f'larger than the raster size {self.data.shape[:2]}'
+        )
+        assert good_shape, msg
 
         if len(self.sample_shape) == 2:
             logger.info(
@@ -105,9 +102,7 @@ class Sampler(Container):
             f'({self.data.shape[2]}).'
         )
 
-        if self.data.shape[2] < self.sample_shape[2]:
-            logger.warning(msg)
-            warn(msg)
+        assert self.data.shape[2] >= self.sample_shape[2], msg
 
     def get_next(self):
         """Get next sample. This retrieves a sample of size = sample_shape

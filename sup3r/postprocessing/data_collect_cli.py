@@ -7,9 +7,9 @@ import click
 
 from sup3r import __version__
 from sup3r.postprocessing.collection import CollectorH5, CollectorNC
+from sup3r.preprocessing.common import get_source_type
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import AVAILABLE_HARDWARE_OPTIONS, BaseCLI
-from sup3r.utilities.utilities import get_source_type
 
 logger = logging.getLogger(__name__)
 

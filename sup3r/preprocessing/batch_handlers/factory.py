@@ -12,11 +12,10 @@ from sup3r.preprocessing.base import (
 from sup3r.preprocessing.batch_queues.base import SingleBatchQueue
 from sup3r.preprocessing.batch_queues.dual import DualBatchQueue
 from sup3r.preprocessing.collections.stats import StatsCollection
-from sup3r.preprocessing.common import FactoryMeta
+from sup3r.preprocessing.common import FactoryMeta, get_class_kwargs
 from sup3r.preprocessing.samplers.base import Sampler
 from sup3r.preprocessing.samplers.cc import DualSamplerCC
 from sup3r.preprocessing.samplers.dual import DualSampler
-from sup3r.utilities.utilities import get_class_kwargs
 
 logger = logging.getLogger(__name__)
 
@@ -48,9 +47,6 @@ def BatchHandlerFactory(QueueClass, SamplerClass, name='BatchHandler'):
         with different time period and / or regions.  , or they can be used to
         sample from completely different data sources (e.g. train on CONUS WTK
         while validating on Canada WTK).
-
-        `.start()` is called upon initialization. Maybe should remove this and
-        require manual start.
         """
 
         SAMPLER = SamplerClass
@@ -69,11 +65,10 @@ def BatchHandlerFactory(QueueClass, SamplerClass, name='BatchHandler'):
             stds: Optional[Union[Dict, str]] = None,
             **kwargs,
         ):
-            sampler_kwargs = get_class_kwargs(
-                SamplerClass,
+            [sampler_kwargs, queue_kwargs] = get_class_kwargs(
+                [SamplerClass, QueueClass],
                 {'s_enhance': s_enhance, 't_enhance': t_enhance, **kwargs},
             )
-            queue_kwargs = get_class_kwargs(QueueClass, kwargs)
 
             train_samplers, val_samplers = self.init_samplers(
                 train_containers, val_containers, sampler_kwargs
@@ -92,8 +87,6 @@ def BatchHandlerFactory(QueueClass, SamplerClass, name='BatchHandler'):
                     samplers=val_samplers,
                     batch_size=batch_size,
                     n_batches=n_batches,
-                    s_enhance=s_enhance,
-                    t_enhance=t_enhance,
                     means=stats.means,
                     stds=stats.stds,
                     thread_name='validation',
@@ -104,13 +97,10 @@ def BatchHandlerFactory(QueueClass, SamplerClass, name='BatchHandler'):
                 samplers=train_samplers,
                 batch_size=batch_size,
                 n_batches=n_batches,
-                s_enhance=s_enhance,
-                t_enhance=t_enhance,
                 means=stats.means,
                 stds=stats.stds,
                 **queue_kwargs,
             )
-            self.start()
 
         def init_samplers(
             self, train_containers, val_containers, sampler_kwargs

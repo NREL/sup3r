@@ -98,9 +98,6 @@ class DualSamplerCC(DualSampler):
             s_enhance=s_enhance,
             feature_sets=feature_sets,
         )
-        self.sub_daily_shape = (
-            self.hr_sample_shape[2] if self.t_enhance != 24 else None
-        )
 
     def check_for_consistent_shapes(self):
         """Make sure container shapes are compatible with enhancement
@@ -133,8 +130,8 @@ class DualSamplerCC(DualSampler):
 
     def reduce_high_res_sub_daily(self, high_res, csr_ind=0):
         """Take an hourly high-res observation and reduce the temporal axis
-        down to the self.sub_daily_shape using only daylight hours on the
-        center day.
+        down to lr_sample_shape[2] * t_enhance time steps, using only daylight
+        hours on the center day.
 
         Parameters
         ----------
@@ -150,12 +147,22 @@ class DualSamplerCC(DualSampler):
         high_res : T_Array
             5D array with dimensions (n_obs, spatial_1, spatial_2, temporal,
             n_features) where temporal has been reduced down to the integer
-            self.sub_daily_shape. For example if the input temporal shape is 72
-            (3 days) and sub_daily_shape=9, the center daylight 9 hours from
-            the second day will be returned in the output array.
+            lr_sample_shape[2] * t_enhance. For example if hr_sample_shape[2]
+            is 9 and t_enhance = 8, 72 hourly time steps will be reduced to 9
+            using the center daylight 9 hours from the second day.
+
+        Note
+        ----
+        This only does something when `1 < t_enhance < 24.` If t_enhance = 24
+        there is no need for reduction since every daily time step will have 24
+        hourly time steps in the high_res batch data. Of course, if t_enhance =
+        1, we are running for a spatial only model so this routine is
+        unnecessary.
+
+        *Needs review from @grantbuster
         """
 
-        if self.sub_daily_shape is not None and self.sub_daily_shape <= 24:
+        if self.t_enhance not in (24, 1):
             n_days = int(high_res.shape[3] / 24)
             if n_days > 1:
                 ind = np.arange(high_res.shape[3])
@@ -166,7 +173,7 @@ class DualSamplerCC(DualSampler):
                 high_res = high_res[:, :, :, day_slices[i_mid], :]
 
             high_res = nsrdb_reduce_daily_data(
-                high_res, self.sub_daily_shape, csr_ind=csr_ind
+                high_res, self.hr_sample_shape[-1], csr_ind=csr_ind
             )
 
         return high_res

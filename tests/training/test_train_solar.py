@@ -54,7 +54,7 @@ def test_solar_cc_model():
         batch_size=2,
         n_batches=2,
         s_enhance=1,
-        sub_daily_shape=24,
+        t_enhance=8,
         sample_shape=(20, 20, 72),
         feature_sets={'lr_only_features': ['clearsky_ghi', 'ghi']}
     )
@@ -185,8 +185,9 @@ def test_solar_custom_loss():
         batch_size=1,
         n_batches=1,
         s_enhance=1,
-        sub_daily_shape=24,
-        sample_shape=(5, 5, 72),
+        t_enhance=8,
+        sample_shape=(5, 5, 24),
+        feature_sets={'lr_only_features': ['clearsky_ghi', 'ghi']}
     )
 
     fp_gen = os.path.join(CONFIG_DIR, 'sup3rcc/gen_solar_1x_8x_1f.json')

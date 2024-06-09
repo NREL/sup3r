@@ -2,7 +2,10 @@
 
 import logging
 
-from sup3r.preprocessing.common import FactoryMeta
+from sup3r.preprocessing.common import (
+    FactoryMeta,
+    get_class_kwargs,
+)
 from sup3r.preprocessing.extracters.h5 import (
     BaseExtracterH5,
 )
@@ -10,7 +13,6 @@ from sup3r.preprocessing.extracters.nc import (
     BaseExtracterNC,
 )
 from sup3r.preprocessing.loaders import LoaderH5, LoaderNC
-from sup3r.utilities.utilities import get_class_kwargs
 
 logger = logging.getLogger(__name__)
 
@@ -54,8 +56,9 @@ def ExtracterFactory(
             **kwargs : dict
                 Dictionary of keyword args for Extracter and Loader
             """
-            loader_kwargs = get_class_kwargs(LoaderClass, kwargs)
-            extracter_kwargs = get_class_kwargs(ExtracterClass, kwargs)
+            [loader_kwargs, extracter_kwargs] = get_class_kwargs(
+                [LoaderClass, ExtracterClass], kwargs
+            )
             self.loader = LoaderClass(file_paths, **loader_kwargs)
             super().__init__(loader=self.loader, **extracter_kwargs)
 

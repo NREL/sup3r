@@ -8,7 +8,6 @@ import pprint
 from collections import namedtuple
 from typing import Dict, Optional, Tuple
 
-import dask.array as da
 import numpy as np
 import xarray as xr
 
@@ -27,10 +26,19 @@ class Sup3rDataset:
 
     Note
     ----
-    This may seem similar to :class:`Collection`, which also can
+    (1) This may seem similar to :class:`Collection`, which also can
     contain multiple data members, but members of :class:`Collection` objects
     are completely independent while here there are at most two members which
-    are related as low / high res versions of the same underlying data."""
+    are related as low / high res versions of the same underlying data.
+
+    (2) Here we make an important choice to use high_res members to compute
+    means / stds. It would be reasonable to instead use the average of high_res
+    and low_res means / stds for aggregate stats but we want to preserve the
+    relationship between coarsened variables after normalization (e.g.
+    temperature_2m, temperature_max_2m, temperature_min_2m). This means all
+    these variables should have the same means and stds, which ultimately come
+    from the high_res non coarsened variable.
+    """
 
     def __init__(self, **dsets: Dict[str, xr.Dataset]):
         dsets = {
@@ -154,12 +162,14 @@ class Sup3rDataset:
             d.sx.__setitem__(variable, dat)
 
     def mean(self, skipna=True):
-        """Compute the mean across all tuple members."""
-        return da.nanmean(da.array([d.mean(skipna=skipna) for d in self._ds]))
+        """Use the high_res members to compute the means. These are used for
+        normalization during training."""
+        return self._ds[-1].mean(skipna=skipna)
 
     def std(self, skipna=True):
-        """Compute the standard deviation across all tuple members."""
-        return da.nanmean(da.array([d.std(skipna=skipna) for d in self._ds]))
+        """Use the high_res members to compute the stds. These are used for
+        normalization during training."""
+        return self._ds[-1].std(skipna=skipna)
 
 
 class Container:

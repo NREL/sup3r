@@ -46,7 +46,8 @@ class Cacher(Container):
             the cached files load them with a Loader object.
         """
         super().__init__(data=data)
-        self.out_files = self.cache_data(cache_kwargs)
+        if cache_kwargs.get('cache_pattern') is not None:
+            self.out_files = self.cache_data(cache_kwargs)
 
     def cache_data(self, kwargs):
         """Cache data to file with file type based on user provided
@@ -59,7 +60,7 @@ class Cacher(Container):
             of tuples (time, lats, lons) for each feature specifying the chunks
             for h5 writes. 'cache_pattern' must have a {feature} format key.
         """
-        cache_pattern = kwargs['cache_pattern']
+        cache_pattern = kwargs.get('cache_pattern', None)
         chunks = kwargs.get('chunks', None)
         msg = 'cache_pattern must have {feature} format key.'
         assert '{feature}' in cache_pattern, msg

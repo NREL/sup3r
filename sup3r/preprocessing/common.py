@@ -1,10 +1,14 @@
 """Methods used across container objects."""
 
 import logging
+import os
 import pprint
 from abc import ABCMeta
 from enum import Enum
-from inspect import getfullargspec
+from fnmatch import fnmatch
+from glob import glob
+from inspect import getfullargspec, signature
+from pathlib import Path
 from typing import ClassVar, Optional, Tuple
 from warnings import warn
 
@@ -45,6 +49,218 @@ class Dimension(str, Enum):
     def spatial_2d(cls):
         """Return ordered tuple for 2d spatial coordinates."""
         return (cls.SOUTH_NORTH, cls.WEST_EAST)
+
+
+def expand_paths(fps):
+    """Expand path(s)
+
+    Parameter
+    ---------
+    fps : str or pathlib.Path or any Sequence of those
+        One or multiple paths to file
+
+    Returns
+    -------
+    list[str]
+        A list of expanded unique and sorted paths as str
+
+    Examples
+    --------
+    >>> expand_paths("myfile.h5")
+
+    >>> expand_paths(["myfile.h5", "*.hdf"])
+    """
+    if isinstance(fps, (str, Path)):
+        fps = (fps,)
+
+    out = []
+    for f in fps:
+        out.extend(glob(f))
+    return sorted(set(out))
+
+
+def ignore_case_path_fetch(fp):
+    """Get file path which matches fp while ignoring case
+
+    Parameters
+    ----------
+    fp : str
+        file path
+
+    Returns
+    -------
+    str
+        existing file which matches fp
+    """
+
+    dirname = os.path.dirname(fp)
+    basename = os.path.basename(fp)
+    if os.path.exists(dirname):
+        for file in os.listdir(dirname):
+            if fnmatch(file.lower(), basename.lower()):
+                return os.path.join(dirname, file)
+    return None
+
+
+def get_source_type(file_paths):
+    """Get data source type
+
+    Parameters
+    ----------
+    file_paths : list | str
+        One or more paths to data files, can include a unix-style pat*tern
+
+    Returns
+    -------
+    source_type : str
+        Either "h5" or "nc"
+    """
+    if file_paths is None:
+        return None
+
+    if isinstance(file_paths, str) and '*' in file_paths:
+        temp = glob(file_paths)
+        if any(temp):
+            file_paths = temp
+
+    if not isinstance(file_paths, list):
+        file_paths = [file_paths]
+
+    _, source_type = os.path.splitext(file_paths[0])
+
+    if source_type == '.h5':
+        return 'h5'
+    return 'nc'
+
+
+def get_input_handler_class(file_paths, input_handler_name):
+    """Get the :class:`DataHandler` or :class:`Extracter` object.
+
+    Parameters
+    ----------
+    file_paths : list | str
+        A list of files to extract raster data from. Each file must have
+        the same number of timesteps. Can also pass a string with a
+        unix-style file path which will be passed through glob.glob
+    input_handler_name : str
+        data handler class to use for input data. Provide a string name to
+        match a class in data_handling.py. If None the correct handler will
+        be guessed based on file type and time series properties. The guessed
+        handler will default to an extracter type (simple raster / time
+        extraction from raw feature data, as opposed to derivation of new
+        features)
+
+    Returns
+    -------
+    HandlerClass : ExtracterH5 | ExtracterNC | DataHandlerH5 | DataHandlerNC
+        DataHandler or Extracter class from sup3r.preprocessing.
+    """
+
+    HandlerClass = None
+
+    input_type = get_source_type(file_paths)
+
+    if input_handler_name is None:
+        if input_type == 'nc':
+            input_handler_name = 'ExtracterNC'
+        elif input_type == 'h5':
+            input_handler_name = 'ExtracterH5'
+
+        logger.info(
+            '"input_handler" arg was not provided. Using '
+            f'"{input_handler_name}". If this is '
+            'incorrect, please provide '
+            'input_handler="DataHandlerName".'
+        )
+
+    if isinstance(input_handler_name, str):
+        import sup3r.preprocessing
+
+        HandlerClass = getattr(sup3r.preprocessing, input_handler_name, None)
+
+    if HandlerClass is None:
+        msg = (
+            'Could not find requested data handler class '
+            f'"{input_handler_name}" in sup3r.preprocessing.'
+        )
+        logger.error(msg)
+        raise KeyError(msg)
+
+    return HandlerClass
+
+
+def _get_possible_class_args(Class):
+    class_args = list(signature(Class.__init__).parameters.keys())
+    if Class.__bases__ == (object,):
+        return class_args
+    for base in Class.__bases__:
+        class_args += _get_possible_class_args(base)
+    return class_args
+
+
+def _get_class_kwargs(Classes, kwargs):
+    """Go through class and class parents and get matching kwargs."""
+    if not isinstance(Classes, list):
+        Classes = [Classes]
+    out = []
+    for cname in Classes:
+        class_args = _get_possible_class_args(cname)
+        out.append({k: v for k, v in kwargs.items() if k in class_args})
+    return out if len(out) > 1 else out[0]
+
+
+def get_class_kwargs(Classes, kwargs):
+    """Go through class and class parents and get matching kwargs."""
+    if not isinstance(Classes, list):
+        Classes = [Classes]
+    out = []
+    for cname in Classes:
+        class_args = _get_possible_class_args(cname)
+        out.append({k: v for k, v in kwargs.items() if k in class_args})
+    check_kwargs(Classes, kwargs)
+    return out if len(out) > 1 else out[0]
+
+
+def check_kwargs(Classes, kwargs):
+    """Make sure all kwargs are valid kwargs for the set of given classes."""
+    extras = []
+    [
+        extras.extend(list(_get_class_kwargs(cname, kwargs).keys()))
+        for cname in Classes
+    ]
+    extras = set(kwargs.keys()) - set(extras)
+    msg = f'Received unknown kwargs: {extras}'
+    assert len(extras) == 0, msg
+
+
+def parse_keys(keys):
+    """
+    Parse keys for complex __getitem__ and __setitem__
+
+    Parameters
+    ----------
+    keys : string | tuple
+        key or key and slice to extract
+
+    Returns
+    -------
+    key : string
+        key to extract
+    key_slice : slice | tuple
+        Slice or tuple of slices of key to extract
+    """
+    if isinstance(keys, tuple):
+        key = keys[0]
+        key_slice = keys[1:]
+    else:
+        key = keys
+        key_slice = (
+            slice(None),
+            slice(None),
+            slice(None),
+        )
+
+    return key, key_slice
 
 
 class FactoryMeta(ABCMeta, type):

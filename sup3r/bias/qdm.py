@@ -20,8 +20,8 @@ from rex.utilities.bc_utils import (
 )
 from typing import Optional
 
+from sup3r.preprocessing.common import expand_paths
 from sup3r.preprocessing.data_handlers import DataHandlerNC as DataHandler
-from sup3r.utilities.utilities import expand_paths
 
 from .bias_calc import DataRetrievalBase
 from .mixins import FillAndSmoothMixin, ZeroRateMixin
