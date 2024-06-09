@@ -163,7 +163,7 @@ def test_solar_batching_spatial(plot=False):
     """Test batching of nsrdb data with spatial only enhancement"""
     handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S, **dh_kwargs)
 
-    batcher = BatchHandlerCC(
+    batcher = TestBatchHandlerCC(
         [handler],
         val_containers=[],
         batch_size=8,
@@ -216,18 +216,10 @@ def test_solar_batch_nan_stats():
     NaN data present"""
     handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S, **dh_kwargs)
 
-    true_csr_mean = (
-        np.nanmean(handler.data.daily[..., 0])
-        + np.nanmean(handler.data.hourly[..., 0])
-    ) / 2
-    true_csr_stdev = (
-        np.nanstd(handler.data.daily[..., 0])
-        + np.nanstd(handler.data.hourly[..., 0])
-    ) / 2
+    true_csr_mean = np.nanmean(handler.data.hourly[..., 0])
+    true_csr_stdev = np.nanstd(handler.data.hourly[..., 0])
 
-    orig_daily_mean = handler.data.daily[..., 0].mean()
-
-    batcher = BatchHandlerCC(
+    batcher = TestBatchHandlerCC(
         [handler],
         [],
         batch_size=1,
@@ -250,14 +242,13 @@ def test_solar_batch_nan_stats():
 
     assert np.allclose(true_csr_mean, batcher.means[FEATURES_S[0]])
     assert np.allclose(true_csr_stdev, batcher.stds[FEATURES_S[0]])
-    batcher.stop()
 
 
 def test_solar_multi_day_coarse_data():
     """Test a multi day sample with only 9 hours of high res data output"""
     handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S, **dh_kwargs)
 
-    batcher = BatchHandlerCC(
+    batcher = TestBatchHandlerCC(
         train_containers=[handler],
         val_containers=[handler],
         batch_size=4,
@@ -265,7 +256,7 @@ def test_solar_multi_day_coarse_data():
         s_enhance=4,
         t_enhance=3,
         sample_shape=(20, 20, 9),
-        feature_sets={'lr_only_features': ['clearsky_ghi', 'ghi']}
+        feature_sets={'lr_only_features': ['clearsky_ghi', 'ghi']},
     )
 
     for batch in batcher:
@@ -281,7 +272,7 @@ def test_solar_multi_day_coarse_data():
     feature_sets = {'lr_only_features': ['u', 'v', 'clearsky_ghi', 'ghi']}
     handler = DataHandlerH5SolarCC(INPUT_FILE_S, features, **dh_kwargs)
 
-    batcher = BatchHandlerCC(
+    batcher = TestBatchHandlerCC(
         train_containers=[handler],
         val_containers=[handler],
         batch_size=4,
@@ -309,7 +300,7 @@ def test_wind_batching():
     dh_kwargs_new['time_slice'] = slice(None)
     handler = DataHandlerH5WindCC(INPUT_FILE_W, FEATURES_W, **dh_kwargs_new)
 
-    batcher = BatchHandlerCC(
+    batcher = TestBatchHandlerCC(
         [handler],
         [],
         batch_size=1,
@@ -342,7 +333,7 @@ def test_wind_batching_spatial(plot=False):
     dh_kwargs_new['time_slice'] = slice(None)
     handler = DataHandlerH5WindCC(INPUT_FILE_W, FEATURES_W, **dh_kwargs_new)
 
-    batcher = BatchHandlerCC(
+    batcher = TestBatchHandlerCC(
         [handler],
         [],
         batch_size=8,
@@ -407,17 +398,47 @@ def test_surf_min_max_vars():
         INPUT_FILE_SURF, surf_features, **dh_kwargs_new
     )
 
-    batcher = BatchHandlerCC(
+    batcher = TestBatchHandlerCC(
         [handler],
         [],
         batch_size=1,
         n_batches=10,
         s_enhance=1,
+        t_enhance=24,
         sample_shape=(20, 20, 72),
-        feature_sets={'lr_only_features': ['*_min_*', '*_max_*']}
+        feature_sets={'lr_only_features': ['*_min_*', '*_max_*']},
     )
 
-    for batch in batcher:
+    assert (
+        batcher.low_res['temperature_2m'].as_array()
+        > batcher.low_res['temperature_min_2m'].as_array()
+    ).all()
+    assert (
+        batcher.low_res['temperature_2m'].as_array()
+        < batcher.low_res['temperature_max_2m'].as_array()
+    ).all()
+    assert (
+        batcher.low_res['relativehumidity_2m'].as_array()
+        > batcher.low_res['relativehumidity_min_2m'].as_array()
+    ).all()
+    assert (
+        batcher.low_res['relativehumidity_2m'].as_array()
+        < batcher.low_res['relativehumidity_max_2m'].as_array()
+    ).all()
+
+    assert (
+        batcher.means['temperature_2m']
+        == batcher.means['temperature_min_2m']
+        == batcher.means['temperature_max_2m']
+    )
+    assert (
+        batcher.stds['temperature_2m']
+        == batcher.stds['temperature_min_2m']
+        == batcher.stds['temperature_max_2m']
+    )
+
+    for _, batch in enumerate(batcher):
+
         assert batch.high_res.shape[3] == 72
         assert batch.low_res.shape[3] == 3
 
@@ -425,12 +446,12 @@ def test_surf_min_max_vars():
         assert batch.low_res.shape[-1] == len(surf_features)
 
         # compare daily avg temp vs min and max
-        assert (batch.low_res[..., 0] > batch.low_res[..., 2]).all()
-        assert (batch.low_res[..., 0] < batch.low_res[..., 3]).all()
+        assert (batch.low_res[..., 0] > batch.low_res[..., 2]).numpy().all()
+        assert (batch.low_res[..., 0] < batch.low_res[..., 3]).numpy().all()
 
         # compare daily avg rh vs min and max
-        assert (batch.low_res[..., 1] > batch.low_res[..., 4]).all()
-        assert (batch.low_res[..., 1] < batch.low_res[..., 5]).all()
+        assert (batch.low_res[..., 1] > batch.low_res[..., 4]).numpy().all()
+        assert (batch.low_res[..., 1] < batch.low_res[..., 5]).numpy().all()
     batcher.stop()
 
 

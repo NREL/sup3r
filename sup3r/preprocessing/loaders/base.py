@@ -7,8 +7,7 @@ from typing import ClassVar
 import numpy as np
 
 from sup3r.preprocessing.base import Container
-from sup3r.preprocessing.common import Dimension
-from sup3r.utilities.utilities import expand_paths
+from sup3r.preprocessing.common import Dimension, expand_paths
 
 
 class Loader(Container, ABC):

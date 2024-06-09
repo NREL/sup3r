@@ -89,25 +89,33 @@ class BaseDeriver(Container):
             self.data[f] = self.derive(f)
         self.data = self.data[features]
 
-    def _check_for_compute(self, feature) -> Union[T_Array, str]:
+    def _check_registry(self, feature) -> Union[T_Array, str]:
+        """Check if feature or matching pattern is in the feature registry
+        keys. Return the corresponding value if found."""
+        if feature.lower() in self.FEATURE_REGISTRY:
+            return self.FEATURE_REGISTRY[feature.lower()]
+        for pattern in self.FEATURE_REGISTRY:
+            if re.match(pattern.lower(), feature.lower()):
+                return self.FEATURE_REGISTRY[pattern]
+        return None
+
+    def check_registry(self, feature) -> Union[T_Array, str]:
         """Get compute method from the registry if available. Will check for
         pattern feature match in feature registry. e.g. if U_100m matches a
         feature registry entry of U_(.*)m
         """
-        for pattern in self.FEATURE_REGISTRY:
-            if re.match(pattern.lower(), feature.lower()):
-                method = self.FEATURE_REGISTRY[pattern]
-                if isinstance(method, str):
-                    return method
-                if hasattr(method, 'inputs'):
-                    fstruct = parse_feature(feature)
-                    inputs = [fstruct.map_wildcard(i) for i in method.inputs]
-                    if all(f in self.data for f in inputs):
-                        logger.debug(
-                            f'Found compute method ({method}) for {feature}. '
-                            'Proceeding with derivation.'
-                        )
-                        return self._run_compute(feature, method)
+        method = self._check_registry(feature)
+        if isinstance(method, str):
+            return method
+        if hasattr(method, 'inputs'):
+            fstruct = parse_feature(feature)
+            inputs = [fstruct.map_wildcard(i) for i in method.inputs]
+            if all(f in self.data for f in inputs):
+                logger.debug(
+                    f'Found compute method ({method}) for {feature}. '
+                    'Proceeding with derivation.'
+                )
+                return self._run_compute(feature, method)
         return None
 
     def _run_compute(self, feature, method):
@@ -156,7 +164,7 @@ class BaseDeriver(Container):
 
         fstruct = parse_feature(feature)
         if feature not in self.data:
-            compute_check = self._check_for_compute(feature)
+            compute_check = self.check_registry(feature)
             if compute_check is not None and isinstance(compute_check, str):
                 new_feature = self.map_new_name(feature, compute_check)
                 return self.derive(new_feature)

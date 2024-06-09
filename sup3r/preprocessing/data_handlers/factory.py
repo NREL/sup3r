@@ -8,7 +8,11 @@ from scipy.stats import mode
 
 from sup3r.preprocessing.base import Sup3rDataset
 from sup3r.preprocessing.cachers import Cacher
-from sup3r.preprocessing.common import FactoryMeta, parse_to_list
+from sup3r.preprocessing.common import (
+    FactoryMeta,
+    get_class_kwargs,
+    parse_to_list,
+)
 from sup3r.preprocessing.derivers import Deriver
 from sup3r.preprocessing.derivers.methods import (
     RegistryH5,
@@ -21,7 +25,6 @@ from sup3r.preprocessing.extracters import (
     BaseExtracterNC,
 )
 from sup3r.preprocessing.loaders import LoaderH5, LoaderNC
-from sup3r.utilities.utilities import get_class_kwargs
 
 logger = logging.getLogger(__name__)
 
@@ -75,10 +78,11 @@ def DataHandlerFactory(
                 Dictionary of keyword args for DirectExtracter, Deriver, and
                 Cacher
             """
-            cache_kwargs = kwargs.pop('cache_kwargs', None)
-            loader_kwargs = get_class_kwargs(LoaderClass, kwargs)
-            deriver_kwargs = get_class_kwargs(Deriver, kwargs)
-            extracter_kwargs = get_class_kwargs(ExtracterClass, kwargs)
+            [cache_kwargs, loader_kwargs, deriver_kwargs, extracter_kwargs] = (
+                get_class_kwargs(
+                    [Cacher, LoaderClass, Deriver, ExtracterClass], kwargs
+                )
+            )
             features = parse_to_list(features=features)
             self.loader = LoaderClass(file_paths, **loader_kwargs)
             self._loader_hook()

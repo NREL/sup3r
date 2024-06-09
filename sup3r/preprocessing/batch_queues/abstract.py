@@ -125,7 +125,7 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         self.n_batches = n_batches
         self.queue_cap = queue_cap or n_batches
         self.max_workers = max_workers or batch_size
-        self.run_queue = threading.Event()
+        self.running_queue = threading.Event()
         self.means = (
             means if isinstance(means, dict) else safe_json_load(means)
         )
@@ -133,7 +133,7 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         self.container_index = self.get_container_index()
         self.queue_thread = threading.Thread(
             target=self.enqueue_batches,
-            args=(self.run_queue,),
+            args=(self.running_queue,),
             name=thread_name,
         )
         self.queue = self.get_queue()
@@ -194,7 +194,7 @@ class AbstractBatchQueue(SamplerCollection, ABC):
 
     def generator(self):
         """Generator over batches, which are composed of data samples."""
-        while True and self.run_queue.is_set():
+        while True and self.running_queue.is_set():
             idx = self._sample_counter
             self._sample_counter += 1
             yield self[idx]
@@ -267,7 +267,7 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         """Start thread to keep sample queue full for batches."""
         if not self.queue_thread.is_alive():
             logger.info(f'Starting {self.queue_thread.name} queue.')
-            self.run_queue.set()
+            self.running_queue.set()
             self.queue_thread.start()
 
     def join(self) -> None:
@@ -281,7 +281,7 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         """Stop loading batches."""
         if self.queue_thread.is_alive():
             logger.info(f'Stopping {self.queue_thread.name} queue.')
-            self.run_queue.clear()
+            self.running_queue.clear()
             self.join()
 
     def __len__(self):
@@ -289,14 +289,21 @@ class AbstractBatchQueue(SamplerCollection, ABC):
 
     def __iter__(self):
         self._batch_counter = 0
+        self.start()
         return self
 
-    def enqueue_batches(self, run_queue: threading.Event) -> None:
+    def enqueue_batches(self, running_queue: threading.Event) -> None:
         """Callback function for queue thread. While training the queue is
         checked for empty spots and filled. In the training thread, batches are
-        removed from the queue."""
+        removed from the queue.
+
+        Parameters
+        ----------
+        running_queue : threading.Event
+            Event which tracks whether the queue is active or not.
+        """
         try:
-            while run_queue.is_set():
+            while running_queue.is_set():
                 queue_size = self.queue.size().numpy()
                 if queue_size < self.queue_cap:
                     if queue_size == 1:
