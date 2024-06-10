@@ -1,8 +1,8 @@
-"""Test the basic training of super resolution GAN for solar climate change
-applications"""
+"""Test the training of super resolution GANs with exo data."""
 
 import os
 import tempfile
+import time
 
 import numpy as np
 import pytest
@@ -26,35 +26,37 @@ INPUT_FILE_W = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 FEATURES_W = ['temperature_100m', 'U_100m', 'V_100m', 'topography']
 TARGET_W = (39.01, -105.15)
 
-FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
-TARGET_COORD = (39.01, -105.15)
-
 
 init_logger('sup3r', log_level='DEBUG')
 
 
-@pytest.mark.parametrize(('CustomLayer', 'features', 'lr_only_features'),
-                         [('Sup3rAdder', FEATURES_W, ['temperature_100m']),
-                         ('Sup3rConcat', FEATURES_W, ['temperature_100m']),
-                         ('Sup3rAdder', FEATURES_W[1:], []),
-                         ('Sup3rConcat', FEATURES_W[1:], [])])
-def test_wind_hi_res_topo(CustomLayer, features, lr_only_features):
+@pytest.mark.parametrize(
+    ('CustomLayer', 'features', 'lr_only_features', 'mode'),
+    [
+        ('Sup3rAdder', FEATURES_W, ['temperature_100m'], 'lazy'),
+        ('Sup3rConcat', FEATURES_W, ['temperature_100m'], 'lazy'),
+        ('Sup3rAdder', FEATURES_W[1:], [], 'lazy'),
+        ('Sup3rConcat', FEATURES_W[1:], [], 'lazy'),
+        ('Sup3rConcat', FEATURES_W[1:], [], 'eager'),
+    ],
+)
+def test_wind_hi_res_topo(CustomLayer, features, lr_only_features, mode):
     """Test a special wind model for non cc with the custom Sup3rAdder or
     Sup3rConcat layer that adds/concatenates hi-res topography in the middle of
     the network."""
 
     train_handler = DataHandlerH5(
-        FP_WTK,
+        INPUT_FILE_W,
         features=features,
-        target=TARGET_COORD,
+        target=TARGET_W,
         shape=SHAPE,
         time_slice=slice(None, 3000, 10),
     )
 
     val_handler = DataHandlerH5(
-        FP_WTK,
+        INPUT_FILE_W,
         features=features,
-        target=TARGET_COORD,
+        target=TARGET_W,
         shape=SHAPE,
         time_slice=slice(3000, None, 10),
     )
@@ -71,6 +73,7 @@ def test_wind_hi_res_topo(CustomLayer, features, lr_only_features):
             'lr_only_features': lr_only_features,
             'hr_exo_features': ['topography'],
         },
+        mode=mode,
     )
 
     gen_model = [
@@ -136,6 +139,7 @@ def test_wind_hi_res_topo(CustomLayer, features, lr_only_features):
     Sup3rGan.seed()
     model = Sup3rGan(gen_model, fp_disc, learning_rate=1e-4)
 
+    start = time.time()
     with tempfile.TemporaryDirectory() as td:
         model.train(
             batcher,
@@ -179,6 +183,7 @@ def test_wind_hi_res_topo(CustomLayer, features, lr_only_features):
     assert y.shape[3] == len(features) - len(lr_only_features) - 1
 
     batcher.stop()
+    print(f'Elapsed: {time.time() - start}')
 
 
 if __name__ == '__main__':

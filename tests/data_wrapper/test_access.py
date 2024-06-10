@@ -5,6 +5,7 @@ import dask.array as da
 import numpy as np
 from rex import init_logger
 
+from sup3r.preprocessing.accessor import Sup3rX
 from sup3r.preprocessing.base import Sup3rDataset
 from sup3r.preprocessing.common import Dimension
 from sup3r.utilities.pytest.helpers import (
@@ -46,7 +47,13 @@ def test_correct_access_accessor():
 
 def test_correct_access_single_member_data():
     """Make sure Data object works correctly."""
-    data = Sup3rDataset(make_fake_dset((20, 20, 100, 3), features=['u', 'v']))
+    data = Sup3rDataset(
+        **{
+            'single_member': make_fake_dset(
+                (20, 20, 100, 3), features=['u', 'v']
+            )
+        }
+    )
 
     _ = data['u']
     _ = data[['u', 'v']]
@@ -76,8 +83,8 @@ def test_correct_access_multi_member_data():
     """Make sure Data object works correctly."""
     data = Sup3rDataset(
         (
-            make_fake_dset((20, 20, 100, 3), features=['u', 'v']),
-            make_fake_dset((20, 20, 100, 3), features=['u', 'v']),
+            Sup3rX(make_fake_dset((20, 20, 100, 3), features=['u', 'v'])),
+            Sup3rX(make_fake_dset((20, 20, 100, 3), features=['u', 'v'])),
         )
     )
 

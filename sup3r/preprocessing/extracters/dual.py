@@ -72,13 +72,14 @@ class DualExtracter(Container):
         """
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
+        if isinstance(data, tuple):
+            data = Sup3rDataset(data=data)
         msg = (
-            'The DualExtracter requires a data tuple with two members, low '
-            'and high resolution in that order. Received inconsistent data '
-            'argument.'
+            'The DualExtracter requires either a data tuple with two members, '
+            'low and high resolution in that order, or a Sup3rDataset '
+            f'instance. Received {type(data)}.'
         )
-        data = data if isinstance(data, Sup3rDataset) else Sup3rDataset(data)
-        assert isinstance(data, tuple) and len(data) == 2, msg
+        assert isinstance(data, Sup3rDataset), msg
         self.lr_data, self.hr_data = data.low_res, data.high_res
         self.regrid_workers = regrid_workers
         self.lr_time_index = self.lr_data.indexes['time']
@@ -116,6 +117,7 @@ class DualExtracter(Container):
 
         self.update_lr_data()
         self.update_hr_data()
+        super().__init__(data=(self.lr_data, self.hr_data))
 
         self.check_regridded_lr_data()
 
@@ -124,8 +126,6 @@ class DualExtracter(Container):
 
         if hr_cache_kwargs is not None:
             Cacher(self.hr_data, hr_cache_kwargs)
-
-        super().__init__(data=(self.lr_data, self.hr_data))
 
     def update_hr_data(self):
         """Set the high resolution data attribute and check if

@@ -61,6 +61,10 @@ class Sup3rX:
         self._ds = self.reorder()
         self._features = None
 
+    def compute(self, **kwargs):
+        """Load `._ds` into memory"""
+        self._ds = type(self)(super().compute(**kwargs))
+
     def good_dim_order(self):
         """Check if dims are in the right order for all variables.
 

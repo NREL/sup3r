@@ -14,6 +14,7 @@ from sup3r.preprocessing import (
     BatchHandlerCC,
     DataHandlerH5WindCC,
 )
+from sup3r.preprocessing.common import lowered
 
 SHAPE = (20, 20)
 
@@ -24,10 +25,6 @@ TARGET_S = (39.01, -105.13)
 INPUT_FILE_W = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 FEATURES_W = ['temperature_100m', 'U_100m', 'V_100m', 'topography']
 TARGET_W = (39.01, -105.15)
-
-FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
-TARGET_COORD = (39.01, -105.15)
-
 
 init_logger('sup3r', log_level='DEBUG')
 
@@ -52,6 +49,7 @@ def test_wind_hi_res_topo(CustomLayer, features, lr_only_features):
         time_slice=slice(None, None, 2),
         time_roll=-7,
     )
+
     batcher = BatchHandlerCC(
         [handler],
         batch_size=2,
@@ -62,6 +60,7 @@ def test_wind_hi_res_topo(CustomLayer, features, lr_only_features):
             'lr_only_features': lr_only_features,
             'hr_exo_features': ['topography'],
         },
+        mode='eager'
     )
 
     gen_model = [
@@ -139,11 +138,11 @@ def test_wind_hi_res_topo(CustomLayer, features, lr_only_features):
             out_dir=os.path.join(td, 'test_{epoch}'),
         )
 
-        assert model.lr_features == features
-        assert model.hr_out_features == ['U_100m', 'V_100m']
+        assert model.lr_features == lowered(features)
+        assert model.hr_out_features == ['u_100m', 'v_100m']
         assert model.hr_exo_features == ['topography']
         assert 'test_0' in os.listdir(td)
-        assert model.meta['hr_out_features'] == ['U_100m', 'V_100m']
+        assert model.meta['hr_out_features'] == ['u_100m', 'v_100m']
         assert model.meta['class'] == 'Sup3rGan'
         assert 'topography' in batcher.hr_exo_features
         assert 'topography' not in model.hr_out_features
@@ -167,4 +166,4 @@ def test_wind_hi_res_topo(CustomLayer, features, lr_only_features):
     assert y.shape[0] == x.shape[0]
     assert y.shape[1] == x.shape[1] * 2
     assert y.shape[2] == x.shape[2] * 2
-    assert y.shape[3] == x.shape[3] - 2
+    assert y.shape[3] == x.shape[3] - len(lr_only_features) - 1
