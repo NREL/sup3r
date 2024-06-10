@@ -2,13 +2,11 @@
 interface with models."""
 
 import logging
-from typing import Dict, List, Optional, Tuple, Union
 
 import tensorflow as tf
 from scipy.ndimage import gaussian_filter
 
 from sup3r.preprocessing.batch_queues.abstract import AbstractBatchQueue
-from sup3r.preprocessing.samplers import DualSampler
 
 logger = logging.getLogger(__name__)
 
@@ -21,50 +19,32 @@ option_no_order.experimental_optimization.apply_default_optimizations = True
 
 
 class DualBatchQueue(AbstractBatchQueue):
-    """Base BatchQueue for DualSampler containers.
+    """Base BatchQueue for DualSampler containers."""
 
-    See Also
-    --------
-    :class:`SingleBatchQueue` for description of arguments.
-    """
-
-    def __init__(
-        self,
-        samplers: List[DualSampler],
-        batch_size,
-        n_batches,
-        s_enhance,
-        t_enhance,
-        means: Union[Dict, str],
-        stds: Union[Dict, str],
-        queue_cap=None,
-        max_workers=None,
-        transform_kwargs: Optional[dict] = None,
-        default_device: Optional[str] = None,
-        thread_name: Optional[str] = "training"
-    ):
-        super().__init__(
-            samplers=samplers,
-            batch_size=batch_size,
-            n_batches=n_batches,
-            s_enhance=s_enhance,
-            t_enhance=t_enhance,
-            means=means,
-            stds=stds,
-            queue_cap=queue_cap,
-            max_workers=max_workers,
-            default_device=default_device,
-            thread_name=thread_name
-        )
+    def __init__(self, *args, **kwargs):
+        """
+        See Also
+        --------
+        :class:`AbstractBatchQueue` for argument descriptions.
+        """
+        super().__init__(*args, **kwargs)
         self.check_enhancement_factors()
-        self.queue_shape = [
+
+    @property
+    def queue_shape(self):
+        """Shape of objects stored in the queue."""
+        return [
             (self.batch_size, *self.lr_shape),
             (self.batch_size, *self.hr_shape),
         ]
-        self.transform_kwargs = transform_kwargs or {
-            'smoothing_ignore': [],
-            'smoothing': None,
-        }
+
+    @property
+    def output_signature(self):
+        """Signature of tensors returned by the queue."""
+        return (
+            tf.TensorSpec(self.lr_shape, tf.float32, name='low_res'),
+            tf.TensorSpec(self.hr_shape, tf.float32, name='high_res'),
+        )
 
     def check_enhancement_factors(self):
         """Make sure each DualSampler has the same enhancment factors and they
@@ -83,22 +63,6 @@ class DualBatchQueue(AbstractBatchQueue):
         )
         assert all(self.t_enhance == t for t in t_factors), msg
 
-    def get_output_signature(self) -> Tuple[tf.TensorSpec, tf.TensorSpec]:
-        """Get tensorflow dataset output signature. If we are sampling from
-        container pairs then this is a tuple for low / high res batches.
-        Otherwise we are just getting high res batches and coarsening to get
-        the corresponding low res batches."""
-        return (
-            tf.TensorSpec(self.lr_shape, tf.float32, name='low_res'),
-            tf.TensorSpec(self.hr_shape, tf.float32, name='high_res'),
-        )
-
-    def batch_next(self, samples):
-        """Returns wrapped collection of samples / observations."""
-        lr, hr = samples
-        lr, hr = self.normalize(lr, hr)
-        return self.BATCH_CLASS(low_res=lr, high_res=hr)
-
     def _parallel_map(self):
         """Perform call to map function for dual containers to enable parallel
         sampling."""
@@ -106,18 +70,7 @@ class DualBatchQueue(AbstractBatchQueue):
             lambda x, y: (x, y), num_parallel_calls=self.max_workers
         )
 
-    def _get_queue_shape(self) -> List[tuple]:
-        """Get shape for DualSampler queue."""
-        return [
-            (self.batch_size, *self.lr_shape),
-            (self.batch_size, *self.hr_shape),
-        ]
-
-    def transform(
-        self,
-        samples,
-        smoothing=None,
-        smoothing_ignore=None):
+    def transform(self, samples, smoothing=None, smoothing_ignore=None):
         """Perform smoothing if requested.
 
         Note

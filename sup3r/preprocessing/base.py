@@ -7,6 +7,7 @@ import logging
 import pprint
 from collections import namedtuple
 from typing import Dict, Optional, Tuple
+from warnings import warn
 
 import numpy as np
 import xarray as xr
@@ -40,7 +41,20 @@ class Sup3rDataset:
     from the high_res non coarsened variable.
     """
 
-    def __init__(self, **dsets: Dict[str, xr.Dataset]):
+    def __init__(
+        self, data: Optional[tuple] = None, **dsets: Dict[str, xr.Dataset]
+    ):
+        if data is not None and isinstance(data, tuple):
+            msg = (
+                f'{self.__class__.__name__} received a data tuple. '
+                'Interpreting this as (low_res, high_res). To be explicit '
+                'provide a Sup3rDataset instance like '
+                'Sup3rDataset(high_res=data[0], low_res=data[1])'
+            )
+            logger.warning(msg)
+            warn(msg)
+            dsets = {'low_res': data[0], 'high_res': data[1]}
+
         dsets = {
             k: Sup3rX(v) if isinstance(v, xr.Dataset) else v
             for k, v in dsets.items()
@@ -202,7 +216,13 @@ class Container:
     @data.setter
     def data(self, data):
         """Set data value. Cast to Sup3rX accessor if not already"""
-        self._data = Sup3rX(data) if isinstance(data, xr.Dataset) else data
+        self._data = (
+            Sup3rX(data)
+            if isinstance(data, xr.Dataset)
+            else Sup3rDataset(data=data)
+            if isinstance(data, tuple) and len(data) == 2
+            else data
+        )
 
     def __new__(cls, *args, **kwargs):
         """Include arg logging in construction."""

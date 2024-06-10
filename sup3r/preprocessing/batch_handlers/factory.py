@@ -29,7 +29,9 @@ def BatchHandlerFactory(QueueClass, SamplerClass, name='BatchHandler'):
 
     Note
     ----
-    There is no need to generate "Spatial" batch handlers. Using
+    (1) BatchHandlers include a queue for training samples and a queue for
+    validation samples.
+    (2) There is no need to generate "Spatial" batch handlers. Using
     :class:`Sampler` objects with a single time step in the sample shape will
     produce batches without a time dimension.
     """
@@ -47,6 +49,11 @@ def BatchHandlerFactory(QueueClass, SamplerClass, name='BatchHandler'):
         with different time period and / or regions.  , or they can be used to
         sample from completely different data sources (e.g. train on CONUS WTK
         while validating on Canada WTK).
+
+        See Also
+        --------
+        :class:`Sampler` and :class:`AbstractBatchQueue` for a description of
+        arguments
         """
 
         SAMPLER = SamplerClass
@@ -56,9 +63,9 @@ def BatchHandlerFactory(QueueClass, SamplerClass, name='BatchHandler'):
         def __init__(
             self,
             train_containers: List[Container],
-            val_containers: List[Container],
-            batch_size,
-            n_batches,
+            val_containers: Optional[List[Container]] = None,
+            batch_size: Optional[int] = 16,
+            n_batches: Optional[int] = 64,
             s_enhance=1,
             t_enhance=1,
             means: Optional[Union[Dict, str]] = None,
@@ -75,7 +82,7 @@ def BatchHandlerFactory(QueueClass, SamplerClass, name='BatchHandler'):
             )
 
             stats = StatsCollection(
-                [*train_containers, *val_containers],
+                train_samplers + val_samplers,
                 means=means,
                 stds=stds,
             )
@@ -112,7 +119,7 @@ def BatchHandlerFactory(QueueClass, SamplerClass, name='BatchHandler'):
             ]
 
             val_samplers = (
-                None
+                []
                 if val_containers is None
                 else [
                     self.SAMPLER(c.data, **sampler_kwargs)

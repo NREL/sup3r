@@ -199,7 +199,6 @@ class DualSamplerCC(DualSampler):
         :func:`nsrdb_reduce_daily_data.` If this is for a spatial only model
         this subroutine is skipped."""
         low_res, high_res = super().get_next()
-        high_res = high_res[..., self.hr_features_ind].compute()
 
         if (
             self.hr_out_features is not None

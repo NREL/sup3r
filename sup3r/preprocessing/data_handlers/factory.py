@@ -95,7 +95,7 @@ def DataHandlerFactory(
                 self.extracter.data, features=features, **deriver_kwargs
             )
             self._deriver_hook()
-            if cache_kwargs is not None:
+            if 'cache_pattern' in cache_kwargs:
                 _ = Cacher(self, cache_kwargs)
 
         def _loader_hook(self):

@@ -32,7 +32,14 @@ init_logger('sup3r', log_level='DEBUG')
 
 
 @pytest.mark.parametrize(
-    ['gen_config', 'disc_config', 's_enhance', 't_enhance', 'sample_shape'],
+    [
+        'gen_config',
+        'disc_config',
+        's_enhance',
+        't_enhance',
+        'sample_shape',
+        'mode',
+    ],
     [
         (
             'spatiotemporal/gen_3x_4x_2f.json',
@@ -40,8 +47,32 @@ init_logger('sup3r', log_level='DEBUG')
             3,
             4,
             (12, 12, 16),
+            'lazy',
         ),
-        ('spatial/gen_2x_2f.json', 'spatial/disc.json', 2, 1, (10, 10, 1)),
+        (
+            'spatial/gen_2x_2f.json',
+            'spatial/disc.json',
+            2,
+            1,
+            (10, 10, 1),
+            'lazy',
+        ),
+        (
+            'spatiotemporal/gen_3x_4x_2f.json',
+            'spatiotemporal/disc.json',
+            3,
+            4,
+            (12, 12, 16),
+            'eager',
+        ),
+        (
+            'spatial/gen_2x_2f.json',
+            'spatial/disc.json',
+            2,
+            1,
+            (10, 10, 1),
+            'eager',
+        ),
     ],
 )
 def test_train(
@@ -50,17 +81,19 @@ def test_train(
     s_enhance,
     t_enhance,
     sample_shape,
-    n_epoch=3,
+    mode,
+    n_epoch=2,
 ):
     """Test basic model training with only gen content loss. Tests both
     spatiotemporal and spatial models."""
 
+    lr = 5e-5
     fp_gen = os.path.join(CONFIG_DIR, gen_config)
     fp_disc = os.path.join(CONFIG_DIR, disc_config)
 
     Sup3rGan.seed()
     model = Sup3rGan(
-        fp_gen, fp_disc, learning_rate=1e-5, loss='MeanAbsoluteError'
+        fp_gen, fp_disc, learning_rate=lr, loss='MeanAbsoluteError'
     )
 
     hr_handler = DataHandlerH5(
@@ -77,7 +110,7 @@ def test_train(
     )
 
     dual_extracter = DualExtracter(
-        (lr_handler.data, hr_handler.data),
+        data=(lr_handler.data, hr_handler.data),
         s_enhance=s_enhance,
         t_enhance=t_enhance,
     )
@@ -101,6 +134,7 @@ def test_train(
             n_batches=2,
             means=means,
             stds=stds,
+            mode=mode
         )
 
         model_kwargs = {
@@ -137,9 +171,9 @@ def test_train(
         with open(os.path.join(out_dir, 'model_params.json')) as f:
             model_params = json.load(f)
 
-        assert np.allclose(model_params['optimizer']['learning_rate'], 1e-5)
+        assert np.allclose(model_params['optimizer']['learning_rate'], lr)
         assert np.allclose(
-            model_params['optimizer_disc']['learning_rate'], 1e-5
+            model_params['optimizer_disc']['learning_rate'], lr
         )
         assert 'learning_rate_gen' in model.history
         assert 'learning_rate_disc' in model.history
@@ -150,7 +184,7 @@ def test_train(
 
         # make an un-trained dummy model
         dummy = Sup3rGan(
-            fp_gen, fp_disc, learning_rate=1e-5, loss='MeanAbsoluteError'
+            fp_gen, fp_disc, learning_rate=lr, loss='MeanAbsoluteError'
         )
 
         for batch in batch_handler:

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """pytests for data handling with NSRDB files"""
 
 import os

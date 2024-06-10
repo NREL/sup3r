@@ -1,4 +1,8 @@
-"""Abstract Batcher class used to generate batches for training."""
+"""Abstract batch queue class used for multi-threaded batching / training.
+
+TODO: Setup distributed data handling so this can work with data in memory but
+distributed over multiple nodes.
+"""
 
 import logging
 import threading
@@ -48,13 +52,7 @@ class Batch:
 class AbstractBatchQueue(SamplerCollection, ABC):
     """Abstract BatchQueue class. This class gets batches from a dataset
     generator and maintains a queue of normalized batches in a dedicated thread
-    so the training routine can proceed as soon as batches as available.
-
-    Warning
-    -------
-    If using a batch queue directly, rather than a :class:`BatchHandler` you
-    will need to manually start the queue thread with self.start()
-    """
+    so the training routine can proceed as soon as batches as available."""
 
     BATCH_CLASS = Batch
 
@@ -68,9 +66,11 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         means: Union[Dict, str],
         stds: Union[Dict, str],
         queue_cap: Optional[int] = None,
+        transform_kwargs: Optional[dict] = None,
         max_workers: Optional[int] = None,
         default_device: Optional[str] = None,
         thread_name: Optional[str] = 'training',
+        mode: Optional[str] = 'lazy',
     ):
         """
         Parameters
@@ -97,6 +97,9 @@ class AbstractBatchQueue(SamplerCollection, ABC):
             normalization.
         queue_cap : int
             Maximum number of batches the batch queue can store.
+        transform_kwargs : Union[Dict, None]
+            Dictionary of kwargs to be passed to `self.transform`. This method
+            performs smoothing / coarsening.
         max_workers : int
             Number of workers / threads to use for getting samples used to
             build batches.
@@ -106,51 +109,86 @@ class AbstractBatchQueue(SamplerCollection, ABC):
             the CPU.
         thread_name : str
             Name of the queue thread. Default is 'training'. Used to set name
-            to 'validation' for :class:`BatchQueue`, which has a training and
+            to 'validation' for :class:`BatchHandler`, which has a training and
             validation queue.
+        mode : str
+            Loading mode. Default is 'lazy', which only loads data into memory
+            after batches are constructed. 'eager' will load all data into
+            memory right away.
         """
         msg = (
             f'{self.__class__.__name__} requires a list of samplers. '
             f'Received type {type(samplers)}'
         )
         assert isinstance(samplers, list), msg
+        if mode == 'eager':
+            for sampler in samplers:
+                sampler.data = sampler.data.compute()
         super().__init__(
             samplers=samplers, s_enhance=s_enhance, t_enhance=t_enhance
         )
         self._sample_counter = 0
         self._batch_counter = 0
         self._batches = None
+        self._queue = None
+        self._queue_thread = None
+        self._default_device = default_device
+        self._running_queue = threading.Event()
         self.data_gen = None
         self.batch_size = batch_size
         self.n_batches = n_batches
         self.queue_cap = queue_cap or n_batches
         self.max_workers = max_workers or batch_size
-        self.running_queue = threading.Event()
-        self.means = (
-            means if isinstance(means, dict) else safe_json_load(means)
-        )
-        self.stds = stds if isinstance(stds, dict) else safe_json_load(stds)
-        self.container_index = self.get_container_index()
-        self.queue_thread = threading.Thread(
-            target=self.enqueue_batches,
-            args=(self.running_queue,),
-            name=thread_name,
-        )
-        self.queue = self.get_queue()
-        self.gpu_list = tf.config.list_physical_devices('GPU')
-        self.default_device = default_device or (
-            '/cpu:0' if len(self.gpu_list) == 0 else '/gpu:0'
-        )
-        self.preflight()
+        self.mode = mode
+        out = self.get_stats(means=means, stds=stds)
+        self.means, self.lr_means, self.hr_means = out[:3]
+        self.stds, self.lr_stds, self.hr_stds = out[3:]
+        self.transform_kwargs = transform_kwargs or {
+            'smoothing_ignore': [],
+            'smoothing': None,
+        }
+        self.preflight(mode=mode, thread_name=thread_name)
 
-    def preflight(self):
+    @property
+    @abstractmethod
+    def queue_shape(self):
+        """Shape of objects stored in the queue. e.g. for single dataset queues
+        this is (batch_size, *sample_shape, len(features)). For dual dataset
+        queues this is [(batch_size, *lr_shape), (batch_size, *hr_shape)]"""
+
+    @property
+    @abstractmethod
+    def output_signature(self):
+        """Signature of tensors returned by the queue. e.g. single
+        TensorSpec(shape, dtype, name) for single dataset queues or tuples of
+        TensorSpec for dual queues."""
+
+    def preflight(self, thread_name='training'):
         """Get data generator and run checks before kicking off the queue."""
-        self.data_gen = tf.data.Dataset.from_generator(
-            self.generator, output_signature=self.get_output_signature()
+        gpu_list = tf.config.list_physical_devices('GPU')
+        self._default_device = self._default_device or (
+            '/cpu:0' if len(gpu_list) == 0 else '/gpu:0'
         )
+        self.data_gen = tf.data.Dataset.from_generator(
+            self.generator, output_signature=self.output_signature
+        )
+        self.init_queue(thread_name=thread_name)
         self.check_stats()
         self.check_features()
         self.check_enhancement_factors()
+
+    def init_queue(self, thread_name='training'):
+        """Define FIFO queue for storing batches and the thread to use for
+        adding / removing from the queue during training."""
+        dtypes = [tf.float32] * len(self.queue_shape)
+        self._queue = tf.queue.FIFOQueue(
+            self.queue_cap, dtypes=dtypes, shapes=self.queue_shape
+        )
+        self._queue_thread = threading.Thread(
+            target=self.enqueue_batches,
+            args=(self._running_queue,),
+            name=thread_name,
+        )
 
     def check_features(self):
         """Make sure all samplers have the same sets of features."""
@@ -194,19 +232,17 @@ class AbstractBatchQueue(SamplerCollection, ABC):
 
     def generator(self):
         """Generator over batches, which are composed of data samples."""
-        while True and self.running_queue.is_set():
+        while True and self._running_queue.is_set():
             idx = self._sample_counter
             self._sample_counter += 1
-            yield self[idx]
-
-    @abstractmethod
-    def get_output_signature(
-        self,
-    ) -> Union[Tuple[tf.TensorSpec, tf.TensorSpec], tf.TensorSpec]:
-        """Get tensorflow dataset output signature. If we are sampling from
-        container pairs then this is a tuple for low / high res batches.
-        Otherwise we are just getting high res batches and coarsening to get
-        the corresponding low res batches."""
+            out = self[idx]
+            if self.mode == 'lazy':
+                out = (
+                    tuple(o.compute() for o in out)
+                    if isinstance(out, tuple)
+                    else out.compute()
+                )
+            yield out
 
     @abstractmethod
     def _parallel_map(self):
@@ -215,10 +251,10 @@ class AbstractBatchQueue(SamplerCollection, ABC):
     def prefetch(self):
         """Prefetch set of batches from dataset generator."""
         logger.debug(
-            f'Prefetching {self.queue_thread.name} batches with '
+            f'Prefetching {self._queue_thread.name} batches with '
             f'batch_size = {self.batch_size}.'
         )
-        with tf.device(self.default_device):
+        with tf.device(self._default_device):
             data = self._parallel_map()
             data = data.prefetch(tf.data.AUTOTUNE)
             batches = data.batch(
@@ -230,58 +266,46 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         return batches.as_numpy_iterator()
 
     @abstractmethod
-    def _get_queue_shape(self) -> List[tuple]:
-        """Get shape for queue. For DualSampler containers shape is a list of
-        length = 2. Otherwise its a list of length = 1.  In both cases the list
-        elements are of shape (batch_size,
-        *sample_shape, len(features))"""
+    def transform(self, samples, **kwargs):
+        """Apply transform on batch samples. This can include smoothing /
+        coarsening depending on the type of queue. e.g. coarsening could be
+        included for a single dataset queue where low res samples are coarsened
+        high res samples. For a dual dataset queue this will just include
+        smoothing."""
 
-    def get_queue(self):
-        """Initialize FIFO queue for storing batches.
-
-        Returns
-        -------
-        tensorflow.queue.FIFOQueue
-            First in first out queue with `size = self.queue_cap`
-        """
-        shapes = self._get_queue_shape()
-        dtypes = [tf.float32] * len(shapes)
-        out = tf.queue.FIFOQueue(
-            self.queue_cap, dtypes=dtypes, shapes=self._get_queue_shape()
-        )
-        return out
-
-    @abstractmethod
     def batch_next(self, samples):
         """Returns normalized collection of samples / observations. Performs
-        coarsening on high-res data if Collection objects are Samplers and not
-        DualSamplers
+        coarsening on high-res data if :class:`Collection` consists of
+        :class:`Sampler` objects and not :class:`DualSampler` objects
 
         Returns
         -------
         Batch
             Simple Batch object with `low_res` and `high_res` attributes
         """
+        lr, hr = self.transform(samples, **self.transform_kwargs)
+        lr, hr = self.normalize(lr, hr)
+        return self.BATCH_CLASS(low_res=lr, high_res=hr)
 
     def start(self) -> None:
         """Start thread to keep sample queue full for batches."""
-        if not self.queue_thread.is_alive():
-            logger.info(f'Starting {self.queue_thread.name} queue.')
-            self.running_queue.set()
-            self.queue_thread.start()
+        if not self._queue_thread.is_alive():
+            logger.info(f'Starting {self._queue_thread.name} queue.')
+            self._running_queue.set()
+            self._queue_thread.start()
 
     def join(self) -> None:
         """Join thread to exit gracefully."""
         logger.info(
-            f'Joining {self.queue_thread.name} queue thread to main ' 'thread.'
+            f'Joining {self._queue_thread.name} queue thread to main thread.'
         )
-        self.queue_thread.join()
+        self._queue_thread.join()
 
     def stop(self) -> None:
         """Stop loading batches."""
-        if self.queue_thread.is_alive():
-            logger.info(f'Stopping {self.queue_thread.name} queue.')
-            self.running_queue.clear()
+        if self._queue_thread.is_alive():
+            logger.info(f'Stopping {self._queue_thread.name} queue.')
+            self._running_queue.clear()
             self.join()
 
     def __len__(self):
@@ -304,23 +328,23 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         """
         try:
             while running_queue.is_set():
-                queue_size = self.queue.size().numpy()
+                queue_size = self._queue.size().numpy()
                 if queue_size < self.queue_cap:
                     if queue_size == 1:
-                        msg = f'1 batch in {self.queue_thread.name} queue'
+                        msg = f'1 batch in {self._queue_thread.name} queue'
                     else:
                         msg = (
                             f'{queue_size} batches in '
-                            f'{self.queue_thread.name} queue.'
+                            f'{self._queue_thread.name} queue.'
                         )
                     logger.debug(msg)
 
                     batch = next(self.batches, None)
                     if batch is not None:
-                        self.queue.enqueue(batch)
+                        self._queue.enqueue(batch)
         except KeyboardInterrupt:
             logger.info(
-                f'Attempting to stop {self.queue.thread.name} ' 'batch queue.'
+                f'Attempting to stop {self._queue.thread.name} ' 'batch queue.'
             )
             self.stop()
 
@@ -340,7 +364,7 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         batch : Batch
             Batch object with batch.low_res and batch.high_res attributes
         """
-        samples = self.queue.dequeue()
+        samples = self._queue.dequeue()
         if self.sample_shape[2] == 1:
             if isinstance(samples, (list, tuple)):
                 samples = tuple([s[..., 0, :] for s in samples])
@@ -357,13 +381,13 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         """
         if self._batch_counter < self.n_batches:
             logger.debug(
-                f'Getting next {self.queue_thread.name} batch: '
+                f'Getting next {self._queue_thread.name} batch: '
                 f'{self._batch_counter + 1} / {self.n_batches}.'
             )
             start = time.time()
             batch = self.get_next()
             logger.debug(
-                f'Built {self.queue_thread.name} batch in '
+                f'Built {self._queue_thread.name} batch in '
                 f'{time.time() - start}.'
             )
             self._batch_counter += 1
@@ -372,33 +396,29 @@ class AbstractBatchQueue(SamplerCollection, ABC):
 
         return batch
 
-    @property
-    def lr_means(self):
-        """Means specific to the low-res objects in the Containers."""
-        return np.array([self.means[k] for k in self.lr_features]).astype(
-            np.float32
-        )
+    def get_stats(self, means, stds):
+        """Get means / stds from given files / dicts and group these into
+        low-res / high-res stats."""
+        means = means if isinstance(means, dict) else safe_json_load(means)
+        stds = stds if isinstance(stds, dict) else safe_json_load(stds)
+        msg = f'Received means = {means} with self.features = {self.features}.'
+        assert len(means) == len(self.features), msg
+        msg = f'Received stds = {stds} with self.features = {self.features}.'
+        assert len(stds) == len(self.features), msg
 
-    @property
-    def hr_means(self):
-        """Means specific the high-res objects in the Containers."""
-        return np.array([self.means[k] for k in self.hr_features]).astype(
+        lr_means = np.array([means[k] for k in self.lr_features]).astype(
             np.float32
         )
-
-    @property
-    def lr_stds(self):
-        """Stdevs specific the low-res objects in the Containers."""
-        return np.array([self.stds[k] for k in self.lr_features]).astype(
+        hr_means = np.array([means[k] for k in self.hr_features]).astype(
             np.float32
         )
-
-    @property
-    def hr_stds(self):
-        """Stdevs specific the high-res objects in the Containers."""
-        return np.array([self.stds[k] for k in self.hr_features]).astype(
+        lr_stds = np.array([stds[k] for k in self.lr_features]).astype(
             np.float32
         )
+        hr_stds = np.array([stds[k] for k in self.hr_features]).astype(
+            np.float32
+        )
+        return means, lr_means, hr_means, stds, lr_stds, hr_stds
 
     @staticmethod
     def _normalize(array, means, stds):
