@@ -8,13 +8,13 @@ import logging
 import pathlib
 import re
 from dataclasses import dataclass
+from inspect import signature
 from typing import ClassVar, List
 
 import numpy as np
 
 import sup3r.preprocessing
 from sup3r.preprocessing.common import (
-    get_class_kwargs,
     get_source_type,
     log_args,
 )
@@ -160,7 +160,7 @@ class ExogenousDataHandler:
         agg_check = all('s_agg_factor' in v for v in self.steps)
         agg_check = agg_check and all('t_agg_factor' in v for v in self.steps)
         agg_check = agg_check or (
-            self.models is not None and self.exo_res is not None
+            self.models is not None and self.exo_resolution is not None
         )
         msg = (
             'ExogenousDataHandler needs s_agg_factor and t_agg_factor '
@@ -204,14 +204,12 @@ class ExogenousDataHandler:
         for i, _ in enumerate(self.s_enhancements):
             s_enhance = self.s_enhancements[i]
             t_enhance = self.t_enhancements[i]
-            s_agg_factor = self.s_agg_factors[i]
             t_agg_factor = self.t_agg_factors[i]
             if self.feature in list(self.AVAILABLE_HANDLERS):
                 data = self.get_single_step_data(
                     feature=self.feature,
                     s_enhance=s_enhance,
                     t_enhance=t_enhance,
-                    s_agg_factor=s_agg_factor,
                     t_agg_factor=t_agg_factor,
                 )
                 step = SingleExoDataStep(
@@ -336,12 +334,12 @@ class ExogenousDataHandler:
         output_res = model.output_resolution
         if combine_type.lower() == 'input':
             s_agg_factor, t_agg_factor = self.get_agg_factors(
-                input_res, self.exo_res
+                input_res, self.exo_resolution
             )
 
         elif combine_type.lower() in ('output', 'layer'):
             s_agg_factor, t_agg_factor = self.get_agg_factors(
-                output_res, self.exo_res
+                output_res, self.exo_resolution
             )
 
         else:
@@ -438,7 +436,7 @@ class ExogenousDataHandler:
         return agg_enhance_dict
 
     def get_single_step_data(
-        self, feature, s_enhance, t_enhance, s_agg_factor, t_agg_factor
+        self, feature, s_enhance, t_enhance, t_agg_factor
     ):
         """Get the exogenous topography data
 
@@ -452,11 +450,8 @@ class ExogenousDataHandler:
         t_enhance : int
             Temporal enhancement for this exogeneous data step (cumulative for
             all model steps up to the current step).
-        s_agg_factor : int
-            Factor by which to aggregate the exo_source data to the spatial
-            resolution of the file_paths input enhanced by s_enhance.
         t_agg_factor : int
-            Factor by which to aggregate the exo_source data to the temporal
+            Factor by which to aggregate the source_file data to the temporal
             resolution of the file_paths input enhanced by t_enhance.
 
         Returns
@@ -466,27 +461,19 @@ class ExogenousDataHandler:
             lon, temporal)
         """
 
-        exo_handler = self.get_exo_handler(
+        ExoHandler = self.get_exo_handler(
             feature, self.source_file, self.exo_handler
         )
         kwargs = {
-            'file_paths': self.file_paths,
-            'exo_source': self.source_file,
             's_enhance': s_enhance,
             't_enhance': t_enhance,
-            's_agg_factor': s_agg_factor,
-            't_agg_factor': t_agg_factor,
-            'target': self.target,
-            'shape': self.shape,
-            'time_slice': self.time_slice,
-            'raster_file': self.raster_file,
-            'max_delta': self.max_delta,
-            'input_handler': self.input_handler,
-            'cache_data': self.cache_data,
-            'cache_dir': self.cache_dir,
-            'res_kwargs': self.res_kwargs,
-        }
-        data = exo_handler(**get_class_kwargs(exo_handler, kwargs)).data
+            't_agg_factor': t_agg_factor}
+
+        sig = signature(ExoHandler)
+        kwargs.update({
+            k: getattr(self, k) for k in sig.parameters if hasattr(self, k)
+        })
+        data = ExoHandler(**kwargs)
         return data
 
     @classmethod

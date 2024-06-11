@@ -230,7 +230,9 @@ def check_kwargs(Classes, kwargs):
     ]
     extras = set(kwargs.keys()) - set(extras)
     msg = f'Received unknown kwargs: {extras}'
-    assert len(extras) == 0, msg
+    if len(extras) > 0:
+        logger.warning(msg)
+        warn(msg)
 
 
 def parse_keys(keys):
