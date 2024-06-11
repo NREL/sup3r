@@ -342,7 +342,13 @@ def parse_features(
 def parse_to_list(features=None, data=None):
     """Parse features and return as a list, even if features is a string."""
     features = parse_features(features=features, data=data)
-    return features if isinstance(features, list) else [features]
+    return (
+        list(*features)
+        if isinstance(features, tuple)
+        else features
+        if isinstance(features, list)
+        else [features]
+    )
 
 
 def _contains_ellipsis(vals):
