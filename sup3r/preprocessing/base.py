@@ -6,7 +6,7 @@ samplers, batch queues, batch handlers.
 import logging
 import pprint
 from collections import namedtuple
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, Union
 from warnings import warn
 
 import numpy as np
@@ -42,18 +42,37 @@ class Sup3rDataset:
     """
 
     def __init__(
-        self, data: Optional[tuple] = None, **dsets: Dict[str, xr.Dataset]
+        self,
+        data: Optional[Union[tuple, Sup3rX, xr.Dataset]] = None,
+        **dsets: Dict[str, xr.Dataset],
     ):
-        if data is not None and isinstance(data, tuple):
-            msg = (
-                f'{self.__class__.__name__} received a data tuple. '
-                'Interpreting this as (low_res, high_res). To be explicit '
-                'provide a Sup3rDataset instance like '
-                'Sup3rDataset(high_res=data[0], low_res=data[1])'
+        if data is not None:
+            data = data if isinstance(data, tuple) else (data,)
+            if len(data) == 1:
+                msg = (
+                    f'{self.__class__.__name__} received a single data member '
+                    'without an explicit name. Interpreting this as '
+                    '(high_res,). To be explicit provide keyword arguments '
+                    'like Sup3rDataset(high_res=data[0])'
             )
-            logger.warning(msg)
-            warn(msg)
-            dsets = {'low_res': data[0], 'high_res': data[1]}
+                logger.warning(msg)
+                warn(msg)
+                dsets = {'high_res': data[0]}
+            elif len(data) == 2:
+                msg = (
+                    f'{self.__class__.__name__} received a data tuple. '
+                    'Interpreting this as (low_res, high_res). To be explicit '
+                    'provide keyword arguments like '
+                    'Sup3rDataset(low_res=data[0], high_res=data[1])'
+            )
+                logger.warning(msg)
+                warn(msg)
+                dsets = {'low_res': data[0], 'high_res': data[1]}
+            else:
+                msg = (f'{self.__class__.__name__} received tuple of length '
+                       f'{len(data)}. Can only handle 1 / 2 - tuples.')
+                logger.error(msg)
+                raise ValueError(msg)
 
         dsets = {
             k: Sup3rX(v) if isinstance(v, xr.Dataset) else v
@@ -121,6 +140,14 @@ class Sup3rDataset:
             else out
         )
 
+    def isel(self, *args, **kwargs):
+        """Return new Sup3rDataset with isel applied to each member."""
+        return type(self)(tuple(d.isel(*args, **kwargs) for d in self))
+
+    def sel(self, *args, **kwargs):
+        """Return new Sup3rDataset with sel applied to each member."""
+        return type(self)(tuple(d.sel(*args, **kwargs) for d in self))
+
     def __getitem__(self, keys):
         """If keys is an int this is interpreted as a request for that member
         of self._ds. If self._ds consists of two members we call
@@ -184,6 +211,10 @@ class Sup3rDataset:
         """Use the high_res members to compute the stds. These are used for
         normalization during training."""
         return self._ds[-1].std(skipna=skipna)
+
+    def compute(self, **kwargs):
+        """Load data into memory for each data member."""
+        [data.compute(**kwargs) for data in self._ds]
 
 
 class Container:

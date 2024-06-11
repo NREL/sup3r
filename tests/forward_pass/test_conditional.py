@@ -243,7 +243,7 @@ def test_out_st_mom1_sf(plot=False, full_shape=(20, 20),
         t_enhance=t_enhance,
         n_batches=n_batches,
         end_t_padding=end_t_padding,
-        temporal_enhancing_method=t_enhance_mode)
+        time_enhance_mode=t_enhance_mode)
 
     # Load Model
     if model_dir is None:
@@ -503,7 +503,7 @@ def test_out_st_mom2_sf(plot=False, full_shape=(20, 20),
         n_batches=n_batches,
         model_mom1=model_mom1,
         end_t_padding=end_t_padding,
-        temporal_enhancing_method=t_enhance_mode)
+        time_enhance_mode=t_enhance_mode)
 
     # Load Mom2 Model
     if model_dir is None:
@@ -794,7 +794,7 @@ def test_out_st_mom2_sep_sf(plot=False, full_shape=(20, 20),
         t_enhance=t_enhance,
         n_batches=n_batches,
         end_t_padding=end_t_padding,
-        temporal_enhancing_method=t_enhance_mode)
+        time_enhance_mode=t_enhance_mode)
 
     # Load Mom2 Model
     if model_dir is None:

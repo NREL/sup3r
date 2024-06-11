@@ -59,12 +59,12 @@ class AbstractBatchQueue(SamplerCollection, ABC):
     def __init__(
         self,
         samplers: Union[List[Sampler], List[DualSampler]],
-        batch_size,
-        n_batches,
-        s_enhance,
-        t_enhance,
-        means: Union[Dict, str],
-        stds: Union[Dict, str],
+        batch_size: Optional[int] = 16,
+        n_batches: Optional[int] = 64,
+        s_enhance: Optional[int] = 1,
+        t_enhance: Optional[int] = 1,
+        means: Optional[Union[Dict, str]] = None,
+        stds: Optional[Union[Dict, str]] = None,
         queue_cap: Optional[int] = None,
         transform_kwargs: Optional[dict] = None,
         max_workers: Optional[int] = None,
@@ -121,9 +121,6 @@ class AbstractBatchQueue(SamplerCollection, ABC):
             f'Received type {type(samplers)}'
         )
         assert isinstance(samplers, list), msg
-        if mode == 'eager':
-            for sampler in samplers:
-                sampler.data = sampler.data.compute()
         super().__init__(
             samplers=samplers, s_enhance=s_enhance, t_enhance=t_enhance
         )
@@ -139,7 +136,6 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         self.n_batches = n_batches
         self.queue_cap = queue_cap or n_batches
         self.max_workers = max_workers or batch_size
-        self.mode = mode
         out = self.get_stats(means=means, stds=stds)
         self.means, self.lr_means, self.hr_means = out[:3]
         self.stds, self.lr_stds, self.hr_stds = out[3:]
@@ -163,7 +159,7 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         TensorSpec(shape, dtype, name) for single dataset queues or tuples of
         TensorSpec for dual queues."""
 
-    def preflight(self, thread_name='training'):
+    def preflight(self, mode='lazy', thread_name='training'):
         """Get data generator and run checks before kicking off the queue."""
         gpu_list = tf.config.list_physical_devices('GPU')
         self._default_device = self._default_device or (
@@ -176,6 +172,8 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         self.check_stats()
         self.check_features()
         self.check_enhancement_factors()
+        if mode == 'eager':
+            self.compute()
 
     def init_queue(self, thread_name='training'):
         """Define FIFO queue for storing batches and the thread to use for
@@ -236,7 +234,7 @@ class AbstractBatchQueue(SamplerCollection, ABC):
             idx = self._sample_counter
             self._sample_counter += 1
             out = self[idx]
-            if self.mode == 'lazy':
+            if not self.loaded:
                 out = (
                     tuple(o.compute() for o in out)
                     if isinstance(out, tuple)

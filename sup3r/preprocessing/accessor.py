@@ -33,6 +33,25 @@ class Sup3rX:
     ----------
     https://docs.xarray.dev/en/latest/internals/extending-xarray.html
 
+    Note
+    ----
+    (1) The most important part of this interface is parsing `__getitem__`
+    calls of the form `ds.sx[keys]`. `keys` can be a list of features and
+    combinations of feature lists with numpy style indexing. e.g. `ds.sx['u',
+    slice(0, 10), ...]` or `ds.sx[['u', 'v'], ..., slice(0, 10)]`.
+        (i) Using just a feature or list of features (e.g. `ds.sx['u']` or
+        `ds.sx[['u','v']]`) will return a :class:`Sup3rX` instance.
+        (ii) Combining named feature requests with numpy style indexing will
+        return either a dask.array or numpy.array, depending on whether data is
+        still on disk or loaded into memory.
+        (iii) Using a named feature of list as the first entry (e.g.
+        `ds.sx['u', ...]`) will return an array with the feature channel
+        squeezed. `ds.sx[..., 'u']`, on the other hand, will keep the feature
+        channel so the result will have a trailing dimension of length 1.
+    (2) The `__getitem__` and `__getattr__` methods will cast back to
+    `type(self)` if `self._ds.__getitem__` or `self._ds.__getattr__` returns an
+    instance of `type(self._ds)` (e.g. a `xr.Dataset`). This means we do not
+    have to constantly append `.sx` for successive calls to accessor methods.
 
     Examples
     --------
@@ -41,12 +60,6 @@ class Sup3rX:
     >>> ds.sx.time_index
     >>> ds.sx.lat_lon
 
-    Note
-    ----
-    The `__getitem__` and `__getattr__` methods will cast back to `type(self)`
-    if `self._ds.__getitem__` or `self._ds.__getattr__` returns an instance of
-    `type(self._ds)` (e.g. a `xr.Dataset`). This means we do not have to
-    constantly append `.sx` for successive calls to accessor methods.
     """
 
     def __init__(self, ds: xr.Dataset | xr.DataArray):
@@ -63,7 +76,15 @@ class Sup3rX:
 
     def compute(self, **kwargs):
         """Load `._ds` into memory"""
-        self._ds = type(self)(super().compute(**kwargs))
+        if not self.loaded:
+            self._ds = self._ds.compute(**kwargs)
+
+    @property
+    def loaded(self):
+        """Check if data has been loaded as numpy arrays."""
+        return all(
+            isinstance(self._ds[f].data, np.ndarray) for f in self.features
+        )
 
     def good_dim_order(self):
         """Check if dims are in the right order for all variables.
@@ -190,7 +211,11 @@ class Sup3rX:
         features = parse_to_list(data=self._ds, features=features)
         arrs = [self._ds[f].data for f in features]
         if all(arr.shape == arrs[0].shape for arr in arrs):
-            return da.stack(arrs, axis=-1)
+            return (
+                da.stack(arrs, axis=-1)
+                if not self.loaded
+                else np.stack(arrs, axis=-1)
+            )
         return self.as_darray(features=features).data
 
     def as_darray(self, features='all') -> xr.DataArray:

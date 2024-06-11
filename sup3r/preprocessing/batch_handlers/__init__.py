@@ -1,17 +1,13 @@
 """Composite objects built from batch queues and samplers."""
-from .conditional import (
+from .dc import BatchHandlerDC
+from .factory import (
+    BatchHandler,
+    BatchHandlerCC,
     BatchHandlerMom1,
     BatchHandlerMom1SF,
     BatchHandlerMom2,
     BatchHandlerMom2Sep,
     BatchHandlerMom2SepSF,
     BatchHandlerMom2SF,
-    BatchMom1,
-    BatchMom1SF,
-    BatchMom2,
-    BatchMom2Sep,
-    BatchMom2SepSF,
-    BatchMom2SF,
+    DualBatchHandler,
 )
-from .dc import BatchHandlerDC
-from .factory import BatchHandler, BatchHandlerCC, DualBatchHandler
