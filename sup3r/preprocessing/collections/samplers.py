@@ -67,8 +67,7 @@ class SamplerCollection(Collection):
 
     def __getitem__(self, keys):
         """Get data sample from sampled container."""
-        container = self.get_random_container()
-        return container.get_next()
+        return next(self.get_random_container())
 
     @property
     def lr_shape(self):

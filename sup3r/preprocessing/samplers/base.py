@@ -104,38 +104,34 @@ class Sampler(Container):
 
         assert self.data.shape[2] >= self.sample_shape[2], msg
 
-    def get_next(self):
-        """Get next sample. This retrieves a sample of size = sample_shape
-        from the `.data` (a xr.Dataset or Sup3rDataset) through the Sup3rX
-        accessor."""
-        return self.data[self.get_sample_index()]
-
     @property
     def sample_shape(self) -> Tuple:
-        """Shape of the data sample to select when `get_next()` is called."""
+        """Shape of the data sample to select when `__next__()` is called."""
         return self._sample_shape
 
     @sample_shape.setter
     def sample_shape(self, sample_shape):
-        """Set the shape of the data sample to select when `get_next()` is
+        """Set the shape of the data sample to select when `__next__()` is
         called."""
         self._sample_shape = sample_shape
 
     @property
     def hr_sample_shape(self) -> Tuple:
-        """Shape of the data sample to select when `get_next()` is called. Same
+        """Shape of the data sample to select when `__next__()` is called. Same
         as sample_shape"""
         return self._sample_shape
 
     @hr_sample_shape.setter
     def hr_sample_shape(self, hr_sample_shape):
-        """Set the sample shape to select when `get_next()` is called. Same
+        """Set the sample shape to select when `__next__()` is called. Same
         as sample_shape"""
         self._sample_shape = hr_sample_shape
 
     def __next__(self):
-        """Iterable next method"""
-        return self.get_next()
+        """Get next sample. This retrieves a sample of size = sample_shape
+        from the `.data` (a xr.Dataset or Sup3rDataset) through the Sup3rX
+        accessor."""
+        return self.data[self.get_sample_index()]
 
     def __iter__(self):
         self._counter = 0

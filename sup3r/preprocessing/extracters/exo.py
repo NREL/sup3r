@@ -1,4 +1,8 @@
-"""Exo data extracters for topography and sza"""
+"""Exo data extracters for topography and sza
+
+TODO: ExogenousDataHandler is pretty similar to ExoData. Maybe a mixin or
+subclass refactor here.
+"""
 
 import logging
 import os
@@ -54,11 +58,11 @@ class ExoExtract(ABC):
         Filepath to source data file to get hi-res exogenous data from which
         will be mapped to the enhanced grid of the file_paths input.  Pixels
         from this source_file will be mapped to their nearest low-res pixel in
-        the file_paths input. Accordingly, source_file should be a significantly
-        higher resolution than file_paths. Warnings will be raised if the
-        low-resolution pixels in file_paths do not have unique nearest pixels
-        from source_file. File format can be .h5 for TopoExtractH5 or .nc for
-        TopoExtractNC
+        the file_paths input. Accordingly, source_file should be a
+        significantly higher resolution than file_paths. Warnings will be
+        raised if the low-resolution pixels in file_paths do not have unique
+        nearest pixels from source_file. File format can be .h5 for
+        TopoExtractH5 or .nc for TopoExtractNC
     s_enhance : int
         Factor by which the Sup3rGan model will enhance the spatial
         dimensions of low resolution data from file_paths input. For
@@ -261,8 +265,8 @@ class ExoExtract(ABC):
         return self._hr_time_index
 
     def get_distance_upper_bound(self):
-        """Maximum distance (float) to map high-resolution data from source_file
-        to the low-resolution file_paths input."""
+        """Maximum distance (float) to map high-resolution data from
+        source_file to the low-resolution file_paths input."""
         if self.distance_upper_bound is None:
             diff = da.diff(self.source_lat_lon, axis=0)
             diff = da.median(diff, axis=0).max()

@@ -79,7 +79,7 @@ def test_solar_handler_sampling(plot=False):
     )
 
     for i in range(10):
-        obs_low_res, obs_high_res = sampler.get_next()
+        obs_low_res, obs_high_res = next(sampler)
         assert obs_high_res.shape[2] == 24
         assert obs_low_res.shape[2] == 1
 
@@ -107,7 +107,7 @@ def test_solar_handler_sampling(plot=False):
 
     if plot:
         for p in range(2):
-            obs_high_res, obs_low_res = sampler.get_next()
+            obs_high_res, obs_low_res = next(sampler)
             for i in range(obs_high_res.shape[2]):
                 _, axes = plt.subplots(1, 2, figsize=(15, 8))
 
@@ -156,7 +156,7 @@ def test_solar_handler_sampling_spatial_only():
     )
 
     for i in range(10):
-        low_res, high_res = sampler.get_next()
+        low_res, high_res = next(sampler)
         assert high_res.shape[2] == 1
         assert low_res.shape[2] == 1
 
@@ -203,7 +203,7 @@ def test_solar_handler_w_wind():
             assert obs_ind_hourly[2].start / 24 == obs_ind_daily[2].start
             assert obs_ind_hourly[2].stop / 24 == obs_ind_daily[2].stop
 
-            obs_daily, obs_hourly = sampler.get_next()
+            obs_daily, obs_hourly = next(sampler)
             assert obs_hourly.shape[2] == 24
             assert obs_daily.shape[2] == 1
 

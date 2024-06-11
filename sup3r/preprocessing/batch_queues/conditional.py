@@ -190,7 +190,7 @@ class ConditionalBatchQueue(SingleBatchQueue):
             (batch_size, spatial_1, spatial_2, temporal, features)
         """
 
-    def batch_next(self, samples):
+    def post_dequeue(self, samples):
         """Returns normalized collection of samples / observations along with
         mask and target output for conditional moment estimation. Performs
         coarsening on high-res data if :class:`Collection` consists of
