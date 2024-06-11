@@ -75,7 +75,8 @@ class Sup3rX:
         self._features = None
 
     def compute(self, **kwargs):
-        """Load `._ds` into memory"""
+        """Load `._ds` into memory. This updates the internal `xr.Dataset` if
+        it has not been loaded already."""
         if not self.loaded:
             self._ds = self._ds.compute(**kwargs)
 

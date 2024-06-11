@@ -16,10 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class Cacher(Container):
-    """Base extracter object.
-
-    TODO: Add meta data to write methods.
-    """
+    """Base cacher object. Simply writes given data to H5 or NETCDF files."""
 
     def __init__(
         self,
@@ -99,7 +96,22 @@ class Cacher(Container):
 
     @classmethod
     def write_h5(cls, out_file, feature, data, coords, chunks=None):
-        """Cache data to h5 file using user provided chunks value."""
+        """Cache data to h5 file using user provided chunks value.
+
+        Parameters
+        ----------
+        out_file : str
+            Name of file to write. Must have a .h5 extension.
+        feature : str
+            Name of feature to write to file.
+        data : T_Array | xr.Dataset
+            Data to write to file
+        coords : dict
+            Dictionary of coordinate variables
+        chunks : dict | None
+            Chunk sizes for coordinate dimensions. e.g. {'windspeed': (100,
+            100, 10)}
+        """
         chunks = chunks or {}
         with h5py.File(out_file, 'w') as f:
             lats = coords[Dimension.LATITUDE].data
@@ -129,8 +141,22 @@ class Cacher(Container):
                 logger.debug(f'Added {dset} to {out_file}.')
 
     @classmethod
-    def write_netcdf(cls, out_file, feature, data, coords):
-        """Cache data to a netcdf file."""
+    def write_netcdf(cls, out_file, feature, data, coords, attrs=None):
+        """Cache data to a netcdf file.
+
+        Parameters
+        ----------
+        out_file : str
+            Name of file to write. Must have a .nc extension.
+        feature : str
+            Name of feature to write to file.
+        data : T_Array | xr.Dataset
+            Data to write to file
+        coords : dict
+            Dictionary of coordinate variables
+        attrs : dict | None
+            Optional attributes to write to file
+        """
         if isinstance(coords, dict):
             dims = (*coords[Dimension.LATITUDE][0], Dimension.TIME)
         else:
@@ -141,5 +167,5 @@ class Cacher(Container):
                 data,
             )
         }
-        out = xr.Dataset(data_vars=data_vars, coords=coords, attrs=data.attrs)
+        out = xr.Dataset(data_vars=data_vars, coords=coords, attrs=attrs)
         out.to_netcdf(out_file)

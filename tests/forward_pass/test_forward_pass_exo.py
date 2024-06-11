@@ -49,12 +49,9 @@ def input_files(tmpdir_factory):
     return input_file
 
 
-def test_fwp_multi_step_model_topo_exoskip(input_files, log=False):
+def test_fwp_multi_step_model_topo_exoskip(input_files):
     """Test the forward pass with a multi step model class using exogenous data
     for the first two steps and not the last"""
-
-    if log:
-        init_logger('sup3r', log_level='DEBUG')
 
     Sup3rGan.seed()
     fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')

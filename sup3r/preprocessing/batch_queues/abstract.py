@@ -229,18 +229,29 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         return self._batches
 
     def generator(self):
-        """Generator over batches, which are composed of data samples."""
+        """Generator over samples. Each return is a set of samples equal in
+        number to the batch_size.
+
+        Returns
+        -------
+        samples : T_Array | Tuple[T_Array, T_Array]
+            Either an array of samples with shape
+            (batch_size, lats, lons, times, n_features)
+            or a 2-tuple of such arrays (in the case of queues with
+            :class:`DualSampler` samplers.) These arrays are queued in a
+            background thread and then dequeued during training.
+        """
         while True and self._running_queue.is_set():
             idx = self._sample_counter
             self._sample_counter += 1
-            out = self[idx]
+            samples = self[idx]
             if not self.loaded:
-                out = (
-                    tuple(o.compute() for o in out)
-                    if isinstance(out, tuple)
-                    else out.compute()
+                samples = (
+                    tuple(sample.compute() for sample in samples)
+                    if isinstance(samples, tuple)
+                    else samples.compute()
                 )
-            yield out
+            yield samples
 
     @abstractmethod
     def _parallel_map(self):
