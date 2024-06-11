@@ -282,10 +282,11 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         high res samples. For a dual dataset queue this will just include
         smoothing."""
 
-    def batch_next(self, samples):
-        """Returns normalized collection of samples / observations. Performs
-        coarsening on high-res data if :class:`Collection` consists of
-        :class:`Sampler` objects and not :class:`DualSampler` objects
+    def post_dequeue(self, samples) -> Batch:
+        """Performs some post proc on dequeued samples before sending out for
+        training. Post processing can include normalization, coarsening on
+        high-res data (if :class:`Collection` consists of :class:`Sampler`
+        objects and not :class:`DualSampler` objects), smoothing, etc
 
         Returns
         -------
@@ -353,56 +354,36 @@ class AbstractBatchQueue(SamplerCollection, ABC):
                         self._queue.enqueue(batch)
         except KeyboardInterrupt:
             logger.info(
-                f'Attempting to stop {self._queue.thread.name} ' 'batch queue.'
+                f'Attempting to stop {self._queue.thread.name} batch queue.'
             )
             self.stop()
 
-    def get_next(self) -> Batch:
-        """Get next batch. This removes sets of samples from the queue and
-        wraps them in the simple Batch class.
-
-        Note
-        ----
-        We squeeze the time dimension if sample_shape[2] == 1 (axis=2 for time)
-        since this means the samples are for a spatial only model. It's not
-        possible to have sample_shape[2] for a spatiotemporal model due to
-        padding requirements.
-
-        Returns
-        -------
-        batch : Batch
-            Batch object with batch.low_res and batch.high_res attributes
-        """
-        samples = self._queue.dequeue()
-        if self.sample_shape[2] == 1:
-            if isinstance(samples, (list, tuple)):
-                samples = tuple([s[..., 0, :] for s in samples])
-            else:
-                samples = samples[..., 0, :]
-        return self.batch_next(samples)
-
     def __next__(self) -> Batch:
-        """
+        """Dequeue batch samples, squeeze if for a spatial only model, perform
+        some post-proc like normalization, smoothing, coarsening, etc, and then
+        send out for training as a :class:`Batch` object.
+
         Returns
         -------
         batch : Batch
             Batch object with batch.low_res and batch.high_res attributes
         """
+        start = time.time()
         if self._batch_counter < self.n_batches:
-            logger.debug(
-                f'Getting next {self._queue_thread.name} batch: '
-                f'{self._batch_counter + 1} / {self.n_batches}.'
-            )
-            start = time.time()
-            batch = self.get_next()
-            logger.debug(
-                f'Built {self._queue_thread.name} batch in '
-                f'{time.time() - start}.'
-            )
+            samples = self._queue.dequeue()
+            if self.sample_shape[2] == 1:
+                if isinstance(samples, (list, tuple)):
+                    samples = tuple([s[..., 0, :] for s in samples])
+                else:
+                    samples = samples[..., 0, :]
+            batch = self.post_dequeue(samples)
             self._batch_counter += 1
         else:
             raise StopIteration
-
+        logger.debug(
+            f'Built {self._batch_counter} / {self.n_batches} '
+            f'{self._queue_thread.name} batch in {time.time() - start}.'
+        )
         return batch
 
     def get_stats(self, means, stds):

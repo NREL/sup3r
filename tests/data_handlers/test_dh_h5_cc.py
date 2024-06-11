@@ -156,11 +156,16 @@ def test_wind_handler():
     handler = DataHandlerH5WindCC(INPUT_FILE_W, FEATURES_W, **dh_kwargs_new)
 
     tstep = handler.time_slice.step
-    assert handler.data.shape[2] % (24 // tstep) == 0
-    assert not np.isnan(handler.data.as_array()).any()
-    assert handler.daily_data.shape[2] == handler.data.shape[2] / (24 // tstep)
-
-    for i, islice in enumerate(handler.daily_data_slices):
+    assert handler.data.hourly.shape[2] % (24 // tstep) == 0
+    assert not np.isnan(handler.daily.as_array()).any()
+    assert handler.daily.shape[2] == handler.hourly.shape[2] / (24 // tstep)
+    n_hours = handler.hourly.sizes['time']
+    n_days = handler.daily.sizes['time']
+    daily_data_slices = [
+        slice(x[0], x[-1] + 1)
+        for x in np.array_split(np.arange(n_hours), n_days)
+    ]
+    for i, islice in enumerate(daily_data_slices):
         hourly = handler.data.isel(time=islice)
         truth = hourly.mean(dim='time')
         daily = handler.daily_data.isel(time=i)

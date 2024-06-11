@@ -44,7 +44,7 @@ def test_solar_spatial_h5():
     assert np.isnan(dh_nan.to_array()).any()
     sampler = Sampler(dh, sample_shape=(10, 10, 12))
     for _ in range(10):
-        x = sampler.get_next()
+        x = next(sampler)
         assert x.shape == (10, 10, 12, 1)
         assert not np.isnan(x).any()
 
