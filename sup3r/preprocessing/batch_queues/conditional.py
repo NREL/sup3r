@@ -3,13 +3,17 @@
 import logging
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Optional
+from typing import Dict, Optional
 
-import dask.array as da
+import numpy as np
 
-from sup3r.models import Sup3rCondMom
+from sup3r.models.conditional import Sup3rCondMom
 from sup3r.preprocessing.batch_queues.base import SingleBatchQueue
 from sup3r.typing import T_Array
+from sup3r.utilities.utilities import (
+    spatial_simple_enhancing,
+    temporal_simple_enhancing,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +70,7 @@ class ConditionalBatchQueue(SingleBatchQueue):
         self,
         *args,
         time_enhance_mode: Optional[str] = 'constant',
-        model_mom1: Optional[Sup3rCondMom] = None,
+        lower_models: Optional[Dict[int, Sup3rCondMom]] = None,
         s_padding: Optional[int] = None,
         t_padding: Optional[int] = None,
         end_t_padding: Optional[bool] = False,
@@ -85,9 +89,12 @@ class ConditionalBatchQueue(SingleBatchQueue):
             low-res temporal data is constant between landmarks.  linear will
             linearly interpolate between landmarks to generate the low-res data
             to remove from the high-res.
-        model_mom1 : Sup3rCondMom | None
-            model that predicts the first conditional moments.  Useful to
-            prepare data for learning second conditional moment.
+        lower_models : Dict[int, Sup3rCondMom] | None
+            Dictionary of models that predict lower moments. For example, if
+            this queue is part of a handler to estimate the 3rd moment
+            `lower_models` could include models that estimate the 1st and 2nd
+            moments. These lower moments can be required in higher order moment
+            calculations.
         s_padding : int | None
             Width of spatial padding to predict only middle part. If None, no
             padding is used
@@ -108,7 +115,7 @@ class ConditionalBatchQueue(SingleBatchQueue):
         self.t_padding = t_padding
         self.end_t_padding = end_t_padding
         self.time_enhance_mode = time_enhance_mode
-        self.model_mom1 = model_mom1
+        self.lower_models = lower_models
         super().__init__(*args, **kwargs)
 
     def make_mask(self, high_res):
@@ -143,7 +150,7 @@ class ConditionalBatchQueue(SingleBatchQueue):
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
         """
-        mask = da.zeros(high_res)
+        mask = np.zeros(high_res.shape, dtype=high_res.dtype)
         s_min = self.s_padding if self.s_padding is not None else 0
         t_min = self.t_padding if self.t_padding is not None else 0
         s_max = -self.s_padding if s_min > 0 else None
@@ -202,3 +209,125 @@ class ConditionalBatchQueue(SingleBatchQueue):
         return self.BATCH_CLASS(
             low_res=lr, high_res=hr, output=output, mask=mask
         )
+
+
+class QueueMom1(ConditionalBatchQueue):
+    """Batch handling class for conditional estimation of first moment"""
+
+    def make_output(self, samples):
+        """For the 1st moment the output is simply the high_res"""
+        _, hr = samples
+        return hr
+
+
+class QueueMom1SF(ConditionalBatchQueue):
+    """Batch handling class for conditional estimation of first moment
+    of subfilter velocity"""
+
+    def make_output(self, samples):
+        """
+        Returns
+        -------
+        SF: T_Array
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+            SF is subfilter, HR is high-res and LR is low-res
+            SF = HR - LR
+        """
+        # Remove LR from HR
+        lr, hr = samples
+        enhanced_lr = spatial_simple_enhancing(lr, s_enhance=self.s_enhance)
+        enhanced_lr = temporal_simple_enhancing(
+            enhanced_lr,
+            t_enhance=self.t_enhance,
+            mode=self.time_enhance_mode,
+        )
+        enhanced_lr = enhanced_lr[..., self.hr_features_ind]
+
+        return hr - enhanced_lr
+
+
+class QueueMom2(ConditionalBatchQueue):
+    """Batch handling class for conditional estimation of second moment"""
+
+    def make_output(self, samples):
+        """
+        Returns
+        -------
+        (HR - <HR|LR>)**2: T_Array
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+            HR is high-res and LR is low-res
+        """
+        # Remove first moment from HR and square it
+        lr, hr = samples
+        exo_data = self.lower_models[1].get_high_res_exo_input(hr)
+        out = self.lower_models[1]._tf_generate(lr, exo_data).numpy()
+        out = self.lower_models[1]._combine_loss_input(hr, out)
+        return (hr - out) ** 2
+
+
+class QueueMom2Sep(QueueMom1):
+    """Batch handling class for conditional estimation of second moment
+    without subtraction of first moment"""
+
+    def make_output(self, samples):
+        """
+        Returns
+        -------
+        HR**2: T_Array
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+            HR is high-res
+        """
+        return super().make_output(samples) ** 2
+
+
+class QueueMom2SF(ConditionalBatchQueue):
+    """Batch handling class for conditional estimation of second moment of
+    subfilter velocity."""
+
+    def make_output(self, samples):
+        """
+        Returns
+        -------
+        (SF - <SF|LR>)**2: T_Array
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+            SF is subfilter, HR is high-res and LR is low-res
+            SF = HR - LR
+        """
+        # Remove LR and first moment from HR and square it
+        lr, hr = samples
+        exo_data = self.lower_models[1].get_high_res_exo_input(hr)
+        out = self.lower_models[1]._tf_generate(lr, exo_data).numpy()
+        out = self.lower_models[1]._combine_loss_input(hr, out)
+        enhanced_lr = spatial_simple_enhancing(lr, s_enhance=self.s_enhance)
+        enhanced_lr = temporal_simple_enhancing(
+            enhanced_lr, t_enhance=self.t_enhance, mode=self.time_enhance_mode
+        )
+        enhanced_lr = enhanced_lr[..., self.hr_features_ind]
+        return (hr - enhanced_lr - out) ** 2
+
+
+class QueueMom2SepSF(QueueMom1SF):
+    """Batch of low_res, high_res and output data when learning second moment
+    of subfilter vel separate from first moment"""
+
+    def make_output(self, samples):
+        """
+        Returns
+        -------
+        SF**2: T_Array
+            4D | 5D array
+            (batch_size, spatial_1, spatial_2, features)
+            (batch_size, spatial_1, spatial_2, temporal, features)
+            SF is subfilter, HR is high-res and LR is low-res
+            SF = HR - LR
+        """
+        # Remove LR from HR and square it
+        return super().make_output(samples) ** 2

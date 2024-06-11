@@ -27,12 +27,6 @@ from .batch_handlers import (
     BatchHandlerMom2Sep,
     BatchHandlerMom2SepSF,
     BatchHandlerMom2SF,
-    BatchMom1,
-    BatchMom1SF,
-    BatchMom2,
-    BatchMom2Sep,
-    BatchMom2SepSF,
-    BatchMom2SF,
     DualBatchHandler,
 )
 from .batch_queues import Batch, DualBatchQueue, SingleBatchQueue

@@ -10,6 +10,14 @@ from sup3r.preprocessing.base import (
     Container,
 )
 from sup3r.preprocessing.batch_queues.base import SingleBatchQueue
+from sup3r.preprocessing.batch_queues.conditional import (
+    QueueMom1,
+    QueueMom1SF,
+    QueueMom2,
+    QueueMom2Sep,
+    QueueMom2SepSF,
+    QueueMom2SF,
+)
 from sup3r.preprocessing.batch_queues.dual import DualBatchQueue
 from sup3r.preprocessing.collections.stats import StatsCollection
 from sup3r.preprocessing.common import FactoryMeta, get_class_kwargs
@@ -151,7 +159,24 @@ BatchHandler = BatchHandlerFactory(
 DualBatchHandler = BatchHandlerFactory(
     DualBatchQueue, DualSampler, name='DualBatchHandler'
 )
-
 BatchHandlerCC = BatchHandlerFactory(
     DualBatchQueue, DualSamplerCC, name='BatchHandlerCC'
+)
+BatchHandlerMom1 = BatchHandlerFactory(
+    QueueMom1, Sampler, name='BatchHandlerMom1'
+)
+BatchHandlerMom1SF = BatchHandlerFactory(
+    QueueMom1SF, Sampler, name='BatchHandlerMom1SF'
+)
+BatchHandlerMom2 = BatchHandlerFactory(
+    QueueMom2, Sampler, name='BatchHandlerMom2'
+)
+BatchHandlerMom2Sep = BatchHandlerFactory(
+    QueueMom2Sep, Sampler, name='BatchHandlerMom2Sep'
+)
+BatchHandlerMom2SF = BatchHandlerFactory(
+    QueueMom2SF, Sampler, name='BatchHandlerMom2F'
+)
+BatchHandlerMom2SepSF = BatchHandlerFactory(
+    QueueMom2SepSF, Sampler, name='BatchHandlerMom2SepSF'
 )

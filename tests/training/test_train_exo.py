@@ -76,6 +76,9 @@ def test_wind_hi_res_topo(CustomLayer, features, lr_only_features, mode):
         mode=mode,
     )
 
+    if mode == 'eager':
+        assert batcher.loaded
+
     gen_model = [
         {
             'class': 'FlexiblePadding',

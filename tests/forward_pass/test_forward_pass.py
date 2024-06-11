@@ -43,10 +43,8 @@ def input_files(tmpdir_factory):
     return input_file
 
 
-def test_fwp_nc_cc(log=False):
+def test_fwp_nc_cc():
     """Test forward pass handler output for netcdf write with cc data."""
-    if log:
-        init_logger('sup3r', log_level='DEBUG')
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
@@ -312,13 +310,10 @@ def test_fwp_handler(input_files):
         )
 
 
-def test_fwp_chunking(input_files, log=False, plot=False):
+def test_fwp_chunking(input_files, plot=False):
     """Test forward pass spatialtemporal chunking. Make sure chunking agrees
-    closely with non chunking forward pass.
+    closely with non chunked forward pass.
     """
-
-    if log:
-        init_logger('sup3r', log_level='DEBUG')
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
@@ -583,13 +578,10 @@ def test_fwp_multi_step_model(input_files):
             assert gan_meta[0]['lr_features'] == ['U_100m', 'V_100m']
 
 
-def test_slicing_no_pad(input_files, log=False):
+def test_slicing_no_pad(input_files):
     """Test the slicing of input data via the ForwardPassStrategy +
     ForwardPassSlicer vs. the actual source data. Does not include any
     reflected padding at the edges."""
-
-    if log:
-        init_logger('sup3r', log_level='DEBUG')
 
     Sup3rGan.seed()
     s_enhance = 3
@@ -646,13 +638,10 @@ def test_slicing_no_pad(input_files, log=False):
             assert np.allclose(chunk.input_data, truth)
 
 
-def test_slicing_pad(input_files, log=False):
+def test_slicing_pad(input_files):
     """Test the slicing of input data via the ForwardPassStrategy +
     ForwardPassSlicer vs. the actual source data. Includes reflected padding
     at the edges."""
-
-    if log:
-        init_logger('sup3r', log_level='DEBUG')
 
     Sup3rGan.seed()
     s_enhance = 3
