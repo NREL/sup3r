@@ -161,9 +161,9 @@ class ForwardPass:
             that dimension. Ordering is spatial_1, spatial_2, temporal.
         exo_data: dict
             Full exo_kwargs dictionary with all feature entries.
-            e.g. {'topography': {'exo_resolution': {'spatial': '1km',
-            'temporal': None}, 'steps': [{'model': 0, 'combine_type': 'input'},
-            {'model': 0, 'combine_type': 'layer'}]}}
+            e.g. {'topography': {'steps':
+                [{'model': 0, 'combine_type': 'input'},
+                 {'model': 0, 'combine_type': 'layer'}]}}
         mode : str
             Mode to use for padding. e.g. 'reflect'.
 
@@ -173,8 +173,8 @@ class ForwardPass:
             Padded copy of source input data from data handler class, shape is:
             (spatial_1, spatial_2, temporal, features)
         exo_data : dict
-            Same as input dictionary with s_agg_factor, t_agg_factor,
-            s_enhance, t_enhance added to each step entry for all features
+            Same as input dictionary with s_enhance, t_enhance added to each
+            step entry for all features
 
         """
         out = np.pad(input_data, (*pad_width, (0, 0)), mode=mode)

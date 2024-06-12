@@ -25,7 +25,7 @@ from sup3r.postprocessing import (
 )
 from sup3r.preprocessing import (
     ExoData,
-    ExogenousDataHandler,
+    ExoDataHandler,
 )
 from sup3r.preprocessing.common import (
     expand_paths,
@@ -126,15 +126,14 @@ class ForwardPassStrategy(DistributedProcess):
     input_handler_kwargs : dict | None
         Any kwargs for initializing the `input_handler` class.
     exo_kwargs : dict | None
-        Dictionary of args to pass to :class:`ExogenousDataHandler` for
+        Dictionary of args to pass to :class:`ExoDataHandler` for
         extracting exogenous features for multistep foward pass. This
         should be a nested dictionary with keys for each exogeneous
         feature. The dictionaries corresponding to the feature names
         should include the path to exogenous data source, the resolution
         of the exogenous data, and how the exogenous data should be used
         in the model. e.g. {'topography': {'file_paths': 'path to input
-        files', 'source_file': 'path to exo data', 'exo_resolution':
-        {'spatial': '1km', 'temporal': None}, 'steps': [..]}.
+        files', 'source_file': 'path to exo data', 'steps': [..]}.
     bias_correct_method : str | None
         Optional bias correction function name that can be imported from
         the :mod:`sup3r.bias.bias_transforms` module. This will transform
@@ -516,10 +515,10 @@ class ForwardPassStrategy(DistributedProcess):
                 exo_kwargs['target'] = self.input_handler.target
                 exo_kwargs['shape'] = self.input_handler.grid_shape
                 exo_kwargs['models'] = getattr(model, 'models', [model])
-                sig = signature(ExogenousDataHandler)
+                sig = signature(ExoDataHandler)
                 exo_kwargs = {
                     k: v for k, v in exo_kwargs.items() if k in sig.parameters
                 }
-                data.update(ExogenousDataHandler(**exo_kwargs).data)
+                data.update(ExoDataHandler(**exo_kwargs).data)
             exo_data = ExoData(data)
         return exo_data

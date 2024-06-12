@@ -110,7 +110,6 @@ def test_fwp_multi_step_model_topo_exoskip(input_files):
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
-                'exo_resolution': {'spatial': '4km', 'temporal': '60min'},
                 'steps': [
                     {'model': 0, 'combine_type': 'input'},
                     {'model': 1, 'combine_type': 'input'},
@@ -210,7 +209,6 @@ def test_fwp_multi_step_spatial_model_topo_noskip(input_files):
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
-                'exo_resolution': {'spatial': '4km', 'temporal': '60min'},
                 'steps': [
                     {'model': 0, 'combine_type': 'input'},
                     {'model': 1, 'combine_type': 'input'},
@@ -328,7 +326,6 @@ def test_fwp_multi_step_model_topo_noskip(input_files):
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
-                'exo_resolution': {'spatial': '4km', 'temporal': '60min'},
                 'steps': [
                     {'model': 0, 'combine_type': 'input'},
                     {'model': 1, 'combine_type': 'input'},
@@ -408,7 +405,6 @@ def test_fwp_single_step_sfc_model(input_files, plot=False):
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
-                'exo_resolution': {'spatial': '4km', 'temporal': '60min'},
                 'steps': [
                     {'model': 0, 'combine_type': 'input'},
                     {'model': 0, 'combine_type': 'output'},
@@ -533,7 +529,6 @@ def test_fwp_single_step_wind_hi_res_topo(input_files, plot=False):
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
-                'exo_resolution': {'spatial': '4km', 'temporal': '60min'},
                 'steps': [
                     {'model': 0, 'combine_type': 'input'},
                     {'model': 0, 'combine_type': 'layer'},
@@ -709,7 +704,6 @@ def test_fwp_multi_step_wind_hi_res_topo(input_files):
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
-                'exo_resolution': {'spatial': '4km', 'temporal': '60min'},
             }
         }
 
@@ -867,7 +861,6 @@ def test_fwp_wind_hi_res_topo_plus_linear(input_files):
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
-                'exo_resolution': {'spatial': '4km', 'temporal': '60min'},
                 'steps': [
                     {'model': 0, 'combine_type': 'input'},
                     {'model': 0, 'combine_type': 'layer'},
@@ -963,7 +956,6 @@ def test_fwp_multi_step_model_multi_exo(input_files):
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
-                'exo_resolution': {'spatial': '4km', 'temporal': '60min'},
                 'steps': [
                     {'model': 0, 'combine_type': 'input'},
                     {'model': 1, 'combine_type': 'input'},
@@ -974,8 +966,7 @@ def test_fwp_multi_step_model_multi_exo(input_files):
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
-                'exo_handler': 'SzaExtract',
-                'exo_resolution': {'spatial': '4km', 'temporal': '60min'},
+                'exo_handler': 'SzaExtracter',
                 'steps': [{'model': 2, 'combine_type': 'input'}],
             },
         }
@@ -1216,7 +1207,6 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza(input_files):
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
-                'exo_resolution': {'spatial': '4km', 'temporal': '60min'},
                 'steps': [
                     {'model': 0, 'combine_type': 'input'},
                     {'model': 0, 'combine_type': 'layer'},
@@ -1226,11 +1216,10 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza(input_files):
             },
             'sza': {
                 'file_paths': input_files,
-                'exo_handler': 'SzaExtract',
+                'exo_handler': 'SzaExtracter',
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
-                'exo_resolution': {'spatial': '4km', 'temporal': '60min'},
                 'steps': [
                     {'model': 0, 'combine_type': 'input'},
                     {'model': 0, 'combine_type': 'layer'},

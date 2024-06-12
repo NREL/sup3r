@@ -1,10 +1,7 @@
 """Exo data extracters for topography and sza
 
-TODO: ExogenousDataHandler is pretty similar to ExoData. Maybe a mixin or
-subclass refactor here. Also, the spatial aggregation is being done through a
-mean across all high res pixels which match up with low res pixels, so we
-dont need s_agg_factor anywhere.
-"""
+TODO: ExoDataHandler is pretty similar to ExoExtracter. Maybe a mixin or
+subclass refactor here."""
 
 import logging
 import os
@@ -16,7 +13,6 @@ from warnings import warn
 import dask.array as da
 import numpy as np
 import pandas as pd
-from rex import Resource
 from rex.utilities.solar_position import SolarPosition
 from scipy.spatial import KDTree
 
@@ -41,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class ExoExtract(ABC):
+class ExoExtracter(ABC):
     """Class to extract high-res (4km+) data rasters for new
     spatially-enhanced datasets (e.g. GCM files after spatial enhancement)
     using nearest neighbor mapping and aggregation from NREL datasets
@@ -64,7 +60,7 @@ class ExoExtract(ABC):
         significantly higher resolution than file_paths. Warnings will be
         raised if the low-resolution pixels in file_paths do not have unique
         nearest pixels from source_file. File format can be .h5 for
-        TopoExtractH5 or .nc for TopoExtractNC
+        TopoExtracterH5 or .nc for TopoExtracterNC
     s_enhance : int
         Factor by which the Sup3rGan model will enhance the spatial
         dimensions of low resolution data from file_paths input. For
@@ -77,14 +73,6 @@ class ExoExtract(ABC):
         example, if getting sza data, file_paths has hourly data, and
         t_enhance is 4, this class will output a sza raster
         corresponding to the file_paths temporally enhanced 4x to 15 min
-    t_agg_factor : int
-        Factor by which to aggregate / subsample the source_file data to the
-        resolution of the file_paths input enhanced by t_enhance. For
-        example, if getting sza data, file_paths have hourly data, and
-        t_enhance is 4 resulting in a target resolution of 15 min and
-        source_file has a resolution of 5 min, the t_agg_factor should be 3
-        so that only timesteps that are a multiple of 15min are selected
-        e.g., [0, 5, 10, 15, 20, 25, 30][slice(0, None, 3)] = [0, 15, 30]
     target : tuple
         (lat, lon) lower left corner of raster. Either need target+shape or
         raster_file.
@@ -108,10 +96,6 @@ class ExoExtract(ABC):
         data handler class to use for input data. Provide a string name to
         match a :class:`Extracter`. If None the correct handler will
         be guessed based on file type and time series properties.
-    cache_data : bool
-        Flag to cache exogeneous data in <cache_dir>/exo_cache/ this can
-        speed up forward passes with large temporal extents when the exo
-        data is time independent.
     cache_dir : str
         Directory for storing cache data. Default is './exo_cache'
     distance_upper_bound : float | None
@@ -127,14 +111,12 @@ class ExoExtract(ABC):
     source_file: str
     s_enhance: int
     t_enhance: int
-    t_agg_factor: int
     target: tuple = None
     shape: tuple = None
     time_slice: slice = None
     raster_file: str = None
     max_delta: int = 20
     input_handler: str = None
-    cache_data: bool = True
     cache_dir: str = './exo_cache/'
     distance_upper_bound: int = None
     res_kwargs: dict = None
@@ -146,7 +128,6 @@ class ExoExtract(ABC):
         self._hr_lat_lon = None
         self._source_lat_lon = None
         self._hr_time_index = None
-        self._src_time_index = None
         self._source_handler = None
         InputHandler = get_input_handler_class(
             self.file_paths, self.input_handler
@@ -175,21 +156,13 @@ class ExoExtract(ABC):
             Name of cache file. This is a netcdf files which will be saved with
             :class:`Cacher` and loaded with :class:`LoaderNC`
         """
-        tsteps = (
-            None
-            if self.time_slice is None
-            or self.time_slice.start is None
-            or self.time_slice.stop is None
-            else self.time_slice.stop - self.time_slice.start
-        )
-        fn = f'exo_{feature}_{self.target}_{self.shape},{tsteps}'
-        fn += f'_tagg{self.t_agg_factor}_{self.s_enhance}x_'
-        fn += f'{self.t_enhance}x.nc'
+        fn = f'exo_{feature}_{self.target}_{self.shape}'
+        fn += f'_{self.s_enhance}x_{self.t_enhance}x.nc'
         fn = fn.replace('(', '').replace(')', '')
         fn = fn.replace('[', '').replace(']', '')
         fn = fn.replace(',', 'x').replace(' ', '')
         cache_fp = os.path.join(self.cache_dir, fn)
-        if self.cache_data:
+        if self.cache_dir is not None:
             os.makedirs(self.cache_dir, exist_ok=True)
         return cache_fp
 
@@ -205,8 +178,7 @@ class ExoExtract(ABC):
     def lr_shape(self):
         """Get the low-resolution spatial shape tuple"""
         return (
-            self.lr_lat_lon.shape[0],
-            self.lr_lat_lon.shape[1],
+            *self.lr_lat_lon.shape[:2],
             len(self.input_handler.time_index),
         )
 
@@ -236,20 +208,6 @@ class ExoExtract(ABC):
                 else self.lr_lat_lon
             )
         return self._hr_lat_lon
-
-    @property
-    def source_time_index(self):
-        """Get the full time index of the source_file data"""
-        if self._src_time_index is None:
-            self._src_time_index = (
-                OutputHandler.get_times(
-                    self.input_handler.time_index,
-                    self.hr_shape[-1] * self.t_agg_factor,
-                )
-                if self.t_agg_factor > 1
-                else self.hr_time_index
-            )
-        return self._src_time_index
 
     @property
     def hr_time_index(self):
@@ -288,10 +246,10 @@ class ExoExtract(ABC):
 
     @property
     def nn(self):
-        """Get the nearest neighbor indices"""
+        """Get the nearest neighbor indices. This uses a single neighbor by
+        default"""
         _, nn = self.tree.query(
             self.source_lat_lon,
-            k=1,
             distance_upper_bound=self.get_distance_upper_bound(),
         )
         return nn
@@ -313,7 +271,7 @@ class ExoExtract(ABC):
         else:
             data = self.get_data()
 
-            if self.cache_data:
+            if self.cache_dir is not None:
                 coords = {
                     Dimension.LATITUDE: (
                         (Dimension.SOUTH_NORTH, Dimension.WEST_EAST),
@@ -333,8 +291,8 @@ class ExoExtract(ABC):
                 )
                 shutil.move(tmp_fp, cache_fp)
 
-        if data.shape[-1] == 1 and self.hr_shape[-1] > 1:
-            data = da.repeat(data, self.hr_shape[-1], axis=-1)
+        if data.shape[-1] != self.hr_shape[-1]:
+            data = da.broadcast_to(data, self.hr_shape)
 
         return data[..., None]
 
@@ -345,8 +303,8 @@ class ExoExtract(ABC):
         (lats, lons, temporal)"""
 
 
-class TopoExtractH5(ExoExtract):
-    """TopoExtract for H5 files"""
+class TopoExtracterH5(ExoExtracter):
+    """TopoExtracter for H5 files"""
 
     @property
     def source_data(self):
@@ -355,14 +313,6 @@ class TopoExtractH5(ExoExtract):
             with LoaderH5(self.source_file) as res:
                 self._source_data = res['topography', ..., None]
         return self._source_data
-
-    @property
-    def source_time_index(self):
-        """Time index of the source exo data"""
-        if self._src_time_index is None:
-            with Resource(self.source_file) as res:
-                self._src_time_index = res.time_index
-        return self._src_time_index
 
     def get_data(self):
         """Get a raster of source values corresponding to the
@@ -405,33 +355,9 @@ class TopoExtractH5(ExoExtract):
 
         return da.from_array(hr_data)
 
-    def get_cache_file(self, feature):
-        """Get cache file name. This uses a time independent naming convention.
 
-        Parameters
-        ----------
-        feature : str
-            Name of feature to get cache file for
-
-        Returns
-        -------
-        cache_fp : str
-            Name of cache file
-        """
-        fn = f'exo_{feature}_{self.target}_{self.shape}'
-        fn += f'_tagg{self.t_agg_factor}_{self.s_enhance}x_'
-        fn += f'{self.t_enhance}x.nc'
-        fn = fn.replace('(', '').replace(')', '')
-        fn = fn.replace('[', '').replace(']', '')
-        fn = fn.replace(',', 'x').replace(' ', '')
-        cache_fp = os.path.join(self.cache_dir, fn)
-        if self.cache_data:
-            os.makedirs(self.cache_dir, exist_ok=True)
-        return cache_fp
-
-
-class TopoExtractNC(TopoExtractH5):
-    """TopoExtract for netCDF files"""
+class TopoExtracterNC(TopoExtracterH5):
+    """TopoExtracter for netCDF files"""
 
     @property
     def source_handler(self):
@@ -460,8 +386,8 @@ class TopoExtractNC(TopoExtractH5):
         return source_lat_lon
 
 
-class SzaExtract(ExoExtract):
-    """SzaExtract for H5 files"""
+class SzaExtracter(ExoExtracter):
+    """SzaExtracter for H5 files"""
 
     @property
     def source_data(self):
