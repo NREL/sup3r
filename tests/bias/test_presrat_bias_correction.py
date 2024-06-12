@@ -136,3 +136,94 @@ def test_zero_precipitation_rate_nan():
     r1 = f(arr, threshold=5)
     r2 = f(np.concatenate([5*[np.nan], arr]), threshold=5)
     assert r1 == r2
+
+"""
+    breakpoint()
+
+    # Physically non sense threshold.
+    out = calc.run(zero_rate_threshold=0)
+
+    assert 'ghi_zero_rate' in out, 'Missing ghi_zero_rate in calc output'
+    zero_rate = out['ghi_zero_rate']
+    assert np.all(np.isfinite(zero_rate)), "Unexpected NaN for ghi_zero_rate"
+    assert np.all(zero_rate==0), "It should be all zero percent"
+
+    # Physically non sense threshold.
+    out = calc.run(zero_rate_threshold=1e6)
+
+    assert 'ghi_zero_rate' in out, 'Missing ghi_zero_rate in calc output'
+    zero_rate = out['ghi_zero_rate']
+    assert np.all(np.isfinite(zero_rate)), "Unexpected NaN for ghi_zero_rate"
+    assert np.all(zero_rate==1), "It should be all zero percent"
+"""
+
+def test_presrat_zero_rate(fp_fut_cc):
+    """Estimate zero_rate within PresRat.run()"""
+    calc = PresRat(
+        FP_NSRDB,
+        FP_CC,
+        fp_fut_cc,
+        'ghi',
+        'rsds',
+        target=TARGET,
+        shape=SHAPE,
+        bias_handler='DataHandlerNCforCC',
+    )
+
+    # Physically non sense threshold.
+    out = calc.run(zero_rate_threshold=50)
+
+    assert 'ghi_zero_rate' in out, 'Missing ghi_zero_rate in calc output'
+    zero_rate = out['ghi_zero_rate']
+    assert np.all(np.isfinite(zero_rate)), "Unexpected NaN for ghi_zero_rate"
+    assert np.all((zero_rate>=0) & (zero_rate<=1)), "Out of range [0, 1]"
+
+
+def test_presrat_zero_rate_threshold_zero(fp_fut_cc):
+    """Estimate zero_rate within PresRat.run(), zero threshold
+
+    This should give a zero rate answer, since all values are higher.
+    """
+    calc = PresRat(
+        FP_NSRDB,
+        FP_CC,
+        fp_fut_cc,
+        'ghi',
+        'rsds',
+        target=TARGET,
+        shape=SHAPE,
+        bias_handler='DataHandlerNCforCC',
+    )
+
+    # Physically non sense threshold.
+    out = calc.run(zero_rate_threshold=0)
+
+    assert 'ghi_zero_rate' in out, 'Missing ghi_zero_rate in calc output'
+    zero_rate = out['ghi_zero_rate']
+    assert np.all(np.isfinite(zero_rate)), "Unexpected NaN for ghi_zero_rate"
+    assert np.all(zero_rate==0), "Threshold=0, rate should be 0"
+
+
+def test_presrat_zero_rate_threshold_1e9(fp_fut_cc):
+    """Estimate zero_rate within PresRat.run(), zero threshold
+
+    This should give a zero rate answer, since all values are lower.
+    """
+    calc = PresRat(
+        FP_NSRDB,
+        FP_CC,
+        fp_fut_cc,
+        'ghi',
+        'rsds',
+        target=TARGET,
+        shape=SHAPE,
+        bias_handler='DataHandlerNCforCC',
+    )
+
+    # Physically non sense threshold.
+    out = calc.run(zero_rate_threshold=1e9)
+
+    assert 'ghi_zero_rate' in out, 'Missing ghi_zero_rate in calc output'
+    zero_rate = out['ghi_zero_rate']
+    assert np.all(np.isfinite(zero_rate)), "Unexpected NaN for ghi_zero_rate"
+    assert np.all(zero_rate==1), "Threshold=0, rate should be 0"
