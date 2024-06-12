@@ -189,13 +189,15 @@ def get_input_handler_class(file_paths, input_handler_name):
     return HandlerClass
 
 
-def _get_possible_class_args(Class):
+def get_possible_class_args(Class):
+    """Get all available arguments for given class by searching through the
+    inheritance hierarchy."""
     class_args = list(signature(Class.__init__).parameters.keys())
     if Class.__bases__ == (object,):
         return class_args
     for base in Class.__bases__:
-        class_args += _get_possible_class_args(base)
-    return class_args
+        class_args += get_possible_class_args(base)
+    return set(class_args)
 
 
 def _get_class_kwargs(Classes, kwargs):
@@ -204,7 +206,7 @@ def _get_class_kwargs(Classes, kwargs):
         Classes = [Classes]
     out = []
     for cname in Classes:
-        class_args = _get_possible_class_args(cname)
+        class_args = get_possible_class_args(cname)
         out.append({k: v for k, v in kwargs.items() if k in class_args})
     return out if len(out) > 1 else out[0]
 
@@ -215,7 +217,7 @@ def get_class_kwargs(Classes, kwargs):
         Classes = [Classes]
     out = []
     for cname in Classes:
-        class_args = _get_possible_class_args(cname)
+        class_args = get_possible_class_args(cname)
         out.append({k: v for k, v in kwargs.items() if k in class_args})
     check_kwargs(Classes, kwargs)
     return out if len(out) > 1 else out[0]

@@ -165,7 +165,7 @@ def test_topo_extraction_h5(s_enhance, plot=False):
             t_agg_factor=1,
             target=(39.01, -105.15),
             shape=(20, 20),
-            exo_dir=f'{td}/exo_cache/',
+            cache_dir=f'{td}/exo_cache/',
         )
 
         hr_elev = te.data
