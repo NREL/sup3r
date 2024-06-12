@@ -40,7 +40,7 @@ from .data_handlers import (
     DataHandlerNCforCC,
     DataHandlerNCforCCwithPowerLaw,
     ExoData,
-    ExogenousDataHandler,
+    ExoDataHandler,
 )
 from .derivers import Deriver
 from .extracters import (
@@ -50,9 +50,9 @@ from .extracters import (
     Extracter,
     ExtracterH5,
     ExtracterNC,
-    SzaExtract,
-    TopoExtractH5,
-    TopoExtractNC,
+    SzaExtracter,
+    TopoExtracterH5,
+    TopoExtracterNC,
 )
 from .loaders import Loader, LoaderH5, LoaderNC
 from .samplers import DataCentricSampler, DualSampler, DualSamplerCC, Sampler

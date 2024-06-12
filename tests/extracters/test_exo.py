@@ -14,9 +14,9 @@ from rex import Outputs, Resource, init_logger
 
 from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing import (
-    ExogenousDataHandler,
-    TopoExtractH5,
-    TopoExtractNC,
+    ExoDataHandler,
+    TopoExtracterH5,
+    TopoExtracterNC,
 )
 from sup3r.preprocessing.common import Dimension
 
@@ -53,15 +53,13 @@ def test_exo_cache(feature):
             {
                 's_enhance': s_en,
                 't_enhance': t_en,
-                's_agg_factor': s_agg,
-                't_agg_factor': t_agg,
                 'combine_type': 'input',
                 'model': 0,
             }
         )
     with TemporaryDirectory() as td:
         fp_topo = make_topo_file(FILE_PATHS[0], td)
-        base = ExogenousDataHandler(
+        base = ExoDataHandler(
             FILE_PATHS,
             feature,
             source_file=fp_topo,
@@ -78,7 +76,7 @@ def test_exo_cache(feature):
         assert len(os.listdir(f'{td}/exo_cache')) == 2
 
         # load cached data
-        cache = ExogenousDataHandler(
+        cache = ExoDataHandler(
             FILE_PATHS,
             feature,
             source_file=FP_WTK,
@@ -157,12 +155,11 @@ def test_topo_extraction_h5(s_enhance, plot=False):
     with tempfile.TemporaryDirectory() as td:
         fp_exo_topo = make_topo_file(FP_WTK, td)
 
-        te = TopoExtractH5(
+        te = TopoExtracterH5(
             FP_WTK,
             fp_exo_topo,
             s_enhance=s_enhance,
             t_enhance=1,
-            t_agg_factor=1,
             target=(39.01, -105.15),
             shape=(20, 20),
             cache_dir=f'{td}/exo_cache/',
@@ -218,12 +215,11 @@ def test_bad_s_enhance(s_enhance=10):
         fp_exo_topo = make_topo_file(FP_WTK, td)
 
         with pytest.warns(UserWarning) as warnings:
-            te = TopoExtractH5(
+            te = TopoExtracterH5(
                 FP_WTK,
                 fp_exo_topo,
                 s_enhance=s_enhance,
                 t_enhance=1,
-                t_agg_factor=1,
                 target=(39.01, -105.15),
                 shape=(20, 20),
                 cache_data=False,
@@ -245,12 +241,11 @@ def test_topo_extraction_nc():
     just makes sure that the data can be extracted from a WRF file.
     """
     with TemporaryDirectory() as td:
-        te = TopoExtractNC(
+        te = TopoExtracterNC(
             FP_WRF,
             FP_WRF,
             s_enhance=1,
             t_enhance=1,
-            t_agg_factor=1,
             target=None,
             shape=None,
             cache_dir=f'{td}/exo_cache/',
