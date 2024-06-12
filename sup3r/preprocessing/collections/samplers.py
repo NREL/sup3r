@@ -15,8 +15,8 @@ np.random.seed(42)
 
 
 class SamplerCollection(Collection):
-    """Collection of :class:`Sampler` containers with methods for
-    sampling across the containers."""
+    """Collection of :class:`Sampler` objects with methods for sampling across
+    the collection."""
 
     def __init__(
         self,
@@ -66,7 +66,8 @@ class SamplerCollection(Collection):
         return self.containers[self.container_index]
 
     def __getitem__(self, keys):
-        """Get data sample from sampled container."""
+        """Get random sampler from collection and return a sample from that
+        sampler."""
         return next(self.get_random_container())
 
     @property

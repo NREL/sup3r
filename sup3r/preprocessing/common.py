@@ -5,7 +5,6 @@ import os
 import pprint
 from abc import ABCMeta
 from enum import Enum
-from fnmatch import fnmatch
 from glob import glob
 from inspect import getfullargspec, signature
 from pathlib import Path
@@ -14,6 +13,8 @@ from warnings import warn
 
 import numpy as np
 import xarray as xr
+
+import sup3r.preprocessing
 
 logger = logging.getLogger(__name__)
 
@@ -77,29 +78,6 @@ def expand_paths(fps):
     for f in fps:
         out.extend(glob(f))
     return sorted(set(out))
-
-
-def ignore_case_path_fetch(fp):
-    """Get file path which matches fp while ignoring case
-
-    Parameters
-    ----------
-    fp : str
-        file path
-
-    Returns
-    -------
-    str
-        existing file which matches fp
-    """
-
-    dirname = os.path.dirname(fp)
-    basename = os.path.basename(fp)
-    if os.path.exists(dirname):
-        for file in os.listdir(dirname):
-            if fnmatch(file.lower(), basename.lower()):
-                return os.path.join(dirname, file)
-    return None
 
 
 def get_source_type(file_paths):
@@ -174,7 +152,6 @@ def get_input_handler_class(file_paths, input_handler_name):
         )
 
     if isinstance(input_handler_name, str):
-        import sup3r.preprocessing
 
         HandlerClass = getattr(sup3r.preprocessing, input_handler_name, None)
 
@@ -419,24 +396,6 @@ def ordered_array(data: xr.DataArray):
     return data.transpose(*ordered_dims(data.dims))
 
 
-def enforce_standard_dim_order(dset: xr.Dataset):
-    """Ensure that data dimensions have a (space, time, ...) or (latitude,
-    longitude, time, ...) ordering consistent with the order of
-    `Dimension.order()`"""
-
-    reordered_vars = {
-        var: (
-            ordered_dims(dset.data_vars[var].dims),
-            ordered_array(dset.data_vars[var]).data,
-        )
-        for var in dset.data_vars
-    }
-
-    return xr.Dataset(
-        coords=dset.coords, data_vars=reordered_vars, attrs=dset.attrs
-    )
-
-
 def dims_array_tuple(arr):
     """Return a tuple of (dims, array) with dims equal to the ordered slice
     of Dimension.order() with the same len as arr.shape. This is used to set
@@ -444,10 +403,3 @@ def dims_array_tuple(arr):
     if len(arr.shape) > 1:
         arr = (Dimension.order()[1 : len(arr.shape) + 1], arr)
     return arr
-
-
-def all_dtype(keys, type):
-    """Check if all elements are the given type. Used to parse keys
-    requested from :class:`Container` and :class:`Data`"""
-    keys = keys if isinstance(keys, list) else [keys]
-    return all(isinstance(key, type) for key in keys)
