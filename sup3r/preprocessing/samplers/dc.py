@@ -23,29 +23,29 @@ class DataCentricSampler(Sampler):
         data,
         sample_shape,
         feature_sets,
-        space_weights=None,
-        time_weights=None,
+        spatial_weights=None,
+        temporal_weights=None,
     ):
-        self.space_weights = space_weights or [1]
-        self.time_weights = time_weights or [1]
+        self.spatial_weights = spatial_weights or [1]
+        self.temporal_weights = temporal_weights or [1]
         super().__init__(
             data=data, sample_shape=sample_shape, feature_sets=feature_sets
         )
 
-    def update_weights(self, space_weights, time_weights):
+    def update_weights(self, spatial_weights, temporal_weights):
         """Update spatial and temporal sampling weights."""
-        self.space_weights = space_weights
-        self.time_weights = time_weights
+        self.spatial_weights = spatial_weights
+        self.temporal_weights = temporal_weights
 
-    def get_sample_index(self, time_weights=None, space_weights=None):
+    def get_sample_index(self, temporal_weights=None, spatial_weights=None):
         """Randomly gets weighted spatial sample and time sample indices
 
         Parameters
         ----------
-        time_weights : array
+        temporal_weights : array
             Weights used to select time slice
             (n_time_chunks)
-        space_weights : array
+        spatial_weights : array
             Weights used to select spatial chunks
             (n_lat_chunks * n_lon_chunks)
 
@@ -55,17 +55,17 @@ class DataCentricSampler(Sampler):
             Tuple of sampled spatial grid, time slice, and features indices.
             Used to get single observation like self.data[observation_index]
         """
-        if space_weights is not None:
+        if spatial_weights is not None:
             spatial_slice = weighted_box_sampler(
-                self.shape, self.sample_shape[:2], weights=space_weights
+                self.shape, self.sample_shape[:2], weights=spatial_weights
             )
         else:
             spatial_slice = uniform_box_sampler(
                 self.shape, self.sample_shape[:2]
             )
-        if time_weights is not None:
+        if temporal_weights is not None:
             time_slice = weighted_time_sampler(
-                self.shape, self.sample_shape[2], weights=time_weights
+                self.shape, self.sample_shape[2], weights=temporal_weights
             )
         else:
             time_slice = uniform_time_sampler(self.shape, self.sample_shape[2])
@@ -78,10 +78,10 @@ class DataCentricSampler(Sampler):
 
         Parameters
         ----------
-        time_weights : array
+        temporal_weights : array
             Weights used to select time slice
             (n_time_chunks)
-        space_weights : array
+        spatial_weights : array
             Weights used to select spatial chunks
             (n_lat_chunks * n_lon_chunks)
 
@@ -93,7 +93,7 @@ class DataCentricSampler(Sampler):
         """
         return self.data[
             self.get_sample_index(
-                time_weights=self.time_weights,
-                space_weights=self.space_weights,
+                temporal_weights=self.temporal_weights,
+                spatial_weights=self.spatial_weights,
             )
         ]

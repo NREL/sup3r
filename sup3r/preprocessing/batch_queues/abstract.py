@@ -113,8 +113,8 @@ class AbstractBatchQueue(SamplerCollection, ABC):
             validation queue.
         mode : str
             Loading mode. Default is 'lazy', which only loads data into memory
-            after batches are constructed. 'eager' will load all data into
-            memory right away.
+            as batches are queued. 'eager' will load all data into memory right
+            away.
         """
         msg = (
             f'{self.__class__.__name__} requires a list of samplers. '
@@ -229,16 +229,17 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         return self._batches
 
     def generator(self):
-        """Generator over samples. Each return is a set of samples equal in
-        number to the batch_size.
+        """Generator over samples. The samples are retreived with the
+        :meth:`__getitem__` method through randomly selected a sampler from the
+        collection and then returning a sample from that sampler. Batches are
+        constructed from a set (`batch_size`) of these samples.
 
         Returns
         -------
         samples : T_Array | Tuple[T_Array, T_Array]
-            Either an array of samples with shape
-            (batch_size, lats, lons, times, n_features)
-            or a 2-tuple of such arrays (in the case of queues with
-            :class:`DualSampler` samplers.) These arrays are queued in a
+            (lats, lons, times, n_features)
+            Either an array or a 2-tuple of such arrays (in the case of queues
+            with :class:`DualSampler` samplers.) These arrays are queued in a
             background thread and then dequeued during training.
         """
         while True and self._running_queue.is_set():
@@ -339,16 +340,12 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         try:
             while running_queue.is_set():
                 queue_size = self._queue.size().numpy()
+                msg = (
+                    f'{queue_size} {"batch" if queue_size == 1 else "batches"}'
+                    f' in {self._queue_thread.name} queue.'
+                )
                 if queue_size < self.queue_cap:
-                    if queue_size == 1:
-                        msg = f'1 batch in {self._queue_thread.name} queue'
-                    else:
-                        msg = (
-                            f'{queue_size} batches in '
-                            f'{self._queue_thread.name} queue.'
-                        )
                     logger.debug(msg)
-
                     batch = next(self.batches, None)
                     if batch is not None:
                         self._queue.enqueue(batch)

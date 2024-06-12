@@ -11,7 +11,6 @@ from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.models import Sup3rGan, Sup3rGanDC, Sup3rGanSpatialDC
 from sup3r.preprocessing import (
     BatchHandlerDC,
-    DataCentricSampler,
     DataHandlerH5,
 )
 from sup3r.utilities.loss_metrics import MmdMseLoss
@@ -41,13 +40,13 @@ def test_train_spatial_dc(
         loss='MmdMseLoss',
     )
 
-    handler = DataCentricSampler(DataHandlerH5(
+    handler = DataHandlerH5(
         FP_WTK,
         FEATURES,
         target=TARGET_COORD,
         shape=full_shape,
         time_slice=slice(None, None, 1),
-    ))
+    )
     batch_size = 2
     n_batches = 2
     total_count = batch_size * n_batches
@@ -55,6 +54,8 @@ def test_train_spatial_dc(
 
     batch_handler = BatchHandlerDC(
         [handler],
+        n_space_bins=4,
+        n_time_bins=1,
         batch_size=batch_size,
         s_enhance=2,
         n_batches=n_batches,
@@ -108,13 +109,13 @@ def test_train_st_dc(n_epoch=2, log=False):
         loss='MmdMseLoss',
     )
 
-    handler = DataCentricSampler(DataHandlerH5(
+    handler = DataHandlerH5(
         FP_WTK,
         FEATURES,
         target=TARGET_COORD,
         shape=(20, 20),
         time_slice=slice(None, None, 1),
-    ))
+    )
     batch_size = 4
     n_batches = 2
     total_count = batch_size * n_batches
@@ -123,6 +124,7 @@ def test_train_st_dc(n_epoch=2, log=False):
         [handler],
         batch_size=batch_size,
         sample_shape=(12, 12, 16),
+        n_time_bins=4,
         s_enhance=3,
         t_enhance=4,
         n_batches=n_batches,

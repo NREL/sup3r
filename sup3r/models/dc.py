@@ -120,8 +120,8 @@ class Sup3rGanDC(Sup3rGan):
         batch_handler : sup3r.preprocessing.BatchHandler
             BatchHandler object to iterate through
         """
-        t_losses = total_losses[:batch_handler.val_data.N_TIME_BINS]
-        t_c_losses = content_losses[:batch_handler.val_data.N_TIME_BINS]
+        t_losses = total_losses[:batch_handler.val_data.n_time_bins]
+        t_c_losses = content_losses[:batch_handler.val_data.n_time_bins]
         new_temporal_weights = t_losses / np.sum(t_losses)
         batch_handler.temporal_weights = new_temporal_weights
 
@@ -189,8 +189,8 @@ class Sup3rGanSpatialDC(Sup3rGanDC):
         batch_handler : sup3r.preprocessing.BatchHandler
             BatchHandler object to iterate through
         """
-        s_losses = total_losses[-batch_handler.val_data.N_SPACE_BINS:]
-        s_c_losses = content_losses[-batch_handler.val_data.N_SPACE_BINS:]
+        s_losses = total_losses[-batch_handler.val_data.n_space_bins:]
+        s_c_losses = content_losses[-batch_handler.val_data.n_space_bins:]
         new_spatial_weights = s_losses / np.sum(s_losses)
         batch_handler.spatial_weights = new_spatial_weights
 

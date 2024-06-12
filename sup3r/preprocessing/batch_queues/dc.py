@@ -16,14 +16,14 @@ class BatchQueueDC(SingleBatchQueue):
     or set a priori to construct a validation queue"""
 
     def __init__(self, *args, n_space_bins=1, n_time_bins=1, **kwargs):
-        self.space_weights = np.ones(n_space_bins) / n_space_bins
-        self.time_weights = np.ones(n_time_bins) / n_time_bins
+        self.spatial_weights = np.ones(n_space_bins) / n_space_bins
+        self.temporal_weights = np.ones(n_time_bins) / n_time_bins
         super().__init__(*args, **kwargs)
 
     def __getitem__(self, keys):
         """Update weights and get sample from sampled container."""
         sampler = self.get_random_container()
-        sampler.update_weights(self.space_weights, self.time_weights)
+        sampler.update_weights(self.spatial_weights, self.temporal_weights)
         return next(sampler)
 
 
@@ -43,14 +43,14 @@ class ValBatchQueueDC(BatchQueueDC):
         self.n_batches = n_space_bins * n_time_bins
 
     @property
-    def space_weights(self):
+    def spatial_weights(self):
         """Sample entirely from this spatial bin determined by the batch
         number."""
         weights = np.zeros(self.n_space_bins)
         weights[self._batch_counter % self.n_space_bins] = 1
 
     @property
-    def time_weights(self):
+    def temporal_weights(self):
         """Sample entirely from this temporal bin determined by the batch
         number."""
         weights = np.zeros(self.n_time_bins)
