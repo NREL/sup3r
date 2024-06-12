@@ -1,7 +1,9 @@
 """Exo data extracters for topography and sza
 
 TODO: ExogenousDataHandler is pretty similar to ExoData. Maybe a mixin or
-subclass refactor here.
+subclass refactor here. Also, the spatial aggregation is being done through a
+mean across all high res pixels which match up with low res pixels, so we
+dont need s_agg_factor anywhere.
 """
 
 import logging
@@ -9,7 +11,6 @@ import os
 import shutil
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from inspect import signature
 from warnings import warn
 
 import dask.array as da
@@ -24,6 +25,7 @@ from sup3r.preprocessing.cachers import Cacher
 from sup3r.preprocessing.common import (
     Dimension,
     get_input_handler_class,
+    get_possible_class_args,
     log_args,
 )
 from sup3r.preprocessing.loaders import (
@@ -149,10 +151,8 @@ class ExoExtract(ABC):
         InputHandler = get_input_handler_class(
             self.file_paths, self.input_handler
         )
-        sig = signature(InputHandler)
-        kwargs = {
-            k: getattr(self, k) for k in sig.parameters if hasattr(self, k)
-        }
+        params = get_possible_class_args(InputHandler)
+        kwargs = {k: getattr(self, k) for k in params if hasattr(self, k)}
         self.input_handler = InputHandler(**kwargs)
         self.lr_lat_lon = self.input_handler.lat_lon
 
@@ -471,9 +471,9 @@ class SzaExtract(ExoExtract):
         ).zenith.T
 
     def get_data(self):
-        """Get a raster of source values corresponding to the
-        high-resolution grid (the file_paths input grid * s_enhance *
-        t_enhance). The shape is (lats, lons, temporal)
+        """Get a raster of source values corresponding to the high-res grid
+        (the file_paths input grid * s_enhance * t_enhance). The shape is
+        (lats, lons, temporal)
         """
         hr_data = self.source_data.reshape(self.hr_shape)
         logger.info('Finished computing SZA data')

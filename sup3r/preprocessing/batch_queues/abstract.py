@@ -51,8 +51,8 @@ class Batch:
 
 class AbstractBatchQueue(SamplerCollection, ABC):
     """Abstract BatchQueue class. This class gets batches from a dataset
-    generator and maintains a queue of normalized batches in a dedicated thread
-    so the training routine can proceed as soon as batches as available."""
+    generator and maintains a queue of batches in a dedicated thread so the
+    training routine can proceed as soon as batches are available."""
 
     BATCH_CLASS = Batch
 

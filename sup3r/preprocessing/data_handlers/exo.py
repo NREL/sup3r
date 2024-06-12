@@ -8,13 +8,13 @@ import logging
 import pathlib
 import re
 from dataclasses import dataclass
-from inspect import signature
 from typing import ClassVar, List
 
 import numpy as np
 
 import sup3r.preprocessing
 from sup3r.preprocessing.common import (
+    get_possible_class_args,
     get_source_type,
     log_args,
 )
@@ -163,7 +163,7 @@ class ExogenousDataHandler:
             self.models is not None and self.exo_resolution is not None
         )
         msg = (
-            'ExogenousDataHandler needs s_agg_factor and t_agg_factor '
+            f'{self.__class__.__name__} needs s_agg_factor and t_agg_factor '
             'provided in each step in steps list or models and '
             'exo_resolution'
         )
@@ -172,7 +172,7 @@ class ExogenousDataHandler:
         en_check = en_check and all('t_enhance' in v for v in self.steps)
         en_check = en_check or self.models is not None
         msg = (
-            'ExogenousDataHandler needs s_enhance and t_enhance '
+            f'{self.__class__.__name__} needs s_enhance and t_enhance '
             'provided in each step in steps list or models'
         )
         assert en_check, msg
@@ -180,12 +180,6 @@ class ExogenousDataHandler:
     def step_number_check(self):
         """Make sure the number of enhancement factors / agg factors provided
         is internally consistent and consistent with number of model steps."""
-        msg = (
-            'Need to provide the same number of enhancement factors and '
-            f'agg factors. Received s_enhancements={self.s_enhancements}, '
-            f'and s_agg_factors={self.s_agg_factors}.'
-        )
-        assert len(self.s_enhancements) == len(self.s_agg_factors), msg
         msg = (
             'Need to provide the same number of enhancement factors and '
             f'agg factors. Received t_enhancements={self.t_enhancements}, '
@@ -201,10 +195,9 @@ class ExogenousDataHandler:
 
     def get_all_step_data(self):
         """Get exo data for each model step."""
-        for i, _ in enumerate(self.s_enhancements):
-            s_enhance = self.s_enhancements[i]
-            t_enhance = self.t_enhancements[i]
-            t_agg_factor = self.t_agg_factors[i]
+        for i, (s_enhance, t_enhance, t_agg_factor) in enumerate(
+            zip(self.s_enhancements, self.t_enhancements, self.t_agg_factors)
+        ):
             if self.feature in list(self.AVAILABLE_HANDLERS):
                 data = self.get_single_step_data(
                     feature=self.feature,
@@ -304,10 +297,10 @@ class ExogenousDataHandler:
         return s_agg_factor, t_agg_factor
 
     def _get_single_step_agg(self, step):
-        """Compute agg factors for exogenous data extraction
-        using exo_kwargs single model step. These factors are computed using
-        exo_resolution and the input/output resolution of each model step. If
-        agg factors are already provided in step they are not overwritten.
+        """Compute agg factors for exogenous data extraction using exo_kwargs
+        single model step. These factors are computed using exo_resolution and
+        the input/output resolution of each model step. If agg factors are
+        already provided in step they are not overwritten.
 
         Parameters
         ----------
@@ -467,13 +460,14 @@ class ExogenousDataHandler:
         kwargs = {
             's_enhance': s_enhance,
             't_enhance': t_enhance,
-            't_agg_factor': t_agg_factor}
+            't_agg_factor': t_agg_factor,
+        }
 
-        sig = signature(ExoHandler)
-        kwargs.update({
-            k: getattr(self, k) for k in sig.parameters if hasattr(self, k)
-        })
-        data = ExoHandler(**kwargs)
+        params = get_possible_class_args(ExoHandler)
+        kwargs.update(
+            {k: getattr(self, k) for k in params if hasattr(self, k)}
+        )
+        data = ExoHandler(**kwargs).data
         return data
 
     @classmethod
@@ -501,26 +495,20 @@ class ExogenousDataHandler:
         """
         if exo_handler is None:
             in_type = get_source_type(source_file)
-            if in_type not in ('h5', 'nc'):
-                msg = (
-                    f'Did not recognize input type "{in_type}" for file '
-                    f'paths: {source_file}'
-                )
-                logger.error(msg)
-                raise RuntimeError(msg)
-            check = (
+            msg = (
+                f'Did not recognize input type "{in_type}" for file '
+                f'paths: {source_file}'
+            )
+            assert in_type in ('h5', 'nc'), msg
+            msg = (
+                'Could not find exo handler class for '
+                f'feature={feature} and input_type={in_type}.'
+            )
+            assert (
                 feature in cls.AVAILABLE_HANDLERS
                 and in_type in cls.AVAILABLE_HANDLERS[feature]
-            )
-            if check:
-                exo_handler = cls.AVAILABLE_HANDLERS[feature][in_type]
-            else:
-                msg = (
-                    'Could not find exo handler class for '
-                    f'feature={feature} and input_type={in_type}.'
-                )
-                logger.error(msg)
-                raise KeyError(msg)
+            ), msg
+            exo_handler = cls.AVAILABLE_HANDLERS[feature][in_type]
         elif isinstance(exo_handler, str):
             exo_handler = getattr(sup3r.preprocessing, exo_handler, None)
         return exo_handler
