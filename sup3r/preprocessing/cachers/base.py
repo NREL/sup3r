@@ -152,8 +152,8 @@ class Cacher(Container):
             Name of feature to write to file.
         data : T_Array | xr.Dataset
             Data to write to file
-        coords : dict
-            Dictionary of coordinate variables
+        coords : dict | xr.Dataset.coords
+            Dictionary of coordinate variables or xr.Dataset coords attribute.
         attrs : dict | None
             Optional attributes to write to file
         """

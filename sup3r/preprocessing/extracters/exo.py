@@ -254,6 +254,28 @@ class ExoExtracter(ABC):
         )
         return nn
 
+    def cache_data(self, data, dset_name, cache_fp):
+        """Save extracted data to cache file."""
+        tmp_fp = cache_fp + f'.{generate_random_string(10)}.tmp'
+        coords = {
+            Dimension.LATITUDE: (
+                (Dimension.SOUTH_NORTH, Dimension.WEST_EAST),
+                self.hr_lat_lon[..., 0],
+            ),
+            Dimension.LONGITUDE: (
+                (Dimension.SOUTH_NORTH, Dimension.WEST_EAST),
+                self.hr_lat_lon[..., 1],
+            ),
+            Dimension.TIME: self.hr_time_index.values,
+        }
+        Cacher.write_netcdf(
+            tmp_fp,
+            feature=dset_name,
+            data=da.broadcast_to(data, self.hr_shape),
+            coords=coords,
+        )
+        shutil.move(tmp_fp, cache_fp)
+
     @property
     def data(self):
         """Get a raster of source values corresponding to the
@@ -263,37 +285,21 @@ class ExoExtracter(ABC):
         TODO: Get actual feature name for cache file? Write attributes to cache
         here?
         """
-        cache_fp = self.get_cache_file(feature=self.__class__.__name__)
-        tmp_fp = cache_fp + f'.{generate_random_string(10)}.tmp'
-        if os.path.exists(cache_fp):
-            data = LoaderNC(cache_fp)[self.__class__.__name__.lower()].data
+        dset_name = self.__class__.__name__.lower()
+        cache_fp = self.get_cache_file(feature=dset_name)
 
+        if os.path.exists(cache_fp):
+            data = LoaderNC(cache_fp)[dset_name, ...]
         else:
             data = self.get_data()
 
-            if self.cache_dir is not None:
-                coords = {
-                    Dimension.LATITUDE: (
-                        (Dimension.SOUTH_NORTH, Dimension.WEST_EAST),
-                        self.hr_lat_lon[..., 0],
-                    ),
-                    Dimension.LONGITUDE: (
-                        (Dimension.SOUTH_NORTH, Dimension.WEST_EAST),
-                        self.hr_lat_lon[..., 1],
-                    ),
-                    Dimension.TIME: self.hr_time_index.values,
-                }
-                Cacher.write_netcdf(
-                    tmp_fp,
-                    feature=self.__class__.__name__,
-                    data=da.broadcast_to(data, self.hr_shape),
-                    coords=coords,
-                )
-                shutil.move(tmp_fp, cache_fp)
+        if self.cache_dir is not None and not os.path.exists(cache_fp):
+            self.cache_data(data=data, dset_name=dset_name, cache_fp=cache_fp)
 
         if data.shape[-1] != self.hr_shape[-1]:
             data = da.broadcast_to(data, self.hr_shape)
 
+        # add trailing dimension for feature channel
         return data[..., None]
 
     @abstractmethod
@@ -319,9 +325,9 @@ class TopoExtracterH5(ExoExtracter):
         high-resolution grid (the file_paths input grid * s_enhance *
         t_enhance). The shape is (lats, lons, 1)
         """
-
-        assert len(self.source_data.shape) == 2
-        assert self.source_data.shape[1] == 1
+        assert (
+            len(self.source_data.shape) == 2 and self.source_data.shape[1] == 1
+        )
 
         df = pd.DataFrame(
             {'topo': self.source_data.flatten(), 'gid_target': self.nn}
@@ -349,11 +355,9 @@ class TopoExtracterH5(ExoExtracter):
         if np.isnan(hr_data).any():
             hr_data = nn_fill_array(hr_data)
 
-        hr_data = np.expand_dims(hr_data, axis=-1)
-
         logger.info('Finished mapping raster from {}'.format(self.source_file))
 
-        return da.from_array(hr_data)
+        return da.from_array(hr_data[..., None])
 
 
 class TopoExtracterNC(TopoExtracterH5):
@@ -403,4 +407,4 @@ class SzaExtracter(ExoExtracter):
         """
         hr_data = self.source_data.reshape(self.hr_shape)
         logger.info('Finished computing SZA data')
-        return hr_data
+        return hr_data.astype(np.float32)

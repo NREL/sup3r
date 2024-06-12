@@ -1,8 +1,8 @@
 """Composite objects built from batch queues and samplers."""
-from .dc import BatchHandlerDC
 from .factory import (
     BatchHandler,
     BatchHandlerCC,
+    BatchHandlerDC,
     BatchHandlerMom1,
     BatchHandlerMom1SF,
     BatchHandlerMom2,

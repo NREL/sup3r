@@ -17,7 +17,7 @@ from sup3r import CONFIG_DIR, TEST_DATA_DIR, __version__
 from sup3r.models import LinearInterp, Sup3rGan, SurfaceSpatialMetModel
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.preprocessing.common import Dimension
-from sup3r.utilities.pytest.helpers import make_fake_nc_file
+from sup3r.utilities.pytest.helpers import execute_pytest, make_fake_nc_file
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)
@@ -1258,3 +1258,16 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza(input_files):
             assert os.path.exists(fp)
 
     shutil.rmtree('./exo_cache', ignore_errors=True)
+
+
+if __name__ == '__main__':
+    with tempfile.TemporaryDirectory() as tmpdir:
+        input_file = os.path.join(tmpdir, 'input_file.nc')
+        make_fake_nc_file(
+            input_file,
+            shape=(100, 100, 8),
+            features=['pressure_0m', *FEATURES],
+        )
+        test_fwp_multi_step_wind_hi_res_topo(input_file)
+    if False:
+        execute_pytest(__file__)
