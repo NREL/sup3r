@@ -4,13 +4,14 @@ information about how different features are used by models."""
 
 import logging
 from fnmatch import fnmatch
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, Union
 
 import numpy as np
 import xarray as xr
 
 from sup3r.preprocessing.base import Container, Sup3rDataset, Sup3rX
 from sup3r.preprocessing.common import lowered
+from sup3r.typing import T_Array
 from sup3r.utilities.utilities import uniform_box_sampler, uniform_time_sampler
 
 logger = logging.getLogger(__name__)
@@ -127,7 +128,7 @@ class Sampler(Container):
         as sample_shape"""
         self._sample_shape = hr_sample_shape
 
-    def __next__(self):
+    def __next__(self) -> Union[T_Array, Tuple[T_Array, T_Array]]:
         """Get next sample. This retrieves a sample of size = sample_shape
         from the `.data` (a xr.Dataset or Sup3rDataset) through the Sup3rX
         accessor."""

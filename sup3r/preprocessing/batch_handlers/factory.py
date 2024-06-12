@@ -18,22 +18,28 @@ from sup3r.preprocessing.batch_queues.conditional import (
     QueueMom2SepSF,
     QueueMom2SF,
 )
+from sup3r.preprocessing.batch_queues.dc import BatchQueueDC, ValBatchQueueDC
 from sup3r.preprocessing.batch_queues.dual import DualBatchQueue
 from sup3r.preprocessing.collections.stats import StatsCollection
 from sup3r.preprocessing.common import FactoryMeta, get_class_kwargs
 from sup3r.preprocessing.samplers.base import Sampler
 from sup3r.preprocessing.samplers.cc import DualSamplerCC
+from sup3r.preprocessing.samplers.dc import DataCentricSampler
 from sup3r.preprocessing.samplers.dual import DualSampler
 
 logger = logging.getLogger(__name__)
 
 
-def BatchHandlerFactory(QueueClass, SamplerClass, name='BatchHandler'):
+def BatchHandlerFactory(
+    MainQueueClass, SamplerClass, ValQueueClass=None, name='BatchHandler'
+):
     """BatchHandler factory. Can build handlers from different queue classes
     and sampler classes. For example, to build a standard BatchHandler use
     :class:`BatchQueue` and :class:`Sampler`. To build a
     :class:`DualBatchHandler` use :class:`DualBatchQueue` and
-    :class:`DualSampler`.
+    :class:`DualSampler`. To build a BatchHandlerCC use a
+    :class:`BatchQueueDC`, :class:`ValBatchQueueDC` and
+    :class:`DataCentricSampler`
 
     Note
     ----
@@ -44,7 +50,7 @@ def BatchHandlerFactory(QueueClass, SamplerClass, name='BatchHandler'):
     produce batches without a time dimension.
     """
 
-    class BatchHandler(QueueClass, metaclass=FactoryMeta):
+    class BatchHandler(MainQueueClass, metaclass=FactoryMeta):
         """BatchHandler object built from two lists of class:`Container`
         objects, one with training data and one with validation data. These
         lists will be used to initialize lists of class:`Sampler` objects that
@@ -64,6 +70,7 @@ def BatchHandlerFactory(QueueClass, SamplerClass, name='BatchHandler'):
         arguments
         """
 
+        VAL_QUEUE = MainQueueClass if ValQueueClass is None else ValQueueClass
         SAMPLER = SamplerClass
 
         __name__ = name
@@ -80,9 +87,11 @@ def BatchHandlerFactory(QueueClass, SamplerClass, name='BatchHandler'):
             stds: Optional[Union[Dict, str]] = None,
             **kwargs,
         ):
-            [sampler_kwargs, queue_kwargs] = get_class_kwargs(
-                [SamplerClass, QueueClass],
-                {'s_enhance': s_enhance, 't_enhance': t_enhance, **kwargs},
+            [sampler_kwargs, main_queue_kwargs, val_queue_kwargs] = (
+                get_class_kwargs(
+                    [SamplerClass, MainQueueClass, self.VAL_QUEUE],
+                    {'s_enhance': s_enhance, 't_enhance': t_enhance, **kwargs},
+                )
             )
 
             train_samplers, val_samplers = self.init_samplers(
@@ -98,14 +107,14 @@ def BatchHandlerFactory(QueueClass, SamplerClass, name='BatchHandler'):
             if not val_samplers:
                 self.val_data: Union[List, SingleBatchQueue] = []
             else:
-                self.val_data = QueueClass(
+                self.val_data = self.VAL_QUEUE(
                     samplers=val_samplers,
                     batch_size=batch_size,
                     n_batches=n_batches,
                     means=stats.means,
                     stds=stats.stds,
                     thread_name='validation',
-                    **queue_kwargs,
+                    **val_queue_kwargs,
                 )
 
             super().__init__(
@@ -114,7 +123,7 @@ def BatchHandlerFactory(QueueClass, SamplerClass, name='BatchHandler'):
                 n_batches=n_batches,
                 means=stats.means,
                 stds=stats.stds,
-                **queue_kwargs,
+                **main_queue_kwargs,
             )
 
         def init_samplers(
@@ -179,4 +188,8 @@ BatchHandlerMom2SF = BatchHandlerFactory(
 )
 BatchHandlerMom2SepSF = BatchHandlerFactory(
     QueueMom2SepSF, Sampler, name='BatchHandlerMom2SepSF'
+)
+
+BatchHandlerDC = BatchHandlerFactory(
+    BatchQueueDC, DataCentricSampler, ValBatchQueueDC, name='BatchHandlerDC'
 )

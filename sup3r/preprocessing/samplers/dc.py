@@ -1,5 +1,5 @@
-"""Sampler objects. These take in data objects / containers and can them sample
-from them. These samples can be used to build batches."""
+"""Data centric sampler. This samples container data according to weights
+which are updated during training based on performance of the model."""
 
 import logging
 
@@ -18,20 +18,34 @@ class DataCentricSampler(Sampler):
     """DataCentric Sampler class used for sampling based on weights which can
     be updated during training."""
 
-    def __init__(self, data, sample_shape, feature_sets):
+    def __init__(
+        self,
+        data,
+        sample_shape,
+        feature_sets,
+        space_weights=None,
+        time_weights=None,
+    ):
+        self.space_weights = space_weights or [1]
+        self.time_weights = time_weights or [1]
         super().__init__(
             data=data, sample_shape=sample_shape, feature_sets=feature_sets
         )
 
-    def get_sample_index(self, temporal_weights=None, spatial_weights=None):
+    def update_weights(self, space_weights, time_weights):
+        """Update spatial and temporal sampling weights."""
+        self.space_weights = space_weights
+        self.time_weights = time_weights
+
+    def get_sample_index(self, time_weights=None, space_weights=None):
         """Randomly gets weighted spatial sample and time sample indices
 
         Parameters
         ----------
-        temporal_weights : array
+        time_weights : array
             Weights used to select time slice
             (n_time_chunks)
-        spatial_weights : array
+        space_weights : array
             Weights used to select spatial chunks
             (n_lat_chunks * n_lon_chunks)
 
@@ -41,35 +55,33 @@ class DataCentricSampler(Sampler):
             Tuple of sampled spatial grid, time slice, and features indices.
             Used to get single observation like self.data[observation_index]
         """
-        if spatial_weights is not None:
+        if space_weights is not None:
             spatial_slice = weighted_box_sampler(
-                self.shape, self.sample_shape[:2], weights=spatial_weights
+                self.shape, self.sample_shape[:2], weights=space_weights
             )
         else:
             spatial_slice = uniform_box_sampler(
                 self.shape, self.sample_shape[:2]
             )
-        if temporal_weights is not None:
+        if time_weights is not None:
             time_slice = weighted_time_sampler(
-                self.shape, self.sample_shape[2], weights=temporal_weights
+                self.shape, self.sample_shape[2], weights=time_weights
             )
         else:
-            time_slice = uniform_time_sampler(
-                self.shape, self.sample_shape[2]
-            )
+            time_slice = uniform_time_sampler(self.shape, self.sample_shape[2])
 
-        return (*spatial_slice, time_slice)
+        return (*spatial_slice, time_slice, self.features)
 
-    def get_next(self, temporal_weights=None, spatial_weights=None):
+    def __next__(self):
         """Get data for observation using weighted random observation index.
         Loops repeatedly over randomized time index.
 
         Parameters
         ----------
-        temporal_weights : array
+        time_weights : array
             Weights used to select time slice
             (n_time_chunks)
-        spatial_weights : array
+        space_weights : array
             Weights used to select spatial chunks
             (n_lat_chunks * n_lon_chunks)
 
@@ -79,9 +91,9 @@ class DataCentricSampler(Sampler):
             4D array
             (spatial_1, spatial_2, temporal, features)
         """
-        return self[
+        return self.data[
             self.get_sample_index(
-                temporal_weights=temporal_weights,
-                spatial_weights=spatial_weights,
+                time_weights=self.time_weights,
+                space_weights=self.space_weights,
             )
         ]
