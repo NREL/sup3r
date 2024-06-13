@@ -259,3 +259,56 @@ def test_apply_zero_precipitation_rate_2D():
         out,
         equal_nan=True,
     )
+
+def test_presrat(fp_fut_cc):
+    """Test PresRat correction procedure
+
+    Basic standard run. Using only required arguments. If this fails,
+    something fundamental is wrong.
+    """
+    calc = PresRat(
+        FP_NSRDB,
+        FP_CC,
+        fp_fut_cc,
+        'ghi',
+        'rsds',
+        target=TARGET,
+        shape=SHAPE,
+        bias_handler='DataHandlerNCforCC',
+    )
+
+    # A high zero_rate_threshold to gets at least something.
+    out = calc.run(zero_rate_threshold=50)
+
+    # Guarantee that we have some actual values, otherwise most of the
+    # remaining tests would be useless
+    for v in out:
+        assert np.isfinite(out[v]).any(), 'Something wrong, all CDFs are NaN.'
+
+    # Check possible range
+    for v in out:
+        assert np.nanmin(out[v]) > 0, f'{v} should be all greater than zero.'
+        assert np.nanmax(out[v]) < 1300, f'{v} should be all less than 1300.'
+
+    # Each location can be all finite or all NaN, but not both
+    for v in (v for v in out if len(out[v].shape) > 2):
+        tmp = np.isfinite(out[v].reshape(-1, *out[v].shape[2:]))
+        assert np.all(
+            np.all(tmp, axis=1) == ~np.all(~tmp, axis=1)
+        ), f'For each location of {v} it should be all finite or nonte'
+
+
+def test_presrat_transform(presrat_params, fp_fut_cc):
+    """
+    WIP: Confirm it runs, but don't verify anything yet.
+    """
+    data = np.ones((*FP_CC_LAT_LON.shape[:-1], 3))
+    time = pd.to_datetime(
+        ['2015-01-01 12:00:00', '2015-01-02 12:00:00', '2015-01-01 12:00:00']
+    )
+    corrected = local_presrat_bc(
+        data, time, FP_CC_LAT_LON, 'ghi', 'rsds', presrat_params
+    )
+
+    assert not np.isnan(corrected).all(), "Can't compare if only NaN"
+    assert not np.allclose(data, corrected, equal_nan=False)
