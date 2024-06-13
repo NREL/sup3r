@@ -157,6 +157,48 @@ def test_zero_precipitation_rate_nan():
     assert np.all(zero_rate==1), "It should be all zero percent"
 """
 
+
+@pytest.mark.parametrize("threshold", [0, 50, 1e6])
+def test_parallel(fp_fut_cc, threshold):
+    """Running in parallel must not alter results
+
+    Check with different thresholds that will result in different zero rates.
+    """
+    s = PresRat(
+        FP_NSRDB,
+        FP_CC,
+        fp_fut_cc,
+        'ghi',
+        'rsds',
+        target=TARGET,
+        shape=SHAPE,
+        bias_handler='DataHandlerNCforCC',
+    )
+
+    # Physically non sense threshold.
+    out_s = s.run(max_workers=1, zero_rate_threshold=threshold)
+
+    p = PresRat(
+        FP_NSRDB,
+        FP_CC,
+        fp_fut_cc,
+        'ghi',
+        'rsds',
+        target=TARGET,
+        shape=SHAPE,
+        bias_handler='DataHandlerNCforCC',
+    )
+
+    # Physically non sense threshold.
+    out_p = p.run(max_workers=2, zero_rate_threshold=threshold)
+
+    for k in out_s.keys():
+        assert k in out_p, f'Missing {k} in parallel run'
+        assert np.allclose(
+            out_s[k], out_p[k], equal_nan=True
+        ), f'Different results for {k}'
+
+
 def test_presrat_zero_rate(fp_fut_cc):
     """Estimate zero_rate within PresRat.run()"""
     calc = PresRat(
