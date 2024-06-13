@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-"""pytests for data handling"""
+"""Test correct handling of feature sets by samplers"""
 
 import pytest
 

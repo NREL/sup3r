@@ -14,7 +14,7 @@ from sup3r.preprocessing import (
     BatchHandlerCC,
     DataHandlerH5WindCC,
 )
-from sup3r.preprocessing.common import lowered
+from sup3r.preprocessing.utilities import lowered
 
 SHAPE = (20, 20)
 

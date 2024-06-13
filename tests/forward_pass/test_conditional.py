@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-"""Test the basic training of super resolution GAN"""
+"""Test :class:`ForwardPass` with conditional moment estimation models."""
 import json
 import os
 
@@ -17,7 +16,7 @@ from sup3r.preprocessing import (
     BatchHandlerMom2SF,
     DataHandlerH5,
 )
-from sup3r.utilities.utilities import (
+from sup3r.preprocessing.batch_queues.utilities import (
     spatial_simple_enhancing,
     temporal_simple_enhancing,
 )

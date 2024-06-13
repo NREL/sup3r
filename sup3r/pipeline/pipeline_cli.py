@@ -1,14 +1,11 @@
-# -*- coding: utf-8 -*-
 # pylint: disable=all
-"""
-Pipeline CLI entry points.
-"""
-import click
+"""Pipeline CLI entry points."""
 import logging
 
+import click
 from gaps.cli.pipeline import pipeline
-from sup3r import __version__
 
+from sup3r import __version__
 
 logger = logging.getLogger(__name__)
 

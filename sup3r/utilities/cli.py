@@ -1,21 +1,16 @@
-# -*- coding: utf-8 -*-
-"""
-Sup3r base CLI class.
-"""
+"""Sup3r base CLI class."""
 import json
 import logging
 import os
 
+import click
 from gaps import Status
 from gaps.config import load_config
-
-import click
 from rex.utilities.execution import SubprocessManager
 from rex.utilities.hpc import SLURM
 from rex.utilities.loggers import init_mult
 
 from sup3r.utilities import ModuleName
-
 
 logger = logging.getLogger(__name__)
 AVAILABLE_HARDWARE_OPTIONS = ('kestrel', 'eagle', 'slurm')

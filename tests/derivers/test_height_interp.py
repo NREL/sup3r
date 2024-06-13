@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-"""pytests for data handling"""
+"""Test pressure and height level interpolation for feature derivations"""
 
 import os
 from tempfile import TemporaryDirectory

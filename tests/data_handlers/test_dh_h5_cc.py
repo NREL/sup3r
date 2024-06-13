@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """pytests for data handling with NSRDB files"""
 
 import os
@@ -14,7 +13,7 @@ from sup3r.preprocessing import (
     DataHandlerH5SolarCC,
     DataHandlerH5WindCC,
 )
-from sup3r.preprocessing.common import lowered
+from sup3r.preprocessing.utilities import lowered
 from sup3r.utilities.pytest.helpers import execute_pytest
 
 SHAPE = (20, 20)

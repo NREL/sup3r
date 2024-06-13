@@ -1,17 +1,14 @@
-# -*- coding: utf-8 -*-
-"""
-sup3r solar CLI entry points.
-"""
+"""sup3r solar CLI entry points."""
 import copy
-import click
 import logging
 import os
+
+import click
 
 from sup3r import __version__
 from sup3r.solar import Solar
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import AVAILABLE_HARDWARE_OPTIONS, BaseCLI
-
 
 logger = logging.getLogger(__name__)
 

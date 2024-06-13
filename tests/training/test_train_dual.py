@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-"""Test the basic training of super resolution GAN with dual data handler"""
+"""Test the training of GANs with dual data handler"""
 
 import json
 import os

@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-"""Test the basic training of super resolution GAN"""
+"""Tests for GAN loss functions"""
 import numpy as np
 import pytest
 import tensorflow as tf

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Abstract class defining the required interface for Sup3r model subclasses"""
 import json
 import locale
@@ -1485,14 +1484,13 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         loss_details : dict
             Namespace of the breakdown of loss components
         """
-        device_name = '/cpu:0'
         with tf.device(device_name), tf.GradientTape(
                 watch_accessed_variables=False) as tape:
-            self.timer(tape.watch, training_weights)
-            hi_res_exo = self.timer(self.get_high_res_exo_input, hi_res_true)
-            hi_res_gen = self.timer(self._tf_generate, low_res, hi_res_exo)
-            loss_out = self.timer(self.calc_loss, hi_res_true, hi_res_gen,
+            self.timer(tape.watch)(training_weights)
+            hi_res_exo = self.timer(self.get_high_res_exo_input)(hi_res_true)
+            hi_res_gen = self.timer(self._tf_generate)(low_res, hi_res_exo)
+            loss_out = self.timer(self.calc_loss)(hi_res_true, hi_res_gen,
                                   **calc_loss_kwargs)
             loss, loss_details = loss_out
-            grad = self.timer(tape.gradient, loss, training_weights)
+            grad = self.timer(tape.gradient)(loss, training_weights)
         return grad, loss_details

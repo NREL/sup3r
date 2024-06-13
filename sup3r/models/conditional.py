@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Sup3r conditional moment model software"""
 import logging
 import os

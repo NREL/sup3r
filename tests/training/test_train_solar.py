@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Test the basic training of super resolution GAN for solar climate change
 applications"""
 

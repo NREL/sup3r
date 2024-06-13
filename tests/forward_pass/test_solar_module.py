@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Test the custom sup3r solar module that converts GAN clearsky ratio outputs
 to irradiance data."""
 import glob

@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-"""Test the basic training of super resolution GAN"""
+"""Test the training of data centric GAN models"""
 
 import os
 import tempfile

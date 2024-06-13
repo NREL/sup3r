@@ -19,7 +19,7 @@ from scipy.spatial import KDTree
 
 import sup3r.preprocessing
 from sup3r.preprocessing import DataHandlerNC as DataHandler
-from sup3r.preprocessing.common import expand_paths
+from sup3r.preprocessing.utilities import expand_paths
 from sup3r.utilities import VERSION_RECORD, ModuleName
 from sup3r.utilities.cli import BaseCLI
 

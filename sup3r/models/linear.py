@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Simple models for super resolution such as linear interp models."""
 import json
 import logging
@@ -8,7 +7,7 @@ from inspect import signature
 import numpy as np
 
 from sup3r.models.abstract import AbstractInterface
-from sup3r.utilities.utilities import st_interp
+from sup3r.models.utilities import st_interp
 
 logger = logging.getLogger(__name__)
 

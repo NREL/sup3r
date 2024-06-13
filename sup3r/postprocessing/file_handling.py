@@ -18,11 +18,13 @@ from rex.outputs import Outputs as BaseRexOutputs
 from scipy.interpolate import griddata
 
 from sup3r import __version__
+from sup3r.preprocessing.derivers.utilities import (
+    invert_uv,
+)
 from sup3r.utilities import VERSION_RECORD
 from sup3r.utilities.utilities import (
     Feature,
     get_time_dim_name,
-    invert_uv,
     pd_date_range,
 )
 

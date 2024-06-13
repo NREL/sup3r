@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Bias correction transformation functions."""
 
 import logging

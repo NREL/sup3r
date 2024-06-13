@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-"""pytests for data handling"""
+"""Ensure correct functions of :class:`Cacher` objects"""
 
 import os
 import tempfile

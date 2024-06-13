@@ -1,18 +1,15 @@
-# -*- coding: utf-8 -*-
-"""
-sup3r forward pass CLI entry points.
-"""
+"""sup3r forward pass CLI entry points."""
 import copy
-import click
 import logging
-from inspect import signature
 import os
+from inspect import signature
 
-from sup3r.utilities import ModuleName
+import click
+
 from sup3r import __version__
-from sup3r.pipeline.forward_pass import ForwardPassStrategy, ForwardPass
+from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
+from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import AVAILABLE_HARDWARE_OPTIONS, BaseCLI
-
 
 logger = logging.getLogger(__name__)
 

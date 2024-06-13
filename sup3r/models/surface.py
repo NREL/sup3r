@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Special models for surface meteorological data."""
 import logging
 from fnmatch import fnmatch

@@ -7,7 +7,10 @@ from typing import Dict, Optional
 
 from sup3r.preprocessing.base import Sup3rDataset
 from sup3r.preprocessing.samplers.base import Sampler
-from sup3r.utilities.utilities import uniform_box_sampler, uniform_time_sampler
+from sup3r.preprocessing.samplers.utilities import (
+    uniform_box_sampler,
+    uniform_time_sampler,
+)
 
 logger = logging.getLogger(__name__)
 

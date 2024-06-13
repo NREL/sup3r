@@ -1,10 +1,9 @@
-# -*- coding: utf-8 -*-
 """Sup3r model software"""
 import logging
+
 import tensorflow as tf
 
 from sup3r.models.base import Sup3rGan
-
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +11,9 @@ logger = logging.getLogger(__name__)
 class SolarCC(Sup3rGan):
     """Solar climate change model.
 
-    Modifications to standard Sup3rGan:
+    Note
+    ----
+    *Modifications to standard Sup3rGan*
         - Content loss is only on the n_days of the center 8 daylight hours of
           the daily true+synthetic high res samples
         - Discriminator only sees n_days of the center 8 daylight hours of the

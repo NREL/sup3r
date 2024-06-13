@@ -8,8 +8,8 @@ import tensorflow as tf
 from sup3r.preprocessing.batch_queues.abstract import (
     AbstractBatchQueue,
 )
+from sup3r.preprocessing.batch_queues.utilities import smooth_data
 from sup3r.utilities.utilities import (
-    smooth_data,
     spatial_coarsening,
     temporal_coarsening,
 )

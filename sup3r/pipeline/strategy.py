@@ -1,9 +1,5 @@
-# -*- coding: utf-8 -*-
-"""
-Sup3r forward pass handling module.
-
-@author: bbenton
-"""
+""":class:`ForwardPassStrategy` class. This sets up chunks and needed generator
+inputs to distribute forward passes."""
 
 import copy
 import logging
@@ -18,8 +14,8 @@ from typing import Dict, Tuple
 import numpy as np
 import pandas as pd
 
-from sup3r.pipeline.common import get_model
 from sup3r.pipeline.slicer import ForwardPassSlicer
+from sup3r.pipeline.utilities import get_model
 from sup3r.postprocessing import (
     OutputHandler,
 )
@@ -27,7 +23,7 @@ from sup3r.preprocessing import (
     ExoData,
     ExoDataHandler,
 )
-from sup3r.preprocessing.common import (
+from sup3r.preprocessing.utilities import (
     expand_paths,
     get_input_handler_class,
     get_source_type,

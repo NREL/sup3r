@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Sup3r multi step model frameworks"""
 import json
 import logging

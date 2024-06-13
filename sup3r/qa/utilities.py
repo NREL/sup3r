@@ -1,8 +1,8 @@
-# -*- coding: utf-8 -*-
 """Utilities used for QA"""
+import logging
+
 import numpy as np
 from scipy.interpolate import interp1d
-import logging
 
 logger = logging.getLogger(__name__)
 

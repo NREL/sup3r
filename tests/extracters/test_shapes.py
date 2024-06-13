@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-"""pytests for data handling"""
+"""Ensure correct data shapes for :class:`Extracter` objects."""
 
 import os
 from tempfile import TemporaryDirectory

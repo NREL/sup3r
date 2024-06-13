@@ -9,7 +9,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 import xarray as xr
 
-from sup3r.utilities.utilities import (
+from sup3r.preprocessing.derivers.utilities import (
     invert_uv,
     transform_rotate_wind,
 )

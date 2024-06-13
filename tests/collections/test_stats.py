@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-"""pytests for data handling"""
+"""Test :class:`Collection` objects, specifically stats calculations."""
 
 import os
 from tempfile import TemporaryDirectory

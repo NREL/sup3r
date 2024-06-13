@@ -10,10 +10,10 @@ import dask.array as da
 import xarray as xr
 
 from sup3r.preprocessing.base import Container
-from sup3r.preprocessing.common import Dimension, parse_to_list
 from sup3r.preprocessing.derivers.methods import (
     RegistryBase,
 )
+from sup3r.preprocessing.utilities import Dimension, parse_to_list
 from sup3r.typing import T_Array
 from sup3r.utilities.interpolation import Interpolator
 

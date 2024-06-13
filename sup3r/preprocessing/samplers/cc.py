@@ -8,9 +8,10 @@ from typing import Dict, Optional
 import numpy as np
 
 from sup3r.preprocessing.base import Sup3rDataset
-from sup3r.preprocessing.common import Dimension
 from sup3r.preprocessing.samplers.dual import DualSampler
-from sup3r.utilities.utilities import nn_fill_array, nsrdb_reduce_daily_data
+from sup3r.preprocessing.samplers.utilities import nsrdb_reduce_daily_data
+from sup3r.preprocessing.utilities import Dimension
+from sup3r.utilities.utilities import nn_fill_array
 
 np.random.seed(42)
 

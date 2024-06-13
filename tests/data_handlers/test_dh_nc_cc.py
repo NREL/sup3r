@@ -14,8 +14,8 @@ from sup3r.preprocessing import (
     DataHandlerNCforCCwithPowerLaw,
     LoaderNC,
 )
-from sup3r.preprocessing.common import Dimension
 from sup3r.preprocessing.derivers.methods import UWindPowerLaw
+from sup3r.preprocessing.utilities import Dimension
 from sup3r.utilities.pytest.helpers import execute_pytest
 
 init_logger('sup3r', log_level='DEBUG')

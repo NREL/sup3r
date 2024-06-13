@@ -1,7 +1,4 @@
-# -*- coding: utf-8 -*-
-"""
-Sup3r command line interface (CLI).
-"""
+"""Sup3r command line interface (CLI)."""
 import logging
 
 import click

@@ -1,13 +1,12 @@
-# -*- coding: utf-8 -*-
-"""
-Script to extract data subset in raster shape from flattened WTK h5 files.
+"""Script to extract data subset in raster shape from flattened WTK h5 files.
+
+TODO: Is this worth keeping for any reason?
 """
 
-from rex import init_logger
-from rex.resource_extraction.resource_extraction import WindX
-from rex.outputs import Outputs
 import matplotlib.pyplot as plt
-
+from rex import init_logger
+from rex.outputs import Outputs
+from rex.resource_extraction.resource_extraction import WindX
 
 if __name__ == '__main__':
     init_logger('rex', log_level='DEBUG')
@@ -35,7 +34,7 @@ if __name__ == '__main__':
         raster_index = sorted(raster_index_2d.ravel())
 
         attrs = {k: res.resource.attrs[k] for k in dsets}
-        chunks = {k: None for k in dsets}
+        chunks = dict.fromkeys(dsets)
         dtypes = {k: res.resource.dtypes[k] for k in dsets}
         meta = meta.iloc[raster_index].reset_index(drop=True)
         time_index = res.time_index
