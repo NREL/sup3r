@@ -8,11 +8,6 @@ from scipy.stats import mode
 
 from sup3r.preprocessing.base import Sup3rDataset
 from sup3r.preprocessing.cachers import Cacher
-from sup3r.preprocessing.common import (
-    FactoryMeta,
-    get_class_kwargs,
-    parse_to_list,
-)
 from sup3r.preprocessing.derivers import Deriver
 from sup3r.preprocessing.derivers.methods import (
     RegistryH5,
@@ -25,6 +20,11 @@ from sup3r.preprocessing.extracters import (
     BaseExtracterNC,
 )
 from sup3r.preprocessing.loaders import LoaderH5, LoaderNC
+from sup3r.preprocessing.utilities import (
+    FactoryMeta,
+    get_class_kwargs,
+    parse_to_list,
+)
 
 logger = logging.getLogger(__name__)
 

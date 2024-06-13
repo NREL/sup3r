@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-"""Test the basic training of super resolution GAN"""
+"""Test the :class:`DualExtracter` objects."""
 
 import os
 import tempfile

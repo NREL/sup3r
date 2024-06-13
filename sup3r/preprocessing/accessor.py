@@ -8,7 +8,7 @@ import pandas as pd
 import xarray
 import xarray as xr
 
-from sup3r.preprocessing.common import (
+from sup3r.preprocessing.utilities import (
     Dimension,
     _contains_ellipsis,
     _is_ints,

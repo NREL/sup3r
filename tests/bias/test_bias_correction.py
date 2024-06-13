@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """pytests bias correction calculations"""
 import os
 import shutil

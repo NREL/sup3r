@@ -1,12 +1,9 @@
-# -*- coding: utf-8 -*-
 # pylint: disable=all
-"""
-Batch Job CLI entry points.
-"""
+"""Batch Job CLI entry points."""
 import click
+from gaps.batch import BatchJob
 
 from sup3r import __version__
-from gaps.batch import BatchJob
 
 
 @click.group()

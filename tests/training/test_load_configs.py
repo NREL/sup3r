@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Test the sample super resolution GAN configs"""
 import os
 

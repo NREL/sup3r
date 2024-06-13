@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-"""pytests for data handling"""
+"""pytests for sup3r QA module"""
 
 import os
 import tempfile

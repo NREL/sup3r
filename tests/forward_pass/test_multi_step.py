@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Test forward passes through multi-step GAN models"""
 import os
 import tempfile

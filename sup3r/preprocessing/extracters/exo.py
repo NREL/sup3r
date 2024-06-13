@@ -18,15 +18,15 @@ from scipy.spatial import KDTree
 
 from sup3r.postprocessing.file_handling import OutputHandler
 from sup3r.preprocessing.cachers import Cacher
-from sup3r.preprocessing.common import (
+from sup3r.preprocessing.loaders import (
+    LoaderH5,
+    LoaderNC,
+)
+from sup3r.preprocessing.utilities import (
     Dimension,
     get_input_handler_class,
     get_possible_class_args,
     log_args,
-)
-from sup3r.preprocessing.loaders import (
-    LoaderH5,
-    LoaderNC,
 )
 from sup3r.utilities.utilities import (
     generate_random_string,

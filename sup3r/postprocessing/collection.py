@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """H5/NETCDF file collection."""
 import glob
 import logging

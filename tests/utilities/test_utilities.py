@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """pytests for general utilities"""
 import os
 import tempfile
@@ -11,20 +10,22 @@ from rex import Resource, init_logger
 from scipy.interpolate import interp1d
 
 from sup3r import TEST_DATA_DIR
+from sup3r.models.utilities import st_interp
+from sup3r.pipeline.utilities import get_chunk_slices
 from sup3r.postprocessing.collection import CollectorH5
 from sup3r.postprocessing.file_handling import OutputHandler
-from sup3r.utilities.interpolate_log_profile import LogLinInterpolator
-from sup3r.utilities.regridder import RegridOutput
-from sup3r.utilities.utilities import (
-    get_chunk_slices,
-    spatial_coarsening,
-    st_interp,
-    temporal_coarsening,
-    transform_rotate_wind,
+from sup3r.preprocessing.derivers.utilities import transform_rotate_wind
+from sup3r.preprocessing.samplers.utilities import (
     uniform_box_sampler,
     uniform_time_sampler,
     weighted_box_sampler,
     weighted_time_sampler,
+)
+from sup3r.utilities.interpolate_log_profile import LogLinInterpolator
+from sup3r.utilities.regridder import RegridOutput
+from sup3r.utilities.utilities import (
+    spatial_coarsening,
+    temporal_coarsening,
 )
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')

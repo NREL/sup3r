@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-"""pytests for data handling"""
+""":class:`ForwardPass` tests with exogenous features"""
 
 import json
 import os
@@ -16,7 +15,7 @@ from rex import ResourceX, init_logger
 from sup3r import CONFIG_DIR, TEST_DATA_DIR, __version__
 from sup3r.models import LinearInterp, Sup3rGan, SurfaceSpatialMetModel
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
-from sup3r.preprocessing.common import Dimension
+from sup3r.preprocessing.utilities import Dimension
 from sup3r.utilities.pytest.helpers import execute_pytest, make_fake_nc_file
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')

@@ -10,8 +10,8 @@ import numpy as np
 import xarray as xr
 from rex import MultiFileWindX
 
-from sup3r.preprocessing.common import Dimension
 from sup3r.preprocessing.loaders import Loader
+from sup3r.preprocessing.utilities import Dimension
 
 logger = logging.getLogger(__name__)
 

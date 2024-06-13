@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-"""pytests for exogenous data handling"""
+"""Test correct functioning of exogenous data specific extracters"""
 
 import os
 import tempfile
@@ -18,7 +17,7 @@ from sup3r.preprocessing import (
     TopoExtracterH5,
     TopoExtracterNC,
 )
-from sup3r.preprocessing.common import Dimension
+from sup3r.preprocessing.utilities import Dimension
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 FP_WRF = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')

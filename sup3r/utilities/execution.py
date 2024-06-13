@@ -1,8 +1,4 @@
-# -*- coding: utf-8 -*-
-"""Execution methods for running some cli routines
-
-@author: bbenton
-"""
+"""Execution methods for running some cli routines"""
 
 import logging
 import os

@@ -14,7 +14,7 @@ import xarray as xr
 
 import sup3r.preprocessing.accessor  # noqa: F401
 from sup3r.preprocessing.accessor import Sup3rX
-from sup3r.preprocessing.common import _log_args
+from sup3r.preprocessing.utilities import _log_args
 
 logger = logging.getLogger(__name__)
 

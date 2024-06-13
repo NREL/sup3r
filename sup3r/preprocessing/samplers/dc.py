@@ -4,7 +4,7 @@ which are updated during training based on performance of the model."""
 import logging
 
 from sup3r.preprocessing.samplers.base import Sampler
-from sup3r.utilities.utilities import (
+from sup3r.preprocessing.samplers.utilities import (
     uniform_box_sampler,
     uniform_time_sampler,
     weighted_box_sampler,

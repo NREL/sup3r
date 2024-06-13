@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-"""pytests for data handling"""
+"""Test single level feature derivations by :class:`Deriver` objects"""
 
 import os
 from tempfile import TemporaryDirectory
@@ -16,10 +15,10 @@ from sup3r.preprocessing import (
     ExtracterH5,
     ExtracterNC,
 )
-from sup3r.utilities.pytest.helpers import execute_pytest, make_fake_nc_file
-from sup3r.utilities.utilities import (
+from sup3r.preprocessing.derivers.utilities import (
     transform_rotate_wind,
 )
+from sup3r.utilities.pytest.helpers import execute_pytest, make_fake_nc_file
 
 h5_files = [
     os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5'),

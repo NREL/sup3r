@@ -1,9 +1,4 @@
-# -*- coding: utf-8 -*-
-"""
-Sup3r forward pass handling module.
-
-@author: bbenton
-"""
+"""Sup3r forward pass handling module."""
 
 import logging
 from concurrent.futures import as_completed
@@ -18,8 +13,8 @@ from rex.utilities.fun_utils import get_fun_call_str
 
 import sup3r.bias.bias_transforms
 import sup3r.models
-from sup3r.pipeline.common import get_model
 from sup3r.pipeline.strategy import ForwardPassChunk, ForwardPassStrategy
+from sup3r.pipeline.utilities import get_model
 from sup3r.postprocessing import (
     OutputHandlerH5,
     OutputHandlerNC,

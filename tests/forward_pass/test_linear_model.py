@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Test the simple linear interpolation model."""
 import numpy as np
 from scipy.interpolate import interp1d

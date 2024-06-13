@@ -10,7 +10,7 @@ import numpy as np
 import xarray as xr
 
 from sup3r.preprocessing.base import Container
-from sup3r.preprocessing.common import Dimension
+from sup3r.preprocessing.utilities import Dimension
 
 logger = logging.getLogger(__name__)
 

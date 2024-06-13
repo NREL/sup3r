@@ -13,8 +13,9 @@ from sup3r.preprocessing import (
     DataHandlerH5SolarCC,
     DualSamplerCC,
 )
+from sup3r.preprocessing.samplers.utilities import nsrdb_sub_daily_sampler
 from sup3r.utilities.pytest.helpers import TestDualSamplerCC, execute_pytest
-from sup3r.utilities.utilities import nsrdb_sub_daily_sampler, pd_date_range
+from sup3r.utilities.utilities import pd_date_range
 
 SHAPE = (20, 20)
 

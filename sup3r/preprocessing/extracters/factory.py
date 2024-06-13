@@ -2,10 +2,6 @@
 
 import logging
 
-from sup3r.preprocessing.common import (
-    FactoryMeta,
-    get_class_kwargs,
-)
 from sup3r.preprocessing.extracters.h5 import (
     BaseExtracterH5,
 )
@@ -13,6 +9,10 @@ from sup3r.preprocessing.extracters.nc import (
     BaseExtracterNC,
 )
 from sup3r.preprocessing.loaders import LoaderH5, LoaderNC
+from sup3r.preprocessing.utilities import (
+    FactoryMeta,
+    get_class_kwargs,
+)
 
 logger = logging.getLogger(__name__)
 

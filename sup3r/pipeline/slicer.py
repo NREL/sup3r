@@ -4,7 +4,7 @@ import logging
 
 import numpy as np
 
-from sup3r.utilities.utilities import (
+from sup3r.pipeline.utilities import (
     get_chunk_slices,
 )
 

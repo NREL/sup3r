@@ -1,11 +1,9 @@
-# -*- coding: utf-8 -*-
-"""Utilities module for plotting data
-"""
+"""Utilities module for plotting data"""
 
 import matplotlib
-from matplotlib import cm
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib import cm
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 

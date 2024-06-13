@@ -13,7 +13,7 @@ from rex.utilities.fun_utils import get_fun_call_str
 
 import sup3r.bias.bias_transforms
 from sup3r.postprocessing.file_handling import H5_ATTRS, RexOutputs
-from sup3r.preprocessing.common import (
+from sup3r.preprocessing.utilities import (
     Dimension,
     get_input_handler_class,
     get_source_type,

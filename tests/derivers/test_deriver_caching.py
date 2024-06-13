@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-"""pytests for data handling"""
+"""Test caching by :class:`Deriver` objects"""
 
 import os
 import tempfile

@@ -6,7 +6,6 @@ distributed over multiple nodes.
 
 import logging
 import threading
-import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple, Union
@@ -18,6 +17,7 @@ from rex import safe_json_load
 from sup3r.preprocessing.collections.samplers import SamplerCollection
 from sup3r.preprocessing.samplers import DualSampler, Sampler
 from sup3r.typing import T_Array
+from sup3r.utilities.utilities import Timer
 
 logger = logging.getLogger(__name__)
 
@@ -143,6 +143,7 @@ class AbstractBatchQueue(SamplerCollection, ABC):
             'smoothing_ignore': [],
             'smoothing': None,
         }
+        self.timer = Timer()
         self.preflight(mode=mode, thread_name=thread_name)
 
     @property
@@ -365,22 +366,17 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         batch : Batch
             Batch object with batch.low_res and batch.high_res attributes
         """
-        start = time.time()
         if self._batch_counter < self.n_batches:
-            samples = self._queue.dequeue()
+            samples = self.timer(self._queue.dequeue, log=True)()
             if self.sample_shape[2] == 1:
                 if isinstance(samples, (list, tuple)):
                     samples = tuple([s[..., 0, :] for s in samples])
                 else:
                     samples = samples[..., 0, :]
-            batch = self.post_dequeue(samples)
+            batch = self.timer(self.post_dequeue, log=True)(samples)
             self._batch_counter += 1
         else:
             raise StopIteration
-        logger.debug(
-            f'Built {self._batch_counter} / {self.n_batches} '
-            f'{self._queue_thread.name} batch in {time.time() - start}.'
-        )
         return batch
 
     def get_stats(self, means, stds):

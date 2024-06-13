@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """pytests for sup3r cli"""
 import glob
 import json
@@ -20,7 +19,6 @@ from sup3r.utilities.pytest.helpers import (
     make_fake_h5_chunks,
     make_fake_nc_file,
 )
-from sup3r.utilities.utilities import correct_path
 
 INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
 FEATURES = ['U_100m', 'V_100m', 'pressure_0m']
@@ -94,10 +92,8 @@ def test_pipeline_fwp_collect(runner, input_files, log=False):
         dc_config_path = os.path.join(td, 'config_dc.json')
         pipe_config_path = os.path.join(td, 'config_pipe.json')
 
-        pipe_config = {"pipeline": [{"forward-pass":
-                                     correct_path(fwp_config_path)},
-                                    {"data-collect":
-                                     correct_path(dc_config_path)}]}
+        pipe_config = {"pipeline": [{"forward-pass": fwp_config_path},
+                                    {"data-collect": dc_config_path}]}
 
         with open(fwp_config_path, 'w') as fh:
             json.dump(fwp_config, fh)
@@ -323,9 +319,8 @@ def test_pipeline_fwp_qa(runner, input_files, log=False):
         pipe_flog = os.path.join(td, 'pipeline.log')
         pipe_config = {"logging": {"log_level": "DEBUG",
                                    "log_file": pipe_flog},
-                       "pipeline": [{"forward-pass":
-                                     correct_path(fwp_config_path)},
-                                    {"qa": correct_path(qa_config_path)}]}
+                       "pipeline": [{"forward-pass": fwp_config_path},
+                                    {"qa": qa_config_path}]}
 
         with open(fwp_config_path, 'w') as fh:
             json.dump(fwp_config, fh)

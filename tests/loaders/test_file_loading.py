@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-"""pytests for data handling"""
+"""pytests for :class:`Loader` objects"""
 
 import os
 from tempfile import TemporaryDirectory
@@ -10,7 +9,7 @@ from rex import init_logger
 
 from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing import LoaderH5, LoaderNC
-from sup3r.preprocessing.common import Dimension
+from sup3r.preprocessing.utilities import Dimension
 from sup3r.utilities.pytest.helpers import (
     execute_pytest,
     make_fake_dset,
