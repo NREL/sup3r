@@ -49,3 +49,32 @@ class Collection(Container):
         sizes = [c.size for c in self.containers]
         weights = sizes / np.sum(sizes)
         return weights.astype(np.float32)
+
+    def __getattr__(self, attr):
+        """Get attributes from self or the first container in the
+        collection."""
+        if attr in dir(self):
+            return self.__getattribute__(attr)
+        return self.check_shared_attr(attr)
+
+    def check_shared_attr(self, attr):
+        """Check if all containers have the same value for `attr`."""
+        msg = (
+            'Not all containers in the collection have the same value for '
+            f'{attr}'
+        )
+        out = getattr(self.containers[0], attr, None)
+        if isinstance(out, (np.ndarray, list, tuple)):
+            check = all(
+                np.array_equal(getattr(c, attr, None), out)
+                for c in self.containers
+            )
+        else:
+            check = all(getattr(c, attr, None) == out for c in self.containers)
+        assert check, msg
+        return out
+
+    @property
+    def shape(self):
+        """Return common data shape if this is constant across containers."""
+        return self.check_shared_attr('shape')

@@ -30,42 +30,22 @@ class SamplerCollection(Collection):
         self.container_index = self.get_container_index()
         _ = self.check_shared_attr('sample_shape')
 
-    def __getattr__(self, attr):
-        """Get attributes from self or the first container in the
-        collection."""
-        if attr in dir(self):
-            return self.__getattribute__(attr)
-        return self.check_shared_attr(attr)
-
-    def check_shared_attr(self, attr):
-        """Check if all containers have the same value for `attr`."""
-        msg = (
-            'Not all containers in the collection have the same value for '
-            f'{attr}'
-        )
-        out = getattr(self.containers[0], attr, None)
-        if isinstance(out, (np.ndarray, list, tuple)):
-            check = all(
-                np.array_equal(getattr(c, attr, None), out)
-                for c in self.containers
-            )
-        else:
-            check = all(getattr(c, attr, None) == out for c in self.containers)
-        assert check, msg
-        return out
-
     def get_container_index(self):
         """Get random container index based on weights"""
         indices = np.arange(0, len(self.containers))
         return np.random.choice(indices, p=self.container_weights)
 
     def get_random_container(self):
-        """Get random container based on container weights"""
-        if self._sample_counter % self.batch_size == 0:
-            self.container_index = self.get_container_index()
+        """Get random container based on container weights
+
+        TODO: This will select a random container for every sample, instead of
+        every batch. Should we override this in the BatchHandler and use
+        the batch_counter to do every batch?
+        """
+        self.container_index = self.get_container_index()
         return self.containers[self.container_index]
 
-    def __getitem__(self, keys):
+    def get_samples(self):
         """Get random sampler from collection and return a sample from that
         sampler."""
         return next(self.get_random_container())

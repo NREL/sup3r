@@ -10,7 +10,8 @@ import xarray as xr
 
 from sup3r.postprocessing.file_handling import OutputHandlerH5
 from sup3r.preprocessing.base import Container, Sup3rDataset
-from sup3r.preprocessing.samplers import DualSamplerCC, Sampler
+from sup3r.preprocessing.batch_handlers import BatchHandlerCC, BatchHandlerDC
+from sup3r.preprocessing.samplers import DualSamplerCC, Sampler, SamplerDC
 from sup3r.preprocessing.utilities import Dimension
 from sup3r.utilities.utilities import pd_date_range
 
@@ -106,19 +107,87 @@ class DummySampler(Sampler):
         )
 
 
-class TestDualSamplerCC(DualSamplerCC):
-    """Keep a record of sample indices for testing."""
+def test_sampler_factory(SamplerClass):
+    """Build test samplers which track indices."""
+
+    class TestSampler(SamplerClass):
+        """Keep a record of sample indices for testing."""
+
+        def __init__(self, *args, **kwargs):
+            self.index_record = []
+            super().__init__(*args, **kwargs)
+
+        def get_sample_index(self, **kwargs):
+            """Override get_sample_index to keep record of index accessible by
+            batch handler."""
+            idx = super().get_sample_index(**kwargs)
+            self.index_record.append(idx)
+            return idx
+
+    return TestSampler
+
+
+TestDualSamplerCC = test_sampler_factory(DualSamplerCC)
+TestSamplerDC = test_sampler_factory(SamplerDC)
+
+
+class TestBatchHandlerCC(BatchHandlerCC):
+    """Batch handler with sampler with running index record."""
+
+    SAMPLER = TestDualSamplerCC
+
+
+class TestBatchHandlerDC(BatchHandlerDC):
+    """Data-centric batch handler with record for testing"""
+
+    SAMPLER = TestSamplerDC
 
     def __init__(self, *args, **kwargs):
-        self.index_record = []
         super().__init__(*args, **kwargs)
+        self.temporal_weights_record = []
+        self.spatial_weights_record = []
+        self.s_index_record = []
+        self.t_index_record = []
+        self.space_bin_record = np.zeros(self.n_space_bins)
+        self.time_bin_record = np.zeros(self.n_time_bins)
+        self.max_rows = self.data[0].shape[0] - self.sample_shape[0] + 1
+        self.max_cols = self.data[0].shape[1] - self.sample_shape[1] + 1
+        self.max_tsteps = self.data[0].shape[2] - self.sample_shape[2] + 1
+        self.spatial_bins = np.array_split(
+            np.arange(0, self.max_rows * self.max_cols),
+            self.n_space_bins,
+        )
+        self.spatial_bins = [b[-1] + 1 for b in self.spatial_bins]
+        self.temporal_bins = np.array_split(
+            np.arange(0, self.max_tsteps), self.n_time_bins
+        )
+        self.temporal_bins = [b[-1] + 1 for b in self.temporal_bins]
 
-    def get_sample_index(self):
-        """Override get_sample_index to keep record of index accessible by
-        batch handler."""
-        idx = super().get_sample_index()
-        self.index_record.append(idx)
-        return idx
+    def _space_norm_record(self):
+        return self.space_bin_record / self.space_bin_record.sum()
+
+    def _time_norm_record(self):
+        return self.time_bin_record / self.time_bin_record.sum()
+
+    def _update_bin_count(self, slices):
+        s_idx = slices[0].start * self.max_cols + slices[1].start
+        t_idx = slices[2].start
+        self.s_index_record.append(s_idx)
+        self.t_index_record.append(t_idx)
+        self.space_bin_record[np.digitize(s_idx, self.spatial_bins)] += 1
+        self.time_bin_record[np.digitize(t_idx, self.temporal_bins)] += 1
+
+    def get_samples(self):
+        """Override get_samples to track sample indices."""
+        out = super().get_samples()
+        if len(self.index_record) > 0:
+            self._update_bin_count(self.index_record[-1])
+        return out
+
+    def __iter__(self):
+        self.temporal_weights_record.append(self.temporal_weights)
+        self.spatial_weights_record.append(self.spatial_weights)
+        return super().__iter__()
 
 
 def make_fake_h5_chunks(td):

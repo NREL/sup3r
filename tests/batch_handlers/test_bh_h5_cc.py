@@ -13,7 +13,7 @@ from sup3r.preprocessing import (
     DataHandlerH5SolarCC,
     DataHandlerH5WindCC,
 )
-from sup3r.utilities.pytest.helpers import TestDualSamplerCC, execute_pytest
+from sup3r.utilities.pytest.helpers import TestBatchHandlerCC, execute_pytest
 
 SHAPE = (20, 20)
 
@@ -38,12 +38,6 @@ dh_kwargs = {
 np.random.seed(42)
 
 init_logger('sup3r', log_level='DEBUG')
-
-
-class TestBatchHandlerCC(BatchHandlerCC):
-    """Batch handler with sampler with running index record."""
-
-    SAMPLER = TestDualSamplerCC
 
 
 @pytest.mark.parametrize(

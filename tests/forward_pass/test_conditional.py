@@ -832,7 +832,7 @@ def test_out_st_mom2_sep_sf(plot=False, full_shape=(20, 20),
             for i in range(batch.output.shape[0]):
 
                 b_lr = batch.low_res[i, :, :, :, 0]
-                b_lr_aug = np.reshape(b_lr, (1,) + b_lr.shape + (1,))
+                b_lr_aug = np.reshape(b_lr, (1, *b_lr.shape, 1))
 
                 tup_lr = temporal_simple_enhancing(b_lr_aug,
                                                    t_enhance=t_enhance,

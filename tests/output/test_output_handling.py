@@ -215,9 +215,7 @@ def test_h5_collect_mask(log=False):
         CollectorH5.collect(out_files, fp_out, features=features)
         indices = np.arange(np.prod(data.shape[:2]))
         indices = indices[slice(-len(indices) // 2, None)]
-        removed = []
-        for _ in range(10):
-            removed.append(np.random.choice(indices))
+        removed = [np.random.choice(indices) for _ in range(10)]
         mask_slice = [i for i in indices if i not in removed]
         with ResourceX(fp_out) as fh:
             mask_meta = fh.meta

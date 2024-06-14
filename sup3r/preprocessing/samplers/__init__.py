@@ -7,5 +7,5 @@ just for special paired datasets. This would be a nice unification.
 
 from .base import Sampler
 from .cc import DualSamplerCC
-from .dc import DataCentricSampler
+from .dc import SamplerDC
 from .dual import DualSampler

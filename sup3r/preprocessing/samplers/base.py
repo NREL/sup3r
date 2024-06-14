@@ -7,15 +7,14 @@ from fnmatch import fnmatch
 from typing import Dict, Optional, Tuple, Union
 
 import numpy as np
-import xarray as xr
 
-from sup3r.preprocessing.base import Container, Sup3rDataset, Sup3rX
+from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.samplers.utilities import (
     uniform_box_sampler,
     uniform_time_sampler,
 )
 from sup3r.preprocessing.utilities import lowered
-from sup3r.typing import T_Array
+from sup3r.typing import T_Array, T_Dataset
 
 logger = logging.getLogger(__name__)
 
@@ -25,14 +24,14 @@ class Sampler(Container):
 
     def __init__(
         self,
-        data: xr.Dataset | Sup3rX | Sup3rDataset,
+        data: T_Dataset,
         sample_shape,
         feature_sets: Optional[Dict] = None,
     ):
         """
         Parameters
         ----------
-        data : xr.Dataset | Sup3rX | Sup3rDataset
+        data : T_Dataset
             Object with data that will be sampled from. Can be the `.data`
             attribute of various :class:`Container` objects.  i.e.
             :class:`Loader`, :class:`Extracter`, :class:`Deriver`, as long as

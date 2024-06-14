@@ -124,21 +124,19 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         super().__init__(
             samplers=samplers, s_enhance=s_enhance, t_enhance=t_enhance
         )
-        self._sample_counter = 0
         self._batch_counter = 0
-        self._batches = None
         self._queue = None
         self._queue_thread = None
         self._default_device = default_device
         self._running_queue = threading.Event()
-        self.data_gen = None
+        self.batches = None
         self.batch_size = batch_size
         self.n_batches = n_batches
         self.queue_cap = queue_cap or n_batches
         self.max_workers = max_workers or batch_size
-        out = self.get_stats(means=means, stds=stds)
-        self.means, self.lr_means, self.hr_means = out[:3]
-        self.stds, self.lr_stds, self.hr_stds = out[3:]
+        stats = self.get_stats(means=means, stds=stds)
+        self.means, self.lr_means, self.hr_means = stats[:3]
+        self.stds, self.lr_stds, self.hr_stds = stats[3:]
         self.transform_kwargs = transform_kwargs or {
             'smoothing_ignore': [],
             'smoothing': None,
@@ -166,10 +164,8 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         self._default_device = self._default_device or (
             '/cpu:0' if len(gpu_list) == 0 else '/gpu:0'
         )
-        self.data_gen = tf.data.Dataset.from_generator(
-            self.generator, output_signature=self.output_signature
-        )
         self.init_queue(thread_name=thread_name)
+        self.batches = self.prep_batches()
         self.check_stats()
         self.check_features()
         self.check_enhancement_factors()
@@ -185,7 +181,6 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         )
         self._queue_thread = threading.Thread(
             target=self.enqueue_batches,
-            args=(self._running_queue,),
             name=thread_name,
         )
 
@@ -222,18 +217,35 @@ class AbstractBatchQueue(SamplerCollection, ABC):
             )
         ), msg
 
-    @property
-    def batches(self):
-        """Return iterable of batches prefetched from the data generator."""
-        if self._batches is None:
-            self._batches = self.prefetch()
-        return self._batches
+    def prep_batches(self):
+        """Return iterable of batches prefetched from the data generator.
+
+        TODO: Understand this better. Should prefetch be called more than just
+        for initialization? Every epoch?
+        """
+        logger.debug(
+            f'Prefetching {self._queue_thread.name} batches with batch_size = '
+            f'{self.batch_size}.'
+        )
+        with tf.device(self._default_device):
+            data = tf.data.Dataset.from_generator(
+                self.generator, output_signature=self.output_signature
+            )
+            data = self._parallel_map(data)
+            data = data.prefetch(tf.data.AUTOTUNE)
+            batches = data.batch(
+                self.batch_size,
+                drop_remainder=True,
+                deterministic=False,
+                num_parallel_calls=tf.data.AUTOTUNE,
+            )
+        return batches.as_numpy_iterator()
 
     def generator(self):
         """Generator over samples. The samples are retreived with the
-        :meth:`__getitem__` method through randomly selected a sampler from the
-        collection and then returning a sample from that sampler. Batches are
-        constructed from a set (`batch_size`) of these samples.
+        :meth:`get_samples` method through randomly selecting a sampler from
+        the collection and then returning a sample from that sampler. Batches
+        are constructed from a set (`batch_size`) of these samples.
 
         Returns
         -------
@@ -243,10 +255,8 @@ class AbstractBatchQueue(SamplerCollection, ABC):
             with :class:`DualSampler` samplers.) These arrays are queued in a
             background thread and then dequeued during training.
         """
-        while True and self._running_queue.is_set():
-            idx = self._sample_counter
-            self._sample_counter += 1
-            samples = self[idx]
+        while self._running_queue.is_set():
+            samples = self.get_samples()
             if not self.loaded:
                 samples = (
                     tuple(sample.compute() for sample in samples)
@@ -256,25 +266,8 @@ class AbstractBatchQueue(SamplerCollection, ABC):
             yield samples
 
     @abstractmethod
-    def _parallel_map(self):
+    def _parallel_map(self, data: tf.data.Dataset):
         """Perform call to map function to enable parallel sampling."""
-
-    def prefetch(self):
-        """Prefetch set of batches from dataset generator."""
-        logger.debug(
-            f'Prefetching {self._queue_thread.name} batches with '
-            f'batch_size = {self.batch_size}.'
-        )
-        with tf.device(self._default_device):
-            data = self._parallel_map()
-            data = data.prefetch(tf.data.AUTOTUNE)
-            batches = data.batch(
-                self.batch_size,
-                drop_remainder=True,
-                deterministic=False,
-                num_parallel_calls=tf.data.AUTOTUNE,
-            )
-        return batches.as_numpy_iterator()
 
     @abstractmethod
     def transform(self, samples, **kwargs):
@@ -306,19 +299,12 @@ class AbstractBatchQueue(SamplerCollection, ABC):
             self._running_queue.set()
             self._queue_thread.start()
 
-    def join(self) -> None:
-        """Join thread to exit gracefully."""
-        logger.info(
-            f'Joining {self._queue_thread.name} queue thread to main thread.'
-        )
-        self._queue_thread.join()
-
     def stop(self) -> None:
         """Stop loading batches."""
         if self._queue_thread.is_alive():
             logger.info(f'Stopping {self._queue_thread.name} queue.')
             self._running_queue.clear()
-            self.join()
+            self._queue_thread.join()
 
     def __len__(self):
         return self.n_batches
@@ -328,28 +314,16 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         self.start()
         return self
 
-    def enqueue_batches(self, running_queue: threading.Event) -> None:
+    def enqueue_batches(self) -> None:
         """Callback function for queue thread. While training the queue is
         checked for empty spots and filled. In the training thread, batches are
-        removed from the queue.
-
-        Parameters
-        ----------
-        running_queue : threading.Event
-            Event which tracks whether the queue is active or not.
-        """
+        removed from the queue."""
         try:
-            while running_queue.is_set():
-                queue_size = self._queue.size().numpy()
-                msg = (
-                    f'{queue_size} {"batch" if queue_size == 1 else "batches"}'
-                    f' in {self._queue_thread.name} queue.'
-                )
-                if queue_size < self.queue_cap:
-                    logger.debug(msg)
+            while self._running_queue.is_set():
+                if self._queue.size().numpy() < self.queue_cap:
                     batch = next(self.batches, None)
                     if batch is not None:
-                        self._queue.enqueue(batch)
+                        self.timer(self._queue.enqueue, log=True)(batch)
         except KeyboardInterrupt:
             logger.info(
                 f'Attempting to stop {self._queue.thread.name} batch queue.'
@@ -366,7 +340,13 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         batch : Batch
             Batch object with batch.low_res and batch.high_res attributes
         """
-        if self._batch_counter < self.n_batches:
+        if self._batch_counter < len(self):
+            queue_size = self._queue.size().numpy()
+            msg = (
+                f'{queue_size} {"batch" if queue_size == 1 else "batches"}'
+                f' in {self._queue_thread.name} queue.'
+            )
+            logger.debug(msg)
             samples = self.timer(self._queue.dequeue, log=True)()
             if self.sample_shape[2] == 1:
                 if isinstance(samples, (list, tuple)):
