@@ -162,7 +162,7 @@ sphinx = ">=7.0"
 sphinx_rtd_theme = ">=2.0"
 
 [tool.pixi.feature.test.dependencies]
-pytest = ">=5.2"
+pytest = ">=7.0"
 
 [tool.pixi.feature.dev.dependencies]
 build = ">=0.6"
