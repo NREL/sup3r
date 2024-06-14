@@ -154,6 +154,7 @@ default = { solve-group = "default" }
 dev = { features = ["dev", "doc", "test"], solve-group = "default" }
 doc = { features = ["doc"], solve-group = "default" }
 test = { features = ["test"], solve-group = "default" }
+kestrel = { features = ["kestrel"], solve-group = "default" }
 
 [tool.pixi.tasks]
 
@@ -169,3 +170,7 @@ build = ">=0.6"
 twine = ">=5.0"
 ruff = ">=0.2"
 ipython = ">=8.0"
+
+[tool.pixi.feature.kestrel]
+system-requirements = {linux = "4.18", cuda = "12.4"}
+dependencies = {cuda = "==12.4", cudnn = ">=8.6.0"}
