@@ -167,6 +167,7 @@ test = { features = ["test"], solve-group = "default" }
 kestrel = { features = ["kestrel"], solve-group = "default" }
 
 [tool.pixi.tasks]
+check_devices = 'python -c "import tensorflow as tf; print(tf.config.list_physical_devices())"'
 
 [tool.pixi.feature.doc.dependencies]
 sphinx = ">=7.0"
