@@ -151,8 +151,6 @@ NREL-farms = { version = ">=1.0.4" }
 
 [tool.pixi.target.linux-64.dependencies]
 cuda = ">=11.8"
-# cuda = "==12.4"
-# 12.3
 cudnn = {version = ">=8.6.0", channel = "conda-forge"}
 # 8.9.7
 
