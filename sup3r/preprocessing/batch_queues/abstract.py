@@ -340,7 +340,7 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         batch : Batch
             Batch object with batch.low_res and batch.high_res attributes
         """
-        if self._batch_counter < len(self):
+        if self._batch_counter < self.n_batches:
             queue_size = self._queue.size().numpy()
             msg = (
                 f'{queue_size} {"batch" if queue_size == 1 else "batches"}'

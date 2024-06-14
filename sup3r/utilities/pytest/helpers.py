@@ -148,8 +148,10 @@ class TestBatchHandlerDC(BatchHandlerDC):
         self.spatial_weights_record = []
         self.s_index_record = []
         self.t_index_record = []
-        self.space_bin_record = np.zeros(self.n_space_bins)
-        self.time_bin_record = np.zeros(self.n_time_bins)
+        self.space_bin_record = []
+        self.time_bin_record = []
+        self.space_bin_count = np.zeros(self.n_space_bins)
+        self.time_bin_count = np.zeros(self.n_time_bins)
         self.max_rows = self.data[0].shape[0] - self.sample_shape[0] + 1
         self.max_cols = self.data[0].shape[1] - self.sample_shape[1] + 1
         self.max_tsteps = self.data[0].shape[2] - self.sample_shape[2] + 1
@@ -163,19 +165,19 @@ class TestBatchHandlerDC(BatchHandlerDC):
         )
         self.temporal_bins = [b[-1] + 1 for b in self.temporal_bins]
 
-    def _space_norm_record(self):
-        return self.space_bin_record / self.space_bin_record.sum()
+    def _space_norm_count(self):
+        return self.space_bin_count / self.space_bin_count.sum()
 
-    def _time_norm_record(self):
-        return self.time_bin_record / self.time_bin_record.sum()
+    def _time_norm_count(self):
+        return self.time_bin_count / self.time_bin_count.sum()
 
     def _update_bin_count(self, slices):
         s_idx = slices[0].start * self.max_cols + slices[1].start
         t_idx = slices[2].start
         self.s_index_record.append(s_idx)
         self.t_index_record.append(t_idx)
-        self.space_bin_record[np.digitize(s_idx, self.spatial_bins)] += 1
-        self.time_bin_record[np.digitize(t_idx, self.temporal_bins)] += 1
+        self.space_bin_count[np.digitize(s_idx, self.spatial_bins)] += 1
+        self.time_bin_count[np.digitize(t_idx, self.temporal_bins)] += 1
 
     def get_samples(self):
         """Override get_samples to track sample indices."""
@@ -184,9 +186,17 @@ class TestBatchHandlerDC(BatchHandlerDC):
             self._update_bin_count(self.index_record[-1])
         return out
 
-    def __iter__(self):
+    def reset(self):
+        """Reset records for a new epoch."""
+        self.space_bin_count[:] = 0
+        self.time_bin_count[:] = 0
+        self.space_bin_record.append(self.space_bin_count)
+        self.time_bin_record.append(self.time_bin_count)
         self.temporal_weights_record.append(self.temporal_weights)
         self.spatial_weights_record.append(self.spatial_weights)
+
+    def __iter__(self):
+        self.reset()
         return super().__iter__()
 
 

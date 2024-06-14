@@ -23,13 +23,15 @@ FEATURES = ['U_100m', 'V_100m']
 init_logger('sup3r', log_level='DEBUG')
 
 
-@pytest.mark.parametrize(('n_space_bins', 'n_time_bins'), [(4, 1)])
+@pytest.mark.parametrize(
+    ('n_space_bins', 'n_time_bins'), [(4, 1), (1, 4), (4, 4)]
+)
 def test_train_spatial_dc(
     n_space_bins,
     n_time_bins,
     full_shape=(20, 20),
     sample_shape=(8, 8, 1),
-    n_epoch=2,
+    n_epoch=5,
 ):
     """Test data-centric spatial model training. Check that the spatial
     weights give the correct number of observations from each spatial bin"""
@@ -65,7 +67,7 @@ def test_train_spatial_dc(
         s_enhance=2,
         n_batches=n_batches,
         sample_shape=sample_shape,
-        mode='eager'
+        mode='eager',
     )
 
     assert batcher.val_data.n_batches == n_space_bins * n_time_bins
@@ -84,14 +86,14 @@ def test_train_spatial_dc(
             out_dir=os.path.join(td, 'test_{epoch}'),
         )
         assert np.allclose(
-            batcher._space_norm_record(),
+            batcher._space_norm_count(),
             batcher.spatial_weights,
-            atol=2 * batcher._space_norm_record().std(),
+            atol=2 * batcher._space_norm_count().std(),
         )
         assert np.allclose(
-            batcher._time_norm_record(),
+            batcher._time_norm_count(),
             batcher.temporal_weights,
-            atol=2 * batcher._time_norm_record().std(),
+            atol=2 * batcher._time_norm_count().std(),
         )
 
         out_dir = os.path.join(td, 'dc_gan')
@@ -104,7 +106,9 @@ def test_train_spatial_dc(
         assert loaded.meta['class'] == 'Sup3rGanDC'
 
 
-@pytest.mark.parametrize(('n_space_bins', 'n_time_bins'), [(4, 1)])
+@pytest.mark.parametrize(
+    ('n_space_bins', 'n_time_bins'), [(4, 1), (1, 4), (4, 4)]
+)
 def test_train_st_dc(n_space_bins, n_time_bins, n_epoch=2):
     """Test data-centric spatiotemporal model training. Check that the temporal
     weights give the correct number of observations from each temporal bin"""
@@ -131,7 +135,8 @@ def test_train_st_dc(n_space_bins, n_time_bins, n_epoch=2):
     batch_size = 4
     n_batches = 2
     batcher = TestBatchHandlerDC(
-        [handler],
+        train_containers=[handler],
+        val_containers=[handler],
         batch_size=batch_size,
         sample_shape=(12, 12, 16),
         n_space_bins=n_space_bins,
@@ -155,14 +160,14 @@ def test_train_st_dc(n_space_bins, n_time_bins, n_epoch=2):
             out_dir=os.path.join(td, 'test_{epoch}'),
         )
         assert np.allclose(
-            batcher._space_norm_record(),
+            batcher._space_norm_count(),
             batcher.spatial_weights,
-            atol=2 * batcher._space_norm_record().std(),
+            atol=2 * batcher._space_norm_count().std(),
         )
         assert np.allclose(
-            batcher._time_norm_record(),
+            batcher._time_norm_count(),
             batcher.temporal_weights,
-            atol=2 * batcher._time_norm_record().std(),
+            atol=2 * batcher._time_norm_count().std(),
         )
 
         out_dir = os.path.join(td, 'dc_gan')
