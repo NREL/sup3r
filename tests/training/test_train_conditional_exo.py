@@ -1,4 +1,5 @@
-"""Test the training of conditional moment estimation models with exogenous inputs."""
+"""Test the training of conditional moment estimation models with exogenous
+inputs."""
 
 import os
 import tempfile

@@ -16,15 +16,37 @@ class BatchQueueDC(SingleBatchQueue):
     or set a priori to construct a validation queue"""
 
     def __init__(self, *args, n_space_bins=1, n_time_bins=1, **kwargs):
-        self.spatial_weights = np.ones(n_space_bins) / n_space_bins
-        self.temporal_weights = np.ones(n_time_bins) / n_time_bins
+        self.n_space_bins = n_space_bins
+        self.n_time_bins = n_time_bins
+        self._spatial_weights = np.ones(n_space_bins) / n_space_bins
+        self._temporal_weights = np.ones(n_time_bins) / n_time_bins
         super().__init__(*args, **kwargs)
 
-    def __getitem__(self, keys):
+    def get_samples(self):
         """Update weights and get sample from sampled container."""
         sampler = self.get_random_container()
         sampler.update_weights(self.spatial_weights, self.temporal_weights)
         return next(sampler)
+
+    @property
+    def spatial_weights(self):
+        """Get weights used to sample spatial bins."""
+        return self._spatial_weights
+
+    @spatial_weights.setter
+    def spatial_weights(self, value):
+        """Set weights used to sample spatial bins."""
+        self._spatial_weights = value
+
+    @property
+    def temporal_weights(self):
+        """Get weights used to sample temporal bins."""
+        return self._temporal_weights
+
+    @temporal_weights.setter
+    def temporal_weights(self, value):
+        """Set weights used to sample temporal bins."""
+        self._temporal_weights = value
 
 
 class ValBatchQueueDC(BatchQueueDC):
@@ -46,12 +68,22 @@ class ValBatchQueueDC(BatchQueueDC):
     def spatial_weights(self):
         """Sample entirely from this spatial bin determined by the batch
         number."""
-        weights = np.zeros(self.n_space_bins)
-        weights[self._batch_counter % self.n_space_bins] = 1
+        self._spatial_weights = np.eye(
+            1,
+            self.n_space_bins,
+            self._batch_counter % self.n_space_bins,
+            dtype=np.float32,
+        )[0]
+        return self._spatial_weights
 
     @property
     def temporal_weights(self):
         """Sample entirely from this temporal bin determined by the batch
         number."""
-        weights = np.zeros(self.n_time_bins)
-        weights[self._batch_counter % self.n_time_bins] = 1
+        self._temporal_weights = np.eye(
+            1,
+            self.n_time_bins,
+            self._batch_counter % self.n_time_bins,
+            dtype=np.float32,
+        )[0]
+        return self._temporal_weights

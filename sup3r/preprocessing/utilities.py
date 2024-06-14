@@ -152,7 +152,6 @@ def get_input_handler_class(file_paths, input_handler_name):
         )
 
     if isinstance(input_handler_name, str):
-
         HandlerClass = getattr(sup3r.preprocessing, input_handler_name, None)
 
     if HandlerClass is None:
@@ -253,8 +252,8 @@ class FactoryMeta(ABCMeta, type):
         return super().__new__(cls, name, bases, namespace, **kwargs)
 
 
-def _log_args(thing, func, *args, **kwargs):
-    """Log annotated attributes and args."""
+def _get_args_dict(thing, func, *args, **kwargs):
+    """Get args dict from given object and object method."""
 
     ann_dict = {
         name: getattr(thing, name)
@@ -273,6 +272,27 @@ def _log_args(thing, func, *args, **kwargs):
     args_dict.update(kwargs)
     args_dict.update(ann_dict)
 
+    return args_dict
+
+
+def get_full_args_dict(Class, func, *args, **kwargs):
+    """Get full args dict for given class by searching through the inheritance
+    hierarchy."""
+    args_dict = _get_args_dict(Class, func, *args, **kwargs)
+    if Class.__bases__ == (object,):
+        return args_dict
+    for base in Class.__bases__:
+        base_dict = get_full_args_dict(base, base.__init__, *args, **kwargs)
+        args_dict.update(
+            {k: v for k, v in base_dict.items() if k not in args_dict}
+        )
+    return args_dict
+
+
+def _log_args(thing, func, *args, **kwargs):
+    """Log annotated attributes and args."""
+
+    args_dict = get_full_args_dict(thing, func, *args, **kwargs)
     name = (
         thing.__name__
         if hasattr(thing, '__name__')

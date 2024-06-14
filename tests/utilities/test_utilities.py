@@ -1,4 +1,5 @@
 """pytests for general utilities"""
+
 import os
 import tempfile
 
@@ -46,15 +47,13 @@ def test_log_interp(log=False):
         tmp = tmp.isel(time=slice(0, 100))
         tmp.to_netcdf(infile)
         tmp.close()
-        LogLinInterpolator.run(infile,
-                               outfile,
-                               output_heights={
-                                   'u': [40],
-                                   'v': [40]
-                               },
-                               variables=['u', 'v'],
-                               max_workers=1,
-                               )
+        LogLinInterpolator.run(
+            infile,
+            outfile,
+            output_heights={'u': [40], 'v': [40]},
+            variables=['u', 'v'],
+            max_workers=1,
+        )
 
         def between_check(first, mid, second):
             return (first < mid < second) or (second < mid < first)
@@ -62,13 +61,21 @@ def test_log_interp(log=False):
         out = xr.open_dataset(outfile)
         input = xr.open_dataset(infile)
         u_check = all(
-            between_check(lower, mid, higher) for lower, mid, higher in zip(
-                input['u_10m'].values.flatten(), out['u_40m'].values.flatten(),
-                input['u_100m'].values.flatten()))
+            between_check(lower, mid, higher)
+            for lower, mid, higher in zip(
+                input['u_10m'].values.flatten(),
+                out['u_40m'].values.flatten(),
+                input['u_100m'].values.flatten(),
+            )
+        )
         v_check = all(
-            between_check(lower, mid, higher) for lower, mid, higher in zip(
-                input['v_10m'].values.flatten(), out['v_40m'].values.flatten(),
-                input['v_100m'].values.flatten()))
+            between_check(lower, mid, higher)
+            for lower, mid, higher in zip(
+                input['v_10m'].values.flatten(),
+                out['v_40m'].values.flatten(),
+                input['v_100m'].values.flatten(),
+            )
+        )
         assert u_check and v_check
 
 
@@ -91,26 +98,29 @@ def test_regridding(log=False):
             target_meta = target_meta.sample(frac=1, random_state=0)
             target_meta.to_csv(shuffled_meta_path, index=False)
 
-            regrid_output = RegridOutput(source_files=[FP_WTK],
-                                         out_pattern=out_pattern,
-                                         target_meta=shuffled_meta_path,
-                                         heights=heights,
-                                         k_neighbors=4,
-                                         worker_kwargs=dict(regrid_workers=1,
-                                                            query_workers=1),
-                                         incremental=True,
-                                         n_chunks=10,
-                                         max_nodes=2)
+            regrid_output = RegridOutput(
+                source_files=[FP_WTK],
+                out_pattern=out_pattern,
+                target_meta=shuffled_meta_path,
+                heights=heights,
+                k_neighbors=4,
+                worker_kwargs={'regrid_workers': 1, 'query_workers': 1},
+                incremental=True,
+                n_chunks=10,
+                max_nodes=2,
+            )
             for node_index in range(regrid_output.nodes):
                 regrid_output.run(node_index=node_index)
 
-            CollectorH5.collect(regrid_output.out_files,
-                                collect_file,
-                                regrid_output.output_features,
-                                target_final_meta_file=meta_path,
-                                join_times=False,
-                                n_writes=2,
-                                max_workers=1)
+            CollectorH5.collect(
+                regrid_output.out_files,
+                collect_file,
+                regrid_output.output_features,
+                target_final_meta_file=meta_path,
+                join_times=False,
+                n_writes=2,
+                max_workers=1,
+            )
             with Resource(collect_file) as out_res:
                 for height in heights:
                     ws_name = f'windspeed_{height}m'
@@ -168,8 +178,10 @@ def test_weighted_box_sampler():
         assert chunks[-1][0] <= slice_2.start <= chunks[-1][-1]
 
         slice_3, _ = weighted_box_sampler(data.shape, shape, weights_3)
-        assert (chunks[2][0] <= slice_3.start <= chunks[2][-1]
-                or chunks[5][0] <= slice_3.start <= chunks[5][-1])
+        assert (
+            chunks[2][0] <= slice_3.start <= chunks[2][-1]
+            or chunks[5][0] <= slice_3.start <= chunks[5][-1]
+        )
 
     data = np.zeros((2, 100, 1))
     shape = (2, 10)
@@ -194,8 +206,10 @@ def test_weighted_box_sampler():
         assert chunks[-1][0] <= slice_2.start <= chunks[-1][-1]
 
         _, slice_3 = weighted_box_sampler(data.shape, shape, weights_3)
-        assert (chunks[2][0] <= slice_3.start <= chunks[2][-1]
-                or chunks[5][0] <= slice_3.start <= chunks[5][-1])
+        assert (
+            chunks[2][0] <= slice_3.start <= chunks[2][-1]
+            or chunks[5][0] <= slice_3.start <= chunks[5][-1]
+        )
 
     shape = (1, 1)
     weights = np.zeros(np.prod(data.shape))
@@ -231,8 +245,10 @@ def test_weighted_time_sampler():
         assert chunks[-1][0] <= slice_2.start <= chunks[-1][-1]
 
         slice_3 = weighted_time_sampler(data.shape, 10, weights_3)
-        assert (chunks[2][0] <= slice_3.start <= chunks[2][-1]
-                or chunks[5][0] <= slice_3.start <= chunks[5][-1])
+        assert (
+            chunks[2][0] <= slice_3.start <= chunks[2][-1]
+            or chunks[5][0] <= slice_3.start <= chunks[5][-1]
+        )
 
     shape = 1
     weights = np.zeros(data.shape[2])
@@ -301,9 +317,10 @@ def test_s_coarsen_5D(s_enhance):
                         j_hr = j_lr * s_enhance
                         j_hr = slice(j_hr, j_hr + s_enhance)
 
-                        assert np.allclose(coarse[o, i_lr, j_lr, t, f],
-                                           arr[o, i_hr, j_hr, t, f].mean(),
-                                           )
+                        assert np.allclose(
+                            coarse[o, i_lr, j_lr, t, f],
+                            arr[o, i_hr, j_hr, t, f].mean(),
+                        )
 
 
 @pytest.mark.parametrize('s_enhance', [1, 2, 4, 5])
@@ -322,8 +339,9 @@ def test_s_coarsen_4D(s_enhance):
                     j_hr = j_lr * s_enhance
                     j_hr = slice(j_hr, j_hr + s_enhance)
 
-                    assert np.allclose(coarse[o, i_lr, j_lr, f],
-                                       arr[o, i_hr, j_hr, f].mean())
+                    assert np.allclose(
+                        coarse[o, i_lr, j_lr, f], arr[o, i_hr, j_hr, f].mean()
+                    )
 
 
 @pytest.mark.parametrize('s_enhance', [1, 2, 4, 5])
@@ -342,8 +360,9 @@ def test_s_coarsen_4D_no_obs(s_enhance):
                     j_hr = j_lr * s_enhance
                     j_hr = slice(j_hr, j_hr + s_enhance)
 
-                    assert np.allclose(coarse[i_lr, j_lr, t, f],
-                                       arr[i_hr, j_hr, t, f].mean())
+                    assert np.allclose(
+                        coarse[i_lr, j_lr, t, f], arr[i_hr, j_hr, t, f].mean()
+                    )
 
 
 @pytest.mark.parametrize('s_enhance', [1, 2, 4, 5])
@@ -361,8 +380,9 @@ def test_s_coarsen_3D_no_obs(s_enhance):
                 j_hr = j_lr * s_enhance
                 j_hr = slice(j_hr, j_hr + s_enhance)
 
-                assert np.allclose(coarse[i_lr, j_lr, f], arr[i_hr, j_hr,
-                                                              f].mean())
+                assert np.allclose(
+                    coarse[i_lr, j_lr, f], arr[i_hr, j_hr, f].mean()
+                )
 
 
 def test_t_coarsen():
@@ -398,18 +418,18 @@ def test_transform_rotate():
     lats = np.array([[1, 1, 1], [0, 0, 0]])
     lons = np.array([[-120, -100, -80], [-120, -100, -80]])
     lat_lon = np.concatenate(
-        [np.expand_dims(lats, axis=-1),
-         np.expand_dims(lons, axis=-1)],
-        axis=-1)
+        [np.expand_dims(lats, axis=-1), np.expand_dims(lons, axis=-1)], axis=-1
+    )
     windspeed = np.ones((lat_lon.shape[0], lat_lon.shape[1], 1))
 
     # wd = 0 -> u = 0 and v = -1
     winddirection = np.zeros((lat_lon.shape[0], lat_lon.shape[1], 1))
 
-    u, v = transform_rotate_wind(np.array(windspeed, dtype=np.float32),
-                                 np.array(winddirection, dtype=np.float32),
-                                 lat_lon,
-                                 )
+    u, v = transform_rotate_wind(
+        np.array(windspeed, dtype=np.float32),
+        np.array(winddirection, dtype=np.float32),
+        lat_lon,
+    )
     u_target = np.zeros(u.shape)
     u_target[...] = 0
     v_target = np.zeros(v.shape)
@@ -422,10 +442,11 @@ def test_transform_rotate():
     winddirection = np.zeros((lat_lon.shape[0], lat_lon.shape[1], 1))
     winddirection[...] = 90
 
-    u, v = transform_rotate_wind(np.array(windspeed, dtype=np.float32),
-                                 np.array(winddirection, dtype=np.float32),
-                                 lat_lon,
-                                 )
+    u, v = transform_rotate_wind(
+        np.array(windspeed, dtype=np.float32),
+        np.array(winddirection, dtype=np.float32),
+        lat_lon,
+    )
     u_target = np.zeros(u.shape)
     u_target[...] = -1
     v_target = np.zeros(v.shape)
@@ -438,10 +459,11 @@ def test_transform_rotate():
     winddirection = np.zeros((lat_lon.shape[0], lat_lon.shape[1], 1))
     winddirection[...] = 270
 
-    u, v = transform_rotate_wind(np.array(windspeed, dtype=np.float32),
-                                 np.array(winddirection, dtype=np.float32),
-                                 lat_lon,
-                                 )
+    u, v = transform_rotate_wind(
+        np.array(windspeed, dtype=np.float32),
+        np.array(winddirection, dtype=np.float32),
+        lat_lon,
+    )
     u_target = np.zeros(u.shape)
     u_target[...] = 1
     v_target = np.zeros(v.shape)
@@ -454,10 +476,11 @@ def test_transform_rotate():
     winddirection = np.zeros((lat_lon.shape[0], lat_lon.shape[1], 1))
     winddirection[...] = 180
 
-    u, v = transform_rotate_wind(np.array(windspeed, dtype=np.float32),
-                                 np.array(winddirection, dtype=np.float32),
-                                 lat_lon,
-                                 )
+    u, v = transform_rotate_wind(
+        np.array(windspeed, dtype=np.float32),
+        np.array(winddirection, dtype=np.float32),
+        lat_lon,
+    )
     u_target = np.zeros(u.shape)
     u_target[...] = 0
     v_target = np.zeros(v.shape)
@@ -470,10 +493,11 @@ def test_transform_rotate():
     winddirection = np.zeros((lat_lon.shape[0], lat_lon.shape[1], 1))
     winddirection[...] = 45
 
-    u, v = transform_rotate_wind(np.array(windspeed, dtype=np.float32),
-                                 np.array(winddirection, dtype=np.float32),
-                                 lat_lon,
-                                 )
+    u, v = transform_rotate_wind(
+        np.array(windspeed, dtype=np.float32),
+        np.array(winddirection, dtype=np.float32),
+        lat_lon,
+    )
     u_target = np.zeros(u.shape)
     u_target[...] = -1 / np.sqrt(2)
     v_target = np.zeros(v.shape)
@@ -487,7 +511,7 @@ def test_st_interpolation(plot=False):
     """Test spatiotemporal linear interpolation"""
 
     X, Y, T = np.meshgrid(np.arange(10), np.arange(10), np.arange(1, 11))
-    arr = 100 * np.exp(-((X - 5)**2 + (Y - 5)**2) / T)
+    arr = 100 * np.exp(-((X - 5) ** 2 + (Y - 5) ** 2) / T)
 
     s_interp = st_interp(arr, s_enhance=3, t_enhance=1)
 

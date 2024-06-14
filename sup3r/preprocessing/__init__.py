@@ -55,4 +55,4 @@ from .extracters import (
     TopoExtracterNC,
 )
 from .loaders import Loader, LoaderH5, LoaderNC
-from .samplers import DataCentricSampler, DualSampler, DualSamplerCC, Sampler
+from .samplers import DualSampler, DualSamplerCC, Sampler, SamplerDC

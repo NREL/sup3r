@@ -332,14 +332,8 @@ def plot_multi_contour(
                             suptitle)
     else:
         for i_dat, data in enumerate(listData):
-            if vminList is None:
-                vmin = np.nanmin(data)
-            else:
-                vmin = vminList[i_dat]
-            if vmaxList is None:
-                vmax = np.nanmax(data)
-            else:
-                vmax = vmaxList[i_dat]
+            vmin = np.nanmin(data) if vminList is None else vminList[i_dat]
+            vmax = np.nanmax(data) if vmaxList is None else vmaxList[i_dat]
             im = axs[i_dat].imshow(
                 data.T,
                 cmap=cm.jet,

@@ -21,6 +21,52 @@ means = dict.fromkeys(FEATURES, 0)
 stds = dict.fromkeys(FEATURES, 1)
 
 
+class TestBatchHandler(BatchHandler):
+    """Batch handler with sample counter for testing."""
+
+    def __init__(self, *args, **kwargs):
+        self.sample_count = 0
+        super().__init__(*args, **kwargs)
+
+    def get_samples(self):
+        """Override get_samples to track sample count."""
+        self.sample_count += 1
+        return super().get_samples()
+
+
+def test_sample_counter():
+    """Make sure samples are counted correctly, over multiple epochs."""
+
+    dat = DummyData((10, 10, 100), FEATURES)
+    transform_kwargs = {'smoothing_ignore': [], 'smoothing': None}
+    batcher = TestBatchHandler(
+        train_containers=[dat],
+        val_containers=[],
+        sample_shape=(8, 8, 4),
+        batch_size=4,
+        n_batches=4,
+        s_enhance=2,
+        t_enhance=1,
+        queue_cap=3,
+        means=means,
+        stds=stds,
+        max_workers=1,
+        transform_kwargs=transform_kwargs,
+        mode='eager'
+    )
+
+    n_epochs = 4
+    for _ in range(n_epochs):
+        for _ in batcher:
+            pass
+
+    assert (
+        batcher.sample_count // batcher.batch_size
+        == n_epochs * batcher.n_batches + batcher._queue.size().numpy()
+    )
+    batcher.stop()
+
+
 def test_normalization():
     """Smoke test for batch queue."""
 

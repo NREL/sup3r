@@ -1016,3 +1016,5 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             )
             if stop:
                 break
+
+        batch_handler.stop()

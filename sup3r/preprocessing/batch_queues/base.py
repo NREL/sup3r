@@ -94,9 +94,9 @@ class SingleBatchQueue(AbstractBatchQueue):
         high_res = samples.numpy()[..., self.hr_features_ind]
         return low_res, high_res
 
-    def _parallel_map(self):
+    def _parallel_map(self, data: tf.data.Dataset):
         """Perform call to map function for single dataset containers to enable
         parallel sampling."""
-        return self.data_gen.map(
+        return data.map(
             lambda x: x, num_parallel_calls=self.max_workers
         )

@@ -32,8 +32,6 @@ TARGET = (13.67, 125.0)
 SHAPE = (8, 8)
 S_ENHANCE = [1, 4]
 T_ENHANCE = [1, 1]
-S_AGG_FACTORS = [4, 1]
-T_AGG_FACTORS = [1, 1]
 
 np.random.seed(42)
 
@@ -45,9 +43,8 @@ def test_exo_cache(feature):
     """Test exogenous data caching and re-load"""
     # no cached data
     steps = []
-    for s_en, t_en, s_agg, t_agg in zip(
-        S_ENHANCE, T_ENHANCE, S_AGG_FACTORS, T_AGG_FACTORS
-    ):
+    for s_en, t_en in zip(
+        S_ENHANCE, T_ENHANCE):
         steps.append(
             {
                 's_enhance': s_en,

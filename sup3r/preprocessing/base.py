@@ -246,7 +246,8 @@ class Container:
 
     @data.setter
     def data(self, data):
-        """Set data value. Cast to Sup3rX accessor if not already"""
+        """Set data value. Cast to Sup3rX accessor or Sup3rDataset if
+        conditions are met."""
         self._data = (
             Sup3rX(data)
             if isinstance(data, xr.Dataset)

@@ -195,7 +195,7 @@ def round_array(arr, digits=3):
     list
         List with rounded elements
     """
-    return [round(a, digits) for a in arr]
+    return [round(np.float64(a), digits) for a in arr]
 
 
 def temporal_coarsening(data, t_enhance=4, method='subsample'):

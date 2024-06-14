@@ -2,6 +2,7 @@
 which are updated during training based on performance of the model."""
 
 import logging
+from typing import Dict, List, Optional, Union
 
 from sup3r.preprocessing.samplers.base import Sampler
 from sup3r.preprocessing.samplers.utilities import (
@@ -10,21 +11,22 @@ from sup3r.preprocessing.samplers.utilities import (
     weighted_box_sampler,
     weighted_time_sampler,
 )
+from sup3r.typing import T_Array, T_Dataset
 
 logger = logging.getLogger(__name__)
 
 
-class DataCentricSampler(Sampler):
+class SamplerDC(Sampler):
     """DataCentric Sampler class used for sampling based on weights which can
     be updated during training."""
 
     def __init__(
         self,
-        data,
+        data: T_Dataset,
         sample_shape,
-        feature_sets,
-        spatial_weights=None,
-        temporal_weights=None,
+        feature_sets: Optional[Dict] = None,
+        spatial_weights: Optional[Union[T_Array, List]] = None,
+        temporal_weights: Optional[Union[T_Array, List]] = None,
     ):
         self.spatial_weights = spatial_weights or [1]
         self.temporal_weights = temporal_weights or [1]

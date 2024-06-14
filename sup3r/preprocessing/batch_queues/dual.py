@@ -63,10 +63,10 @@ class DualBatchQueue(AbstractBatchQueue):
         )
         assert all(self.t_enhance == t for t in t_factors), msg
 
-    def _parallel_map(self):
+    def _parallel_map(self, data: tf.data.Dataset):
         """Perform call to map function for dual containers to enable parallel
         sampling."""
-        return self.data_gen.map(
+        return data.map(
             lambda x, y: (x, y), num_parallel_calls=self.max_workers
         )
 

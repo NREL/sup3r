@@ -10,7 +10,8 @@ from rex import init_logger
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.models import Sup3rGanDC
-from sup3r.preprocessing import BatchHandlerDC, DataHandlerH5
+from sup3r.preprocessing import DataHandlerH5
+from sup3r.utilities.pytest.helpers import TestBatchHandlerDC
 
 SHAPE = (20, 20)
 
@@ -31,15 +32,6 @@ init_logger('sup3r', log_level='DEBUG')
 np.random.seed(42)
 
 
-class TestBatchHandlerDC(BatchHandlerDC):
-    """Data-centric batch handler with record for testing"""
-
-    def __next__(self):
-        self.time_weight_record.append(self.time_weights)
-        self.space_weight_record.append(self.space_weights)
-        super().__next__()
-
-
 @pytest.mark.parametrize('CustomLayer', ['Sup3rAdder', 'Sup3rConcat'])
 def test_wind_dc_hi_res_topo(CustomLayer, log=False):
     """Test a special data centric wind model with the custom Sup3rAdder or
@@ -56,7 +48,7 @@ def test_wind_dc_hi_res_topo(CustomLayer, log=False):
         hr_exo_features=('topography',),
     )
 
-    batcher = BatchHandlerDC(
+    batcher = TestBatchHandlerDC(
         [handler],
         batch_size=2,
         n_batches=2,
