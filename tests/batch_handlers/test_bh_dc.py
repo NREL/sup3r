@@ -64,14 +64,14 @@ def test_counts(s_weights, t_weights):
         assert batcher.temporal_weights == t_weights
 
     assert np.allclose(
-        batcher._space_norm_record(),
+        batcher._space_norm_count(),
         batcher.spatial_weights,
-        atol=2 * batcher._space_norm_record().std()
+        atol=2 * batcher._space_norm_count().std()
     )
     assert np.allclose(
-        batcher._time_norm_record(),
+        batcher._time_norm_count(),
         batcher.temporal_weights,
-        atol=2 * batcher._time_norm_record().std()
+        atol=2 * batcher._time_norm_count().std()
     )
     batcher.stop()
 
