@@ -56,10 +56,9 @@ class Sup3rX:
     Examples
     --------
     >>> ds = xr.Dataset(...)
-    >>> ds.sx[features]
-
-    >>> ds.sx.time_index
-    >>> ds.sx.lat_lon
+    >>> feature_data = ds.sx[features]
+    >>> ti = ds.sx.time_index
+    >>> lat_lon_array = ds.sx.lat_lon
 
     """
 

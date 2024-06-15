@@ -10,10 +10,8 @@ import pytest
 import xarray as xr
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
-from sup3r.bias import (
-    QuantileDeltaMappingCorrection,
-    local_qdm_bc,
-)
+from sup3r.bias import QuantileDeltaMappingCorrection, local_qdm_bc
+from sup3r.bias.utilities import qdm_bc
 from sup3r.models import Sup3rGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.preprocessing import DataHandlerNC, DataHandlerNCforCC
@@ -161,18 +159,30 @@ def test_parallel(fp_fut_cc):
     Both modes should give the exact same results.
     """
 
-    s = QuantileDeltaMappingCorrection(FP_NSRDB, FP_CC, fp_fut_cc,
-                                       'ghi', 'rsds',
-                                       target=TARGET, shape=SHAPE,
-                                       distance_upper_bound=0.7,
-                                       bias_handler='DataHandlerNCforCC')
+    s = QuantileDeltaMappingCorrection(
+        FP_NSRDB,
+        FP_CC,
+        fp_fut_cc,
+        'ghi',
+        'rsds',
+        target=TARGET,
+        shape=SHAPE,
+        distance_upper_bound=0.7,
+        bias_handler='DataHandlerNCforCC',
+    )
     out_s = s.run(max_workers=1)
 
-    p = QuantileDeltaMappingCorrection(FP_NSRDB, FP_CC, fp_fut_cc,
-                                       'ghi', 'rsds',
-                                       target=TARGET, shape=SHAPE,
-                                       distance_upper_bound=0.7,
-                                       bias_handler='DataHandlerNCforCC')
+    p = QuantileDeltaMappingCorrection(
+        FP_NSRDB,
+        FP_CC,
+        fp_fut_cc,
+        'ghi',
+        'rsds',
+        target=TARGET,
+        shape=SHAPE,
+        distance_upper_bound=0.7,
+        bias_handler='DataHandlerNCforCC',
+    )
     out_p = p.run(max_workers=2)
 
     for k in out_s.keys():
@@ -185,11 +195,17 @@ def test_parallel(fp_fut_cc):
 def test_fill_nan(fp_fut_cc):
     """No NaN when running with fill_extend"""
 
-    c = QuantileDeltaMappingCorrection(FP_NSRDB, FP_CC, fp_fut_cc,
-                                       'ghi', 'rsds',
-                                       target=TARGET, shape=SHAPE,
-                                       distance_upper_bound=0.7,
-                                       bias_handler='DataHandlerNCforCC')
+    c = QuantileDeltaMappingCorrection(
+        FP_NSRDB,
+        FP_CC,
+        fp_fut_cc,
+        'ghi',
+        'rsds',
+        target=TARGET,
+        shape=SHAPE,
+        distance_upper_bound=0.7,
+        bias_handler='DataHandlerNCforCC',
+    )
 
     # Without filling, at least one NaN or this test is useless.
     out = c.run(fill_extend=False)
@@ -211,11 +227,17 @@ def test_save_file(tmp_path, fp_fut_cc):
     Confirm it saves the output by creating a valid HDF5 file.
     """
 
-    calc = QuantileDeltaMappingCorrection(FP_NSRDB, FP_CC, fp_fut_cc,
-                                          'ghi', 'rsds',
-                                          target=TARGET, shape=SHAPE,
-                                          distance_upper_bound=0.7,
-                                          bias_handler='DataHandlerNCforCC')
+    calc = QuantileDeltaMappingCorrection(
+        FP_NSRDB,
+        FP_CC,
+        fp_fut_cc,
+        'ghi',
+        'rsds',
+        target=TARGET,
+        shape=SHAPE,
+        distance_upper_bound=0.7,
+        bias_handler='DataHandlerNCforCC',
+    )
 
     filename = os.path.join(tmp_path, 'test_saving.hdf')
     _ = calc.run(filename)
@@ -297,7 +319,7 @@ def test_handler_qdm_bc(fp_fut_cc, dist_params):
     """
     Handler = DataHandlerNC(fp_fut_cc, 'rsds')
     original = Handler.data.copy()
-    Handler.qdm_bc(dist_params, 'ghi')
+    qdm_bc(Handler, dist_params, 'ghi')
     corrected = Handler.data
 
     assert not np.isnan(corrected).all(), "Can't compare if only NaN"
@@ -322,7 +344,7 @@ def test_bc_identity(tmp_path, fp_fut_cc, dist_params):
         f.flush()
     Handler = DataHandlerNC(fp_fut_cc, 'rsds')
     original = Handler.data.copy()
-    Handler.qdm_bc(ident_params, 'ghi', relative=True)
+    qdm_bc(Handler, ident_params, 'ghi', relative=True)
     corrected = Handler.data
 
     assert not np.isnan(corrected).all(), "Can't compare if only NaN"
@@ -346,7 +368,7 @@ def test_bc_identity_absolute(tmp_path, fp_fut_cc, dist_params):
         f.flush()
     Handler = DataHandlerNC(fp_fut_cc, 'rsds')
     original = Handler.data.copy()
-    Handler.qdm_bc(ident_params, 'ghi', relative=False)
+    qdm_bc(Handler, ident_params, 'ghi', relative=False)
     corrected = Handler.data
 
     assert not np.isnan(corrected).all(), "Can't compare if only NaN"
@@ -370,7 +392,7 @@ def test_bc_model_constant(tmp_path, fp_fut_cc, dist_params):
         f.flush()
     Handler = DataHandlerNC(fp_fut_cc, 'rsds')
     original = Handler.data.copy()
-    Handler.qdm_bc(offset_params, 'ghi', relative=False)
+    qdm_bc(Handler, offset_params, 'ghi', relative=False)
     corrected = Handler.data
 
     assert not np.isnan(corrected).all(), "Can't compare if only NaN"
@@ -394,7 +416,7 @@ def test_bc_trend(tmp_path, fp_fut_cc, dist_params):
         f.flush()
     Handler = DataHandlerNC(fp_fut_cc, 'rsds')
     original = Handler.data.copy()
-    Handler.qdm_bc(offset_params, 'ghi', relative=False)
+    qdm_bc(Handler, offset_params, 'ghi', relative=False)
     corrected = Handler.data
 
     assert not np.isnan(corrected).all(), "Can't compare if only NaN"
@@ -417,7 +439,7 @@ def test_bc_trend_same_hist(tmp_path, fp_fut_cc, dist_params):
         f.flush()
     Handler = DataHandlerNC(fp_fut_cc, 'rsds')
     original = Handler.data.copy()
-    Handler.qdm_bc(offset_params, 'ghi', relative=False)
+    qdm_bc(Handler, offset_params, 'ghi', relative=False)
     corrected = Handler.data
 
     assert not np.isnan(corrected).all(), "Can't compare if only NaN"
@@ -440,11 +462,12 @@ def test_fwp_integration(tmp_path):
     shape = (8, 8)
     temporal_slice = slice(None, None, 1)
     fwp_chunk_shape = (4, 4, 150)
-    input_files = [os.path.join(TEST_DATA_DIR, 'ua_test.nc'),
-                   os.path.join(TEST_DATA_DIR, 'va_test.nc'),
-                   os.path.join(TEST_DATA_DIR, 'orog_test.nc'),
-                   os.path.join(TEST_DATA_DIR, 'zg_test.nc'),
-                   ]
+    input_files = [
+        os.path.join(TEST_DATA_DIR, 'ua_test.nc'),
+        os.path.join(TEST_DATA_DIR, 'va_test.nc'),
+        os.path.join(TEST_DATA_DIR, 'orog_test.nc'),
+        os.path.join(TEST_DATA_DIR, 'zg_test.nc'),
+    ]
 
     n_samples = 101
     quantiles = np.linspace(0, 1, n_samples)
@@ -521,14 +544,12 @@ def test_fwp_integration(tmp_path):
         fwp_chunk_shape=fwp_chunk_shape,
         spatial_pad=0,
         temporal_pad=0,
-        input_handler_kwargs=dict(
-            target=target,
-            shape=shape,
-            temporal_slice=temporal_slice,
-            worker_kwargs=dict(max_workers=1),
-        ),
+        input_handler_kwargs={
+            'target': target,
+            'shape': shape,
+            'time_slice': temporal_slice,
+        },
         out_pattern=os.path.join(tmp_path, 'out_{file_id}.nc'),
-        worker_kwargs=dict(max_workers=1),
         input_handler='DataHandlerNCforCC',
     )
     bc_strat = ForwardPassStrategy(
@@ -537,14 +558,12 @@ def test_fwp_integration(tmp_path):
         fwp_chunk_shape=fwp_chunk_shape,
         spatial_pad=0,
         temporal_pad=0,
-        input_handler_kwargs=dict(
-            target=target,
-            shape=shape,
-            temporal_slice=temporal_slice,
-            worker_kwargs=dict(max_workers=1),
-        ),
+        input_handler_kwargs={
+            'target': target,
+            'shape': shape,
+            'time_slice': temporal_slice,
+        },
         out_pattern=os.path.join(tmp_path, 'out_{file_id}.nc'),
-        worker_kwargs=dict(max_workers=1),
         input_handler='DataHandlerNCforCC',
         bias_correct_method='local_qdm_bc',
         bias_correct_kwargs=bias_correct_kwargs,
