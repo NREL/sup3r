@@ -106,7 +106,6 @@ class Sup3rGanDC(Sup3rGan):
                 total_losses,
                 content_losses,
                 batch_handler,
-                loss_details,
                 dim='time',
             )
         if batch_handler.n_space_bins > 1:
@@ -114,19 +113,18 @@ class Sup3rGanDC(Sup3rGan):
                 total_losses,
                 content_losses,
                 batch_handler,
-                loss_details,
                 dim='space',
             )
 
-        loss_details['val_losses'] = json.dumps(
-            round_array(total_losses)
+        loss_details['val_losses'] = json.dumps(round_array(total_losses))
+        loss_details['mean_val_loss_gen'] = round(np.mean(total_losses), 3)
+        loss_details['mean_val_loss_gen_content'] = round(
+            np.mean(content_losses), 3
         )
         return loss_details
 
     @staticmethod
-    def calc_bin_losses(
-        total_losses, content_losses, batch_handler, loss_details, dim
-    ):
+    def calc_bin_losses(total_losses, content_losses, batch_handler, dim):
         """Calculate losses across spatial (temporal) samples and update
         corresponding weights. Spatial (temporal) weights are computed based on
         the temporal (spatial) averages of losses.
@@ -139,9 +137,6 @@ class Sup3rGanDC(Sup3rGan):
             Array of content loss values across all validation sample bins
         batch_handler : sup3r.preprocessing.BatchHandler
             BatchHandler object to iterate through
-        loss_details : dict
-            Namespace of the breakdown of loss components where each value is a
-            running average at the current state in the epoch.
         dim : str
             Either 'time' or 'space'
         """
@@ -158,7 +153,7 @@ class Sup3rGanDC(Sup3rGan):
             .reshape((batch_handler.n_space_bins, batch_handler.n_time_bins))
             .mean(axis=axis)
         )
-        t_c_losses = (
+        c_losses = (
             np.array(content_losses)
             .reshape((batch_handler.n_space_bins, batch_handler.n_time_bins))
             .mean(axis=axis)
@@ -170,14 +165,10 @@ class Sup3rGanDC(Sup3rGan):
         else:
             batch_handler.spatial_weights = new_weights
         logger.debug(
-            f'Previous {dim} bin weights: ' f'{round_array(old_weights)}'
+            f'Previous bin weights ({dim}): ' f'{round_array(old_weights)}'
         )
-        logger.debug(f'{dim} losses (total): {round_array(t_losses)}')
-        logger.debug(f'{dim} losses (content): ' f'{round_array(t_c_losses)}')
+        logger.debug(f'Total losses ({dim}): {round_array(t_losses)}')
+        logger.debug(f'Content losses ({dim}): ' f'{round_array(c_losses)}')
         logger.info(
-            f'Updated {dim} bin weights: ' f'{round_array(new_weights)}'
-        )
-        loss_details[f'mean_{dim}_val_loss_gen'] = round(np.mean(t_losses), 3)
-        loss_details[f'mean_{dim}_val_loss_gen_content'] = round(
-            np.mean(t_c_losses), 3
+            f'Updated bin weights ({dim}): ' f'{round_array(new_weights)}'
         )

@@ -91,7 +91,6 @@ def test_train(
             n_batches=3,
             means=None,
             stds=None,
-            mode='eager'
         )
 
         assert batch_handler.means is not None

@@ -6,8 +6,6 @@ Sup3r batch_handling module.
 import logging
 from typing import Dict, List, Optional, Union
 
-import numpy as np
-
 from sup3r.preprocessing.base import (
     Container,
 )
@@ -20,12 +18,10 @@ from sup3r.preprocessing.batch_queues.conditional import (
     QueueMom2SepSF,
     QueueMom2SF,
 )
-from sup3r.preprocessing.batch_queues.dc import BatchQueueDC, ValBatchQueueDC
 from sup3r.preprocessing.batch_queues.dual import DualBatchQueue
 from sup3r.preprocessing.collections.stats import StatsCollection
 from sup3r.preprocessing.samplers.base import Sampler
 from sup3r.preprocessing.samplers.cc import DualSamplerCC
-from sup3r.preprocessing.samplers.dc import SamplerDC
 from sup3r.preprocessing.samplers.dual import DualSampler
 from sup3r.preprocessing.utilities import FactoryMeta, get_class_kwargs
 
@@ -191,35 +187,3 @@ BatchHandlerMom2SF = BatchHandlerFactory(
 BatchHandlerMom2SepSF = BatchHandlerFactory(
     QueueMom2SepSF, Sampler, name='BatchHandlerMom2SepSF'
 )
-
-BaseBatchHandlerDC = BatchHandlerFactory(
-    BatchQueueDC, SamplerDC, ValBatchQueueDC, name='BatchHandlerDC'
-)
-
-
-class BatchHandlerDC(BaseBatchHandlerDC):
-    """Add validation data requirement. Makes no sense to use this handler
-    without validation data."""
-
-    def __init__(self, train_containers, val_containers, *args, **kwargs):
-        msg = (
-            f'{self.__class__.__name__} requires validation data. If you '
-            'do not plan to sample training data based on performance '
-            'across validation data use another type of batch handler.'
-        )
-        assert val_containers is not None and val_containers != [], msg
-        super().__init__(train_containers, val_containers, *args, **kwargs)
-        max_space_bins = int(
-            np.ceil(
-                np.prod(self.data.shape[:2]) / np.prod(self.sample_shape[:2])
-            )
-        )
-        max_time_bins = int(np.ceil(self.data.shape[2] / self.sample_shape[2]))
-        msg = (
-            f'The requested sample_shape {self.sample_shape} is too large '
-            'for the requested number of bins (space, time) '
-            f'{self.n_space_bins}, {self.n_time_bins} and the shape of the '
-            f'sample data {self.data.shape[:3]}.'
-        )
-        assert max_space_bins <= self.n_space_bins, msg
-        assert max_time_bins <= self.n_time_bins, msg

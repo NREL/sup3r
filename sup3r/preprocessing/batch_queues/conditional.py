@@ -2,7 +2,7 @@
 
 import logging
 from abc import abstractmethod
-from dataclasses import dataclass
+from collections import namedtuple
 from typing import Dict, Optional
 
 import numpy as np
@@ -13,58 +13,17 @@ from sup3r.preprocessing.batch_queues.utilities import (
     spatial_simple_enhancing,
     temporal_simple_enhancing,
 )
-from sup3r.typing import T_Array
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class ConditionalBatch:
-    """Conditional batch object, containing low_res, high_res, output, and mask
-    data
-
-    Parameters
-    ----------
-    low_res : T_Array
-        4D | 5D array
-        (batch_size, spatial_1, spatial_2, features)
-        (batch_size, spatial_1, spatial_2, temporal, features)
-    high_res : T_Array
-        4D | 5D array
-        (batch_size, spatial_1, spatial_2, features)
-        (batch_size, spatial_1, spatial_2, temporal, features)
-    output : T_Array
-        Output predicted by the neural net. This can be different than the
-        high_res when doing moment estimation. For ex: output may be
-        (high_res)**2. We distinguish output from high_res since it may not be
-        possible to recover high_res from output.
-        4D | 5D array
-        (batch_size, spatial_1, spatial_2, features)
-        (batch_size, spatial_1, spatial_2, temporal, features)
-    mask : T_Array
-        Mask for the batch.
-        4D | 5D array
-        (batch_size, spatial_1, spatial_2, features)
-        (batch_size, spatial_1, spatial_2, temporal, features)
-    """
-
-    low_res: T_Array
-    high_res: T_Array
-    output: T_Array
-    mask: T_Array
-
-    def __post_init__(self):
-        self.shape = (self.low_res.shape, self.high_res.shape)
-
-    def __len__(self):
-        """Get the number of samples in this batch."""
-        return len(self.low_res)
+ConditionalBatch = namedtuple(
+    'ConditionalBatch', ['low_res', 'high_res', 'output', 'mask']
+)
 
 
 class ConditionalBatchQueue(SingleBatchQueue):
     """BatchQueue class for conditional moment estimation."""
-
-    BATCH_CLASS = ConditionalBatch
 
     def __init__(
         self,
@@ -198,15 +157,15 @@ class ConditionalBatchQueue(SingleBatchQueue):
 
         Returns
         -------
-        Batch
-            Batch object with `low_res`, `high_res`, `mask`, and `output`
+        namedtuple
+            Named tuple with `low_res`, `high_res`, `mask`, and `output`
             attributes
         """
         lr, hr = self.transform(samples, **self.transform_kwargs)
         lr, hr = self.normalize(lr, hr)
         mask = self.make_mask(high_res=hr)
         output = self.make_output(samples=(lr, hr))
-        return self.BATCH_CLASS(
+        return ConditionalBatch(
             low_res=lr, high_res=hr, output=output, mask=mask
         )
 

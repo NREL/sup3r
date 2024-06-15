@@ -62,7 +62,7 @@ def test_sample_counter():
 
     assert (
         batcher.sample_count // batcher.batch_size
-        == n_epochs * batcher.n_batches + batcher._queue.size().numpy()
+        == n_epochs * batcher.n_batches + batcher.queue.size().numpy()
     )
     batcher.stop()
 
