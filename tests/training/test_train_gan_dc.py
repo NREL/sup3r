@@ -186,6 +186,4 @@ def test_train_st_dc(n_space_bins, n_time_bins, n_epoch=2):
 
 
 if __name__ == '__main__':
-    test_train_st_dc(4, 1)
-    if False:
-        execute_pytest(__file__)
+    execute_pytest(__file__)

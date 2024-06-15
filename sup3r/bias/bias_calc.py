@@ -158,7 +158,6 @@ class DataRetrievalBase:
         self.bias_dh = self.bias_handler(self.bias_fps, [self.bias_feature],
                                          target=self.target,
                                          shape=self.shape,
-                                         val_split=0.0,
                                          **self.bias_handler_kwargs)
         lats = self.bias_dh.lat_lon[..., 0].flatten()
         self.bias_meta = self.bias_dh.meta

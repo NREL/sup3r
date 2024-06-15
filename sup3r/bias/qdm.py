@@ -9,6 +9,7 @@ import json
 import logging
 import os
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from typing import Optional
 
 import h5py
 import numpy as np
@@ -18,7 +19,6 @@ from rex.utilities.bc_utils import (
     sample_q_linear,
     sample_q_log,
 )
-from typing import Optional
 
 from sup3r.preprocessing.data_handlers import DataHandlerNC as DataHandler
 from sup3r.preprocessing.utilities import expand_paths
@@ -223,9 +223,7 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                                              [self.bias_feature],
                                              target=self.target,
                                              shape=self.shape,
-                                             val_split=0.0,
-                                             **self.bias_handler_kwargs,
-                                             )
+                                             **self.bias_handler_kwargs)
 
     def _init_out(self):
         """Initialize output arrays `self.out`
@@ -693,6 +691,7 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
        hydrological simulations of climate change. Journal of Hydrometeorology,
        16(6), 2421-2442.
     """
+
     def _init_out(self):
         super()._init_out()
 
