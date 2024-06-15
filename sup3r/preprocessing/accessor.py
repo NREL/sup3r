@@ -57,6 +57,7 @@ class Sup3rX:
     --------
     >>> ds = xr.Dataset(...)
     >>> ds.sx[features]
+
     >>> ds.sx.time_index
     >>> ds.sx.lat_lon
 
@@ -71,7 +72,7 @@ class Sup3rX:
             xarray Dataset instance to access with the following methods
         """
         self._ds = ds.to_dataset() if isinstance(ds, xr.DataArray) else ds
-        self._ds = self.reorder()
+        self._ds = self.reorder(self._ds)
         self._features = None
 
     def compute(self, **kwargs):
@@ -87,8 +88,15 @@ class Sup3rX:
             isinstance(self._ds[f].data, np.ndarray) for f in self.features
         )
 
-    def good_dim_order(self):
+    @classmethod
+    def good_dim_order(cls, ds):
         """Check if dims are in the right order for all variables.
+
+        Parameters
+        ----------
+        ds : xr.Dataset
+            Dataset with original dimension ordering. Could be any order but is
+            usually (time, ...)
 
         Returns
         -------
@@ -97,34 +105,40 @@ class Sup3rX:
             standard order (spatial, time, ..., features)
         """
         return all(
-            tuple(self._ds[f].dims) == ordered_dims(self._ds[f].dims)
-            for f in self._ds.data_vars
+            tuple(ds[f].dims) == ordered_dims(ds[f].dims) for f in ds.data_vars
         )
 
-    def reorder(self):
+    @classmethod
+    def reorder(cls, ds):
         """Reorder dimensions according to our standard.
+
+        Parameters
+        ----------
+        ds : xr.Dataset
+            Dataset with original dimension ordering. Could be any order but is
+            usually (time, ...)
 
         Returns
         -------
-        _ds : xr.Dataset
+        ds : xr.Dataset
             Dataset with all variables in our standard dimension order
             (spatial, time, ..., features)
         """
 
-        if not self.good_dim_order():
+        if not cls.good_dim_order(ds):
             reordered_vars = {
                 var: (
-                    ordered_dims(self._ds.data_vars[var].dims),
-                    ordered_array(self._ds.data_vars[var]).data,
+                    ordered_dims(ds.data_vars[var].dims),
+                    ordered_array(ds.data_vars[var]).data,
                 )
-                for var in self._ds.data_vars
+                for var in ds.data_vars
             }
-            self._ds = xr.Dataset(
-                coords=self._ds.coords,
+            ds = xr.Dataset(
+                coords=ds.coords,
                 data_vars=reordered_vars,
-                attrs=self._ds.attrs,
+                attrs=ds.attrs,
             )
-        return self._ds
+        return ds
 
     def update(self, new_dset, attrs=None):
         """Updated the contained dataset with coords and data_vars replaced

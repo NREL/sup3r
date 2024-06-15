@@ -73,7 +73,7 @@ class DualExtracter(Container):
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
         if isinstance(data, tuple):
-            data = Sup3rDataset(data=data)
+            data = Sup3rDataset(low_res=data[0], high_res=data[1])
         msg = (
             'The DualExtracter requires either a data tuple with two members, '
             'low and high resolution in that order, or a Sup3rDataset '

@@ -54,7 +54,7 @@ class Sup3rDataset:
                     'without an explicit name. Interpreting this as '
                     '(high_res,). To be explicit provide keyword arguments '
                     'like Sup3rDataset(high_res=data[0])'
-            )
+                )
                 logger.warning(msg)
                 warn(msg)
                 dsets = {'high_res': data[0]}
@@ -64,13 +64,15 @@ class Sup3rDataset:
                     'Interpreting this as (low_res, high_res). To be explicit '
                     'provide keyword arguments like '
                     'Sup3rDataset(low_res=data[0], high_res=data[1])'
-            )
+                )
                 logger.warning(msg)
                 warn(msg)
                 dsets = {'low_res': data[0], 'high_res': data[1]}
             else:
-                msg = (f'{self.__class__.__name__} received tuple of length '
-                       f'{len(data)}. Can only handle 1 / 2 - tuples.')
+                msg = (
+                    f'{self.__class__.__name__} received tuple of length '
+                    f'{len(data)}. Can only handle 1 / 2 - tuples.'
+                )
                 logger.error(msg)
                 raise ValueError(msg)
 
@@ -246,13 +248,19 @@ class Container:
 
     @data.setter
     def data(self, data):
-        """Set data value. Cast to Sup3rX accessor or Sup3rDataset if
-        conditions are met."""
-        self._data = (
-            Sup3rX(data)
-            if isinstance(data, xr.Dataset)
-            else Sup3rDataset(data=data)
+        """Set data value. Cast to Sup3rDataset if not already. This just
+        wraps the data in a namedtuple, simplifying interactions in the case
+        of dual datasets."""
+        dsets = (
+            {'high_res': data}
+            if not isinstance(data, tuple)
+            else {'low_res': data[0], 'high_res': data[1]}
             if isinstance(data, tuple) and len(data) == 2
+            else {'data': data}
+        )
+        self._data = (
+            Sup3rDataset(**dsets)
+            if not isinstance(data, Sup3rDataset)
             else data
         )
 

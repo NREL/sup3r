@@ -1,6 +1,9 @@
-"""
-Sup3r batch_handling module.
-@author: bbenton
+"""Data centric batch handlers. Sample contained data according to
+spatiotemporal weights, which are derived from losses on validation data during
+training and updated each epoch.
+
+TODO: Easy to implement dual dc batch handler - Just need to use DualBatchQueue
+and override SamplerDC get_sample_index method.
 """
 
 import logging

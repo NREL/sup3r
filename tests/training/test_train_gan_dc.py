@@ -13,7 +13,7 @@ from sup3r.preprocessing import (
     DataHandlerH5,
 )
 from sup3r.utilities.loss_metrics import MmdMseLoss
-from sup3r.utilities.pytest.helpers import TestBatchHandlerDC
+from sup3r.utilities.pytest.helpers import TestBatchHandlerDC, execute_pytest
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)
@@ -21,6 +21,9 @@ FEATURES = ['U_100m', 'V_100m']
 
 
 init_logger('sup3r', log_level='DEBUG')
+
+
+np.random.seed(42)
 
 
 @pytest.mark.parametrize(
@@ -67,11 +70,11 @@ def test_train_spatial_dc(
         s_enhance=2,
         n_batches=n_batches,
         sample_shape=sample_shape,
-        mode='eager',
     )
 
     assert batcher.val_data.n_batches == n_space_bins * n_time_bins
 
+    deviation = 1 / np.sqrt(batcher.n_batches * batcher.batch_size - 1)
     with tempfile.TemporaryDirectory() as td:
         # test that the normalized number of samples from each bin is close
         # to the weight for that bin
@@ -88,12 +91,12 @@ def test_train_spatial_dc(
         assert np.allclose(
             batcher._space_norm_count(),
             batcher.spatial_weights,
-            atol=2 * batcher._space_norm_count().std(),
+            atol=deviation,
         )
         assert np.allclose(
             batcher._time_norm_count(),
             batcher.temporal_weights,
-            atol=2 * batcher._time_norm_count().std(),
+            atol=deviation,
         )
 
         out_dir = os.path.join(td, 'dc_gan')
@@ -146,6 +149,8 @@ def test_train_st_dc(n_space_bins, n_time_bins, n_epoch=2):
         n_batches=n_batches,
     )
 
+    deviation = 1 / np.sqrt(batcher.n_batches * batcher.batch_size - 1)
+
     with tempfile.TemporaryDirectory() as td:
         # test that the normalized number of samples from each bin is close
         # to the weight for that bin
@@ -162,12 +167,12 @@ def test_train_st_dc(n_space_bins, n_time_bins, n_epoch=2):
         assert np.allclose(
             batcher._space_norm_count(),
             batcher.spatial_weights,
-            atol=2 * batcher._space_norm_count().std(),
+            atol=deviation,
         )
         assert np.allclose(
             batcher._time_norm_count(),
             batcher.temporal_weights,
-            atol=2 * batcher._time_norm_count().std(),
+            atol=deviation,
         )
 
         out_dir = os.path.join(td, 'dc_gan')
@@ -178,3 +183,9 @@ def test_train_st_dc(n_space_bins, n_time_bins, n_epoch=2):
         assert isinstance(loaded.loss_fun, MmdMseLoss)
         assert model.meta['class'] == 'Sup3rGanDC'
         assert loaded.meta['class'] == 'Sup3rGanDC'
+
+
+if __name__ == '__main__':
+    test_train_st_dc(4, 1)
+    if False:
+        execute_pytest(__file__)

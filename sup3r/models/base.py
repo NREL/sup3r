@@ -730,7 +730,10 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             self.dict_to_tensorboard(b_loss_details)
             self.dict_to_tensorboard(self.timer.log)
             loss_details = self.update_loss_details(
-                loss_details, b_loss_details, len(batch), prefix='train_'
+                loss_details,
+                b_loss_details,
+                batch_handler.batch_size,
+                prefix='train_',
             )
             logger.debug(
                 'Batch {} out of {} has epoch-average '
@@ -919,6 +922,11 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         tensorboard_profile : bool
             Whether to export profiling information to tensorboard. This can
             then be viewed in the tensorboard dashboard under the profile tab
+
+        TODO: (1) args here are getting excessive. Might be time for some
+        refactoring. (2) cal_val_loss should be done in a separate thread from
+        train_epoch so they can be done concurrently. This would be especially
+        important for batch handlers which require val data, like dc handlers.
         """
         if tensorboard_log:
             self._init_tensorboard_writer(out_dir)

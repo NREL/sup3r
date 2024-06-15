@@ -103,7 +103,7 @@ class DummySampler(Sampler):
     def __init__(self, sample_shape, data_shape, features, feature_sets=None):
         data = make_fake_dset(data_shape, features=features)
         super().__init__(
-            Sup3rDataset(data), sample_shape, feature_sets=feature_sets
+            Sup3rDataset(high_res=data), sample_shape, feature_sets=feature_sets
         )
 
 

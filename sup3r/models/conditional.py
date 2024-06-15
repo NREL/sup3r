@@ -1,4 +1,5 @@
 """Sup3r conditional moment model software"""
+
 import logging
 import os
 import pprint
@@ -18,10 +19,19 @@ logger = logging.getLogger(__name__)
 class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
     """Basic Sup3r conditional moments model."""
 
-    def __init__(self, gen_layers,
-                 optimizer=None, learning_rate=1e-4, num_par=None,
-                 history=None, meta=None, means=None, stdevs=None,
-                 default_device=None, name=None):
+    def __init__(
+        self,
+        gen_layers,
+        optimizer=None,
+        learning_rate=1e-4,
+        num_par=None,
+        history=None,
+        meta=None,
+        means=None,
+        stdevs=None,
+        default_device=None,
+        name=None,
+    ):
         """
         Parameters
         ----------
@@ -129,10 +139,12 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
             Returns a pretrained gan model that was previously saved to out_dir
         """
         if verbose:
-            logger.info('Loading model from disk in directory: {}'
-                        .format(model_dir))
-            msg = ('Active python environment versions: \n{}'
-                   .format(pprint.pformat(VERSION_RECORD, indent=4)))
+            logger.info(
+                'Loading model from disk in directory: {}'.format(model_dir)
+            )
+            msg = 'Active python environment versions: \n{}'.format(
+                pprint.pformat(VERSION_RECORD, indent=4)
+            )
             logger.info(msg)
 
         fp_gen = os.path.join(model_dir, 'model_gen.pkl')
@@ -174,9 +186,9 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
 
         config_optm_g = self.get_optimizer_config(self.optimizer)
 
-        num_par = int(np.sum(
-                      [np.prod(v.get_shape().as_list())
-                       for v in self.weights]))
+        num_par = int(
+            np.sum([np.prod(v.get_shape().as_list()) for v in self.weights])
+        )
 
         means = self._means
         stdevs = self._stdevs
@@ -184,14 +196,15 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
             means = {k: float(v) for k, v in means.items()}
             stdevs = {k: float(v) for k, v in stdevs.items()}
 
-        model_params = {'name': self.name,
-                        'num_par': num_par,
-                        'version_record': self.version_record,
-                        'optimizer': config_optm_g,
-                        'means': means,
-                        'stdevs': stdevs,
-                        'meta': self.meta,
-                        }
+        model_params = {
+            'name': self.name,
+            'num_par': num_par,
+            'version_record': self.version_record,
+            'optimizer': config_optm_g,
+            'means': means,
+            'stdevs': stdevs,
+            'meta': self.meta,
+        }
 
         return model_params
 
@@ -222,8 +235,7 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
             moment predictor
         """
 
-        loss = self.loss_fun(output_true * mask,
-                             output_gen * mask)
+        loss = self.loss_fun(output_true * mask, output_gen * mask)
 
         return loss
 
@@ -250,11 +262,14 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
         output_gen = self._combine_loss_input(output_true, output_gen)
 
         if output_gen.shape != output_true.shape:
-            msg = ('The tensor shapes of the synthetic output {} and '
-                   'true output {} did not have matching shape! '
-                   'Check the spatiotemporal enhancement multipliers in your '
-                   'your model config and data handlers.'
-                   .format(output_gen.shape, output_true.shape))
+            msg = (
+                'The tensor shapes of the synthetic output {} and '
+                'true output {} did not have matching shape! '
+                'Check the spatiotemporal enhancement multipliers in your '
+                'your model config and data handlers.'.format(
+                    output_gen.shape, output_true.shape
+                )
+            )
             logger.error(msg)
             raise RuntimeError(msg)
 
@@ -285,12 +300,12 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
             val_exo_data = self.get_high_res_exo_input(val_batch.high_res)
             output_gen = self._tf_generate(val_batch.low_res, val_exo_data)
             _, v_loss_details = self.calc_loss(
-                val_batch.output, output_gen, val_batch.mask)
+                val_batch.output, output_gen, val_batch.mask
+            )
 
-            loss_details = self.update_loss_details(loss_details,
-                                                    v_loss_details,
-                                                    len(val_batch),
-                                                    prefix='val_')
+            loss_details = self.update_loss_details(
+                loss_details, v_loss_details, len(val_batch), prefix='val_'
+            )
 
         return loss_details
 
@@ -320,34 +335,43 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
         for ib, batch in enumerate(batch_handler):
             b_loss_details = {}
             b_loss_details = self.run_gradient_descent(
-                batch.low_res, batch.output,
+                batch.low_res,
+                batch.output,
                 self.generator_weights,
                 optimizer=self.optimizer,
                 multi_gpu=multi_gpu,
-                mask=batch.mask)
+                mask=batch.mask,
+            )
 
-            loss_details = self.update_loss_details(loss_details,
-                                                    b_loss_details,
-                                                    len(batch),
-                                                    prefix='train_')
+            loss_details = self.update_loss_details(
+                loss_details,
+                b_loss_details,
+                batch_handler.batch_size,
+                prefix='train_',
+            )
 
-            logger.debug('Batch {} out of {} has epoch-average '
-                         'gen loss of: {:.2e}. '
-                         .format(ib, len(batch_handler),
-                                 loss_details['train_loss_gen']))
+            logger.debug(
+                'Batch {} out of {} has epoch-average '
+                'gen loss of: {:.2e}. '.format(
+                    ib, len(batch_handler), loss_details['train_loss_gen']
+                )
+            )
 
         return loss_details
 
-    def train(self, batch_handler,
-              input_resolution,
-              n_epoch,
-              checkpoint_int=None,
-              out_dir='./condMom_{epoch}',
-              early_stop_on=None,
-              early_stop_threshold=0.005,
-              early_stop_n_epoch=5,
-              multi_gpu=False,
-              tensorboard_log=True):
+    def train(
+        self,
+        batch_handler,
+        input_resolution,
+        n_epoch,
+        checkpoint_int=None,
+        out_dir='./condMom_{epoch}',
+        early_stop_on=None,
+        early_stop_threshold=0.005,
+        early_stop_n_epoch=5,
+        multi_gpu=False,
+        tensorboard_log=True,
+    ):
         """Train the model on real low res data and real high res data
 
         Parameters
@@ -406,21 +430,23 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
             lr_features=batch_handler.lr_features,
             hr_exo_features=batch_handler.hr_exo_features,
             hr_out_features=batch_handler.hr_out_features,
-            smoothed_features=batch_handler.smoothed_features)
+            smoothed_features=batch_handler.smoothed_features,
+        )
 
         epochs = list(range(n_epoch))
 
         if self._history is None:
-            self._history = pd.DataFrame(
-                columns=['elapsed_time'])
+            self._history = pd.DataFrame(columns=['elapsed_time'])
             self._history.index.name = 'epoch'
         else:
             epochs += self._history.index.values[-1] + 1
 
         t0 = time.time()
-        logger.info('Training model '
-                    'for {} epochs starting at epoch {}'
-                    .format(n_epoch, epochs[0]))
+        logger.info(
+            'Training model ' 'for {} epochs starting at epoch {}'.format(
+                n_epoch, epochs[0]
+            )
+        )
 
         for epoch in epochs:
             loss_details = self.train_epoch(batch_handler, multi_gpu=multi_gpu)
@@ -429,12 +455,13 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
 
             msg = f'Epoch {epoch} of {epochs[-1]} '
             msg += 'gen train loss: {:.2e} '.format(
-                loss_details["train_loss_gen"])
+                loss_details['train_loss_gen']
+            )
 
-            if all(loss in loss_details for loss
-                   in ['val_loss_gen']):
+            if all(loss in loss_details for loss in ['val_loss_gen']):
                 msg += 'gen val loss: {:.2e} '.format(
-                    loss_details["val_loss_gen"])
+                    loss_details['val_loss_gen']
+                )
 
             logger.info(msg)
 
@@ -442,10 +469,18 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
 
             extras = {'learning_rate_gen': lr_g}
 
-            stop = self.finish_epoch(epoch, epochs, t0, loss_details,
-                                     checkpoint_int, out_dir,
-                                     early_stop_on, early_stop_threshold,
-                                     early_stop_n_epoch, extras=extras)
+            stop = self.finish_epoch(
+                epoch,
+                epochs,
+                t0,
+                loss_details,
+                checkpoint_int,
+                out_dir,
+                early_stop_on,
+                early_stop_threshold,
+                early_stop_n_epoch,
+                extras=extras,
+            )
 
             if stop:
                 break
