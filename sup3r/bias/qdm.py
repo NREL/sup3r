@@ -200,7 +200,6 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                                              [self.bias_feature],
                                              target=self.target,
                                              shape=self.shape,
-                                             val_split=0.0,
                                              **self.bias_handler_kwargs)
 
     def _init_out(self):

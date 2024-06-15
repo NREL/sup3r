@@ -54,11 +54,8 @@ class Sup3rQa:
         bias_correct_method=None,
         bias_correct_kwargs=None,
         save_sources=True,
-        time_chunk_size=None,
-        cache_pattern=None,
-        overwrite_cache=False,
+        cache_kwargs=None,
         input_handler=None,
-        worker_kwargs=None,
     ):
         """Parameters
         ----------
@@ -136,42 +133,12 @@ class Sup3rQa:
         save_sources : bool
             Flag to save re-coarsened synthetic data and true low-res data to
             qa_fp in addition to the error dataset
-        time_chunk_size : int
-            Size of chunks to split time dimension into for parallel data
-            extraction. If running in serial this can be set to the size
-            of the full time index for best performance.
-        cache_pattern : str | None
-            Pattern for files for saving feature data. e.g.
-            file_path_{feature}.pkl Each feature will be saved to a file with
-            the feature name replaced in cache_pattern. If not None
-            feature arrays will be saved here and not stored in self.data until
-            load_cached_data is called. The cache_pattern can also include
-            {shape}, {target}, {times} which will help ensure unique cache
-            files for complex problems.
-        overwrite_cache : bool
-            Whether to overwrite cache files storing the computed/extracted
-            feature data
+        cache_kwargs : dict | None
+            Keyword aruments to :class:`Cacher`.
         input_handler : str | None
             data handler class to use for input data. Provide a string name to
             match a class in data_handling.py. If None the correct handler will
             be guessed based on file type and time series properties.
-        worker_kwargs : dict | None
-            Dictionary of worker values. Can include max_workers,
-            extract_workers, compute_workers, load_workers.
-            Each argument needs to be an integer or None.
-
-            The value of `max workers` will set the value of all other worker
-            args. If max_workers == 1 then all processes will be serialized. If
-            max_workers == None then other worker args will use their own
-            provided values.
-
-            `extract_workers` is the max number of workers to use for
-            extracting features from source data. If None it will be estimated
-            based on memory limits. If 1 processes will be serialized.
-            `compute_workers` is the max number of workers to use for computing
-            derived features from raw features in source data. `load_workers`
-            is the max number of workers to use for loading cached feature
-            data.
         """
 
         logger.info('Initializing Sup3rQa and retrieving source data...')
@@ -210,11 +177,7 @@ class Sup3rQa:
             shape=shape,
             time_slice=time_slice,
             raster_file=raster_file,
-            cache_pattern=cache_pattern,
-            time_chunk_size=time_chunk_size,
-            overwrite_cache=overwrite_cache,
-            val_split=0.0,
-            worker_kwargs=worker_kwargs,
+            cache_kwargs=cache_kwargs,
         )
 
     def __enter__(self):
