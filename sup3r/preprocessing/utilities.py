@@ -15,6 +15,7 @@ import numpy as np
 import xarray as xr
 
 import sup3r.preprocessing
+from sup3r.typing import T_Dataset
 
 logger = logging.getLogger(__name__)
 
@@ -314,7 +315,7 @@ def log_args(func):
 
 
 def parse_features(
-    features: Optional[str | list] = None, data: xr.Dataset = None
+    features: Optional[str | list] = None, data: T_Dataset = None
 ):
     """Parse possible inputs for features (list, str, None, 'all'). If 'all'
     this returns all data_vars in data. If None this returns an empty list.
@@ -328,7 +329,7 @@ def parse_features(
     ----------
     features : list | str | None
         Feature request to parse.
-    data : xr.Dataset | Sup3rDataset
+    data : T_Dataset
         Data containing available features
     """
     features = lowered(features) if features is not None else []

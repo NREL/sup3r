@@ -5,7 +5,6 @@ import logging
 import dask.array as da
 import numpy as np
 import pandas as pd
-import xarray
 import xarray as xr
 
 from sup3r.preprocessing.utilities import (
@@ -24,8 +23,8 @@ from sup3r.typing import T_Array
 logger = logging.getLogger(__name__)
 
 
-@xarray.register_dataarray_accessor('sx')
-@xarray.register_dataset_accessor('sx')
+@xr.register_dataarray_accessor('sx')
+@xr.register_dataset_accessor('sx')
 class Sup3rX:
     """Accessor for xarray - the suggested way to extend xarray functionality.
 

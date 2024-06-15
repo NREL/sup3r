@@ -7,14 +7,13 @@ from inspect import signature
 from typing import Union
 
 import dask.array as da
-import xarray as xr
 
 from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.derivers.methods import (
     RegistryBase,
 )
 from sup3r.preprocessing.utilities import Dimension, parse_to_list
-from sup3r.typing import T_Array
+from sup3r.typing import T_Array, T_Dataset
 from sup3r.utilities.interpolation import Interpolator
 
 logger = logging.getLogger(__name__)
@@ -62,13 +61,13 @@ class BaseDeriver(Container):
 
     FEATURE_REGISTRY = RegistryBase
 
-    def __init__(self, data: xr.Dataset, features, FeatureRegistry=None):
+    def __init__(self, data: T_Dataset, features, FeatureRegistry=None):
         """
         Parameters
         ----------
-        data : xr.Dataset
-            xr.Dataset() with data to use for derivations. Usually comes from
-            the `.data` attribute of a :class:`Extracter` object.
+        data : T_Dataset
+            Data to use for derivations. Usually comes from the `.data`
+            attribute of a :class:`Extracter` object.
         features : list
             List of feature names to derive from the :class:`Extracter` data.
             The :class:`Extracter` object contains the features available to
@@ -268,7 +267,7 @@ class Deriver(BaseDeriver):
 
     def __init__(
         self,
-        data: xr.Dataset,
+        data: T_Dataset,
         features,
         time_roll=0,
         hr_spatial_coarsen=1,

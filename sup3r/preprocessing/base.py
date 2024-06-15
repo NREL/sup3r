@@ -6,7 +6,7 @@ samplers, batch queues, batch handlers.
 import logging
 import pprint
 from collections import namedtuple
-from typing import Dict, Optional, Tuple, Union
+from typing import Dict, Optional, Union
 from warnings import warn
 
 import numpy as np
@@ -15,6 +15,7 @@ import xarray as xr
 import sup3r.preprocessing.accessor  # noqa: F401 # pylint: disable=W0611
 from sup3r.preprocessing.accessor import Sup3rX
 from sup3r.preprocessing.utilities import _log_args
+from sup3r.typing import T_Dataset
 
 logger = logging.getLogger(__name__)
 
@@ -230,12 +231,12 @@ class Container:
 
     def __init__(
         self,
-        data: Optional[xr.Dataset | Tuple[xr.Dataset, ...]] = None,
+        data: Optional[T_Dataset] = None,
     ):
         """
         Parameters
         ----------
-        data : xr.Dataset | Tuple[xr.Dataset, xr.Dataset]
+        data : T_Dataset
             Either a single xr.Dataset or a tuple of datasets. Tuple used for
             dual / paired containers like :class:`DualSamplers`.
         """

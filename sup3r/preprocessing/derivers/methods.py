@@ -7,7 +7,6 @@ import logging
 from abc import ABC, abstractmethod
 
 import numpy as np
-import xarray as xr
 
 from sup3r.preprocessing.derivers.utilities import (
     invert_uv,
@@ -31,14 +30,14 @@ class DerivedFeature(ABC):
 
     @classmethod
     @abstractmethod
-    def compute(cls, data: xr.Dataset, **kwargs):
+    def compute(cls, data: T_Dataset, **kwargs):
         """Compute method for derived feature. This can use any of the features
         contained in the xr.Dataset data and the attributes (e.g.
         `.lat_lon`, `.time_index` accessed through Sup3rX accessor).
 
         Parameters
         ----------
-        data : xr.Dataset
+        data : T_Dataset
             Initialized and standardized through a :class:`Loader` with a
             specific spatiotemporal extent extracted for the features contained
             using a :class:`Extracter`.
@@ -90,7 +89,7 @@ class ClearSkyRatioCC(DerivedFeature):
 
         Parameters
         ----------
-        data : xr.Dataset
+        data : T_Dataset
             xarray dataset used for this compuation, must include clearsky_ghi
             and rsds (rsds==ghi for cc datasets)
 
@@ -200,7 +199,7 @@ class UWindPowerLaw(DerivedFeature):
 
         Parameters
         ----------
-        data : xr.Dataset
+        data : T_Dataset
             Initialized and standardized through a :class:`Loader` with a
             specific spatiotemporal extent extracted for the features contained
             using a :class:`Extracter`.
