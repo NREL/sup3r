@@ -12,7 +12,7 @@ from warnings import warn
 import numpy as np
 import xarray as xr
 
-import sup3r.preprocessing.accessor  # noqa: F401
+import sup3r.preprocessing.accessor  # noqa: F401 # pylint: disable=W0611
 from sup3r.preprocessing.accessor import Sup3rX
 from sup3r.preprocessing.utilities import _log_args
 
@@ -180,7 +180,7 @@ class Sup3rDataset:
         the features we use might just be ['u','v']
         """
         data_vars = list(self._ds[0].data_vars)
-        [
+        _ = [
             data_vars.append(f)
             for f in list(self._ds[-1].data_vars)
             if f not in data_vars
@@ -216,7 +216,7 @@ class Sup3rDataset:
 
     def compute(self, **kwargs):
         """Load data into memory for each data member."""
-        [data.compute(**kwargs) for data in self._ds]
+        _ = [data.compute(**kwargs) for data in self._ds]
 
 
 class Container:

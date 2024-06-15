@@ -1,4 +1,5 @@
 """Bias correction methods which can be applied to data handler data."""
+
 import logging
 import os
 
@@ -43,14 +44,17 @@ def lin_bc(handler, bc_files, threshold=0.1):
             dset_adder = f'{feature}_adder'
             with Resource(fp) as res:
                 dsets = [dset.lower() for dset in res.dsets]
-                check = (dset_scalar.lower() in dsets
-                         and dset_adder.lower() in dsets)
+                check = (
+                    dset_scalar.lower() in dsets
+                    and dset_adder.lower() in dsets
+                )
             if feature not in completed and check:
                 scalar, adder = get_spatial_bc_factors(
                     lat_lon=handler.lat_lon,
                     feature_name=feature,
                     bias_fp=fp,
-                    threshold=threshold)
+                    threshold=threshold,
+                )
 
                 if scalar.shape[-1] == 1:
                     scalar = np.repeat(scalar, handler.shape[2], axis=2)
@@ -60,27 +64,34 @@ def lin_bc(handler, bc_files, threshold=0.1):
                     scalar = scalar[..., idm]
                     adder = adder[..., idm]
                 else:
-                    msg = ('Can only accept bias correction factors '
-                           'with last dim equal to 1 or 12 but '
-                           'received bias correction factors with '
-                           'shape {}'.format(scalar.shape))
+                    msg = (
+                        'Can only accept bias correction factors '
+                        'with last dim equal to 1 or 12 but '
+                        'received bias correction factors with '
+                        'shape {}'.format(scalar.shape)
+                    )
                     logger.error(msg)
                     raise RuntimeError(msg)
 
-                logger.info('Bias correcting "{}" with linear '
-                            'correction from "{}"'.format(
-                                feature, os.path.basename(fp)))
+                logger.info(
+                    'Bias correcting "{}" with linear '
+                    'correction from "{}"'.format(
+                        feature, os.path.basename(fp)
+                    )
+                )
                 handler.data[..., idf] *= scalar
                 handler.data[..., idf] += adder
                 completed.append(feature)
 
 
-def qdm_bc(handler,
-           bc_files,
-           reference_feature,
-           relative=True,
-           threshold=0.1,
-           no_trend=False):
+def qdm_bc(
+    handler,
+    bc_files,
+    reference_feature,
+    relative=True,
+    threshold=0.1,
+    no_trend=False,
+):
     """Bias Correction using Quantile Delta Mapping
 
     Bias correct this DataHandler's data with Quantile Delta Mapping. The
@@ -130,15 +141,19 @@ def qdm_bc(handler,
     completed = []
     for idf, feature in enumerate(handler.features):
         for fp in bc_files:
-            logger.info('Bias correcting "{}" with QDM '
-                        'correction from "{}"'.format(
-                            feature, os.path.basename(fp)))
-            handler.data[..., idf] = local_qdm_bc(handler.data[..., idf],
-                                               handler.lat_lon,
-                                               reference_feature,
-                                               feature,
-                                               bias_fp=fp,
-                                               threshold=threshold,
-                                               relative=relative,
-                                               no_trend=no_trend)
+            logger.info(
+                'Bias correcting "{}" with QDM ' 'correction from "{}"'.format(
+                    feature, os.path.basename(fp)
+                )
+            )
+            handler.data[..., idf] = local_qdm_bc(
+                handler.data[..., idf],
+                handler.lat_lon,
+                reference_feature,
+                feature,
+                bias_fp=fp,
+                threshold=threshold,
+                relative=relative,
+                no_trend=no_trend,
+            )
             completed.append(feature)
