@@ -384,3 +384,11 @@ class Sup3rX:
     def lat_lon(self, lat_lon):
         """Update the lat_lon attribute with array values."""
         self[[Dimension.LATITUDE, Dimension.LONGITUDE]] = lat_lon
+
+    @property
+    def meta(self):
+        """Return dataframe of flattened lat / lon values."""
+        return pd.DataFrame(
+            columns=['latitude', 'longitude'],
+            data=self.lat_lon.reshape((-1, 2)),
+        )

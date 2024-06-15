@@ -252,11 +252,9 @@ class Container:
         wraps the data in a namedtuple, simplifying interactions in the case
         of dual datasets."""
         dsets = (
-            {'high_res': data}
-            if not isinstance(data, tuple)
-            else {'low_res': data[0], 'high_res': data[1]}
+            {'low_res': data[0], 'high_res': data[1]}
             if isinstance(data, tuple) and len(data) == 2
-            else {'data': data}
+            else {'high_res': data}
         )
         self._data = (
             Sup3rDataset(**dsets)
