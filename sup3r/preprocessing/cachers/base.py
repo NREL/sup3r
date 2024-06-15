@@ -11,6 +11,7 @@ import xarray as xr
 
 from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.utilities import Dimension
+from sup3r.typing import T_Dataset
 
 logger = logging.getLogger(__name__)
 
@@ -20,14 +21,14 @@ class Cacher(Container):
 
     def __init__(
         self,
-        data: xr.Dataset,
+        data: T_Dataset,
         cache_kwargs: Dict,
     ):
         """
         Parameters
         ----------
-        data : xr.Dataset
-            xarray dataset to write to file
+        data : T_Dataset
+            Data to write to file
         cache_kwargs : dict
             Dictionary with kwargs for caching wrangled data. This should at
             minimum include a 'cache_pattern' key, value. This pattern must
