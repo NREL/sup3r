@@ -58,7 +58,6 @@ class Sup3rX:
     >>> feature_data = ds.sx[features]
     >>> ti = ds.sx.time_index
     >>> lat_lon_array = ds.sx.lat_lon
-
     """
 
     def __init__(self, ds: xr.Dataset | xr.DataArray):
