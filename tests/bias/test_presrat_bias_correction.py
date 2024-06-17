@@ -134,8 +134,9 @@ def test_zero_precipitation_rate_nan():
     arr = np.arange(10)
 
     r1 = f(arr, threshold=5)
-    r2 = f(np.concatenate([5*[np.nan], arr]), threshold=5)
+    r2 = f(np.concatenate([5 * [np.nan], arr]), threshold=5)
     assert r1 == r2
+
 
 """
     breakpoint()
@@ -158,7 +159,7 @@ def test_zero_precipitation_rate_nan():
 """
 
 
-@pytest.mark.parametrize("threshold", [0, 50, 1e6])
+@pytest.mark.parametrize('threshold', [0, 50, 1e6])
 def test_parallel(fp_fut_cc, threshold):
     """Running in parallel must not alter results
 
@@ -242,8 +243,8 @@ def test_presrat_zero_rate_threshold_zero(fp_fut_cc):
 
     assert 'ghi_zero_rate' in out, 'Missing ghi_zero_rate in calc output'
     zero_rate = out['ghi_zero_rate']
-    assert np.all(np.isfinite(zero_rate)), "Unexpected NaN for ghi_zero_rate"
-    assert np.all(zero_rate==0), "Threshold=0, rate should be 0"
+    assert np.all(np.isfinite(zero_rate)), 'Unexpected NaN for ghi_zero_rate'
+    assert np.all(zero_rate == 0), 'Threshold=0, rate should be 0'
 
 
 def test_presrat_zero_rate_threshold_1e9(fp_fut_cc):
@@ -267,8 +268,8 @@ def test_presrat_zero_rate_threshold_1e9(fp_fut_cc):
 
     assert 'ghi_zero_rate' in out, 'Missing ghi_zero_rate in calc output'
     zero_rate = out['ghi_zero_rate']
-    assert np.all(np.isfinite(zero_rate)), "Unexpected NaN for ghi_zero_rate"
-    assert np.all(zero_rate==1), "Threshold=0, rate should be 0"
+    assert np.all(np.isfinite(zero_rate)), 'Unexpected NaN for ghi_zero_rate'
+    assert np.all(zero_rate == 1), 'Threshold=0, rate should be 0'
 
 
 def test_apply_zero_precipitation_rate():
@@ -282,17 +283,17 @@ def test_apply_zero_precipitation_rate_nan():
     data = np.array([[[5, 0.1, np.nan, 0.2, 1]]])
     out = apply_zero_precipitation_rate(data, np.array([[[0.25]]]))
 
-    assert np.allclose(
-        [5.0, 0.0, np.nan, 0.2, 1.0], out, equal_nan=True
-    )
+    assert np.allclose([5.0, 0.0, np.nan, 0.2, 1.0], out, equal_nan=True)
 
 
 def test_apply_zero_precipitation_rate_2D():
     data = np.array(
-        [[
-            [5, 0.1, np.nan, 0.2, 1],
-            [5, 0.1, 3, 0.2, 1],
-        ]]
+        [
+            [
+                [5, 0.1, np.nan, 0.2, 1],
+                [5, 0.1, 3, 0.2, 1],
+            ]
+        ]
     )
     out = apply_zero_precipitation_rate(data, np.array([[[0.25], [0.41]]]))
 
@@ -301,6 +302,7 @@ def test_apply_zero_precipitation_rate_2D():
         out,
         equal_nan=True,
     )
+
 
 def test_presrat(fp_fut_cc):
     """Test PresRat correction procedure
