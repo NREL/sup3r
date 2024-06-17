@@ -174,8 +174,7 @@ def test_fwp_single_ts_vs_multi_ts_input_files():
             with xr.open_dataset(sf) as s_res, xr.open_dataset(mf) as m_res:
                 for feat in model.meta['hr_out_features']:
                     assert np.allclose(s_res[feat].values,
-                                       m_res[feat].values,
-                                       equal_nan=True)
+                                       m_res[feat].values)
 
 
 def test_fwp_spatial_only():
