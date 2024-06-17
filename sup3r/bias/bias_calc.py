@@ -34,20 +34,22 @@ class DataRetrievalBase:
     baseline data
     """
 
-    def __init__(self,
-                 base_fps,
-                 bias_fps,
-                 base_dset,
-                 bias_feature,
-                 distance_upper_bound=None,
-                 target=None,
-                 shape=None,
-                 base_handler='Resource',
-                 bias_handler='DataHandlerNCforCC',
-                 base_handler_kwargs=None,
-                 bias_handler_kwargs=None,
-                 decimals=None,
-                 match_zero_rate=False):
+    def __init__(
+        self,
+        base_fps,
+        bias_fps,
+        base_dset,
+        bias_feature,
+        distance_upper_bound=None,
+        target=None,
+        shape=None,
+        base_handler='Resource',
+        bias_handler='DataHandlerNCforCC',
+        base_handler_kwargs=None,
+        bias_handler_kwargs=None,
+        decimals=None,
+        match_zero_rate=False,
+    ):
         """
         Parameters
         ----------
@@ -113,9 +115,10 @@ class DataRetrievalBase:
            4(1), 4364. https://doi.org/10.1038/srep04364
         """
 
-        logger.info('Initializing DataRetrievalBase for base dset "{}" '
-                    'correcting biased dataset(s): {}'.format(
-                        base_dset, bias_feature))
+        logger.info(
+            'Initializing DataRetrievalBase for base dset "{}" '
+            'correcting biased dataset(s): {}'.format(base_dset, bias_feature)
+        )
         self.base_fps = base_fps
         self.bias_fps = bias_fps
         self.base_dset = base_dset
@@ -132,34 +135,39 @@ class DataRetrievalBase:
         self.base_fps = expand_paths(self.base_fps)
         self.bias_fps = expand_paths(self.bias_fps)
 
-        base_sup3r_handler = getattr(sup3r.preprocessing,
-                                     base_handler, None)
+        base_sup3r_handler = getattr(sup3r.preprocessing, base_handler, None)
         base_rex_handler = getattr(rex, base_handler, None)
 
         if base_rex_handler is not None:
             self.base_handler = base_rex_handler
-            self.base_dh = self.base_handler(self.base_fps[0],
-                                             **self.base_handler_kwargs)
+            self.base_dh = self.base_handler(
+                self.base_fps[0], **self.base_handler_kwargs
+            )
         elif base_sup3r_handler is not None:
             self.base_handler = base_sup3r_handler
             self.base_handler_kwargs['features'] = [self.base_dset]
-            self.base_dh = self.base_handler(self.base_fps,
-                                             **self.base_handler_kwargs)
-            msg = ('Base data handler opened with a sup3r DataHandler class '
-                   'must load cached data!')
+            self.base_dh = self.base_handler(
+                self.base_fps, **self.base_handler_kwargs
+            )
+            msg = (
+                'Base data handler opened with a sup3r DataHandler class '
+                'must load cached data!'
+            )
             assert self.base_dh.data is not None, msg
         else:
             msg = f'Could not retrieve "{base_handler}" from sup3r or rex!'
             logger.error(msg)
             raise RuntimeError(msg)
 
-        self.bias_handler = getattr(sup3r.preprocessing,
-                                    bias_handler)
+        self.bias_handler = getattr(sup3r.preprocessing, bias_handler)
         self.base_meta = self.base_dh.meta
-        self.bias_dh = self.bias_handler(self.bias_fps, [self.bias_feature],
-                                         target=self.target,
-                                         shape=self.shape,
-                                         **self.bias_handler_kwargs)
+        self.bias_dh = self.bias_handler(
+            self.bias_fps,
+            [self.bias_feature],
+            target=self.target,
+            shape=self.shape,
+            **self.bias_handler_kwargs,
+        )
         lats = self.bias_dh.lat_lon[..., 0].flatten()
         self.bias_meta = self.bias_dh.meta
         self.bias_ti = self.bias_dh.time_index
@@ -172,7 +180,8 @@ class DataRetrievalBase:
 
         self.nn_dist, self.nn_ind = self.bias_tree.query(
             self.base_meta[['latitude', 'longitude']],
-            distance_upper_bound=self.distance_upper_bound)
+            distance_upper_bound=self.distance_upper_bound,
+        )
 
         self.out = None
         self._init_out()
@@ -186,14 +195,16 @@ class DataRetrievalBase:
     def meta(self):
         """Get a meta data dictionary on how these bias factors were
         calculated"""
-        meta = {'base_fps': self.base_fps,
-                'bias_fps': self.bias_fps,
-                'base_dset': self.base_dset,
-                'bias_feature': self.bias_feature,
-                'target': self.target,
-                'shape': self.shape,
-                'class': str(self.__class__),
-                'version_record': VERSION_RECORD}
+        meta = {
+            'base_fps': self.base_fps,
+            'bias_fps': self.bias_fps,
+            'base_dset': self.base_dset,
+            'bias_feature': self.bias_feature,
+            'target': self.target,
+            'shape': self.shape,
+            'class': str(self.__class__),
+            'version_record': VERSION_RECORD,
+        }
         return meta
 
     @property
@@ -201,12 +212,16 @@ class DataRetrievalBase:
         """Maximum distance (float) to map high-resolution data from exo_source
         to the low-resolution file_paths input."""
         if self._distance_upper_bound is None:
-            diff = np.diff(self.bias_meta[['latitude', 'longitude']].values,
-                           axis=0)
+            diff = np.diff(
+                self.bias_meta[['latitude', 'longitude']].values, axis=0
+            )
             diff = np.max(np.median(diff, axis=0))
             self._distance_upper_bound = diff
-            logger.info('Set distance upper bound to {:.4f}'
-                        .format(self._distance_upper_bound))
+            logger.info(
+                'Set distance upper bound to {:.4f}'.format(
+                    self._distance_upper_bound
+                )
+            )
         return self._distance_upper_bound
 
     @staticmethod
@@ -252,8 +267,10 @@ class DataRetrievalBase:
         import_str += f'from sup3r.bias import {cls.__name__};\n'
 
         if not hasattr(cls, 'run'):
-            msg = ('I can only get you a node command for subclasses of '
-                   'DataRetrievalBase with a run() method.')
+            msg = (
+                'I can only get you a node command for subclasses of '
+                'DataRetrievalBase with a run() method.'
+            )
             logger.error(msg)
             raise NotImplementedError(msg)
 
@@ -269,16 +286,18 @@ class DataRetrievalBase:
         if log_file is not None:
             log_arg_str += f', log_file="{log_file}"'
 
-        cmd = (f"python -c \'{import_str}\n"
-               "t0 = time.time();\n"
-               f"logger = init_logger({log_arg_str});\n"
-               f"bc = {init_str};\n"
-               f"{fun_str};\n"
-               "t_elap = time.time() - t0;\n")
+        cmd = (
+            f"python -c '{import_str}\n"
+            't0 = time.time();\n'
+            f'logger = init_logger({log_arg_str});\n'
+            f'bc = {init_str};\n'
+            f'{fun_str};\n'
+            't_elap = time.time() - t0;\n'
+        )
 
         pipeline_step = config.get('pipeline_step') or ModuleName.BIAS_CALC
         cmd = BaseCLI.add_status_cmd(config, pipeline_step, cmd)
-        cmd += ";\'\n"
+        cmd += ";'\n"
 
         return cmd.replace('\\', '/')
 
@@ -358,12 +377,14 @@ class DataRetrievalBase:
         bias_gid, bias_dist = self.get_bias_gid(coord)
         base_dist, base_gid = self.get_base_gid(bias_gid)
         bias_data = self.get_bias_data(bias_gid)
-        base_data = self.get_base_data(self.base_fps,
-                                       self.base_dset,
-                                       base_gid,
-                                       self.base_handler,
-                                       daily_reduction=daily_reduction,
-                                       decimals=self.decimals)
+        base_data = self.get_base_data(
+            self.base_fps,
+            self.base_dset,
+            base_gid,
+            self.base_handler,
+            daily_reduction=daily_reduction,
+            decimals=self.decimals,
+        )
         base_data = base_data[0]
         return base_data, bias_data, base_dist, bias_dist
 
@@ -395,31 +416,39 @@ class DataRetrievalBase:
         # the default value for dh is `self.bias_dh`.
         dh = bias_dh or self.bias_dh
         bias_data = dh.data[row[0], col[0], ...]
-
         if bias_data.shape[-1] == 1:
             bias_data = bias_data[:, 0]
         else:
-            msg = ('Found a weird number of feature channels for the bias '
-                   'data retrieval: {}. Need just one channel'.format(
-                       bias_data.shape))
+            msg = (
+                'Found a weird number of feature channels for the bias '
+                'data retrieval: {}. Need just one channel'.format(
+                    bias_data.shape
+                )
+            )
             logger.error(msg)
             raise RuntimeError(msg)
 
         if self.decimals is not None:
             bias_data = np.around(bias_data, decimals=self.decimals)
 
-        return bias_data
+        return (
+            bias_data
+            if isinstance(bias_data, np.ndarray)
+            else bias_data.compute()
+        )
 
     @classmethod
-    def get_base_data(cls,
-                      base_fps,
-                      base_dset,
-                      base_gid,
-                      base_handler,
-                      base_handler_kwargs=None,
-                      daily_reduction='avg',
-                      decimals=None,
-                      base_dh_inst=None):
+    def get_base_data(
+        cls,
+        base_fps,
+        base_dset,
+        base_gid,
+        base_handler,
+        base_handler_kwargs=None,
+        daily_reduction='avg',
+        decimals=None,
+        base_dh_inst=None,
+    ):
         """Get data from the baseline data source, possibly for many high-res
         base gids corresponding to a single coarse low-res bias gid.
 
@@ -471,23 +500,27 @@ class DataRetrievalBase:
         base_handler_kwargs = base_handler_kwargs or {}
 
         if issubclass(base_handler, DataHandler) and base_dh_inst is None:
-            msg = ('The method `get_base_data()` is only to be used with '
-                   '`base_handler` as a `sup3r.DataHandler` subclass if '
-                   '`base_dh_inst` is also provided!')
+            msg = (
+                'The method `get_base_data()` is only to be used with '
+                '`base_handler` as a `sup3r.DataHandler` subclass if '
+                '`base_dh_inst` is also provided!'
+            )
             logger.error(msg)
             raise RuntimeError(msg)
 
         if issubclass(base_handler, DataHandler) and base_dh_inst is not None:
             out_ti = base_dh_inst.time_index
-            out_data = cls._read_base_sup3r_data(base_dh_inst, base_dset,
-                                                 base_gid)
+            out_data = cls._read_base_sup3r_data(
+                base_dh_inst, base_dset, base_gid
+            )
             all_cs_ghi = np.ones(len(out_data), dtype=np.float32) * np.nan
         else:
             for fp in base_fps:
                 with base_handler(fp, **base_handler_kwargs) as res:
                     base_ti = res.time_index
-                    temp_out = cls._read_base_rex_data(res, base_dset,
-                                                       base_gid)
+                    temp_out = cls._read_base_rex_data(
+                        res, base_dset, base_gid
+                    )
                     base_data, base_cs_ghi = temp_out
 
                 out_data.append(base_data)
@@ -499,16 +532,16 @@ class DataRetrievalBase:
             all_cs_ghi = np.hstack(all_cs_ghi)
 
         if daily_reduction is not None:
-            out_data, out_ti = cls._reduce_base_data(out_ti,
-                                                     out_data,
-                                                     all_cs_ghi,
-                                                     base_dset,
-                                                     daily_reduction)
+            out_data, out_ti = cls._reduce_base_data(
+                out_ti, out_data, all_cs_ghi, base_dset, daily_reduction
+            )
 
         if decimals is not None:
             out_data = np.around(out_data, decimals=decimals)
 
-        return out_data, out_ti
+        return out_data if isinstance(
+            out_data, np.ndarray
+        ) else out_data.compute(), out_ti
 
     @staticmethod
     def _match_zero_rate(bias_data, base_data):
@@ -547,10 +580,15 @@ class DataRetrievalBase:
         q_zero_base_out = np.nanmean(base_data == 0)
         q_zero_bias_out = np.nanmean(bias_data == 0)
 
-        logger.debug('Input bias/base zero rate is {:.3e}/{:.3e}, '
-                     'output is {:.3e}/{:.3e}'
-                     .format(q_zero_bias_in, q_zero_base_in,
-                             q_zero_bias_out, q_zero_base_out))
+        logger.debug(
+            'Input bias/base zero rate is {:.3e}/{:.3e}, '
+            'output is {:.3e}/{:.3e}'.format(
+                q_zero_bias_in,
+                q_zero_base_in,
+                q_zero_bias_out,
+                q_zero_base_out,
+            )
+        )
 
         return bias_data
 
@@ -642,8 +680,9 @@ class DataRetrievalBase:
         return base_data, base_cs_ghi
 
     @staticmethod
-    def _reduce_base_data(base_ti, base_data, base_cs_ghi, base_dset,
-                          daily_reduction):
+    def _reduce_base_data(
+        base_ti, base_data, base_cs_ghi, base_dset, daily_reduction
+    ):
         """Reduce the base timeseries data using some sort of daily reduction
         function.
 
@@ -678,20 +717,29 @@ class DataRetrievalBase:
             return base_data
 
         daily_ti = pd.DatetimeIndex(sorted(set(base_ti.date)))
-        df = pd.DataFrame({'date': base_ti.date,
-                           'base_data': base_data,
-                           'base_cs_ghi': base_cs_ghi})
+        df = pd.DataFrame(
+            {
+                'date': base_ti.date,
+                'base_data': base_data,
+                'base_cs_ghi': base_cs_ghi,
+            }
+        )
 
-        cs_ratio = (daily_reduction.lower() in ('avg', 'average', 'mean')
-                    and base_dset == 'clearsky_ratio')
+        cs_ratio = (
+            daily_reduction.lower() in ('avg', 'average', 'mean')
+            and base_dset == 'clearsky_ratio'
+        )
 
         if cs_ratio:
             daily_ghi = df.groupby('date').sum()['base_data'].values
             daily_cs_ghi = df.groupby('date').sum()['base_cs_ghi'].values
             base_data = daily_ghi / daily_cs_ghi
-            msg = ('Could not calculate daily average "clearsky_ratio" with '
-                   'base_data and base_cs_ghi inputs: \n{}, \n{}'
-                   .format(base_data, base_cs_ghi))
+            msg = (
+                'Could not calculate daily average "clearsky_ratio" with '
+                'base_data and base_cs_ghi inputs: \n{}, \n{}'.format(
+                    base_data, base_cs_ghi
+                )
+            )
             assert not np.isnan(base_data).any(), msg
 
         elif daily_reduction.lower() in ('avg', 'average', 'mean'):
@@ -706,9 +754,11 @@ class DataRetrievalBase:
         elif daily_reduction.lower() in ('sum', 'total'):
             base_data = df.groupby('date').sum()['base_data'].values
 
-        msg = (f'Daily reduced base data shape {base_data.shape} does not '
-               f'match daily time index shape {daily_ti.shape}, '
-               'something went wrong!')
+        msg = (
+            f'Daily reduced base data shape {base_data.shape} does not '
+            f'match daily time index shape {daily_ti.shape}, '
+            'something went wrong!'
+        )
         assert len(base_data.shape) == 1, msg
         assert base_data.shape == daily_ti.shape, msg
 
@@ -727,16 +777,20 @@ class LinearCorrection(FillAndSmoothMixin, DataRetrievalBase):
 
     def _init_out(self):
         """Initialize output arrays"""
-        keys = [f'{self.bias_feature}_scalar',
-                f'{self.bias_feature}_adder',
-                f'bias_{self.bias_feature}_mean',
-                f'bias_{self.bias_feature}_std',
-                f'base_{self.base_dset}_mean',
-                f'base_{self.base_dset}_std',
-                ]
-        self.out = {k: np.full((*self.bias_gid_raster.shape, self.NT),
-                               np.nan, np.float32)
-                    for k in keys}
+        keys = [
+            f'{self.bias_feature}_scalar',
+            f'{self.bias_feature}_adder',
+            f'bias_{self.bias_feature}_mean',
+            f'bias_{self.bias_feature}_std',
+            f'base_{self.base_dset}_mean',
+            f'base_{self.base_dset}_std',
+        ]
+        self.out = {
+            k: np.full(
+                (*self.bias_gid_raster.shape, self.NT), np.nan, np.float32
+            )
+            for k in keys
+        }
 
     @staticmethod
     def get_linear_correction(bias_data, base_data, bias_feature, base_dset):
@@ -784,34 +838,39 @@ class LinearCorrection(FillAndSmoothMixin, DataRetrievalBase):
 
     # pylint: disable=W0613
     @classmethod
-    def _run_single(cls,
-                    bias_data,
-                    base_fps,
-                    bias_feature,
-                    base_dset,
-                    base_gid,
-                    base_handler,
-                    daily_reduction,
-                    bias_ti,
-                    decimals,
-                    base_dh_inst=None,
-                    match_zero_rate=False):
+    def _run_single(
+        cls,
+        bias_data,
+        base_fps,
+        bias_feature,
+        base_dset,
+        base_gid,
+        base_handler,
+        daily_reduction,
+        bias_ti,
+        decimals,
+        base_dh_inst=None,
+        match_zero_rate=False,
+    ):
         """Find the nominal scalar + adder combination to bias correct data
         at a single site"""
 
-        base_data, _ = cls.get_base_data(base_fps,
-                                         base_dset,
-                                         base_gid,
-                                         base_handler,
-                                         daily_reduction=daily_reduction,
-                                         decimals=decimals,
-                                         base_dh_inst=base_dh_inst)
+        base_data, _ = cls.get_base_data(
+            base_fps,
+            base_dset,
+            base_gid,
+            base_handler,
+            daily_reduction=daily_reduction,
+            decimals=decimals,
+            base_dh_inst=base_dh_inst,
+        )
 
         if match_zero_rate:
             bias_data = cls._match_zero_rate(bias_data, base_data)
 
-        out = cls.get_linear_correction(bias_data, base_data, bias_feature,
-                                        base_dset)
+        out = cls.get_linear_correction(
+            bias_data, base_data, bias_feature, base_dset
+        )
         return out
 
     def write_outputs(self, fp_out, out):
@@ -845,15 +904,18 @@ class LinearCorrection(FillAndSmoothMixin, DataRetrievalBase):
                     f.attrs[k] = json.dumps(v)
 
                 logger.info(
-                    'Wrote scalar adder factors to file: {}'.format(fp_out))
+                    'Wrote scalar adder factors to file: {}'.format(fp_out)
+                )
 
-    def run(self,
-            fp_out=None,
-            max_workers=None,
-            daily_reduction='avg',
-            fill_extend=True,
-            smooth_extend=0,
-            smooth_interior=0):
+    def run(
+        self,
+        fp_out=None,
+        max_workers=None,
+        daily_reduction='avg',
+        fill_extend=True,
+        smooth_extend=0,
+        smooth_interior=0,
+    ):
         """Run linear correction factor calculations for every site in the bias
         dataset
 
@@ -892,8 +954,11 @@ class LinearCorrection(FillAndSmoothMixin, DataRetrievalBase):
         """
         logger.debug('Starting linear correction calculation...')
 
-        logger.info('Initialized scalar / adder with shape: {}'
-                    .format(self.bias_gid_raster.shape))
+        logger.info(
+            'Initialized scalar / adder with shape: {}'.format(
+                self.bias_gid_raster.shape
+            )
+        )
 
         self.bad_bias_gids = []
 
@@ -928,13 +993,17 @@ class LinearCorrection(FillAndSmoothMixin, DataRetrievalBase):
                     for key, arr in single_out.items():
                         self.out[key][raster_loc] = arr
 
-                logger.info('Completed bias calculations for {} out of {} '
-                            'sites'.format(i + 1, len(self.bias_meta)))
+                logger.info(
+                    'Completed bias calculations for {} out of {} '
+                    'sites'.format(i + 1, len(self.bias_meta))
+                )
 
         else:
             logger.debug(
                 'Running parallel calculation with {} workers.'.format(
-                    max_workers))
+                    max_workers
+                )
+            )
             with ProcessPoolExecutor(max_workers=max_workers) as exe:
                 futures = {}
                 for bias_gid in self.bias_meta.index:
@@ -967,13 +1036,16 @@ class LinearCorrection(FillAndSmoothMixin, DataRetrievalBase):
                     for key, arr in single_out.items():
                         self.out[key][raster_loc] = arr
 
-                    logger.info('Completed bias calculations for {} out of {} '
-                                'sites'.format(i + 1, len(futures)))
+                    logger.info(
+                        'Completed bias calculations for {} out of {} '
+                        'sites'.format(i + 1, len(futures))
+                    )
 
         logger.info('Finished calculating bias correction factors.')
 
-        self.out = self.fill_and_smooth(self.out, fill_extend, smooth_extend,
-                                        smooth_interior)
+        self.out = self.fill_and_smooth(
+            self.out, fill_extend, smooth_extend, smooth_interior
+        )
 
         self.write_outputs(fp_out, self.out)
 
@@ -990,28 +1062,32 @@ class MonthlyLinearCorrection(LinearCorrection):
     """size of the time dimension, 12 is monthly bias correction"""
 
     @classmethod
-    def _run_single(cls,
-                    bias_data,
-                    base_fps,
-                    bias_feature,
-                    base_dset,
-                    base_gid,
-                    base_handler,
-                    daily_reduction,
-                    bias_ti,
-                    decimals,
-                    base_dh_inst=None,
-                    match_zero_rate=False):
+    def _run_single(
+        cls,
+        bias_data,
+        base_fps,
+        bias_feature,
+        base_dset,
+        base_gid,
+        base_handler,
+        daily_reduction,
+        bias_ti,
+        decimals,
+        base_dh_inst=None,
+        match_zero_rate=False,
+    ):
         """Find the nominal scalar + adder combination to bias correct data
         at a single site"""
 
-        base_data, base_ti = cls.get_base_data(base_fps,
-                                               base_dset,
-                                               base_gid,
-                                               base_handler,
-                                               daily_reduction=daily_reduction,
-                                               decimals=decimals,
-                                               base_dh_inst=base_dh_inst)
+        base_data, base_ti = cls.get_base_data(
+            base_fps,
+            base_dset,
+            base_gid,
+            base_handler,
+            daily_reduction=daily_reduction,
+            decimals=decimals,
+            base_dh_inst=base_dh_inst,
+        )
 
         if match_zero_rate:
             bias_data = cls._match_zero_rate(bias_data, base_data)
@@ -1024,10 +1100,12 @@ class MonthlyLinearCorrection(LinearCorrection):
             base_mask = base_ti.month == month
 
             if any(bias_mask) and any(base_mask):
-                mout = cls.get_linear_correction(bias_data[bias_mask],
-                                                 base_data[base_mask],
-                                                 bias_feature,
-                                                 base_dset)
+                mout = cls.get_linear_correction(
+                    bias_data[bias_mask],
+                    base_data[base_mask],
+                    bias_feature,
+                    base_dset,
+                )
                 for k, v in mout.items():
                     if k not in out:
                         out[k] = base_arr.copy()
@@ -1100,32 +1178,37 @@ class SkillAssessment(MonthlyLinearCorrection):
     def _init_out(self):
         """Initialize output arrays"""
 
-        monthly_keys = [f'{self.bias_feature}_scalar',
-                        f'{self.bias_feature}_adder',
-                        f'bias_{self.bias_feature}_mean_monthly',
-                        f'bias_{self.bias_feature}_std_monthly',
-                        f'base_{self.base_dset}_mean_monthly',
-                        f'base_{self.base_dset}_std_monthly',
-                        ]
+        monthly_keys = [
+            f'{self.bias_feature}_scalar',
+            f'{self.bias_feature}_adder',
+            f'bias_{self.bias_feature}_mean_monthly',
+            f'bias_{self.bias_feature}_std_monthly',
+            f'base_{self.base_dset}_mean_monthly',
+            f'base_{self.base_dset}_std_monthly',
+        ]
 
-        annual_keys = [f'{self.bias_feature}_ks_stat',
-                       f'{self.bias_feature}_ks_p',
-                       f'{self.bias_feature}_bias',
-                       f'bias_{self.bias_feature}_mean',
-                       f'bias_{self.bias_feature}_std',
-                       f'bias_{self.bias_feature}_skew',
-                       f'bias_{self.bias_feature}_kurtosis',
-                       f'bias_{self.bias_feature}_zero_rate',
-                       f'base_{self.base_dset}_mean',
-                       f'base_{self.base_dset}_std',
-                       f'base_{self.base_dset}_skew',
-                       f'base_{self.base_dset}_kurtosis',
-                       f'base_{self.base_dset}_zero_rate',
-                       ]
+        annual_keys = [
+            f'{self.bias_feature}_ks_stat',
+            f'{self.bias_feature}_ks_p',
+            f'{self.bias_feature}_bias',
+            f'bias_{self.bias_feature}_mean',
+            f'bias_{self.bias_feature}_std',
+            f'bias_{self.bias_feature}_skew',
+            f'bias_{self.bias_feature}_kurtosis',
+            f'bias_{self.bias_feature}_zero_rate',
+            f'base_{self.base_dset}_mean',
+            f'base_{self.base_dset}_std',
+            f'base_{self.base_dset}_skew',
+            f'base_{self.base_dset}_kurtosis',
+            f'base_{self.base_dset}_zero_rate',
+        ]
 
-        self.out = {k: np.full((*self.bias_gid_raster.shape, self.NT),
-                               np.nan, np.float32)
-                    for k in monthly_keys}
+        self.out = {
+            k: np.full(
+                (*self.bias_gid_raster.shape, self.NT), np.nan, np.float32
+            )
+            for k in monthly_keys
+        }
 
         arr = np.full((*self.bias_gid_raster.shape, 1), np.nan, np.float32)
         for k in annual_keys:
@@ -1138,8 +1221,14 @@ class SkillAssessment(MonthlyLinearCorrection):
             self.out[bias_k] = arr.copy()
 
     @classmethod
-    def _run_skill_eval(cls, bias_data, base_data, bias_feature, base_dset,
-                        match_zero_rate=False):
+    def _run_skill_eval(
+        cls,
+        bias_data,
+        base_data,
+        bias_feature,
+        base_dset,
+        match_zero_rate=False,
+    ):
         """Run skill assessment metrics on 1D datasets at a single site.
 
         Note we run the KS test on the mean=0 distributions as per:
@@ -1169,8 +1258,9 @@ class SkillAssessment(MonthlyLinearCorrection):
         if match_zero_rate:
             ks_out = stats.ks_2samp(base_data, bias_data)
         else:
-            ks_out = stats.ks_2samp(base_data - base_mean,
-                                    bias_data - bias_mean)
+            ks_out = stats.ks_2samp(
+                base_data - base_mean, bias_data - bias_mean
+            )
 
         out[f'{bias_feature}_ks_stat'] = ks_out.statistic
         out[f'{bias_feature}_ks_p'] = ks_out.pvalue
@@ -1184,37 +1274,61 @@ class SkillAssessment(MonthlyLinearCorrection):
         return out
 
     @classmethod
-    def _run_single(cls, bias_data, base_fps, bias_feature, base_dset,
-                    base_gid, base_handler, daily_reduction, bias_ti,
-                    decimals, base_dh_inst=None, match_zero_rate=False):
+    def _run_single(
+        cls,
+        bias_data,
+        base_fps,
+        bias_feature,
+        base_dset,
+        base_gid,
+        base_handler,
+        daily_reduction,
+        bias_ti,
+        decimals,
+        base_dh_inst=None,
+        match_zero_rate=False,
+    ):
         """Do a skill assessment at a single site"""
 
-        base_data, base_ti = cls.get_base_data(base_fps, base_dset,
-                                               base_gid, base_handler,
-                                               daily_reduction=daily_reduction,
-                                               decimals=decimals,
-                                               base_dh_inst=base_dh_inst)
+        base_data, base_ti = cls.get_base_data(
+            base_fps,
+            base_dset,
+            base_gid,
+            base_handler,
+            daily_reduction=daily_reduction,
+            decimals=decimals,
+            base_dh_inst=base_dh_inst,
+        )
 
         arr = np.full(cls.NT, np.nan, dtype=np.float32)
-        out = {f'bias_{bias_feature}_mean_monthly': arr.copy(),
-               f'bias_{bias_feature}_std_monthly': arr.copy(),
-               f'base_{base_dset}_mean_monthly': arr.copy(),
-               f'base_{base_dset}_std_monthly': arr.copy(),
-               }
+        out = {
+            f'bias_{bias_feature}_mean_monthly': arr.copy(),
+            f'bias_{bias_feature}_std_monthly': arr.copy(),
+            f'base_{base_dset}_mean_monthly': arr.copy(),
+            f'base_{base_dset}_std_monthly': arr.copy(),
+        }
 
-        out.update(cls._run_skill_eval(bias_data, base_data,
-                                       bias_feature, base_dset,
-                                       match_zero_rate=match_zero_rate))
+        out.update(
+            cls._run_skill_eval(
+                bias_data,
+                base_data,
+                bias_feature,
+                base_dset,
+                match_zero_rate=match_zero_rate,
+            )
+        )
 
         for month in range(1, 13):
             bias_mask = bias_ti.month == month
             base_mask = base_ti.month == month
 
             if any(bias_mask) and any(base_mask):
-                mout = cls.get_linear_correction(bias_data[bias_mask],
-                                                 base_data[base_mask],
-                                                 bias_feature,
-                                                 base_dset)
+                mout = cls.get_linear_correction(
+                    bias_data[bias_mask],
+                    base_data[base_mask],
+                    bias_feature,
+                    base_dset,
+                )
                 for k, v in mout.items():
                     if not k.endswith(('_scalar', '_adder')):
                         k += '_monthly'

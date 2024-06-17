@@ -1,13 +1,14 @@
-"""Rescale ERA5 wind components according to log profile"""
+"""Rescale ERA5 wind components according to log profile
+
+TODO: This can prob be refactored to rely more in Interpolator methods.
+"""
 
 import logging
 import os
 from concurrent.futures import (
     ProcessPoolExecutor,
-    ThreadPoolExecutor,
     as_completed,
 )
-from glob import glob
 from typing import ClassVar
 from warnings import warn
 
@@ -245,76 +246,6 @@ class LogLinInterpolator:
             log_interp.load()
             log_interp.interpolate_vars(max_workers=max_workers)
             log_interp.save_output()
-
-    @classmethod
-    def run_multiple(
-        cls,
-        infiles,
-        out_dir,
-        output_heights=None,
-        max_log_height=100,
-        overwrite=False,
-        variables=None,
-        max_workers=None,
-    ):
-        """Run interpolation and save output
-
-        Parameters
-        ----------
-        infiles : str | list
-            Glob-able path or to ERA5 data or list of files to use for
-            windspeed log interpolation. Assumed to contain zg, orog, and at
-            least u/v at 10m.
-        out_dir : str
-            Path to save output directory after log interpolation.
-        output_heights : None | list
-            Heights to interpolate to. If None this defaults to [40, 80].
-        max_log_height : int
-            Maximum height to use for log interpolation. Above this linear
-            interpolation will be used.
-        variables : list
-            List of variables to interpolate. If None this defaults to u and v.
-        overwrite : bool
-            Whether to overwrite existing outfile.
-        max_workers : None | int
-            Number of workers to use for interpolating over timesteps.
-        """
-        futures = []
-        if isinstance(infiles, str):
-            infiles = glob(infiles)
-        if max_workers == 1:
-            for _, file in enumerate(infiles):
-                outfile = os.path.basename(file).replace(
-                    '.nc', '_all_interp.nc')
-                outfile = os.path.join(out_dir, outfile)
-                cls.run(
-                    file,
-                    outfile,
-                    output_heights=output_heights,
-                    max_log_height=max_log_height,
-                    overwrite=overwrite,
-                    variables=variables,
-                )
-
-        else:
-            with ThreadPoolExecutor(max_workers=max_workers) as exe:
-                for i, file in enumerate(infiles):
-                    outfile = os.path.basename(file).replace(
-                        '.nc', '_all_interp.nc')
-                    outfile = os.path.join(out_dir, outfile)
-                    futures.append(
-                        exe.submit(cls.run,
-                                   file,
-                                   outfile,
-                                   output_heights=output_heights,
-                                   variables=variables,
-                                   max_log_height=max_log_height,
-                                   overwrite=overwrite))
-                    logger.info(
-                        f'{i + 1} of {len(infiles)} futures submitted.')
-            for i, future in enumerate(as_completed(futures)):
-                future.result()
-                logger.info(f'{i + 1} of {len(futures)} futures complete.')
 
     @classmethod
     def pbl_interp_to_height(cls,
