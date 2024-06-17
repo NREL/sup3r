@@ -71,6 +71,35 @@ Option 2: Clone repo (recommended for developers)
        On Eagle HPC, you will need to also run ``pip install protobuf==3.20.*`` and ``pip install chardet``
     7) *Optional*: Set up the pre-commit hooks with ``pip install pre-commit`` and ``pre-commit install``
 
+Option 3: Using pixi (for developers)
+-------------------------------------
+
+Using pixi we have a well controlled environment which guarantee
+reproducibility and avoid issues of new dependencies that can break
+the tree of compatibility. While we can use the latest dependency versions for
+development, we should use the 'frozen' environment for production so we can
+be consistent in our results and able to traceback potential bugs. Every once
+in a while we shall update the ``pixi.lock`` file, which defines the
+environment.
+
+1. Install pixi. We only need to do it once per machine. Follow the
+   instructions at: ``https://pixi.sh/latest/``
+
+2. Clone the ``sup3r`` repository: ``git clone git@github.com:NREL/sup3r.git``
+
+3. All the configuration is in pyproject.toml, so eveyone uses the same
+   environment. One important concept is that pixi try to update (localy) the
+   dependency tree often. We usually want to avoid that so we are sure that we
+   are running with the exact same environment, so we should add ``--frozen``.
+
+   - To run a command with fixed environment: ``pixi run --frozen my_command``
+   - To run a command with latest dependencies: ``pixi run my_command``
+   - To open a terminal with default environment: ``pixi shell``
+   - To open a terminal with the development extras: ``pixi shell -e dev``
+   - Check if tensorflow detected the GPUs: ``pixi run check_devices``
+   - To run tests in kestrel (remember that it should be in a node with GPUs):
+     ``pixi run -e kestrel --frozen pytest tests/bias/test_bias_correction.py``
+
 Recommended Citation
 ====================
 
