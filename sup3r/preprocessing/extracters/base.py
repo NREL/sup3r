@@ -67,7 +67,13 @@ class Extracter(Container, ABC):
     @time_slice.setter
     def time_slice(self, value):
         """Set and sanitize the time slice."""
-        self._time_slice = value if value is not None else slice(None)
+        self._time_slice = (
+            value
+            if isinstance(value, slice)
+            else slice(*value)
+            if isinstance(value, list)
+            else slice(None)
+        )
 
     @property
     def target(self):

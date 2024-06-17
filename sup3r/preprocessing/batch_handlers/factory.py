@@ -72,6 +72,7 @@ def BatchHandlerFactory(
         SAMPLER = SamplerClass
 
         __name__ = name
+        _legos = (MainQueueClass, SamplerClass)
 
         def __init__(
             self,

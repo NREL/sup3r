@@ -56,6 +56,7 @@ def DataHandlerFactory(
 
     class Handler(Deriver, metaclass=FactoryMeta):
         __name__ = name
+        _legos = (Deriver, ExtracterClass, LoaderClass)
 
         BASE_LOADER = (
             BaseLoader if BaseLoader is not None else LoaderClass.BASE_LOADER

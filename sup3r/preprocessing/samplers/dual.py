@@ -65,11 +65,11 @@ class DualSampler(Sampler):
         super().__init__(data, sample_shape=sample_shape)
         self.lr_data, self.hr_data = self.data.low_res, self.data.high_res
         feature_sets = feature_sets or {}
-        self.hr_sample_shape = sample_shape
+        self.hr_sample_shape = self.sample_shape
         self.lr_sample_shape = (
-            sample_shape[0] // s_enhance,
-            sample_shape[1] // s_enhance,
-            sample_shape[2] // t_enhance,
+            self.sample_shape[0] // s_enhance,
+            self.sample_shape[1] // s_enhance,
+            self.sample_shape[2] // t_enhance,
         )
         self._lr_only_features = feature_sets.get('lr_only_features', [])
         self._hr_exo_features = feature_sets.get('hr_exo_features', [])

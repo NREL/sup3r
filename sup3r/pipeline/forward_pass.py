@@ -218,6 +218,9 @@ class ForwardPass:
         """Bias correct data using a method defined by the bias_correct_method
         input to ForwardPassStrategy
 
+        TODO: This could be run on Sup3rDataset instead of array, so we could
+        use data.lat_lon and not have to get feature index.
+
         Parameters
         ----------
         data : T_Array
@@ -240,7 +243,7 @@ class ForwardPass:
             method = getattr(sup3r.bias.bias_transforms, method)
             logger.info('Running bias correction with: {}'.format(method))
             for feature, feature_kwargs in kwargs.items():
-                idf = self.input_handler.features.index(feature)
+                idf = self.input_handler.features.index(feature.lower())
 
                 if 'lr_padded_slice' in signature(method).parameters:
                     feature_kwargs['lr_padded_slice'] = lr_pad_slice
@@ -478,14 +481,10 @@ class ForwardPass:
         out_data : ndarray
             Forward pass output corresponding to the given chunk index
         allowed_const : list | bool
-            Tensorflow has a tensor memory limit of 2GB (result of protobuf
-            limitation) and when exceeded can return a tensor with a
-            constant output. sup3r will raise a ``MemoryError`` in response. If
-            your model is allowed to output a constant output, set this to True
-            to allow any constant output or a list of allowed possible constant
-            outputs. For example, a precipitation model should be allowed to
-            output all zeros so set this to ``[0]``. For details on this limit:
-            https://github.com/tensorflow/tensorflow/issues/51870
+            If your model is allowed to output a constant output, set this to
+            True to allow any constant output or a list of allowed possible
+            constant outputs. See :class:`ForwardPassStrategy` for more
+            information on this argument.
         """
         failed = False
         if allowed_const is True:
@@ -687,7 +686,7 @@ class ForwardPass:
 
         Parameters
         ----------
-        chunk : FowardPassChunk
+        chunk : :class:`FowardPassChunk`
             Struct with chunk data (including exo data if applicable) and
             chunk attributes (e.g. chunk specific slices, times, lat/lon, etc)
         model_kwargs : str | list
@@ -700,14 +699,10 @@ class ForwardPass:
             default is the basic spatial / spatiotemporal Sup3rGan model. This
             will be loaded from sup3r.models
         allowed_const : list | bool
-            Tensorflow has a tensor memory limit of 2GB (result of protobuf
-            limitation) and when exceeded can return a tensor with a
-            constant output. sup3r will raise a ``MemoryError`` in response. If
-            your model is allowed to output a constant output, set this to True
-            to allow any constant output or a list of allowed possible constant
-            outputs. For example, a precipitation model should be allowed to
-            output all zeros so set this to ``[0]``. For details on this limit:
-            https://github.com/tensorflow/tensorflow/issues/51870
+            If your model is allowed to output a constant output, set this to
+            True to allow any constant output or a list of allowed possible
+            constant outputs. See :class:`ForwardPassStrategy` for more
+            information on this argument.
         output_handler : str
             Name of class to use for writing output
         meta : dict

@@ -252,6 +252,14 @@ class FactoryMeta(ABCMeta, type):
         name = namespace.get('__name__', name)
         return super().__new__(cls, name, bases, namespace, **kwargs)
 
+    def __subclasscheck__(cls, subclass):
+        """Check if factory built class shares base classes."""
+        if super().__subclasscheck__(subclass):
+            return True
+        if hasattr(subclass, '_legos'):
+            return cls._legos == subclass._legos
+        return False
+
 
 def _get_args_dict(thing, func, *args, **kwargs):
     """Get args dict from given object and object method."""
@@ -278,9 +286,30 @@ def _get_args_dict(thing, func, *args, **kwargs):
 
 def get_full_args_dict(Class, func, *args, **kwargs):
     """Get full args dict for given class by searching through the inheritance
-    hierarchy."""
+    hierarchy.
+
+    Parameters
+    ----------
+    Class : class object
+        Class object to search through
+    func : function
+        Function to check against args and kwargs
+    *args : list
+        Positional args for func
+    **kwargs : dict
+        Keyword arguments for func
+
+    Returns
+    -------
+    dict
+        Dictionary of argument names and values
+    """
     args_dict = _get_args_dict(Class, func, *args, **kwargs)
-    if Class.__bases__ == (object,):
+    if (
+        not kwargs
+        or not hasattr(Class, '__bases__')
+        or Class.__bases__ == (object,)
+    ):
         return args_dict
     for base in Class.__bases__:
         base_dict = get_full_args_dict(base, base.__init__, *args, **kwargs)

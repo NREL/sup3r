@@ -143,13 +143,23 @@ class Sup3rDataset:
             else out
         )
 
+    def rewrap(self, data):
+        """Rewrap data as Sup3rDataset after calling parent method."""
+        if isinstance(data, type(self)):
+            return data
+        return (
+            type(self)(low_res=data[0], high_res=data[1])
+            if len(data) > 1
+            else type(self)(high_res=data[0])
+        )
+
     def isel(self, *args, **kwargs):
         """Return new Sup3rDataset with isel applied to each member."""
-        return type(self)(tuple(d.isel(*args, **kwargs) for d in self))
+        return self.rewrap(tuple(d.isel(*args, **kwargs) for d in self))
 
     def sel(self, *args, **kwargs):
         """Return new Sup3rDataset with sel applied to each member."""
-        return type(self)(tuple(d.sel(*args, **kwargs) for d in self))
+        return self.rewrap(tuple(d.sel(*args, **kwargs) for d in self))
 
     def __getitem__(self, keys):
         """If keys is an int this is interpreted as a request for that member
@@ -252,14 +262,22 @@ class Container:
         """Set data value. Cast to Sup3rDataset if not already. This just
         wraps the data in a namedtuple, simplifying interactions in the case
         of dual datasets."""
-        dsets = (
-            {'low_res': data[0], 'high_res': data[1]}
+        self._data = self.wrap(data)
+
+    @staticmethod
+    def wrap(data):
+        """Wrap data as :class:`Sup3rDataset` if not already."""
+        if isinstance(data, Sup3rDataset):
+            return data
+        if isinstance(data, tuple) and all(
+            isinstance(d, Sup3rDataset) for d in data
+        ):
+            return data
+        return (
+            Sup3rDataset(low_res=data[0], high_res=data[1])
             if isinstance(data, tuple) and len(data) == 2
-            else {'high_res': data}
-        )
-        self._data = (
-            Sup3rDataset(**dsets)
-            if not isinstance(data, Sup3rDataset)
+            else Sup3rDataset(high_res=data)
+            if data is not None and not isinstance(data, Sup3rDataset)
             else data
         )
 

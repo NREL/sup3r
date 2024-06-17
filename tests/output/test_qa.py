@@ -107,12 +107,12 @@ def test_qa_nc(input_files):
                 qa_fp
             ) as qa_out:
                 for dset in MODEL_OUT_FEATURES:
-                    idf = qa.source_handler.features.index(dset)
+                    idf = qa.source_handler.features.index(dset.lower())
                     qa_true = qa_out[dset + '_true'].flatten()
                     qa_syn = qa_out[dset + '_synthetic'].flatten()
                     qa_diff = qa_out[dset + '_error'].flatten()
 
-                    wtk_source = qa.source_handler.data[..., idf]
+                    wtk_source = qa.source_handler.data[dset, ...]
                     wtk_source = np.transpose(wtk_source, axes=(2, 0, 1))
                     wtk_source = wtk_source.flatten()
 

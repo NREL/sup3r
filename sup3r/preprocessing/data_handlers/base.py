@@ -42,7 +42,12 @@ class SingleExoDataStep(dict):
 
 
 class ExoData(dict):
-    """Special dictionary class for multiple exogenous_data steps"""
+    """Special dictionary class for multiple exogenous_data steps
+
+    TODO: Can we simplify this by relying more on xr.Dataset meta data instead
+    of storing enhancement factors for each step? Seems like we could take the
+    highest res data and coarsen baased on s/t enhance, also.
+    """
 
     def __init__(self, steps):
         """Combine multiple SingleExoDataStep objects

@@ -1,4 +1,5 @@
 """pytests for sup3r cli"""
+
 import glob
 import json
 import os
@@ -66,34 +67,36 @@ def test_pipeline_fwp_collect(runner, input_files, log=False):
         n_nodes *= shape[0] // fwp_chunk_shape[0]
         n_nodes *= shape[1] // fwp_chunk_shape[1]
         out_files = os.path.join(td, 'out_{file_id}.h5')
-        fwp_config = {'input_handler_kwargs': {
-            'worker_kwargs': {'max_workers': 1},
-            'target': (19.3, -123.5),
-            'shape': shape},
+        fwp_config = {
+            'input_handler_kwargs': {'target': (19.3, -123.5), 'shape': shape},
             'file_paths': input_files,
             'model_kwargs': {'model_dir': out_dir},
             'out_pattern': out_files,
             'fwp_chunk_shape': fwp_chunk_shape,
-            'worker_kwargs': {'max_workers': 1},
             'spatial_pad': 1,
             'temporal_pad': 1,
-            'execution_control': {
-                "option": "local"}}
+            'execution_control': {'option': 'local'},
+        }
 
         features = ['windspeed_100m', 'winddirection_100m']
         out_files = os.path.join(td, 'out_*.h5')
-        dc_config = {'file_paths': out_files,
-                     'out_file': fp_out,
-                     'features': features,
-                     'execution_control': {
-                         "option": "local"}}
+        dc_config = {
+            'file_paths': out_files,
+            'out_file': fp_out,
+            'features': features,
+            'execution_control': {'option': 'local'},
+        }
 
         fwp_config_path = os.path.join(td, 'config_fwp.json')
         dc_config_path = os.path.join(td, 'config_dc.json')
         pipe_config_path = os.path.join(td, 'config_pipe.json')
 
-        pipe_config = {"pipeline": [{"forward-pass": fwp_config_path},
-                                    {"data-collect": dc_config_path}]}
+        pipe_config = {
+            'pipeline': [
+                {'forward-pass': fwp_config_path},
+                {'data-collect': dc_config_path},
+            ]
+        }
 
         with open(fwp_config_path, 'w') as fh:
             json.dump(fwp_config, fh)
@@ -102,11 +105,13 @@ def test_pipeline_fwp_collect(runner, input_files, log=False):
         with open(pipe_config_path, 'w') as fh:
             json.dump(pipe_config, fh)
 
-        result = runner.invoke(pipe_main, ['-c', pipe_config_path, '-v',
-                                           '--monitor'])
+        result = runner.invoke(
+            pipe_main, ['-c', pipe_config_path, '-v', '--monitor']
+        )
         if result.exit_code != 0:
-            msg = ('Failed with error {}'
-                   .format(traceback.print_exception(*result.exc_info)))
+            msg = 'Failed with error {}'.format(
+                traceback.print_exception(*result.exc_info)
+            )
             raise RuntimeError(msg)
 
         assert os.path.exists(fp_out)
@@ -137,16 +142,27 @@ def test_data_collection_cli(runner):
     with tempfile.TemporaryDirectory() as td:
         fp_out = os.path.join(td, 'out_combined.h5')
         out = make_fake_h5_chunks(td)
-        (out_files, data, ws_true, wd_true, features, _,
-         t_slices_hr, _, s_slices_hr, _, low_res_times) = out
+        (
+            out_files,
+            data,
+            ws_true,
+            wd_true,
+            features,
+            _,
+            t_slices_hr,
+            _,
+            s_slices_hr,
+            _,
+            low_res_times,
+        ) = out
 
         features = ['windspeed_100m', 'winddirection_100m']
-        config = {'worker_kwargs': {'max_workers': 1},
-                  'file_paths': out_files,
-                  'out_file': fp_out,
-                  'features': features,
-                  'execution_control': {
-                      "option": "local"}}
+        config = {
+            'file_paths': out_files,
+            'out_file': fp_out,
+            'features': features,
+            'execution_control': {'option': 'local'},
+        }
 
         config_path = os.path.join(td, 'config.json')
         with open(config_path, 'w') as fh:
@@ -155,8 +171,9 @@ def test_data_collection_cli(runner):
         result = runner.invoke(dc_main, ['-c', config_path, '-v'])
 
         if result.exit_code != 0:
-            msg = ('Failed with error {}'
-                   .format(traceback.print_exception(*result.exc_info)))
+            msg = 'Failed with error {}'.format(
+                traceback.print_exception(*result.exc_info)
+            )
             raise RuntimeError(msg)
 
         assert os.path.exists(fp_out)
@@ -176,15 +193,18 @@ def test_data_collection_cli(runner):
                     if s1_idx == s2_idx == 0:
                         combined_ti += list(fh_i.time_index)
 
-                    ws_i = np.transpose(data[s1_hr, s2_hr, t_hr, 0],
-                                        axes=(2, 0, 1))
-                    wd_i = np.transpose(data[s1_hr, s2_hr, t_hr, 1],
-                                        axes=(2, 0, 1))
+                    ws_i = np.transpose(
+                        data[s1_hr, s2_hr, t_hr, 0], axes=(2, 0, 1)
+                    )
+                    wd_i = np.transpose(
+                        data[s1_hr, s2_hr, t_hr, 1], axes=(2, 0, 1)
+                    )
                     ws_i = ws_i.reshape(48, 625)
                     wd_i = wd_i.reshape(48, 625)
                     assert np.allclose(ws_i, fh_i['windspeed_100m'], atol=0.01)
-                    assert np.allclose(wd_i, fh_i['winddirection_100m'],
-                                       atol=0.1)
+                    assert np.allclose(
+                        wd_i, fh_i['winddirection_100m'], atol=0.1
+                    )
 
                     for k, v in fh_i.global_attrs.items():
                         assert k in fh.global_attrs, k
@@ -225,21 +245,23 @@ def test_fwd_pass_cli(runner, input_files, log=False):
         out_files = os.path.join(td, 'out_{file_id}.nc')
         cache_pattern = os.path.join(td, 'cache')
         log_prefix = os.path.join(td, 'log.log')
-        input_handler_kwargs = {'target': (19.3, -123.5),
-                                'shape': shape,
-                                'worker_kwargs': {'max_workers': 1},
-                                'cache_pattern': cache_pattern}
-        config = {'file_paths': input_files,
-                  'model_kwargs': {'model_dir': out_dir},
-                  'out_pattern': out_files,
-                  'log_pattern': log_prefix,
-                  'input_handler_kwargs': input_handler_kwargs,
-                  'fwp_chunk_shape': fwp_chunk_shape,
-                  'worker_kwargs': {'max_workers': 1},
-                  'spatial_pad': 1,
-                  'temporal_pad': 1,
-                  'execution_control': {
-                      "option": "local"}}
+        input_handler_kwargs = {
+            'target': (19.3, -123.5),
+            'shape': shape,
+            'cache_kwargs': {'cache_pattern': cache_pattern},
+        }
+        config = {
+            'file_paths': input_files,
+            'model_kwargs': {'model_dir': out_dir},
+            'out_pattern': out_files,
+            'log_pattern': log_prefix,
+            'input_handler_kwargs': input_handler_kwargs,
+            'fwp_chunk_shape': fwp_chunk_shape,
+            'pass_workers': 1,
+            'spatial_pad': 1,
+            'temporal_pad': 1,
+            'execution_control': {'option': 'local'},
+        }
 
         config_path = os.path.join(td, 'config.json')
         with open(config_path, 'w') as fh:
@@ -248,8 +270,9 @@ def test_fwd_pass_cli(runner, input_files, log=False):
         result = runner.invoke(fwp_main, ['-c', config_path, '-v'])
 
         if result.exit_code != 0:
-            msg = ('Failed with error {}'
-                   .format(traceback.print_exception(*result.exc_info)))
+            msg = 'Failed with error {}'.format(
+                traceback.print_exception(*result.exc_info)
+            )
             raise RuntimeError(msg)
 
         # include time index cache file
@@ -285,42 +308,49 @@ def test_pipeline_fwp_qa(runner, input_files, log=False):
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
 
-        fwp_config = {'file_paths': input_files,
-                      'model_kwargs': {'model_dir': out_dir},
-                      'out_pattern': os.path.join(td, 'out_{file_id}.h5'),
-                      'log_pattern': os.path.join(td, 'fwp_log.log'),
-                      'log_level': 'DEBUG',
-                      'input_handler_kwargs': {'target': (19.3, -123.5),
-                                               'shape': (8, 8),
-                                               'overwrite_cache': False},
-                      'fwp_chunk_shape': (100, 100, 100),
-                      'max_workers': 1,
-                      'spatial_pad': 5,
-                      'temporal_pad': 5,
-                      'execution_control': {
-                          "option": "local"}}
+        fwp_config = {
+            'file_paths': input_files,
+            'model_kwargs': {'model_dir': out_dir},
+            'out_pattern': os.path.join(td, 'out_{file_id}.h5'),
+            'log_pattern': os.path.join(td, 'fwp_log.log'),
+            'log_level': 'DEBUG',
+            'input_handler_kwargs': {
+                'target': (19.3, -123.5),
+                'shape': (8, 8),
+                'overwrite_cache': False,
+            },
+            'fwp_chunk_shape': (100, 100, 100),
+            'max_workers': 1,
+            'spatial_pad': 5,
+            'temporal_pad': 5,
+            'execution_control': {'option': 'local'},
+        }
 
-        qa_config = {'source_file_paths': input_files,
-                     'out_file_path': os.path.join(td, 'out_000000_000000.h5'),
-                     'qa_fp': os.path.join(td, 'qa.h5'),
-                     's_enhance': 3,
-                     't_enhance': 4,
-                     'temporal_coarsening_method': 'subsample',
-                     'target': (19.3, -123.5),
-                     'shape': (8, 8),
-                     'max_workers': 1,
-                     'execution_control': {
-                         "option": "local"}}
+        qa_config = {
+            'source_file_paths': input_files,
+            'out_file_path': os.path.join(td, 'out_000000_000000.h5'),
+            'qa_fp': os.path.join(td, 'qa.h5'),
+            's_enhance': 3,
+            't_enhance': 4,
+            'temporal_coarsening_method': 'subsample',
+            'target': (19.3, -123.5),
+            'shape': (8, 8),
+            'max_workers': 1,
+            'execution_control': {'option': 'local'},
+        }
 
         fwp_config_path = os.path.join(td, 'config_fwp.json')
         qa_config_path = os.path.join(td, 'config_qa.json')
         pipe_config_path = os.path.join(td, 'config_pipe.json')
 
         pipe_flog = os.path.join(td, 'pipeline.log')
-        pipe_config = {"logging": {"log_level": "DEBUG",
-                                   "log_file": pipe_flog},
-                       "pipeline": [{"forward-pass": fwp_config_path},
-                                    {"qa": qa_config_path}]}
+        pipe_config = {
+            'logging': {'log_level': 'DEBUG', 'log_file': pipe_flog},
+            'pipeline': [
+                {'forward-pass': fwp_config_path},
+                {'qa': qa_config_path},
+            ],
+        }
 
         with open(fwp_config_path, 'w') as fh:
             json.dump(fwp_config, fh)
@@ -329,11 +359,13 @@ def test_pipeline_fwp_qa(runner, input_files, log=False):
         with open(pipe_config_path, 'w') as fh:
             json.dump(pipe_config, fh)
 
-        result = runner.invoke(pipe_main, ['-c', pipe_config_path, '-v',
-                                           '--monitor'])
+        result = runner.invoke(
+            pipe_main, ['-c', pipe_config_path, '-v', '--monitor']
+        )
         if result.exit_code != 0:
-            msg = ('Failed with error {}'
-                   .format(traceback.print_exception(*result.exc_info)))
+            msg = 'Failed with error {}'.format(
+                traceback.print_exception(*result.exc_info)
+            )
             raise RuntimeError(msg)
 
         assert len(glob.glob(f'{td}/fwp_log*.log')) == 1

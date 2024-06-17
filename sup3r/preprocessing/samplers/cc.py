@@ -62,7 +62,6 @@ class DualSamplerCC(DualSampler):
                 }
             ).mean()
         data = Sup3rDataset(low_res=lr, high_res=hr)
-        sample_shape = self.check_sample_shape(sample_shape, t_enhance)
         super().__init__(
             data=data,
             sample_shape=sample_shape,
@@ -165,7 +164,9 @@ class DualSamplerCC(DualSampler):
             and self.t_enhance != 1
         ):
             i_cs = self.hr_out_features.index('clearsky_ratio')
-            high_res = self.reduce_high_res_sub_daily(high_res, csr_ind=i_cs)
+            high_res = self.reduce_high_res_sub_daily(
+                high_res.compute(), csr_ind=i_cs
+            )
 
             if np.isnan(high_res[..., i_cs]).any():
                 high_res[..., i_cs] = nn_fill_array(high_res[..., i_cs])

@@ -1,6 +1,7 @@
 """Accessor for xarray."""
 
 import logging
+from warnings import warn
 
 import dask.array as da
 import numpy as np
@@ -244,6 +245,22 @@ class Sup3rX:
         """Get std directly from dataset object."""
         return self.as_darray().std(skipna=skipna)
 
+    @staticmethod
+    def _check_fancy_indexing(data, keys) -> T_Array:
+        """Need to compute first if keys use fancy indexing, only supported by
+        numpy."""
+        where_list = [
+            i
+            for i, ind in enumerate(keys)
+            if isinstance(ind, np.ndarray) and ind.ndim > 0
+        ]
+        if len(where_list) > 1:
+            msg = "Don't yet support nd fancy indexing. Computing first..."
+            logger.warning(msg)
+            warn(msg)
+            return data.compute()[keys]
+        return data[keys]
+
     def _get_from_tuple(self, keys) -> T_Array:
         """
         Parameters
@@ -255,10 +272,12 @@ class Sup3rX:
             strings)
         """
         if _is_strings(keys[0]):
-            out = self.as_array(keys[0])[*keys[1:], :]
+            out = self.as_array(keys[0])
+            out = self._check_fancy_indexing(out, (*keys[1:], slice(None)))
             out = out.squeeze(axis=-1) if out.shape[-1] == 1 else out
         elif _is_strings(keys[-1]):
-            out = self.as_array(keys[-1])[*keys[:-1], :]
+            out = self.as_array(keys[-1])
+            out = self._check_fancy_indexing(out, (*keys[:-1], slice(None)))
         elif _is_ints(keys[-1]) and not _contains_ellipsis(keys):
             out = self.as_array()[*keys[:-1], ..., keys[-1]]
         else:
@@ -386,6 +405,6 @@ class Sup3rX:
     def meta(self):
         """Return dataframe of flattened lat / lon values."""
         return pd.DataFrame(
-            columns=['latitude', 'longitude'],
+            columns=[Dimension.LATITUDE, Dimension.LONGITUDE],
             data=self.lat_lon.reshape((-1, 2)),
         )

@@ -210,8 +210,8 @@ def test_solar_batch_nan_stats():
     NaN data present"""
     handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S, **dh_kwargs)
 
-    true_csr_mean = np.nanmean(handler.data.hourly[..., 0])
-    true_csr_stdev = np.nanstd(handler.data.hourly[..., 0])
+    true_csr_mean = np.nanmean(handler.data.hourly['clearsky_ratio', ...])
+    true_csr_stdev = np.nanstd(handler.data.hourly['clearsky_ratio', ...])
 
     batcher = TestBatchHandlerCC(
         [handler],
@@ -219,6 +219,7 @@ def test_solar_batch_nan_stats():
         batch_size=1,
         n_batches=10,
         s_enhance=1,
+        t_enhance=24,
         sample_shape=(10, 10, 9),
     )
 
@@ -231,6 +232,7 @@ def test_solar_batch_nan_stats():
         batch_size=1,
         n_batches=10,
         s_enhance=1,
+        t_enhance=24,
         sample_shape=(10, 10, 9),
     )
 
@@ -401,6 +403,7 @@ def test_surf_min_max_vars():
         t_enhance=24,
         sample_shape=(20, 20, 72),
         feature_sets={'lr_only_features': ['*_min_*', '*_max_*']},
+        mode='eager'
     )
 
     assert (

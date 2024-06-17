@@ -287,22 +287,6 @@ class ForwardPassStrategy(DistributedProcess):
         shape = tuple([d * self.s_enhance for d in lr_lat_lon.shape[:-1]])
         return OutputHandler.get_lat_lon(lr_lat_lon, shape)
 
-    def get_file_ids(self):
-        """Get file id for each output file
-
-        Returns
-        -------
-        file_ids : list
-            List of file ids for each output file. Will be used to name output
-            files of the form filename_{file_id}.ext
-        """
-        file_ids = [
-            f'{str(i).zfill(6)}_{str(j).zfill(6)}'
-            for i in range(self.fwp_slicer.n_time_chunks)
-            for j in range(self.fwp_slicer.n_spatial_chunks)
-        ]
-        return file_ids
-
     def get_out_files(self, out_files):
         """Get output file names for each file chunk forward pass
 
@@ -318,7 +302,11 @@ class ForwardPassStrategy(DistributedProcess):
         list
             List of output file paths
         """
-        file_ids = self.get_file_ids()
+        file_ids = [
+            f'{str(i).zfill(6)}_{str(j).zfill(6)}'
+            for i in range(self.fwp_slicer.n_time_chunks)
+            for j in range(self.fwp_slicer.n_spatial_chunks)
+        ]
         out_file_list = [None] * len(file_ids)
         if out_files is not None:
             msg = 'out_pattern must include a {file_id} format key'
@@ -422,11 +410,11 @@ class ForwardPassStrategy(DistributedProcess):
             hr_crop_slice=self.fwp_slicer.hr_crop_slices[t_chunk_idx][
                 s_chunk_idx
             ],
-            hr_lat_lon=self.hr_lat_lon[hr_slice[0], hr_slice[1]],
+            hr_lat_lon=self.hr_lat_lon[hr_slice[:2]],
             hr_times=OutputHandler.get_times(
                 lr_times, self.t_enhance * len(lr_times)
             ),
-            gids=self.gids[hr_slice[0], hr_slice[1]],
+            gids=self.gids[hr_slice[:2]],
             out_file=self.out_files[chunk_index],
             pad_width=self.get_pad_width(chunk_index),
             index=chunk_index,
