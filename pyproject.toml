@@ -126,19 +126,21 @@ packages = ["sup3r"]
 version_file = "sup3r/_version.py"
 
 [tool.pixi.project]
-channels = ["conda-forge", "anaconda", "main"]
-platforms = ["osx-arm64", "linux-64"]
+channels = ["conda-forge", "nvidia", "anaconda", "main"]
+platforms = ["linux-64", "osx-arm64"]
+
+[tool.pixi.system-requirements]
+# Required to create an empty default
 
 [tool.pixi.dependencies]
 python = "~=3.11.0"
-libclang = "~=16.0.6"
 cftime = ">=1.6.2"
 dask = ">=2022.0"
 h5netcdf = ">=1.1.0"
 pillow = ">=10.0"
 matplotlib = ">=3.1"
 numpy = ">=1.7.0"
-pandas = ">=2.0"
+pandas = "~=2.0"
 scipy = ">=1.0.0"
 xarray = ">=2023.0"
 
@@ -149,14 +151,6 @@ NREL-phygnn = { version = ">=0.0.23" }
 NREL-gaps = { version = ">=0.6.0" }
 NREL-farms = { version = ">=1.0.4" }
 
-[tool.pixi.target.linux-64.dependencies]
-cuda = ">=11.8"
-cudnn = {version = ">=8.6.0", channel = "conda-forge"}
-# 8.9.7
-
-[tool.pixi.target.linux-64.pypi-dependencies]
-tensorflow = {version = "~=2.15.0", extras = ["and-cuda"] }
-
 [tool.pixi.environments]
 default = { solve-group = "default" }
 dev = { features = ["dev", "doc", "test"], solve-group = "default" }
@@ -164,8 +158,20 @@ doc = { features = ["doc"], solve-group = "default" }
 test = { features = ["test"], solve-group = "default" }
 kestrel = { features = ["kestrel"], solve-group = "default" }
 
+# If used, cause glibc conflict
+# [tool.pixi.target.linux-64.dependencies]
+# cuda = ">=11.8"
+# cudnn = {version = ">=8.6.0", channel = "conda-forge"}
+# # 8.9.7
+
+[tool.pixi.target.linux-64.pypi-dependencies]
+tensorflow = {version = "~=2.15.1", extras = ["and-cuda"] }
+
+[tool.pixi.target.osx-arm64.dependencies]
+tensorflow = {version = "~=2.15.0", channel = "conda-forge"}
+
 [tool.pixi.tasks]
-check_devices = 'python -c "import tensorflow as tf; print(tf.config.list_physical_devices())"'
+check_devices = 'python -c "import tensorflow as tf; print(tf.__version__); print(tf.config.list_physical_devices())"'
 
 [tool.pixi.feature.doc.dependencies]
 sphinx = ">=7.0"
@@ -181,5 +187,6 @@ ruff = ">=0.2"
 ipython = ">=8.0"
 
 [tool.pixi.feature.kestrel]
-system-requirements = {linux = "4.18", cuda = "12.4"}
+platforms = ["linux-64"]
 dependencies = {cuda = "==12.4", cudnn = ">=8.6.0"}
+system-requirements = {linux = "4.18", cuda = "11.8"}
