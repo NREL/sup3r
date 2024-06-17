@@ -7,6 +7,7 @@ import h5py
 import numpy as np
 import pytest
 import xarray as xr
+from rex import init_logger
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.bias import QuantileDeltaMappingCorrection, local_qdm_bc
@@ -14,6 +15,7 @@ from sup3r.bias.utilities import qdm_bc
 from sup3r.models import Sup3rGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.preprocessing import DataHandlerNC, DataHandlerNCforCC
+from sup3r.utilities.pytest.helpers import execute_pytest
 
 FP_NSRDB = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')
 FP_CC = os.path.join(TEST_DATA_DIR, 'rsds_test.nc')
@@ -26,6 +28,9 @@ with xr.open_dataset(FP_CC) as fh:
     SHAPE = (len(fh.lat.values), len(fh.lon.values))
 
 np.random.seed(42)
+
+
+init_logger('sup3r', log_level='DEBUG')
 
 
 @pytest.fixture(scope='module')
@@ -104,7 +109,7 @@ def test_qdm_bc(fp_fut_cc):
         bias_handler='DataHandlerNCforCC',
     )
 
-    out = calc.run()
+    out = calc.run(max_workers=1)
 
     # Guarantee that we have some actual values, otherwise most of the
     # remaining tests would be useless
@@ -179,12 +184,12 @@ def test_fill_nan(fp_fut_cc):
     )
 
     # Without filling, at least one NaN or this test is useless.
-    out = c.run(fill_extend=False)
+    out = c.run(fill_extend=False, max_workers=1)
     assert np.all(
         [np.isnan(v).any() for v in out.values()]
     ), 'Assume at least one NaN value for each param'
 
-    out = c.run()
+    out = c.run(max_workers=2)
     assert ~np.any(
         [np.isnan(v) for v in out.values()]
     ), 'All NaN values where supposed to be filled'
@@ -209,7 +214,7 @@ def test_save_file(tmp_path, fp_fut_cc):
     )
 
     filename = os.path.join(tmp_path, 'test_saving.hdf')
-    _ = calc.run(filename)
+    _ = calc.run(filename, max_workers=1)
 
     # File was created
     os.path.isfile(filename)
@@ -277,9 +282,9 @@ def test_handler_qdm_bc(fp_fut_cc, dist_params):
     WIP: Confirm it runs, but don't verify much yet.
     """
     Handler = DataHandlerNC(fp_fut_cc, 'rsds')
-    original = Handler.data.copy()
+    original = Handler.data.as_array().copy()
     qdm_bc(Handler, dist_params, 'ghi')
-    corrected = Handler.data
+    corrected = Handler.data.as_array()
 
     assert not np.isnan(corrected).all(), "Can't compare if only NaN"
 
@@ -302,9 +307,9 @@ def test_bc_identity(tmp_path, fp_fut_cc, dist_params):
         f['bias_rsds_params'][:] = f['bias_fut_rsds_params'][:]
         f.flush()
     Handler = DataHandlerNC(fp_fut_cc, 'rsds')
-    original = Handler.data.copy()
+    original = Handler.data.as_array().copy()
     qdm_bc(Handler, ident_params, 'ghi', relative=True)
-    corrected = Handler.data
+    corrected = Handler.data.as_array()
 
     assert not np.isnan(corrected).all(), "Can't compare if only NaN"
 
@@ -326,9 +331,9 @@ def test_bc_identity_absolute(tmp_path, fp_fut_cc, dist_params):
         f['bias_rsds_params'][:] = f['bias_fut_rsds_params'][:]
         f.flush()
     Handler = DataHandlerNC(fp_fut_cc, 'rsds')
-    original = Handler.data.copy()
+    original = Handler.data.as_array().copy()
     qdm_bc(Handler, ident_params, 'ghi', relative=False)
-    corrected = Handler.data
+    corrected = Handler.data.as_array()
 
     assert not np.isnan(corrected).all(), "Can't compare if only NaN"
 
@@ -350,9 +355,9 @@ def test_bc_model_constant(tmp_path, fp_fut_cc, dist_params):
         f['bias_rsds_params'][:] = f['bias_fut_rsds_params'][:]
         f.flush()
     Handler = DataHandlerNC(fp_fut_cc, 'rsds')
-    original = Handler.data.copy()
+    original = Handler.data.as_array().copy()
     qdm_bc(Handler, offset_params, 'ghi', relative=False)
-    corrected = Handler.data
+    corrected = Handler.data.as_array()
 
     assert not np.isnan(corrected).all(), "Can't compare if only NaN"
 
@@ -374,14 +379,14 @@ def test_bc_trend(tmp_path, fp_fut_cc, dist_params):
         f['bias_rsds_params'][:] = f['bias_fut_rsds_params'][:] - 10
         f.flush()
     Handler = DataHandlerNC(fp_fut_cc, 'rsds')
-    original = Handler.data.copy()
+    original = Handler.data.as_array().copy()
     qdm_bc(Handler, offset_params, 'ghi', relative=False)
-    corrected = Handler.data
+    corrected = Handler.data.as_array()
 
     assert not np.isnan(corrected).all(), "Can't compare if only NaN"
 
     idx = ~(np.isnan(original) | np.isnan(corrected))
-    assert np.allclose(corrected[idx] - original[idx], 10)
+    assert np.allclose(corrected[idx].compute() - original[idx].compute(), 10)
 
 
 def test_bc_trend_same_hist(tmp_path, fp_fut_cc, dist_params):
@@ -397,9 +402,9 @@ def test_bc_trend_same_hist(tmp_path, fp_fut_cc, dist_params):
         f['bias_rsds_params'][:] = f['bias_fut_rsds_params'][:] - 10
         f.flush()
     Handler = DataHandlerNC(fp_fut_cc, 'rsds')
-    original = Handler.data.copy()
+    original = Handler.data.as_array().copy()
     qdm_bc(Handler, offset_params, 'ghi', relative=False)
-    corrected = Handler.data
+    corrected = Handler.data.as_array()
 
     assert not np.isnan(corrected).all(), "Can't compare if only NaN"
 
@@ -445,7 +450,6 @@ def test_fwp_integration(tmp_path):
         features=[],
         target=target,
         shape=shape,
-        worker_kwargs={'max_workers': 1},
     ).lat_lon
 
     Sup3rGan.seed()
@@ -493,7 +497,7 @@ def test_fwp_integration(tmp_path):
         input_handler_kwargs={
             'target': target,
             'shape': shape,
-            'temporal_slice': temporal_slice,
+            'time_slice': temporal_slice,
         },
         out_pattern=os.path.join(tmp_path, 'out_{file_id}.nc'),
         input_handler='DataHandlerNCforCC',
@@ -507,7 +511,7 @@ def test_fwp_integration(tmp_path):
         input_handler_kwargs={
             'target': target,
             'shape': shape,
-            'temporal_slice': temporal_slice,
+            'time_slice': temporal_slice,
         },
         out_pattern=os.path.join(tmp_path, 'out_{file_id}.nc'),
         input_handler='DataHandlerNCforCC',
@@ -515,11 +519,13 @@ def test_fwp_integration(tmp_path):
         bias_correct_kwargs=bias_correct_kwargs,
     )
 
-    for ichunk in range(strat.chunks):
-        fwp = ForwardPass(strat, chunk_index=ichunk)
-        bc_fwp = ForwardPass(bc_strat, chunk_index=ichunk)
+    fwp = ForwardPass(strat)
+    bc_fwp = ForwardPass(bc_strat)
 
-        delta = bc_fwp.input_data - fwp.input_data
+    for ichunk in range(strat.chunks):
+        bc_chunk = bc_fwp.get_chunk(ichunk)
+        chunk = fwp.get_chunk(ichunk)
+        delta = bc_chunk.input_data - chunk.input_data
         assert np.allclose(
             delta[..., 0], -2.72, atol=1e-03
         ), 'U reference offset is -1'
@@ -527,6 +533,28 @@ def test_fwp_integration(tmp_path):
             delta[..., 1], 2.72, atol=1e-03
         ), 'V reference offset is 1'
 
-        delta = bc_fwp.run_chunk() - fwp.run_chunk()
+        _, data = fwp.run_chunk(
+            fwp.get_chunk(chunk_index=ichunk),
+            fwp.model_kwargs,
+            fwp.model_class,
+            fwp.allowed_const,
+            fwp.output_handler_class,
+            fwp.meta,
+            fwp.output_workers,
+        )
+        _, bc_data = bc_fwp.run_chunk(
+            bc_fwp.get_chunk(chunk_index=ichunk),
+            bc_fwp.model_kwargs,
+            bc_fwp.model_class,
+            bc_fwp.allowed_const,
+            bc_fwp.output_handler_class,
+            bc_fwp.meta,
+            bc_fwp.output_workers,
+        )
+        delta = bc_data - data
         assert delta[..., 0].mean() < 0, 'Predicted U should trend <0'
         assert delta[..., 1].mean() > 0, 'Predicted V should trend >0'
+
+
+if __name__ == '__main__':
+    execute_pytest(__file__)
