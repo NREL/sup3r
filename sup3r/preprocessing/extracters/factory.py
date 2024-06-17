@@ -43,6 +43,7 @@ def ExtracterFactory(
 
     class DirectExtracter(ExtracterClass, metaclass=FactoryMeta):
         __name__ = name
+        _legos = (ExtracterClass, LoaderClass)
 
         if BaseLoader is not None:
             BASE_LOADER = BaseLoader

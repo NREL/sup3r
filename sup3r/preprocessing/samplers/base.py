@@ -91,14 +91,6 @@ class Sampler(Container):
         )
         assert good_shape, msg
 
-        if len(self.sample_shape) == 2:
-            logger.info(
-                'Found 2D sample shape of {}. Adding temporal dim of 1'.format(
-                    self.sample_shape
-                )
-            )
-            self.sample_shape = (*self.sample_shape, 1)
-
         msg = (
             f'sample_shape[2] ({self.sample_shape[2]}) cannot be larger '
             'than the number of time steps in the raw data '
@@ -117,6 +109,13 @@ class Sampler(Container):
         """Set the shape of the data sample to select when `__next__()` is
         called."""
         self._sample_shape = sample_shape
+        if len(self._sample_shape) == 2:
+            logger.info(
+                'Found 2D sample shape of {}. Adding temporal dim of 1'.format(
+                    self._sample_shape
+                )
+            )
+            self._sample_shape = (*self._sample_shape, 1)
 
     @property
     def hr_sample_shape(self) -> Tuple:

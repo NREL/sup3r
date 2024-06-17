@@ -152,7 +152,13 @@ class ExoDataHandler:
         self.get_all_step_data()
 
     def get_all_step_data(self):
-        """Get exo data for each model step."""
+        """Get exo data for each model step.
+
+        TODO: I think this could be simplified by getting the highest res data
+        first and then calling the xr.Dataset.coarsen() method according to
+        enhancement factors for different steps.
+
+        """
         for i, (s_enhance, t_enhance) in enumerate(
             zip(self.s_enhancements, self.t_enhancements)
         ):

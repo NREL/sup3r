@@ -65,7 +65,6 @@ def test_fwp_pipeline(input_files):
         target = (19.3, -123.5)
         n_tsteps = 10
         t_slice = slice(5, 5 + n_tsteps)
-        cache_pattern = os.path.join(td, 'cache')
         out_files = os.path.join(td, 'fp_out_{file_id}.h5')
         log_prefix = os.path.join(td, 'log')
         t_enhance = 4
@@ -73,23 +72,17 @@ def test_fwp_pipeline(input_files):
         input_handler_kwargs = {
             'target': target,
             'shape': shape,
-            'overwrite_cache': True,
-            'time_chunk_size': 10,
-            'worker_kwargs': {'max_workers': 1},
             'time_slice': [t_slice.start, t_slice.stop],
         }
         config = {
-            'worker_kwargs': {'max_workers': 1},
             'file_paths': input_files,
             'model_kwargs': {'model_dir': out_dir},
             'out_pattern': out_files,
-            'cache_pattern': cache_pattern,
             'log_pattern': log_prefix,
             'fwp_chunk_shape': fp_chunk_shape,
             'input_handler_kwargs': input_handler_kwargs,
             'spatial_pad': 2,
             'temporal_pad': 2,
-            'overwrite_cache': True,
             'execution_control': {'nodes': 1, 'option': 'local'},
             'max_nodes': 1,
         }
@@ -176,9 +169,6 @@ def test_multiple_fwp_pipeline(input_files):
         input_handler_kwargs = {
             'target': target,
             'shape': shape,
-            'overwrite_cache': True,
-            'time_chunk_size': 10,
-            'worker_kwargs': {'max_workers': 1},
             'time_slice': [t_slice.start, t_slice.stop],
         }
 
@@ -188,18 +178,15 @@ def test_multiple_fwp_pipeline(input_files):
         log_prefix = os.path.join(td, 'log1')
         out_files = os.path.join(sub_dir_1, 'fp_out_{file_id}.h5')
         config = {
-            'worker_kwargs': {'max_workers': 1},
             'file_paths': input_files,
             'model_kwargs': {'model_dir': out_dir},
             'out_pattern': out_files,
-            'cache_pattern': cache_pattern,
             'log_level': 'DEBUG',
             'log_pattern': log_prefix,
             'fwp_chunk_shape': fp_chunk_shape,
             'input_handler_kwargs': input_handler_kwargs,
             'spatial_pad': 2,
             'temporal_pad': 2,
-            'overwrite_cache': True,
             'execution_control': {'nodes': 1, 'option': 'local'},
             'max_nodes': 1,
         }
@@ -210,22 +197,18 @@ def test_multiple_fwp_pipeline(input_files):
 
         sub_dir_2 = os.path.join(td, 'dir2')
         os.mkdir(sub_dir_2)
-        cache_pattern = os.path.join(sub_dir_2, 'cache')
         log_prefix = os.path.join(td, 'log2')
         out_files = os.path.join(sub_dir_2, 'fp_out_{file_id}.h5')
         config = {
-            'worker_kwargs': {'max_workers': 1},
             'file_paths': input_files,
             'model_kwargs': {'model_dir': out_dir},
             'out_pattern': out_files,
-            'cache_pattern': cache_pattern,
             'log_level': 'DEBUG',
             'log_pattern': log_prefix,
             'fwp_chunk_shape': fp_chunk_shape,
             'input_handler_kwargs': input_handler_kwargs,
             'spatial_pad': 2,
             'temporal_pad': 2,
-            'overwrite_cache': True,
             'execution_control': {'nodes': 1, 'option': 'local'},
             'max_nodes': 1,
         }

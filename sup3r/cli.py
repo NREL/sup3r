@@ -96,16 +96,9 @@ def forward_pass(ctx, verbose):
             "spatial_pad": 1,
             "temporal_pad": 1,
             "max_nodes": 1,
-            "worker_kwargs": {
-                "max_workers": null,
-                "output_workers": 1,
-                "pass_workers": 8
-            },
-            "input_handler_kwargs": {
-                "worker_kwargs": {
-                    "max_workers": 1
-                },
-            },
+            "output_workers": 1,
+            "pass_workers": 8,
+            "input_handler_kwargs": {"max_workers": 1},
             "execution_control": {
                 "option": "kestrel",
                 "walltime": 4,

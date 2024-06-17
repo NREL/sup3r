@@ -411,16 +411,13 @@ class Sup3rQa:
                 'For sup3r output feature "{}", retrieving u/v '
                 'components "{}" and "{}"'.format(feature, u_feat, v_feat)
             )
-            u_idf = self.source_handler.features.index(u_feat)
-            v_idf = self.source_handler.features.index(v_feat)
-            u_true = self.source_handler.data[..., u_idf]
-            v_true = self.source_handler.data[..., v_idf]
+            u_true = self.source_handler.data[u_feat, ...]
+            v_true = self.source_handler.data[v_feat, ...]
             u_true = self.bias_correct_source_data(u_true, lat_lon, u_feat)
             v_true = self.bias_correct_source_data(v_true, lat_lon, v_feat)
             data_true = np.hypot(u_true, v_true)
         else:
-            idf = self.source_handler.features.index(source_feature)
-            data_true = self.source_handler.data[..., idf]
+            data_true = self.source_handler.data[source_feature, ...]
             data_true = self.bias_correct_source_data(
                 data_true, lat_lon, source_feature
             )

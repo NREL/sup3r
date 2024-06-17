@@ -9,6 +9,7 @@ import os
 from abc import abstractmethod
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
+import dask.array as da
 import h5py
 import numpy as np
 import pandas as pd
@@ -170,7 +171,7 @@ class DataRetrievalBase:
         self.bias_gid_raster = self.bias_gid_raster.reshape(raster_shape)
 
         self.nn_dist, self.nn_ind = self.bias_tree.query(
-            self.base_meta[['latitude', 'longitude']], k=1,
+            self.base_meta[['latitude', 'longitude']],
             distance_upper_bound=self.distance_upper_bound)
 
         self.out = None
@@ -388,16 +389,12 @@ class DataRetrievalBase:
             1D array of temporal data at the requested gid.
         """
 
-        idx = np.where(self.bias_gid_raster == bias_gid)
+        row, col = np.where(self.bias_gid_raster == bias_gid)
 
         # This can be confusing. If the given argument `bias_dh` is None,
         # the default value for dh is `self.bias_dh`.
         dh = bias_dh or self.bias_dh
-        # But the `data` attribute from the handler `dh` can also be None,
-        # and in that case, `load_cached_data()`.
-        if dh.data is None:
-            dh.load_cached_data()
-        bias_data = dh.data[idx][0]
+        bias_data = dh.data[row[0], col[0], ...]
 
         if bias_data.shape[-1] == 1:
             bias_data = bias_data[:, 0]
@@ -523,9 +520,9 @@ class DataRetrievalBase:
 
         Parameters
         ----------
-        bias_data : np.ndarray
+        bias_data : T_Array
             1D array of biased data observations.
-        base_data : np.ndarray
+        base_data : T_Array
             1D array of base data observations.
 
         Returns
@@ -535,6 +532,10 @@ class DataRetrievalBase:
             associated with zeros in base_data will be set to zero
         """
 
+        if isinstance(bias_data, da.core.Array):
+            bias_data = bias_data.compute()
+        if isinstance(base_data, da.core.Array):
+            base_data = base_data.compute()
         q_zero_base_in = np.nanmean(base_data == 0)
         q_zero_bias_in = np.nanmean(bias_data == 0)
 
@@ -572,11 +573,10 @@ class DataRetrievalBase:
         base_data : np.ndarray
             1D array of base data spatially averaged across the base_gid input
         """
-        idf = dh.features.index(base_dset)
         gid_raster = np.arange(len(dh.meta))
         gid_raster = gid_raster.reshape(dh.shape[:2])
         idy, idx = np.where(np.isin(gid_raster, base_gid))
-        base_data = dh.data[idy, idx, :, idf]
+        base_data = dh.data[base_dset, idy, idx]
         assert base_data.shape[0] == len(base_gid)
         assert base_data.shape[1] == len(dh.time_index)
         return base_data.mean(axis=0)
@@ -944,7 +944,7 @@ class LinearCorrection(FillAndSmoothMixin, DataRetrievalBase):
                     if not base_gid.any():
                         self.bad_bias_gids.append(bias_gid)
                     else:
-                        bias_data = self.get_bias_data(bias_gid)
+                        bias_data = self.get_bias_data(bias_gid).compute()
                         future = exe.submit(
                             self._run_single,
                             bias_data,

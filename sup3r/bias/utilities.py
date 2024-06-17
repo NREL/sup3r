@@ -38,7 +38,7 @@ def lin_bc(handler, bc_files, threshold=0.1):
         bc_files = [bc_files]
 
     completed = []
-    for idf, feature in enumerate(handler.features):
+    for feature in handler.features:
         for fp in bc_files:
             dset_scalar = f'{feature}_scalar'
             dset_adder = f'{feature}_adder'
@@ -79,8 +79,8 @@ def lin_bc(handler, bc_files, threshold=0.1):
                         feature, os.path.basename(fp)
                     )
                 )
-                handler.data[..., idf] *= scalar
-                handler.data[..., idf] += adder
+                handler.data[feature, ...] *= scalar
+                handler.data[feature, ...] += adder
                 completed.append(feature)
 
 
@@ -139,15 +139,15 @@ def qdm_bc(
         bc_files = [bc_files]
 
     completed = []
-    for idf, feature in enumerate(handler.features):
+    for feature in handler.features:
         for fp in bc_files:
             logger.info(
                 'Bias correcting "{}" with QDM ' 'correction from "{}"'.format(
                     feature, os.path.basename(fp)
                 )
             )
-            handler.data[..., idf] = local_qdm_bc(
-                handler.data[..., idf],
+            handler.data[feature, ...] = local_qdm_bc(
+                handler.data[feature, ...],
                 handler.lat_lon,
                 reference_feature,
                 feature,

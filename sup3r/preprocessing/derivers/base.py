@@ -223,7 +223,7 @@ class BaseDeriver(Container):
     def do_level_interpolation(self, feature) -> T_Array:
         """Interpolate over height or pressure to derive the given feature."""
         fstruct = parse_feature(feature)
-        var_array = self.data[fstruct.basename].data
+        var_array = self.data[fstruct.basename, ...]
         if fstruct.height is not None:
             level = [fstruct.height]
             msg = (
@@ -235,9 +235,10 @@ class BaseDeriver(Container):
                 and 'topography' in self.data.data_vars
             ), msg
             lev_array = (
-                self.data['zg'].data
+                self.data['zg', ...]
                 - da.broadcast_to(
-                    self.data['topography'].data.T, self.data['zg'].T.shape
+                    self.data['topography', ...].T,
+                    self.data['zg', ...].T.shape,
                 ).T
             )
         else:
@@ -249,7 +250,7 @@ class BaseDeriver(Container):
             )
             assert Dimension.PRESSURE_LEVEL in self.data, msg
             lev_array = da.broadcast_to(
-                self.data[Dimension.PRESSURE_LEVEL].data, var_array.shape
+                self.data[Dimension.PRESSURE_LEVEL, ...], var_array.shape
             )
 
         lev_array, var_array = self.add_single_level_data(
