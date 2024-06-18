@@ -7,6 +7,7 @@ from inspect import signature
 from typing import Union
 
 import dask.array as da
+import numpy as np
 
 from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.derivers.methods import (
@@ -272,6 +273,7 @@ class Deriver(BaseDeriver):
         features,
         time_roll=0,
         hr_spatial_coarsen=1,
+        nan_mask=False,
         FeatureRegistry=None,
     ):
         super().__init__(data, features, FeatureRegistry=FeatureRegistry)
@@ -291,3 +293,7 @@ class Deriver(BaseDeriver):
                     Dimension.WEST_EAST: hr_spatial_coarsen,
                 }
             ).mean()
+
+        if nan_mask:
+            time_mask = np.isnan(self.data.as_array()).any((0, 1, 3))
+            self.data = self.data.drop_isel(time=time_mask)

@@ -5,7 +5,6 @@ import shutil
 import tempfile
 
 import numpy as np
-import pytest
 from rex import Outputs, Resource, init_logger
 
 from sup3r import TEST_DATA_DIR
@@ -48,29 +47,30 @@ def test_daily_handler():
     dh_kwargs_new = dh_kwargs.copy()
     dh_kwargs_new['target'] = TARGET_W
     handler = DataHandlerH5WindCC(INPUT_FILE_W, FEATURES_W, **dh_kwargs_new)
-    daily_og = handler.daily_data
+    daily_og = handler.daily
     tstep = handler.time_slice.step
-    daily = handler.coarsen(time=int(24 / tstep)).mean()
+    daily = handler.hourly.coarsen(time=int(24 / tstep)).mean()
 
     assert np.array_equal(
         daily[lowered(FEATURES_W)].to_dataarray(),
         daily_og[lowered(FEATURES_W)].to_dataarray(),
     )
-    assert handler.data.name == 'hourly'
-    assert handler.daily_data.name == 'daily'
+    assert handler.hourly.name == 'hourly'
+    assert handler.daily.name == 'daily'
 
 
 def test_solar_handler():
     """Test loading irrad data from NSRDB file and calculating clearsky ratio
     with NaN values for nighttime."""
 
-    with pytest.raises(KeyError):
-        handler = DataHandlerH5SolarCC(
-            INPUT_FILE_S,
-            features=['clearsky_ratio'],
-            target=TARGET_S,
-            shape=SHAPE,
-        )
+    handler = DataHandlerH5SolarCC(
+        INPUT_FILE_S,
+        features=['clearsky_ratio'],
+        target=TARGET_S,
+        shape=SHAPE,
+    )
+    assert 'clearsky_ratio' in handler
+    assert ['clearsky_ghi', 'ghi'] not in handler
     handler = DataHandlerH5SolarCC(
         INPUT_FILE_S, features=FEATURES_S, **dh_kwargs
     )
@@ -79,7 +79,7 @@ def test_solar_handler():
 
     # some of the raw clearsky ghi and clearsky ratio data should be loaded in
     # the handler as NaN
-    assert np.isnan(handler.as_array()).any()
+    assert np.isnan(handler.hourly.as_array()).any()
 
 
 def test_solar_handler_w_wind():
@@ -123,27 +123,33 @@ def test_solar_ancillary_vars():
     ]
     handler = DataHandlerH5SolarCC(INPUT_FILE_S, features, **dh_kwargs)
 
-    assert np.allclose(np.min(handler.data[:, :, :, 1]), -6.1, atol=1)
-    assert np.allclose(np.max(handler.data[:, :, :, 1]), 9.7, atol=1)
+    assert np.allclose(np.min(handler.hourly['U', ...]), -6.1, atol=1)
+    assert np.allclose(np.max(handler.hourly['U', ...]), 9.7, atol=1)
 
-    assert np.allclose(np.min(handler.data[:, :, :, 2]), -9.8, atol=1)
-    assert np.allclose(np.max(handler.data[:, :, :, 2]), 9.3, atol=1)
+    assert np.allclose(np.min(handler.hourly['V', ...]), -9.8, atol=1)
+    assert np.allclose(np.max(handler.hourly['V', ...]), 9.3, atol=1)
 
-    assert np.allclose(np.min(handler.data[:, :, :, 3]), -18.3, atol=1)
-    assert np.allclose(np.max(handler.data[:, :, :, 3]), 22.9, atol=1)
+    assert np.allclose(
+        np.min(handler.hourly['air_temperature', ...]), -18.3, atol=1
+    )
+    assert np.allclose(
+        np.max(handler.hourly['air_temperature', ...]), 22.9, atol=1
+    )
 
     with Resource(INPUT_FILE_S) as res:
         ws_source = res['wind_speed']
 
     ws_true = np.roll(ws_source[::2, 0], -7, axis=0)
     ws_test = np.sqrt(
-        handler.data[0, 0, :, 1] ** 2 + handler.data[0, 0, :, 2] ** 2
+        handler.hourly['U', 0, 0] ** 2 + handler.hourly['V', 0, 0] ** 2
     )
     assert np.allclose(ws_true, ws_test)
 
     ws_true = np.roll(ws_source[::2], -7, axis=0)
     ws_true = np.mean(ws_true, axis=1)
-    ws_test = np.sqrt(handler.data[..., 1] ** 2 + handler.data[..., 2] ** 2)
+    ws_test = np.sqrt(
+        handler.hourly['U', ...] ** 2 + handler.hourly['V', ...] ** 2
+    )
     ws_test = np.mean(ws_test, axis=(0, 1))
     assert np.allclose(ws_true, ws_test)
 
@@ -165,9 +171,9 @@ def test_wind_handler():
         for x in np.array_split(np.arange(n_hours), n_days)
     ]
     for i, islice in enumerate(daily_data_slices):
-        hourly = handler.data.isel(time=islice)
+        hourly = handler.hourly.isel(time=islice)
         truth = hourly.mean(dim='time')
-        daily = handler.daily_data.isel(time=i)
+        daily = handler.daily.isel(time=i)
         assert np.allclose(daily.as_array(), truth.as_array(), atol=1e-6)
 
 
@@ -189,10 +195,10 @@ def test_surf_min_max_vars():
     )
 
     # all of the source hi-res hourly temperature data should be the same
-    assert np.allclose(handler.data[..., 0], handler.data[..., 2])
-    assert np.allclose(handler.data[..., 0], handler.data[..., 3])
-    assert np.allclose(handler.data[..., 1], handler.data[..., 4])
-    assert np.allclose(handler.data[..., 1], handler.data[..., 5])
+    assert np.allclose(handler.hourly[..., 0], handler.hourly[..., 2])
+    assert np.allclose(handler.hourly[..., 0], handler.hourly[..., 3])
+    assert np.allclose(handler.hourly[..., 1], handler.hourly[..., 4])
+    assert np.allclose(handler.hourly[..., 1], handler.hourly[..., 5])
 
 
 if __name__ == '__main__':

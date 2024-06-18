@@ -106,8 +106,8 @@ def test_data_caching(
         loader = Loader(cacher.out_files)
         assert da.map_blocks(
             lambda x, y: x == y,
-            loader[features],
-            extracter[features],
+            loader[features, ...],
+            extracter[features, ...],
         ).all()
 
 

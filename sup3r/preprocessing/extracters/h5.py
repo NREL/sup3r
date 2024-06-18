@@ -76,7 +76,7 @@ class BaseExtracterH5(Extracter):
         data_vars = {}
         for f in self.loader.data_vars:
             dat = self.loader[f].isel(
-                {Dimension.FLATTENED_SPATIAL: self.raster_index.flatten()}
+                **{Dimension.FLATTENED_SPATIAL: self.raster_index.flatten()}
             )
             if Dimension.TIME in self.loader[f].dims:
                 dat = (
@@ -110,7 +110,7 @@ class BaseExtracterH5(Extracter):
                 self._target, self._grid_shape, max_delta=self.max_delta
             )
         else:
-            raster_index = np.loadtxt(self.raster_file)
+            raster_index = np.loadtxt(self.raster_file).astype(np.int32)
             logger.info(f'Loaded raster_index from {self.raster_file}')
 
         return raster_index
