@@ -16,6 +16,7 @@ class TestEraDownloader(EraDownloader):
     """Testing version of era downloader with download_file method overridden
     since we wont include a cdsapi key in tests."""
 
+    # pylint: disable=unused-argument
     @classmethod
     def download_file(
         cls,
@@ -57,41 +58,31 @@ class TestEraDownloader(EraDownloader):
 
         features = []
 
-        if level_type == 'single':
-            if 'geopotential' in variables:
-                features.append('z')
-            if '10m_u_component_of_wind' in variables:
-                features.extend(['u10'])
-            if '10m_v_component_of_wind' in variables:
-                features.extend(['v10'])
-            if '100m_u_component_of_wind' in variables:
-                features.extend(['u100'])
-            if '100m_v_component_of_wind' in variables:
-                features.extend(['v100'])
-            nc = make_fake_dset(
-                shape=shape,
-                features=features,
-            )
-            if 'z' in nc:
+        name_map = {
+            '10m_u_component_of_wind': 'u10',
+            '10m_v_component_of_wind': 'v10',
+            '100m_u_component_of_wind': 'u100',
+            '100m_v_component_of_wind': 'v100',
+            'u_component_of_wind': 'u',
+            'v_component_of_wind': 'v'}
+
+        if 'geopotential' in variables:
+            features.append('z')
+        features.extend([name_map[f] for f in name_map if f in variables])
+
+        nc = make_fake_dset(
+            shape=shape,
+            features=features
+        )
+        if 'z' in nc:
+            if level_type == 'single':
                 nc['z'] = (nc['z'].dims, np.zeros(nc['z'].shape))
-            nc.to_netcdf(out_file)
-        else:
-            if 'geopotential' in variables:
-                features.append('z')
-            if 'u_component_of_wind' in variables:
-                features.append('u')
-            if 'v_component_of_wind' in variables:
-                features.append('v')
-            nc = make_fake_dset(
-                shape=shape,
-                features=features
-            )
-            if 'z' in nc:
+            else:
                 arr = np.zeros(nc['z'].shape)
                 for i in range(nc['z'].shape[1]):
                     arr[:, i, ...] = i * 100
                 nc['z'] = (nc['z'].dims, arr)
-            nc.to_netcdf(out_file)
+        nc.to_netcdf(out_file)
 
 
 def test_era_dl(tmpdir_factory):

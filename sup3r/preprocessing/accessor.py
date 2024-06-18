@@ -173,8 +173,16 @@ class Sup3rX:
             }
         )
         self._ds = xr.Dataset(coords=coords, data_vars=data_vars, attrs=attrs)
-        self._ds = self.reorder()
-        return self._ds
+        self._ds = self.reorder(self._ds)
+        return type(self)(self._ds)
+
+    def __eq__(self, other):
+        if isinstance(other, type(self)):
+            return np.array_equal(self.as_array(), other.as_array())
+        raise NotImplementedError(
+            f'Dont know how to compare {self.__class__.__name__} and '
+            f'{type(other)}'
+        )
 
     def __getattr__(self, attr):
         """Get attribute and cast to type(self) if a xr.Dataset is returned
@@ -238,13 +246,13 @@ class Sup3rX:
         features = features if isinstance(features, list) else [features]
         return self._ds[features].to_dataarray().transpose(*self.dims, ...)
 
-    def mean(self, skipna=True):
+    def mean(self, **kwargs):
         """Get mean directly from dataset object."""
-        return self.as_darray().mean(skipna=skipna)
+        return type(self)(self._ds.mean(**kwargs))
 
-    def std(self, skipna=True):
+    def std(self, **kwargs):
         """Get std directly from dataset object."""
-        return self.as_darray().std(skipna=skipna)
+        return type(self)(self._ds.std(**kwargs))
 
     @staticmethod
     def _check_fancy_indexing(data, keys) -> T_Array:
@@ -347,10 +355,13 @@ class Sup3rX:
                 self._ds.update({keys: dims_array_tuple(data)})
             else:
                 self._ds.update({keys: data})
-        elif _is_strings(keys[0]):
+        elif _is_strings(keys[0]) and keys[0] not in self.coords:
             var_array = self[keys[0]].as_array().squeeze()
             var_array[keys[1:]] = data
             self[keys[0]] = var_array
+        elif isinstance(keys[0], str) and keys[0] in self.coords:
+            self._ds = self._ds.assign_coords(
+                {keys[0]: (self._ds[keys[0]].dims, data)})
         else:
             msg = f'Cannot set values for keys {keys}'
             raise KeyError(msg)

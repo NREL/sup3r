@@ -181,7 +181,7 @@ class DualExtracter(Container):
 
             lr_data_new = {
                 f: regridder(
-                    self.lr_data[f, ..., :self.lr_required_shape[2]]
+                    self.lr_data[f, ..., : self.lr_required_shape[2]]
                 ).reshape(self.lr_required_shape)
                 for f in self.lr_data.data_vars
             }
@@ -200,7 +200,9 @@ class DualExtracter(Container):
         """Check for NaNs after regridding and do NN fill if needed."""
         for f in self.lr_data.data_vars:
             nan_perc = (
-                100 * np.isnan(self.lr_data[f]).sum() / self.lr_data[f].size
+                100
+                * np.isnan(self.lr_data[f].as_array()).sum()
+                / self.lr_data[f].size
             )
             if nan_perc > 0:
                 msg = f'{f} data has {nan_perc:.3f}% NaN values!'

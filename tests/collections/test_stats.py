@@ -107,7 +107,7 @@ def test_stats_calc():
         means = {
             f: np.sum(
                 [
-                    wgt * c.data[f].mean()
+                    wgt * c.data[f].mean().as_array()
                     for wgt, c in zip(stats.container_weights, extracters)
                 ]
             )
@@ -117,7 +117,7 @@ def test_stats_calc():
             f: np.sqrt(
                 np.sum(
                     [
-                        wgt * c.data[f].std() ** 2
+                        wgt * c.data[f].std().as_array() ** 2
                         for wgt, c in zip(stats.container_weights, extracters)
                     ]
                 )

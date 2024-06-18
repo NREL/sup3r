@@ -6,7 +6,6 @@ import numpy as np
 
 from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing import BatchHandler, DataHandlerH5, Sampler
-from sup3r.preprocessing.utilities import Dimension
 from sup3r.utilities.pytest.helpers import execute_pytest
 
 sample_shape = (10, 10, 12)
@@ -23,25 +22,14 @@ def test_solar_spatial_h5():
         input_file_s, features=features_s, target=target_s, shape=(20, 20)
     )
     dh = DataHandlerH5(
-        input_file_s, features=features_s, target=target_s, shape=(20, 20)
-    )
+        input_file_s, features=features_s, target=target_s, shape=(20, 20),
+        nan_mask=True)
 
-    nan_mask = np.isnan(dh.to_array()).any(axis=(0, 1, 3))
-    new_shape = (20, 20, np.sum(~nan_mask))
-    new_data = {
-        Dimension.TIME: dh.time_index[~nan_mask],
-        **{
-            f: dh[f][..., ~nan_mask].compute_chunk_sizes().reshape(new_shape)
-            for f in dh.features
-        },
-    }
-    dh.update(new_data)
-
-    assert np.nanmax(dh.to_array()) == 1
-    assert np.nanmin(dh.to_array()) == 0
-    assert not np.isnan(dh.to_array()).any()
-    assert np.isnan(dh_nan.to_array()).any()
-    sampler = Sampler(dh, sample_shape=(10, 10, 12))
+    assert np.nanmax(dh.as_array()) == 1
+    assert np.nanmin(dh.as_array()) == 0
+    assert not np.isnan(dh.as_array()).any()
+    assert np.isnan(dh_nan.as_array()).any()
+    sampler = Sampler(dh.data, sample_shape=(10, 10, 12))
     for _ in range(10):
         x = next(sampler)
         assert x.shape == (10, 10, 12, 1)
