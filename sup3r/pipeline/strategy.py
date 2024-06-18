@@ -253,7 +253,10 @@ class ForwardPassStrategy(DistributedProcess):
             'n_time_chunks': self.fwp_slicer.n_time_chunks,
             'n_total_chunks': self.chunks,
         }
-        logger.info(f'Chunk info:\n{pprint.pformat(log_dict, indent=2)}')
+        logger.info(
+            f'Chunk strategy description:\n'
+            f'{pprint.pformat(log_dict, indent=2)}'
+        )
 
         out = self.fwp_slicer.get_time_slices()
         self.ti_slices, self.ti_pad_slices = out

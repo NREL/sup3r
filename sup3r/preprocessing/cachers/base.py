@@ -64,7 +64,7 @@ class Cacher(Container):
         assert '{feature}' in cache_pattern, msg
         _, ext = os.path.splitext(cache_pattern)
         write_features = [
-            f for f in self.features if len(self.data[f].shape) == 3
+            f for f in self.features if len(self.data[f].dims) == 3
         ]
         out_files = [cache_pattern.format(feature=f) for f in write_features]
         for feature, out_file in zip(write_features, out_files):
@@ -74,7 +74,7 @@ class Cacher(Container):
                     self.write_h5(
                         out_file,
                         feature,
-                        np.transpose(self[feature].data, axes=(2, 0, 1)),
+                        np.transpose(self[feature, ...], axes=(2, 0, 1)),
                         self.coords,
                         chunks,
                     )
@@ -82,7 +82,7 @@ class Cacher(Container):
                     self.write_netcdf(
                         out_file,
                         feature,
-                        self[feature].data,
+                        self[feature, ...],
                         self.coords,
                     )
                 else:

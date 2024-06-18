@@ -229,6 +229,11 @@ class Sup3rDataset:
         """Load data into memory for each data member."""
         _ = [data.compute(**kwargs) for data in self._ds]
 
+    @property
+    def loaded(self):
+        """Check if all data members have been loaded into memory."""
+        return all(d.loaded for d in self._ds)
+
 
 class Container:
     """Basic fundamental object used to build preprocessing objects. Contains

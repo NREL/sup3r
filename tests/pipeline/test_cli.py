@@ -11,7 +11,7 @@ import pytest
 from click.testing import CliRunner
 from rex import ResourceX, init_logger
 
-from sup3r import CONFIG_DIR, TEST_DATA_DIR
+from sup3r import CONFIG_DIR
 from sup3r.models.base import Sup3rGan
 from sup3r.pipeline.forward_pass_cli import from_config as fwp_main
 from sup3r.pipeline.pipeline_cli import from_config as pipe_main
@@ -21,19 +21,18 @@ from sup3r.utilities.pytest.helpers import (
     make_fake_nc_file,
 )
 
-INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
 FEATURES = ['U_100m', 'V_100m', 'pressure_0m']
-FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 fwp_chunk_shape = (4, 4, 6)
+data_shape = (100, 100, 8)
 shape = (8, 8)
 
 
 @pytest.fixture(scope='module')
 def input_files(tmpdir_factory):
-    """Dummy netcdf input files for qa testing"""
+    """Dummy netcdf input files for fwp testing"""
 
-    input_file = str(tmpdir_factory.mktemp('data').join('qa_input.nc'))
-    make_fake_nc_file(input_file, shape=(100, 100, 8), features=FEATURES)
+    input_file = str(tmpdir_factory.mktemp('data').join('fwp_input.nc'))
+    make_fake_nc_file(input_file, shape=data_shape, features=FEATURES)
     return input_file
 
 
@@ -43,10 +42,11 @@ def runner():
     return CliRunner()
 
 
-def test_pipeline_fwp_collect(runner, input_files, log=False):
+init_logger('sup3r', log_level='DEBUG')
+
+
+def test_pipeline_fwp_collect(runner, input_files):
     """Test pipeline with forward pass and data collection"""
-    if log:
-        init_logger('sup3r', log_level='DEBUG')
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
@@ -220,10 +220,8 @@ def test_data_collection_cli(runner):
             assert np.allclose(wd_true, fh['winddirection_100m'], atol=0.1)
 
 
-def test_fwd_pass_cli(runner, input_files, log=False):
+def test_fwd_pass_cli(runner, input_files):
     """Test cli call to run forward pass"""
-    if log:
-        init_logger('sup3r', log_level='DEBUG')
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
@@ -239,11 +237,11 @@ def test_fwd_pass_cli(runner, input_files, log=False):
     with tempfile.TemporaryDirectory() as td:
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
-        t_chunks = len(input_files) // fwp_chunk_shape[2] + 1
+        t_chunks = data_shape[2] // fwp_chunk_shape[2] + 1
         n_chunks = t_chunks * shape[0] // fwp_chunk_shape[0]
         n_chunks = n_chunks * shape[1] // fwp_chunk_shape[1]
         out_files = os.path.join(td, 'out_{file_id}.nc')
-        cache_pattern = os.path.join(td, 'cache')
+        cache_pattern = os.path.join(td, 'cache_{feature}.nc')
         log_prefix = os.path.join(td, 'log.log')
         input_handler_kwargs = {
             'target': (19.3, -123.5),
@@ -256,6 +254,7 @@ def test_fwd_pass_cli(runner, input_files, log=False):
             'out_pattern': out_files,
             'log_pattern': log_prefix,
             'input_handler_kwargs': input_handler_kwargs,
+            'input_handler': 'DataHandlerNC',
             'fwp_chunk_shape': fwp_chunk_shape,
             'pass_workers': 1,
             'spatial_pad': 1,
@@ -276,8 +275,7 @@ def test_fwd_pass_cli(runner, input_files, log=False):
             raise RuntimeError(msg)
 
         # include time index cache file
-        n_cache_files = 1 + t_chunks + (len(FEATURES) * n_chunks)
-        assert len(glob.glob(f'{td}/cache*')) == n_cache_files
+        assert len(glob.glob(f'{td}/cache*')) == len(FEATURES)
         assert len(glob.glob(f'{td}/*.log')) == t_chunks
         assert len(glob.glob(f'{td}/out*')) == n_chunks
 
@@ -316,8 +314,7 @@ def test_pipeline_fwp_qa(runner, input_files, log=False):
             'log_level': 'DEBUG',
             'input_handler_kwargs': {
                 'target': (19.3, -123.5),
-                'shape': (8, 8),
-                'overwrite_cache': False,
+                'shape': shape,
             },
             'fwp_chunk_shape': (100, 100, 100),
             'max_workers': 1,
@@ -334,7 +331,7 @@ def test_pipeline_fwp_qa(runner, input_files, log=False):
             't_enhance': 4,
             'temporal_coarsening_method': 'subsample',
             'target': (19.3, -123.5),
-            'shape': (8, 8),
+            'shape': shape,
             'max_workers': 1,
             'execution_control': {'option': 'local'},
         }
