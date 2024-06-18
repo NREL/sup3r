@@ -34,7 +34,20 @@ def execute_pytest(fname, capture='all', flags='-rapP'):
     pytest.main(['-q', '--show-capture={}'.format(capture), fname, flags])
 
 
-def make_fake_dset(shape, features):
+def make_fake_tif(shape, outfile):
+    """Make dummy data for tests."""
+
+    y = np.linspace(70, -70, shape[0])
+    x = np.linspace(-150, 150, shape[1])
+    coords = {'band': [1], 'x': x, 'y': y}
+    data_vars = {
+        'band_data': (('band', 'y', 'x'), np.random.uniform(0, 1, (1, *shape)))
+    }
+    nc = xr.Dataset(coords=coords, data_vars=data_vars)
+    nc.to_netcdf(outfile)
+
+
+def make_fake_dset(shape, features, const=None):
     """Make dummy data for tests."""
 
     lats = np.linspace(70, -70, shape[0])
@@ -72,10 +85,16 @@ def make_fake_dset(shape, features):
     if len(shape) == 3:
         dims = ('time', *dims[2:])
         trans_axes = (2, 0, 1)
+    arr = (
+        np.full(shape, const)
+        if const is not None
+        else da.random.uniform(0, 1, shape)
+    )
+
     data_vars = {
         f: (
             dims[: len(shape)],
-            da.transpose(da.random.uniform(0, 1, shape), axes=trans_axes),
+            da.transpose(arr, axes=trans_axes),
         )
         for f in features
     }

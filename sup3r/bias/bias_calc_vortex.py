@@ -5,7 +5,6 @@ Vortex mean files can be downloaded from IRENA.
 https://globalatlas.irena.org/workspace
 """
 
-
 import calendar
 import logging
 import os
@@ -57,12 +56,12 @@ class VortexMeanPrepper:
     @property
     def in_features(self):
         """List of features corresponding to input heights."""
-        return [f"windspeed_{h}m" for h in self.in_heights]
+        return [f'windspeed_{h}m' for h in self.in_heights]
 
     @property
     def out_features(self):
         """List of features corresponding to output heights"""
-        return [f"windspeed_{h}m" for h in self.out_heights]
+        return [f'windspeed_{h}m' for h in self.out_heights]
 
     def get_input_file(self, month, height):
         """Get vortex tif file for given month and height."""
@@ -73,7 +72,7 @@ class VortexMeanPrepper:
         files = []
         for height in self.in_heights:
             infile = self.get_input_file(month, height)
-            outfile = infile.replace(".tif", ".nc")
+            outfile = infile.replace('.tif', '.nc')
             files.append(outfile)
         return files
 
@@ -90,7 +89,7 @@ class VortexMeanPrepper:
     def get_output_file(self, month):
         """Get name of netcdf file for a given month."""
         return os.path.join(
-            self.out_dir.replace("{month}", month), f"{month}.nc"
+            self.out_dir.replace('{month}', month), f'{month}.nc'
         )
 
     @property
@@ -109,22 +108,21 @@ class VortexMeanPrepper:
         corresponding input file and write this to a netcdf file.
         """
         infile = self.get_input_file(month, height)
-        logger.info(f"Getting mean windspeed_{height}m for {month}.")
-        outfile = infile.replace(".tif", ".nc")
+        logger.info(f'Getting mean windspeed_{height}m for {month}.')
+        outfile = infile.replace('.tif', '.nc')
         if os.path.exists(outfile) and self.overwrite:
             os.remove(outfile)
 
         if not os.path.exists(outfile) or self.overwrite:
-            try:
-                import rioxarray
-            except ImportError as e:
-                msg = 'Need special installation of "rioxarray" to run this!'
-                raise ImportError(msg) from e
-            tmp = rioxarray.open_rasterio(infile)
-            ds = tmp.to_dataset("band")
+            ds = xr.open_dataset(infile)
             ds = ds.rename(
-                {1: f"windspeed_{height}m", "x": "longitude", "y": "latitude"}
+                {
+                    'band_data': f'windspeed_{height}m',
+                    'x': 'longitude',
+                    'y': 'latitude',
+                }
             )
+            ds = ds.isel(band=0).drop_vars('band')
             ds.to_netcdf(outfile)
         return outfile
 
@@ -137,20 +135,20 @@ class VortexMeanPrepper:
         """Write netcdf files for all heights for all months."""
         for i in range(1, 13):
             month = calendar.month_name[i]
-            logger.info(f"Converting tif files to netcdf files for {month}")
+            logger.info(f'Converting tif files to netcdf files for {month}')
             self.convert_month_tif(month)
 
     @property
     def mask(self):
         """Mask coordinates without data"""
         if self._mask is None:
-            with xr.open_mfdataset(self.get_height_files("January")) as res:
+            with xr.open_mfdataset(self.get_height_files('January')) as res:
                 mask = (res[self.in_features[0]] != -999) & (
                     ~np.isnan(res[self.in_features[0]])
                 )
                 for feat in self.in_features[1:]:
                     tmp = (res[feat] != -999) & (~np.isnan(res[feat]))
-                    mask = mask & tmp
+                    mask &= tmp
                 self._mask = np.array(mask).flatten()
         return self._mask
 
@@ -174,23 +172,23 @@ class VortexMeanPrepper:
             os.remove(month_file)
 
         if os.path.exists(month_file) and not self.overwrite:
-            logger.info(f"Loading month_file {month_file}.")
+            logger.info(f'Loading month_file {month_file}.')
             data = xr.open_dataset(month_file)
         else:
             logger.info(
-                "Getting mean windspeed for all heights "
-                f"({self.in_heights}) for {month}"
+                'Getting mean windspeed for all heights '
+                f'({self.in_heights}) for {month}'
             )
             data = xr.open_mfdataset(self.get_height_files(month))
             logger.info(
-                "Interpolating windspeed for all heights "
-                f"({self.out_heights}) for {month}."
+                'Interpolating windspeed for all heights '
+                f'({self.out_heights}) for {month}.'
             )
             data = self.interp(data)
             data.to_netcdf(month_file)
             logger.info(
-                "Saved interpolated means for all heights for "
-                f"{month} to {month_file}."
+                'Saved interpolated means for all heights for '
+                f'{month} to {month_file}.'
             )
         return data
 
@@ -221,11 +219,11 @@ class VortexMeanPrepper:
             lev_array[..., i] = h
 
         logger.info(
-            f"Interpolating {self.in_features} to {self.out_features} "
-            f"for {var_array.shape[0]} coordinates."
+            f'Interpolating {self.in_features} to {self.out_features} '
+            f'for {var_array.shape[0]} coordinates.'
         )
         tmp = [
-            interp1d(h, v, fill_value="extrapolate")(self.out_heights)
+            interp1d(h, v, fill_value='extrapolate')(self.out_heights)
             for h, v in zip(lev_array[self.mask], var_array[self.mask])
         ]
         out = np.full(
@@ -236,14 +234,14 @@ class VortexMeanPrepper:
         out[self.mask.reshape((len(data.latitude), len(data.longitude)))] = tmp
         for i, feat in enumerate(self.out_features):
             if feat not in data:
-                data[feat] = (("latitude", "longitude"), out[..., i])
+                data[feat] = (('latitude', 'longitude'), out[..., i])
         return data
 
     def get_lat_lon(self):
         """Get lat lon grid"""
-        with xr.open_mfdataset(self.get_height_files("January")) as res:
+        with xr.open_mfdataset(self.get_height_files('January')) as res:
             lons, lats = np.meshgrid(
-                res["longitude"].values, res["latitude"].values
+                res['longitude'].values, res['latitude'].values
             )
         return np.array(lats), np.array(lons)
 
@@ -253,8 +251,8 @@ class VortexMeanPrepper:
         if self._meta is None:
             lats, lons = self.get_lat_lon()
             self._meta = pd.DataFrame()
-            self._meta["latitude"] = lats.flatten()[self.mask]
-            self._meta["longitude"] = lons.flatten()[self.mask]
+            self._meta['latitude'] = lats.flatten()[self.mask]
+            self._meta['longitude'] = lons.flatten()[self.mask]
         return self._meta
 
     @property
@@ -291,9 +289,9 @@ class VortexMeanPrepper:
     def global_attrs(self):
         """Get dictionary on how this data is prepared"""
         attrs = {
-            "input_files": self.input_files,
-            "class": str(self.__class__),
-            "version_record": str(VERSION_RECORD),
+            'input_files': self.input_files,
+            'class': str(self.__class__),
+            'version_record': str(VERSION_RECORD),
         }
         return attrs
 
@@ -304,22 +302,20 @@ class VortexMeanPrepper:
                 os.makedirs(os.path.dirname(fp_out), exist_ok=True)
 
             if not os.path.exists(fp_out) or self.overwrite:
-
                 OutputHandler._init_h5(
                     fp_out, self.time_index, self.meta, self.global_attrs
                 )
-                with RexOutputs(fp_out, "a") as f:
-
+                with RexOutputs(fp_out, 'a') as f:
                     for dset, data in out.items():
                         OutputHandler._ensure_dset_in_output(fp_out, dset)
                         f[dset] = data.T
-                        logger.info(f"Added {dset} to {fp_out}.")
+                        logger.info(f'Added {dset} to {fp_out}.')
 
                     logger.info(
-                        f"Wrote monthly means for all out heights: {fp_out}"
+                        f'Wrote monthly means for all out heights: {fp_out}'
                     )
             elif os.path.exists(fp_out):
-                logger.info(f"{fp_out} already exists and overwrite=False.")
+                logger.info(f'{fp_out} already exists and overwrite=False.')
 
     @classmethod
     def run(
@@ -377,13 +373,13 @@ class BiasCorrectUpdate:
         """
         with Resource(bc_file) as res:
             logger.info(
-                f"Getting {dset} bias correction factors for month {month}."
+                f'Getting {dset} bias correction factors for month {month}.'
             )
-            bc_factor = res[f"{dset}_scalar", :, month - 1]
+            bc_factor = res[f'{dset}_scalar', :, month - 1]
             factors = global_scalar * bc_factor
             logger.info(
-                f"Retrieved {dset} bias correction factors for month {month}. "
-                f"Using global_scalar={global_scalar}."
+                f'Retrieved {dset} bias correction factors for month {month}. '
+                f'Using global_scalar={global_scalar}.'
             )
         return factors
 
@@ -410,7 +406,7 @@ class BiasCorrectUpdate:
             factors. This can be used to improve systemic bias against
             observation data.
         """
-        with RexOutputs(out_file, "a") as fh:
+        with RexOutputs(out_file, 'a') as fh:
             mask = fh.time_index.month == month
             mask = np.arange(len(fh.time_index))[mask]
             mask = slice(mask[0], mask[-1] + 1)
@@ -420,7 +416,7 @@ class BiasCorrectUpdate:
                 month=month,
                 global_scalar=global_scalar,
             )
-            logger.info(f"Applying bias correction factors for month {month}")
+            logger.info(f'Applying bias correction factors for month {month}')
             fh[dset, mask, :] = bc_factors * fh_in[dset, mask, :]
 
     @classmethod
@@ -453,8 +449,8 @@ class BiasCorrectUpdate:
         max_workers : int | None
             Number of workers to use for parallel processing.
         """
-        tmp_file = out_file.replace(".h5", ".h5.tmp")
-        logger.info(f"Bias correcting {dset} in {in_file} with {bc_file}.")
+        tmp_file = out_file.replace('.h5', '.h5.tmp')
+        logger.info(f'Bias correcting {dset} in {in_file} with {bc_file}.')
         with Resource(in_file) as fh_in:
             OutputHandler._init_h5(
                 tmp_file, fh_in.time_index, fh_in.meta, fh_in.global_attrs
@@ -474,12 +470,12 @@ class BiasCorrectUpdate:
                         )
                     except Exception as e:
                         raise RuntimeError(
-                            f"Bias correction failed for month {i}."
+                            f'Bias correction failed for month {i}.'
                         ) from e
 
                     logger.info(
-                        f"Added {dset} for month {i} to output file "
-                        f"{tmp_file}."
+                        f'Added {dset} for month {i} to output file '
+                        f'{tmp_file}.'
                     )
             else:
                 futures = {}
@@ -497,20 +493,20 @@ class BiasCorrectUpdate:
                         futures[future] = i
 
                         logger.info(
-                            f"Submitted bias correction for month {i} "
-                            f"to {tmp_file}."
+                            f'Submitted bias correction for month {i} '
+                            f'to {tmp_file}.'
                         )
 
                     for future in as_completed(futures):
                         _ = future.result()
                         i = futures[future]
                         logger.info(
-                            f"Completed bias correction for month {i} "
-                            f"to {tmp_file}."
+                            f'Completed bias correction for month {i} '
+                            f'to {tmp_file}.'
                         )
 
         os.replace(tmp_file, out_file)
-        msg = f"Saved bias corrected {dset} to: {out_file}"
+        msg = f'Saved bias corrected {dset} to: {out_file}'
         logger.info(msg)
 
     @classmethod
@@ -522,7 +518,7 @@ class BiasCorrectUpdate:
         bc_file,
         overwrite=False,
         global_scalar=1,
-        max_workers=None
+        max_workers=None,
     ):
         """Run bias correction update.
 
@@ -547,16 +543,20 @@ class BiasCorrectUpdate:
         """
         if os.path.exists(out_file) and not overwrite:
             logger.info(
-                f"{out_file} already exists and overwrite=False. Skipping."
+                f'{out_file} already exists and overwrite=False. Skipping.'
             )
         else:
             if os.path.exists(out_file) and overwrite:
                 logger.info(
-                    f"{out_file} exists but overwrite=True. "
-                    f"Removing {out_file}."
+                    f'{out_file} exists but overwrite=True. '
+                    f'Removing {out_file}.'
                 )
                 os.remove(out_file)
             cls.update_file(
-                in_file, out_file, dset, bc_file, global_scalar=global_scalar,
-                max_workers=max_workers
+                in_file,
+                out_file,
+                dset,
+                bc_file,
+                global_scalar=global_scalar,
+                max_workers=max_workers,
             )

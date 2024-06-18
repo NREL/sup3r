@@ -171,7 +171,7 @@ class EraDownloader:
         self.month = month
         self.area = area
         self.levels = levels
-        self.run_interp = run_interp
+        self.run_interp = run_interp and interp_out_pattern is not None
         self.overwrite = overwrite
         self.combined_out_pattern = combined_out_pattern
         self.interp_out_pattern = interp_out_pattern
@@ -847,24 +847,26 @@ class EraDownloader:
         **interp_kwargs : dict
             Keyword args for LogLinInterpolator.run()
         """
-        downloader = cls(
-            year=year,
-            month=month,
-            area=area,
-            levels=levels,
-            combined_out_pattern=combined_out_pattern,
-            interp_out_pattern=interp_out_pattern,
-            run_interp=run_interp,
-            overwrite=overwrite,
-            variables=variables,
-            check_files=check_files,
-            product_type=product_type,
-        )
-        downloader.get_monthly_file(
-            interp_workers=interp_workers,
-            prune_variables=prune_variables,
-            **interp_kwargs,
-        )
+        variables = variables if isinstance(variables, list) else [variables]
+        for var in variables:
+            downloader = cls(
+                year=year,
+                month=month,
+                area=area,
+                levels=levels,
+                combined_out_pattern=combined_out_pattern,
+                interp_out_pattern=interp_out_pattern,
+                run_interp=run_interp,
+                overwrite=overwrite,
+                variables=[var],
+                check_files=check_files,
+                product_type=product_type,
+            )
+            downloader.get_monthly_file(
+                interp_workers=interp_workers,
+                prune_variables=prune_variables,
+                **interp_kwargs,
+            )
 
     @classmethod
     def run_year(
@@ -1043,8 +1045,9 @@ class EraDownloader:
 
         if not os.path.exists(outfile):
             logger.info(f'Combining {files} into {outfile}.')
+            kwargs = {'chunks': cls.CHUNKS}
             try:
-                with xr.open_mfdataset(files, chunks=cls.CHUNKS) as res:
+                with xr.open_mfdataset(files, **kwargs) as res:
                     os.makedirs(os.path.dirname(outfile), exist_ok=True)
                     res.to_netcdf(outfile)
                     logger.info(f'Saved {outfile}')

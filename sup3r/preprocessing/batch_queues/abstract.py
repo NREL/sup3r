@@ -294,11 +294,11 @@ class AbstractBatchQueue(SamplerCollection, ABC):
                     batch = next(self.batches, None)
                     if batch is not None:
                         self.queue.enqueue(batch)
-                    msg = (
-                        f'{self._thread_name.title()} queue length: '
-                        f'{self.queue.size().numpy()}'
-                    )
-                    logger.debug(msg)
+                        msg = (
+                            f'{self._thread_name.title()} queue length: '
+                            f'{self.queue.size().numpy()}'
+                        )
+                        logger.debug(msg)
         except KeyboardInterrupt:
             logger.info(
                 f'Attempting to stop {self.queue.thread.name} batch queue.'

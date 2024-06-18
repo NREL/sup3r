@@ -262,6 +262,7 @@ def test_solar_multi_day_coarse_data():
     for batch in batcher.val_data:
         assert batch.low_res.shape == (4, 5, 5, 3, len(FEATURES_S))
         assert batch.high_res.shape == (4, 20, 20, 9, 1)
+    batcher.stop()
 
     # run another test with u/v on low res side but not high res
     features = ['clearsky_ratio', 'u', 'v', 'ghi', 'clearsky_ghi']
@@ -277,6 +278,7 @@ def test_solar_multi_day_coarse_data():
         t_enhance=3,
         sample_shape=(20, 20, 9),
         feature_sets=feature_sets,
+        mode='eager'
     )
 
     for batch in batcher:
@@ -337,6 +339,7 @@ def test_wind_batching_spatial(plot=False):
         s_enhance=5,
         t_enhance=1,
         sample_shape=(20, 20),
+        mode='eager'
     )
 
     for batch in batcher:

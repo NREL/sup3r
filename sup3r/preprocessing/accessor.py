@@ -77,7 +77,7 @@ class Sup3rX:
         """Load `._ds` into memory. This updates the internal `xr.Dataset` if
         it has not been loaded already."""
         if not self.loaded:
-            logger.info(f'Loading {self._ds} into memory.')
+            logger.info(f'Loading data into memory: {self.info()}')
             self._ds = self._ds.compute(**kwargs)
 
     @property

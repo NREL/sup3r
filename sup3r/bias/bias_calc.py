@@ -9,7 +9,6 @@ import os
 from abc import abstractmethod
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
-import dask.array as da
 import h5py
 import numpy as np
 import pandas as pd
@@ -565,10 +564,6 @@ class DataRetrievalBase:
             associated with zeros in base_data will be set to zero
         """
 
-        if isinstance(bias_data, da.core.Array):
-            bias_data = bias_data.compute()
-        if isinstance(base_data, da.core.Array):
-            base_data = base_data.compute()
         q_zero_base_in = np.nanmean(base_data == 0)
         q_zero_bias_in = np.nanmean(bias_data == 0)
 
@@ -1013,7 +1008,7 @@ class LinearCorrection(FillAndSmoothMixin, DataRetrievalBase):
                     if not base_gid.any():
                         self.bad_bias_gids.append(bias_gid)
                     else:
-                        bias_data = self.get_bias_data(bias_gid).compute()
+                        bias_data = self.get_bias_data(bias_gid)
                         future = exe.submit(
                             self._run_single,
                             bias_data,

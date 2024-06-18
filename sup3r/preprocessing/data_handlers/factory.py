@@ -79,10 +79,13 @@ def DataHandlerFactory(
                 Dictionary of keyword args for DirectExtracter, Deriver, and
                 Cacher
             """
-            [cache_kwargs, loader_kwargs, deriver_kwargs, extracter_kwargs] = (
-                get_class_kwargs(
-                    [Cacher, LoaderClass, Deriver, ExtracterClass], kwargs
-                )
+            [
+                cacher_kwargs,
+                loader_kwargs,
+                deriver_kwargs,
+                extracter_kwargs,
+            ] = get_class_kwargs(
+                [Cacher, LoaderClass, Deriver, ExtracterClass], kwargs
             )
             features = parse_to_list(features=features)
             self.loader = LoaderClass(file_paths, **loader_kwargs)
@@ -96,8 +99,9 @@ def DataHandlerFactory(
                 self.extracter.data, features=features, **deriver_kwargs
             )
             self._deriver_hook()
-            if 'cache_pattern' in cache_kwargs:
-                _ = Cacher(self, cache_kwargs)
+            cache_kwargs = cacher_kwargs.get('cache_kwargs', {})
+            if cache_kwargs is not None and 'cache_pattern' in cache_kwargs:
+                _ = Cacher(self, **cacher_kwargs)
 
         def _loader_hook(self):
             """Hook in after loader initialization. Implement this to extend
