@@ -115,9 +115,16 @@ def DataHandlerFactory(
             """Hook in after extracter initialization. Implement this to extend
             class functionality with operations after default extracter
             initialization. e.g. If special methods are required to add more
-            data to the extracted data - Prime example is adding a special
-            method to extract / regrid clearsky_ghi from an nsrdb source file
-            prior to derivation of clearsky_ratio."""
+            data to the extracted data or to perform some pre-processing before
+            derivations.
+
+            Examples
+            --------
+             - adding a special method to extract / regrid clearsky_ghi from an
+             nsrdb source file prior to derivation of clearsky_ratio.
+             - apply bias correction to extracted data before deriving new
+             features
+            """
             pass
 
         def _deriver_hook(self):
@@ -134,7 +141,13 @@ def DataHandlerFactory(
 
             TODO: Not a fan of the hardcoded list here. Find better way.
             """
-            if attr in ['lat_lon', 'grid_shape', 'time_slice', 'time_index']:
+            if attr in [
+                'lat_lon',
+                'target',
+                'grid_shape',
+                'time_slice',
+                'time_index',
+            ]:
                 return getattr(self.extracter, attr)
             try:
                 return Deriver.__getattr__(self, attr)
@@ -223,27 +236,17 @@ def DailyDataHandlerFactory(
             for fname in feats:
                 if '_max_' in fname:
                     daily_data[fname] = (
-                        self.data[fname]
-                        .coarsen(time=day_steps)
-                        .max()
-                        .to_dataarray()
-                        .squeeze()
+                        self.data[fname].coarsen(time=day_steps).max()
                     )
                 if '_min_' in fname:
                     daily_data[fname] = (
-                        self.data[fname]
-                        .coarsen(time=day_steps)
-                        .min()
-                        .to_dataarray()
-                        .squeeze()
+                        self.data[fname].coarsen(time=day_steps).min()
                     )
                 if 'total_' in fname:
                     daily_data[fname] = (
                         self.data[fname.split('total_')[-1]]
                         .coarsen(time=day_steps)
                         .sum()
-                        .to_dataarray()
-                        .squeeze()
                     )
 
             if 'clearsky_ratio' in self.features:

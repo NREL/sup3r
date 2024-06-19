@@ -93,7 +93,7 @@ def test_derived_data_caching(
         assert deriver.data.dtype == np.dtype(np.float32)
 
         loader = Loader(cacher.out_files, features=derive_features)
-        assert np.array_equal(loader.to_array(), deriver.to_array())
+        assert np.array_equal(loader.as_array(), deriver.as_array())
 
 
 if __name__ == '__main__':

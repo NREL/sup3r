@@ -8,6 +8,7 @@ from rex import safe_json_load
 
 from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing import ExtracterH5, StatsCollection
+from sup3r.preprocessing.accessor import Sup3rX
 from sup3r.preprocessing.base import Sup3rDataset
 from sup3r.utilities.pytest.helpers import DummyData, execute_pytest
 
@@ -31,7 +32,9 @@ def test_stats_dual_data():
     `type(self.data) == type(Sup3rDataset)` (e.g. a dual dataset)."""
 
     dat = DummyData((10, 10, 100), ['windspeed', 'winddirection'])
-    dat.data = Sup3rDataset(first=dat.data, second=dat.data)
+    dat.data = Sup3rDataset(
+        low_res=Sup3rX(dat.data[0]._ds), high_res=Sup3rX(dat.data[0]._ds)
+    )
 
     og_means = {
         'windspeed': np.nanmean(dat[..., 0]),
@@ -107,7 +110,7 @@ def test_stats_calc():
         means = {
             f: np.sum(
                 [
-                    wgt * c.data[f].mean().as_array()
+                    wgt * c.data[f].mean()
                     for wgt, c in zip(stats.container_weights, extracters)
                 ]
             )
@@ -117,7 +120,7 @@ def test_stats_calc():
             f: np.sqrt(
                 np.sum(
                     [
-                        wgt * c.data[f].std().as_array() ** 2
+                        wgt * c.data[f].std() ** 2
                         for wgt, c in zip(stats.container_weights, extracters)
                     ]
                 )

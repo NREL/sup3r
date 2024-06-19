@@ -2,7 +2,8 @@
 
 import pytest
 
-from sup3r.preprocessing import Container, DualSampler, Sampler
+from sup3r.preprocessing import DualSampler, Sampler
+from sup3r.preprocessing.base import Sup3rDataset
 from sup3r.utilities.pytest.helpers import DummyData, execute_pytest
 
 
@@ -51,26 +52,26 @@ def test_mixed_lr_hr_features(lr_features, hr_features, hr_exo_features):
     lr_containers = [
         DummyData(
             data_shape=(10, 10, 20),
-            features=lr_features,
+            features=[f.lower() for f in lr_features],
         ),
         DummyData(
             data_shape=(12, 12, 15),
-            features=lr_features,
+            features=[f.lower() for f in lr_features],
         ),
     ]
     hr_containers = [
         DummyData(
             data_shape=(20, 20, 40),
-            features=hr_features,
+            features=[f.lower() for f in hr_features],
         ),
         DummyData(
             data_shape=(24, 24, 30),
-            features=hr_features,
+            features=[f.lower() for f in hr_features],
         ),
     ]
     sampler_pairs = [
         DualSampler(
-            Container((lr.data, hr.data)),
+            Sup3rDataset(low_res=lr.data, high_res=hr.data),
             hr_sample_shape,
             s_enhance=2,
             t_enhance=2,

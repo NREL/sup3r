@@ -151,7 +151,7 @@ class DualExtracter(Container):
                 : self.hr_required_shape[2]
             ],
         }
-        self.hr_data = self.hr_data.update({**hr_coords_new, **hr_data_new})
+        self.hr_data = self.hr_data.init_new({**hr_coords_new, **hr_data_new})
 
     def get_regridder(self):
         """Get regridder object"""
@@ -192,7 +192,7 @@ class DualExtracter(Container):
                     : self.lr_required_shape[2]
                 ],
             }
-            self.lr_data = self.lr_data.update(
+            self.lr_data = self.lr_data.init_new(
                 {**lr_coords_new, **lr_data_new}
             )
 
@@ -201,7 +201,7 @@ class DualExtracter(Container):
         for f in self.lr_data.data_vars:
             nan_perc = (
                 100
-                * np.isnan(self.lr_data[f].as_array()).sum()
+                * np.isnan(self.lr_data[f].data).sum()
                 / self.lr_data[f].size
             )
             if nan_perc > 0:

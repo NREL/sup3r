@@ -106,14 +106,14 @@ def test_lon_range():
         nc = make_fake_dset((20, 20, 100, 5), features=['u', 'v'])
         nc[Dimension.LONGITUDE] = (
             nc[Dimension.LONGITUDE].dims,
-            (nc[Dimension.LONGITUDE, ...] + 360) % 360.0,
+            (nc[Dimension.LONGITUDE].data + 360) % 360.0,
         )
         out_file = os.path.join(td, 'bad_lons.nc')
         nc.to_netcdf(out_file)
         loader = LoaderNC(out_file)
-        assert (nc[Dimension.LONGITUDE, ...] > 180).any()
-        assert (loader[Dimension.LONGITUDE, ...] <= 180).all()
-        assert (loader[Dimension.LONGITUDE, ...] >= -180).all()
+        assert (nc[Dimension.LONGITUDE] > 180).any()
+        assert (loader[Dimension.LONGITUDE] <= 180).all()
+        assert (loader[Dimension.LONGITUDE] >= -180).all()
 
 
 def test_level_inversion():

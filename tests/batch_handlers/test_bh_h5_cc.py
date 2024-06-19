@@ -410,20 +410,20 @@ def test_surf_min_max_vars():
     )
 
     assert (
-        batcher.low_res['temperature_2m'].as_array()
-        > batcher.low_res['temperature_min_2m'].as_array()
+        batcher.low_res['temperature_2m'].data
+        > batcher.low_res['temperature_min_2m'].data
     ).all()
     assert (
-        batcher.low_res['temperature_2m'].as_array()
-        < batcher.low_res['temperature_max_2m'].as_array()
+        batcher.low_res['temperature_2m'].data
+        < batcher.low_res['temperature_max_2m'].data
     ).all()
     assert (
-        batcher.low_res['relativehumidity_2m'].as_array()
-        > batcher.low_res['relativehumidity_min_2m'].as_array()
+        batcher.low_res['relativehumidity_2m'].data
+        > batcher.low_res['relativehumidity_min_2m'].data
     ).all()
     assert (
-        batcher.low_res['relativehumidity_2m'].as_array()
-        < batcher.low_res['relativehumidity_max_2m'].as_array()
+        batcher.low_res['relativehumidity_2m'].data
+        < batcher.low_res['relativehumidity_max_2m'].data
     ).all()
 
     assert (

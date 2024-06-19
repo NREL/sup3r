@@ -25,17 +25,30 @@ option_no_order.experimental_optimization.apply_default_optimizations = True
 
 
 class SingleBatchQueue(AbstractBatchQueue):
-    """Base BatchQueue class for single dataset containers"""
+    """Base BatchQueue class for single dataset containers
+
+    Note
+    ----
+    Here we use `len(self.features)` for the last dimension of samples, since
+    samples in :class:`SingleBatchQueue` queues are coarsened to produce
+    low-res samples, and then the `lr_only_features` are removed with
+    `hr_features_ind`. In contrast, for samples in :class:`DualBatchQueue`
+    queues there are low / high res pairs and the high-res only stores the
+    `hr_features`"""
 
     @property
     def queue_shape(self):
         """Shape of objects stored in the queue."""
-        return [(self.batch_size, *self.hr_shape)]
+        return [(self.batch_size, *self.hr_sample_shape, len(self.features))]
 
     @property
     def output_signature(self):
         """Signature of tensors returned by the queue."""
-        return tf.TensorSpec(self.hr_shape, tf.float32, name='high_res')
+        return tf.TensorSpec(
+            (*self.hr_sample_shape, len(self.features)),
+            tf.float32,
+            name='high_res',
+        )
 
     def transform(
         self,
@@ -97,6 +110,4 @@ class SingleBatchQueue(AbstractBatchQueue):
     def _parallel_map(self, data: tf.data.Dataset):
         """Perform call to map function for single dataset containers to enable
         parallel sampling."""
-        return data.map(
-            lambda x: x, num_parallel_calls=self.max_workers
-        )
+        return data.map(lambda x: x, num_parallel_calls=self.max_workers)

@@ -85,9 +85,15 @@ class BaseDeriver(Container):
 
         super().__init__(data=data)
         features = parse_to_list(data=data, features=features)
-        for f in features:
+        new_features = [f for f in features if f not in self.data]
+        for f in new_features:
             self.data[f] = self.derive(f)
-        self.data = self.data[features]
+        self.data = (
+            self.data[[Dimension.LATITUDE, Dimension.LONGITUDE]]
+            if not features
+            else self.data if features == 'all'
+            else self.data[features]
+        )
 
     def _check_registry(self, feature) -> Union[T_Array, str]:
         """Check if feature or matching pattern is in the feature registry
@@ -194,7 +200,7 @@ class BaseDeriver(Container):
         pattern = fstruct.basename + '_(.*)'
         var_list = []
         lev_list = []
-        for f in self.data.features:
+        for f in list(self.data.data_vars):
             if re.match(pattern.lower(), f):
                 var_list.append(self.data[f])
                 pstruct = parse_feature(f)

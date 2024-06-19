@@ -68,8 +68,9 @@ class Loader(Container, ABC):
         self.data = self.rename(self.load(), self.FEATURE_NAMES).astype(
             np.float32
         )
-        lons = (self.data[Dimension.LONGITUDE, ...] + 180.0) % 360.0 - 180.0
-        self.data[Dimension.LONGITUDE, ...] = lons
+        self.data[Dimension.LONGITUDE] = (
+            self.data[Dimension.LONGITUDE] + 180.0
+        ) % 360.0 - 180.0
         self.data = self.data[features] if features != 'all' else self.data
         self.add_attrs()
 

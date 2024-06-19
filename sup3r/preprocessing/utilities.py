@@ -141,9 +141,9 @@ def get_input_handler_class(file_paths, input_handler_name):
 
     if input_handler_name is None:
         if input_type == 'nc':
-            input_handler_name = 'ExtracterNC'
+            input_handler_name = 'DataHandlerNC'
         elif input_type == 'h5':
-            input_handler_name = 'ExtracterH5'
+            input_handler_name = 'DataHandlerH5'
 
         logger.info(
             '"input_handler" arg was not provided. Using '
@@ -361,25 +361,29 @@ def parse_features(
     data : T_Dataset
         Data containing available features
     """
-    features = lowered(features) if features is not None else []
     features = (
         list(data.data_vars)
-        if features == 'all' and data is not None
+        if features in ('all', ['all']) and data is not None
         else features
     )
+    features = lowered(features) if features is not None else []
     return features
 
 
 def parse_to_list(features=None, data=None):
     """Parse features and return as a list, even if features is a string."""
-    features = parse_features(features=features, data=data)
-    return (
-        list(*features)
-        if isinstance(features, tuple)
-        else features
-        if isinstance(features, list)
-        else [features]
+    features = (
+        np.array(
+            list(*features)
+            if isinstance(features, tuple)
+            else features
+            if isinstance(features, list)
+            else [features]
+        )
+        .flatten()
+        .tolist()
     )
+    return parse_features(features=features, data=data)
 
 
 def _contains_ellipsis(vals):
@@ -395,6 +399,10 @@ def _is_strings(vals):
     )
 
 
+def _get_strings(vals):
+    return [v for v in vals if _is_strings(v)]
+
+
 def _is_ints(vals):
     return isinstance(vals, int) or (
         isinstance(vals, (list, tuple, np.ndarray))
@@ -402,22 +410,23 @@ def _is_ints(vals):
     )
 
 
+def _lowered(features):
+    return (
+        features.lower()
+        if isinstance(features, str)
+        else [f.lower() if isinstance(f, str) else f for f in features]
+    )
+
+
 def lowered(features):
     """Return a lower case version of the given str or list of strings. Used to
     standardize storage and lookup of features."""
 
-    feats = (
-        features.lower()
-        if isinstance(features, str)
-        else [f.lower() for f in features]
-        if isinstance(features, list)
-        and all(isinstance(f, str) for f in features)
-        else features
-    )
-    if _is_strings(features) and features != feats:
+    feats = _lowered(features)
+    if _get_strings(features) != _get_strings(feats):
         msg = (
-            f'Received some upper case features: {features}. '
-            f'Using {feats} instead.'
+            f'Received some upper case features: {_get_strings(features)}. '
+            f'Using {_get_strings(feats)} instead.'
         )
         logger.warning(msg)
         warn(msg)

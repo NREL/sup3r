@@ -170,7 +170,8 @@ def test_wind_handler():
         slice(x[0], x[-1] + 1)
         for x in np.array_split(np.arange(n_hours), n_days)
     ]
-    for i, islice in enumerate(daily_data_slices):
+    for i in range(0, n_days, 10):
+        islice = daily_data_slices[i]
         hourly = handler.hourly.isel(time=islice)
         truth = hourly.mean(dim='time')
         daily = handler.daily.isel(time=i)

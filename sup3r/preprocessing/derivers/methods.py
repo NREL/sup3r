@@ -66,13 +66,13 @@ class ClearSkyRatioH5(DerivedFeature):
         # need to use a nightime threshold of 1 W/m2 because cs_ghi is stored
         # in integer format and weird binning patterns happen in the clearsky
         # ratio and cloud mask between 0 and 1 W/m2 and sunrise/sunset
-        night_mask = data['clearsky_ghi', ...] <= 1
+        night_mask = data['clearsky_ghi'] <= 1
 
         # set any timestep with any nighttime equal to NaN to avoid weird
         # sunrise/sunset artifacts.
         night_mask = night_mask.any(axis=(0, 1)).compute()
 
-        cs_ratio = data['ghi', ...] / data['clearsky_ghi', ...]
+        cs_ratio = data['ghi'] / data['clearsky_ghi']
         cs_ratio[..., night_mask] = np.nan
         return cs_ratio.astype(np.float32)
 
@@ -100,7 +100,7 @@ class ClearSkyRatioCC(DerivedFeature):
             Clearsky ratio, e.g. the all-sky ghi / the clearsky ghi. This is
             assumed to be daily average data for climate change source data.
         """
-        cs_ratio = data['rsds', ...] / data['clearsky_ghi', ...]
+        cs_ratio = data['rsds'] / data['clearsky_ghi']
         cs_ratio = np.minimum(cs_ratio, 1)
         return np.maximum(cs_ratio, 0)
 
@@ -123,13 +123,13 @@ class CloudMaskH5(DerivedFeature):
         # need to use a nightime threshold of 1 W/m2 because cs_ghi is stored
         # in integer format and weird binning patterns happen in the clearsky
         # ratio and cloud mask between 0 and 1 W/m2 and sunrise/sunset
-        night_mask = data['clearsky_ghi', ...] <= 1
+        night_mask = data['clearsky_ghi'] <= 1
 
         # set any timestep with any nighttime equal to NaN to avoid weird
         # sunrise/sunset artifacts.
         night_mask = night_mask.any(axis=(0, 1)).compute()
 
-        cloud_mask = data['ghi', ...] < data['clearsky_ghi', ...]
+        cloud_mask = data['ghi'] < data['clearsky_ghi']
         cloud_mask = cloud_mask.astype(np.float32)
         cloud_mask[night_mask] = np.nan
         return cloud_mask.astype(np.float32)
@@ -145,7 +145,7 @@ class PressureNC(DerivedFeature):
     @classmethod
     def compute(cls, data, height):
         """Method to compute pressure from NETCDF data"""
-        return data[f'p_{height}m', ...] + data[f'pb_{height}m', ...]
+        return data[f'p_{height}m'] + data[f'pb_{height}m']
 
 
 class WindspeedNC(DerivedFeature):
@@ -158,8 +158,8 @@ class WindspeedNC(DerivedFeature):
         """Compute windspeed"""
 
         ws, _ = invert_uv(
-            data[f'u_{height}m', ...],
-            data[f'v_{height}m', ...],
+            data[f'u_{height}m'],
+            data[f'v_{height}m'],
             data.lat_lon,
         )
         return ws
@@ -174,8 +174,8 @@ class WinddirectionNC(DerivedFeature):
     def compute(cls, data, height):
         """Compute winddirection"""
         _, wd = invert_uv(
-            data[f'U_{height}m', ...],
-            data[f'V_{height}m', ...],
+            data[f'U_{height}m'],
+            data[f'V_{height}m'],
             data.lat_lon,
         )
         return wd
@@ -192,7 +192,7 @@ class UWindPowerLaw(DerivedFeature):
     ALPHA = 0.2
     NEAR_SFC_HEIGHT = 10
 
-    inputs = ('uas')
+    inputs = ('uas',)
 
     @classmethod
     def compute(cls, data, height):
@@ -214,7 +214,7 @@ class UWindPowerLaw(DerivedFeature):
 
         """
         return (
-            data['uas', ...]
+            data['uas']
             * (float(height) / cls.NEAR_SFC_HEIGHT) ** cls.ALPHA
         )
 
@@ -230,14 +230,14 @@ class VWindPowerLaw(DerivedFeature):
     ALPHA = 0.2
     NEAR_SFC_HEIGHT = 10
 
-    inputs = ('vas')
+    inputs = ('vas',)
 
     @classmethod
     def compute(cls, data, height):
         """Method to compute V wind component from data"""
 
         return (
-            data['vas', ...]
+            data['vas']
             * (float(height) / cls.NEAR_SFC_HEIGHT) ** cls.ALPHA
         )
 
@@ -253,8 +253,8 @@ class UWind(DerivedFeature):
     def compute(cls, data, height):
         """Method to compute U wind component from data"""
         u, _ = transform_rotate_wind(
-            data[f'windspeed_{height}m', ...],
-            data[f'winddirection_{height}m', ...],
+            data[f'windspeed_{height}m'],
+            data[f'winddirection_{height}m'],
             data.lat_lon,
         )
         return u
@@ -272,8 +272,8 @@ class VWind(DerivedFeature):
         """Method to compute V wind component from data"""
 
         _, v = transform_rotate_wind(
-            data[f'windspeed_{height}m', ...],
-            data[f'winddirection_{height}m', ...],
+            data[f'windspeed_{height}m'],
+            data[f'winddirection_{height}m'],
             data.lat_lon,
         )
         return v
@@ -290,8 +290,8 @@ class USolar(DerivedFeature):
     def compute(cls, data):
         """Method to compute U wind component from data"""
         u, _ = transform_rotate_wind(
-            data['wind_speed', ...],
-            data['wind_direction', ...],
+            data['wind_speed'],
+            data['wind_direction'],
             data.lat_lon,
         )
         return u
@@ -308,8 +308,8 @@ class VSolar(DerivedFeature):
     def compute(cls, data):
         """Method to compute U wind component from data"""
         _, v = transform_rotate_wind(
-            data['wind_speed', ...],
-            data['wind_direction', ...],
+            data['wind_speed'],
+            data['wind_direction'],
             data.lat_lon,
         )
         return v
@@ -318,13 +318,13 @@ class VSolar(DerivedFeature):
 class TempNCforCC(DerivedFeature):
     """Air temperature variable from climate change nc files"""
 
-    inputs = ('ta_(.*)')
+    inputs = ('ta_(.*)',)
 
     @classmethod
     def compute(cls, data, height):
         """Method to compute ta in Celsius from ta source in Kelvin"""
 
-        return data[f'ta_{height}m', ...] - 273.15
+        return data[f'ta_{height}m'] - 273.15
 
 
 class Tas(DerivedFeature):

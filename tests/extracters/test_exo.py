@@ -218,7 +218,6 @@ def test_bad_s_enhance(s_enhance=10):
                 t_enhance=1,
                 target=(39.01, -105.15),
                 shape=(20, 20),
-                cache_data=False,
             )
             _ = te.data
 
