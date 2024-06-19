@@ -25,9 +25,12 @@ FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 FP_ERA = os.path.join(TEST_DATA_DIR, 'test_era5_co_2012.nc')
 TARGET_COORD = (39.01, -105.15)
 FEATURES = ['U_100m', 'V_100m']
-
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 init_logger('sup3r', log_level='DEBUG')
+
+
+np.random.seed(42)
 
 
 @pytest.mark.parametrize(
@@ -86,13 +89,17 @@ def test_train(
     """Test basic model training with only gen content loss. Tests both
     spatiotemporal and spatial models."""
 
-    lr = 5e-5
+    lr = 9e-5
     fp_gen = os.path.join(CONFIG_DIR, gen_config)
     fp_disc = os.path.join(CONFIG_DIR, disc_config)
 
     Sup3rGan.seed()
     model = Sup3rGan(
-        fp_gen, fp_disc, learning_rate=lr, loss='MeanAbsoluteError'
+        fp_gen,
+        fp_disc,
+        learning_rate=lr,
+        loss='MeanAbsoluteError',
+        default_device='/cpu:0',
     )
 
     hr_handler = DataHandlerH5(
@@ -127,13 +134,13 @@ def test_train(
             train_containers=[dual_extracter],
             val_containers=[dual_extracter],
             sample_shape=sample_shape,
-            batch_size=2,
+            batch_size=5,
             s_enhance=s_enhance,
             t_enhance=t_enhance,
-            n_batches=2,
+            n_batches=3,
             means=means,
             stds=stds,
-            mode=mode
+            mode=mode,
         )
 
         model_kwargs = {
@@ -171,9 +178,7 @@ def test_train(
             model_params = json.load(f)
 
         assert np.allclose(model_params['optimizer']['learning_rate'], lr)
-        assert np.allclose(
-            model_params['optimizer_disc']['learning_rate'], lr
-        )
+        assert np.allclose(model_params['optimizer_disc']['learning_rate'], lr)
         assert 'learning_rate_gen' in model.history
         assert 'learning_rate_disc' in model.history
 

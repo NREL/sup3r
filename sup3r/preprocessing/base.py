@@ -211,9 +211,9 @@ class Sup3rDataset:
         """Set dset member values. Check if values is a tuple / list and if
         so interpret this as sending a tuple / list element to each dset
         member. e.g. `vals[0] -> dsets[0]`, `vals[1] -> dsets[1]`, etc"""
-        for i, d in enumerate(self):
+        for i in range(len(self)):
             dat = data[i] if isinstance(data, (tuple, list)) else data
-            d.sx.__setitem__(variable, dat)
+            self[i].__setitem__(variable, dat)
 
     def mean(self, skipna=True):
         """Use the high_res members to compute the means. These are used for

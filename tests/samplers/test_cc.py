@@ -89,17 +89,16 @@ def test_solar_handler_sampling(plot=False):
         assert obs_ind_high_res[2].stop / 24 == obs_ind_low_res[2].stop
 
         assert np.array_equal(obs_low_res, handler.data.daily[obs_ind_low_res])
-        assert np.allclose(
-            obs_high_res,
-            handler.data.hourly[obs_ind_high_res],
-            equal_nan=True,
-        )
+        mask = np.isnan(handler.data.hourly[obs_ind_high_res].compute())
+        assert np.array_equal(
+            obs_high_res[~mask],
+            handler.data.hourly[obs_ind_high_res].compute()[~mask])
 
-        cs_ratio_profile = obs_high_res[0, 0, :, 0]
+        cs_ratio_profile = handler.data.hourly.as_array()[0, 0, :, 0].compute()
         assert np.isnan(cs_ratio_profile[0]) & np.isnan(cs_ratio_profile[-1])
         nan_mask = np.isnan(cs_ratio_profile)
-        assert all((cs_ratio_profile <= 1)[~nan_mask.compute()])
-        assert all((cs_ratio_profile >= 0)[~nan_mask.compute()])
+        assert all((cs_ratio_profile <= 1)[~nan_mask])
+        assert all((cs_ratio_profile >= 0)[~nan_mask])
         # new feature engineering so that whenever sunset starts, all
         # clearsky_ratio data is NaN
         for i in range(obs_high_res.shape[2]):

@@ -29,7 +29,7 @@ time_slice = slice(None, None, 1)
 fwp_chunk_shape = (4, 4, 150)
 s_enhance = 3
 t_enhance = 4
-
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 init_logger('sup3r', log_level='DEBUG')
 
@@ -190,12 +190,12 @@ def test_fwp_nc(input_files):
 
         with xr.open_dataset(strat.out_files[0]) as fh:
             assert fh[FEATURES[0]].shape == (
-                t_enhance * len(strat.time_index),
+                t_enhance * len(strat.input_handler.time_index),
                 s_enhance * fwp_chunk_shape[0],
                 s_enhance * fwp_chunk_shape[1],
             )
             assert fh[FEATURES[1]].shape == (
-                t_enhance * len(strat.time_index),
+                t_enhance * len(strat.input_handler.time_index),
                 s_enhance * fwp_chunk_shape[0],
                 s_enhance * fwp_chunk_shape[1],
             )
@@ -369,7 +369,7 @@ def test_fwp_chunking(input_files, plot=False):
             slice(None),
         )
         input_data = np.pad(
-            handlerNC.data.to_array(), pad_width=pad_width, mode='constant'
+            handlerNC.data.as_array(), pad_width=pad_width, mode='constant'
         )
         data_nochunk = model.generate(np.expand_dims(input_data, axis=0))[0][
             hr_crop
@@ -489,7 +489,7 @@ def test_fwp_nochunking(input_files):
         )
 
         data_nochunk = model.generate(
-            np.expand_dims(handlerNC.data.to_array(), axis=0)
+            np.expand_dims(handlerNC.data.as_array(), axis=0)
         )[0]
 
         assert np.array_equal(data_chunked, data_nochunk)

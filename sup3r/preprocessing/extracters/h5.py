@@ -79,14 +79,12 @@ class BaseExtracterH5(Extracter):
                 **{Dimension.FLATTENED_SPATIAL: self.raster_index.flatten()}
             )
             if Dimension.TIME in self.loader[f].dims:
-                dat = (
-                    dat.isel({Dimension.TIME: self.time_slice})
-                    .as_array()
-                    .reshape((*self.grid_shape, len(self.time_index)))
+                dat = dat.isel({Dimension.TIME: self.time_slice}).data.reshape(
+                    (*self.grid_shape, len(self.time_index))
                 )
                 data_vars[f] = ((*dims, Dimension.TIME), dat)
             else:
-                dat = dat.as_array().reshape(self.grid_shape)
+                dat = dat.data.reshape(self.grid_shape)
                 data_vars[f] = (dims, dat)
 
         return xr.Dataset(

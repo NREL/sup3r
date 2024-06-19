@@ -7,27 +7,28 @@ import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
-from rex import Resource
+from rex import Resource, init_logger
 
-from sup3r import CONFIG_DIR, TEST_DATA_DIR
+from sup3r import CONFIG_DIR
 from sup3r.models import Sup3rGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.qa.qa import Sup3rQa
 from sup3r.qa.utilities import continuous_dist
 from sup3r.utilities.pytest.helpers import make_fake_nc_file
 
-FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
-TARGET_COORD = (39.01, -105.15)
 TRAIN_FEATURES = ['U_100m', 'V_100m', 'pressure_0m']
 MODEL_OUT_FEATURES = ['U_100m', 'V_100m']
 FOUT_FEATURES = ['windspeed_100m', 'winddirection_100m']
-INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
 TARGET = (19.3, -123.5)
 SHAPE = (8, 8)
 TEMPORAL_SLICE = slice(None, None, 1)
 FWP_CHUNK_SHAPE = (8, 8, int(1e6))
 S_ENHANCE = 3
 T_ENHANCE = 4
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
+
+init_logger('sup3r', log_level='DEBUG')
 
 
 @pytest.fixture(scope='module')
@@ -40,7 +41,7 @@ def input_files(tmpdir_factory):
 
 
 def test_qa_nc(input_files):
-    """Test forward pass strategy output for netcdf write."""
+    """Test QA module for fwp output to NETCDF files."""
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
@@ -174,6 +175,8 @@ def test_qa_h5(input_files):
             's_enhance': S_ENHANCE,
             't_enhance': T_ENHANCE,
             'temporal_coarsening_method': 'subsample',
+            'features': FOUT_FEATURES,
+            'source_features': TRAIN_FEATURES[:2],
             'time_slice': TEMPORAL_SLICE,
             'target': TARGET,
             'shape': SHAPE,
@@ -203,7 +206,7 @@ def test_qa_h5(input_files):
                     qa_syn = qa_out[dset + '_synthetic'].flatten()
                     qa_diff = qa_out[dset + '_error'].flatten()
 
-                    wtk_source = qa.source_handler.data[..., idf]
+                    wtk_source = qa.source_handler.data[dset, ...]
                     wtk_source = np.transpose(wtk_source, axes=(2, 0, 1))
                     wtk_source = wtk_source.flatten()
 

@@ -1,6 +1,7 @@
 """Accessor for xarray."""
 
 import logging
+from typing import Dict, Union
 from warnings import warn
 
 import dask.array as da
@@ -11,12 +12,13 @@ import xarray as xr
 from sup3r.preprocessing.utilities import (
     Dimension,
     _contains_ellipsis,
+    _get_strings,
     _is_ints,
     _is_strings,
+    _lowered,
     dims_array_tuple,
     ordered_array,
     ordered_dims,
-    parse_features,
     parse_to_list,
 )
 from sup3r.typing import T_Array
@@ -24,7 +26,6 @@ from sup3r.typing import T_Array
 logger = logging.getLogger(__name__)
 
 
-@xr.register_dataarray_accessor('sx')
 @xr.register_dataset_accessor('sx')
 class Sup3rX:
     """Accessor for xarray - the suggested way to extend xarray functionality.
@@ -69,8 +70,7 @@ class Sup3rX:
         ds : xr.Dataset | xr.DataArray
             xarray Dataset instance to access with the following methods
         """
-        self._ds = ds.to_dataset() if isinstance(ds, xr.DataArray) else ds
-        self._ds = self.reorder(self._ds)
+        self._ds = self.reorder(ds) if isinstance(ds, xr.Dataset) else ds
         self._features = None
 
     def compute(self, **kwargs):
@@ -84,7 +84,8 @@ class Sup3rX:
     def loaded(self):
         """Check if data has been loaded as numpy arrays."""
         return all(
-            isinstance(self._ds[f].data, np.ndarray) for f in self.features
+            isinstance(self._ds[f].data, np.ndarray)
+            for f in list(self._ds.data_vars)
         )
 
     @classmethod
@@ -139,10 +140,9 @@ class Sup3rX:
             )
         return ds
 
-    def update(self, new_dset, attrs=None):
-        """Updated the contained dataset with coords and data_vars replaced
-        with those provided. These are both provided as dictionaries {name:
-        dask.array}.
+    def init_new(self, new_dset, attrs=None):
+        """Update `self._ds` with coords and data_vars replaced with those
+        provided. These are both provided as dictionaries {name: dask.array}.
 
         Parmeters
         ---------
@@ -176,19 +176,11 @@ class Sup3rX:
         self._ds = self.reorder(self._ds)
         return type(self)(self._ds)
 
-    def __eq__(self, other):
-        if isinstance(other, type(self)):
-            return np.array_equal(self.as_array(), other.as_array())
-        raise NotImplementedError(
-            f'Dont know how to compare {self.__class__.__name__} and '
-            f'{type(other)}'
-        )
-
     def __getattr__(self, attr):
         """Get attribute and cast to type(self) if a xr.Dataset is returned
         first."""
         out = getattr(self._ds, attr)
-        if isinstance(out, (xr.Dataset, xr.DataArray)):
+        if isinstance(out, xr.Dataset):
             out = type(self)(out)
         return out
 
@@ -280,15 +272,17 @@ class Sup3rX:
             or last entry is interpreted as requesting the variables for those
             strings)
         """
-        if _is_strings(keys[0]):
-            out = self.as_array(keys[0])
-            out = self._check_fancy_indexing(out, (*keys[1:], slice(None)))
-            out = out.squeeze(axis=-1) if out.shape[-1] == 1 else out
-        elif _is_strings(keys[-1]):
-            out = self.as_array(keys[-1])
-            out = self._check_fancy_indexing(out, (*keys[:-1], slice(None)))
-        elif _is_ints(keys[-1]) and not _contains_ellipsis(keys):
-            out = self.as_array()[*keys[:-1], ..., keys[-1]]
+        feats = _get_strings(keys)
+        if len(feats) == 1:
+            inds = [k for k in keys if not _is_strings(k)]
+            out = self._check_fancy_indexing(
+                self.as_array(feats), (*inds, slice(None))
+            )
+            out = (
+                out.squeeze(axis=-1)
+                if _is_strings(keys[0]) and out.shape[-1] == 1
+                else out
+            )
         else:
             out = self.as_array()[keys]
         return out
@@ -296,7 +290,6 @@ class Sup3rX:
     def __getitem__(self, keys) -> T_Array | xr.Dataset:
         """Method for accessing variables or attributes. keys can optionally
         include a feature name as the last element of a keys tuple."""
-        keys = parse_features(data=self._ds, features=keys)
         if isinstance(keys, slice):
             out = self._get_from_tuple((keys,))
         elif isinstance(keys, tuple):
@@ -305,9 +298,11 @@ class Sup3rX:
             out = self.as_array()[keys]
         elif _is_ints(keys):
             out = self.as_array()[..., keys]
+        elif keys == 'all':
+            out = self._ds
         else:
-            out = self._ds[keys]
-        if isinstance(out, (xr.Dataset, xr.DataArray)):
+            out = self._ds[_lowered(keys)]
+        if isinstance(out, xr.Dataset):
             out = type(self)(out)
         return out
 
@@ -330,6 +325,55 @@ class Sup3rX:
             return all(s.lower() in self._ds for s in vals)
         return self._ds.__contains__(vals)
 
+    def _add_dims_to_data_dict(self, vals):
+        new_vals = {}
+        for k, v in vals.items():
+            if isinstance(v, tuple):
+                new_vals[k] = v
+            elif isinstance(v, xr.DataArray):
+                new_vals[k] = (v.dims, v.data)
+            elif isinstance(v, xr.Dataset):
+                new_vals[k] = (v.dims, v.to_datarray().data.squeeze())
+            else:
+                val = dims_array_tuple(v)
+                msg = (
+                    f'Setting data for new variable {k} without '
+                    'explicitly providing dimensions. Using dims = '
+                    f'{tuple(val[0])}.'
+                )
+                logger.warning(msg)
+                warn(msg)
+                new_vals[k] = val
+        return new_vals
+
+    def assign_coords(self, vals: Dict[str, Union[T_Array, tuple]]):
+        """Override :meth:`assign_coords` to enable assignment without
+        explicitly providing dimensions if coordinate already exists.
+
+        Parameters
+        ----------
+        vals : dict
+            Dictionary of coord names and either arrays or tuples of (dims,
+            array). If dims are not provided this will try to use stored dims
+            of the coord, if it exists already.
+        """
+        self._ds = self._ds.assign_coords(self._add_dims_to_data_dict(vals))
+        return type(self)(self._ds)
+
+    def assign(self, vals: Dict[str, Union[T_Array, tuple]]):
+        """Override :meth:`assign` to enable update without explicitly
+        providing dimensions if variable already exists.
+
+        Parameters
+        ----------
+        vals : dict
+            Dictionary of variable names and either arrays or tuples of (dims,
+            array). If dims are not provided this will try to use stored dims
+            of the variable, if it exists already.
+        """
+        self._ds = self._ds.assign(self._add_dims_to_data_dict(vals))
+        return type(self)(self._ds)
+
     def __setitem__(self, keys, data):
         """
         Parameters
@@ -345,23 +389,15 @@ class Sup3rX:
         if isinstance(keys, (list, tuple)) and all(
             isinstance(s, str) for s in keys
         ):
-            for i, v in enumerate(keys):
-                self._ds.update({v: dims_array_tuple(data[..., i])})
+            _ = self.assign({v: data[..., i] for i, v in enumerate(keys)})
+        elif isinstance(keys, str) and keys in self.coords:
+            _ = self.assign_coords({keys: data})
         elif isinstance(keys, str):
-            keys = keys.lower()
-            if hasattr(data, 'dims') and len(data.dims) >= 2:
-                self._ds.update({keys: (ordered_dims(data.dims), data)})
-            elif hasattr(data, 'shape'):
-                self._ds.update({keys: dims_array_tuple(data)})
-            else:
-                self._ds.update({keys: data})
+            _ = self.assign({keys.lower(): data})
         elif _is_strings(keys[0]) and keys[0] not in self.coords:
-            var_array = self[keys[0]].as_array().squeeze()
+            var_array = self._ds[keys[0]].data
             var_array[keys[1:]] = data
-            self[keys[0]] = var_array
-        elif isinstance(keys[0], str) and keys[0] in self.coords:
-            self._ds = self._ds.assign_coords(
-                {keys[0]: (self._ds[keys[0]].dims, data)})
+            _ = self.assign({keys[0]: var_array})
         else:
             msg = f'Cannot set values for keys {keys}'
             raise KeyError(msg)

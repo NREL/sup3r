@@ -6,13 +6,13 @@ from inspect import signature
 from warnings import warn
 
 import numpy as np
-import pandas as pd
 import xarray as xr
 from rex import Resource
 from rex.utilities.fun_utils import get_fun_call_str
 
 import sup3r.bias.bias_transforms
 from sup3r.postprocessing.file_handling import H5_ATTRS, RexOutputs
+from sup3r.preprocessing.derivers import Deriver
 from sup3r.preprocessing.utilities import (
     Dimension,
     get_input_handler_class,
@@ -32,8 +32,10 @@ logger = logging.getLogger(__name__)
 class Sup3rQa:
     """Class for doing QA on sup3r forward pass outputs.
 
-    Note that this only works if the sup3r forward pass output can be reshaped
-    into a 2D raster dataset (e.g. no sparsifying of the meta data).
+    Note
+    ----
+    This only works if the sup3r forward pass output can be reshaped into a 2D
+    raster dataset (e.g. no sparsifying of the meta data).
     """
 
     def __init__(
@@ -57,7 +59,8 @@ class Sup3rQa:
         cache_kwargs=None,
         input_handler=None,
     ):
-        """Parameters
+        """
+        Parameters
         ----------
         source_file_paths : list | str
             A list of low-resolution source files to extract raster data from.
@@ -87,10 +90,12 @@ class Sup3rQa:
         source_features : str | list | None
             Optional feature names to retrieve from the source dataset if the
             source feature names are not the same as the sup3r output feature
-            names. This must be of the same type / length as the features
-            input. For example: (features="ghi", source_features="rsds") or
-            (features=["windspeed_100m", "windspeed_200m"],
-             source_features=[["U_100m", "V_100m"], ["U_200m", "V_200m"]])
+            names. These will be used to derive the features to be validated.
+            e.g. If model output is windspeed_100m / winddirection_100m, and
+            these were derived from u / v, then source features should be
+            ["u_100m", "v_100m"]. Another example is features="ghi",
+            source_features="rsds", where this is a simple alternative name
+            lookup.
         output_names : str | list
             Optional output file dataset names corresponding to the features
             list input
@@ -170,15 +175,19 @@ class Sup3rQa:
         HandlerClass = get_input_handler_class(
             source_file_paths, input_handler
         )
-        self.source_handler = HandlerClass(
-            source_file_paths,
-            self.source_features_flat,
+        source_handler = HandlerClass(
+            file_paths=source_file_paths,
+            features=self.source_features,
             target=target,
             shape=shape,
             time_slice=time_slice,
             raster_file=raster_file,
             cache_kwargs=cache_kwargs,
         )
+        self.source_handler = self.bias_correct_source_handler(source_handler)
+        self.meta = self.source_handler.data.meta
+        self.lr_shape = self.source_handler.shape
+        self.time_index = self.source_handler.time_index
 
     def __enter__(self):
         return self
@@ -191,39 +200,6 @@ class Sup3rQa:
     def close(self):
         """Close any open file handlers"""
         self.output_handler.close()
-
-    @property
-    def meta(self):
-        """Get the meta data corresponding to the flattened source low-res data
-
-        Returns
-        -------
-        pd.DataFrame
-        """
-        lat_lon = self.source_handler.lat_lon
-        meta = pd.DataFrame(
-            {
-                'latitude': lat_lon[..., 0].flatten(),
-                'longitude': lat_lon[..., 1].flatten(),
-            }
-        )
-        return meta
-
-    @property
-    def lr_shape(self):
-        """Get the shape of the source low-res data raster
-        (rows, cols, time, features)"""
-        return self.source_handler.shape
-
-    @property
-    def time_index(self):
-        """Get the time index associated with the source low-res data
-
-        Returns
-        -------
-        pd.DatetimeIndex
-        """
-        return self.source_handler.time_index
 
     @property
     def features(self):
@@ -246,7 +222,7 @@ class Sup3rQa:
             Dimension.WEST_EAST,
         )
 
-        if self._features is None or self._features == [None]:
+        if self._features is None:
             if self.output_type == 'nc':
                 features = list(self.output_handler.variables.keys())
             elif self.output_type == 'h5':
@@ -266,25 +242,9 @@ class Sup3rQa:
         (features='ghi' source_features='rsds'),
         this property will return ['rsds']
         """
-
-        if self._source_features is None or self._source_features == [None]:
+        if self._source_features is None:
             return self.features
         return self._source_features
-
-    @property
-    def source_features_flat(self):
-        """Get a flat list of source feature names, so for example if
-        (features=["windspeed_100m", "windspeed_200m"],
-         source_features=[["U_100m", "V_100m"], ["U_200m", "V_200m"]])
-        then this property will return ["U_100m", "V_100m", "U_200m", "V_200m"]
-        """
-        sff = []
-        for f in self.source_features:
-            if isinstance(f, (list, tuple)):
-                sff += list(f)
-            else:
-                sff.append(f)
-        return sff
 
     @property
     def output_names(self):
@@ -320,27 +280,25 @@ class Sup3rQa:
         -------
         HandlerClass : rex.Resource | xr.open_dataset
         """
-        if self.output_type == 'nc':
-            return xr.open_dataset
-        if self.output_type == 'h5':
-            return Resource
-        return None
+        return (
+            xr.open_dataset
+            if self.output_type == 'nc'
+            else Resource
+            if self.output_type == 'h5'
+            else None
+        )
 
-    def bias_correct_source_data(self, data, lat_lon, source_feature):
+    def bias_correct_feature(self, source_feature, source_handler):
         """Bias correct data using a method defined by the bias_correct_method
         input to ForwardPassStrategy
 
         Parameters
         ----------
-        data : T_Array
-            Any source data to be bias corrected, with the feature channel in
-            the last axis.
-        lat_lon : T_Array
-            Latitude longitude array for the given data. Used to get the
-            correct bc factors for the appropriate domain.
-            (n_lats, n_lons, 2)
         source_feature : str | list
             The source feature name corresponding to the output feature name
+        source_handler : DataHandler
+            DataHandler storing raw input data previously used as input for
+            forward passes.
 
         Returns
         -------
@@ -350,6 +308,7 @@ class Sup3rQa:
         """
         method = self.bias_correct_method
         kwargs = self.bias_correct_kwargs
+        data = source_handler[source_feature, ...]
         if method is not None:
             method = getattr(sup3r.bias.bias_transforms, method)
             logger.info('Running bias correction with: {}'.format(method))
@@ -384,45 +343,23 @@ class Sup3rQa:
                 )
             )
 
-            data = method(data, lat_lon, **feature_kwargs)
-
+            data = method(data, source_handler.lat_lon, **feature_kwargs)
         return data
 
-    def get_source_dset(self, feature, source_feature):
-        """Get source low res input data including optional bias correction
-
-        Parameters
-        ----------
-        feature : str
-            Feature name
-        source_feature : str | list
-            The source feature name corresponding to the output feature name
-
-        Returns
-        -------
-        data_true : np.array
-            Low-res source input data including optional bias correction
-        """
-
-        lat_lon = self.source_handler.lat_lon
-        if 'windspeed' in feature and len(source_feature) == 2:
-            u_feat, v_feat = source_feature
-            logger.info(
-                'For sup3r output feature "{}", retrieving u/v '
-                'components "{}" and "{}"'.format(feature, u_feat, v_feat)
-            )
-            u_true = self.source_handler.data[u_feat, ...]
-            v_true = self.source_handler.data[v_feat, ...]
-            u_true = self.bias_correct_source_data(u_true, lat_lon, u_feat)
-            v_true = self.bias_correct_source_data(v_true, lat_lon, v_feat)
-            data_true = np.hypot(u_true, v_true)
-        else:
-            data_true = self.source_handler.data[source_feature, ...]
-            data_true = self.bias_correct_source_data(
-                data_true, lat_lon, source_feature
+    def bias_correct_source_handler(self, source_handler):
+        """Apply bias correction to all source features and return
+        :class:`Deriver` instance to use for derivations of features to match
+        output features."""
+        for f in set(np.array(self.source_features).flatten()):
+            source_handler.data[f] = self.bias_correct_feature(
+                f, source_handler
             )
 
-        return data_true
+        return Deriver(
+            source_handler.data,
+            features=self.features,
+            FeatureRegistry=source_handler.FEATURE_REGISTRY,
+        )
 
     def get_dset_out(self, name):
         """Get an output dataset from the forward pass output file.
@@ -614,7 +551,7 @@ class Sup3rQa:
             )
             data_syn = self.get_dset_out(feature)
             data_syn = self.coarsen_data(idf, feature, data_syn)
-            data_true = self.get_source_dset(feature, source_feature)
+            data_true = self.source_handler[feature, ...]
 
             if data_syn.shape != data_true.shape:
                 msg = (

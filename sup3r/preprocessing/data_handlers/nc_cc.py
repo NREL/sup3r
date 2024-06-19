@@ -12,34 +12,26 @@ from scipy.spatial import KDTree
 from scipy.stats import mode
 
 from sup3r.preprocessing.data_handlers.factory import (
-    DataHandlerFactory,
+    DataHandlerNC,
 )
 from sup3r.preprocessing.derivers.methods import (
     RegistryNCforCC,
     RegistryNCforCCwithPowerLaw,
 )
-from sup3r.preprocessing.extracters import (
-    BaseExtracterNC,
-)
-from sup3r.preprocessing.loaders import LoaderH5, LoaderNC
+from sup3r.preprocessing.loaders import LoaderH5
 from sup3r.preprocessing.utilities import Dimension
 
 logger = logging.getLogger(__name__)
 
 
-BaseNCforCC = DataHandlerFactory(
-    BaseExtracterNC,
-    LoaderNC,
-    FeatureRegistry=RegistryNCforCC,
-    name='BaseNCforCC',
-)
-
 logger = logging.getLogger(__name__)
 
 
-class DataHandlerNCforCC(BaseNCforCC):
+class DataHandlerNCforCC(DataHandlerNC):
     """Extended NETCDF data handler. This implements an extracter hook to add
     "clearsky_ghi" to the extracted data if "clearsky_ghi" is requested."""
+
+    FEATURE_REGISTRY = RegistryNCforCC
 
     def __init__(
         self,

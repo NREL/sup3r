@@ -3,6 +3,7 @@
 import os
 import tempfile
 
+import numpy as np
 from rex import init_logger
 
 from sup3r import TEST_DATA_DIR
@@ -85,12 +86,13 @@ def test_regrid_caching(full_shape=(20, 20)):
             [hr_cache_pattern.format(feature=f) for f in hr_container.features]
         )
 
-        assert (
-            lr_container_new.data[FEATURES] == pair_extracter.lr_data[FEATURES]
+        assert np.array_equal(
+            lr_container_new.data[FEATURES, ...],
+            pair_extracter.lr_data[FEATURES, ...],
         )
-
-        assert (
-            hr_container_new.data[FEATURES] == pair_extracter.hr_data[FEATURES]
+        assert np.array_equal(
+            hr_container_new.data[FEATURES, ...],
+            pair_extracter.hr_data[FEATURES, ...],
         )
 
 
