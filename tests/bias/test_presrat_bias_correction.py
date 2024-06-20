@@ -428,16 +428,16 @@ def test_presrat(fp_fut_cc):
         ), f'For each location of {v} it should be all finite or nonte'
 
 
-def test_presrat_transform(presrat_params, fp_fut_cc):
+def test_presrat_transform(presrat_params, fut_cc):
     """
     WIP: Confirm it runs, but don't verify anything yet.
     """
-    data = np.ones((*FP_CC_LAT_LON.shape[:-1], 3))
-    time = pd.to_datetime(
-        ['2015-01-01 12:00:00', '2015-01-02 12:00:00', '2015-01-01 12:00:00']
-    )
+    data = fut_cc.values
+    time = pd.to_datetime(fut_cc.time)
+    latlon = np.stack(xr.broadcast(fut_cc["lat"], fut_cc["lon"] - 360), axis=-1).astype('float32')
+
     corrected = local_presrat_bc(
-        data, time, FP_CC_LAT_LON, 'ghi', 'rsds', presrat_params
+        data, time, latlon, 'ghi', 'rsds', presrat_params
     )
 
     assert not np.isnan(corrected).all(), "Can't compare if only NaN"
