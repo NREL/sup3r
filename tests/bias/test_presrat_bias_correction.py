@@ -1,3 +1,47 @@
+"""Validating PresRat correction procedures
+
+
+Relevant sources used in the tests:
+- fp_fut_cc: Future dataset based on FP_CC + an offset + small noise
+- fp_fut_cc_notrend: Future dataset identical to FP_CC
+- presrat_params: Parameters of reference to test PresRat
+- presrat_notrend_params: Bias historical is identical to bias reference
+    (historical). Thus, there is no trend in the model.
+- presrat_identity_params: All distributions are identical (oh & mf) to mh,
+    i.e. observations equal to model that doesn't change on time.
+- presrat_nochanges_params: Like presrat_identity_params, but also all
+    zero_rate are zeros, i.e. no values should be forced to be zero.
+- presrat_nozeros_params: Same of presrat_params, but no zero_rate, i.e.
+    all zero_rate values are equal to 0 (percent).
+"""
+
+import os
+import shutil
+
+import h5py
+import numpy as np
+import pandas as pd
+import pytest
+import xarray as xr
+
+from sup3r import TEST_DATA_DIR
+from sup3r.bias import (
+    apply_zero_precipitation_rate,
+    local_presrat_bc,
+    PresRat,
+)
+from sup3r.bias.mixins import ZeroRateMixin
+from sup3r.preprocessing.data_handling import DataHandlerNC
+
+FP_NSRDB = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')
+FP_CC = os.path.join(TEST_DATA_DIR, 'rsds_test.nc')
+FP_CC_LAT_LON = DataHandlerNC(FP_CC, 'rsds').lat_lon
+
+with xr.open_dataset(FP_CC) as fh:
+    MIN_LAT = np.min(fh.lat.values.astype(np.float32))
+    MIN_LON = np.min(fh.lon.values.astype(np.float32)) - 360
+    TARGET = (float(MIN_LAT), float(MIN_LON))
+    SHAPE = (len(fh.lat.values), len(fh.lon.values))
 
 
 @pytest.fixture(scope='module')
