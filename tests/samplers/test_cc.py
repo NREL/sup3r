@@ -255,6 +255,4 @@ def test_nsrdb_sub_daily_sampler():
 
 
 if __name__ == '__main__':
-    test_solar_handler_sampling()
-    if False:
-        execute_pytest(__file__)
+    execute_pytest(__file__)

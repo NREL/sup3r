@@ -192,14 +192,6 @@ class LogLinInterpolator:
         logger.info(f'Saved interpolated output to {self.outfile}.')
 
     @classmethod
-    def get_tmp_file(cls, file):
-        """Get temp file for given file. Then only needed variables will be
-        written to the given file.
-        """
-        tmp_file = file.replace('.nc', '_tmp.nc')
-        return tmp_file
-
-    @classmethod
     def run(
         cls,
         infile,

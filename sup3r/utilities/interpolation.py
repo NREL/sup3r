@@ -64,6 +64,8 @@ class Interpolator:
     ):
         """Interpolate var_array to the given level.
 
+        TODO: Add option to perform log / power-law interpolation here?
+
         Parameters
         ----------
         var_array : xr.DataArray

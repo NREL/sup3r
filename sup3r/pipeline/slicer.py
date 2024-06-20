@@ -7,6 +7,7 @@ import numpy as np
 from sup3r.pipeline.utilities import (
     get_chunk_slices,
 )
+from sup3r.preprocessing.utilities import _parse_time_slice
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +73,7 @@ class ForwardPassSlicer:
         self.s_enhance = np.prod(self.s_enhancements)
         self.t_enhance = np.prod(self.t_enhancements)
         self.dummy_time_index = np.arange(time_steps)
-        self.time_slice = time_slice
+        self.time_slice = _parse_time_slice(time_slice)
         self.temporal_pad = temporal_pad
         self.spatial_pad = spatial_pad
         self.chunk_shape = chunk_shape

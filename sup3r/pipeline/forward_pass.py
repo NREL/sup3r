@@ -174,13 +174,13 @@ class ForwardPass:
         """
         out = np.pad(input_data, (*pad_width, (0, 0)), mode=mode)
         msg = (
-            f'Using mode="reflect" with pad_width {pad_width} greater than '
-            f'half the width of the input_data {input_data.shape}. Use a '
+            f'Using mode="reflect" requires pad_width {pad_width} to be less '
+            f'than half the width of the input_data {input_data.shape}. Use a '
             'larger chunk size or a different padding mode.'
         )
         if mode == 'reflect':
             assert all(
-                dw // 2 > pw[0] and dw // 2 > pw[1]
+                dw / 2 > pw[0] and dw / 2 > pw[1]
                 for dw, pw in zip(input_data.shape[:-1], pad_width)
             ), msg
 
@@ -218,8 +218,10 @@ class ForwardPass:
         """Bias correct data using a method defined by the bias_correct_method
         input to ForwardPassStrategy
 
-        TODO: This could be run on Sup3rDataset instead of array, so we could
-        use data.lat_lon and not have to get feature index.
+        TODO: (1) This could be run on Sup3rDataset instead of array, so we
+        could use data.lat_lon and not have to get feature index.
+        (2) Also, this is very similar to bias_correct_feature in Sup3rQa.
+        Should extract this as utilities method.
 
         Parameters
         ----------

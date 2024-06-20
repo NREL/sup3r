@@ -78,8 +78,7 @@ class DataHandlerNCforCC(DataHandlerNC):
         extracted data, which will then be used when the :class:`Deriver` is
         called."""
         if any(
-            f in self._features
-            for f in ('clearsky_ratio', 'clearsky_ghi', 'all')
+            f in self._features for f in ('clearsky_ratio', 'clearsky_ghi')
         ):
             self.extracter.data['clearsky_ghi'] = self.get_clearsky_ghi()
 
@@ -200,9 +199,7 @@ class DataHandlerNCforCC(DataHandlerNC):
 
         time_freq = float(mode(ti_nsrdb.diff().seconds[1:-1] / 3600).mode)
 
-        cs_ghi = cs_ghi.coarsen(
-            {Dimension.TIME: int(24 // time_freq)}
-        ).mean()
+        cs_ghi = cs_ghi.coarsen({Dimension.TIME: int(24 // time_freq)}).mean()
         lat_idx, lon_idx = (
             np.arange(self.extracter.grid_shape[0]),
             np.arange(self.extracter.grid_shape[1]),
@@ -211,9 +208,9 @@ class DataHandlerNCforCC(DataHandlerNC):
             (lat_idx, lon_idx),
             names=(Dimension.SOUTH_NORTH, Dimension.WEST_EAST),
         )
-        cs_ghi = cs_ghi.assign(
-            {Dimension.FLATTENED_SPATIAL: ind}
-        ).unstack(Dimension.FLATTENED_SPATIAL)
+        cs_ghi = cs_ghi.assign({Dimension.FLATTENED_SPATIAL: ind}).unstack(
+            Dimension.FLATTENED_SPATIAL
+        )
 
         cs_ghi = cs_ghi.transpose(
             Dimension.SOUTH_NORTH, Dimension.WEST_EAST, Dimension.TIME

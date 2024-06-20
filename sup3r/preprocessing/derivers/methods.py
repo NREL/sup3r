@@ -148,8 +148,8 @@ class PressureNC(DerivedFeature):
         return data[f'p_{height}m'] + data[f'pb_{height}m']
 
 
-class WindspeedNC(DerivedFeature):
-    """Windspeed feature from netcdf data"""
+class Windspeed(DerivedFeature):
+    """Windspeed feature from rasterized data"""
 
     inputs = ('u_(.*)', 'v_(.*)')
 
@@ -165,8 +165,8 @@ class WindspeedNC(DerivedFeature):
         return ws
 
 
-class WinddirectionNC(DerivedFeature):
-    """Winddirection feature from netcdf data"""
+class Winddirection(DerivedFeature):
+    """Winddirection feature from rasterized data"""
 
     inputs = ('u_(.*)', 'v_(.*)')
 
@@ -364,13 +364,11 @@ class TasMax(Tas):
 RegistryBase = {
     'U_(.*)': UWind,
     'V_(.*)': VWind,
+    'Windspeed_(.*)': Windspeed,
+    'Winddirection_(.*)': Winddirection,
 }
 
-RegistryNC = {
-    **RegistryBase,
-    'Windspeed_(.*)': WindspeedNC,
-    'Winddirection_(.*)': WinddirectionNC,
-}
+RegistryNC = RegistryBase
 
 RegistryH5 = {
     **RegistryBase,

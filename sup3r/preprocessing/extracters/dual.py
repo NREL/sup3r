@@ -155,20 +155,12 @@ class DualExtracter(Container):
 
     def get_regridder(self):
         """Get regridder object"""
-        input_meta = pd.DataFrame.from_dict(
-            {
-                Dimension.LATITUDE: self.lr_data.lat_lon[..., 0].flatten(),
-                Dimension.LONGITUDE: self.lr_data.lat_lon[..., 1].flatten(),
-            }
-        )
-        target_meta = pd.DataFrame.from_dict(
-            {
-                Dimension.LATITUDE: self.lr_lat_lon[..., 0].flatten(),
-                Dimension.LONGITUDE: self.lr_lat_lon[..., 1].flatten(),
-            }
+        target_meta = pd.DataFrame(
+            columns=[Dimension.LATITUDE, Dimension.LONGITUDE],
+            data=self.lr_lat_lon.reshape((-1, 2)),
         )
         return Regridder(
-            input_meta, target_meta, max_workers=self.regrid_workers
+            self.lr_data.meta, target_meta, max_workers=self.regrid_workers
         )
 
     def update_lr_data(self):

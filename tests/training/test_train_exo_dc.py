@@ -33,7 +33,7 @@ np.random.seed(42)
 
 
 @pytest.mark.parametrize('CustomLayer', ['Sup3rAdder', 'Sup3rConcat'])
-def test_wind_dc_hi_res_topo(CustomLayer, log=False):
+def test_wind_dc_hi_res_topo(CustomLayer):
     """Test a special data centric wind model with the custom Sup3rAdder or
     Sup3rConcat layer that adds/concatenates hi-res topography in the middle of
     the network."""
@@ -43,22 +43,25 @@ def test_wind_dc_hi_res_topo(CustomLayer, log=False):
         ('U_100m', 'V_100m', 'topography'),
         target=TARGET_W,
         shape=SHAPE,
-        time_slice=slice(None, None, 2),
-        lr_only_features=(),
-        hr_exo_features=('topography',),
+        time_slice=slice(100, None, 2),
+    )
+    val_handler = DataHandlerH5(
+        INPUT_FILE_W,
+        ('U_100m', 'V_100m', 'topography'),
+        target=TARGET_W,
+        shape=SHAPE,
+        time_slice=slice(None, 100, 2),
     )
 
     batcher = TestBatchHandlerDC(
-        [handler],
+        train_containers=[handler],
+        val_containers=[val_handler],
         batch_size=2,
         n_batches=2,
         s_enhance=2,
         sample_shape=(20, 20, 8),
         feature_sets={'hr_exo_features': ['topography']},
     )
-
-    if log:
-        init_logger('sup3r', log_level='DEBUG')
 
     gen_model = [
         {

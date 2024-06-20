@@ -13,7 +13,6 @@ from scipy.interpolate import interp1d
 from sup3r import TEST_DATA_DIR
 from sup3r.models.utilities import st_interp
 from sup3r.pipeline.utilities import get_chunk_slices
-from sup3r.postprocessing.collection import CollectorH5
 from sup3r.postprocessing.file_handling import OutputHandler
 from sup3r.preprocessing.derivers.utilities import transform_rotate_wind
 from sup3r.preprocessing.samplers.utilities import (
@@ -23,7 +22,7 @@ from sup3r.preprocessing.samplers.utilities import (
     weighted_time_sampler,
 )
 from sup3r.utilities.interpolate_log_profile import LogLinInterpolator
-from sup3r.utilities.regridder import RegridOutput
+from sup3r.utilities.regridder import Regridder
 from sup3r.utilities.utilities import (
     spatial_coarsening,
     temporal_coarsening,
@@ -31,6 +30,7 @@ from sup3r.utilities.utilities import (
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 FP_ERA = os.path.join(TEST_DATA_DIR, 'test_era5_co_2012.nc')
+init_logger('sup3r', log_level='DEBUG')
 
 np.random.seed(42)
 
@@ -79,65 +79,45 @@ def test_log_interp(log=False):
         assert u_check and v_check
 
 
-def test_regridding(log=False):
+def test_regridding():
     """Make sure regridding reproduces original data when coordinates in the
     meta is the same"""
-    if log:
-        init_logger('sup3r', log_level='DEBUG')
 
-    with tempfile.TemporaryDirectory() as td:
-        meta_path = os.path.join(td, 'test_meta.csv')
-        shuffled_meta_path = os.path.join(td, 'test_meta_shuffled.csv')
-        out_pattern = os.path.join(td, '{file_id}.h5')
-        collect_file = os.path.join(td, 'regrid_collect.h5')
-        heights = [80, 100]
-        with Resource(FP_WTK) as res:
-            target_meta = res.meta.copy()
-            target_meta['gid'] = np.arange(len(target_meta))
-            target_meta.to_csv(meta_path, index=False)
-            target_meta = target_meta.sample(frac=1, random_state=0)
-            target_meta.to_csv(shuffled_meta_path, index=False)
+    with Resource(FP_WTK) as res:
+        source_meta = res.meta.copy()
+        source_meta['gid'] = np.arange(len(source_meta))
+        shuffled_meta = source_meta.sample(frac=1, random_state=0)
 
-            regrid_output = RegridOutput(
-                source_files=[FP_WTK],
-                out_pattern=out_pattern,
-                target_meta=shuffled_meta_path,
-                heights=heights,
-                k_neighbors=4,
-                worker_kwargs={'regrid_workers': 1, 'query_workers': 1},
-                incremental=True,
-                n_chunks=10,
-                max_nodes=2,
-            )
-            for node_index in range(regrid_output.nodes):
-                regrid_output.run(node_index=node_index)
+        regridder = Regridder(
+            source_meta=source_meta,
+            target_meta=shuffled_meta,
+            max_workers=1,
+        )
 
-            CollectorH5.collect(
-                regrid_output.out_files,
-                collect_file,
-                regrid_output.output_features,
-                target_final_meta_file=meta_path,
-                join_times=False,
-                n_writes=2,
-                max_workers=1,
-            )
-            with Resource(collect_file) as out_res:
-                for height in heights:
-                    ws_name = f'windspeed_{height}m'
-                    wd_name = f'winddirection_{height}m'
-                    ws_src = res[ws_name]
-                    wd_src = res[wd_name]
-                    assert all(res.meta == out_res.meta)
-                    ws = out_res[ws_name]
-                    wd = out_res[wd_name]
-                    u = ws * np.sin(np.radians(wd))
-                    v = ws * np.cos(np.radians(wd))
-                    u_src = ws_src * np.sin(np.radians(wd_src))
-                    v_src = ws_src * np.cos(np.radians(wd_src))
-                    assert np.allclose(u, u_src, rtol=0.01, atol=0.1)
-                    assert np.allclose(v, v_src, rtol=0.01, atol=0.1)
-                    assert np.isnan(u).sum() == 0
-                    assert np.isnan(v).sum() == 0
+        out = regridder(res['windspeed_100m', ...].T).T.compute()
+
+        assert np.array_equal(
+            res['windspeed_100m', ...][:, shuffled_meta['gid'].values], out
+        )
+
+        new_shuffled_meta = shuffled_meta.copy()
+        rand = np.random.uniform(0, 1e-12, size=(2 * len(shuffled_meta)))
+        rand = rand.reshape((len(shuffled_meta), 2))
+        new_shuffled_meta['latitude'] += rand[:, 0]
+        new_shuffled_meta['longitude'] += rand[:, 1]
+
+        regridder = Regridder(
+            source_meta=source_meta,
+            target_meta=new_shuffled_meta,
+            max_workers=1,
+            min_distance=0
+        )
+
+        out = regridder(res['windspeed_100m', ...].T).T.compute()
+
+        assert np.allclose(
+            res['windspeed_100m', ...][:, new_shuffled_meta['gid'].values], out
+        , atol=0.1)
 
 
 def test_get_chunk_slices():

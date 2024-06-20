@@ -8,6 +8,7 @@ import xarray as xr
 
 from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.loaders.base import Loader
+from sup3r.preprocessing.utilities import _parse_time_slice
 
 logger = logging.getLogger(__name__)
 
@@ -67,13 +68,7 @@ class Extracter(Container, ABC):
     @time_slice.setter
     def time_slice(self, value):
         """Set and sanitize the time slice."""
-        self._time_slice = (
-            value
-            if isinstance(value, slice)
-            else slice(*value)
-            if isinstance(value, list)
-            else slice(None)
-        )
+        self._time_slice = _parse_time_slice(value)
 
     @property
     def target(self):
