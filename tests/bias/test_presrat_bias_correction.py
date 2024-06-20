@@ -10,8 +10,8 @@ def fp_fut_cc(tmpdir_factory):
     ds = xr.open_dataset(FP_CC)
     # Adding an offset
     ds['rsds'] += 75.0
-    # adding a noise
-    ds['rsds'] += np.random.randn(*ds['rsds'].shape)
+    # adding a small noise
+    ds['rsds'] += 1e-4 * np.random.randn(*ds['rsds'].shape)
     ds.to_netcdf(fn)
     # DataHandlerNCforCC requires a string
     fn = str(fn)
