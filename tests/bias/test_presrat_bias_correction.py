@@ -63,6 +63,47 @@ def fp_fut_cc(tmpdir_factory):
 
 
 @pytest.fixture(scope='module')
+def fut_cc(fp_fut_cc):
+    """Gives the dataset itself related to fp_fut_cc
+
+    Giving an object in memory makes everything more efficient by avoiding I/O
+    reading files and overhead for multiple uses.
+
+    Note that ``Resources`` modifies the dataset so we cannot just load the
+    NetCDF. Here we run a couple of checks to confirm that the output
+    dataset is as expected by sup3r.
+
+    To use time as expected by sup3r: time = pd.to_datetime(da.time)
+    To use latlon as expected by sup3r:
+      latlon = np.stack(xr.broadcast(da["lat"], da["lon"] - 360),
+                        axis=-1).astype('float32')
+    """
+    ds = xr.open_dataset(fp_fut_cc)
+    # This compute here is required.
+    da = ds['rsds'].compute().transpose('lat', 'lon', 'time')
+    # Unfortunatelly, _get_factors() assume latitude as descending
+    da = da.sortby('lat', ascending=False)
+    # data = da.data
+    time = pd.to_datetime(da.time)
+    latlon = np.stack(xr.broadcast(da["lat"], da["lon"] - 360),
+                      axis=-1).astype('float32')
+    # latlon = np.stack(np.meshgrid(da['lon'] - 360, da['lat']), axis=-1)[
+    #     :, :, ::-1
+    # ].astype('float32')
+    for ii in range(4):
+        for jj in range(4):
+            assert np.allclose(
+                da.sel(lat=latlon[ii, jj, 0], method='nearest').sel(
+                    lon=latlon[ii, jj, 1] + 360, method='nearest'
+                )[0],
+                da.data[ii, jj, 0],
+            )
+    assert np.allclose(latlon, FP_CC_LAT_LON)
+
+    return da.compute()
+
+
+@pytest.fixture(scope='module')
 def fp_fut_cc_notrend(tmpdir_factory):
     """Sample future CC dataset identical to historical CC
 
