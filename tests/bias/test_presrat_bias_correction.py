@@ -117,6 +117,27 @@ def fp_fut_cc_notrend(tmpdir_factory):
 
 
 @pytest.fixture(scope='module')
+def fut_cc_notrend(fp_fut_cc_notrend):
+    ds = xr.open_dataset(fp_fut_cc_notrend)
+    da = ds['rsds'].compute().transpose('lat', 'lon', 'time')
+    # Unfortunatelly, _get_factors() assume latitude as descending
+    da = da.sortby('lat', ascending=False)
+    latlon = np.stack(xr.broadcast(da["lat"], da["lon"] - 360),
+                      axis=-1).astype('float32')
+    for ii in range(4):
+        for jj in range(4):
+            np.allclose(
+                da.sel(lat=latlon[ii, jj, 0], method='nearest').sel(
+                    lon=latlon[ii, jj, 1] + 360, method='nearest'
+                )[0],
+                da.data[ii, jj, 0],
+            )
+    assert np.allclose(latlon, FP_CC_LAT_LON)
+
+    return da.compute()
+
+
+@pytest.fixture(scope='module')
 def presrat_params(tmpdir_factory, fp_fut_cc):
     """PresRat parameters for standard datasets
 
@@ -444,47 +465,20 @@ def test_presrat_transform(presrat_params, fut_cc):
     assert not np.allclose(data, corrected, equal_nan=False)
 
 
-def test_presrat_transform_nochanges(presrat_nochanges_params, fp_fut_cc_notrend):
+def test_presrat_transform_nochanges(
+    presrat_nochanges_params, fut_cc_notrend
+):
     """No changes if the three datasets are the same and no zeros"""
-    # data = np.ones((*FP_CC_LAT_LON.shape[:-1], 3))
-    # time = pd.to_datetime( ['2015-01-01 12:00:00', '2015-01-02 12:00:00', '2015-01-01 12:00:00'])
-    breakpoint()
-    ds = xr.open_dataset(fp_fut_cc_notrend)
-    da = ds['rsds'].compute().transpose('lat', 'lon', 'time')
-    # Unfortunatelly, _get_factors() assume latitude as descending
-    da = da.sortby('lat', ascending=False)
-    data = da.data
-    time = pd.to_datetime(da.time)
-    # latlon = np.stack(xr.broadcast(da["lat"], da["lon"] - 360), axis=-1).astype('float32')
-    latlon = np.stack(np.meshgrid(da['lon'] - 360, da['lat']), axis=-1)[
-        :, :, ::-1
-    ].astype('float32')
-    # da.sel(lat=latlon[ii,jj,0], method="nearest").sel(lon=latlon[ii,jj,1], method="nearest")[0] - data[ii,jj,0]
-    for ii in range(4):
-        for jj in range(4):
-            np.allclose(
-                da.sel(lat=latlon[ii, jj, 0], method='nearest').sel(
-                    lon=latlon[ii, jj, 1] + 360, method='nearest'
-                )[0],
-                data[ii, jj, 0],
-            )
-    np.allclose(latlon, FP_CC_LAT_LON)
+    data = fut_cc_notrend.values
+    time = pd.to_datetime(fut_cc_notrend.time)
+    latlon = np.stack(xr.broadcast(fut_cc_notrend["lat"], fut_cc_notrend["lon"] - 360), axis=-1).astype('float32')
 
-    # data = np.ones((*FP_CC_LAT_LON.shape[:-1], 3))
-    # time = pd.to_datetime(
-    #     ['2015-01-01 12:00:00', '2015-01-02 12:00:00', '2015-01-01 12:00:00']
-    # )
     corrected = local_presrat_bc(
-        data,
-        time,
-        latlon,
-        'ghi',
-        'rsds',
-        presrat_nochanges_params,
+        data, time, latlon, 'ghi', 'rsds', presrat_nochanges_params
     )
 
-    assert not np.isnan(corrected).all(), "Can't compare if only NaN"
-    assert np.allclose(data, corrected, equal_nan=False)
+    assert np.isfinite(corrected).any(), "Can't compare if only NaN"
+    assert np.allclose(data, corrected, equal_nan=False), "This case shouldn't modify the data"
 
 
 def test_presrat_transform_nozerochanges(
