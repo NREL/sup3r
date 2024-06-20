@@ -6,14 +6,18 @@ import tempfile
 import numpy as np
 import pandas as pd
 import pytest
-import xarray as xr
 from rex import Resource, init_logger
 
 from sup3r import CONFIG_DIR
 from sup3r.models import Sup3rGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.qa.qa import Sup3rQa
-from sup3r.qa.utilities import continuous_dist
+from sup3r.qa.utilities import (
+    continuous_dist,
+    direct_dist,
+    gradient_dist,
+    time_derivative_dist,
+)
 from sup3r.utilities.pytest.helpers import make_fake_nc_file
 
 TRAIN_FEATURES = ['U_100m', 'V_100m', 'pressure_0m']
@@ -25,7 +29,7 @@ TEMPORAL_SLICE = slice(None, None, 1)
 FWP_CHUNK_SHAPE = (8, 8, int(1e6))
 S_ENHANCE = 3
 T_ENHANCE = 4
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
 
 init_logger('sup3r', log_level='DEBUG')
@@ -40,8 +44,9 @@ def input_files(tmpdir_factory):
     return input_file
 
 
-def test_qa_nc(input_files):
-    """Test QA module for fwp output to NETCDF files."""
+@pytest.mark.parametrize('ext', ['nc', 'h5'])
+def test_qa(input_files, ext):
+    """Test QA module for fwp output to NETCDF and H5 files."""
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
@@ -57,109 +62,20 @@ def test_qa_nc(input_files):
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
 
-        out_files = os.path.join(td, 'out_{file_id}.nc')
-        strategy = ForwardPassStrategy(
-            input_files,
-            model_kwargs={'model_dir': out_dir},
-            fwp_chunk_shape=FWP_CHUNK_SHAPE,
-            spatial_pad=1,
-            temporal_pad=1,
-            input_handler_kwargs={
-                'target': TARGET,
-                'shape': SHAPE,
-                'time_slice': TEMPORAL_SLICE,
-            },
-            out_pattern=out_files,
-            max_nodes=1,
-        )
-
-        forward_pass = ForwardPass(strategy)
-        forward_pass.run(strategy, node_index=0)
-
-        assert len(strategy.out_files) == 1
-
-        args = [input_files, strategy.out_files[0]]
-        qa_fp = os.path.join(td, 'qa.h5')
-        kwargs = {
-            's_enhance': S_ENHANCE,
-            't_enhance': T_ENHANCE,
-            'temporal_coarsening_method': 'subsample',
-            'time_slice': TEMPORAL_SLICE,
-            'target': TARGET,
-            'shape': SHAPE,
-            'qa_fp': qa_fp,
-            'save_sources': True,
-        }
-        with Sup3rQa(*args, **kwargs) as qa:
-            data = qa.output_handler[qa.features[0]]
-            data = qa.get_dset_out(qa.features[0])
-            data = qa.coarsen_data(0, qa.features[0], data)
-
-            assert isinstance(qa.meta, pd.DataFrame)
-            assert isinstance(qa.time_index, pd.DatetimeIndex)
-            for i in range(3):
-                assert data.shape[i] == qa.source_handler.data.shape[i]
-
-            qa.run()
-
-            assert os.path.exists(qa_fp)
-
-            with xr.open_dataset(strategy.out_files[0]) as fwp_out, Resource(
-                qa_fp
-            ) as qa_out:
-                for dset in MODEL_OUT_FEATURES:
-                    idf = qa.source_handler.features.index(dset.lower())
-                    qa_true = qa_out[dset + '_true'].flatten()
-                    qa_syn = qa_out[dset + '_synthetic'].flatten()
-                    qa_diff = qa_out[dset + '_error'].flatten()
-
-                    wtk_source = qa.source_handler.data[dset, ...]
-                    wtk_source = np.transpose(wtk_source, axes=(2, 0, 1))
-                    wtk_source = wtk_source.flatten()
-
-                    fwp_data = fwp_out[dset].values
-                    fwp_data = np.transpose(fwp_data, axes=(1, 2, 0))
-                    fwp_data = qa.coarsen_data(idf, dset, fwp_data)
-                    fwp_data = np.transpose(fwp_data, axes=(2, 0, 1))
-                    fwp_data = fwp_data.flatten()
-
-                    test_diff = fwp_data - wtk_source
-
-                    assert np.allclose(qa_true, wtk_source, atol=0.01)
-                    assert np.allclose(qa_syn, fwp_data, atol=0.01)
-                    assert np.allclose(test_diff, qa_diff, atol=0.01)
-
-
-def test_qa_h5(input_files):
-    """Test the QA module with forward pass output to h5 file."""
-
-    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
-    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
-
-    Sup3rGan.seed()
-    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-    _ = model.generate(np.ones((4, 10, 10, 6, len(TRAIN_FEATURES))))
-    model.meta['lr_features'] = TRAIN_FEATURES
-    model.meta['hr_out_features'] = MODEL_OUT_FEATURES
-    model.meta['s_enhance'] = 3
-    model.meta['t_enhance'] = 4
-    with tempfile.TemporaryDirectory() as td:
-        out_dir = os.path.join(td, 'st_gan')
-        model.save(out_dir)
-
-        out_files = os.path.join(td, 'out_{file_id}.h5')
         input_handler_kwargs = {
             'target': TARGET,
             'shape': SHAPE,
             'time_slice': TEMPORAL_SLICE,
         }
+
+        out_files = os.path.join(td, 'out_{file_id}.' + ext)
         strategy = ForwardPassStrategy(
             input_files,
             model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=FWP_CHUNK_SHAPE,
             spatial_pad=1,
             temporal_pad=1,
-            input_handler_kwargs=input_handler_kwargs,
+            input_handler_kwargs=input_handler_kwargs.copy(),
             out_pattern=out_files,
             max_nodes=1,
         )
@@ -169,19 +85,15 @@ def test_qa_h5(input_files):
 
         assert len(strategy.out_files) == 1
 
-        qa_fp = os.path.join(td, 'qa.h5')
         args = [input_files, strategy.out_files[0]]
+        qa_fp = os.path.join(td, 'qa.h5')
         kwargs = {
             's_enhance': S_ENHANCE,
             't_enhance': T_ENHANCE,
             'temporal_coarsening_method': 'subsample',
-            'features': FOUT_FEATURES,
-            'source_features': TRAIN_FEATURES[:2],
-            'time_slice': TEMPORAL_SLICE,
-            'target': TARGET,
-            'shape': SHAPE,
             'qa_fp': qa_fp,
             'save_sources': True,
+            'input_handler_kwargs': input_handler_kwargs,
         }
         with Sup3rQa(*args, **kwargs) as qa:
             data = qa.output_handler[qa.features[0]]
@@ -191,32 +103,38 @@ def test_qa_h5(input_files):
             assert isinstance(qa.meta, pd.DataFrame)
             assert isinstance(qa.time_index, pd.DatetimeIndex)
             for i in range(3):
-                assert data.shape[i] == qa.source_handler.data.shape[i]
+                assert data.shape[i] == qa.input_handler.data.shape[i]
 
             qa.run()
 
             assert os.path.exists(qa_fp)
 
-            with Resource(strategy.out_files[0]) as fwp_out, Resource(
-                qa_fp
-            ) as qa_out:
-                for dset in FOUT_FEATURES:
-                    idf = qa.source_handler.features.index(dset)
+            with Resource(qa_fp) as qa_out:
+                for dset in qa.features:
+                    idf = qa.input_handler.features.index(dset.lower())
                     qa_true = qa_out[dset + '_true'].flatten()
                     qa_syn = qa_out[dset + '_synthetic'].flatten()
                     qa_diff = qa_out[dset + '_error'].flatten()
 
-                    wtk_source = qa.source_handler.data[dset, ...]
+                    wtk_source = qa.input_handler.data[dset, ...]
                     wtk_source = np.transpose(wtk_source, axes=(2, 0, 1))
                     wtk_source = wtk_source.flatten()
 
-                    shape = (
-                        qa.source_handler.shape[0] * S_ENHANCE,
-                        qa.source_handler.shape[1] * S_ENHANCE,
-                        qa.source_handler.shape[2] * T_ENHANCE,
+                    fwp_data = (
+                        qa.output_handler[dset].values
+                        if ext == 'nc'
+                        else qa.output_handler[dset][...]
                     )
-                    fwp_data = np.transpose(fwp_out[dset])
-                    fwp_data = fwp_data.reshape(shape)
+
+                    if ext == 'h5':
+                        shape = (
+                            qa.input_handler.shape[2] * T_ENHANCE,
+                            qa.input_handler.shape[0] * S_ENHANCE,
+                            qa.input_handler.shape[1] * S_ENHANCE,
+                        )
+                        fwp_data = fwp_data.reshape(shape)
+
+                    fwp_data = np.transpose(fwp_data, axes=(1, 2, 0))
                     fwp_data = qa.coarsen_data(idf, dset, fwp_data)
                     fwp_data = np.transpose(fwp_data, axes=(2, 0, 1))
                     fwp_data = fwp_data.flatten()
@@ -236,3 +154,13 @@ def test_continuous_dist():
     assert not all(np.isnan(counts))
     assert centers[0] < -9.0
     assert centers[-1] > 9.0
+
+
+@pytest.mark.parametrize(
+    'func', [direct_dist, gradient_dist, time_derivative_dist]
+)
+def test_dist_smoke(func):
+    """Test QA dist functions for basic operations."""
+
+    a = np.linspace(-6, 6, 10)
+    _ = func(a)

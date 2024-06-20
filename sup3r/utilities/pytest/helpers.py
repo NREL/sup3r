@@ -150,6 +150,7 @@ def test_sampler_factory(SamplerClass):
 
 TestDualSamplerCC = test_sampler_factory(DualSamplerCC)
 TestSamplerDC = test_sampler_factory(SamplerDC)
+TestSampler = test_sampler_factory(Sampler)
 
 
 class TestBatchHandlerCC(BatchHandlerCC):

@@ -157,7 +157,7 @@ class BaseDeriver(Container):
 
     def derive(self, feature) -> T_Array:
         """Routine to derive requested features. Employs a little recursion to
-        locate differently named features with a name map in the feture
+        locate differently named features with a name map in the feature
         registry. i.e. if  `FEATURE_REGISTRY` contains a key, value pair like
         "windspeed": "wind_speed" then requesting "windspeed" will ultimately
         return a compute method (or fetch from raw data) for "wind_speed
@@ -188,7 +188,7 @@ class BaseDeriver(Container):
             )
             logger.error(msg)
             raise RuntimeError(msg)
-        return self.data[feature, ...]
+        return self.data[feature, ...].astype(np.float32)
 
     def add_single_level_data(self, feature, lev_array, var_array):
         """When doing level interpolation we should include the single level

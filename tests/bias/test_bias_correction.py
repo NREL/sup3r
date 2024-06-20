@@ -606,10 +606,10 @@ def test_qa_integration():
 
         for feature in features:
             with Sup3rQa(input_files, out_file_path, **qa_kw) as qa:
-                data_base = qa.get_source_dset(feature, feature)
+                data_base = qa.input_handler[feature, ...]
                 data_truth = data_base * scalar + adder
             with Sup3rQa(input_files, out_file_path, **bc_qa_kw) as qa:
-                data_bc = qa.get_source_dset(feature, feature)
+                data_bc = qa.input_handler[feature, ...]
 
             assert np.allclose(data_bc, data_truth, equal_nan=True)
 

@@ -1,5 +1,7 @@
 """Smoke tests for batcher objects. Just make sure things run without errors"""
 
+import copy
+
 import numpy as np
 import pytest
 from rex import init_logger
@@ -8,8 +10,10 @@ from scipy.ndimage import gaussian_filter
 from sup3r.preprocessing import (
     BatchHandler,
 )
+from sup3r.preprocessing.base import Container
 from sup3r.utilities.pytest.helpers import (
     DummyData,
+    TestSampler,
     execute_pytest,
 )
 from sup3r.utilities.utilities import spatial_coarsening, temporal_coarsening
@@ -24,6 +28,8 @@ stds = dict.fromkeys(FEATURES, 1)
 class TestBatchHandler(BatchHandler):
     """Batch handler with sample counter for testing."""
 
+    SAMPLER = TestSampler
+
     def __init__(self, *args, **kwargs):
         self.sample_count = 0
         super().__init__(*args, **kwargs)
@@ -32,6 +38,59 @@ class TestBatchHandler(BatchHandler):
         """Override get_samples to track sample count."""
         self.sample_count += 1
         return super().get_samples()
+
+
+def test_eager_vs_lazy():
+    """Make sure eager and lazy loading agree."""
+
+    eager_data = DummyData((10, 10, 100), FEATURES)
+    lazy_data = Container(copy.deepcopy(eager_data.data))
+    transform_kwargs = {'smoothing_ignore': [], 'smoothing': None}
+    lazy_batcher = TestBatchHandler(
+        train_containers=[lazy_data],
+        val_containers=[],
+        sample_shape=(8, 8, 4),
+        batch_size=4,
+        n_batches=4,
+        s_enhance=2,
+        t_enhance=1,
+        queue_cap=3,
+        means=means,
+        stds=stds,
+        max_workers=1,
+        transform_kwargs=transform_kwargs,
+        mode='lazy',
+    )
+    eager_batcher = TestBatchHandler(
+        train_containers=[eager_data],
+        val_containers=[],
+        sample_shape=(8, 8, 4),
+        batch_size=4,
+        n_batches=4,
+        s_enhance=2,
+        t_enhance=1,
+        queue_cap=3,
+        means=means,
+        stds=stds,
+        max_workers=1,
+        transform_kwargs=transform_kwargs,
+        mode='eager',
+    )
+
+    assert eager_batcher.loaded
+    assert not lazy_batcher.loaded
+
+    assert np.array_equal(
+        eager_batcher.data[0].as_array(), lazy_batcher.data[0].as_array()
+    )
+
+    _ = list(eager_batcher)
+    eager_batcher.stop()
+
+    for idx in eager_batcher.containers[0].index_record:
+        assert np.array_equal(
+            eager_batcher.data[0][idx], lazy_batcher.data[0][idx]
+        )
 
 
 def test_sample_counter():
@@ -52,7 +111,7 @@ def test_sample_counter():
         stds=stds,
         max_workers=1,
         transform_kwargs=transform_kwargs,
-        mode='eager'
+        mode='eager',
     )
 
     n_epochs = 4

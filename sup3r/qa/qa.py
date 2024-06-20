@@ -1,4 +1,7 @@
-"""sup3r QA module."""
+"""sup3r QA module.
+
+TODO: Good initial refactor but can do more cleaning here
+"""
 
 import logging
 import os
@@ -17,6 +20,7 @@ from sup3r.preprocessing.utilities import (
     Dimension,
     get_input_handler_class,
     get_source_type,
+    lowered,
 )
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
@@ -46,17 +50,12 @@ class Sup3rQa:
         t_enhance,
         temporal_coarsening_method,
         features=None,
-        source_features=None,
         output_names=None,
-        time_slice=slice(None),
-        target=None,
-        shape=None,
-        raster_file=None,
+        input_handler_kwargs=None,
         qa_fp=None,
         bias_correct_method=None,
         bias_correct_kwargs=None,
         save_sources=True,
-        cache_kwargs=None,
         input_handler=None,
     ):
         """
@@ -87,38 +86,12 @@ class Sup3rQa:
             Explicit list of features to validate. Can be a single feature str,
             list of string feature names, or None for all features found in the
             out_file_path.
-        source_features : str | list | None
-            Optional feature names to retrieve from the source dataset if the
-            source feature names are not the same as the sup3r output feature
-            names. These will be used to derive the features to be validated.
-            e.g. If model output is windspeed_100m / winddirection_100m, and
-            these were derived from u / v, then source features should be
-            ["u_100m", "v_100m"]. Another example is features="ghi",
-            source_features="rsds", where this is a simple alternative name
-            lookup.
         output_names : str | list
             Optional output file dataset names corresponding to the features
             list input
-        time_slice : slice | tuple | list
-            Slice defining size of full temporal domain. e.g. If we have 5
-            files each with 5 time steps then time_slice = slice(None) will
-            select all 25 time steps. This can also be a tuple / list with
-            length 3 that will be interpreted as slice(*time_slice)
-        target : tuple
-            (lat, lon) lower left corner of raster. You should provide
-            target+shape or raster_file, or if all three are None the full
-            source domain will be used.
-        shape : tuple
-            (rows, cols) grid size. You should provide target+shape or
-            raster_file, or if all three are None the full source domain will
-            be used.
-        raster_file : str | None
-            File for raster_index array for the corresponding target and
-            shape. If specified the raster_index will be loaded from the file
-            if it exists or written to the file if it does not yet exist.
-            If None raster_index will be calculated directly. You should
-            provide target+shape or raster_file, or if all three are None the
-            full source domain will be used.
+        input_handler_kwargs : dict
+            Keyword arguments for `input_handler`. See :class:`Extracter` class
+            for argument details.
         qa_fp : str | None
             Optional filepath to output QA file when you call Sup3rQa.run()
             (only .h5 is supported)
@@ -138,12 +111,10 @@ class Sup3rQa:
         save_sources : bool
             Flag to save re-coarsened synthetic data and true low-res data to
             qa_fp in addition to the error dataset
-        cache_kwargs : dict | None
-            Keyword aruments to :class:`Cacher`.
         input_handler : str | None
             data handler class to use for input data. Provide a string name to
             match a class in data_handling.py. If None the correct handler will
-            be guessed based on file type and time series properties.
+            be guessed based on file type.
         """
 
         logger.info('Initializing Sup3rQa and retrieving source data...')
@@ -155,11 +126,6 @@ class Sup3rQa:
         self._features = (
             features if isinstance(features, (list, tuple)) else [features]
         )
-        self._source_features = (
-            source_features
-            if isinstance(source_features, (list, tuple))
-            else [source_features]
-        )
         self._out_names = (
             output_names
             if isinstance(output_names, (list, tuple))
@@ -170,24 +136,22 @@ class Sup3rQa:
         self.output_handler = self.output_handler_class(self._out_fp)
 
         self.bias_correct_method = bias_correct_method
-        self.bias_correct_kwargs = bias_correct_kwargs or {}
+        self.bias_correct_kwargs = (
+            {}
+            if bias_correct_kwargs is None
+            else {k.lower(): v for k, v in bias_correct_kwargs.items()}
+        )
+        self.input_handler_kwargs = input_handler_kwargs or {}
 
         HandlerClass = get_input_handler_class(
             source_file_paths, input_handler
         )
-        source_handler = HandlerClass(
-            file_paths=source_file_paths,
-            features=self.source_features,
-            target=target,
-            shape=shape,
-            time_slice=time_slice,
-            raster_file=raster_file,
-            cache_kwargs=cache_kwargs,
+        input_handler = HandlerClass(
+            source_file_paths, **self.input_handler_kwargs
         )
-        self.source_handler = self.bias_correct_source_handler(source_handler)
-        self.meta = self.source_handler.data.meta
-        self.lr_shape = self.source_handler.shape
-        self.time_index = self.source_handler.time_index
+        self.input_handler = self.bias_correct_input_handler(input_handler)
+        self.meta = self.input_handler.data.meta
+        self.time_index = self.input_handler.time_index
 
     def __enter__(self):
         return self
@@ -214,17 +178,14 @@ class Sup3rQa:
         ignore = (
             'meta',
             'time_index',
-            'times',
-            'xlat',
-            'xlong',
             Dimension.TIME,
             Dimension.SOUTH_NORTH,
             Dimension.WEST_EAST,
         )
 
-        if self._features is None:
+        if self._features is None or self._features == [None]:
             if self.output_type == 'nc':
-                features = list(self.output_handler.variables.keys())
+                features = list(self.output_handler.data_vars)
             elif self.output_type == 'h5':
                 features = self.output_handler.dsets
             features = [f for f in features if f.lower() not in ignore]
@@ -233,18 +194,6 @@ class Sup3rQa:
             features = self._features
 
         return features
-
-    @property
-    def source_features(self):
-        """Get a list of feature names from the source input file, excluding
-        meta and time index datasets. This property considers the features
-        input mapping if a dictionary was provided, e.g. if
-        (features='ghi' source_features='rsds'),
-        this property will return ['rsds']
-        """
-        if self._source_features is None:
-            return self.features
-        return self._source_features
 
     @property
     def output_names(self):
@@ -288,7 +237,7 @@ class Sup3rQa:
             else None
         )
 
-    def bias_correct_feature(self, source_feature, source_handler):
+    def bias_correct_feature(self, source_feature, input_handler):
         """Bias correct data using a method defined by the bias_correct_method
         input to ForwardPassStrategy
 
@@ -296,7 +245,7 @@ class Sup3rQa:
         ----------
         source_feature : str | list
             The source feature name corresponding to the output feature name
-        source_handler : DataHandler
+        input_handler : DataHandler
             DataHandler storing raw input data previously used as input for
             forward passes.
 
@@ -308,14 +257,14 @@ class Sup3rQa:
         """
         method = self.bias_correct_method
         kwargs = self.bias_correct_kwargs
-        data = source_handler[source_feature, ...]
+        data = input_handler[source_feature, ...]
         if method is not None:
             method = getattr(sup3r.bias.bias_transforms, method)
-            logger.info('Running bias correction with: {}'.format(method))
+            logger.info(f'Running bias correction with: {method}.')
             feature_kwargs = kwargs[source_feature]
 
             if 'time_index' in signature(method).parameters:
-                feature_kwargs['time_index'] = self.time_index
+                feature_kwargs['time_index'] = self.input_handler.time_index
             if (
                 'lr_padded_slice' in signature(method).parameters
                 and 'lr_padded_slice' not in feature_kwargs
@@ -343,22 +292,55 @@ class Sup3rQa:
                 )
             )
 
-            data = method(data, source_handler.lat_lon, **feature_kwargs)
+            data = method(data, input_handler.lat_lon, **feature_kwargs)
         return data
 
-    def bias_correct_source_handler(self, source_handler):
-        """Apply bias correction to all source features and return
-        :class:`Deriver` instance to use for derivations of features to match
-        output features."""
-        for f in set(np.array(self.source_features).flatten()):
-            source_handler.data[f] = self.bias_correct_feature(
-                f, source_handler
-            )
+    def bias_correct_input_handler(self, input_handler):
+        """Apply bias correction to all source features which have bias
+        correction data and return :class:`Deriver` instance to use for
+        derivations of features to match output features.
 
-        return Deriver(
-            source_handler.data,
-            features=self.features,
-            FeatureRegistry=source_handler.FEATURE_REGISTRY,
+        (1) Check if we need to derive any features included in the
+        bias_correct_kwargs.
+        (2) Derive these features using the input_handler.derive method, and
+        update the stored data.
+        (3) Apply bias correction to all the features in the
+        bias_correct_kwargs
+        (4) Derive the features required for validation from the bias corrected
+        data and update the stored data
+        (5) Return the updated input_handler, now a :class:`Deriver` object.
+        """
+        need_derive = list(
+            set(lowered(self.bias_correct_kwargs))
+            - set(input_handler.features)
+        )
+        msg = (
+            f'Features {need_derive} need to be derived prior to bias '
+            'correction, but the input_handler has no derive method. '
+            'Request an appropriate input_handler with '
+            'input_handler=DataHandlerName.'
+        )
+        assert len(need_derive) == 0 or hasattr(input_handler, 'derive'), msg
+        for f in need_derive:
+            input_handler.data[f] = input_handler.derive(f)
+        bc_feats = list(
+            set(input_handler.features).intersection(
+                set(lowered(self.bias_correct_kwargs.keys()))
+            )
+        )
+        for f in bc_feats:
+            input_handler.data[f] = self.bias_correct_feature(f, input_handler)
+
+        return (
+            input_handler
+            if self.features in input_handler
+            else Deriver(
+                input_handler.data,
+                features=self.features,
+                FeatureRegistry=getattr(
+                    input_handler, 'FEATURE_REGISTRY', None
+                ),
+            )
         )
 
     def get_dset_out(self, name):
@@ -383,9 +365,9 @@ class Sup3rQa:
             data = data.values
         elif self.output_type == 'h5':
             shape = (
-                len(self.time_index) * self.t_enhance,
-                int(self.lr_shape[0] * self.s_enhance),
-                int(self.lr_shape[1] * self.s_enhance),
+                len(self.input_handler.time_index) * self.t_enhance,
+                int(self.input_handler.shape[0] * self.s_enhance),
+                int(self.input_handler.shape[1] * self.s_enhance),
             )
             data = data.reshape(shape)
 
@@ -501,10 +483,13 @@ class Sup3rQa:
         if not os.path.exists(qa_fp):
             logger.info('Initializing qa output file: "{}"'.format(qa_fp))
             with RexOutputs(qa_fp, mode='w') as f:
-                f.meta = self.meta
-                f.time_index = self.time_index
+                f.meta = self.input_handler.meta
+                f.time_index = self.input_handler.time_index
 
-        shape = (len(self.time_index), len(self.meta))
+        shape = (
+            len(self.input_handler.time_index),
+            len(self.input_handler.meta),
+        )
         attrs = H5_ATTRS.get(Feature.get_basename(dset_name), {})
 
         # dont scale the re-coarsened data or diffs
@@ -541,17 +526,16 @@ class Sup3rQa:
         """
 
         errors = {}
-        ziter = zip(self.features, self.source_features, self.output_names)
-        for idf, (feature, source_feature, dset_out) in enumerate(ziter):
+        ziter = zip(self.features, self.output_names)
+        for idf, (feature, dset_out) in enumerate(ziter):
             logger.info(
-                'Running QA on dataset {} of {} for "{}" '
-                'corresponding to source feature "{}"'.format(
-                    idf + 1, len(self.features), feature, source_feature
+                'Running QA on dataset {} of {} for "{}"'.format(
+                    idf + 1, len(self.features), feature
                 )
             )
             data_syn = self.get_dset_out(feature)
             data_syn = self.coarsen_data(idf, feature, data_syn)
-            data_true = self.source_handler[feature, ...]
+            data_true = self.input_handler[feature, ...]
 
             if data_syn.shape != data_true.shape:
                 msg = (

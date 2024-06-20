@@ -53,6 +53,16 @@ class Dimension(str, Enum):
         return (cls.SOUTH_NORTH, cls.WEST_EAST)
 
 
+def _parse_time_slice(value):
+    return (
+        value
+        if isinstance(value, slice)
+        else slice(*value)
+        if isinstance(value, list)
+        else slice(None)
+    )
+
+
 def expand_paths(fps):
     """Expand path(s)
 
@@ -141,9 +151,9 @@ def get_input_handler_class(file_paths, input_handler_name):
 
     if input_handler_name is None:
         if input_type == 'nc':
-            input_handler_name = 'DataHandlerNC'
+            input_handler_name = 'ExtracterNC'
         elif input_type == 'h5':
-            input_handler_name = 'DataHandlerH5'
+            input_handler_name = 'ExtracterH5'
 
         logger.info(
             '"input_handler" arg was not provided. Using '
@@ -266,7 +276,7 @@ def _get_args_dict(thing, func, *args, **kwargs):
 
     ann_dict = {
         name: getattr(thing, name)
-        for name, val in thing.__annotations__.items()
+        for name, val in getattr(thing, '__annotations__', {}).items()
         if val is not ClassVar
     }
     arg_spec = getfullargspec(func)
@@ -374,7 +384,7 @@ def parse_to_list(features=None, data=None):
     """Parse features and return as a list, even if features is a string."""
     features = (
         np.array(
-            list(*features)
+            list(features)
             if isinstance(features, tuple)
             else features
             if isinstance(features, list)

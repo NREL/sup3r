@@ -67,7 +67,7 @@ def DataHandlerFactory(
             else Deriver.FEATURE_REGISTRY
         )
 
-        def __init__(self, file_paths, features, **kwargs):
+        def __init__(self, file_paths, features='all', **kwargs):
             """
             Parameters
             ----------
