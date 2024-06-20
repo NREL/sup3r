@@ -222,7 +222,6 @@ def test_parallel(fp_fut_cc, threshold):
         bias_handler='DataHandlerNCforCC',
     )
 
-    # Physically non sense threshold.
     out_s = s.run(max_workers=1, zero_rate_threshold=threshold)
 
     p = PresRat(
@@ -236,7 +235,6 @@ def test_parallel(fp_fut_cc, threshold):
         bias_handler='DataHandlerNCforCC',
     )
 
-    # Physically non sense threshold.
     out_p = p.run(max_workers=2, zero_rate_threshold=threshold)
 
     for k in out_s.keys():
