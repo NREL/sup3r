@@ -84,9 +84,10 @@ def fut_cc(fp_fut_cc):
     # Unfortunatelly, _get_factors() assume latitude as descending
     da = da.sortby('lat', ascending=False)
     # data = da.data
-    time = pd.to_datetime(da.time)
-    latlon = np.stack(xr.broadcast(da["lat"], da["lon"] - 360),
-                      axis=-1).astype('float32')
+    # time = pd.to_datetime(da.time)
+    latlon = np.stack(
+        xr.broadcast(da['lat'], da['lon'] - 360), axis=-1
+    ).astype('float32')
     # latlon = np.stack(np.meshgrid(da['lon'] - 360, da['lat']), axis=-1)[
     #     :, :, ::-1
     # ].astype('float32')
@@ -122,8 +123,9 @@ def fut_cc_notrend(fp_fut_cc_notrend):
     da = ds['rsds'].compute().transpose('lat', 'lon', 'time')
     # Unfortunatelly, _get_factors() assume latitude as descending
     da = da.sortby('lat', ascending=False)
-    latlon = np.stack(xr.broadcast(da["lat"], da["lon"] - 360),
-                      axis=-1).astype('float32')
+    latlon = np.stack(
+        xr.broadcast(da['lat'], da['lon'] - 360), axis=-1
+    ).astype('float32')
     for ii in range(4):
         for jj in range(4):
             np.allclose(
@@ -331,7 +333,7 @@ def test_presrat_zero_rate(fp_fut_cc, threshold):
     assert np.all((zero_rate >= 0) & (zero_rate <= 1)), 'Out of range [0, 1]'
 
     if threshold == 0:
-        assert np.all(zero_rate >= 0), "It should be rate 0 for threhold==0"
+        assert np.all(zero_rate >= 0), 'It should be rate 0 for threshold==0'
 
     """
     calc = PresRat(
@@ -455,7 +457,9 @@ def test_presrat_transform(presrat_params, fut_cc):
     """
     data = fut_cc.values
     time = pd.to_datetime(fut_cc.time)
-    latlon = np.stack(xr.broadcast(fut_cc["lat"], fut_cc["lon"] - 360), axis=-1).astype('float32')
+    latlon = np.stack(
+        xr.broadcast(fut_cc['lat'], fut_cc['lon'] - 360), axis=-1
+    ).astype('float32')
 
     corrected = local_presrat_bc(
         data, time, latlon, 'ghi', 'rsds', presrat_params
@@ -465,25 +469,26 @@ def test_presrat_transform(presrat_params, fut_cc):
     assert not np.allclose(data, corrected, equal_nan=False)
 
 
-def test_presrat_transform_nochanges(
-    presrat_nochanges_params, fut_cc_notrend
-):
+def test_presrat_transform_nochanges(presrat_nochanges_params, fut_cc_notrend):
     """No changes if the three datasets are the same and no zeros"""
     data = fut_cc_notrend.values
     time = pd.to_datetime(fut_cc_notrend.time)
-    latlon = np.stack(xr.broadcast(fut_cc_notrend["lat"], fut_cc_notrend["lon"] - 360), axis=-1).astype('float32')
+    latlon = np.stack(
+        xr.broadcast(fut_cc_notrend['lat'], fut_cc_notrend['lon'] - 360),
+        axis=-1,
+    ).astype('float32')
 
     corrected = local_presrat_bc(
         data, time, latlon, 'ghi', 'rsds', presrat_nochanges_params
     )
 
     assert np.isfinite(corrected).any(), "Can't compare if only NaN"
-    assert np.allclose(data, corrected, equal_nan=False), "This case shouldn't modify the data"
+    assert np.allclose(
+        data, corrected, equal_nan=False
+    ), "This case shouldn't modify the data"
 
 
-def test_presrat_transform_nozerochanges(
-    presrat_nozeros_params, fut_cc
-):
+def test_presrat_transform_nozerochanges(presrat_nozeros_params, fut_cc):
     """No changes if the three fraction of zeros
 
     Same correction as the standard case, but no values are forced to zero,
@@ -491,7 +496,9 @@ def test_presrat_transform_nozerochanges(
     """
     data = fut_cc.values
     time = pd.to_datetime(fut_cc.time)
-    latlon = np.stack(xr.broadcast(fut_cc["lat"], fut_cc["lon"] - 360), axis=-1).astype('float32')
+    latlon = np.stack(
+        xr.broadcast(fut_cc['lat'], fut_cc['lon'] - 360), axis=-1
+    ).astype('float32')
 
     corrected = local_presrat_bc(
         data,
@@ -503,5 +510,9 @@ def test_presrat_transform_nozerochanges(
     )
 
     assert np.isfinite(data).any(), "Can't compare if only NaN"
-    assert not np.allclose(data, corrected, equal_nan=False), "Expected changes due to bias correction"
-    assert not ((data != 0) & (corrected == 0)).any(), "Unexpected value corrected (zero_rate) to zero (dry day)"
+    assert not np.allclose(
+        data, corrected, equal_nan=False
+    ), 'Expected changes due to bias correction'
+    assert not (
+        (data != 0) & (corrected == 0)
+    ).any(), 'Unexpected value corrected (zero_rate) to zero (dry day)'
