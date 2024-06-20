@@ -489,10 +489,11 @@ def test_presrat_transform_nochanges(presrat_nochanges_params, fut_cc_notrend):
 
 
 def test_presrat_transform_nozerochanges(presrat_nozeros_params, fut_cc):
-    """No changes if the three fraction of zeros
+    """No adjustment to zero
 
-    Same correction as the standard case, but no values are forced to zero,
-    i.e. corrected to dry
+    Correction procedure results in some changes, but since the zero_rate
+    correction is all set to zero percent, there are no values adjusted to
+    zero.
     """
     data = fut_cc.values
     time = pd.to_datetime(fut_cc.time)
