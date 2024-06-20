@@ -487,6 +487,27 @@ def test_presrat_transform_nochanges(presrat_nochanges_params, fp_fut_cc_notrend
     assert np.allclose(data, corrected, equal_nan=False)
 
 
-"""
-Test concepts to implement:
-"""
+def test_presrat_transform_nozerochanges(
+    presrat_nozeros_params, fut_cc
+):
+    """No changes if the three fraction of zeros
+
+    Same correction as the standard case, but no values are forced to zero,
+    i.e. corrected to dry
+    """
+    data = fut_cc.values
+    time = pd.to_datetime(fut_cc.time)
+    latlon = np.stack(xr.broadcast(fut_cc["lat"], fut_cc["lon"] - 360), axis=-1).astype('float32')
+
+    corrected = local_presrat_bc(
+        data,
+        time,
+        latlon,
+        'ghi',
+        'rsds',
+        presrat_nozeros_params,
+    )
+
+    assert np.isfinite(data).any(), "Can't compare if only NaN"
+    assert not np.allclose(data, corrected, equal_nan=False), "Expected changes due to bias correction"
+    assert not ((data != 0) & (corrected == 0)).any(), "Unexpected value corrected (zero_rate) to zero (dry day)"
