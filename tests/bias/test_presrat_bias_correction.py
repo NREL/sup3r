@@ -32,13 +32,13 @@ def fp_fut_cc_notrend(tmpdir_factory):
 
 
 @pytest.fixture(scope='module')
-def dist_params(tmpdir_factory, fp_fut_cc):
-    """Distribution parameters for standard datasets
+def presrat_params(tmpdir_factory, fp_fut_cc):
+    """PresRat parameters for standard datasets
 
     Use the standard datasets to estimate the distributions and save
     in a temporary place to be re-used
     """
-    calc = QuantileDeltaMappingCorrection(
+    calc = PresRat(
         FP_NSRDB,
         FP_CC,
         fp_fut_cc,
@@ -49,8 +49,10 @@ def dist_params(tmpdir_factory, fp_fut_cc):
         distance_upper_bound=0.7,
         bias_handler='DataHandlerNCforCC',
     )
-    fn = tmpdir_factory.mktemp('params').join('standard.h5')
-    _ = calc.run(max_workers=1, fp_out=fn)
+    fn = tmpdir_factory.mktemp('params').join('presrat.h5')
+    # Physically non-sense threshold choosed to result in gridpoints with and
+    # without zero rate correction for the given testing dataset.
+    _ = calc.run(max_workers=1, zero_rate_threshold=80, fp_out=fn)
 
     # DataHandlerNCforCC requires a string
     fn = str(fn)
