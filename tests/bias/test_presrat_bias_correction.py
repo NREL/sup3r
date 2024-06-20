@@ -244,8 +244,12 @@ def test_parallel(fp_fut_cc, threshold):
         ), f'Different results for {k}'
 
 
-def test_presrat_zero_rate(fp_fut_cc):
-    """Estimate zero_rate within PresRat.run()"""
+@pytest.mark.parametrize('threshold', [0, 50, 1e6])
+def test_presrat_zero_rate(fp_fut_cc, threshold):
+    """Estimate zero_rate within PresRat.run()
+
+    Use thresholds that gives 0%, 100%, and something between.
+    """
     calc = PresRat(
         FP_NSRDB,
         FP_CC,
@@ -257,13 +261,13 @@ def test_presrat_zero_rate(fp_fut_cc):
         bias_handler='DataHandlerNCforCC',
     )
 
-    # Physically non sense threshold.
-    out = calc.run(zero_rate_threshold=50)
+    out = calc.run(zero_rate_threshold=threshold)
 
     assert 'ghi_zero_rate' in out, 'Missing ghi_zero_rate in calc output'
     zero_rate = out['ghi_zero_rate']
-    assert np.all(np.isfinite(zero_rate)), "Unexpected NaN for ghi_zero_rate"
-    assert np.all((zero_rate>=0) & (zero_rate<=1)), "Out of range [0, 1]"
+    assert np.all(np.isfinite(zero_rate)), 'Unexpected NaN for ghi_zero_rate'
+    assert np.all((zero_rate >= 0) & (zero_rate <= 1)), 'Out of range [0, 1]'
+
 
 
 def test_presrat_zero_rate_threshold_zero(fp_fut_cc):
