@@ -268,12 +268,9 @@ def test_presrat_zero_rate(fp_fut_cc, threshold):
     assert np.all(np.isfinite(zero_rate)), 'Unexpected NaN for ghi_zero_rate'
     assert np.all((zero_rate >= 0) & (zero_rate <= 1)), 'Out of range [0, 1]'
 
+    if threshold == 0:
+        assert np.all(zero_rate >= 0), "It should be rate 0 for threhold==0"
 
-
-def test_presrat_zero_rate_threshold_zero(fp_fut_cc):
-    """Estimate zero_rate within PresRat.run(), zero threshold
-
-    This should give a zero rate answer, since all values are higher.
     """
     calc = PresRat(
         FP_NSRDB,
