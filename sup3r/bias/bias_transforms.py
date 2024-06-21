@@ -603,3 +603,103 @@ def apply_zero_precipitation_rate(arr: np.ndarray, rate):
                 arr[i, j] = a
 
     return arr
+
+
+def get_spatial_bc_presrat(lat_lon: np.array,
+                           base_dset: str,
+                           feature_name: str,
+                           bias_fp: str,
+                           threshold: float = 0.1):
+    """Statistical distributions previously estimated for given lat/lon points
+
+    Recover the parameters that describe the statistical distribution
+    previously estimated with
+    :class:`~sup3r.bias.bias_calc.QuantileDeltaMappingCorrection` for three
+    datasets: ``base`` (historical reference), ``bias`` (historical biased
+    reference), and ``bias_fut`` (the future biased dataset, usually the data
+    to correct).
+
+    Parameters
+    ----------
+    lat_lon : ndarray
+        Array of latitudes and longitudes for the domain to bias correct
+        (n_lats, n_lons, 2)
+    base_dset : str
+        Name of feature used as historical reference. A Dataset with name
+        "base_{base_dset}_params" will be retrieved from ``bias_fp``.
+    feature_name : str
+        Name of the feature that is being corrected. Datasets with names
+        "bias_{feature_name}_params" and "bias_fut_{feature_name}_params" will
+        be retrieved from ``bias_fp``.
+    bias_fp : str
+        Filepath to bias correction file from the bias calc module. Must have
+        datasets "base_{base_dset}_params", "bias_{feature_name}_params", and
+        "bias_fut_{feature_name}_params" that define the statistical
+        distributions.
+    threshold : float
+        Nearest neighbor euclidean distance threshold. If the coordinates are
+        more than this value away from the bias correction lat/lon, an error
+        is raised.
+
+    Returns
+    -------
+    base : np.array
+        Parameters used to define the statistical distribution estimated for
+        the ``base_dset``. It has a shape of (I, J, P), where (I, J) are the
+        same first two dimensions of the given `lat_lon` and P is the number
+        of parameters and depends on the type of distribution. See
+        :class:`~sup3r.bias.bias_calc.QuantileDeltaMappingCorrection` for more
+        details.
+    bias : np.array
+        Parameters used to define the statistical distribution estimated for
+        (historical) ``feature_name``. It has a shape of (I, J, P), where
+        (I, J) are the same first two dimensions of the given `lat_lon` and P
+        is the number of parameters and depends on the type of distribution.
+        See :class:`~sup3r.bias.bias_calc.QuantileDeltaMappingCorrection` for
+        more details.
+    bias_fut : np.array
+        Parameters used to define the statistical distribution estimated for
+        (future) ``feature_name``. It has a shape of (I, J, P), where (I, J)
+        are the same first two dimensions of the given `lat_lon` and P is the
+        number of parameters used and depends on the type of distribution. See
+        :class:`~sup3r.bias.bias_calc.QuantileDeltaMappingCorrection` for more
+        details.
+    cfg : dict
+        Metadata used to guide how to use of the previous parameters on
+        reconstructing the statistical distributions. For instance,
+        `cfg['dist']` defines the type of distribution. See
+        :class:`~sup3r.bias.bias_calc.QuantileDeltaMappingCorrection` for more
+        details, including which metadata is saved.
+
+    Warnings
+    --------
+    Be careful selecting which `bias_fp` to use. In particular, if
+    "bias_fut_{feature_name}_params" is representative for the desired target
+    period.
+
+    See Also
+    --------
+    sup3r.bias.bias_calc.QuantileDeltaMappingCorrection
+        Estimate the statistical distributions loaded here.
+
+    Examples
+    --------
+    >>> lat_lon = np.array([
+    ...              [39.649033, -105.46875 ],
+    ...              [39.649033, -104.765625]])
+    >>> params, cfg = get_spatial_bc_quantiles(
+    ...                 lat_lon, "ghi", "rsds", "./dist_params.hdf")
+    """
+    ds = {'base': f'base_{base_dset}_params',
+          'base_zero_rate': f'{base_dset}_zero_rate',
+          'bias': f'bias_{feature_name}_params',
+          'bias_fut': f'bias_fut_{feature_name}_params',
+          'bias_mean_mh': f'{feature_name}_mean_mh',
+          'bias_mean_mf': f'{feature_name}_mean_mf',
+          }
+    params = _get_factors(lat_lon, ds, bias_fp, threshold)
+
+    with Resource(bias_fp) as res:
+        cfg = res.global_attrs
+
+    return params, cfg
