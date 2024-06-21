@@ -139,7 +139,7 @@ def test_wind_dc_hi_res_topo(CustomLayer):
         )
 
         assert 'test_0' in os.listdir(td)
-        assert model.meta['hr_out_features'] == ['U_100m', 'V_100m']
+        assert model.meta['hr_out_features'] == ['u_100m', 'v_100m']
         assert model.meta['class'] == 'Sup3rGanDC'
         assert 'topography' in batcher.hr_exo_features
         assert 'topography' not in model.hr_out_features

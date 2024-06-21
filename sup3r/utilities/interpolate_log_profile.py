@@ -98,10 +98,10 @@ class LogLinInterpolator:
 
         Returns
         -------
-        heights : ndarray
+        heights : T_Array
             Array of heights for the given variable. Includes heights from
             variables at single levels (e.g. u_10m).
-        var_arr : ndarray
+        var_arr : T_Array
             Array of values for the given variable. Includes values from single
             level fields for the given variable. (e.g. u_10m)
         """
@@ -250,16 +250,16 @@ class LogLinInterpolator:
 
         Parameters
         ----------
-        lev_array : ndarray
+        lev_array : T_Array
             1D Array of height values corresponding to the wrf source
             data in the same shape as var_array.
-        var_array : ndarray
+        var_array : T_Array
             1D Array of variable data, for example u-wind in a 1D array of
             shape
         levels : float | list
             level or levels to interpolate to (e.g. final desired hub heights
             above surface elevation)
-        fixed_level_mask : ndarray | None
+        fixed_level_mask : T_Array | None
             Optional mask to use only fixed levels. Fixed levels are those that
             were not computed from pressure levels but instead added along with
             wind components at explicit heights (e.g u_10m, v_10m, u_100m,
@@ -269,7 +269,7 @@ class LogLinInterpolator:
 
         Returns
         -------
-        values : ndarray
+        values : T_Array
             Array of interpolated windspeed values below max_log_height.
         good : bool
             Check if log interpolation went without issue.
@@ -315,7 +315,7 @@ class LogLinInterpolator:
 
         Parameters
         ----------
-        lev_array : ndarray
+        lev_array : T_Array
             1D Array of height values corresponding to the wrf source
             data in the same shape as var_array.
         """
@@ -342,16 +342,16 @@ class LogLinInterpolator:
 
         Parameters
         ----------
-        lev_array : ndarray
+        lev_array : T_Array
             1D Array of height values corresponding to the wrf source
             data in the same shape as var_array.
-        var_array : ndarray
+        var_array : T_Array
             1D Array of variable data, for example u-wind in a 1D array of
             shape
         levels : float | list
             level or levels to interpolate to (e.g. final desired hub heights
             above surface elevation)
-        fixed_level_mask : ndarray | None
+        fixed_level_mask : T_Array | None
             Optional mask to use only fixed levels. Fixed levels are those that
             were not computed from pressure levels but instead added along with
             wind components at explicit heights (e.g u_10m, v_10m, u_100m,
@@ -361,7 +361,7 @@ class LogLinInterpolator:
 
         Returns
         -------
-        values : ndarray
+        values : T_Array
             Array of interpolated data values at the requested heights.
         good : bool
             Check if interpolation went without issue.
@@ -432,10 +432,10 @@ class LogLinInterpolator:
 
         Parameters
         ----------
-        lev_array : ndarray
+        lev_array : T_Array
             1D Array of height values corresponding to the wrf source
             data in the same shape as var_array.
-        var_array : ndarray
+        var_array : T_Array
             1D Array of variable data, for example u-wind in a 1D array of
             shape
         idt : int
@@ -443,11 +443,11 @@ class LogLinInterpolator:
 
         Returns
         -------
-        h_t : ndarray
+        h_t : T_Array
             1D array of height values for the requested time
-        v_t : ndarray
+        v_t : T_Array
             1D array of variable data for the requested time
-        mask : ndarray
+        mask : T_Array
             1D array of bool values masking nans and heights < 0
 
         """
@@ -472,16 +472,16 @@ class LogLinInterpolator:
 
         Parameters
         ----------
-        hgt_t : ndarray
+        hgt_t : T_Array
             1D Array of height values for a specific time.
-        var_t : ndarray
+        var_t : T_Array
             1D Array of variable data for a specific time.
-        mask : ndarray
+        mask : T_Array
             1D Array of bool values to mask out nans and heights below 0.
         levels : float | list
             level or levels to interpolate to (e.g. final desired hub heights
             above surface elevation)
-        fixed_level_mask : ndarray | None
+        fixed_level_mask : T_Array | None
             Optional mask to use only fixed levels. Fixed levels are those
             that were not computed from pressure levels but instead added along
             with wind components at explicit heights (e.g u_10m, v_10m, u_100m,
@@ -491,7 +491,7 @@ class LogLinInterpolator:
 
         Returns
         -------
-        out_array : ndarray
+        out_array : T_Array
             Array of interpolated values.
         """
         # Interp each vertical column of height and var to requested levels
@@ -524,10 +524,10 @@ class LogLinInterpolator:
 
         Parameters
         ----------
-        var_array : ndarray
+        var_array : T_Array
             Array of variable data, for example u-wind in a 4D array of shape
             (time, vertical, lat, lon)
-        lev_array : ndarray
+        lev_array : T_Array
             Array of height values corresponding to the wrf source
             data in the same shape as var_array. lev_array should be
             the geopotential height corresponding to every var_array index
@@ -536,7 +536,7 @@ class LogLinInterpolator:
         levels : float | list
             level or levels to interpolate to (e.g. final desired hub heights
             above surface elevation)
-        fixed_level_mask : ndarray | None
+        fixed_level_mask : T_Array | None
             Optional mask to use only fixed levels. Fixed levels are those
             that were not computed from pressure levels but instead added along
             with wind components at explicit heights (e.g u_10m, v_10m, u_100m,
@@ -548,12 +548,13 @@ class LogLinInterpolator:
 
         Returns
         -------
-        out_array : ndarray
+        out_array : T_Array
             Array of interpolated values.
         """
         lev_array, levels = Interpolator.prep_level_interp(
             var_array, lev_array, levels)
 
+        lev_array = lev_array.compute()
         array_shape = var_array.shape
 
         # Flatten h_array and var_array along lat, long axis

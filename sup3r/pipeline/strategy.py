@@ -214,12 +214,11 @@ class ForwardPassStrategy(DistributedProcess):
         self.input_handler_kwargs.update(
             {'file_paths': self.file_paths, 'features': self.features}
         )
-        self.time_slice = self.input_handler_kwargs.pop(
-            'time_slice', slice(None)
-        )
+        input_handler_kwargs = copy.deepcopy(self.input_handler_kwargs)
+        self.time_slice = input_handler_kwargs.pop('time_slice', slice(None))
         self.input_handler = get_input_handler_class(
             self.file_paths, self.input_handler
-        )(**self.input_handler_kwargs)
+        )(**input_handler_kwargs)
         self.exo_data = self.load_exo_data(model)
         self.hr_lat_lon = self.get_hr_lat_lon()
         self.gids = np.arange(np.prod(self.hr_lat_lon.shape[:-1]))
@@ -227,14 +226,14 @@ class ForwardPassStrategy(DistributedProcess):
         self.grid_shape = self.input_handler.lat_lon.shape[:-1]
 
         self.fwp_slicer = ForwardPassSlicer(
-            self.input_handler.lat_lon.shape[:-1],
-            len(self.input_handler.time_index),
-            self.time_slice,
-            self.fwp_chunk_shape,
-            self.s_enhancements,
-            self.t_enhancements,
-            self.spatial_pad,
-            self.temporal_pad,
+            coarse_shape=self.input_handler.lat_lon.shape[:-1],
+            time_steps=len(self.input_handler.time_index),
+            time_slice=self.time_slice,
+            chunk_shape=self.fwp_chunk_shape,
+            s_enhancements=self.s_enhancements,
+            t_enhancements=self.t_enhancements,
+            spatial_pad=self.spatial_pad,
+            temporal_pad=self.temporal_pad,
         )
         super().__init__(
             max_nodes=(self.max_nodes or self.fwp_slicer.n_time_chunks),

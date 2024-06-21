@@ -162,5 +162,5 @@ def test_continuous_dist():
 def test_dist_smoke(func):
     """Test QA dist functions for basic operations."""
 
-    a = np.linspace(-6, 6, 10)
+    a = np.random.rand(10, 10)
     _ = func(a)

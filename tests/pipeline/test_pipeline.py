@@ -80,7 +80,7 @@ def test_fwp_pipeline(input_files):
             'out_pattern': out_files,
             'log_pattern': log_prefix,
             'fwp_chunk_shape': fp_chunk_shape,
-            'input_handler_kwargs': input_handler_kwargs,
+            'input_handler_kwargs': input_handler_kwargs.copy(),
             'spatial_pad': 1,
             'temporal_pad': 1,
             'execution_control': {'nodes': 1, 'option': 'local'},

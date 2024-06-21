@@ -1,82 +1,78 @@
 """Slicer class for chunking forward pass input"""
 
 import logging
+from dataclasses import dataclass
+from typing import Union
 
 import numpy as np
 
 from sup3r.pipeline.utilities import (
     get_chunk_slices,
 )
-from sup3r.preprocessing.utilities import _parse_time_slice
+from sup3r.preprocessing.utilities import _parse_time_slice, log_args
 
 logger = logging.getLogger(__name__)
 
 
+@dataclass
 class ForwardPassSlicer:
-    """Get slices for sending data chunks through generator."""
+    """Get slices for sending data chunks through generator.
 
-    def __init__(
-        self,
-        coarse_shape,
-        time_steps,
-        time_slice,
-        chunk_shape,
-        s_enhancements,
-        t_enhancements,
-        spatial_pad,
-        temporal_pad,
-    ):
-        """
-        Parameters
-        ----------
-        coarse_shape : tuple
-            Shape of full domain for low res data
-        time_steps : int
-            Number of time steps for full temporal domain of low res data. This
-            is used to construct a dummy_time_index from np.arange(time_steps)
-        time_slice : slice
-            Slice to use to extract range from time_index
-        chunk_shape : tuple
-            Max shape (spatial_1, spatial_2, temporal) of an unpadded coarse
-            chunk to use for a forward pass. The number of nodes that the
-            ForwardPassStrategy is set to distribute to is calculated by
-            dividing up the total time index from all file_paths by the
-            temporal part of this chunk shape. Each node will then be
-            parallelized accross parallel processes by the spatial chunk shape.
-            If temporal_pad / spatial_pad are non zero the chunk sent
-            to the generator can be bigger than this shape. If running in
-            serial set this equal to the shape of the full spatiotemporal data
-            volume for best performance.
-        s_enhancements : list
-            List of factors by which the Sup3rGan model will enhance the
-            spatial dimensions of low resolution data. If there are two 5x
-            spatial enhancements, this should be [5, 5] where the total
-            enhancement is the product of these factors.
-        t_enhancements : list
-            List of factor by which the Sup3rGan model will enhance temporal
-            dimension of low resolution data
-        spatial_pad : int
-            Size of spatial overlap between coarse chunks passed to forward
-            passes for subsequent spatial stitching. This overlap will pad both
-            sides of the fwp_chunk_shape. Note that the first and last chunks
-            in any of the spatial dimension will not be padded.
-        temporal_pad : int
-            Size of temporal overlap between coarse chunks passed to forward
-            passes for subsequent temporal stitching. This overlap will pad
-            both sides of the fwp_chunk_shape. Note that the first and last
-            chunks in the temporal dimension will not be padded.
-        """
-        self.grid_shape = coarse_shape
-        self.time_steps = time_steps
-        self.s_enhancements = s_enhancements
-        self.t_enhancements = t_enhancements
+    Parameters
+    ----------
+    coarse_shape : tuple
+        Shape of full domain for low res data
+    time_steps : int
+        Number of time steps for full temporal domain of low res data. This
+        is used to construct a dummy_time_index from np.arange(time_steps)
+    time_slice : slice
+        Slice to use to extract range from time_index
+    chunk_shape : tuple
+        Max shape (spatial_1, spatial_2, temporal) of an unpadded coarse
+        chunk to use for a forward pass. The number of nodes that the
+        ForwardPassStrategy is set to distribute to is calculated by
+        dividing up the total time index from all file_paths by the
+        temporal part of this chunk shape. Each node will then be
+        parallelized accross parallel processes by the spatial chunk shape.
+        If temporal_pad / spatial_pad are non zero the chunk sent
+        to the generator can be bigger than this shape. If running in
+        serial set this equal to the shape of the full spatiotemporal data
+        volume for best performance.
+    s_enhancements : list
+        List of factors by which the Sup3rGan model will enhance the
+        spatial dimensions of low resolution data. If there are two 5x
+        spatial enhancements, this should be [5, 5] where the total
+        enhancement is the product of these factors.
+    t_enhancements : list
+        List of factor by which the Sup3rGan model will enhance temporal
+        dimension of low resolution data
+    spatial_pad : int
+        Size of spatial overlap between coarse chunks passed to forward
+        passes for subsequent spatial stitching. This overlap will pad both
+        sides of the fwp_chunk_shape. Note that the first and last chunks
+        in any of the spatial dimension will not be padded.
+    temporal_pad : int
+        Size of temporal overlap between coarse chunks passed to forward
+        passes for subsequent temporal stitching. This overlap will pad
+        both sides of the fwp_chunk_shape. Note that the first and last
+        chunks in the temporal dimension will not be padded.
+    """
+
+    coarse_shape: Union[tuple, list]
+    time_steps: int
+    s_enhancements: list
+    t_enhancements: list
+    time_slice: slice
+    temporal_pad: int
+    spatial_pad: int
+    chunk_shape: Union[tuple, list]
+
+    @log_args
+    def __post_init__(self):
         self.s_enhance = np.prod(self.s_enhancements)
         self.t_enhance = np.prod(self.t_enhancements)
-        self.dummy_time_index = np.arange(time_steps)
-        self.time_slice = _parse_time_slice(time_slice)
-        self.temporal_pad = temporal_pad
-        self.spatial_pad = spatial_pad
-        self.chunk_shape = chunk_shape
+        self.dummy_time_index = np.arange(self.time_steps)
+        self.time_slice = _parse_time_slice(self.time_slice)
 
         self._chunk_lookup = None
         self._s1_lr_slices = None
@@ -367,7 +363,7 @@ class ForwardPassSlicer:
         if self._s1_lr_pad_slices is None:
             self._s1_lr_pad_slices = self.get_padded_slices(
                 self.s1_lr_slices,
-                self.grid_shape[0],
+                self.coarse_shape[0],
                 1,
                 padding=self.spatial_pad,
             )
@@ -380,7 +376,7 @@ class ForwardPassSlicer:
         if self._s2_lr_pad_slices is None:
             self._s2_lr_pad_slices = self.get_padded_slices(
                 self.s2_lr_slices,
-                self.grid_shape[1],
+                self.coarse_shape[1],
                 1,
                 padding=self.spatial_pad,
             )
@@ -390,9 +386,9 @@ class ForwardPassSlicer:
     def s1_lr_slices(self):
         """List of low resolution spatial slices for first spatial dimension
         considering padding on all sides of the spatial raster."""
-        ind = slice(0, self.grid_shape[0])
+        ind = slice(0, self.coarse_shape[0])
         slices = get_chunk_slices(
-            self.grid_shape[0], self.chunk_shape[0], index_slice=ind
+            self.coarse_shape[0], self.chunk_shape[0], index_slice=ind
         )
         return slices
 
@@ -400,9 +396,9 @@ class ForwardPassSlicer:
     def s2_lr_slices(self):
         """List of low resolution spatial slices for second spatial dimension
         considering padding on all sides of the spatial raster."""
-        ind = slice(0, self.grid_shape[1])
+        ind = slice(0, self.coarse_shape[1])
         slices = get_chunk_slices(
-            self.grid_shape[1], self.chunk_shape[1], index_slice=ind
+            self.coarse_shape[1], self.chunk_shape[1], index_slice=ind
         )
         return slices
 
