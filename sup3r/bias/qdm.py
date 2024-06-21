@@ -661,6 +661,8 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         n_samples,
         log_base,
         *,
+        bias_ti,
+        bias_fut_ti,
         zero_rate_threshold,
         base_dh_inst=None,
 
@@ -790,6 +792,8 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
                         log_base=self.log_base,
                         base_dh_inst=self.base_dh,
                         zero_rate_threshold=zero_rate_threshold,
+                        bias_ti = self.bias_fut_dh.time_index,
+                        bias_fut_ti = self.bias_fut_dh.time_index,
                     )
                     for key, arr in single_out.items():
                         self.out[key][raster_loc] = arr
@@ -833,6 +837,8 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
                             n_samples=self.n_quantiles,
                             log_base=self.log_base,
                             zero_rate_threshold=zero_rate_threshold,
+                            bias_ti = self.bias_fut_dh.time_index,
+                            bias_fut_ti = self.bias_fut_dh.time_index,
                         )
                         futures[future] = raster_loc
 
