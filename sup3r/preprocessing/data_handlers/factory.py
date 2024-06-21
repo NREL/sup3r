@@ -88,20 +88,20 @@ def DataHandlerFactory(
                 [Cacher, LoaderClass, Deriver, ExtracterClass], kwargs
             )
             features = parse_to_list(features=features)
-            self.loader = LoaderClass(file_paths, **loader_kwargs)
+            self.loader = LoaderClass(file_paths=file_paths, **loader_kwargs)
             self._loader_hook()
             self.extracter = ExtracterClass(
-                self.loader,
+                loader=self.loader,
                 **extracter_kwargs,
             )
             self._extracter_hook()
             super().__init__(
-                self.extracter.data, features=features, **deriver_kwargs
+                data=self.extracter.data, features=features, **deriver_kwargs
             )
             self._deriver_hook()
             cache_kwargs = cacher_kwargs.get('cache_kwargs', {})
             if cache_kwargs is not None and 'cache_pattern' in cache_kwargs:
-                _ = Cacher(self, **cacher_kwargs)
+                _ = Cacher(data=self.data, **cacher_kwargs)
 
         def _loader_hook(self):
             """Hook in after loader initialization. Implement this to extend
@@ -109,7 +109,6 @@ def DataHandlerFactory(
             initialization. e.g. Extra preprocessing like renaming variables,
             ensuring correct dimension ordering with non-standard dimensions,
             etc."""
-            pass
 
         def _extracter_hook(self):
             """Hook in after extracter initialization. Implement this to extend
@@ -125,7 +124,6 @@ def DataHandlerFactory(
              - apply bias correction to extracted data before deriving new
              features
             """
-            pass
 
         def _deriver_hook(self):
             """Hook in after deriver initialization. Implement this to extend
@@ -133,7 +131,6 @@ def DataHandlerFactory(
             initialization. e.g. If special methods are required to derive
             additional features which might depend on non-standard inputs (e.g.
             other source files than those used by the loader)."""
-            pass
 
         def __getattr__(self, attr):
             """Look for attribute in extracter and then loader if not found in
@@ -154,6 +151,9 @@ def DataHandlerFactory(
             except Exception as e:
                 msg = f'{self.__class__.__name__} has no attribute "{attr}"'
                 raise AttributeError(msg) from e
+
+        def __repr__(self):
+            return f"<class '{self.__module__}.__name__'>"
 
     return Handler
 
@@ -203,7 +203,9 @@ def DailyDataHandlerFactory(
                     if f not in features
                 ]
                 features.extend(needed)
-            super().__init__(file_paths, features, **kwargs)
+            super().__init__(
+                file_paths=file_paths, features=features, **kwargs
+            )
 
         def _deriver_hook(self):
             """Hook to run daily coarsening calculations after derivations of

@@ -7,8 +7,9 @@ from warnings import warn
 import dask.array as da
 import numpy as np
 
-from sup3r.preprocessing.extracters.base import Extracter
 from sup3r.preprocessing.loaders import Loader
+
+from .base import Extracter
 
 logger = logging.getLogger(__name__)
 

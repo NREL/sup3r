@@ -156,10 +156,10 @@ def get_input_handler_class(file_paths, input_handler_name):
             input_handler_name = 'ExtracterH5'
 
         logger.info(
-            '"input_handler" arg was not provided. Using '
+            '"input_handler_name" arg was not provided. Using '
             f'"{input_handler_name}". If this is '
             'incorrect, please provide '
-            'input_handler="DataHandlerName".'
+            'input_handler_name="DataHandlerName".'
         )
 
     if isinstance(input_handler_name, str):
@@ -224,36 +224,6 @@ def check_kwargs(Classes, kwargs):
         warn(msg)
 
 
-def parse_keys(keys):
-    """
-    Parse keys for complex __getitem__ and __setitem__
-
-    Parameters
-    ----------
-    keys : string | tuple
-        key or key and slice to extract
-
-    Returns
-    -------
-    key : string
-        key to extract
-    key_slice : slice | tuple
-        Slice or tuple of slices of key to extract
-    """
-    if isinstance(keys, tuple):
-        key = keys[0]
-        key_slice = keys[1:]
-    else:
-        key = keys
-        key_slice = (
-            slice(None),
-            slice(None),
-            slice(None),
-        )
-
-    return key, key_slice
-
-
 class FactoryMeta(ABCMeta, type):
     """Meta class to define __name__ attribute of factory generated classes."""
 
@@ -270,6 +240,9 @@ class FactoryMeta(ABCMeta, type):
             return cls._legos == subclass._legos
         return False
 
+    def __repr__(cls):
+        return f"<class '{cls.__module__}.{cls.__name__}'>"
+
 
 def _get_args_dict(thing, func, *args, **kwargs):
     """Get args dict from given object and object method."""
@@ -285,7 +258,7 @@ def _get_args_dict(thing, func, *args, **kwargs):
     names = ['args', *names] if arg_spec.varargs is not None else names
     vals = [None] * len(names)
     defaults = arg_spec.defaults or []
-    vals[-len(defaults) :] = defaults
+    vals[-len(defaults):] = defaults
     vals[: len(args)] = args
     args_dict = dict(zip(names, vals))
     args_dict.update(kwargs)
@@ -354,7 +327,7 @@ def log_args(func):
 
 
 def parse_features(
-    features: Optional[str | list] = None, data: T_Dataset = None
+    features: Optional[str | list] = None, data: Optional[T_Dataset] = None
 ):
     """Parse possible inputs for features (list, str, None, 'all'). If 'all'
     this returns all data_vars in data. If None this returns an empty list.
@@ -470,5 +443,5 @@ def dims_array_tuple(arr):
     of Dimension.order() with the same len as arr.shape. This is used to set
     xr.Dataset entries. e.g. dset[var] = (dims, array)"""
     if len(arr.shape) > 1:
-        arr = (Dimension.order()[1 : len(arr.shape) + 1], arr)
+        arr = (Dimension.order()[1:len(arr.shape) + 1], arr)
     return arr

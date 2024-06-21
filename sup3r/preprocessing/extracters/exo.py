@@ -8,6 +8,7 @@ import os
 import shutil
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import Optional
 from warnings import warn
 
 import dask.array as da
@@ -92,7 +93,7 @@ class ExoExtracter(ABC):
         once. If shape is (20, 20) and max_delta=10, the full raster will
         be retrieved in four chunks of (10, 10). This helps adapt to
         non-regular grids that curve over large distances, by default 20
-    input_handler : str
+    input_handler_name : str
         data handler class to use for input data. Provide a string name to
         match a :class:`Extracter`. If None the correct handler will
         be guessed based on file type and time series properties.
@@ -111,15 +112,15 @@ class ExoExtracter(ABC):
     source_file: str
     s_enhance: int
     t_enhance: int
-    target: tuple = None
-    shape: tuple = None
-    time_slice: slice = None
-    raster_file: str = None
-    max_delta: int = 20
-    input_handler: str = None
-    cache_dir: str = './exo_cache/'
-    distance_upper_bound: int = None
-    res_kwargs: dict = None
+    target: Optional[tuple] = None
+    shape: Optional[tuple] = None
+    time_slice: Optional[slice] = None
+    raster_file: Optional[str] = None
+    max_delta: Optional[int] = 20
+    input_handler_name: Optional[str] = None
+    cache_dir: Optional[str] = './exo_cache/'
+    distance_upper_bound: Optional[int] = None
+    res_kwargs: Optional[dict] = None
 
     @log_args
     def __post_init__(self):
@@ -130,12 +131,11 @@ class ExoExtracter(ABC):
         self._hr_time_index = None
         self._source_handler = None
         InputHandler = get_input_handler_class(
-            self.file_paths, self.input_handler
+            self.file_paths, self.input_handler_name
         )
         params = get_possible_class_args(InputHandler)
         kwargs = {k: getattr(self, k) for k in params if hasattr(self, k)}
         self.input_handler = InputHandler(**kwargs)
-        self.lr_lat_lon = self.input_handler.lat_lon
 
     @property
     @abstractmethod
@@ -178,7 +178,7 @@ class ExoExtracter(ABC):
     def lr_shape(self):
         """Get the low-resolution spatial shape tuple"""
         return (
-            *self.lr_lat_lon.shape[:2],
+            *self.input_handler.lat_lon.shape[:2],
             len(self.input_handler.time_index),
         )
 
@@ -186,8 +186,8 @@ class ExoExtracter(ABC):
     def hr_shape(self):
         """Get the high-resolution spatial shape tuple"""
         return (
-            self.s_enhance * self.lr_lat_lon.shape[0],
-            self.s_enhance * self.lr_lat_lon.shape[1],
+            self.s_enhance * self.input_handler.lat_lon.shape[0],
+            self.s_enhance * self.input_handler.lat_lon.shape[1],
             self.t_enhance * len(self.input_handler.time_index),
         )
 
@@ -203,9 +203,11 @@ class ExoExtracter(ABC):
         """
         if self._hr_lat_lon is None:
             self._hr_lat_lon = (
-                OutputHandler.get_lat_lon(self.lr_lat_lon, self.hr_shape[:-1])
+                OutputHandler.get_lat_lon(
+                    self.input_handler.lat_lon, self.hr_shape[:-1]
+                )
                 if self.s_enhance > 1
-                else self.lr_lat_lon
+                else self.input_handler.lat_lon
             )
         return self._hr_lat_lon
 

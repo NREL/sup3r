@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from datetime import datetime as dt
 from typing import Optional
 
-import dask
 import dask.array as da
 import numpy as np
 import pandas as pd
@@ -15,16 +14,14 @@ from sklearn.neighbors import BallTree
 
 from sup3r.preprocessing.utilities import log_args
 
-dask.config.set({'array.slicing.split_large_chunks': True})
-
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class Regridder:
-    """Basic Regridder class. Builds ball tree and runs all queries to
-    create full arrays of indices and distances for neighbor points. Computes
-    array of weights used to interpolate from old grid to new grid.
+    """Regridder class. Builds ball tree and runs all queries to create full
+    arrays of indices and distances for neighbor points. Computes array of
+    weights used to interpolate from old grid to new grid.
 
     Parameters
     ----------
@@ -217,7 +214,9 @@ class Regridder:
 
     def save_query(self, s_slice):
         """Save tree query for coordinates specified by given spatial slice"""
-        out = self.query_tree(s_slice)
+        out = self.tree.query(
+            self.get_spatial_chunk(s_slice), k=self.k_neighbors
+        )
         self.distances[s_slice] = out[0]
         self.indices[s_slice] = out[1]
 
@@ -238,29 +237,6 @@ class Regridder:
         """
         out = self.target_meta.iloc[s_slice][['latitude', 'longitude']].values
         return np.radians(out)
-
-    def query_tree(self, s_slice):
-        """Get indices and distances for points specified by the given spatial
-        slice
-
-        Parameters
-        ----------
-        s_slice : slice
-            slice specifying which spatial indices in the target grid should be
-            selected. This selects n_points from the target grid
-
-        Returns
-        -------
-        distances : ndarray
-            Array of distances for neighboring points for each point selected
-            by s_slice. (n_ponts, k_neighbors)
-        indices : ndarray
-            Array of indices for neighboring points for each point selected
-            by s_slice. (n_ponts, k_neighbors)
-        """
-        return self.tree.query(
-            self.get_spatial_chunk(s_slice), k=self.k_neighbors
-        )
 
     def __call__(self, data):
         """Regrid given spatiotemporal data over entire grid

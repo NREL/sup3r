@@ -8,8 +8,9 @@ from typing import List
 import numpy as np
 from rex import safe_json_load
 
-from sup3r.preprocessing.collections.base import Collection
 from sup3r.preprocessing.extracters import Extracter
+
+from .base import Collection
 
 logger = logging.getLogger(__name__)
 

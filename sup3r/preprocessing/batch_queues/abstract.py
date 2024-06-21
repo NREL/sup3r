@@ -32,18 +32,18 @@ class AbstractBatchQueue(SamplerCollection, ABC):
     def __init__(
         self,
         samplers: Union[List[Sampler], List[DualSampler]],
-        batch_size: Optional[int] = 16,
-        n_batches: Optional[int] = 64,
-        s_enhance: Optional[int] = 1,
-        t_enhance: Optional[int] = 1,
+        batch_size: int = 16,
+        n_batches: int = 64,
+        s_enhance: int = 1,
+        t_enhance: int = 1,
         means: Optional[Union[Dict, str]] = None,
         stds: Optional[Union[Dict, str]] = None,
         queue_cap: Optional[int] = None,
         transform_kwargs: Optional[dict] = None,
         max_workers: Optional[int] = None,
         default_device: Optional[str] = None,
-        thread_name: Optional[str] = 'training',
-        mode: Optional[str] = 'lazy',
+        thread_name: str = 'training',
+        mode: str = 'lazy',
     ):
         """
         Parameters
@@ -301,7 +301,7 @@ class AbstractBatchQueue(SamplerCollection, ABC):
                         logger.debug(msg)
         except KeyboardInterrupt:
             logger.info(
-                f'Attempting to stop {self.queue.thread.name} batch queue.'
+                f'Attempting to stop {self._thread_name.title()} batch queue.'
             )
             self.stop()
 

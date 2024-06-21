@@ -8,8 +8,9 @@ import dask.array as da
 import numpy as np
 import xarray as xr
 
-from sup3r.preprocessing.loaders import Loader
 from sup3r.preprocessing.utilities import Dimension, ordered_dims
+
+from .base import Loader
 
 logger = logging.getLogger(__name__)
 

@@ -83,7 +83,7 @@ def test_fwp_nc_cc():
                 'time_slice': time_slice,
             },
             out_pattern=out_files,
-            input_handler='DataHandlerNCforCC',
+            input_handler_name='DataHandlerNCforCC',
             pass_workers=None,
         )
         forward_pass = ForwardPass(strat)
@@ -125,7 +125,7 @@ def test_fwp_spatial_only(input_files):
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=1,
             temporal_pad=1,
-            input_handler='ExtracterNC',
+            input_handler_name='ExtracterNC',
             input_handler_kwargs={
                 'target': target,
                 'shape': shape,
@@ -292,7 +292,7 @@ def test_fwp_handler(input_files):
         fwp = ForwardPass(strat)
 
         _, data = fwp.run_chunk(
-            fwp.get_chunk(chunk_index=0),
+            fwp.get_input_chunk(chunk_index=0),
             fwp.model_kwargs,
             fwp.model_class,
             fwp.allowed_const,
@@ -377,7 +377,7 @@ def test_fwp_chunking(input_files, plot=False):
         fwp = ForwardPass(strat)
         for i in range(strat.chunks):
             _, out = fwp.run_chunk(
-                fwp.get_chunk(i, mode='constant'),
+                fwp.get_input_chunk(i, mode='constant'),
                 fwp.model_kwargs,
                 fwp.model_class,
                 fwp.allowed_const,
@@ -471,7 +471,7 @@ def test_fwp_nochunking(input_files):
         )
         fwp = ForwardPass(strat)
         _, data_chunked = fwp.run_chunk(
-            fwp.get_chunk(chunk_index=0),
+            fwp.get_input_chunk(chunk_index=0),
             fwp.model_kwargs,
             fwp.model_class,
             fwp.allowed_const,
@@ -549,7 +549,7 @@ def test_fwp_multi_step_model(input_files):
         fwp = ForwardPass(strat)
 
         _, _ = fwp.run_chunk(
-            fwp.get_chunk(chunk_index=0),
+            fwp.get_input_chunk(chunk_index=0),
             fwp.model_kwargs,
             fwp.model_class,
             fwp.allowed_const,
@@ -624,7 +624,7 @@ def test_slicing_no_pad(input_files):
 
         fwp = ForwardPass(strategy)
         for i in range(strategy.chunks):
-            chunk = fwp.get_chunk(i)
+            chunk = fwp.get_input_chunk(i)
             s_idx, t_idx = strategy.get_chunk_indices(i)
             s_slices = strategy.lr_pad_slices[s_idx]
             lr_data_slice = (
@@ -696,7 +696,7 @@ def test_slicing_pad(input_files):
 
         fwp = ForwardPass(strategy)
         for i in range(strategy.chunks):
-            chunk = fwp.get_chunk(i, mode='constant')
+            chunk = fwp.get_input_chunk(i, mode='constant')
             s_idx, t_idx = strategy.get_chunk_indices(i)
             s_slices = strategy.lr_pad_slices[s_idx]
             lr_data_slice = (

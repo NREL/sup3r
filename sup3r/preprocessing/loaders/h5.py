@@ -10,8 +10,9 @@ import numpy as np
 import xarray as xr
 from rex import MultiFileWindX
 
-from sup3r.preprocessing.loaders import Loader
 from sup3r.preprocessing.utilities import Dimension
+
+from .base import Loader
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +54,7 @@ class LoaderH5(Loader):
                 Dimension.WEST_EAST,
             )
         else:
-            dims: Tuple[str, ...] = (Dimension.FLATTENED_SPATIAL,)
+            dims = (Dimension.FLATTENED_SPATIAL,)
         if not self._time_independent:
             dims = (Dimension.TIME, *dims)
             coords[Dimension.TIME] = self.res['time_index']

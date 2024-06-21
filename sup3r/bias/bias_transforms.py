@@ -10,6 +10,8 @@ from rex import Resource
 from rex.utilities.bc_utils import QuantileDeltaMapping
 from scipy.ndimage import gaussian_filter
 
+from sup3r.typing import T_Array
+
 logger = logging.getLogger(__name__)
 
 
@@ -83,7 +85,7 @@ def get_spatial_bc_factors(lat_lon, feature_name, bias_fp, threshold=0.1):
 
 
 def get_spatial_bc_quantiles(
-    lat_lon: np.array,
+    lat_lon: T_Array,
     base_dset: str,
     feature_name: str,
     bias_fp: str,
@@ -100,7 +102,7 @@ def get_spatial_bc_quantiles(
 
     Parameters
     ----------
-    lat_lon : ndarray
+    lat_lon : T_Array
         Array of latitudes and longitudes for the domain to bias correct
         (n_lats, n_lons, 2)
     base_dset : str
@@ -122,21 +124,21 @@ def get_spatial_bc_quantiles(
 
     Returns
     -------
-    base : np.array
+    base : T_Array
         Parameters used to define the statistical distribution estimated for
         the ``base_dset``. It has a shape of (I, J, P), where (I, J) are the
         same first two dimensions of the given `lat_lon` and P is the number
         of parameters and depends on the type of distribution. See
         :class:`~sup3r.bias.bias_calc.QuantileDeltaMappingCorrection` for more
         details.
-    bias : np.array
+    bias : T_Array
         Parameters used to define the statistical distribution estimated for
         (historical) ``feature_name``. It has a shape of (I, J, P), where
         (I, J) are the same first two dimensions of the given `lat_lon` and P
         is the number of parameters and depends on the type of distribution.
         See :class:`~sup3r.bias.bias_calc.QuantileDeltaMappingCorrection` for
         more details.
-    bias_fut : np.array
+    bias_fut : T_Array
         Parameters used to define the statistical distribution estimated for
         (future) ``feature_name``. It has a shape of (I, J, P), where (I, J)
         are the same first two dimensions of the given `lat_lon` and P is the
@@ -417,8 +419,8 @@ def monthly_local_linear_bc(
 
 
 def local_qdm_bc(
-    data: np.array,
-    lat_lon: np.array,
+    data: T_Array,
+    lat_lon: T_Array,
     base_dset: str,
     feature_name: str,
     bias_fp,
@@ -433,12 +435,15 @@ def local_qdm_bc(
     statistical distributions were previously estimated and saved in
     ``bias_fp``.
 
+    TODO: This is much slower than the linear correction. Is there any
+    optimization to do here?
+
     Parameters
     ----------
-    data : np.ndarray
+    data : T_Array
         Sup3r input data to be bias corrected, assumed to be 3D with shape
         (spatial, spatial, temporal) for a single feature.
-    lat_lon : ndarray
+    lat_lon : T_Array
         Array of latitudes and longitudes for the domain to bias correct
         (n_lats, n_lons, 2)
     base_dset :

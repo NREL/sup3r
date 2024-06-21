@@ -9,11 +9,12 @@ import pprint
 import warnings
 from dataclasses import dataclass
 from inspect import signature
-from typing import Dict, Tuple
+from typing import Dict, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
 
+from sup3r.bias.utilities import bias_correct_feature
 from sup3r.pipeline.slicer import ForwardPassSlicer
 from sup3r.pipeline.utilities import get_model
 from sup3r.postprocessing import (
@@ -30,7 +31,6 @@ from sup3r.preprocessing.utilities import (
     log_args,
 )
 from sup3r.typing import T_Array
-from sup3r.utilities.execution import DistributedProcess
 
 logger = logging.getLogger(__name__)
 
@@ -59,11 +59,11 @@ class ForwardPassChunk:
 
 
 @dataclass
-class ForwardPassStrategy(DistributedProcess):
+class ForwardPassStrategy:
     """Class to prepare data for forward passes through generator.
 
-    TODO: Seems like this could be cleaned up further. Lots of attrs in the
-    init
+    TODO: (1) Seems like this could be cleaned up further. Lots of attrs in the
+    init.
 
     A full file list of contiguous times is provided. The corresponding data is
     split into spatiotemporal chunks which can overlap in time and space. These
@@ -116,7 +116,7 @@ class ForwardPassStrategy(DistributedProcess):
         file will have a unique file_id filled in and the ext determines the
         output type. If pattern is None then data will be returned
         in an array and not saved.
-    input_handler : str | None
+    input_handler_name : str | None
         Class to use for input data. Provide a string name to match an
         extracter or handler class in `sup3r.preprocessing`
     input_handler_kwargs : dict | None
@@ -175,17 +175,17 @@ class ForwardPassStrategy(DistributedProcess):
     spatial_pad: int
     temporal_pad: int
     model_class: str = 'Sup3rGan'
-    out_pattern: str = None
-    input_handler: str = None
-    input_handler_kwargs: dict = None
-    exo_kwargs: dict = None
-    bias_correct_method: str = None
-    bias_correct_kwargs: dict = None
-    allowed_const: list | bool = None
-    incremental: bool = True
-    output_workers: int = None
-    pass_workers: int = None
-    max_nodes: int = None
+    out_pattern: Optional[str] = None
+    input_handler_name: Optional[str] = None
+    input_handler_kwargs: Optional[dict] = None
+    exo_kwargs: Optional[dict] = None
+    bias_correct_method: Optional[str] = None
+    bias_correct_kwargs: Optional[dict] = None
+    allowed_const: Optional[Union[list, bool]] = None
+    incremental: Optional[bool] = True
+    output_workers: Optional[int] = None
+    pass_workers: Optional[int] = None
+    max_nodes: Optional[int] = None
 
     @log_args
     def __post_init__(self):
@@ -216,9 +216,10 @@ class ForwardPassStrategy(DistributedProcess):
         )
         input_handler_kwargs = copy.deepcopy(self.input_handler_kwargs)
         self.time_slice = input_handler_kwargs.pop('time_slice', slice(None))
-        self.input_handler = get_input_handler_class(
-            self.file_paths, self.input_handler
-        )(**input_handler_kwargs)
+        InputHandler = get_input_handler_class(
+            self.file_paths, self.input_handler_name
+        )
+        self.input_handler = InputHandler(**input_handler_kwargs)
         self.exo_data = self.load_exo_data(model)
         self.hr_lat_lon = self.get_hr_lat_lon()
         self.gids = np.arange(np.prod(self.hr_lat_lon.shape[:-1]))
@@ -235,11 +236,15 @@ class ForwardPassStrategy(DistributedProcess):
             spatial_pad=self.spatial_pad,
             temporal_pad=self.temporal_pad,
         )
-        super().__init__(
-            max_nodes=(self.max_nodes or self.fwp_slicer.n_time_chunks),
-            max_chunks=self.fwp_slicer.n_chunks,
-            incremental=self.incremental,
+
+        self.chunks = self.fwp_slicer.n_chunks
+        n_chunks = (
+            self.chunks
+            if self.max_nodes is None
+            else min(self.max_nodes, self.chunks)
         )
+        self.node_chunks = np.array_split(np.arange(self.chunks), n_chunks)
+        self.nodes = len(self.node_chunks)
         self.out_files = self.get_out_files(out_files=self.out_pattern)
         self.preflight()
 
@@ -275,6 +280,21 @@ class ForwardPassStrategy(DistributedProcess):
         out = self.fwp_slicer.get_spatial_slices()
         self.lr_slices, self.lr_pad_slices, self.hr_slices = out
 
+        if self.bias_correct_kwargs is not None:
+            padded_tslice = slice(
+                self.ti_pad_slices[0].start, self.ti_pad_slices[-1].stop
+            )
+            for feat in self.bias_correct_kwargs:
+                self.input_handler.data[feat, ..., padded_tslice] = (
+                    bias_correct_feature(
+                        feat,
+                        input_handler=self.input_handler,
+                        time_slice=padded_tslice,
+                        bc_method=self.bias_correct_method,
+                        bc_kwargs=self.bias_correct_kwargs,
+                    )
+                )
+
     def get_chunk_indices(self, chunk_index):
         """Get (spatial, temporal) indices for the given chunk index"""
         return (
@@ -286,7 +306,7 @@ class ForwardPassStrategy(DistributedProcess):
         """Get high resolution lat lons"""
         logger.info('Getting high-resolution grid for full output domain.')
         lr_lat_lon = self.input_handler.lat_lon
-        shape = tuple([d * self.s_enhance for d in lr_lat_lon.shape[:-1]])
+        shape = tuple(d * self.s_enhance for d in lr_lat_lon.shape[:-1])
         return OutputHandler.get_lat_lon(lr_lat_lon, shape)
 
     def get_out_files(self, out_files):
@@ -508,3 +528,35 @@ class ForwardPassStrategy(DistributedProcess):
                 data.update(ExoDataHandler(**exo_kwargs).data)
             exo_data = ExoData(data)
         return exo_data
+
+    def node_finished(self, node_index):
+        """Check if all out files for a given node have been saved
+
+        Parameters
+        ----------
+        node_index : int
+            Index of node to check for completed processes
+        """
+        return all(
+            self._chunk_finished(i) for i in self.node_chunks[node_index]
+        )
+
+    def _chunk_finished(self, chunk_index):
+        """Check if process for given chunk_index has already been run.
+
+        Parameters
+        ----------
+        chunk_index : int
+            Index of the process chunk to check for completion. Considered
+            finished if there is already an output file and incremental is
+            False.
+        """
+        out_file = self.out_files[chunk_index]
+        if os.path.exists(out_file) and self.incremental:
+            logger.info(
+                'Not running chunk index {}, output file ' 'exists: {}'.format(
+                    chunk_index, out_file
+                )
+            )
+            return True
+        return False

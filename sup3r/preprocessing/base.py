@@ -6,7 +6,7 @@ samplers, batch queues, batch handlers.
 import logging
 import pprint
 from collections import namedtuple
-from typing import Dict, Optional, Union
+from typing import Optional, Tuple, Union
 from warnings import warn
 
 import numpy as np
@@ -44,8 +44,8 @@ class Sup3rDataset:
 
     def __init__(
         self,
-        data: Optional[Union[tuple, Sup3rX, xr.Dataset]] = None,
-        **dsets: Dict[str, xr.Dataset],
+        data: Optional[Union[tuple, T_Dataset]] = None,
+        **dsets: Union[xr.Dataset, Sup3rX],
     ):
         if data is not None:
             data = data if isinstance(data, tuple) else (data,)
@@ -211,9 +211,9 @@ class Sup3rDataset:
         """Set dset member values. Check if values is a tuple / list and if
         so interpret this as sending a tuple / list element to each dset
         member. e.g. `vals[0] -> dsets[0]`, `vals[1] -> dsets[1]`, etc"""
-        for i in range(len(self)):
+        for i, self_i in enumerate(self):
             dat = data[i] if isinstance(data, (tuple, list)) else data
-            self[i].__setitem__(variable, dat)
+            self_i.__setitem__(variable, dat)
 
     def mean(self, skipna=True):
         """Use the high_res members to compute the means. These are used for
@@ -246,7 +246,7 @@ class Container:
 
     def __init__(
         self,
-        data: Optional[T_Dataset] = None,
+        data: Optional[Union[Tuple[T_Dataset, ...], T_Dataset]] = None,
     ):
         """
         Parameters
@@ -258,7 +258,7 @@ class Container:
         self.data = data
 
     @property
-    def data(self) -> Sup3rX:
+    def data(self):
         """Return a wrapped 1-tuple or 2-tuple xr.Dataset."""
         return self._data
 

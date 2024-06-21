@@ -98,7 +98,7 @@ def BatchHandlerFactory(
             )
 
             stats = StatsCollection(
-                train_samplers + val_samplers,
+                containers=train_samplers + val_samplers,
                 means=means,
                 stds=stds,
             )
@@ -130,7 +130,7 @@ def BatchHandlerFactory(
         ):
             """Initialize samplers from given data containers."""
             train_samplers = [
-                self.SAMPLER(c.data, **sampler_kwargs)
+                self.SAMPLER(data=c.data, **sampler_kwargs)
                 for c in train_containers
             ]
 
@@ -138,7 +138,7 @@ def BatchHandlerFactory(
                 []
                 if val_containers is None
                 else [
-                    self.SAMPLER(c.data, **sampler_kwargs)
+                    self.SAMPLER(data=c.data, **sampler_kwargs)
                     for c in val_containers
                 ]
             )

@@ -133,4 +133,4 @@ def test_stats_calc():
 
 
 if __name__ == '__main__':
-    execute_pytest()
+    execute_pytest(__file__)

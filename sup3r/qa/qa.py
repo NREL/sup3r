@@ -5,15 +5,13 @@ TODO: Good initial refactor but can do more cleaning here
 
 import logging
 import os
-from inspect import signature
-from warnings import warn
 
 import numpy as np
 import xarray as xr
 from rex import Resource
 from rex.utilities.fun_utils import get_fun_call_str
 
-import sup3r.bias.bias_transforms
+from sup3r.bias.utilities import bias_correct_feature
 from sup3r.postprocessing.file_handling import H5_ATTRS, RexOutputs
 from sup3r.preprocessing.derivers import Deriver
 from sup3r.preprocessing.utilities import (
@@ -51,12 +49,12 @@ class Sup3rQa:
         temporal_coarsening_method,
         features=None,
         output_names=None,
+        input_handler_name=None,
         input_handler_kwargs=None,
         qa_fp=None,
         bias_correct_method=None,
         bias_correct_kwargs=None,
         save_sources=True,
-        input_handler=None,
     ):
         """
         Parameters
@@ -89,6 +87,10 @@ class Sup3rQa:
         output_names : str | list
             Optional output file dataset names corresponding to the features
             list input
+        input_handler_name : str | None
+            data handler class to use for input data. Provide a string name to
+            match a class in data_handling.py. If None the correct handler will
+            be guessed based on file type.
         input_handler_kwargs : dict
             Keyword arguments for `input_handler`. See :class:`Extracter` class
             for argument details.
@@ -111,10 +113,6 @@ class Sup3rQa:
         save_sources : bool
             Flag to save re-coarsened synthetic data and true low-res data to
             qa_fp in addition to the error dataset
-        input_handler : str | None
-            data handler class to use for input data. Provide a string name to
-            match a class in data_handling.py. If None the correct handler will
-            be guessed based on file type.
         """
 
         logger.info('Initializing Sup3rQa and retrieving source data...')
@@ -148,12 +146,11 @@ class Sup3rQa:
         self.input_handler_kwargs = input_handler_kwargs or {}
 
         HandlerClass = get_input_handler_class(
-            source_file_paths, input_handler
+            source_file_paths, input_handler_name
         )
-        input_handler = HandlerClass(
-            source_file_paths, **self.input_handler_kwargs
+        self.input_handler = self.bias_correct_input_handler(
+            HandlerClass(source_file_paths, **self.input_handler_kwargs)
         )
-        self.input_handler = self.bias_correct_input_handler(input_handler)
         self.meta = self.input_handler.data.meta
         self.time_index = self.input_handler.time_index
 
@@ -225,67 +222,6 @@ class Sup3rQa:
             raise TypeError(msg)
         return ftype
 
-    def bias_correct_feature(self, source_feature, input_handler):
-        """Bias correct data using a method defined by the bias_correct_method
-        input to :class:`ForwardPassStrategy`
-
-        TODO: This is too similar to the bias_correct_source_data method in
-        :class:`FowardPass`. Should extract as shared utility method.
-
-        Parameters
-        ----------
-        source_feature : str | list
-            The source feature name corresponding to the output feature name
-        input_handler : DataHandler
-            DataHandler storing raw input data previously used as input for
-            forward passes.
-
-        Returns
-        -------
-        data : T_Array
-            Data corrected by the bias_correct_method ready for input to the
-            forward pass through the generative model.
-        """
-        method = self.bias_correct_method
-        kwargs = self.bias_correct_kwargs
-        data = input_handler[source_feature, ...]
-        if method is not None:
-            method = getattr(sup3r.bias.bias_transforms, method)
-            logger.info(f'Running bias correction with: {method}.')
-            feature_kwargs = kwargs[source_feature]
-
-            if 'time_index' in signature(method).parameters:
-                feature_kwargs['time_index'] = self.input_handler.time_index
-            if (
-                'lr_padded_slice' in signature(method).parameters
-                and 'lr_padded_slice' not in feature_kwargs
-            ):
-                feature_kwargs['lr_padded_slice'] = None
-            if (
-                'temporal_avg' in signature(method).parameters
-                and 'temporal_avg' not in feature_kwargs
-            ):
-                msg = (
-                    'The kwarg "temporal_avg" was not provided in the bias '
-                    'correction kwargs but is present in the bias '
-                    'correction function "{}". If this is not set '
-                    'appropriately, especially for monthly bias '
-                    'correction, it could result in QA results that look '
-                    'worse than they actually are.'.format(method)
-                )
-                logger.warning(msg)
-                warn(msg)
-
-            logger.debug(
-                'Bias correcting source_feature "{}" using '
-                'function: {} with kwargs: {}'.format(
-                    source_feature, method, feature_kwargs
-                )
-            )
-
-            data = method(data, input_handler.lat_lon, **feature_kwargs)
-        return data
-
     def bias_correct_input_handler(self, input_handler):
         """Apply bias correction to all source features which have bias
         correction data and return :class:`Deriver` instance to use for
@@ -309,7 +245,7 @@ class Sup3rQa:
             f'Features {need_derive} need to be derived prior to bias '
             'correction, but the input_handler has no derive method. '
             'Request an appropriate input_handler with '
-            'input_handler=DataHandlerName.'
+            'input_handler_name=DataHandlerName.'
         )
         assert len(need_derive) == 0 or hasattr(input_handler, 'derive'), msg
         for f in need_derive:
@@ -320,7 +256,12 @@ class Sup3rQa:
             )
         )
         for f in bc_feats:
-            input_handler.data[f] = self.bias_correct_feature(f, input_handler)
+            input_handler.data[f] = bias_correct_feature(
+                f,
+                input_handler,
+                self.bias_correct_method,
+                self.bias_correct_kwargs,
+            )
 
         return (
             input_handler

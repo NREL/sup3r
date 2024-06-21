@@ -11,15 +11,16 @@ import pandas as pd
 from scipy.spatial import KDTree
 from scipy.stats import mode
 
-from sup3r.preprocessing.data_handlers.factory import (
-    DataHandlerNC,
-)
 from sup3r.preprocessing.derivers.methods import (
     RegistryNCforCC,
     RegistryNCforCCwithPowerLaw,
 )
 from sup3r.preprocessing.loaders import LoaderH5
 from sup3r.preprocessing.utilities import Dimension
+
+from .factory import (
+    DataHandlerNC,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +72,7 @@ class DataHandlerNCforCC(DataHandlerNC):
         self._nsrdb_agg = nsrdb_agg
         self._nsrdb_smoothing = nsrdb_smoothing
         self._features = features
-        super().__init__(file_paths, features=features, **kwargs)
+        super().__init__(file_paths=file_paths, features=features, **kwargs)
 
     def _extracter_hook(self):
         """Extracter hook implementation to add 'clearsky_ghi' data to

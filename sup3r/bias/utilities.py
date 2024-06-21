@@ -2,10 +2,13 @@
 
 import logging
 import os
+from inspect import signature
+from warnings import warn
 
 import numpy as np
 from rex import Resource
 
+import sup3r.bias.bias_transforms
 from sup3r.bias.bias_transforms import get_spatial_bc_factors, local_qdm_bc
 
 logger = logging.getLogger(__name__)
@@ -157,3 +160,75 @@ def qdm_bc(
                 no_trend=no_trend,
             )
             completed.append(feature)
+
+
+def bias_correct_feature(
+    source_feature,
+    input_handler,
+    bc_method,
+    bc_kwargs,
+    time_slice=None,
+):
+    """Bias correct data using a method defined by the bias_correct_method
+    input to :class:`ForwardPassStrategy`
+
+    Parameters
+    ----------
+    source_feature : str | list
+        The source feature name corresponding to the output feature name
+    input_handler : DataHandler
+        DataHandler storing raw input data previously used as input for
+        forward passes. This is assumed to have data with shape (lats, lons,
+        time, features), which can be accessed through the handler with
+        handler[feature, lat_slice, lon_slice, time_slice]
+    bc_method : Callable
+        Bias correction method from `bias_transforms.py`
+    bc_kwargs : dict
+        Dictionary of keyword arguments for bc_method
+    time_slice : slice | None
+        Optional time slice to restrict bias correction domain
+
+    Returns
+    -------
+    data : T_Array
+        Data corrected by the bias_correct_method ready for input to the
+        forward pass through the generative model.
+    """
+    time_slice = slice(None) if time_slice is None else time_slice
+    data = input_handler[source_feature, ..., time_slice]
+    if bc_method is not None:
+        bc_method = getattr(sup3r.bias.bias_transforms, bc_method)
+        logger.info(f'Running bias correction with: {bc_method}.')
+        feature_kwargs = bc_kwargs[source_feature]
+
+        if 'time_index' in signature(bc_method).parameters:
+            feature_kwargs['time_index'] = input_handler.time_index[time_slice]
+        if (
+            'lr_padded_slice' in signature(bc_method).parameters
+            and 'lr_padded_slice' not in feature_kwargs
+        ):
+            feature_kwargs['lr_padded_slice'] = None
+        if (
+            'temporal_avg' in signature(bc_method).parameters
+            and 'temporal_avg' not in feature_kwargs
+        ):
+            msg = (
+                'The kwarg "temporal_avg" was not provided in the bias '
+                'correction kwargs but is present in the bias '
+                'correction function "{}". If this is not set '
+                'appropriately, especially for monthly bias '
+                'correction, it could result in QA results that look '
+                'worse than they actually are.'.format(bc_method)
+            )
+            logger.warning(msg)
+            warn(msg)
+
+        logger.debug(
+            'Bias correcting source_feature "{}" using '
+            'function: {} with kwargs: {}'.format(
+                source_feature, bc_method, feature_kwargs
+            )
+        )
+
+        data = bc_method(data, input_handler.lat_lon, **feature_kwargs)
+    return data

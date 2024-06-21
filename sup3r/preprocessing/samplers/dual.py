@@ -6,11 +6,9 @@ import logging
 from typing import Dict, Optional
 
 from sup3r.preprocessing.base import Sup3rDataset
-from sup3r.preprocessing.samplers.base import Sampler
-from sup3r.preprocessing.samplers.utilities import (
-    uniform_box_sampler,
-    uniform_time_sampler,
-)
+
+from .base import Sampler
+from .utilities import uniform_box_sampler, uniform_time_sampler
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +60,7 @@ class DualSampler(Sampler):
         )
         assert hasattr(data, 'low_res') and hasattr(data, 'high_res'), msg
         assert data.low_res == data[0] and data.high_res == data[1], msg
-        super().__init__(data, sample_shape=sample_shape)
+        super().__init__(data=data, sample_shape=sample_shape)
         self.lr_data, self.hr_data = self.data.low_res, self.data.high_res
         feature_sets = feature_sets or {}
         self.hr_sample_shape = self.sample_shape
