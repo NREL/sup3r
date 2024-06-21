@@ -108,7 +108,7 @@ class ZeroRateMixin():
        16(6), 2421-2442.
     """
     @staticmethod
-    def _zero_precipitation_rate(arr: np.ndarray, threshold: float = 0.01):
+    def zero_precipitation_rate(arr: np.ndarray, threshold: float = 0.01):
         """Rate of (nearly) zero precipitation days
 
         Estimate the rate of values less than a given ``threshold``. In concept
@@ -127,15 +127,33 @@ class ZeroRateMixin():
         Returns
         -------
         rate : float
-            Rate of days with negligible precipitation. (see Z_gf in
-            [Pierce2015]_)
+            Rate of days with negligible precipitation (see Z_gf in
+            [Pierce2015]_).
 
         Notes
         -----
         The ``NaN`` are ignored for the rate estimate. Therefore, a large
-        number of ``NaN`` might mislead this rate estimate.
+        number of ``NaN`` might compromise the confidence of the estimator.
+
+        If the input values are all non-finite, it returns NaN.
+
+        Examples
+        --------
+        >>> ZeroRateMixin().zero_precipitation_rate([2, 3, 4], 1)
+        0.0
+
+        >>> ZeroRateMixin().zero_precipitation_rate([0, 1, 2, 3], 1)
+        0.25
+
+        >>> ZeroRateMixin().zero_precipitation_rate([0, 1, 2, 3, np.nan], 1)
+        0.25
         """
-        return np.nanmean((arr < threshold).astype('i'))
+        idx = np.isfinite(arr)
+        if not idx.any():
+            return np.nan
+
+        return np.nanmean((arr[idx] < threshold).astype('i'))
+
 
     @staticmethod
     def apply_zero_precipitation_rate(arr: np.ndarray, rate: float):
