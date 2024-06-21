@@ -1,7 +1,7 @@
 """Accessor for xarray."""
 
 import logging
-from typing import Dict, Union
+from typing import Dict, Self, Union
 from warnings import warn
 
 import dask.array as da
@@ -62,7 +62,7 @@ class Sup3rX:
     >>> lat_lon_array = ds.sx.lat_lon
     """
 
-    def __init__(self, ds: xr.Dataset | xr.DataArray):
+    def __init__(self, ds: Union[xr.Dataset, Self]):
         """Initialize accessor. Order variables to our standard order.
 
         Parameters
@@ -286,7 +286,7 @@ class Sup3rX:
             out = self.as_array()[keys]
         return out
 
-    def __getitem__(self, keys) -> T_Array | xr.Dataset:
+    def __getitem__(self, keys) -> T_Array | Self:
         """Method for accessing variables or attributes. keys can optionally
         include a feature name as the last element of a keys tuple."""
         if isinstance(keys, slice):
@@ -393,10 +393,10 @@ class Sup3rX:
             _ = self.assign_coords({keys: data})
         elif isinstance(keys, str):
             _ = self.assign({keys.lower(): data})
-        elif _is_strings(keys[0]) and keys[0] not in self.coords:
-            var_array = self._ds[keys[0]].data
+        elif isinstance(keys[0], str) and keys[0] not in self.coords:
+            var_array = self._ds[keys[0].lower()].data
             var_array[keys[1:]] = data
-            _ = self.assign({keys[0]: var_array})
+            _ = self.assign({keys[0].lower(): var_array})
         else:
             msg = f'Cannot set values for keys {keys}'
             raise KeyError(msg)

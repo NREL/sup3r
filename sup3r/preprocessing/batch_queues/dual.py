@@ -6,7 +6,7 @@ import logging
 import tensorflow as tf
 from scipy.ndimage import gaussian_filter
 
-from sup3r.preprocessing.batch_queues.abstract import AbstractBatchQueue
+from .abstract import AbstractBatchQueue
 
 logger = logging.getLogger(__name__)
 

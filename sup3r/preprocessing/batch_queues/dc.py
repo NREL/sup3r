@@ -5,7 +5,7 @@ import logging
 
 import numpy as np
 
-from sup3r.preprocessing.batch_queues.base import SingleBatchQueue
+from .base import SingleBatchQueue
 
 logger = logging.getLogger(__name__)
 

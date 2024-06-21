@@ -5,14 +5,13 @@
 
 import logging
 from abc import ABC, abstractmethod
+from typing import Tuple
 
 import numpy as np
 
-from sup3r.preprocessing.derivers.utilities import (
-    invert_uv,
-    transform_rotate_wind,
-)
 from sup3r.typing import T_Dataset
+
+from .utilities import invert_uv, transform_rotate_wind
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +26,7 @@ class DerivedFeature(ABC):
     should include all features required for a successful `.compute` call.
     """
 
-    inputs = ()
+    inputs: Tuple[str, ...] = ()
 
     @classmethod
     @abstractmethod

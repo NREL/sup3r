@@ -5,14 +5,10 @@ import logging
 
 import tensorflow as tf
 
-from sup3r.preprocessing.batch_queues.abstract import (
-    AbstractBatchQueue,
-)
-from sup3r.preprocessing.batch_queues.utilities import smooth_data
-from sup3r.utilities.utilities import (
-    spatial_coarsening,
-    temporal_coarsening,
-)
+from sup3r.utilities.utilities import spatial_coarsening, temporal_coarsening
+
+from .abstract import AbstractBatchQueue
+from .utilities import smooth_data
 
 logger = logging.getLogger(__name__)
 

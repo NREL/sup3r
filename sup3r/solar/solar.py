@@ -4,7 +4,6 @@ to GHI, DNI, and DHI using NSRDB data and utility modules like DISC
 Note that clearsky_ratio is assumed to be clearsky ghi ratio and is calculated
 as daily average GHI / daily average clearsky GHI.
 """
-import glob
 import json
 import logging
 import os
@@ -18,6 +17,7 @@ from rex.utilities.fun_utils import get_fun_call_str
 from scipy.spatial import KDTree
 
 from sup3r.postprocessing.file_handling import H5_ATTRS, RexOutputs
+from sup3r.preprocessing.utilities import expand_paths
 from sup3r.utilities import ModuleName
 
 logger = logging.getLogger(__name__)
@@ -408,7 +408,7 @@ class Solar:
 
         Parameters
         ----------
-        fp_pattern : str
+        fp_pattern : str | list
             Unix-style file*pattern that matches a set of spatiotemporally
             chunked sup3r forward pass output files.
         ignore : str | None
@@ -436,7 +436,7 @@ class Solar:
             to process target_fps[10]
         """
 
-        all_fps = [fp for fp in glob.glob(fp_pattern) if fp.endswith('.h5')]
+        all_fps = [fp for fp in expand_paths(fp_pattern) if fp.endswith('.h5')]
         if ignore is not None:
             all_fps = [
                 fp for fp in all_fps if ignore not in os.path.basename(fp)

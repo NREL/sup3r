@@ -463,7 +463,7 @@ def test_fwp_integration():
     ]
 
     lat_lon = DataHandlerNCforCC(
-        input_files,
+        file_paths=input_files,
         features=[],
         target=target,
         shape=shape,
@@ -510,7 +510,7 @@ def test_fwp_integration():
                 'time_slice': time_slice,
             },
             out_pattern=os.path.join(td, 'out_{file_id}.nc'),
-            input_handler='DataHandlerNCforCC',
+            input_handler_name='DataHandlerNCforCC',
         )
         bc_strat = ForwardPassStrategy(
             input_files,
@@ -524,7 +524,7 @@ def test_fwp_integration():
                 'time_slice': time_slice,
             },
             out_pattern=os.path.join(td, 'out_{file_id}.nc'),
-            input_handler='DataHandlerNCforCC',
+            input_handler_name='DataHandlerNCforCC',
             bias_correct_method='local_linear_bc',
             bias_correct_kwargs=bias_correct_kwargs,
         )
@@ -533,8 +533,8 @@ def test_fwp_integration():
         bc_fwp = ForwardPass(bc_strat)
 
         for ichunk in range(strat.chunks):
-            bc_chunk = bc_fwp.get_chunk(ichunk)
-            chunk = fwp.get_chunk(ichunk)
+            bc_chunk = bc_fwp.get_input_chunk(ichunk)
+            chunk = fwp.get_input_chunk(ichunk)
             i_scalar = np.expand_dims(scalar, axis=-1)
             i_adder = np.expand_dims(adder, axis=-1)
             i_scalar = i_scalar[chunk.lr_pad_slice[:2]]
@@ -578,7 +578,7 @@ def test_qa_integration():
             't_enhance': 4,
             'temporal_coarsening_method': 'average',
             'features': features,
-            'input_handler': 'DataHandlerNCforCC',
+            'input_handler_name': 'DataHandlerNCforCC',
         }
 
         bias_correct_kwargs = {
@@ -599,7 +599,7 @@ def test_qa_integration():
             't_enhance': 4,
             'temporal_coarsening_method': 'average',
             'features': features,
-            'input_handler': 'DataHandlerNCforCC',
+            'input_handler_name': 'DataHandlerNCforCC',
             'bias_correct_method': 'local_linear_bc',
             'bias_correct_kwargs': bias_correct_kwargs,
         }

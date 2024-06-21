@@ -143,7 +143,7 @@ class SolarCC(Sup3rGan):
 
         loss_gen_content /= len(day_slices)
         loss_gen_advers = self.calc_loss_gen_advers(disc_out_gen)
-        loss_gen = (loss_gen_content + weight_gen_advers * loss_gen_advers)
+        loss_gen = loss_gen_content + weight_gen_advers * loss_gen_advers
 
         loss = None
         if train_gen:

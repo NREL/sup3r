@@ -5,7 +5,8 @@ from warnings import warn
 
 import dask.array as da
 import numpy as np
-import xarray as xr
+
+from sup3r.typing import T_Array
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +61,7 @@ class Interpolator:
 
     @classmethod
     def interp_to_level(
-        cls, lev_array: xr.DataArray, var_array: xr.DataArray, level
+        cls, lev_array: T_Array, var_array: T_Array, level
     ):
         """Interpolate var_array to the given level.
 

@@ -295,7 +295,7 @@ class OutputHandler(OutputMixIn):
         for fidx, fn in enumerate(features):
             dset_name = Feature.get_basename(fn)
             if dset_name not in H5_ATTRS:
-                msg = ('Could not find "{dset_name}" in H5_ATTRS dict!')
+                msg = f'Could not find "{dset_name}" in H5_ATTRS dict!'
                 logger.error(msg)
                 raise KeyError(msg)
 
@@ -494,7 +494,7 @@ class OutputHandler(OutputMixIn):
                      f'{low_res_times[-1]}')
         t_enhance = int(shape / len(low_res_times))
         if len(low_res_times) > 1:
-            offset = (low_res_times[1] - low_res_times[0])
+            offset = low_res_times[1] - low_res_times[0]
         else:
             offset = np.timedelta64(24, 'h')
 

@@ -50,7 +50,7 @@ dev = [
   "build>=0.5",
   "flake8",
   "pre-commit",
-  "pylint",
+  "pylint>2.5",
 ]
 doc = [
   "sphinx>=7.0",

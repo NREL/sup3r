@@ -62,7 +62,7 @@ def test_exo_cache(feature):
             steps=steps,
             target=TARGET,
             shape=SHAPE,
-            input_handler='ExtracterNC',
+            input_handler_name='ExtracterNC',
             cache_dir=os.path.join(td, 'exo_cache'),
         )
         for i, arr in enumerate(base.data[feature]['steps']):
@@ -79,7 +79,7 @@ def test_exo_cache(feature):
             steps=steps,
             target=TARGET,
             shape=SHAPE,
-            input_handler='ExtracterNC',
+            input_handler_name='ExtracterNC',
             cache_dir=os.path.join(td, 'exo_cache'),
         )
         assert len(os.listdir(f'{td}/exo_cache')) == 2

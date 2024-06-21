@@ -8,11 +8,9 @@ from typing import Dict, Optional
 import numpy as np
 
 from sup3r.models.conditional import Sup3rCondMom
-from sup3r.preprocessing.batch_queues.base import SingleBatchQueue
-from sup3r.preprocessing.batch_queues.utilities import (
-    spatial_simple_enhancing,
-    temporal_simple_enhancing,
-)
+
+from .base import SingleBatchQueue
+from .utilities import spatial_simple_enhancing, temporal_simple_enhancing
 
 logger = logging.getLogger(__name__)
 

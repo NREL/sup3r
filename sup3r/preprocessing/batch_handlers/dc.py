@@ -8,9 +8,10 @@ and override SamplerDC get_sample_index method.
 
 import logging
 
-from sup3r.preprocessing.batch_handlers.factory import BatchHandlerFactory
 from sup3r.preprocessing.batch_queues.dc import BatchQueueDC, ValBatchQueueDC
 from sup3r.preprocessing.samplers.dc import SamplerDC
+
+from .factory import BatchHandlerFactory
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,12 @@ class BatchHandlerDC(BaseBatchHandlerDC):
             'across validation data use another type of batch handler.'
         )
         assert val_containers is not None and val_containers != [], msg
-        super().__init__(train_containers, val_containers, *args, **kwargs)
+        super().__init__(
+            *args,
+            train_containers=train_containers,
+            val_containers=val_containers,
+            **kwargs,
+        )
         max_space_bins = (self.data[0].shape[0] - self.sample_shape[0] + 2) * (
             self.data[0].shape[1] - self.sample_shape[1] + 2
         )

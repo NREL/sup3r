@@ -8,23 +8,45 @@ import traceback
 
 import numpy as np
 import pytest
+import xarray as xr
 from click.testing import CliRunner
 from rex import ResourceX, init_logger
 
-from sup3r import CONFIG_DIR
+from sup3r import CONFIG_DIR, TEST_DATA_DIR
+from sup3r.bias.bias_calc_cli import from_config as bias_main
 from sup3r.models.base import Sup3rGan
 from sup3r.pipeline.forward_pass_cli import from_config as fwp_main
 from sup3r.pipeline.pipeline_cli import from_config as pipe_main
 from sup3r.postprocessing.data_collect_cli import from_config as dc_main
+from sup3r.solar.solar_cli import from_config as solar_main
 from sup3r.utilities.pytest.helpers import (
+    make_fake_cs_ratio_files,
     make_fake_h5_chunks,
     make_fake_nc_file,
 )
+from sup3r.utilities.utilities import pd_date_range
 
 FEATURES = ['U_100m', 'V_100m', 'pressure_0m']
 fwp_chunk_shape = (4, 4, 6)
 data_shape = (100, 100, 8)
 shape = (8, 8)
+
+FP_NSRDB = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')
+FP_CC = os.path.join(TEST_DATA_DIR, 'rsds_test.nc')
+FP_CS = os.path.join(TEST_DATA_DIR, 'test_nsrdb_clearsky_2018.h5')
+GAN_META = {'s_enhance': 4, 't_enhance': 24}
+LR_LAT = np.linspace(40, 39, 5)
+LR_LON = np.linspace(-105.5, -104.3, 5)
+LR_LON, LR_LAT = np.meshgrid(LR_LON, LR_LAT)
+LR_LON = np.expand_dims(LR_LON, axis=2)
+LR_LAT = np.expand_dims(LR_LAT, axis=2)
+LOW_RES_LAT_LON = np.concatenate((LR_LAT, LR_LON), axis=2)
+LOW_RES_TIMES = pd_date_range(
+    '20500101', '20500104', inclusive='left', freq='1d'
+)
+HIGH_RES_TIMES = pd_date_range(
+    '20500101', '20500104', inclusive='left', freq='1h'
+)
 
 
 @pytest.fixture(scope='module')
@@ -254,7 +276,7 @@ def test_fwd_pass_cli(runner, input_files):
             'out_pattern': out_files,
             'log_pattern': log_prefix,
             'input_handler_kwargs': input_handler_kwargs,
-            'input_handler': 'DataHandlerNC',
+            'input_handler_name': 'DataHandlerNC',
             'fwp_chunk_shape': fwp_chunk_shape,
             'pass_workers': 1,
             'spatial_pad': 1,
@@ -387,3 +409,76 @@ def test_pipeline_fwp_qa(runner, input_files, log=False):
         qa_status = next(iter(qa_status.values()))
         assert qa_status['job_status'] == 'successful'
         assert qa_status['time'] > 0
+
+
+@pytest.mark.parametrize(
+    'bias_calc_class', ['LinearCorrection', 'MonthlyLinearCorrection']
+)
+def test_cli_bias_calc(runner, bias_calc_class):
+    """Test cli for bias correction"""
+
+    with xr.open_dataset(FP_CC) as fh:
+        MIN_LAT = np.min(fh.lat.values.astype(np.float32))
+        MIN_LON = np.min(fh.lon.values.astype(np.float32)) - 360
+        TARGET = (float(MIN_LAT), float(MIN_LON))
+        SHAPE = (len(fh.lat.values), len(fh.lon.values))
+
+    with tempfile.TemporaryDirectory() as td:
+        bc_config = {
+            'bias_calc_class': bias_calc_class,
+            'jobs': [
+                {
+                    'base_fps': [FP_NSRDB],
+                    'bias_fps': [FP_CC],
+                    'base_dset': 'ghi',
+                    'bias_feature': 'rsds',
+                    'target': TARGET,
+                    'shape': SHAPE,
+                    'max_workers': 2,
+                }
+            ],
+            'execution_control': {
+                'option': 'local',
+            },
+        }
+
+        bc_config_path = os.path.join(td, 'config_bc.json')
+
+        with open(bc_config_path, 'w') as fh:
+            json.dump(bc_config, fh)
+
+        result = runner.invoke(bias_main, ['-c', bc_config_path, '-v'])
+        if result.exit_code != 0:
+            msg = 'Failed with error {}'.format(
+                traceback.print_exception(*result.exc_info)
+            )
+            raise RuntimeError(msg)
+
+
+def test_cli_solar(runner):
+    """Test cli for bias correction"""
+
+    with tempfile.TemporaryDirectory() as td:
+        fps, _ = make_fake_cs_ratio_files(
+            td, LOW_RES_TIMES, LOW_RES_LAT_LON, gan_meta=GAN_META
+        )
+
+        solar_config = {
+            'fp_pattern': fps,
+            'nsrdb_fp': FP_CS,
+            'execution_control': {
+                'option': 'local',
+            },
+        }
+
+        solar_config_path = os.path.join(td, 'config_solar.json')
+
+        with open(solar_config_path, 'w') as fh:
+            json.dump(solar_config, fh)
+
+        result = runner.invoke(solar_main, ['-c', solar_config_path, '-v'])
+        if result.exit_code != 0:
+            msg = 'Failed with error {}'.format(
+                traceback.print_exception(*result.exc_info)
+            )
+            raise RuntimeError(msg)

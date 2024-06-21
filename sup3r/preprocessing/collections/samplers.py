@@ -5,9 +5,10 @@ from typing import List, Union
 
 import numpy as np
 
-from sup3r.preprocessing.collections.base import Collection
 from sup3r.preprocessing.samplers.base import Sampler
 from sup3r.preprocessing.samplers.dual import DualSampler
+
+from .base import Collection
 
 logger = logging.getLogger(__name__)
 

@@ -8,12 +8,11 @@ lazy loading.
 import logging
 import pathlib
 from dataclasses import dataclass
-from typing import ClassVar, List
+from typing import ClassVar, List, Optional
 
 import numpy as np
 
 import sup3r.preprocessing
-from sup3r.preprocessing.data_handlers.base import SingleExoDataStep
 from sup3r.preprocessing.extracters import (
     SzaExtracter,
     TopoExtracterH5,
@@ -24,6 +23,8 @@ from sup3r.preprocessing.utilities import (
     get_source_type,
     log_args,
 )
+
+from .base import SingleExoDataStep
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +91,7 @@ class ExoDataHandler:
         once. If shape is (20, 20) and max_delta=10, the full raster will
         be retrieved in four chunks of (10, 10). This helps adapt to
         non-regular grids that curve over large distances, by default 20
-    input_handler : str
+    input_handler_name : str
         data handler class to use for input data. Provide a string name to
         match a class in data_handling.py. If None the correct handler will
         be guessed based on file type and time series properties.
@@ -115,17 +116,17 @@ class ExoDataHandler:
     file_paths: str | list | pathlib.Path
     feature: str
     steps: List[dict]
-    models: list = None
-    source_file: str = None
-    target: tuple = None
-    shape: tuple = None
-    time_slice: slice = None
-    raster_file: str = None
-    max_delta: int = 20
-    input_handler: str = None
-    exo_handler: str = None
-    cache_dir: str = './exo_cache'
-    res_kwargs: dict = None
+    models: Optional[list] = None
+    source_file: Optional[str] = None
+    target: Optional[tuple] = None
+    shape: Optional[tuple] = None
+    time_slice: Optional[slice] = None
+    raster_file: Optional[str] = None
+    max_delta: Optional[int] = 20
+    input_handler_name: Optional[str] = None
+    exo_handler: Optional[str] = None
+    cache_dir: Optional[str] = './exo_cache'
+    res_kwargs: Optional[dict] = None
 
     @log_args
     def __post_init__(self):

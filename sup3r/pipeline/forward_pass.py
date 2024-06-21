@@ -3,7 +3,6 @@
 import logging
 from concurrent.futures import as_completed
 from datetime import datetime as dt
-from inspect import signature
 from typing import ClassVar
 
 import numpy as np
@@ -11,8 +10,6 @@ import psutil
 from rex.utilities.execution import SpawnProcessPool
 from rex.utilities.fun_utils import get_fun_call_str
 
-import sup3r.bias.bias_transforms
-import sup3r.models
 from sup3r.pipeline.strategy import ForwardPassChunk, ForwardPassStrategy
 from sup3r.pipeline.utilities import get_model
 from sup3r.postprocessing import (
@@ -64,20 +61,10 @@ class ForwardPass:
                 strategy.output_type
             ]
 
-    def get_chunk(self, chunk_index=0, mode='reflect'):
-        """Get :class:`FowardPassChunk` instance for the given chunk index.
-
-        TODO: Remove call to input_handler.lat_lon. Can be reworked to make
-        unneeded
-        """
+    def get_input_chunk(self, chunk_index=0, mode='reflect'):
+        """Get :class:`FowardPassChunk` instance for the given chunk index."""
 
         chunk = self.strategy.init_chunk(chunk_index)
-
-        chunk.input_data = self.bias_correct_source_data(
-            chunk.input_data,
-            self.input_handler.lat_lon,
-            lr_pad_slice=chunk.lr_pad_slice,
-        )
         chunk.input_data, chunk.exo_data = self.pad_source_data(
             chunk.input_data, chunk.pad_width, chunk.exo_data, mode=mode
         )
@@ -129,6 +116,8 @@ class ForwardPass:
         """
         combine_type = step['combine_type']
         model_step = step['model']
+        msg = f'Received weird combine_type {combine_type} for step: {step}'
+        assert combine_type in ('input', 'output', 'layer'), msg
         if combine_type.lower() == 'input':
             if model_step == 0:
                 s_enhance = 1
@@ -137,7 +126,7 @@ class ForwardPass:
                 s_enhance = np.prod(self.strategy.s_enhancements[:model_step])
                 t_enhance = np.prod(self.strategy.t_enhancements[:model_step])
 
-        elif combine_type.lower() in ('output', 'layer'):
+        else:
             s_enhance = np.prod(self.strategy.s_enhancements[: model_step + 1])
             t_enhance = np.prod(self.strategy.t_enhancements[: model_step + 1])
         return s_enhance, t_enhance
@@ -155,10 +144,8 @@ class ForwardPass:
             dimensions. Each tuple includes the start and end of padding for
             that dimension. Ordering is spatial_1, spatial_2, temporal.
         exo_data: dict
-            Full exo_kwargs dictionary with all feature entries.
-            e.g. {'topography': {'steps':
-                [{'model': 0, 'combine_type': 'input'},
-                 {'model': 0, 'combine_type': 'layer'}]}}
+            Full exo_kwargs dictionary with all feature entries. See
+            :meth:`ForwardPass.run_generator` for more information.
         mode : str
             Mode to use for padding. e.g. 'reflect'.
 
@@ -196,17 +183,11 @@ class ForwardPass:
                 for i, step in enumerate(exo_data[feature]['steps']):
                     s_enhance, t_enhance = self._get_step_enhance(step)
                     exo_pad_width = (
-                        (
-                            s_enhance * pad_width[0][0],
-                            s_enhance * pad_width[0][1],
-                        ),
-                        (
-                            s_enhance * pad_width[1][0],
-                            s_enhance * pad_width[1][1],
-                        ),
-                        (
-                            t_enhance * pad_width[2][0],
-                            t_enhance * pad_width[2][1],
+                        *(
+                            (en * pw[0], en * pw[1])
+                            for en, pw in zip(
+                                [s_enhance, s_enhance, t_enhance], pad_width
+                            )
                         ),
                         (0, 0),
                     )
@@ -214,61 +195,8 @@ class ForwardPass:
                     exo_data[feature]['steps'][i]['data'] = new_exo
         return out, exo_data
 
-    def bias_correct_source_data(self, data, lat_lon, lr_pad_slice=None):
-        """Bias correct data using a method defined by the bias_correct_method
-        input to ForwardPassStrategy
-
-        TODO: (1) This could be run on Sup3rDataset instead of array, so we
-        could use data.lat_lon and not have to get feature index.
-        (2) Also, this is very similar to bias_correct_feature in Sup3rQa.
-        Should extract this as utilities method.
-
-        Parameters
-        ----------
-        data : T_Array
-            Any source data to be bias corrected, with the feature channel in
-            the last axis.
-        lat_lon : T_Array
-            Latitude longitude array for the given data. Used to get the
-            correct bc factors for the appropriate domain.
-            (n_lats, n_lons, 2)
-
-        Returns
-        -------
-        data : T_Array
-            Data corrected by the bias_correct_method ready for input to the
-            forward pass through the generative model.
-        """
-        method = self.strategy.bias_correct_method
-        kwargs = self.strategy.bias_correct_kwargs
-        if method is not None:
-            method = getattr(sup3r.bias.bias_transforms, method)
-            logger.info('Running bias correction with: {}'.format(method))
-            for feature, feature_kwargs in kwargs.items():
-                idf = self.input_handler.features.index(feature.lower())
-
-                if 'lr_padded_slice' in signature(method).parameters:
-                    feature_kwargs['lr_padded_slice'] = lr_pad_slice
-                if 'time_index' in signature(method).parameters:
-                    feature_kwargs['time_index'] = (
-                        self.input_handler.time_index
-                    )
-
-                logger.debug(
-                    'Bias correcting feature "{}" at axis index {} '
-                    'using function: {} with kwargs: {}'.format(
-                        feature, idf, method, feature_kwargs
-                    )
-                )
-
-                data[..., idf] = method(data[..., idf],
-                                        lat_lon=lat_lon,
-                                        **feature_kwargs)
-
-        return data
-
     @classmethod
-    def _run_generator(
+    def run_generator(
         cls,
         data_chunk,
         hr_crop_slices,
@@ -373,14 +301,8 @@ class ForwardPass:
             Low resolution data for a single spatiotemporal chunk that is going
             to be passed to the model generate function.
         exo_data : dict | None
-            Dictionary of exogenous feature data with entries describing
-            whether features should be combined at input, a mid network layer,
-            or with output. e.g.
-            {'topography': {'steps': [
-                {'combine_type': 'input', 'model': 0, 'data': ...,
-                 'resolution': ...},
-                {'combine_type': 'layer', 'model': 0, 'data': ...,
-                 'resolution': ...}]}}
+            Full exo_kwargs dictionary with all feature entries. See
+            :meth:`ForwardPass.run_generator` for more information.
 
         Returns
         -------
@@ -520,13 +442,11 @@ class ForwardPass:
             Index of node on which the forward passes for spatiotemporal chunks
             will be run.
         """
-        if strategy.node_finished(node_index):
-            return
-
-        if strategy.pass_workers == 1:
-            cls._run_serial(strategy, node_index)
-        else:
-            cls._run_parallel(strategy, node_index)
+        if not strategy.node_finished(node_index):
+            if strategy.pass_workers == 1:
+                cls._run_serial(strategy, node_index)
+            else:
+                cls._run_parallel(strategy, node_index)
 
     @classmethod
     def _run_serial(cls, strategy, node_index):
@@ -550,10 +470,12 @@ class ForwardPass:
         fwp = cls(strategy, node_index=node_index)
         for i, chunk_index in enumerate(strategy.node_chunks[node_index]):
             now = dt.now()
-            chunk = fwp.get_chunk(chunk_index=chunk_index)
+            chunk = fwp.get_input_chunk(chunk_index=chunk_index)
             if strategy.incremental and chunk.file_exists:
-                logger.info(f'{chunk.out_file} already exists and '
-                            'incremental = True. Skipping this forward pass.')
+                logger.info(
+                    f'{chunk.out_file} already exists and '
+                    'incremental = True. Skipping this forward pass.'
+                )
             else:
                 failed, _ = cls.run_chunk(
                     chunk=chunk,
@@ -613,11 +535,13 @@ class ForwardPass:
         with SpawnProcessPool(**pool_kws) as exe:
             now = dt.now()
             for _i, chunk_index in enumerate(strategy.node_chunks[node_index]):
-                chunk = fwp.get_chunk(chunk_index=chunk_index)
+                chunk = fwp.get_input_chunk(chunk_index=chunk_index)
                 if strategy.incremental and chunk.file_exists:
-                    logger.info(f'{chunk.out_file} already exists and '
-                                'incremental = True. Skipping this forward '
-                                'pass.')
+                    logger.info(
+                        f'{chunk.out_file} already exists and '
+                        'incremental = True. Skipping this forward '
+                        'pass.'
+                    )
                 else:
                     fut = exe.submit(
                         fwp.run_chunk,
@@ -681,7 +605,7 @@ class ForwardPass:
         model_class,
         allowed_const,
         output_handler_class,
-        meta,
+        meta=None,
         output_workers=None,
     ):
         """Run a forward pass on single spatiotemporal chunk.
@@ -705,9 +629,9 @@ class ForwardPass:
             True to allow any constant output or a list of allowed possible
             constant outputs. See :class:`ForwardPassStrategy` for more
             information on this argument.
-        output_handler : str
+        output_handler_class : str
             Name of class to use for writing output
-        meta : dict
+        meta : dict | None
             Meta data to write to forward pass output file.
         output_workers : int | None
             Max number of workers to use for writing forward pass output.
@@ -725,13 +649,13 @@ class ForwardPass:
 
         model = get_model(model_class, model_kwargs)
 
-        output_data = cls._run_generator(
-            chunk.input_data,
+        output_data = cls.run_generator(
+            data_chunk=chunk.input_data,
             hr_crop_slices=chunk.hr_crop_slice,
-            model=model,
             s_enhance=model.s_enhance,
             t_enhance=model.t_enhance,
             exo_data=chunk.exo_data,
+            model=model,
         )
 
         failed = cls._constant_output_check(

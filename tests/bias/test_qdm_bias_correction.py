@@ -554,7 +554,7 @@ def test_fwp_integration(tmp_path):
             'time_slice': temporal_slice,
         },
         out_pattern=os.path.join(tmp_path, 'out_{file_id}.nc'),
-        input_handler='DataHandlerNCforCC',
+        input_handler_name='DataHandlerNCforCC',
     )
     bc_strat = ForwardPassStrategy(
         input_files,
@@ -568,7 +568,7 @@ def test_fwp_integration(tmp_path):
             'time_slice': temporal_slice,
         },
         out_pattern=os.path.join(tmp_path, 'out_{file_id}.nc'),
-        input_handler='DataHandlerNCforCC',
+        input_handler_name='DataHandlerNCforCC',
         bias_correct_method='local_qdm_bc',
         bias_correct_kwargs=bias_correct_kwargs,
     )
@@ -577,8 +577,8 @@ def test_fwp_integration(tmp_path):
     bc_fwp = ForwardPass(bc_strat)
 
     for ichunk in range(strat.chunks):
-        bc_chunk = bc_fwp.get_chunk(ichunk)
-        chunk = fwp.get_chunk(ichunk)
+        bc_chunk = bc_fwp.get_input_chunk(ichunk)
+        chunk = fwp.get_input_chunk(ichunk)
         delta = bc_chunk.input_data - chunk.input_data
         assert np.allclose(
             delta[..., 0], -2.72, atol=1e-03
@@ -588,7 +588,7 @@ def test_fwp_integration(tmp_path):
         ), 'V reference offset is 1'
 
         _, data = fwp.run_chunk(
-            fwp.get_chunk(chunk_index=ichunk),
+            fwp.get_input_chunk(chunk_index=ichunk),
             fwp.model_kwargs,
             fwp.model_class,
             fwp.allowed_const,
@@ -597,7 +597,7 @@ def test_fwp_integration(tmp_path):
             fwp.output_workers,
         )
         _, bc_data = bc_fwp.run_chunk(
-            bc_fwp.get_chunk(chunk_index=ichunk),
+            bc_fwp.get_input_chunk(chunk_index=ichunk),
             bc_fwp.model_kwargs,
             bc_fwp.model_class,
             bc_fwp.allowed_const,

@@ -2,17 +2,14 @@
 
 import logging
 
-from sup3r.preprocessing.extracters.h5 import (
-    BaseExtracterH5,
-)
-from sup3r.preprocessing.extracters.nc import (
-    BaseExtracterNC,
-)
 from sup3r.preprocessing.loaders import LoaderH5, LoaderNC
 from sup3r.preprocessing.utilities import (
     FactoryMeta,
     get_class_kwargs,
 )
+
+from .h5 import BaseExtracterH5
+from .nc import BaseExtracterNC
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +39,8 @@ def ExtracterFactory(
     """
 
     class DirectExtracter(ExtracterClass, metaclass=FactoryMeta):
+        """Extracter object built from factory arguments."""
+
         __name__ = name
         _legos = (ExtracterClass, LoaderClass)
 

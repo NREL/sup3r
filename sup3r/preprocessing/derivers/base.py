@@ -10,12 +10,11 @@ import dask.array as da
 import numpy as np
 
 from sup3r.preprocessing.base import Container
-from sup3r.preprocessing.derivers.methods import (
-    RegistryBase,
-)
 from sup3r.preprocessing.utilities import Dimension, parse_to_list
 from sup3r.typing import T_Array, T_Dataset
 from sup3r.utilities.interpolation import Interpolator
+
+from .methods import DerivedFeature, RegistryBase
 
 logger = logging.getLogger(__name__)
 
@@ -91,11 +90,12 @@ class BaseDeriver(Container):
         self.data = (
             self.data[[Dimension.LATITUDE, Dimension.LONGITUDE]]
             if not features
-            else self.data if features == 'all'
+            else self.data
+            if features == 'all'
             else self.data[features]
         )
 
-    def _check_registry(self, feature) -> Union[T_Array, str]:
+    def _check_registry(self, feature) -> type(DerivedFeature):
         """Check if feature or matching pattern is in the feature registry
         keys. Return the corresponding value if found."""
         if feature.lower() in self.FEATURE_REGISTRY:
@@ -105,7 +105,7 @@ class BaseDeriver(Container):
                 return self.FEATURE_REGISTRY[pattern]
         return None
 
-    def check_registry(self, feature) -> Union[T_Array, str]:
+    def check_registry(self, feature) -> Union[T_Array, str, None]:
         """Get compute method from the registry if available. Will check for
         pattern feature match in feature registry. e.g. if U_100m matches a
         feature registry entry of U_(.*)m
@@ -230,7 +230,7 @@ class BaseDeriver(Container):
     def do_level_interpolation(self, feature) -> T_Array:
         """Interpolate over height or pressure to derive the given feature."""
         fstruct = parse_feature(feature)
-        var_array = self.data[fstruct.basename, ...]
+        var_array: T_Array = self.data[fstruct.basename, ...]
         if fstruct.height is not None:
             level = [fstruct.height]
             msg = (
@@ -282,7 +282,9 @@ class Deriver(BaseDeriver):
         nan_mask=False,
         FeatureRegistry=None,
     ):
-        super().__init__(data, features, FeatureRegistry=FeatureRegistry)
+        super().__init__(
+            data=data, features=features, FeatureRegistry=FeatureRegistry
+        )
 
         if time_roll != 0:
             logger.debug(f'Applying time_roll={time_roll} to data array')

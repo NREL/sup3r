@@ -37,7 +37,7 @@ def from_config(ctx, config_file, verbose=False, pipeline_step=None):
                                            verbose)
     exec_kwargs = config.get('execution_control', {})
     hardware_option = exec_kwargs.pop('option', 'local')
-    log_pattern = config['log_pattern']
+    log_pattern = config.get('log_pattern', None)
     fp_pattern = config['fp_pattern']
     basename = config['job_name']
     fp_sets, _, temporal_ids, _, _ = Solar.get_sup3r_fps(fp_pattern)
