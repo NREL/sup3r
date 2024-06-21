@@ -15,8 +15,12 @@ from sup3r.qa.qa import Sup3rQa
 from sup3r.qa.utilities import (
     continuous_dist,
     direct_dist,
+    frequency_spectrum,
     gradient_dist,
     time_derivative_dist,
+    tke_frequency_spectrum,
+    tke_wavenumber_spectrum,
+    wavenumber_spectrum,
 )
 from sup3r.utilities.pytest.helpers import make_fake_nc_file
 
@@ -164,3 +168,24 @@ def test_dist_smoke(func):
 
     a = np.random.rand(10, 10)
     _ = func(a)
+
+
+@pytest.mark.parametrize(
+    'func', [tke_frequency_spectrum, tke_wavenumber_spectrum]
+)
+def test_uv_spectrum_smoke(func):
+    """Test QA uv spectrum functions for basic operations."""
+
+    u = np.random.rand(10, 10)
+    v = np.random.rand(10, 10)
+    _ = func(u, v)
+
+
+@pytest.mark.parametrize(
+    'func', [frequency_spectrum, wavenumber_spectrum]
+)
+def test_spectrum_smoke(func):
+    """Test QA spectrum functions for basic operations."""
+
+    ke = np.random.rand(10, 10)
+    _ = func(ke)

@@ -83,11 +83,11 @@ class LoaderH5(Loader):
         coords.update(
             {
                 Dimension.LATITUDE: (
-                    dims[-len(self._meta_shape()) :],
+                    dims[-len(self._meta_shape()):],
                     da.from_array(self.res.h5['meta']['latitude']),
                 ),
                 Dimension.LONGITUDE: (
-                    dims[-len(self._meta_shape()) :],
+                    dims[-len(self._meta_shape()):],
                     da.from_array(self.res.h5['meta']['longitude']),
                 ),
             }

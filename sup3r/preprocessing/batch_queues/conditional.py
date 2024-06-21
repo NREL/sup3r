@@ -26,11 +26,11 @@ class ConditionalBatchQueue(SingleBatchQueue):
     def __init__(
         self,
         *args,
-        time_enhance_mode: Optional[str] = 'constant',
+        time_enhance_mode: str = 'constant',
         lower_models: Optional[Dict[int, Sup3rCondMom]] = None,
-        s_padding: Optional[int] = None,
-        t_padding: Optional[int] = None,
-        end_t_padding: Optional[bool] = False,
+        s_padding: int = 0,
+        t_padding: int = 0,
+        end_t_padding: bool = False,
         **kwargs,
     ):
         """
@@ -108,15 +108,15 @@ class ConditionalBatchQueue(SingleBatchQueue):
             (batch_size, spatial_1, spatial_2, temporal, features)
         """
         mask = np.zeros(high_res.shape, dtype=high_res.dtype)
-        s_min = self.s_padding if self.s_padding is not None else 0
-        t_min = self.t_padding if self.t_padding is not None else 0
-        s_max = -self.s_padding if s_min > 0 else None
-        t_max = -self.t_padding if t_min > 0 else None
+        s_min = self.s_padding
+        t_min = self.t_padding
+        s_max = None if self.s_padding == 0 else -self.s_padding
+        t_max = None if self.t_padding == 0 else -self.t_padding
         if self.end_t_padding and self.t_enhance > 1:
             if t_max is None:
-                t_max = -(self.t_enhance - 1)
+                t_max = 1 - self.t_enhance
             else:
-                t_max = -(self.t_enhance - 1) - self.t_padding
+                t_max = 1 - self.t_enhance - self.t_padding
 
         if len(high_res.shape) == 4:
             mask[:, s_min:s_max, s_min:s_max, :] = 1.0

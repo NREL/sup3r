@@ -104,7 +104,7 @@ def BatchHandlerFactory(
             )
 
             if not val_samplers:
-                self.val_data: Union[List, self.VAL_QUEUE] = []
+                self.val_data: Union[List, type[self.VAL_QUEUE]] = []
             else:
                 self.val_data = self.VAL_QUEUE(
                     samplers=val_samplers,

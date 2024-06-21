@@ -298,7 +298,7 @@ class LogLinInterpolator:
         var_mask = (lev_array_samp > 0) & (lev_array_samp <= max_log_height)
 
         try:
-            popt, _ = curve_fit(
+            popt, *_ = curve_fit(
                 ws_log_profile,
                 lev_array_samp[var_mask],
                 var_array_samp[var_mask],
@@ -438,13 +438,13 @@ class LogLinInterpolator:
         if log_ws is not None and lin_ws is not None:
             out = np.concatenate([log_ws, lin_ws])
 
-        if log_ws is not None and lin_ws is None:
+        elif log_ws is not None and lin_ws is None:
             out = log_ws
 
-        if lin_ws is not None and log_ws is None:
+        elif lin_ws is not None and log_ws is None:
             out = lin_ws
 
-        if log_ws is None and lin_ws is None:
+        else:
             msg = (
                 f'No interpolation was performed for lev_array={lev_array} '
                 f'and levels={levels}'

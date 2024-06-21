@@ -180,7 +180,6 @@ def test_wind_hi_res_topo(CustomLayer, features, lr_only_features, mode):
     assert y.shape[2] == x.shape[2] * 2
     assert y.shape[3] == len(features) - len(lr_only_features) - 1
 
-    batcher.stop()
     print(f'Elapsed: {time.time() - start}')
 
 

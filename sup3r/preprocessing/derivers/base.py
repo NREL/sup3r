@@ -24,6 +24,8 @@ def parse_feature(feature):
     (100 for U_100m), and pressure if available (1000 for U_1000pa)."""
 
     class FeatureStruct:
+        """Feature structure storing `basename`, `height`, and `pressure`."""
+
         def __init__(self):
             height = re.findall(r'_\d+m', feature)
             pressure = re.findall(r'_\d+pa', feature)
@@ -95,7 +97,7 @@ class BaseDeriver(Container):
             else self.data[features]
         )
 
-    def _check_registry(self, feature) -> type(DerivedFeature):
+    def _check_registry(self, feature) -> Union[type[DerivedFeature], None]:
         """Check if feature or matching pattern is in the feature registry
         keys. Return the corresponding value if found."""
         if feature.lower() in self.FEATURE_REGISTRY:
@@ -113,7 +115,7 @@ class BaseDeriver(Container):
         method = self._check_registry(feature)
         if isinstance(method, str):
             return method
-        if hasattr(method, 'inputs'):
+        if method is not None and hasattr(method, 'inputs'):
             fstruct = parse_feature(feature)
             inputs = [fstruct.map_wildcard(i) for i in method.inputs]
             if all(f in self.data for f in inputs):
