@@ -635,6 +635,15 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
     #   - Estimate K = <x> / <hat{x}>
     """
 
+    def _init_out(self):
+        super()._init_out()
+
+        shape = (*self.bias_gid_raster.shape, 1)
+        self.out[f'{self.base_dset}_zero_rate'] = np.full(shape, np.nan, np.float32)
+        shape = (*self.bias_gid_raster.shape, 12)
+        self.out[f'{self.bias_feature}_mean_mh'] = np.full(shape, np.nan, np.float32)
+        self.out[f'{self.bias_feature}_mean_mf'] = np.full(shape, np.nan, np.float32)
+
     # pylint: disable=W0613
     @classmethod
     def _run_single(
@@ -654,6 +663,7 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         *,
         zero_rate_threshold,
         base_dh_inst=None,
+
     ):
         """Estimate probability distributions at a single site
 
@@ -685,6 +695,19 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
             base_data,
             zero_rate_threshold,
         )
+
+        # Let's save the means for mh and mf instead of the `x` ratio. It
+        # seems that we should be able to simplify the mh component from
+        # the `K` coefficient.
+        # For now it is monthly but later it will be modified for a generic
+        # time window.
+        mh = np.full(12, np.nan, np.float32)
+        mf = np.full(12, np.nan, np.float32)
+        for m in range(12):
+            mh[m] = bias_data[bias_ti.month==(m + 1)].mean()
+            mf[m] = bias_fut_data[bias_fut_ti.month==(m + 1)].mean()
+        out[f'{bias_feature}_mean_mh'] = mh
+        out[f'{bias_feature}_mean_mf'] = mf
 
         return out
 
