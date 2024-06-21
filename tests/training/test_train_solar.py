@@ -99,8 +99,6 @@ def test_solar_cc_model():
     assert y.shape[3] == x.shape[3] * 8
     assert y.shape[4] == x.shape[4]
 
-    batcher.stop()
-
 
 def test_solar_cc_model_spatial():
     """Test the solar climate change nsrdb super res model with spatial
@@ -163,8 +161,6 @@ def test_solar_cc_model_spatial():
     assert y.shape[1] == x.shape[1] * 5
     assert y.shape[2] == x.shape[2] * 5
     assert y.shape[3] == x.shape[3]
-
-    batcher.stop()
 
 
 def test_solar_custom_loss():
@@ -243,5 +239,3 @@ def test_solar_custom_loss():
 
         assert loss1 > loss2
         assert loss2 == 0
-
-    batcher.stop()

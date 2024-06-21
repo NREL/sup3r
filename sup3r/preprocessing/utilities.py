@@ -305,7 +305,7 @@ def get_full_args_dict(Class, func, *args, **kwargs):
 def _log_args(thing, func, *args, **kwargs):
     """Log annotated attributes and args."""
 
-    args_dict = get_full_args_dict(thing, func, *args, **kwargs)
+    args_dict = _get_args_dict(thing, func, *args, **kwargs)
     name = (
         thing.__name__
         if hasattr(thing, '__name__')

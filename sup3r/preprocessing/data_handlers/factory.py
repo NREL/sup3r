@@ -55,6 +55,9 @@ def DataHandlerFactory(
     """
 
     class Handler(Deriver, metaclass=FactoryMeta):
+        """Handler class returned by factory. Composes `Extracter`, `Loader`
+        and `Deriver` classes."""
+
         __name__ = name
         _legos = (Deriver, ExtracterClass, LoaderClass)
 

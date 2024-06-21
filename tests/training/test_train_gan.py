@@ -18,6 +18,8 @@ FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)
 FEATURES = ['U_100m', 'V_100m']
 
+np.random.seed(42)
+
 
 init_logger('sup3r', log_level='DEBUG')
 

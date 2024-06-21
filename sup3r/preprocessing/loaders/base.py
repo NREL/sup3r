@@ -2,7 +2,7 @@
 can be loaded lazily or eagerly."""
 
 from abc import ABC, abstractmethod
-from typing import ClassVar
+from typing import Callable, ClassVar
 
 import numpy as np
 
@@ -17,7 +17,7 @@ class Loader(Container, ABC):
     :class:`Sampler` objects to build batches or by :class:`Extracter` objects
     to derive / extract specific features / regions / time_periods."""
 
-    BASE_LOADER = None
+    BASE_LOADER: Callable = None
 
     FEATURE_NAMES: ClassVar = {
         'elevation': 'topography',

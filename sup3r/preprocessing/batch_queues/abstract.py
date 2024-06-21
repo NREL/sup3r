@@ -14,7 +14,7 @@ import numpy as np
 import tensorflow as tf
 from rex import safe_json_load
 
-from sup3r.preprocessing.collections.samplers import SamplerCollection
+from sup3r.preprocessing.collections.base import Collection
 from sup3r.preprocessing.samplers import DualSampler, Sampler
 from sup3r.utilities.utilities import Timer
 
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 Batch = namedtuple('Batch', ['low_res', 'high_res'])
 
 
-class AbstractBatchQueue(SamplerCollection, ABC):
+class AbstractBatchQueue(Collection, ABC):
     """Abstract BatchQueue class. This class gets batches from a dataset
     generator and maintains a queue of batches in a dedicated thread so the
     training routine can proceed as soon as batches are available."""
@@ -94,16 +94,14 @@ class AbstractBatchQueue(SamplerCollection, ABC):
             f'Received type {type(samplers)}'
         )
         assert isinstance(samplers, list), msg
-        super().__init__(
-            samplers=samplers, s_enhance=s_enhance, t_enhance=t_enhance
-        )
+        super().__init__(containers=samplers)
         self._batch_counter = 0
         self._queue_thread = None
         self._default_device = default_device
         self._running_queue = threading.Event()
         self._thread_name = thread_name
-        self.queue = None
-        self.batches = None
+        self.s_enhance = s_enhance
+        self.t_enhance = t_enhance
         self.batch_size = batch_size
         self.n_batches = n_batches
         self.queue_cap = queue_cap or n_batches
@@ -111,6 +109,9 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         stats = self.get_stats(means=means, stds=stds)
         self.means, self.lr_means, self.hr_means = stats[:3]
         self.stds, self.lr_stds, self.hr_stds = stats[3:]
+        self.container_index = self.get_container_index()
+        self.queue = self.get_queue()
+        self.batches = self.prep_batches()
         self.transform_kwargs = transform_kwargs or {
             'smoothing_ignore': [],
             'smoothing': None,
@@ -132,21 +133,24 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         TensorSpec(shape, dtype, name) for single dataset queues or tuples of
         TensorSpec for dual queues."""
 
+    def get_queue(self):
+        """Return FIFO queue for storing batches."""
+        return tf.queue.FIFOQueue(
+            self.queue_cap,
+            dtypes=[tf.float32] * len(self.queue_shape),
+            shapes=self.queue_shape,
+        )
+
     def preflight(self, mode='lazy'):
         """Get data generator and run checks before kicking off the queue."""
         gpu_list = tf.config.list_physical_devices('GPU')
         self._default_device = self._default_device or (
             '/cpu:0' if len(gpu_list) == 0 else '/gpu:0'
         )
-        self.queue = tf.queue.FIFOQueue(
-            self.queue_cap,
-            dtypes=[tf.float32] * len(self.queue_shape),
-            shapes=self.queue_shape,
-        )
-        self.batches = self.prep_batches()
         self.check_stats()
         self.check_features()
         self.check_enhancement_factors()
+        _ = self.check_shared_attr('sample_shape')
         if mode == 'eager':
             logger.info('Received mode = "eager". Loading data into memory.')
             self.compute()
@@ -288,22 +292,16 @@ class AbstractBatchQueue(SamplerCollection, ABC):
         """Callback function for queue thread. While training, the queue is
         checked for empty spots and filled. In the training thread, batches are
         removed from the queue."""
-        try:
-            while self._running_queue.is_set():
-                if self.queue.size().numpy() < self.queue_cap:
-                    batch = next(self.batches, None)
-                    if batch is not None:
-                        self.queue.enqueue(batch)
-                        msg = (
-                            f'{self._thread_name.title()} queue length: '
-                            f'{self.queue.size().numpy()}'
-                        )
-                        logger.debug(msg)
-        except KeyboardInterrupt:
-            logger.info(
-                f'Attempting to stop {self._thread_name.title()} batch queue.'
-            )
-            self.stop()
+        while self._running_queue.is_set():
+            if self.queue.size().numpy() < self.queue_cap:
+                batch = next(self.batches, None)
+                if batch is not None:
+                    self.queue.enqueue(batch)
+                    msg = (
+                        f'{self._thread_name.title()} queue length: '
+                        f'{self.queue.size().numpy()}'
+                    )
+                    logger.debug(msg)
 
     def __next__(self) -> Batch:
         """Dequeue batch samples, squeeze if for a spatial only model, perform
@@ -361,3 +359,35 @@ class AbstractBatchQueue(SamplerCollection, ABC):
             self._normalize(lr, self.lr_means, self.lr_stds),
             self._normalize(hr, self.hr_means, self.hr_stds),
         )
+
+    def get_container_index(self):
+        """Get random container index based on weights"""
+        indices = np.arange(0, len(self.containers))
+        return np.random.choice(indices, p=self.container_weights)
+
+    def get_random_container(self):
+        """Get random container based on container weights
+
+        TODO: This will select a random container for every sample, instead of
+        every batch. Should we override this in the BatchHandler and use
+        the batch_counter to do every batch?
+        """
+        self.container_index = self.get_container_index()
+        return self.containers[self.container_index]
+
+    def get_samples(self):
+        """Get random sampler from collection and return a sample from that
+        sampler."""
+        return next(self.get_random_container())
+
+    @property
+    def lr_shape(self):
+        """Shape of low resolution sample in a low-res / high-res pair.  (e.g.
+        (spatial_1, spatial_2, temporal, features))"""
+        return (*self.lr_sample_shape, len(self.lr_features))
+
+    @property
+    def hr_shape(self):
+        """Shape of high resolution sample in a low-res / high-res pair.  (e.g.
+        (spatial_1, spatial_2, temporal, features))"""
+        return (*self.hr_sample_shape, len(self.hr_features))

@@ -33,19 +33,21 @@ class BatchQueueDC(SingleBatchQueue):
         """Get weights used to sample spatial bins."""
         return self._spatial_weights
 
-    @spatial_weights.setter
-    def spatial_weights(self, value):
-        """Set weights used to sample spatial bins."""
-        self._spatial_weights = value
-
     @property
     def temporal_weights(self):
         """Get weights used to sample temporal bins."""
         return self._temporal_weights
 
-    @temporal_weights.setter
-    def temporal_weights(self, value):
-        """Set weights used to sample temporal bins."""
+    def update_spatial_weights(self, value):
+        """Set weights used to sample spatial bins. This is called by
+        :class:`Sup3rGanDC` after an epoch to update weights based on model
+        performance across validation samples."""
+        self._spatial_weights = value
+
+    def update_temporal_weights(self, value):
+        """Set weights used to sample temporal bins. This is called by
+        :class:`Sup3rGanDC` after an epoch to update weights based on model
+        performance across validation samples."""
         self._temporal_weights = value
 
 
@@ -60,8 +62,6 @@ class ValBatchQueueDC(BatchQueueDC):
         super().__init__(
             *args, n_space_bins=n_space_bins, n_time_bins=n_time_bins, **kwargs
         )
-        self.n_space_bins = n_space_bins
-        self.n_time_bins = n_time_bins
         self.n_batches = n_space_bins * n_time_bins
 
     @property

@@ -109,7 +109,6 @@ def test_end_to_end():
             checkpoint_int=10,
             out_dir=os.path.join(td, 'test_{epoch}'),
         )
-        batcher.stop()
 
 
 if __name__ == '__main__':

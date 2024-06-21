@@ -43,8 +43,7 @@ def test_exo_cache(feature):
     """Test exogenous data caching and re-load"""
     # no cached data
     steps = []
-    for s_en, t_en in zip(
-        S_ENHANCE, T_ENHANCE):
+    for s_en, t_en in zip(S_ENHANCE, T_ENHANCE):
         steps.append(
             {
                 's_enhance': s_en,

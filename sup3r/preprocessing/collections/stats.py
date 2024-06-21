@@ -3,12 +3,9 @@
 import json
 import logging
 import os
-from typing import List
 
 import numpy as np
 from rex import safe_json_load
-
-from sup3r.preprocessing.extracters import Extracter
 
 from .base import Collection
 
@@ -24,7 +21,7 @@ class StatsCollection(Collection):
     We write stats as float64 because float32 is not json serializable
     """
 
-    def __init__(self, containers: List[Extracter], means=None, stds=None):
+    def __init__(self, containers, means=None, stds=None):
         """
         Parameters
         ----------
@@ -39,7 +36,7 @@ class StatsCollection(Collection):
             calculating stats and not saving. Can also be a dict, which will
             just get returned as the "result".
         """
-        super().__init__(containers)
+        super().__init__(containers=containers)
         self.means = self.get_means(means)
         self.stds = self.get_stds(stds)
         self.save_stats(stds=stds, means=means)

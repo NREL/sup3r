@@ -56,8 +56,8 @@ def test_counts(s_weights, t_weights):
         transform_kwargs=transform_kwargs,
     )
     assert batcher.val_data.n_batches == len(s_weights) * len(t_weights)
-    batcher.spatial_weights = s_weights
-    batcher.temporal_weights = t_weights
+    batcher.update_spatial_weights(s_weights)
+    batcher.update_temporal_weights(t_weights)
 
     for _ in batcher:
         assert batcher.spatial_weights == s_weights

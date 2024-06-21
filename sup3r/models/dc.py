@@ -161,9 +161,9 @@ class Sup3rGanDC(Sup3rGan):
         new_weights = t_losses / np.sum(t_losses)
 
         if dim == 'time':
-            batch_handler.temporal_weights = new_weights
+            batch_handler.update_temporal_weights(new_weights)
         else:
-            batch_handler.spatial_weights = new_weights
+            batch_handler.update_spatial_weights(new_weights)
         logger.debug(
             f'Previous bin weights ({dim}): ' f'{round_array(old_weights)}'
         )
