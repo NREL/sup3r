@@ -213,7 +213,7 @@ def get_class_kwargs(Classes, kwargs):
 def check_kwargs(Classes, kwargs):
     """Make sure all kwargs are valid kwargs for the set of given classes."""
     extras = []
-    [
+    _ = [
         extras.extend(list(_get_class_kwargs(cname, kwargs).keys()))
         for cname in Classes
     ]
@@ -257,10 +257,10 @@ def parse_keys(keys):
 class FactoryMeta(ABCMeta, type):
     """Meta class to define __name__ attribute of factory generated classes."""
 
-    def __new__(cls, name, bases, namespace, **kwargs):
+    def __new__(mcs, name, bases, namespace, **kwargs):  # noqa: N804
         """Define __name__"""
         name = namespace.get('__name__', name)
-        return super().__new__(cls, name, bases, namespace, **kwargs)
+        return super().__new__(mcs, name, bases, namespace, **kwargs)
 
     def __subclasscheck__(cls, subclass):
         """Check if factory built class shares base classes."""

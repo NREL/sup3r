@@ -49,16 +49,13 @@ class Regridder:
         coordinate.
     """
 
-    MIN_DISTANCE = 1e-12
-    MAX_DISTANCE = 0.01
-
     source_meta: pd.DataFrame
     target_meta: pd.DataFrame
     k_neighbors: Optional[int] = 4
     n_chunks: Optional[int] = 100
     max_workers: Optional[int] = None
-    max_distance: Optional[float] = MAX_DISTANCE
-    min_distance: Optional[float] = MIN_DISTANCE
+    max_distance: Optional[float] = 1e-12
+    min_distance: Optional[float] = 0.01
     leaf_size: Optional[int] = 4
 
     @log_args

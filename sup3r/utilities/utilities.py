@@ -335,6 +335,14 @@ def spatial_coarsening(data, s_enhance=2, obs_axis=True):
         logger.error(msg)
         raise ValueError(msg)
 
+    if obs_axis and len(data.shape) < 3:
+        msg = (
+            'Data must be 3D, 4D, or 5D to do spatial coarsening with '
+            f'obs_axis=True, but received: {data.shape}'
+        )
+        logger.error(msg)
+        raise ValueError(msg)
+
     if s_enhance is not None and s_enhance > 1:
         bad1 = obs_axis and (
             data.shape[1] % s_enhance != 0 or data.shape[2] % s_enhance != 0

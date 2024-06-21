@@ -306,20 +306,22 @@ def test_pipeline_fwp_qa(runner, input_files, log=False):
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
 
+        input_handler_kwargs = {
+            'target': (19.3, -123.5),
+            'shape': shape,
+        }
+
         fwp_config = {
             'file_paths': input_files,
             'model_kwargs': {'model_dir': out_dir},
             'out_pattern': os.path.join(td, 'out_{file_id}.h5'),
             'log_pattern': os.path.join(td, 'fwp_log.log'),
             'log_level': 'DEBUG',
-            'input_handler_kwargs': {
-                'target': (19.3, -123.5),
-                'shape': shape,
-            },
+            'input_handler_kwargs': input_handler_kwargs,
             'fwp_chunk_shape': (100, 100, 100),
             'max_workers': 1,
-            'spatial_pad': 5,
-            'temporal_pad': 5,
+            'spatial_pad': 1,
+            'temporal_pad': 1,
             'execution_control': {'option': 'local'},
         }
 
@@ -330,8 +332,7 @@ def test_pipeline_fwp_qa(runner, input_files, log=False):
             's_enhance': 3,
             't_enhance': 4,
             'temporal_coarsening_method': 'subsample',
-            'target': (19.3, -123.5),
-            'shape': shape,
+            'input_handler_kwargs': input_handler_kwargs,
             'max_workers': 1,
             'execution_control': {'option': 'local'},
         }

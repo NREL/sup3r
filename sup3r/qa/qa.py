@@ -133,7 +133,11 @@ class Sup3rQa:
         )
         self.qa_fp = qa_fp
         self.save_sources = save_sources
-        self.output_handler = self.output_handler_class(self._out_fp)
+        self.output_handler = (
+            xr.open_dataset(self._out_fp)
+            if self.output_type == 'nc'
+            else Resource(self._out_fp)
+        )
 
         self.bias_correct_method = bias_correct_method
         self.bias_correct_kwargs = (
@@ -221,25 +225,12 @@ class Sup3rQa:
             raise TypeError(msg)
         return ftype
 
-    @property
-    def output_handler_class(self):
-        """Get the output handler class.
-
-        Returns
-        -------
-        HandlerClass : rex.Resource | xr.open_dataset
-        """
-        return (
-            xr.open_dataset
-            if self.output_type == 'nc'
-            else Resource
-            if self.output_type == 'h5'
-            else None
-        )
-
     def bias_correct_feature(self, source_feature, input_handler):
         """Bias correct data using a method defined by the bias_correct_method
-        input to ForwardPassStrategy
+        input to :class:`ForwardPassStrategy`
+
+        TODO: This is too similar to the bias_correct_source_data method in
+        :class:`FowardPass`. Should extract as shared utility method.
 
         Parameters
         ----------
