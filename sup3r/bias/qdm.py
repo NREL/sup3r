@@ -17,6 +17,7 @@ from rex.utilities.bc_utils import (
     sample_q_linear,
     sample_q_log,
 )
+import xarray as xr
 
 from sup3r.preprocessing.data_handling.base import DataHandler
 from sup3r.utilities.utilities import expand_paths
