@@ -561,3 +561,45 @@ def local_qdm_bc(data: np.ndarray,
         output[:, :, subset_idx] = tmp
 
     return output
+
+def apply_zero_precipitation_rate(arr: np.ndarray, rate):
+    """Enforce the zero precipitation rate
+    Replace lowest values by zero to satisfy the given rate of zero
+    precipitation.
+
+    Parameters
+    ----------
+    arr : np.array
+        An array of values to be analyzed. Usually precipitation but it
+    rate : float or np.array
+        Rate of zero, or negligible, days of precipitation.
+
+    Returns
+    -------
+    corrected : np.array
+        A copy of given array that satisfies the rate of zero precipitation
+        days, i.e. the lowest values of precipitation are changed to zero
+        to satisfy that rate.
+
+    Examples
+    --------
+    >>> data = np.array([5, 0.1, np.nan, 0.2, 1])
+    >>> apply_zero_precipitation_rate(data, 0.30)
+    array([5. , 0. , nan, 0.2, 1. ])
+    """
+    assert arr.ndim == 3
+    assert rate.ndim >= 2
+    assert arr.shape[:2] == rate.shape[:2]
+
+    I, J = rate.shape[:2]
+    for i in range(I):
+        for j in range(J):
+            r = rate[i, j, 0]
+            if np.isfinite(r):
+                a = arr[i, j]
+                valid = np.isfinite(a)
+                idx = np.argsort(a)[valid][:round(r * valid.astype('i').sum())]
+                a[idx] = 0
+                arr[i, j] = a
+
+    return arr
