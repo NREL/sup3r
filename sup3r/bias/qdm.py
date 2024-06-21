@@ -831,7 +831,8 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
             self.out, fill_extend, smooth_extend, smooth_interior
         )
 
-        self.write_outputs(fp_out, self.out)
+        self.zero_rate_threshold = zero_rate_threshold
+        self.write_outputs(fp_out, self.out, extra_attrs={'zero_rate_threshold': zero_rate_threshold})
 
         return copy.deepcopy(self.out)
 
