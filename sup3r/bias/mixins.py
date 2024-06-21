@@ -153,35 +153,3 @@ class ZeroRateMixin():
             return np.nan
 
         return np.nanmean((arr[idx] < threshold).astype('i'))
-
-
-    @staticmethod
-    def apply_zero_precipitation_rate(arr: np.ndarray, rate: float):
-        """Enforce the zero precipitation rate
-
-        Replace lowest values by zero to satisfy the given rate of zero
-        precipitation.
-
-        Parameters
-        ----------
-        arr : np.array
-            An array of values to be analyzed. Usually precipitation but it
-        rate : float
-            Rate of zero, or negligible, days of precipitation.
-
-        Returns
-        -------
-        corrected : np.array
-            A copy of given array that satisfies the rate of zero precipitation
-            days, i.e. the lowest values of precipitation are changed to zero
-            to satisfy that rate.
-
-        Examples
-        --------
-        >>> data = np.array([5, 0.1, np.nan, 0.2, 1]
-        >>> apply_zero_precipitation_rate(data, 0.30)
-        array([5. , 0. , nan, 0.2, 1. ])
-        """
-        valid = arr[np.isfinite(arr)]
-        threshold = np.sort(valid)[round(rate * len(valid))]
-        return np.where(arr < threshold, 0, arr)
