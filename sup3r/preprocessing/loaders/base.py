@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from typing import Callable, ClassVar
 
 import numpy as np
+import xarray as xr
 
 from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.utilities import Dimension, expand_paths
@@ -17,7 +18,7 @@ class Loader(Container, ABC):
     :class:`Sampler` objects to build batches or by :class:`Extracter` objects
     to derive / extract specific features / regions / time_periods."""
 
-    BASE_LOADER: Callable = None
+    BASE_LOADER: Callable = xr.open_dataset
 
     FEATURE_NAMES: ClassVar = {
         'elevation': 'topography',

@@ -6,6 +6,10 @@ from warnings import warn
 import dask.array as da
 import numpy as np
 
+from sup3r.preprocessing.utilities import (
+    _compute_chunks_if_dask,
+    _compute_if_dask,
+)
 from sup3r.typing import T_Array
 
 logger = logging.getLogger(__name__)
@@ -139,36 +143,16 @@ class Interpolator:
         cls._check_lev_array(lev_array, levels=[level])
         levs = da.ma.masked_array(lev_array, da.isnan(lev_array))
         mask1, mask2 = cls.get_surrounding_levels(levs, level)
-        lev1 = lev_array[mask1]
-        lev1 = (
-            lev1.compute_chunk_sizes()
-            if not isinstance(lev1, np.ndarray)
-            else lev1
-        )
+        lev1 = _compute_chunks_if_dask(lev_array[mask1])
         lev1 = lev1.reshape(mask1.shape[:-1])
-        lev2 = lev_array[mask2]
-        lev2 = (
-            lev2.compute_chunk_sizes()
-            if not isinstance(lev2, np.ndarray)
-            else lev2
-        )
+        lev2 = _compute_chunks_if_dask(lev_array[mask2])
         lev2 = lev2.reshape(mask2.shape[:-1])
         diff = lev2 - lev1
         alpha = (level - lev1) / diff
         alpha = da.where(diff == 0, 0, alpha)
-        var1 = var_array[mask1]
-        var1 = (
-            var1.compute_chunk_sizes()
-            if not isinstance(var1, np.ndarray)
-            else var1
-        )
+        var1 = _compute_chunks_if_dask(var_array[mask1])
         var1 = var1.reshape(mask1.shape[:-1])
-        var2 = var_array[mask2]
-        var2 = (
-            var2.compute_chunk_sizes()
-            if not isinstance(var2, np.ndarray)
-            else var2
-        )
+        var2 = _compute_chunks_if_dask(var_array[mask2])
         var2 = var2.reshape(mask2.shape[:-1])
 
         if interp_method == 'log':
@@ -199,8 +183,7 @@ class Interpolator:
         bad_max = max(levels) > highest_height
 
         if nans.any():
-            if hasattr(nans, 'compute'):
-                nans = nans.compute()
+            nans = _compute_if_dask(nans)
             msg = (
                 'Approximately {:.2f}% of the vertical level '
                 'array is NaN. Data will be interpolated or extrapolated '
@@ -214,10 +197,8 @@ class Interpolator:
         # does not correspond to the lowest or highest height. Interpolation
         # can be performed without issue in this case.
         if bad_min.any():
-            if isinstance(bad_min, da.core.Array):
-                bad_min = bad_min.compute()
-            if isinstance(lev_array, da.core.Array):
-                lev_array = lev_array.compute()
+            bad_min = _compute_if_dask(bad_min)
+            lev_array = _compute_if_dask(lev_array)
             msg = (
                 'Approximately {:.2f}% of the lowest vertical levels '
                 '(maximum value of {:.3f}, minimum value of {:.3f}) '
@@ -232,10 +213,8 @@ class Interpolator:
             warn(msg)
 
         if bad_max.any():
-            if isinstance(bad_max, da.core.Array):
-                bad_max = bad_max.compute()
-            if isinstance(lev_array, da.core.Array):
-                lev_array = lev_array.compute()
+            bad_max = _compute_if_dask(bad_max)
+            lev_array = _compute_if_dask(lev_array)
             msg = (
                 'Approximately {:.2f}% of the highest vertical levels '
                 '(minimum value of {:.3f}, maximum value of {:.3f}) '

@@ -52,6 +52,16 @@ class Dimension(str, Enum):
         return (cls.SOUTH_NORTH, cls.WEST_EAST)
 
 
+def _compute_chunks_if_dask(arr):
+    return (
+        arr.compute_chunk_sizes() if not isinstance(arr, np.ndarray) else arr
+    )
+
+
+def _compute_if_dask(arr):
+    return arr.compute() if not isinstance(arr, np.ndarray) else arr
+
+
 def _parse_time_slice(value):
     return (
         value
@@ -257,7 +267,7 @@ def _get_args_dict(thing, func, *args, **kwargs):
     names = ['args', *names] if arg_spec.varargs is not None else names
     vals = [None] * len(names)
     defaults = arg_spec.defaults or []
-    vals[-len(defaults):] = defaults
+    vals[-len(defaults) :] = defaults
     vals[: len(args)] = args
     args_dict = dict(zip(names, vals))
     args_dict.update(kwargs)
@@ -325,9 +335,7 @@ def log_args(func):
     return wrapper
 
 
-def parse_features(
-    features: Optional[str | list] = None, data=None
-):
+def parse_features(features: Optional[str | list] = None, data=None):
     """Parse possible inputs for features (list, str, None, 'all'). If 'all'
     this returns all data_vars in data. If None this returns an empty list.
 
@@ -442,5 +450,5 @@ def dims_array_tuple(arr):
     of Dimension.order() with the same len as arr.shape. This is used to set
     xr.Dataset entries. e.g. dset[var] = (dims, array)"""
     if len(arr.shape) > 1:
-        arr = (Dimension.order()[1:len(arr.shape) + 1], arr)
+        arr = (Dimension.order()[1 : len(arr.shape) + 1], arr)
     return arr

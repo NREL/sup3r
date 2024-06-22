@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 from sup3r.preprocessing.accessor import Sup3rX
 from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.loaders.base import Loader
-from sup3r.preprocessing.utilities import _parse_time_slice
+from sup3r.preprocessing.utilities import _compute_if_dask, _parse_time_slice
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +74,7 @@ class Extracter(Container, ABC):
         """Return the true value based on the closest lat lon instead of the
         user provided value self._target, which is used to find the closest lat
         lon."""
-        return self.lat_lon[-1, 0].compute()
+        return _compute_if_dask(self.lat_lon[-1, 0])
 
     @target.setter
     def target(self, value):

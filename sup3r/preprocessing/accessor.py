@@ -11,6 +11,7 @@ import xarray as xr
 
 from sup3r.preprocessing.utilities import (
     Dimension,
+    _compute_if_dask,
     _contains_ellipsis,
     _get_strings,
     _is_ints,
@@ -286,7 +287,7 @@ class Sup3rX:
             msg = "Don't yet support nd fancy indexing. Computing first..."
             logger.warning(msg)
             warn(msg)
-            return data.compute()[keys]
+            return _compute_if_dask(data)[keys]
         return data[keys]
 
     def _get_from_tuple(self, keys) -> T_Array:
