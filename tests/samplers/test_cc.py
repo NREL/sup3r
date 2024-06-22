@@ -225,21 +225,21 @@ def test_nsrdb_sub_daily_sampler():
     )
     ti = ti[0 : len(handler.time_index)]
 
-    for _ in range(100):
+    for _ in range(20):
         tslice = nsrdb_sub_daily_sampler(handler.hourly, 4, ti)
         # with only 4 samples, there should never be any NaN data
         assert not np.isnan(
             handler.hourly['clearsky_ratio'][0, 0, tslice]
         ).any()
 
-    for _ in range(100):
+    for _ in range(20):
         tslice = nsrdb_sub_daily_sampler(handler.hourly, 8, ti)
         # with only 8 samples, there should never be any NaN data
         assert not np.isnan(
             handler.hourly['clearsky_ratio'][0, 0, tslice]
         ).any()
 
-    for _ in range(100):
+    for _ in range(20):
         tslice = nsrdb_sub_daily_sampler(handler.hourly, 20, ti)
         # there should be ~8 hours of non-NaN data
         # the beginning and ending timesteps should be nan

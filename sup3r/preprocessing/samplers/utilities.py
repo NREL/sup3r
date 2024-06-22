@@ -249,7 +249,7 @@ def nsrdb_sub_daily_sampler(data, shape, time_index=None):
         warn(msg)
         return tslice
 
-    day_ilocs = np.where(~_compute_if_dask(night_mask)[0])
+    day_ilocs = np.where(_compute_if_dask(~night_mask))[0]
     padding = shape - len(day_ilocs)
     half_pad = int(np.round(padding / 2))
     new_start = tslice.start + day_ilocs[0] - half_pad

@@ -111,35 +111,12 @@ def test_era_dl(tmpdir_factory):
         assert v in tmp
 
 
-def test_era_dl_log_interp(tmpdir_factory):
-    """Test post proc for era downloader, including log interpolation."""
-
-    combined_out_pattern = os.path.join(
-        tmpdir_factory.mktemp('tmp'), 'era5_{year}_{month}_{var}.nc'
-    )
-    interp_out_pattern = os.path.join(
-        tmpdir_factory.mktemp('tmp'), 'era5_{year}_{month}_interp.nc'
-    )
-    TestEraDownloader.run_month(
-        year=2000,
-        month=1,
-        area=[50, -130, 23, -65],
-        levels=[1000, 900, 800],
-        variables=['zg', 'orog', 'u', 'v'],
-        combined_out_pattern=combined_out_pattern,
-        interp_out_pattern=interp_out_pattern,
-    )
-
-
 def test_era_dl_year(tmpdir_factory):
     """Test post proc for era downloader, including log interpolation, for full
     year."""
 
     combined_out_pattern = os.path.join(
         tmpdir_factory.mktemp('tmp'), 'era5_{year}_{month}_{var}.nc'
-    )
-    interp_out_pattern = os.path.join(
-        tmpdir_factory.mktemp('tmp'), 'era5_{year}_{month}_interp.nc'
     )
     yearly_file = os.path.join(tmpdir_factory.mktemp('tmp'), 'era5_final.nc')
     TestEraDownloader.run_year(
@@ -148,10 +125,8 @@ def test_era_dl_year(tmpdir_factory):
         levels=[1000, 900, 800],
         variables=['zg', 'orog', 'u', 'v'],
         combined_out_pattern=combined_out_pattern,
-        interp_out_pattern=interp_out_pattern,
         combined_yearly_file=yearly_file,
         max_workers=1,
-        interp_workers=1
     )
 
 

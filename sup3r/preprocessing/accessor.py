@@ -249,7 +249,8 @@ class Sup3rX:
     def interpolate_na(self, **kwargs):
         """Use `xr.DataArray.interpolate_na` to fill NaN values with a dask
         compatible method."""
-        features = kwargs.get('features', list(self.data_vars))
+        features = kwargs.pop('features', list(self.data_vars))
+        fill_value = kwargs.pop('fill_value', 'extrapolate')
         for feat in features:
             if 'dim' in kwargs:
                 if kwargs['dim'] == Dimension.TIME:
@@ -257,19 +258,19 @@ class Sup3rX:
                         'use_coordinate', False
                     )
                 self._ds[feat] = self._ds[feat].interpolate_na(
-                    **kwargs, fill_value='extrapolate'
+                    **kwargs, fill_value=fill_value
                 )
             else:
                 self._ds[feat] = (
                     self._ds[feat].interpolate_na(
                         dim=Dimension.WEST_EAST,
                         **kwargs,
-                        fill_value='extrapolate',
+                        fill_value=fill_value,
                     )
                     + self._ds[feat].interpolate_na(
                         dim=Dimension.SOUTH_NORTH,
                         **kwargs,
-                        fill_value='extrapolate',
+                        fill_value=fill_value,
                     )
                 ) / 2.0
         return type(self)(self._ds)

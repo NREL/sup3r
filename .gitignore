@@ -119,3 +119,4 @@ tags
 # pixi environments
 .pixi
 *.egg-info
+coverage/lcov.info

@@ -18,8 +18,8 @@ s_enhance = 5
     'nan_method_kwargs',
     [
         {'method': 'mask', 'dim': 'time'},
-        {'method': 'nearest', 'dim': 'time', 'use_coordinate': False},
-        {'method': 'linear', 'dim': 'time', 'use_coordinate': False},
+        {'method': 'nearest', 'dim': 'time'},
+        {'method': 'linear', 'dim': 'time', 'fill_value': 1.0},
     ],
 )
 def test_solar_spatial_h5(nan_method_kwargs):
