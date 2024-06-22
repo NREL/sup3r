@@ -3,6 +3,7 @@
 import os
 
 import numpy as np
+import pytest
 
 from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing import BatchHandler, DataHandlerH5, Sampler
@@ -13,7 +14,15 @@ t_enhance = 2
 s_enhance = 5
 
 
-def test_solar_spatial_h5():
+@pytest.mark.parametrize(
+    'nan_method_kwargs',
+    [
+        {'method': 'mask', 'dim': 'time'},
+        {'method': 'nearest', 'dim': 'time', 'use_coordinate': False},
+        {'method': 'linear', 'dim': 'time', 'use_coordinate': False},
+    ],
+)
+def test_solar_spatial_h5(nan_method_kwargs):
     """Test solar spatial batch handling with NaN drop."""
     input_file_s = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')
     features_s = ['clearsky_ratio']
@@ -22,8 +31,12 @@ def test_solar_spatial_h5():
         input_file_s, features=features_s, target=target_s, shape=(20, 20)
     )
     dh = DataHandlerH5(
-        input_file_s, features=features_s, target=target_s, shape=(20, 20),
-        nan_mask=True)
+        input_file_s,
+        features=features_s,
+        target=target_s,
+        shape=(20, 20),
+        nan_method_kwargs=nan_method_kwargs,
+    )
 
     assert np.nanmax(dh.as_array()) == 1
     assert np.nanmin(dh.as_array()) == 0

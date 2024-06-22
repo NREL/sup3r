@@ -7,6 +7,7 @@ from warnings import warn
 import dask.array as da
 import numpy as np
 import pandas as pd
+import rioxarray  # noqa: F401
 import xarray as xr
 
 from sup3r.preprocessing.utilities import (
@@ -244,6 +245,32 @@ class Sup3rX:
     def std(self, **kwargs):
         """Get std directly from dataset object."""
         return type(self)(self._ds.std(**kwargs))
+
+    def interpolate_na(self, **kwargs):
+        """Use rioxarray to fill NaN values with a dask compatible method."""
+        for feat in list(self.data_vars):
+            if 'dim' in kwargs:
+                if kwargs['dim'] == Dimension.TIME:
+                    kwargs['use_coordinate'] = kwargs.get(
+                        'use_coordinate', False
+                    )
+                self._ds[feat] = self._ds[feat].interpolate_na(
+                    **kwargs, fill_value='extrapolate'
+                )
+            else:
+                self._ds[feat] = (
+                    self._ds[feat].interpolate_na(
+                        dim=Dimension.WEST_EAST,
+                        **kwargs,
+                        fill_value='extrapolate',
+                    )
+                    + self._ds[feat].interpolate_na(
+                        dim=Dimension.SOUTH_NORTH,
+                        **kwargs,
+                        fill_value='extrapolate',
+                    )
+                ) / 2.0
+        return type(self)(self._ds)
 
     @staticmethod
     def _check_fancy_indexing(data, keys) -> T_Array:

@@ -46,7 +46,7 @@ class ExoData(dict):
 
     TODO: Can we simplify this by relying more on xr.Dataset meta data instead
     of storing enhancement factors for each step? Seems like we could take the
-    highest res data and coarsen baased on s/t enhance, also.
+    highest res data and coarsen based on s/t enhance, also.
     """
 
     def __init__(self, steps):

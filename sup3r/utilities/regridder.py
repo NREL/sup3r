@@ -51,8 +51,8 @@ class Regridder:
     k_neighbors: Optional[int] = 4
     n_chunks: Optional[int] = 100
     max_workers: Optional[int] = None
-    max_distance: Optional[float] = 1e-12
-    min_distance: Optional[float] = 0.01
+    min_distance: Optional[float] = 1e-12
+    max_distance: Optional[float] = 0.01
     leaf_size: Optional[int] = 4
 
     @log_args
