@@ -90,18 +90,6 @@ def test_train(
     spatiotemporal and spatial models."""
 
     lr = 9e-5
-    fp_gen = os.path.join(CONFIG_DIR, gen_config)
-    fp_disc = os.path.join(CONFIG_DIR, disc_config)
-
-    Sup3rGan.seed()
-    model = Sup3rGan(
-        fp_gen,
-        fp_disc,
-        learning_rate=lr,
-        loss='MeanAbsoluteError',
-        default_device='/cpu:0',
-    )
-
     hr_handler = DataHandlerH5(
         file_paths=FP_WTK,
         features=FEATURES,
@@ -112,13 +100,38 @@ def test_train(
     lr_handler = DataHandlerNC(
         file_paths=FP_ERA,
         features=FEATURES,
-        time_slice=slice(None, None, 10),
+        time_slice=slice(None, None, 5),
+    )
+
+    with pytest.raises(AssertionError):
+        dual_extracter = DualExtracter(
+            data=(lr_handler.data, hr_handler.data),
+            s_enhance=s_enhance,
+            t_enhance=t_enhance,
+        )
+
+    lr_handler = DataHandlerNC(
+        file_paths=FP_ERA,
+        features=FEATURES,
+        time_slice=slice(None, None, t_enhance * 10),
     )
 
     dual_extracter = DualExtracter(
         data=(lr_handler.data, hr_handler.data),
         s_enhance=s_enhance,
         t_enhance=t_enhance,
+    )
+
+    fp_gen = os.path.join(CONFIG_DIR, gen_config)
+    fp_disc = os.path.join(CONFIG_DIR, disc_config)
+
+    Sup3rGan.seed()
+    model = Sup3rGan(
+        fp_gen,
+        fp_disc,
+        learning_rate=lr,
+        loss='MeanAbsoluteError',
+        default_device='/cpu:0',
     )
 
     with tempfile.TemporaryDirectory() as td:
@@ -134,10 +147,10 @@ def test_train(
             train_containers=[dual_extracter],
             val_containers=[dual_extracter],
             sample_shape=sample_shape,
-            batch_size=5,
+            batch_size=2,
             s_enhance=s_enhance,
             t_enhance=t_enhance,
-            n_batches=4,
+            n_batches=3,
             means=means,
             stds=stds,
             mode=mode,

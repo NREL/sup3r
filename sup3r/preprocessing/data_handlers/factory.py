@@ -219,9 +219,10 @@ def DailyDataHandlerFactory(
                 'shape is {}.'.format(self.data.shape)
             )
 
-            day_steps = int(
-                24 // float(mode(self.time_index.diff().seconds / 3600).mode)
+            day_steps = 24 / float(
+                mode(self.time_index.diff().total_seconds()[1:-1] / 3600).mode
             )
+            day_steps = int(day_steps)
             assert len(self.time_index) % day_steps == 0, msg
             assert len(self.time_index) > day_steps, msg
 

@@ -96,9 +96,11 @@ class DataHandlerNCforCC(DataHandlerNC):
             self._nsrdb_source_fp
         ), msg
 
-        ti_deltas = self.loader.time_index - np.roll(self.loader.time_index, 1)
-        ti_deltas_hours = pd.Series(ti_deltas).dt.total_seconds()[1:-1] / 3600
-        time_freq_hours = float(mode(ti_deltas_hours).mode)
+        time_freq_hours = float(
+            mode(
+                self.loader.time_index.diff().total_seconds()[1:-1] / 3600
+            ).mode
+        )
 
         msg = (
             'Can only handle source CC data in hourly frequency but '
@@ -198,7 +200,9 @@ class DataHandlerNCforCC(DataHandlerNC):
             .mean()
         )
 
-        time_freq = float(mode(ti_nsrdb.diff().seconds[1:-1] / 3600).mode)
+        time_freq = float(
+            mode(ti_nsrdb.diff().seconds_total()[1:-1] / 3600).mode
+        )
 
         cs_ghi = cs_ghi.coarsen({Dimension.TIME: int(24 // time_freq)}).mean()
         lat_idx, lon_idx = (

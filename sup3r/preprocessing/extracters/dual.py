@@ -8,6 +8,7 @@ from warnings import warn
 import numpy as np
 import pandas as pd
 import xarray as xr
+from scipy.stats import mode
 
 from sup3r.preprocessing.base import Container, Sup3rDataset
 from sup3r.preprocessing.cachers import Cacher
@@ -84,6 +85,19 @@ class DualExtracter(Container):
         self.regrid_workers = regrid_workers
         self.lr_time_index = self.lr_data.indexes['time']
         self.hr_time_index = self.hr_data.indexes['time']
+
+        lr_step = float(
+            mode(self.lr_time_index.diff().total_seconds()[1:-1]).mode
+        )
+        hr_step = float(
+            mode(self.hr_time_index.diff().total_seconds()[1:-1]).mode
+        )
+
+        msg = (f'Time steps of high-res data ({hr_step} seconds) and low-res '
+               f'data ({lr_step} seconds) are inconsistent with t_enhance = '
+               f'{self.t_enhance}.')
+        assert np.allclose(lr_step, hr_step * self.t_enhance), msg
+
         self.lr_required_shape = (
             self.hr_data.shape[0] // self.s_enhance,
             self.hr_data.shape[1] // self.s_enhance,
@@ -203,5 +217,5 @@ class DualExtracter(Container):
                 msg = f'Doing nn nan fill on low res {f} data.'
                 logger.info(msg)
                 self.lr_data[f] = self.lr_data.interpolate_na(
-                    feature=f, method='nearest'
+                    features=[f], method='nearest'
                 )
