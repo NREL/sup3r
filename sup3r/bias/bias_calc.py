@@ -376,7 +376,7 @@ class MonthlyScalarCorrection(MonthlyLinearCorrection):
     scalar factors are computed as mean(base_data) / mean(bias_data). Adder
     factors are still written but are exactly zero.
 
-    This calculation operates on single bias sites on a montly basis
+    This calculation operates on single bias sites on a monthly basis
     """
 
     @staticmethod

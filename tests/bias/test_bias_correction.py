@@ -15,6 +15,7 @@ from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.bias.bias_calc import (
     LinearCorrection,
     MonthlyLinearCorrection,
+    MonthlyScalarCorrection,
     SkillAssessment,
 )
 from sup3r.bias.bias_transforms import local_linear_bc, monthly_local_linear_bc
@@ -223,10 +224,13 @@ def test_linear_bc_parallel():
     assert np.allclose(smooth_adder, par_adder, atol=1e-4)
 
 
-def test_monthly_linear_bc():
-    """Test linear bias correction on a month-by-month basis"""
+@pytest.mark.parametrize(
+    'bc_class', [MonthlyLinearCorrection, MonthlyScalarCorrection]
+)
+def test_monthly_bc(bc_class):
+    """Test bias correction on a month-by-month basis"""
 
-    calc = MonthlyLinearCorrection(
+    calc = bc_class(
         FP_NSRDB,
         FP_CC,
         'ghi',
@@ -256,8 +260,13 @@ def test_monthly_linear_bc():
     assert (true_dist < 0.5).all()  # horiz res of bias data is ~0.7 deg
     base_data = base_data[:31]  # just take Jan for testing
     bias_data = bias_data[:31]  # just take Jan for testing
-    true_scalar = base_data.std() / bias_data.std()
-    true_adder = base_data.mean() - bias_data.mean() * true_scalar
+
+    if bc_class == MonthlyLinearCorrection:
+        true_scalar = base_data.std() / bias_data.std()
+        true_adder = base_data.mean() - bias_data.mean() * true_scalar
+    else:
+        true_scalar = base_data.mean() / bias_data.mean()
+        true_adder = 0
 
     out = calc.run(fill_extend=True, max_workers=1)
     scalar = out['rsds_scalar']
@@ -352,7 +361,7 @@ def test_linear_transform():
         assert np.allclose(out[lr_slice], sliced_out)
 
 
-def test_montly_linear_transform():
+def test_monthly_linear_transform():
     """Test the montly linear bc transform method"""
     calc = MonthlyLinearCorrection(
         FP_NSRDB,

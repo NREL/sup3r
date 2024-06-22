@@ -38,8 +38,11 @@ class SamplerDC(Sampler):
         """Update spatial and temporal sampling weights."""
         self.spatial_weights = spatial_weights
         self.temporal_weights = temporal_weights
+        logger.debug(f'Updated {self.__class__.__name__} with spatial '
+                     f'weights: {self.spatial_weights} and temporal weights: '
+                     f'{self.temporal_weights}.')
 
-    def get_sample_index(self, temporal_weights=None, spatial_weights=None):
+    def get_sample_index(self):
         """Randomly gets weighted spatial sample and time sample indices
 
         Parameters
@@ -57,45 +60,18 @@ class SamplerDC(Sampler):
             Tuple of sampled spatial grid, time slice, and features indices.
             Used to get single observation like self.data[observation_index]
         """
-        if spatial_weights is not None:
+        if self.spatial_weights is not None:
             spatial_slice = weighted_box_sampler(
-                self.shape, self.sample_shape[:2], weights=spatial_weights
+                self.shape, self.sample_shape[:2], weights=self.spatial_weights
             )
         else:
             spatial_slice = uniform_box_sampler(
                 self.shape, self.sample_shape[:2]
             )
-        if temporal_weights is not None:
+        if self.temporal_weights is not None:
             time_slice = weighted_time_sampler(
-                self.shape, self.sample_shape[2], weights=temporal_weights
+                self.shape, self.sample_shape[2], weights=self.temporal_weights
             )
         else:
             time_slice = uniform_time_sampler(self.shape, self.sample_shape[2])
-
         return (*spatial_slice, time_slice, self.features)
-
-    def __next__(self):
-        """Get data for observation using weighted random observation index.
-        Loops repeatedly over randomized time index.
-
-        Parameters
-        ----------
-        temporal_weights : array
-            Weights used to select time slice
-            (n_time_chunks)
-        spatial_weights : array
-            Weights used to select spatial chunks
-            (n_lat_chunks * n_lon_chunks)
-
-        Returns
-        -------
-        observation : T_Array
-            4D array
-            (spatial_1, spatial_2, temporal, features)
-        """
-        return self.data[
-            self.get_sample_index(
-                temporal_weights=self.temporal_weights,
-                spatial_weights=self.spatial_weights,
-            )
-        ]

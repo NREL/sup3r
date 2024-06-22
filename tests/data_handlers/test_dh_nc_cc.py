@@ -1,6 +1,7 @@
 """Test data handler for netcdf climate change data"""
 
 import os
+import tempfile
 
 import numpy as np
 import pytest
@@ -14,7 +15,7 @@ from sup3r.preprocessing import (
     DataHandlerNCforCCwithPowerLaw,
     LoaderNC,
 )
-from sup3r.preprocessing.derivers.methods import UWindPowerLaw
+from sup3r.preprocessing.derivers.methods import UWindPowerLaw, VWindPowerLaw
 from sup3r.preprocessing.utilities import Dimension
 from sup3r.utilities.pytest.helpers import execute_pytest
 
@@ -45,21 +46,31 @@ def test_get_just_coords_nc():
     assert np.array_equal(handler.target, target)
 
 
-def test_data_handling_nc_cc_power_law(hh=100):
+@pytest.mark.parametrize(
+    ('features', 'feat_class', 'src_name'),
+    [(['u_100m'], UWindPowerLaw, 'uas'), (['v_100m'], VWindPowerLaw, 'vas')],
+)
+def test_data_handling_nc_cc_power_law(features, feat_class, src_name):
     """Make sure the power law extrapolation of wind operates correctly"""
     input_files = [os.path.join(TEST_DATA_DIR, 'uas_test.nc')]
 
-    with xr.open_mfdataset(input_files) as fh:
-        scalar = (hh / UWindPowerLaw.NEAR_SFC_HEIGHT) ** UWindPowerLaw.ALPHA
-        u_hh = fh['uas'].values * scalar
-        u_hh = np.transpose(u_hh, axes=(1, 2, 0))
-        features = [f'u_{hh}m']
-        dh = DataHandlerNCforCCwithPowerLaw(input_files, features=features)
+    with tempfile.TemporaryDirectory() as td, xr.open_mfdataset(
+        input_files
+    ) as fh:
+        tmp_file = os.path.join(td, f'{src_name}.nc')
+        if src_name not in fh:
+            fh[src_name] = fh['uas']
+        fh.to_netcdf(tmp_file)
+
+        scalar = (100 / feat_class.NEAR_SFC_HEIGHT) ** feat_class.ALPHA
+        var_hh = fh[src_name].values * scalar
+        var_hh = np.transpose(var_hh, axes=(1, 2, 0))
+        dh = DataHandlerNCforCCwithPowerLaw(tmp_file, features=features)
         if fh['lat'][-1] > fh['lat'][0]:
-            u_hh = u_hh[::-1]
+            var_hh = var_hh[::-1]
         mask = np.isnan(dh.data[features[0], ...])
         masked_u = dh.data[features[0], ...][~mask].compute_chunk_sizes()
-        np.array_equal(masked_u, u_hh[~mask])
+        np.array_equal(masked_u, var_hh[~mask])
 
 
 def test_data_handling_nc_cc():
