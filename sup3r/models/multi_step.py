@@ -1,4 +1,5 @@
 """Sup3r multi step model frameworks"""
+
 import json
 import logging
 import os
@@ -139,21 +140,25 @@ class MultiStepGan(AbstractInterface):
             to the number of model input dimensions
         """
         if model.is_5d and len(hi_res.shape) == 4:
-            hi_res = np.transpose(
-                hi_res, axes=(1, 2, 0, 3))[np.newaxis]
+            hi_res = np.transpose(hi_res, axes=(1, 2, 0, 3))[np.newaxis]
         elif model.is_4d and len(hi_res.shape) == 5:
-            msg = ('Recieved 5D input data with shape '
-                   f'({hi_res.shape}) to a 4D model.')
+            msg = (
+                'Recieved 5D input data with shape '
+                f'({hi_res.shape}) to a 4D model.'
+            )
             assert hi_res.shape[0] == 1, msg
             hi_res = np.transpose(hi_res[0], axes=(2, 0, 1, 3))
         else:
-            msg = ('Recieved input data with shape '
-                   f'{hi_res.shape} to a {model.input_dims}D model.')
+            msg = (
+                'Recieved input data with shape '
+                f'{hi_res.shape} to a {model.input_dims}D model.'
+            )
             assert model.input_dims == len(hi_res.shape), msg
         return hi_res
 
-    def generate(self, low_res, norm_in=True, un_norm_out=True,
-                 exogenous_data=None):
+    def generate(
+        self, low_res, norm_in=True, un_norm_out=True, exogenous_data=None
+    ):
         """Use the generator model to generate high res data from low res
         input. This is the public generate function.
 
@@ -183,8 +188,9 @@ class MultiStepGan(AbstractInterface):
             (n_obs, spatial_1, spatial_2, n_features)
             (n_obs, spatial_1, spatial_2, n_temporal, n_features)
         """
-        if (isinstance(exogenous_data, dict)
-                and not isinstance(exogenous_data, ExoData)):
+        if isinstance(exogenous_data, dict) and not isinstance(
+            exogenous_data, ExoData
+        ):
             exogenous_data = ExoData(exogenous_data)
 
         hi_res = low_res.copy()
@@ -192,22 +198,37 @@ class MultiStepGan(AbstractInterface):
             i_norm_in = not (i == 0 and not norm_in)
             i_un_norm_out = not (i + 1 == len(self.models) and not un_norm_out)
 
-            i_exo_data = (None if exogenous_data is None
-                          else exogenous_data.get_model_step_exo(i))
+            i_exo_data = (
+                None
+                if exogenous_data is None
+                else exogenous_data.get_model_step_exo(i)
+            )
 
             try:
                 hi_res = self._transpose_model_input(model, hi_res)
-                logger.debug('Data input to model #{} of {} has shape {}'
-                             .format(i + 1, len(self.models), hi_res.shape))
-                hi_res = model.generate(hi_res, norm_in=i_norm_in,
-                                        un_norm_out=i_un_norm_out,
-                                        exogenous_data=i_exo_data)
-                logger.debug('Data output from model #{} of {} has shape {}'
-                             .format(i + 1, len(self.models), hi_res.shape))
+                logger.debug(
+                    'Data input to model #{} of {} has shape {}'.format(
+                        i + 1, len(self.models), hi_res.shape
+                    )
+                )
+                hi_res = model.generate(
+                    hi_res,
+                    norm_in=i_norm_in,
+                    un_norm_out=i_un_norm_out,
+                    exogenous_data=i_exo_data,
+                )
+                logger.debug(
+                    'Data output from model #{} of {} has shape {}'.format(
+                        i + 1, len(self.models), hi_res.shape
+                    )
+                )
             except Exception as e:
-                msg = ('Could not run model #{} of {} "{}" '
-                       'on tensor of shape {}'
-                       .format(i + 1, len(self.models), model, hi_res.shape))
+                msg = (
+                    'Could not run model #{} of {} "{}" '
+                    'on tensor of shape {}'.format(
+                        i + 1, len(self.models), model, hi_res.shape
+                    )
+                )
                 logger.exception(msg)
                 raise RuntimeError(msg) from e
 
@@ -287,8 +308,9 @@ class MultiStepSurfaceMetGan(MultiStepGan):
     2nd-step (spatio)temporal GAN.
     """
 
-    def generate(self, low_res, norm_in=True, un_norm_out=True,
-                 exogenous_data=None):
+    def generate(
+        self, low_res, norm_in=True, un_norm_out=True, exogenous_data=None
+    ):
         """Use the generator model to generate high res data from low res
         input. This is the public generate function.
 
@@ -328,22 +350,32 @@ class MultiStepSurfaceMetGan(MultiStepGan):
             feature channel can include temperature_*m, relativehumidity_*m,
             and/or pressure_*m
         """
-        logger.debug('Data input to the 1st step spatial-only '
-                     'enhancement has shape {}'.format(low_res.shape))
+        logger.debug(
+            'Data input to the 1st step spatial-only '
+            'enhancement has shape {}'.format(low_res.shape)
+        )
 
-        msg = ('MultiStepSurfaceMetGan needs exogenous_data with two '
-               'topography steps, for low and high res topography inputs.')
-        exo_check = (exogenous_data is not None
-                     and len(exogenous_data['topography']['steps']) == 2)
+        msg = (
+            'MultiStepSurfaceMetGan needs exogenous_data with two '
+            'topography steps, for low and high res topography inputs.'
+        )
+        exo_check = (
+            exogenous_data is not None
+            and len(exogenous_data['topography']['steps']) == 2
+        )
         assert exo_check, msg
 
         return super().generate(low_res, norm_in, un_norm_out, exogenous_data)
 
     @classmethod
-    def load(cls, surface_model_class='SurfaceSpatialMetModel',
-             temporal_model_class='MultiStepGan',
-             surface_model_kwargs=None, temporal_model_kwargs=None,
-             verbose=True):
+    def load(
+        cls,
+        surface_model_class='SurfaceSpatialMetModel',
+        temporal_model_class='MultiStepGan',
+        surface_model_kwargs=None,
+        temporal_model_kwargs=None,
+        verbose=True,
+    ):
         """Load the GANs with its sub-networks from a previously saved-to
         output directory.
 
@@ -376,12 +408,14 @@ class MultiStepSurfaceMetGan(MultiStepGan):
             temporal_model_kwargs = {}
 
         SpatialModelClass = getattr(sup3r.models, surface_model_class)
-        s_models = SpatialModelClass.load(verbose=verbose,
-                                          **surface_model_kwargs)
+        s_models = SpatialModelClass.load(
+            verbose=verbose, **surface_model_kwargs
+        )
 
         TemporalModelClass = getattr(sup3r.models, temporal_model_class)
-        t_models = TemporalModelClass.load(verbose=verbose,
-                                           **temporal_model_kwargs)
+        t_models = TemporalModelClass.load(
+            verbose=verbose, **temporal_model_kwargs
+        )
 
         s_models = getattr(s_models, 'models', [s_models])
         t_models = getattr(t_models, 'models', [t_models])
@@ -397,8 +431,14 @@ class SolarMultiStepGan(MultiStepGan):
     temporal super resolution model.
     """
 
-    def __init__(self, spatial_solar_models, spatial_wind_models,
-                 temporal_solar_models, t_enhance=None, temporal_pad=0):
+    def __init__(
+        self,
+        spatial_solar_models,
+        spatial_wind_models,
+        temporal_solar_models,
+        t_enhance=None,
+        temporal_pad=0,
+    ):
         """
         Parameters
         ----------
@@ -434,8 +474,10 @@ class SolarMultiStepGan(MultiStepGan):
         self.preflight()
 
         if self._t_enhance is not None:
-            msg = ('Can only update t_enhance for a '
-                   'single temporal solar model.')
+            msg = (
+                'Can only update t_enhance for a '
+                'single temporal solar model.'
+            )
             assert len(self.temporal_solar_models) == 1, msg
             model = self.temporal_solar_models.models[0]
             model.meta['t_enhance'] = self._t_enhance
@@ -446,33 +488,45 @@ class SolarMultiStepGan(MultiStepGan):
 
         s_enh = [model.s_enhance for model in self.spatial_solar_models.models]
         w_enh = [model.s_enhance for model in self.spatial_wind_models.models]
-        msg = ('Solar and wind spatial enhancements must be equivalent but '
-               'received models that do spatial enhancements of '
-               '{} (solar) and {} (wind)'.format(s_enh, w_enh))
+        msg = (
+            'Solar and wind spatial enhancements must be equivalent but '
+            'received models that do spatial enhancements of '
+            '{} (solar) and {} (wind)'.format(s_enh, w_enh)
+        )
         assert np.prod(s_enh) == np.prod(w_enh), msg
 
         s_t_feat = self.spatial_solar_models.lr_features
         s_o_feat = self.spatial_solar_models.hr_out_features
-        msg = ('Solar spatial enhancement models need to take '
-               '"clearsky_ratio" as the only input and output feature but '
-               'received models that need {} and output {}'
-               .format(s_t_feat, s_o_feat))
+        msg = (
+            'Solar spatial enhancement models need to take '
+            '"clearsky_ratio" as the only input and output feature but '
+            'received models that need {} and output {}'.format(
+                s_t_feat, s_o_feat
+            )
+        )
         assert s_t_feat == ['clearsky_ratio'], msg
         assert s_o_feat == ['clearsky_ratio'], msg
 
         temp_solar_feats = self.temporal_solar_models.lr_features
-        msg = ('Input feature 0 for the temporal_solar_models should be '
-               '"clearsky_ratio" but received: {}'
-               .format(temp_solar_feats))
+        msg = (
+            'Input feature 0 for the temporal_solar_models should be '
+            '"clearsky_ratio" but received: {}'.format(temp_solar_feats)
+        )
         assert temp_solar_feats[0] == 'clearsky_ratio', msg
 
-        spatial_out_features = (self.spatial_wind_models.hr_out_features
-                                + self.spatial_solar_models.hr_out_features)
-        missing = [fn for fn in temp_solar_feats if fn not in
-                   spatial_out_features]
-        msg = ('Solar temporal model needs features {} that were not '
-               'found in the solar + wind model output feature list {}'
-               .format(missing, spatial_out_features))
+        spatial_out_features = (
+            self.spatial_wind_models.hr_out_features
+            + self.spatial_solar_models.hr_out_features
+        )
+        missing = [
+            fn for fn in temp_solar_feats if fn not in spatial_out_features
+        ]
+        msg = (
+            'Solar temporal model needs features {} that were not '
+            'found in the solar + wind model output feature list {}'.format(
+                missing, spatial_out_features
+            )
+        )
         assert not any(missing), msg
 
     @property
@@ -513,8 +567,11 @@ class SolarMultiStepGan(MultiStepGan):
         -------
         tuple
         """
-        return (self.spatial_solar_models.meta + self.spatial_wind_models.meta
-                + self.temporal_solar_models.meta)
+        return (
+            self.spatial_solar_models.meta
+            + self.spatial_wind_models.meta
+            + self.temporal_solar_models.meta
+        )
 
     @property
     def lr_features(self):
@@ -522,8 +579,10 @@ class SolarMultiStepGan(MultiStepGan):
         This includes low-resolution features that might be supplied
         exogenously at inference time but that were in the low-res batches
         during training"""
-        return (self.spatial_solar_models.lr_features
-                + self.spatial_wind_models.lr_features)
+        return (
+            self.spatial_solar_models.lr_features
+            + self.spatial_wind_models.lr_features
+        )
 
     @property
     def hr_out_features(self):
@@ -536,9 +595,13 @@ class SolarMultiStepGan(MultiStepGan):
         """Get an array of feature indices for the subset of features required
         for the spatial_wind_models. This excludes topography which is assumed
         to be provided as exogenous_data."""
-        return np.array([self.lr_features.index(fn) for fn in
-                         self.spatial_wind_models.lr_features
-                         if fn != 'topography'])
+        return np.array(
+            [
+                self.lr_features.index(fn)
+                for fn in self.spatial_wind_models.lr_features
+                if fn != 'topography'
+            ]
+        )
 
     @property
     def idf_wind_out(self):
@@ -547,20 +610,29 @@ class SolarMultiStepGan(MultiStepGan):
         indices of U_200m + V_200m from the output features of
         spatial_wind_models"""
         temporal_solar_features = self.temporal_solar_models.lr_features
-        return np.array([self.spatial_wind_models.hr_out_features.index(fn)
-                         for fn in temporal_solar_features[1:]])
+        return np.array(
+            [
+                self.spatial_wind_models.hr_out_features.index(fn)
+                for fn in temporal_solar_features[1:]
+            ]
+        )
 
     @property
     def idf_solar(self):
         """Get an array of feature indices for the subset of features required
         for the spatial_solar_models. This excludes topography which is assumed
         to be provided as exogenous_data."""
-        return np.array([self.lr_features.index(fn) for fn in
-                         self.spatial_solar_models.lr_features
-                         if fn != 'topography'])
+        return np.array(
+            [
+                self.lr_features.index(fn)
+                for fn in self.spatial_solar_models.lr_features
+                if fn != 'topography'
+            ]
+        )
 
-    def generate(self, low_res, norm_in=True, un_norm_out=True,
-                 exogenous_data=None):
+    def generate(
+        self, low_res, norm_in=True, un_norm_out=True, exogenous_data=None
+    ):
         """Use the generator model to generate high res data from low res
         input. This is the public generate function.
 
@@ -580,9 +652,10 @@ class SolarMultiStepGan(MultiStepGan):
         un_norm_out : bool
            Flag to un-normalize synthetically generated output data to physical
            units
-        exogenous_data : ExoData
-           :class:`ExoData` object with data arrays for each exogenous data
-            step. Each array has 3D or 4D shape:
+        exogenous_data : ExoData | dict
+           :class:`ExoData` object (or dict that will be cast to `ExoData`)
+           with data arrays for each exogenous data step. Each array has 3D or
+           4D shape:
             (spatial_1, spatial_2, n_features)
             (temporal, spatial_1, spatial_2, n_features)
             It's assumed that the spatial_solar_models do not require
@@ -596,66 +669,98 @@ class SolarMultiStepGan(MultiStepGan):
             (1, spatial_1, spatial_2, n_temporal, n_features)
         """
 
-        logger.debug('Data input to the SolarMultiStepGan has shape {} which '
-                     'will be split up for solar- and wind-only features.'
-                     .format(low_res.shape))
+        logger.debug(
+            'Data input to the SolarMultiStepGan has shape {} which '
+            'will be split up for solar- and wind-only features.'.format(
+                low_res.shape
+            )
+        )
+        if isinstance(exogenous_data, dict) and not isinstance(
+            exogenous_data, ExoData
+        ):
+            exogenous_data = ExoData(exogenous_data)
+
         if exogenous_data is not None:
-            s_exo, t_exo = exogenous_data.split_exo_dict(
-                split_step=len(self.spatial_solar_models))
+            _, s_exo, t_exo = exogenous_data.split(
+                split_steps=[
+                    len(self.spatial_solar_models),
+                    len(self.spatial_wind_models)
+                    + len(self.spatial_solar_models),
+                ]
+            )
         else:
             s_exo = t_exo = None
 
         try:
             hi_res_wind = self.spatial_wind_models.generate(
                 low_res[..., self.idf_wind],
-                norm_in=norm_in, un_norm_out=True,
-                exogenous_data=s_exo)
+                norm_in=norm_in,
+                un_norm_out=True,
+                exogenous_data=s_exo,
+            )
         except Exception as e:
-            msg = ('Could not run the 1st step spatial-wind-only GAN on '
-                   'input shape {}'.format(low_res.shape))
+            msg = (
+                'Could not run the 1st step spatial-wind-only GAN on '
+                'input shape {}'.format(low_res.shape)
+            )
             logger.exception(msg)
             raise RuntimeError(msg) from e
 
         try:
             hi_res_solar = self.spatial_solar_models.generate(
-                low_res[..., self.idf_solar],
-                norm_in=norm_in, un_norm_out=True)
+                low_res[..., self.idf_solar], norm_in=norm_in, un_norm_out=True
+            )
         except Exception as e:
-            msg = ('Could not run the 1st step spatial-solar-only GAN on '
-                   'input shape {}'.format(low_res.shape))
+            msg = (
+                'Could not run the 1st step spatial-solar-only GAN on '
+                'input shape {}'.format(low_res.shape)
+            )
             logger.exception(msg)
             raise RuntimeError(msg) from e
 
-        logger.debug('Data output from the 1st step spatial enhancement has '
-                     'shape {} (solar) and shape {} (wind)'
-                     .format(hi_res_solar.shape, hi_res_wind.shape))
+        logger.debug(
+            'Data output from the 1st step spatial enhancement has '
+            'shape {} (solar) and shape {} (wind)'.format(
+                hi_res_solar.shape, hi_res_wind.shape
+            )
+        )
 
         hi_res = (hi_res_solar, hi_res_wind[..., self.idf_wind_out])
         hi_res = np.concatenate(hi_res, axis=3)
 
-        logger.debug('Data output from the concatenated solar + wind 1st step '
-                     'spatial-only enhancement has shape {}'
-                     .format(hi_res.shape))
+        logger.debug(
+            'Data output from the concatenated solar + wind 1st step '
+            'spatial-only enhancement has shape {}'.format(hi_res.shape)
+        )
         hi_res = np.transpose(hi_res, axes=(1, 2, 0, 3))
         hi_res = np.expand_dims(hi_res, axis=0)
-        logger.debug('Data from the concatenated solar + wind 1st step '
-                     'spatial-only enhancement has been reshaped to {}'
-                     .format(hi_res.shape))
+        logger.debug(
+            'Data from the concatenated solar + wind 1st step '
+            'spatial-only enhancement has been reshaped to {}'.format(
+                hi_res.shape
+            )
+        )
 
         try:
             hi_res = self.temporal_solar_models.generate(
-                hi_res, norm_in=True, un_norm_out=un_norm_out,
-                exogenous_data=t_exo)
+                hi_res,
+                norm_in=True,
+                un_norm_out=un_norm_out,
+                exogenous_data=t_exo,
+            )
         except Exception as e:
-            msg = ('Could not run the 2nd step (spatio)temporal solar GAN on '
-                   'input shape {}'.format(low_res.shape))
+            msg = (
+                'Could not run the 2nd step (spatio)temporal solar GAN on '
+                'input shape {}'.format(low_res.shape)
+            )
             logger.exception(msg)
             raise RuntimeError(msg) from e
 
         hi_res = self.temporal_pad(hi_res)
 
-        logger.debug('Final SolarMultiStepGan output has shape: {}'
-                     .format(hi_res.shape))
+        logger.debug(
+            'Final SolarMultiStepGan output has shape: {}'.format(hi_res.shape)
+        )
 
         return hi_res
 
@@ -681,16 +786,26 @@ class SolarMultiStepGan(MultiStepGan):
             side.
         """
         if self._temporal_pad > 0:
-            pad_width = ((0, 0), (0, 0), (0, 0),
-                         (self._temporal_pad, self._temporal_pad),
-                         (0, 0))
+            pad_width = (
+                (0, 0),
+                (0, 0),
+                (0, 0),
+                (self._temporal_pad, self._temporal_pad),
+                (0, 0),
+            )
             hi_res = np.pad(hi_res, pad_width, mode=mode)
         return hi_res
 
     @classmethod
-    def load(cls, spatial_solar_model_dirs, spatial_wind_model_dirs,
-             temporal_solar_model_dirs, t_enhance=None, temporal_pad=0,
-             verbose=True):
+    def load(
+        cls,
+        spatial_solar_model_dirs,
+        spatial_wind_model_dirs,
+        temporal_solar_model_dirs,
+        t_enhance=None,
+        temporal_pad=0,
+        verbose=True,
+    ):
         """Load the GANs with its sub-networks from a previously saved-to
         output directory.
 
@@ -739,5 +854,6 @@ class SolarMultiStepGan(MultiStepGan):
         swm = MultiStepGan.load(spatial_wind_model_dirs, verbose=verbose)
         tsm = MultiStepGan.load(temporal_solar_model_dirs, verbose=verbose)
 
-        return cls(ssm, swm, tsm, t_enhance=t_enhance,
-                   temporal_pad=temporal_pad)
+        return cls(
+            ssm, swm, tsm, t_enhance=t_enhance, temporal_pad=temporal_pad
+        )

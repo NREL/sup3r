@@ -13,12 +13,17 @@ import xarray as xr
 from rex import ResourceX, init_logger
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR, __version__
-from sup3r.models import LinearInterp, Sup3rGan, SurfaceSpatialMetModel
+from sup3r.models import (
+    LinearInterp,
+    SolarMultiStepGan,
+    Sup3rGan,
+    SurfaceSpatialMetModel,
+)
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.preprocessing.utilities import Dimension
 from sup3r.utilities.pytest.helpers import execute_pytest, make_fake_nc_file
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)
 FEATURES = ['U_100m', 'V_100m']
@@ -36,6 +41,61 @@ np.random.seed(42)
 
 
 init_logger('sup3r', log_level='DEBUG')
+
+
+GEN_2X_2F_CONCAT = [
+    {
+        'class': 'FlexiblePadding',
+        'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
+        'mode': 'REFLECT',
+    },
+    {
+        'class': 'Conv2DTranspose',
+        'filters': 64,
+        'kernel_size': 3,
+        'strides': 1,
+    },
+    {'class': 'Cropping2D', 'cropping': 4},
+    {
+        'class': 'FlexiblePadding',
+        'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
+        'mode': 'REFLECT',
+    },
+    {
+        'class': 'Conv2DTranspose',
+        'filters': 64,
+        'kernel_size': 3,
+        'strides': 1,
+    },
+    {'class': 'Cropping2D', 'cropping': 4},
+    {
+        'class': 'FlexiblePadding',
+        'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
+        'mode': 'REFLECT',
+    },
+    {
+        'class': 'Conv2DTranspose',
+        'filters': 64,
+        'kernel_size': 3,
+        'strides': 1,
+    },
+    {'class': 'Cropping2D', 'cropping': 4},
+    {'class': 'SpatialExpansion', 'spatial_mult': 2},
+    {'alpha': 0.2, 'class': 'LeakyReLU'},
+    {'class': 'Sup3rConcat', 'name': 'topography'},
+    {
+        'class': 'FlexiblePadding',
+        'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
+        'mode': 'REFLECT',
+    },
+    {
+        'class': 'Conv2DTranspose',
+        'filters': 2,
+        'kernel_size': 3,
+        'strides': 1,
+    },
+    {'class': 'Cropping2D', 'cropping': 4},
+]
 
 
 @pytest.fixture(scope='module')
@@ -583,66 +643,8 @@ def test_fwp_multi_step_wind_hi_res_topo(input_files):
     """Test the forward pass with multiple Sup3rGan models requiring
     high-resolution topograph input from the exogenous_data feature."""
     Sup3rGan.seed()
-    gen_model = [
-        {
-            'class': 'FlexiblePadding',
-            'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
-            'mode': 'REFLECT',
-        },
-        {
-            'class': 'Conv2DTranspose',
-            'filters': 64,
-            'kernel_size': 3,
-            'strides': 1,
-            'activation': 'relu',
-        },
-        {'class': 'Cropping2D', 'cropping': 4},
-        {
-            'class': 'FlexiblePadding',
-            'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
-            'mode': 'REFLECT',
-        },
-        {
-            'class': 'Conv2DTranspose',
-            'filters': 64,
-            'kernel_size': 3,
-            'strides': 1,
-            'activation': 'relu',
-        },
-        {'class': 'Cropping2D', 'cropping': 4},
-        {
-            'class': 'FlexiblePadding',
-            'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
-            'mode': 'REFLECT',
-        },
-        {
-            'class': 'Conv2DTranspose',
-            'filters': 64,
-            'kernel_size': 3,
-            'strides': 1,
-            'activation': 'relu',
-        },
-        {'class': 'Cropping2D', 'cropping': 4},
-        {'class': 'SpatialExpansion', 'spatial_mult': 2},
-        {'class': 'Activation', 'activation': 'relu'},
-        {'class': 'Sup3rConcat', 'name': 'topography'},
-        {
-            'class': 'FlexiblePadding',
-            'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
-            'mode': 'REFLECT',
-        },
-        {
-            'class': 'Conv2DTranspose',
-            'filters': 2,
-            'kernel_size': 3,
-            'strides': 1,
-            'activation': 'relu',
-        },
-        {'class': 'Cropping2D', 'cropping': 4},
-    ]
-
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
-    s1_model = Sup3rGan(gen_model, fp_disc, learning_rate=1e-4)
+    s1_model = Sup3rGan(GEN_2X_2F_CONCAT, fp_disc, learning_rate=1e-4)
     s1_model.meta['lr_features'] = ['U_100m', 'V_100m', 'topography']
     s1_model.meta['hr_out_features'] = ['U_100m', 'V_100m']
     s1_model.meta['s_enhance'] = 2
@@ -665,7 +667,7 @@ def test_fwp_multi_step_wind_hi_res_topo(input_files):
     }
     _ = s1_model.generate(np.ones((4, 10, 10, 3)), exogenous_data=exo_tmp)
 
-    s2_model = Sup3rGan(gen_model, fp_disc, learning_rate=1e-4)
+    s2_model = Sup3rGan(GEN_2X_2F_CONCAT, fp_disc, learning_rate=1e-4)
     s2_model.meta['lr_features'] = ['U_100m', 'V_100m', 'topography']
     s2_model.meta['hr_out_features'] = ['U_100m', 'V_100m']
     s2_model.meta['s_enhance'] = 2
@@ -1260,14 +1262,96 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza(input_files):
     shutil.rmtree('./exo_cache', ignore_errors=True)
 
 
+def test_solar_multistep_exo():
+    """Test the special solar multistep model with exo features."""
+    features1 = ['clearsky_ratio']
+    fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_1f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
+    model1 = Sup3rGan(fp_gen, fp_disc)
+    _ = model1.generate(np.ones((4, 10, 10, len(features1))))
+    model1.set_norm_stats({'clearsky_ratio': 0.7}, {'clearsky_ratio': 0.04})
+    model1.meta['input_resolution'] = {'spatial': '8km', 'temporal': '40min'}
+    model1.set_model_params(lr_features=features1, hr_out_features=features1)
+
+    features2 = ['U_200m', 'V_200m', 'topography']
+
+    fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
+    model2 = Sup3rGan(GEN_2X_2F_CONCAT, fp_disc)
+
+    exo_tmp = {
+        'topography': {
+            'steps': [
+                {
+                    'model': 0,
+                    'combine_type': 'layer',
+                    'data': np.random.rand(4, 20, 20, 1),
+                }
+            ]
+        }
+    }
+
+    _ = model2.generate(
+        np.ones((4, 10, 10, len(features2))), exogenous_data=exo_tmp
+    )
+    model2.set_norm_stats(
+        {'U_200m': 4.2, 'V_200m': 5.6, 'topography': 100.2},
+        {'U_200m': 1.1, 'V_200m': 1.3, 'topography': 50.3},
+    )
+    model2.meta['input_resolution'] = {'spatial': '4km', 'temporal': '40min'}
+    model2.set_model_params(
+        lr_features=features2,
+        hr_out_features=features2[:-1],
+        hr_exo_features=features2[-1:],
+    )
+
+    features_in_3 = ['clearsky_ratio', 'U_200m', 'V_200m']
+    features_out_3 = ['clearsky_ratio']
+    fp_gen = os.path.join(CONFIG_DIR, 'sup3rcc/gen_solar_1x_8x_1f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
+    model3 = Sup3rGan(fp_gen, fp_disc)
+    _ = model3.generate(np.ones((4, 10, 10, 3, len(features_in_3))))
+    model3.set_norm_stats(
+        {'U_200m': 4.2, 'V_200m': 5.6, 'clearsky_ratio': 0.7},
+        {'U_200m': 1.1, 'V_200m': 1.3, 'clearsky_ratio': 0.04},
+    )
+    model3.meta['input_resolution'] = {'spatial': '2km', 'temporal': '40min'}
+    model3.set_model_params(
+        lr_features=features_in_3, hr_out_features=features_out_3
+    )
+
+    with tempfile.TemporaryDirectory() as td:
+        fp1 = os.path.join(td, 'model1')
+        fp2 = os.path.join(td, 'model2')
+        fp3 = os.path.join(td, 'model3')
+        model1.save(fp1)
+        model2.save(fp2)
+        model3.save(fp3)
+
+        with pytest.raises(AssertionError):
+            SolarMultiStepGan.load(fp2, fp1, fp3)
+
+        ms_model = SolarMultiStepGan.load(fp1, fp2, fp3)
+
+        x = np.ones((3, 10, 10, len(features1 + features2)))
+        exo_tmp = {
+            'topography': {
+                'steps': [
+                    {
+                        'model': 1,
+                        'combine_type': 'input',
+                        'data': np.random.rand(3, 10, 10, 1),
+                    },
+                    {
+                        'model': 1,
+                        'combine_type': 'layer',
+                        'data': np.random.rand(3, 20, 20, 1),
+                    }
+                ]
+            }
+        }
+        out = ms_model.generate(x, exogenous_data=exo_tmp)
+        assert out.shape == (1, 20, 20, 24, 1)
+
+
 if __name__ == '__main__':
-    with tempfile.TemporaryDirectory() as tmpdir:
-        input_file = os.path.join(tmpdir, 'input_file.nc')
-        make_fake_nc_file(
-            input_file,
-            shape=(100, 100, 8),
-            features=['pressure_0m', *FEATURES],
-        )
-        test_fwp_multi_step_wind_hi_res_topo(input_file)
-    if False:
-        execute_pytest(__file__)
+    execute_pytest(__file__)

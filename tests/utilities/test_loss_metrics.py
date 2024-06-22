@@ -8,6 +8,7 @@ from sup3r.utilities.loss_metrics import (
     LowResLoss,
     MaterialDerivativeLoss,
     MmdMseLoss,
+    SpatialExtremesLoss,
     TemporalExtremesLoss,
 )
 from sup3r.utilities.utilities import spatial_coarsening, temporal_coarsening
@@ -80,6 +81,27 @@ def test_tex_loss():
     # loss should be dominated by special min/max values
     x[..., 24, 0] = -20
     y[..., 25, 0] = -25
+    loss = loss_obj(x, y)
+    assert loss.numpy() > 1.5
+
+
+def test_spex_loss():
+    """Test custom SpatialExtremesLoss function that looks at min/max values
+    in the timeseries."""
+    loss_obj = SpatialExtremesLoss()
+
+    x = np.zeros((1, 10, 10, 2, 1))
+    y = np.zeros((1, 10, 10, 2, 1))
+
+    # loss should be dominated by special min/max values
+    x[:, 5, 5, :, 0] = 20
+    y[:, 5, 5, :, 0] = 25
+    loss = loss_obj(x, y)
+    assert loss.numpy() > 1.5
+
+    # loss should be dominated by special min/max values
+    x[:, 5, 5, :, 0] = -20
+    y[:, 5, 5, :, 0] = -25
     loss = loss_obj(x, y)
     assert loss.numpy() > 1.5
 

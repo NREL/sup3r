@@ -105,44 +105,50 @@ class ExoData(dict):
                 model_step_exo[feature] = {'steps': steps}
         return ExoData(model_step_exo)
 
-    def split_exo_dict(self, split_step):
-        """Split exogenous_data into two dicts based on split_step. The first
-        dict has only model steps less than split_step. The second dict has
-        only model steps greater than or equal to split_step.
+    def split(self, split_steps):
+        """Split `self` into multiple dicts based on split_steps. The splits
+        are done such that the steps in the ith entry of the returned list
+        all have a `model number < split_steps[i].`
+
+        TODO: lots of nested loops here. simplify the logic.
 
         Parameters
         ----------
-        split_step : int
-            Step index to use for splitting. To split this into exo data for
-            spatial models and temporal models split_step should be
-            len(spatial_models). If this is for a TemporalThenSpatial model
-            split_step should be len(temporal_models).
+        split_steps : list
+            Step index list to use for splitting. To split this into exo data
+            for spatial models and temporal models split_steps should be
+            [len(spatial_models)]. If this is for a TemporalThenSpatial model
+            split_steps should be [len(temporal_models)]. If this is for a
+            multi step model composed of more than two models (e.g.
+            SolarMultiStepGan) split_steps should be
+            [len(spatial_solar_models), len(spatial_solar_models) +
+            len(spatial_wind_models)]
 
         Returns
         -------
-        split_exo_1 : dict
-            Same as input dictionary but with only entries with 'model':
-            model_step where model_step is less than split_step
-        split_exo_2 : dict
-            Same as input dictionary but with only entries with 'model':
-            model_step where model_step is greater than or equal to split_step
+        split_list : List[ExoData]
+            List of `ExoData` objects coming from the split of `self`,
+            according to `split_steps`
         """
-        split_exo_1 = {}
-        split_exo_2 = {}
+        split_dict = {i: {} for i in range(len(split_steps) + 1)}
         for feature, entry in self.items():
-            steps = [
-                step for step in entry['steps'] if step['model'] < split_step
-            ]
-            if steps:
-                split_exo_1[feature] = {'steps': steps}
-            steps = [
-                step for step in entry['steps'] if step['model'] >= split_step
-            ]
-            for step in steps:
-                step.update({'model': step['model'] - split_step})
-            if steps:
-                split_exo_2[feature] = {'steps': steps}
-        return ExoData(split_exo_1), ExoData(split_exo_2)
+            steps = entry['steps']
+            for i, split_step in enumerate(split_steps):
+                steps_i = [s for s in steps if s['model'] < split_step]
+                steps = steps[len(steps_i) :]
+                if any(steps_i):
+                    if i > 0:
+                        for s in steps_i:
+                            s.update(
+                                {'model': s['model'] - split_steps[i - 1]}
+                            )
+                    split_dict[i][feature] = {'steps': steps_i}
+            if any(steps):
+                for s in steps:
+                    s.update({'model': s['model'] - split_steps[-1]})
+                split_dict[len(split_steps)][feature] = {'steps': steps}
+
+        return [ExoData(split) for split in split_dict.values()]
 
     def get_combine_type_data(self, feature, combine_type, model_step=None):
         """Get exogenous data for given feature which is used according to the
