@@ -27,7 +27,6 @@ os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)
 FEATURES = ['U_100m', 'V_100m']
-INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
 target = (19.3, -123.5)
 shape = (8, 8)
 sample_shape = (8, 8, 6)

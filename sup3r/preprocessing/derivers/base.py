@@ -281,16 +281,36 @@ class Deriver(BaseDeriver):
         features,
         time_roll=0,
         hr_spatial_coarsen=1,
-        nan_mask=False,
+        nan_method_kwargs=None,
         FeatureRegistry=None,
     ):
+        """
+        Parameters
+        ----------
+        data : T_Dataset
+            Data used for derivations
+        features: list
+            List of features to derive
+        time_roll: int
+            Number of steps to shift the time axis. `Passed to
+            xr.Dataset.roll()`
+        hr_spatial_coarsen: int
+            Spatial coarsening factor. Passed to `xr.Dataset.coarsen()`
+        nan_method_kwargs: str | dict | None
+            Keyword arguments for nan handling. If 'mask', time steps with nans
+            will be dropped. Otherwise this should be a dict of kwargs which
+            will be passed to :meth:`Sup3rX.interpolate_na`.
+        FeatureRegistry : dict
+            Dictionary of :class:`DerivedFeature` objects used for derivations
+        """
+
         super().__init__(
             data=data, features=features, FeatureRegistry=FeatureRegistry
         )
 
         if time_roll != 0:
             logger.debug(f'Applying time_roll={time_roll} to data array')
-            self.data = self.data.roll(time=time_roll)
+            self.data = self.data.roll(**{Dimension.TIME: time_roll})
 
         if hr_spatial_coarsen > 1:
             logger.debug(
@@ -304,6 +324,14 @@ class Deriver(BaseDeriver):
                 }
             ).mean()
 
-        if nan_mask:
-            time_mask = np.isnan(self.data.as_array()).any((0, 1, 3))
-            self.data = self.data.drop_isel(time=time_mask)
+        if nan_method_kwargs is not None:
+            if nan_method_kwargs['method'] == 'mask':
+                dim = nan_method_kwargs.get('dim', Dimension.TIME)
+                axes = [i for i in range(4) if i != self.data.dims.index(dim)]
+                mask = np.isnan(self.data.as_array()).any(axes)
+                self.data = self.data.drop_isel(**{dim: mask})
+
+            elif np.isnan(self.data.as_array()).any():
+                logger.info(f'Filling nan values with nan_method_kwargs='
+                            f'{nan_method_kwargs}')
+                self.data = self.data.interpolate_na(**nan_method_kwargs)

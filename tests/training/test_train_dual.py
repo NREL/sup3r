@@ -137,7 +137,7 @@ def test_train(
             batch_size=5,
             s_enhance=s_enhance,
             t_enhance=t_enhance,
-            n_batches=3,
+            n_batches=4,
             means=means,
             stds=stds,
             mode=mode,

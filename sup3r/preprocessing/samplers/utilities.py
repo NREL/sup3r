@@ -286,7 +286,7 @@ def nsrdb_reduce_daily_data(data, shape, csr_ind=0):
         warn(msg)
         return data
 
-    day_ilocs = np.where(~night_mask)[0]
+    day_ilocs = np.where(~night_mask)[0].compute_chunk_sizes()
     padding = shape - len(day_ilocs)
     half_pad = int(np.ceil(padding / 2))
     start = day_ilocs[0] - half_pad

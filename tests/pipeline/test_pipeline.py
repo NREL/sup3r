@@ -17,7 +17,6 @@ from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.models.base import Sup3rGan
 from sup3r.utilities.pytest.helpers import make_fake_nc_file
 
-INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
 FEATURES = ['U_100m', 'V_100m', 'pressure_0m']
 
 

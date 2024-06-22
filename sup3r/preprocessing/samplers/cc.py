@@ -157,12 +157,6 @@ class DualSamplerCC(DualSampler):
         :func:`nsrdb_reduce_daily_data.` If this is for a spatial only model
         this subroutine is skipped."""
         low_res, high_res = super().__next__()
-        high_res = (
-            high_res
-            if isinstance(high_res, np.ndarray)
-            else high_res.compute()
-        )
-
         if (
             self.hr_out_features is not None
             and 'clearsky_ratio' in self.hr_out_features
@@ -172,6 +166,8 @@ class DualSamplerCC(DualSampler):
             high_res = self.reduce_high_res_sub_daily(high_res, csr_ind=i_cs)
 
             if np.isnan(high_res[..., i_cs]).any():
-                high_res[..., i_cs] = nn_fill_array(high_res[..., i_cs])
+                high_res[..., i_cs] = nn_fill_array(
+                    high_res[..., i_cs].compute()
+                )
 
         return low_res, high_res

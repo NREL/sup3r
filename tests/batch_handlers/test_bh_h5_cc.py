@@ -53,7 +53,9 @@ def test_solar_batching(hr_tsteps, t_enhance, features, plot=False):
     """Test batching of nsrdb data with and without down sampling to day
     hours"""
     handler = DataHandlerH5SolarCC(
-        INPUT_FILE_S, features=features, **dh_kwargs
+        INPUT_FILE_S, features=features,
+        nan_method_kwargs={'method': 'nearest', 'dim': 'time'},
+        **dh_kwargs
     )
     batcher = TestBatchHandlerCC(
         [handler],
