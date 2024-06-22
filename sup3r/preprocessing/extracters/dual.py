@@ -13,7 +13,7 @@ from sup3r.preprocessing.base import Container, Sup3rDataset
 from sup3r.preprocessing.cachers import Cacher
 from sup3r.preprocessing.utilities import Dimension
 from sup3r.utilities.regridder import Regridder
-from sup3r.utilities.utilities import nn_fill_array, spatial_coarsening
+from sup3r.utilities.utilities import spatial_coarsening
 
 logger = logging.getLogger(__name__)
 
@@ -151,7 +151,7 @@ class DualExtracter(Container):
                 : self.hr_required_shape[2]
             ],
         }
-        self.hr_data = self.hr_data.init_new({**hr_coords_new, **hr_data_new})
+        self.hr_data = self.hr_data.update_ds({**hr_coords_new, **hr_data_new})
 
     def get_regridder(self):
         """Get regridder object"""
@@ -184,7 +184,7 @@ class DualExtracter(Container):
                     : self.lr_required_shape[2]
                 ],
             }
-            self.lr_data = self.lr_data.init_new(
+            self.lr_data = self.lr_data.update_ds(
                 {**lr_coords_new, **lr_data_new}
             )
 
@@ -202,4 +202,6 @@ class DualExtracter(Container):
                 warn(msg)
                 msg = f'Doing nn nan fill on low res {f} data.'
                 logger.info(msg)
-                self.lr_data[f] = nn_fill_array(self.lr_data[f])
+                self.lr_data[f] = self.lr_data.interpolate_na(
+                    feature=f, method='nearest'
+                )

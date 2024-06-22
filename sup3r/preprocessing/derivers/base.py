@@ -265,8 +265,14 @@ class BaseDeriver(Container):
         lev_array, var_array = self.add_single_level_data(
             feature, lev_array, var_array
         )
+        interp_method = 'linear'
+        if fstruct.basename in ('u', 'v') and fstruct.height < 100:
+            interp_method = 'log'
         out = Interpolator.interp_to_level(
-            lev_array=lev_array, var_array=var_array, level=level
+            lev_array=lev_array,
+            var_array=var_array,
+            level=level,
+            interp_method=interp_method,
         )
         return out
 
@@ -332,6 +338,8 @@ class Deriver(BaseDeriver):
                 self.data = self.data.drop_isel(**{dim: mask})
 
             elif np.isnan(self.data.as_array()).any():
-                logger.info(f'Filling nan values with nan_method_kwargs='
-                            f'{nan_method_kwargs}')
+                logger.info(
+                    f'Filling nan values with nan_method_kwargs='
+                    f'{nan_method_kwargs}'
+                )
                 self.data = self.data.interpolate_na(**nan_method_kwargs)

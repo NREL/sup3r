@@ -48,20 +48,61 @@ class Interpolator:
             to the one requested.
             (lat, lon, time, level)
         """
-        mask1 = (
-            da.abs(lev_array - level)
-            == da.min(da.abs(lev_array - level), axis=-1)[..., None]
+        over_mask = lev_array > level
+        under_levs = (
+            da.ma.masked_array(lev_array, over_mask)
+            if ~over_mask.sum() >= lev_array[..., 0].size
+            else lev_array
         )
-        not_lev1 = da.ma.masked_array(lev_array, mask1)
+        mask1 = (
+            da.abs(under_levs - level)
+            == da.min(da.abs(under_levs - level), axis=-1)[..., None]
+        )
+        over_levs = (
+            da.ma.masked_array(lev_array, ~over_mask)
+            if over_mask.sum() >= lev_array[..., 0].size
+            else da.ma.masked_array(lev_array, mask1)
+        )
         mask2 = (
-            da.abs(not_lev1 - level)
-            == da.min(da.abs(not_lev1 - level), axis=-1)[..., None]
+            da.abs(over_levs - level)
+            == da.min(da.abs(over_levs - level), axis=-1)[..., None]
         )
         return mask1, mask2
 
     @classmethod
+    def _log_interp(cls, lev_samps, var_samps, level):
+        """Interpolate between levels with log profile."""
+
+        lev_samp = da.stack(lev_samps, axis=-1)
+        var_samp = da.stack(var_samps, axis=-1)
+
+        log_diff = np.log(lev_samps[1]) - np.log(lev_samps[0])
+        a = (var_samps[1] - var_samps[0]) / log_diff
+        b = (
+            var_samps[0] * np.log(lev_samps[1])
+            - var_samps[1] * np.log(lev_samps[0])
+        ) / log_diff
+        try:
+            out = a * np.log(level) + b
+        except Exception as e:
+            msg = (
+                f'Log interp failed with (h, ws) = ({lev_samp}, {var_samp}). '
+                f'{e} Using linear interpolation.'
+            )
+            logger.warning(msg)
+            warn(msg)
+            diff = lev_samps[1] - lev_samps[0]
+            alpha = (level - lev_samps[0]) / diff
+            out = var_samps[0] * (1 - alpha) + var_samps[1] * alpha
+        return out
+
+    @classmethod
     def interp_to_level(
-        cls, lev_array: T_Array, var_array: T_Array, level
+        cls,
+        lev_array: T_Array,
+        var_array: T_Array,
+        level,
+        interp_method='linear',
     ):
         """Interpolate var_array to the given level.
 
@@ -98,7 +139,15 @@ class Interpolator:
         alpha = (level - lev1) / diff
         var1 = var_array[mask1].compute_chunk_sizes().reshape(mask1.shape[:-1])
         var2 = var_array[mask2].compute_chunk_sizes().reshape(mask2.shape[:-1])
-        return var1 * (1 - alpha) + var2 * alpha
+
+        if interp_method == 'log':
+            out = cls._log_interp(
+                lev_samps=[lev1, lev2], var_samps=[var1, var2], level=level
+            )
+        else:
+            out = var1 * (1 - alpha) + var2 * alpha
+
+        return out
 
     @classmethod
     def _check_lev_array(cls, lev_array, levels):

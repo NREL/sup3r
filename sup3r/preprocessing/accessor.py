@@ -140,7 +140,7 @@ class Sup3rX:
             )
         return ds
 
-    def init_new(self, new_dset, attrs=None):
+    def update_ds(self, new_dset, attrs=None):
         """Update `self._ds` with coords and data_vars replaced with those
         provided. These are both provided as dictionaries {name: dask.array}.
 
@@ -248,7 +248,8 @@ class Sup3rX:
 
     def interpolate_na(self, **kwargs):
         """Use rioxarray to fill NaN values with a dask compatible method."""
-        for feat in list(self.data_vars):
+        features = kwargs.get('features', list(self.data_vars))
+        for feat in features:
             if 'dim' in kwargs:
                 if kwargs['dim'] == Dimension.TIME:
                     kwargs['use_coordinate'] = kwargs.get(
@@ -352,6 +353,10 @@ class Sup3rX:
         return self._ds.__contains__(vals)
 
     def _add_dims_to_data_dict(self, vals):
+        """Add dimensions to vals entries if needed. This is used to set values
+        of `self._ds` which can require dimensions to be explicitly specified
+        for the data being set. e.g. self._ds['u_100m'] = (('south_north',
+        'west_east', 'time'), data)"""
         new_vals = {}
         for k, v in vals.items():
             if isinstance(v, tuple):

@@ -11,7 +11,10 @@ logger = logging.getLogger(__name__)
 
 
 class FillAndSmoothMixin:
-    """Fill and extend parameters for calibration on missing positions"""
+    """Fill and extend parameters for calibration on missing positions
+
+    TODO: replace nn_fill_array call with `Sup3rX.interpolate_na` method
+    """
 
     def fill_and_smooth(
         self, out, fill_extend=True, smooth_extend=0, smooth_interior=0
