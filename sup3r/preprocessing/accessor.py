@@ -7,7 +7,6 @@ from warnings import warn
 import dask.array as da
 import numpy as np
 import pandas as pd
-import rioxarray  # noqa: F401
 import xarray as xr
 
 from sup3r.preprocessing.utilities import (
@@ -247,7 +246,8 @@ class Sup3rX:
         return type(self)(self._ds.std(**kwargs))
 
     def interpolate_na(self, **kwargs):
-        """Use rioxarray to fill NaN values with a dask compatible method."""
+        """Use `xr.DataArray.interpolate_na` to fill NaN values with a dask
+        compatible method."""
         features = kwargs.get('features', list(self.data_vars))
         for feat in features:
             if 'dim' in kwargs:
