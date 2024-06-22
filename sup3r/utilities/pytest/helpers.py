@@ -85,16 +85,15 @@ def make_fake_dset(shape, features, const=None):
     if len(shape) == 3:
         dims = ('time', *dims[2:])
         trans_axes = (2, 0, 1)
-    arr = (
-        np.full(shape, const)
-        if const is not None
-        else da.random.uniform(0, 1, shape)
-    )
-
     data_vars = {
         f: (
             dims[: len(shape)],
-            da.transpose(arr, axes=trans_axes),
+            da.transpose(
+                np.full(shape, const)
+                if const is not None
+                else da.random.uniform(0, 1, shape),
+                axes=trans_axes,
+            ),
         )
         for f in features
     }
