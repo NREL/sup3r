@@ -6,6 +6,11 @@ from warnings import warn
 import dask.array as da
 import numpy as np
 
+from sup3r.preprocessing.utilities import (
+    _compute_chunks_if_dask,
+    _compute_if_dask,
+)
+
 np.random.seed(42)
 
 logger = logging.getLogger(__name__)
@@ -244,7 +249,7 @@ def nsrdb_sub_daily_sampler(data, shape, time_index=None):
         warn(msg)
         return tslice
 
-    day_ilocs = np.where(~night_mask.compute())[0]
+    day_ilocs = np.where(~_compute_if_dask(night_mask)[0])
     padding = shape - len(day_ilocs)
     half_pad = int(np.round(padding / 2))
     new_start = tslice.start + day_ilocs[0] - half_pad
@@ -286,7 +291,7 @@ def nsrdb_reduce_daily_data(data, shape, csr_ind=0):
         warn(msg)
         return data
 
-    day_ilocs = np.where(~night_mask)[0].compute_chunk_sizes()
+    day_ilocs = _compute_chunks_if_dask(np.where(~night_mask)[0])
     padding = shape - len(day_ilocs)
     half_pad = int(np.ceil(padding / 2))
     start = day_ilocs[0] - half_pad

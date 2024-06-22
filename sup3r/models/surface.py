@@ -3,12 +3,12 @@ import logging
 from fnmatch import fnmatch
 from warnings import warn
 
-import dask.array as da
 import numpy as np
 from PIL import Image
 from sklearn import linear_model
 
 from sup3r.models.linear import LinearInterp
+from sup3r.preprocessing.utilities import _compute_if_dask
 from sup3r.utilities.utilities import spatial_coarsening
 
 logger = logging.getLogger(__name__)
@@ -560,13 +560,10 @@ class SurfaceSpatialMetModel(LinearInterp):
             channel can include temperature_*m, relativehumidity_*m, and/or
             pressure_*m
         """
-        if isinstance(low_res, da.core.Array):
-            low_res = low_res.compute()
+        low_res = _compute_if_dask(low_res)
         lr_topo, hr_topo = self._get_topo_from_exo(exogenous_data)
-        if isinstance(lr_topo, da.core.Array):
-            lr_topo = lr_topo.compute()
-        if isinstance(hr_topo, da.core.Array):
-            hr_topo = hr_topo.compute()
+        lr_topo = _compute_if_dask(lr_topo)
+        hr_topo = _compute_if_dask(hr_topo)
         logger.debug('SurfaceSpatialMetModel received low/high res topo '
                      'shapes of {} and {}'
                      .format(lr_topo.shape, hr_topo.shape))

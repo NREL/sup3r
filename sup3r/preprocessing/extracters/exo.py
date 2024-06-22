@@ -25,6 +25,7 @@ from sup3r.preprocessing.loaders import (
 )
 from sup3r.preprocessing.utilities import (
     Dimension,
+    _compute_if_dask,
     get_input_handler_class,
     get_possible_class_args,
     log_args,
@@ -233,7 +234,7 @@ class ExoExtracter(ABC):
             self.distance_upper_bound = diff
             logger.info(
                 'Set distance upper bound to {:.4f}'.format(
-                    self.distance_upper_bound.compute()
+                    _compute_if_dask(self.distance_upper_bound)
                 )
             )
         return self.distance_upper_bound

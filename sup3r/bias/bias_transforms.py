@@ -4,21 +4,19 @@ import logging
 import os
 from warnings import warn
 
-import dask.array as da
 import numpy as np
 from rex import Resource
 from rex.utilities.bc_utils import QuantileDeltaMapping
 from scipy.ndimage import gaussian_filter
 
+from sup3r.preprocessing.utilities import _compute_if_dask
 from sup3r.typing import T_Array
 
 logger = logging.getLogger(__name__)
 
 
 def _get_factors(lat_lon, ds, bias_fp, threshold=0.1):
-    lat_lon = (
-        lat_lon.compute() if isinstance(lat_lon, da.core.Array) else lat_lon
-    )
+    lat_lon = _compute_if_dask(lat_lon)
     with Resource(bias_fp) as res:
         lat = np.expand_dims(res['latitude'], axis=-1)
         lon = np.expand_dims(res['longitude'], axis=-1)
