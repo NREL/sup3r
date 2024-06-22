@@ -1,12 +1,11 @@
 """pytests for general utilities"""
 
 import os
-import tempfile
 
+import dask.array as da
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
-import xarray as xr
 from rex import Resource, init_logger
 from scipy.interpolate import interp1d
 
@@ -21,7 +20,7 @@ from sup3r.preprocessing.samplers.utilities import (
     weighted_box_sampler,
     weighted_time_sampler,
 )
-from sup3r.utilities.interpolate_log_profile import LogLinInterpolator
+from sup3r.utilities.interpolation import Interpolator
 from sup3r.utilities.regridder import Regridder
 from sup3r.utilities.utilities import (
     spatial_coarsening,
@@ -35,48 +34,32 @@ init_logger('sup3r', log_level='DEBUG')
 np.random.seed(42)
 
 
-def test_log_interp(log=False):
+def test_log_interp():
     """Make sure log interp generates reasonable output (e.g. between input
     levels)"""
-    if log:
-        init_logger('sup3r', log_level='DEBUG')
-    with tempfile.TemporaryDirectory() as tmpdir:
-        outfile = f'{tmpdir}/uv_interp.nc'
-        infile = f'{tmpdir}/uv_input.nc'
-        tmp = xr.open_dataset(FP_ERA)
-        tmp = tmp.isel(time=slice(0, 100))
-        tmp.to_netcdf(infile)
-        tmp.close()
-        LogLinInterpolator.run(
-            infile,
-            outfile,
-            output_heights={'u': [40], 'v': [40]},
-            variables=['u', 'v'],
-            max_workers=1,
-        )
+    shape = (3, 3, 5)
+    lower = np.random.uniform(-10, 10, shape)
+    upper = np.random.uniform(-10, 10, shape)
 
-        def between_check(first, mid, second):
-            return (first < mid < second) or (second < mid < first)
+    hgt_array = da.stack(
+        [np.full(shape, 10), np.full(shape, 100)],
+        axis=-1,
+    )
+    u = da.stack([lower, upper], axis=-1)
+    out = Interpolator.interp_to_level(hgt_array, u, [40], interp_method='log')
 
-        out = xr.open_dataset(outfile)
-        input = xr.open_dataset(infile)
-        u_check = all(
-            between_check(lower, mid, higher)
-            for lower, mid, higher in zip(
-                input['u_10m'].values.flatten(),
-                out['u_40m'].values.flatten(),
-                input['u_100m'].values.flatten(),
-            )
+    def between_check(first, mid, second):
+        return (first <= mid <= second) or (second <= mid <= first)
+
+    u_check = all(
+        between_check(lower, mid, higher)
+        for lower, mid, higher in zip(
+            lower.flatten(),
+            out.flatten(),
+            upper.flatten(),
         )
-        v_check = all(
-            between_check(lower, mid, higher)
-            for lower, mid, higher in zip(
-                input['v_10m'].values.flatten(),
-                out['v_40m'].values.flatten(),
-                input['v_100m'].values.flatten(),
-            )
-        )
-        assert u_check and v_check
+    )
+    assert u_check
 
 
 def test_regridding():
@@ -110,14 +93,16 @@ def test_regridding():
             source_meta=source_meta,
             target_meta=new_shuffled_meta,
             max_workers=1,
-            min_distance=0
+            min_distance=0,
         )
 
         out = regridder(res['windspeed_100m', ...].T).T.compute()
 
         assert np.allclose(
-            res['windspeed_100m', ...][:, new_shuffled_meta['gid'].values], out
-        , atol=0.1)
+            res['windspeed_100m', ...][:, new_shuffled_meta['gid'].values],
+            out,
+            atol=0.1,
+        )
 
 
 def test_get_chunk_slices():
