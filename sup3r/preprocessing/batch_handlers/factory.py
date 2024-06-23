@@ -4,7 +4,7 @@ Sup3r batch_handling module.
 """
 
 import logging
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Type, Union
 
 from sup3r.preprocessing.base import (
     Container,
@@ -104,7 +104,7 @@ def BatchHandlerFactory(
             )
 
             if not val_samplers:
-                self.val_data: Union[List, type[self.VAL_QUEUE]] = []
+                self.val_data: Union[List, Type[self.VAL_QUEUE]] = []
             else:
                 self.val_data = self.VAL_QUEUE(
                     samplers=val_samplers,

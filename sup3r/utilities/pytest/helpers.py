@@ -203,8 +203,8 @@ class TestBatchHandlerDC(BatchHandlerDC):
     def get_samples(self):
         """Override get_samples to track sample indices."""
         out = super().get_samples()
-        if len(self.index_record) > 0:
-            self._update_bin_count(self.index_record[-1])
+        if len(self.containers[0].index_record) > 0:
+            self._update_bin_count(self.containers[0].index_record[-1])
         return out
 
     def reset(self):

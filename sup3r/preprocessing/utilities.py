@@ -8,7 +8,7 @@ from enum import Enum
 from glob import glob
 from inspect import getfullargspec, signature
 from pathlib import Path
-from typing import ClassVar, Optional, Tuple
+from typing import ClassVar, Optional, Tuple, Union
 from warnings import warn
 
 import numpy as np
@@ -335,7 +335,7 @@ def log_args(func):
     return wrapper
 
 
-def parse_features(features: Optional[str | list] = None, data=None):
+def parse_features(features: Optional[Union[str, list]] = None, data=None):
     """Parse possible inputs for features (list, str, None, 'all'). If 'all'
     this returns all data_vars in data. If None this returns an empty list.
 
