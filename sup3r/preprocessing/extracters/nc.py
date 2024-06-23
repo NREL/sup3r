@@ -118,4 +118,4 @@ class BaseExtracterNC(Extracter):
     def get_lat_lon(self):
         """Get the 2D array of coordinates corresponding to the requested
         target and shape."""
-        return self.full_lat_lon[*self.raster_index]
+        return self.full_lat_lon[self.raster_index[0], self.raster_index[1]]
