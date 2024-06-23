@@ -195,8 +195,9 @@ class DataHandlerNCforCC(DataHandlerNC):
             .coarsen({Dimension.FLATTENED_SPATIAL: self._nsrdb_agg})
             .mean()
         )
-
-        time_freq = float(mode(ti_nsrdb.diff().seconds[1:-1] / 3600).mode)
+        time_freq = float(
+            mode((ti_nsrdb[1:] - ti_nsrdb[:-1]).seconds / 3600).mode
+        )
 
         cs_ghi = cs_ghi.coarsen({Dimension.TIME: int(24 // time_freq)}).mean()
         lat_idx, lon_idx = (
