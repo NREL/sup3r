@@ -370,7 +370,7 @@ class Sup3rX:
             else:
                 val = dims_array_tuple(v)
                 msg = (
-                    f'Setting data for new variable {k} without '
+                    f'Setting data for new variable "{k}" without '
                     'explicitly providing dimensions. Using dims = '
                     f'{tuple(val[0])}.'
                 )
