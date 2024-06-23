@@ -88,7 +88,7 @@ class TestEraDownloader(EraDownloader):
 def test_era_dl(tmpdir_factory):
     """Test basic post proc for era downloader."""
 
-    variables = ['zg', 'orog', 'u', 'v']
+    variables = ['zg', 'orog', 'u', 'v', 'pressure']
     combined_out_pattern = os.path.join(
         tmpdir_factory.mktemp('tmp'), 'era5_{year}_{month}_{var}.nc'
     )
@@ -123,7 +123,7 @@ def test_era_dl_year(tmpdir_factory):
         year=2000,
         area=[50, -130, 23, -65],
         levels=[1000, 900, 800],
-        variables=['zg', 'orog', 'u', 'v'],
+        variables=['zg', 'orog', 'u', 'v', 'pressure'],
         combined_out_pattern=combined_out_pattern,
         combined_yearly_file=yearly_file,
         max_workers=1,

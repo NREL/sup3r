@@ -2,7 +2,6 @@
 
 import logging
 import random
-import re
 import string
 import time
 
@@ -15,97 +14,6 @@ from scipy import ndimage as nd
 np.random.seed(42)
 
 logger = logging.getLogger(__name__)
-
-
-class Feature:
-    """Class to simplify feature computations. Stores feature height, pressure,
-    basename
-    """
-
-    def __init__(self, feature):
-        """Takes a feature (e.g. U_100m) and gets the height (100), basename
-        (U).
-
-        Parameters
-        ----------
-        feature : str
-            Raw feature name e.g. U_100m
-
-        """
-        self.raw_name = feature
-        self.height = self.get_height(feature)
-        self.pressure = self.get_pressure(feature)
-        self.basename = self.get_basename(feature)
-
-    @staticmethod
-    def get_basename(feature):
-        """Get basename of feature. e.g. temperature from temperature_100m
-
-        Parameters
-        ----------
-        feature : str
-            Name of feature. e.g. U_100m
-
-        Returns
-        -------
-        str
-            feature basename
-        """
-        height = Feature.get_height(feature)
-        pressure = Feature.get_pressure(feature)
-        if height is not None or pressure is not None:
-            suffix = feature.split('_')[-1]
-            basename = feature.replace(f'_{suffix}', '')
-        else:
-            basename = feature.replace('_(.*)', '')
-        return basename
-
-    @staticmethod
-    def get_height(feature):
-        """Get height from feature name to use in height interpolation
-
-        Parameters
-        ----------
-        feature : str
-            Name of feature. e.g. U_100m
-
-        Returns
-        -------
-        int | None
-            height to use for interpolation
-            in meters
-        """
-        height = None
-        if isinstance(feature, str):
-            height = re.search(r'\d+m', feature)
-            if height:
-                height = height.group(0).strip('m')
-                if not height.isdigit():
-                    height = None
-        return height
-
-    @staticmethod
-    def get_pressure(feature):
-        """Get pressure from feature name to use in pressure interpolation
-
-        Parameters
-        ----------
-        feature : str
-            Name of feature. e.g. U_100pa
-
-        Returns
-        -------
-        float | None
-            pressure to use for interpolation in pascals
-        """
-        pressure = None
-        if isinstance(feature, str):
-            pressure = re.search(r'\d+pa', feature)
-            if pressure:
-                pressure = pressure.group(0).strip('pa')
-                if not pressure.isdigit():
-                    pressure = None
-        return pressure
 
 
 class Timer:

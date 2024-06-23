@@ -14,6 +14,7 @@ from rex.utilities.fun_utils import get_fun_call_str
 from sup3r.bias.utilities import bias_correct_feature
 from sup3r.postprocessing.file_handling import H5_ATTRS, RexOutputs
 from sup3r.preprocessing.derivers import Deriver
+from sup3r.preprocessing.derivers.utilities import parse_feature
 from sup3r.preprocessing.utilities import (
     Dimension,
     get_input_handler_class,
@@ -22,11 +23,7 @@ from sup3r.preprocessing.utilities import (
 )
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
-from sup3r.utilities.utilities import (
-    Feature,
-    spatial_coarsening,
-    temporal_coarsening,
-)
+from sup3r.utilities.utilities import spatial_coarsening, temporal_coarsening
 
 logger = logging.getLogger(__name__)
 
@@ -422,7 +419,7 @@ class Sup3rQa:
             len(self.input_handler.time_index),
             len(self.input_handler.meta),
         )
-        attrs = H5_ATTRS.get(Feature.get_basename(dset_name), {})
+        attrs = H5_ATTRS.get(parse_feature(dset_name).basename, {})
 
         # dont scale the re-coarsened data or diffs
         attrs['scale_factor'] = 1

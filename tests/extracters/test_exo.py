@@ -17,6 +17,7 @@ from sup3r.preprocessing import (
     TopoExtracterH5,
     TopoExtracterNC,
 )
+from sup3r.preprocessing.data_handlers.base import ExoData
 from sup3r.preprocessing.utilities import Dimension
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
@@ -36,6 +37,12 @@ T_ENHANCE = [1, 1]
 np.random.seed(42)
 
 init_logger('sup3r', log_level='DEBUG')
+
+
+def test_exo_data_init():
+    """Make sure `ExoData` raises the correct error with bad input."""
+    with pytest.raises(ValueError):
+        ExoData(steps=['dummy'])
 
 
 @pytest.mark.parametrize('feature', ['topography', 'sza'])

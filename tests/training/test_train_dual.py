@@ -56,7 +56,7 @@ np.random.seed(42)
             'spatial/disc.json',
             2,
             1,
-            (10, 10, 1),
+            (20, 20, 1),
             'lazy',
         ),
         (
@@ -72,7 +72,7 @@ np.random.seed(42)
             'spatial/disc.json',
             2,
             1,
-            (10, 10, 1),
+            (20, 20, 1),
             'eager',
         ),
     ],
@@ -89,20 +89,19 @@ def test_train(
     """Test basic model training with only gen content loss. Tests both
     spatiotemporal and spatial models."""
 
-    lr = 9e-5
+    lr = 5e-5
     hr_handler = DataHandlerH5(
         file_paths=FP_WTK,
         features=FEATURES,
         target=TARGET_COORD,
         shape=(20, 20),
-        time_slice=slice(None, None, 10),
+        time_slice=slice(200, None, 10),
     )
     lr_handler = DataHandlerNC(
         file_paths=FP_ERA,
         features=FEATURES,
-        time_slice=slice(None, None, 5),
+        time_slice=slice(200, None, 5),
     )
-
     with pytest.raises(AssertionError):
         dual_extracter = DualExtracter(
             data=(lr_handler.data, hr_handler.data),
@@ -113,7 +112,7 @@ def test_train(
     lr_handler = DataHandlerNC(
         file_paths=FP_ERA,
         features=FEATURES,
-        time_slice=slice(None, None, t_enhance * 10),
+        time_slice=slice(200, None, t_enhance * 10),
     )
 
     dual_extracter = DualExtracter(
@@ -122,10 +121,29 @@ def test_train(
         t_enhance=t_enhance,
     )
 
+    hr_val = DataHandlerH5(
+        file_paths=FP_WTK,
+        features=FEATURES,
+        target=TARGET_COORD,
+        shape=(20, 20),
+        time_slice=slice(None, 200, 10),
+    )
+    lr_val = DataHandlerNC(
+        file_paths=FP_ERA,
+        features=FEATURES,
+        time_slice=slice(None, 200, t_enhance * 10),
+    )
+
+    dual_val = DualExtracter(
+        data=(lr_val.data, hr_val.data),
+        s_enhance=s_enhance,
+        t_enhance=t_enhance,
+    )
+
     fp_gen = os.path.join(CONFIG_DIR, gen_config)
     fp_disc = os.path.join(CONFIG_DIR, disc_config)
 
-    Sup3rGan.seed()
+    Sup3rGan.seed(42)
     model = Sup3rGan(
         fp_gen,
         fp_disc,
@@ -145,9 +163,9 @@ def test_train(
 
         batch_handler = DualBatchHandler(
             train_containers=[dual_extracter],
-            val_containers=[dual_extracter],
+            val_containers=[dual_val],
             sample_shape=sample_shape,
-            batch_size=2,
+            batch_size=4,
             s_enhance=s_enhance,
             t_enhance=t_enhance,
             n_batches=3,

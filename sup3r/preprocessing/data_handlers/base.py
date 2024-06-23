@@ -75,12 +75,6 @@ class ExoData(dict):
             logger.error(msg)
             raise ValueError(msg)
 
-    def append(self, feature, step):
-        """Append steps list for given feature"""
-        tmp = self.get(feature, {'steps': []})
-        tmp['steps'].append(step)
-        self[feature] = tmp
-
     def get_model_step_exo(self, model_step):
         """Get the exogenous data for the given model_step from the full list
         of steps
