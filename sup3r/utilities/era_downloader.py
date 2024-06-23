@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 class EraDownloader:
     """Class to handle ERA5 downloading, variable renaming, and file
-    combinations.  """
+    combinations."""
 
     # variables available on a single level (e.g. surface)
     SFC_VARS: ClassVar[list] = [

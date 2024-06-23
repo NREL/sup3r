@@ -1,13 +1,14 @@
 """Accessor for xarray."""
 
 import logging
-from typing import Dict, Self, Union
+from typing import Dict, Union
 from warnings import warn
 
 import dask.array as da
 import numpy as np
 import pandas as pd
 import xarray as xr
+from typing_extensions import Self
 
 from sup3r.preprocessing.utilities import (
     Dimension,
