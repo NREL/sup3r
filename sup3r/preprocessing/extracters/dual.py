@@ -93,9 +93,11 @@ class DualExtracter(Container):
             mode(self.hr_time_index.diff().total_seconds()[1:-1]).mode
         )
 
-        msg = (f'Time steps of high-res data ({hr_step} seconds) and low-res '
-               f'data ({lr_step} seconds) are inconsistent with t_enhance = '
-               f'{self.t_enhance}.')
+        msg = (
+            f'Time steps of high-res data ({hr_step} seconds) and low-res '
+            f'data ({lr_step} seconds) are inconsistent with t_enhance = '
+            f'{self.t_enhance}.'
+        )
         assert np.allclose(lr_step, hr_step * self.t_enhance), msg
 
         self.lr_required_shape = (
@@ -122,7 +124,7 @@ class DualExtracter(Container):
         ), msg
 
         self.hr_lat_lon = self.hr_data.lat_lon[
-            *map(slice, self.hr_required_shape[:2])
+            slice(self.hr_required_shape[0]), slice(self.hr_required_shape[1])
         ]
         self.lr_lat_lon = spatial_coarsening(
             self.hr_lat_lon, s_enhance=self.s_enhance, obs_axis=False
@@ -155,7 +157,7 @@ class DualExtracter(Container):
             warn(msg)
 
         hr_data_new = {
-            f: self.hr_data[f, *map(slice, self.hr_required_shape)]
+            f: self.hr_data[f, *(slice(s) for s in self.hr_required_shape)]
             for f in self.hr_data.data_vars
         }
         hr_coords_new = {
