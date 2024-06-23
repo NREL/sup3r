@@ -317,7 +317,7 @@ class Sup3rX:
             out = self.as_array()[keys]
         return out
 
-    def __getitem__(self, keys) -> T_Array | Self:
+    def __getitem__(self, keys) -> Union[T_Array, Self]:
         """Method for accessing variables or attributes. keys can optionally
         include a feature name as the last element of a keys tuple."""
         if isinstance(keys, slice):

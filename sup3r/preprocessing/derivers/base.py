@@ -4,7 +4,7 @@ extracted features."""
 import logging
 import re
 from inspect import signature
-from typing import Union
+from typing import Type, Union
 
 import dask.array as da
 import numpy as np
@@ -60,7 +60,7 @@ class BaseDeriver(Container):
             else self.data[features]
         )
 
-    def _check_registry(self, feature) -> Union[type[DerivedFeature], None]:
+    def _check_registry(self, feature) -> Union[Type[DerivedFeature], None]:
         """Check if feature or matching pattern is in the feature registry
         keys. Return the corresponding value if found."""
         if feature.lower() in self.FEATURE_REGISTRY:

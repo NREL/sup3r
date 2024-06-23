@@ -8,7 +8,7 @@ lazy loading.
 import logging
 import pathlib
 from dataclasses import dataclass
-from typing import ClassVar, List, Optional
+from typing import ClassVar, List, Optional, Union
 
 import numpy as np
 
@@ -113,7 +113,7 @@ class ExoDataHandler:
         'sza': {'h5': SzaExtracter, 'nc': SzaExtracter},
     }
 
-    file_paths: str | list | pathlib.Path
+    file_paths: Union[str, list, pathlib.Path]
     feature: str
     steps: List[dict]
     models: Optional[list] = None
@@ -122,10 +122,10 @@ class ExoDataHandler:
     shape: Optional[tuple] = None
     time_slice: Optional[slice] = None
     raster_file: Optional[str] = None
-    max_delta: Optional[int] = 20
+    max_delta: int = 20
     input_handler_name: Optional[str] = None
     exo_handler: Optional[str] = None
-    cache_dir: Optional[str] = './exo_cache'
+    cache_dir: str = './exo_cache'
     res_kwargs: Optional[dict] = None
 
     @log_args

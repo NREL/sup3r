@@ -169,7 +169,7 @@ class ForwardPassStrategy:
         If None then a node will be used for each temporal chunk.
     """
 
-    file_paths: str | list | pathlib.Path
+    file_paths: Union[str, list, pathlib.Path]
     model_kwargs: dict
     fwp_chunk_shape: tuple
     spatial_pad: int
@@ -182,7 +182,7 @@ class ForwardPassStrategy:
     bias_correct_method: Optional[str] = None
     bias_correct_kwargs: Optional[dict] = None
     allowed_const: Optional[Union[list, bool]] = None
-    incremental: Optional[bool] = True
+    incremental: bool = True
     output_workers: Optional[int] = None
     pass_workers: Optional[int] = None
     max_nodes: Optional[int] = None

@@ -2,7 +2,7 @@
 datasets"""
 
 import logging
-from typing import Tuple
+from typing import Tuple, Union
 from warnings import warn
 
 import numpy as np
@@ -36,7 +36,7 @@ class DualExtracter(Container):
 
     def __init__(
         self,
-        data: Sup3rDataset | Tuple[xr.Dataset, xr.Dataset],
+        data: Union[Sup3rDataset, Tuple[xr.Dataset, xr.Dataset]],
         regrid_workers=1,
         regrid_lr=True,
         s_enhance=1,
