@@ -157,7 +157,12 @@ class DualExtracter(Container):
             warn(msg)
 
         hr_data_new = {
-            f: self.hr_data[f, *(slice(s) for s in self.hr_required_shape)]
+            f: self.hr_data[
+                f,
+                slice(self.hr_required_shape[0]),
+                slice(self.hr_required_shape[1]),
+                slice(self.hr_required_shape[2]),
+            ]
             for f in self.hr_data.data_vars
         }
         hr_coords_new = {
