@@ -68,7 +68,7 @@ class TestEraDownloader(EraDownloader):
 
         if 'geopotential' in variables:
             features.append('z')
-        features.extend([name_map[f] for f in name_map if f in variables])
+        features.extend([v for f, v in name_map.items() if f in variables])
 
         nc = make_fake_dset(
             shape=shape,
