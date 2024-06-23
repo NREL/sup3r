@@ -4,7 +4,6 @@ data."""
 import logging
 
 from rex import MultiFileNSRDBX
-from scipy.stats import mode
 
 from sup3r.preprocessing.base import Sup3rDataset
 from sup3r.preprocessing.cachers import Cacher
@@ -219,10 +218,7 @@ def DailyDataHandlerFactory(
                 'shape is {}.'.format(self.data.shape)
             )
 
-            day_steps = 24 / float(
-                mode(self.time_index.diff().total_seconds()[1:-1] / 3600).mode
-            )
-            day_steps = int(day_steps)
+            day_steps = int(24 / self.time_step / 3600)
             assert len(self.time_index) % day_steps == 0, msg
             assert len(self.time_index) > day_steps, msg
 

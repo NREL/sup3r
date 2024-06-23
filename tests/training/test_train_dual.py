@@ -14,7 +14,6 @@ from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.models import Sup3rGan
 from sup3r.preprocessing import (
     DataHandlerH5,
-    DataHandlerNC,
     DualBatchHandler,
     DualExtracter,
     StatsCollection,
@@ -44,10 +43,10 @@ np.random.seed(42)
     ],
     [
         (
-            'spatiotemporal/gen_3x_4x_2f.json',
+            'spatiotemporal/gen_2x_2x_2f.json',
             'spatiotemporal/disc.json',
-            3,
-            4,
+            2,
+            2,
             (12, 12, 16),
             'lazy',
         ),
@@ -60,10 +59,10 @@ np.random.seed(42)
             'lazy',
         ),
         (
-            'spatiotemporal/gen_3x_4x_2f.json',
+            'spatiotemporal/gen_2x_2x_2f.json',
             'spatiotemporal/disc.json',
-            3,
-            4,
+            2,
+            2,
             (12, 12, 16),
             'eager',
         ),
@@ -86,7 +85,7 @@ def test_train(
     mode,
     n_epoch=2,
 ):
-    """Test basic model training with only gen content loss. Tests both
+    """Test model training with a dual data handler / batch handler. Tests both
     spatiotemporal and spatial models."""
 
     lr = 5e-5
@@ -97,9 +96,12 @@ def test_train(
         shape=(20, 20),
         time_slice=slice(200, None, 10),
     )
-    lr_handler = DataHandlerNC(
-        file_paths=FP_ERA,
+    lr_handler = DataHandlerH5(
+        file_paths=FP_WTK,
         features=FEATURES,
+        target=TARGET_COORD,
+        shape=(20, 20),
+        hr_spatial_coarsen=s_enhance,
         time_slice=slice(200, None, 5),
     )
     with pytest.raises(AssertionError):
@@ -109,9 +111,12 @@ def test_train(
             t_enhance=t_enhance,
         )
 
-    lr_handler = DataHandlerNC(
-        file_paths=FP_ERA,
+    lr_handler = DataHandlerH5(
+        file_paths=FP_WTK,
         features=FEATURES,
+        target=TARGET_COORD,
+        shape=(20, 20),
+        hr_spatial_coarsen=s_enhance,
         time_slice=slice(200, None, t_enhance * 10),
     )
 
@@ -128,9 +133,12 @@ def test_train(
         shape=(20, 20),
         time_slice=slice(None, 200, 10),
     )
-    lr_val = DataHandlerNC(
-        file_paths=FP_ERA,
+    lr_val = DataHandlerH5(
+        file_paths=FP_WTK,
         features=FEATURES,
+        target=TARGET_COORD,
+        shape=(20, 20),
+        hr_spatial_coarsen=s_enhance,
         time_slice=slice(None, 200, t_enhance * 10),
     )
 
@@ -143,7 +151,7 @@ def test_train(
     fp_gen = os.path.join(CONFIG_DIR, gen_config)
     fp_disc = os.path.join(CONFIG_DIR, disc_config)
 
-    Sup3rGan.seed(42)
+    Sup3rGan.seed()
     model = Sup3rGan(
         fp_gen,
         fp_disc,

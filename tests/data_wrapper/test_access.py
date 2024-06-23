@@ -88,7 +88,7 @@ def test_correct_multi_member_access():
         np.array_equal(o[..., None], d) for o, d in zip(out, data[..., 'u'])
     )
     assert all(
-        np.array_equal(da.moveaxis(d0.to_dataarray().data, 0, -1), d1)
+        np.array_equal(da.moveaxis(d0.to_array().data, 0, -1), d1)
         for d0, d1 in zip(data[['v', 'u']], data[..., [1, 0]])
     )
     out = data[

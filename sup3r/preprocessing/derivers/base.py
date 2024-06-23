@@ -283,8 +283,7 @@ class Deriver(BaseDeriver):
 
         if hr_spatial_coarsen > 1:
             logger.debug(
-                f'Applying hr_spatial_coarsen={hr_spatial_coarsen} '
-                'to data array'
+                f'Applying hr_spatial_coarsen={hr_spatial_coarsen} to data.'
             )
             self.data = self.data.coarsen(
                 {

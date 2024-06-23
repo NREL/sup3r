@@ -8,6 +8,7 @@ import dask.array as da
 import numpy as np
 import pandas as pd
 import xarray as xr
+from scipy.stats import mode
 from typing_extensions import Self
 
 from sup3r.preprocessing.utilities import (
@@ -237,7 +238,7 @@ class Sup3rX:
         """Return xr.DataArray for the contained xr.Dataset."""
         features = parse_to_list(data=self._ds, features=features)
         features = features if isinstance(features, list) else [features]
-        return self._ds[features].to_dataarray().transpose(*self.dims, ...)
+        return self._ds[features].to_array().transpose(*self.dims, ...)
 
     def mean(self, **kwargs):
         """Get mean directly from dataset object."""
@@ -262,18 +263,28 @@ class Sup3rX:
                     **kwargs, fill_value=fill_value
                 )
             else:
-                self._ds[feat] = (
-                    self._ds[feat].interpolate_na(
+                horiz = (
+                    self._ds[feat]
+                    .chunk({Dimension.WEST_EAST: -1})
+                    .interpolate_na(
                         dim=Dimension.WEST_EAST,
                         **kwargs,
                         fill_value=fill_value,
                     )
-                    + self._ds[feat].interpolate_na(
+                )
+                vert = (
+                    self._ds[feat]
+                    .chunk({Dimension.SOUTH_NORTH: -1})
+                    .interpolate_na(
                         dim=Dimension.SOUTH_NORTH,
                         **kwargs,
                         fill_value=fill_value,
                     )
-                ) / 2.0
+                )
+                self._ds[feat] = (
+                    self._ds[feat].dims,
+                    (horiz.data + vert.data) / 2.0,
+                )
         return type(self)(self._ds)
 
     @staticmethod
@@ -365,15 +376,22 @@ class Sup3rX:
             if isinstance(v, tuple):
                 new_vals[k] = v
             elif isinstance(v, xr.DataArray):
-                new_vals[k] = (v.dims, v.data)
+                new_vals[k] = (
+                    ordered_dims(v.dims),
+                    ordered_array(v).data.squeeze(),
+                )
             elif isinstance(v, xr.Dataset):
-                new_vals[k] = (v.dims, v.to_datarray().data.squeeze())
+                new_vals[k] = (
+                    ordered_dims(v.dims),
+                    ordered_array(v[k]).data.squeeze(),
+                )
+            elif k in self._ds.data_vars:
+                new_vals[k] = (self._ds[k].dims, v)
             else:
                 val = dims_array_tuple(v)
                 msg = (
-                    f'Setting data for new variable "{k}" without '
-                    'explicitly providing dimensions. Using dims = '
-                    f'{tuple(val[0])}.'
+                    f'Setting data for variable "{k}" without explicitly '
+                    f'providing dimensions. Using dims = {tuple(val[0])}.'
                 )
                 logger.warning(msg)
                 warn(msg)
@@ -472,6 +490,15 @@ class Sup3rX:
     def time_index(self, value):
         """Update the time_index attribute with given index."""
         self._ds.indexes['time'] = value
+
+    @property
+    def time_step(self):
+        """Get time step in seconds."""
+        return float(
+            mode(
+                (self.time_index[1:] - self.time_index[:-1]).total_seconds()
+            ).mode
+        )
 
     @property
     def lat_lon(self) -> T_Array:

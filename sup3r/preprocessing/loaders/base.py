@@ -97,7 +97,9 @@ class Loader(Container, ABC):
                 *list(data.dims),
             ]
         }
-        data = data.rename(rename_map)
+        data = data.rename(
+            {k: v for k, v in rename_map.items() if v != Dimension.TIME}
+        )
         data = data.swap_dims(
             {
                 k: v

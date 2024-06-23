@@ -157,11 +157,9 @@ class ExoExtracter(ABC):
             Name of cache file. This is a netcdf files which will be saved with
             :class:`Cacher` and loaded with :class:`LoaderNC`
         """
-        fn = f'exo_{feature}_{self.target}_{self.shape}'
-        fn += f'_{self.s_enhance}x_{self.t_enhance}x.nc'
-        fn = fn.replace('(', '').replace(')', '')
-        fn = fn.replace('[', '').replace(']', '')
-        fn = fn.replace(',', 'x').replace(' ', '')
+        fn = f'exo_{feature}_{"_".join(map(str, self.target))}_'
+        fn += f'{"x".join(map(str, self.shape))}_{self.s_enhance}x_'
+        fn += f'{self.t_enhance}x.nc'
         cache_fp = os.path.join(self.cache_dir, fn)
         if self.cache_dir is not None:
             os.makedirs(self.cache_dir, exist_ok=True)

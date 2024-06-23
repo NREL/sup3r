@@ -44,6 +44,7 @@ nosetests.xml
 coverage.xml
 *.cover
 .hypothesis/
+coverage/lcov.info
 *.png
 
 # Translations
@@ -119,4 +120,6 @@ tags
 # pixi environments
 .pixi
 *.egg-info
-coverage/lcov.info
+
+# test dirs
+exo_cache
