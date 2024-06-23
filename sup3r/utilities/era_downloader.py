@@ -20,20 +20,6 @@ from warnings import warn
 import numpy as np
 import xarray as xr
 
-try:
-    import cdsapi
-except ImportError as e:
-    msg = f'Could not import cdsapi package. {e}'
-    raise ImportError(msg) from e
-
-msg = (
-    'To download ERA5 data you need to have a ~/.cdsapirc file '
-    'with a valid url and api key. Follow the instructions here: '
-    'https://cds.climate.copernicus.eu/api-how-to'
-)
-req_file = os.path.join(os.path.expanduser('~'), '.cdsapirc')
-assert os.path.exists(req_file), msg
-
 logger = logging.getLogger(__name__)
 
 
@@ -302,6 +288,21 @@ class EraDownloader:
     def get_cds_client():
         """Get the copernicus climate data store (CDS) API object for ERA
         downloads."""
+
+        try:
+            import cdsapi
+        except ImportError as e:
+            msg = f'Could not import cdsapi package. {e}'
+            raise ImportError(msg) from e
+
+        msg = (
+            'To download ERA5 data you need to have a ~/.cdsapirc file '
+            'with a valid url and api key. Follow the instructions here: '
+            'https://cds.climate.copernicus.eu/api-how-to'
+        )
+        req_file = os.path.join(os.path.expanduser('~'), '.cdsapirc')
+        assert os.path.exists(req_file), msg
+
         return cdsapi.Client()
 
     def download_process_combine(self):
