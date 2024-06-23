@@ -52,8 +52,8 @@ def test_daily_handler():
     daily = handler.hourly.coarsen(time=int(24 / tstep)).mean()
 
     assert np.array_equal(
-        daily[lowered(FEATURES_W)].to_dataarray(),
-        daily_og[lowered(FEATURES_W)].to_dataarray(),
+        daily[lowered(FEATURES_W)].to_array(),
+        daily_og[lowered(FEATURES_W)].to_array(),
     )
     assert handler.hourly.name == 'hourly'
     assert handler.daily.name == 'daily'

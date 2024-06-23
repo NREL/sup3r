@@ -96,11 +96,7 @@ class DataHandlerNCforCC(DataHandlerNC):
             self._nsrdb_source_fp
         ), msg
 
-        time_freq_hours = float(
-            mode(
-                self.loader.time_index.diff().total_seconds()[1:-1] / 3600
-            ).mode
-        )
+        time_freq_hours = self.loader.time_step / 3600
 
         msg = (
             'Can only handle source CC data in hourly frequency but '

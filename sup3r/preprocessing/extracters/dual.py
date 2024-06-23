@@ -8,11 +8,10 @@ from warnings import warn
 import numpy as np
 import pandas as pd
 import xarray as xr
-from scipy.stats import mode
 
 from sup3r.preprocessing.base import Container, Sup3rDataset
 from sup3r.preprocessing.cachers import Cacher
-from sup3r.preprocessing.utilities import Dimension
+from sup3r.preprocessing.utilities import Dimension, _compute_if_dask
 from sup3r.utilities.regridder import Regridder
 from sup3r.utilities.utilities import spatial_coarsening
 
@@ -83,16 +82,9 @@ class DualExtracter(Container):
         assert isinstance(data, Sup3rDataset), msg
         self.lr_data, self.hr_data = data.low_res, data.high_res
         self.regrid_workers = regrid_workers
-        self.lr_time_index = self.lr_data.indexes['time']
-        self.hr_time_index = self.hr_data.indexes['time']
 
-        lr_step = float(
-            mode(self.lr_time_index.diff().total_seconds()[1:-1]).mode
-        )
-        hr_step = float(
-            mode(self.hr_time_index.diff().total_seconds()[1:-1]).mode
-        )
-
+        lr_step = self.lr_data.time_step
+        hr_step = self.hr_data.time_step
         msg = (
             f'Time steps of high-res data ({hr_step} seconds) and low-res '
             f'data ({lr_step} seconds) are inconsistent with t_enhance = '
@@ -211,6 +203,7 @@ class DualExtracter(Container):
 
     def check_regridded_lr_data(self):
         """Check for NaNs after regridding and do NN fill if needed."""
+        fill_feats = []
         for f in self.lr_data.data_vars:
             nan_perc = (
                 100
@@ -218,11 +211,18 @@ class DualExtracter(Container):
                 / self.lr_data[f].size
             )
             if nan_perc > 0:
-                msg = f'{f} data has {nan_perc:.3f}% NaN values!'
+                msg = (
+                    f'{f} data has {_compute_if_dask(nan_perc):.3f}% NaN '
+                    'values!'
+                )
+                fill_feats.append(f)
                 logger.warning(msg)
                 warn(msg)
-                msg = f'Doing nn nan fill on low res {f} data.'
-                logger.info(msg)
-                self.lr_data[f] = self.lr_data.interpolate_na(
-                    features=[f], method='nearest'
+
+        if any(fill_feats):
+            msg = ('Doing nearest neighbor nan fill on low_res data for '
+                   f'features = {fill_feats}')
+            logger.info(msg)
+            self.lr_data = self.lr_data.interpolate_na(
+                    features=fill_feats, method='nearest'
                 )

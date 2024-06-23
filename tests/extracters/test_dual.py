@@ -25,7 +25,7 @@ init_logger('sup3r', log_level='DEBUG')
 
 
 def test_dual_extracter_shapes(full_shape=(20, 20)):
-    """Test basic spatial model training with only gen content loss."""
+    """Test for consistent lr / hr shapes."""
 
     # need to reduce the number of temporal examples to test faster
     hr_container = DataHandlerH5(
@@ -49,6 +49,35 @@ def test_dual_extracter_shapes(full_shape=(20, 20)):
         pair_extracter.hr_data.shape[1] // 2,
         *pair_extracter.hr_data.shape[2:],
     )
+
+
+def test_dual_nan_fill(full_shape=(20, 20)):
+    """Test interpolate_na nan fill."""
+
+    # need to reduce the number of temporal examples to test faster
+    hr_container = DataHandlerH5(
+        file_paths=FP_WTK,
+        features=FEATURES,
+        target=TARGET_COORD,
+        shape=full_shape,
+        time_slice=slice(0, 5),
+    )
+    lr_container = DataHandlerH5(
+        file_paths=FP_WTK,
+        features=FEATURES,
+        target=TARGET_COORD,
+        shape=full_shape,
+        time_slice=slice(0, 5),
+    )
+    lr_container.data[FEATURES[0], slice(5, 10), slice(5, 10), 2] = np.nan
+
+    assert np.isnan(lr_container.data.as_array()).any()
+
+    pair_extracter = DualExtracter(
+        (lr_container.data, hr_container.data), s_enhance=1, t_enhance=1
+    )
+
+    assert not np.isnan(pair_extracter.lr_data.as_array()).any()
 
 
 def test_regrid_caching(full_shape=(20, 20)):

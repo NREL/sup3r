@@ -113,21 +113,21 @@ def test_stex_loss():
     """Test custom SpatioTemporalExtremesLoss function that looks at min/max
     values in the timeseries."""
     loss_obj = SpatiotemporalExtremesLoss(
-        spatial_weight=0.5, temporal_weight=0.5
+        spatial_weight=1, temporal_weight=1
     )
 
     x = np.zeros((1, 10, 10, 5, 1))
     y = np.zeros((1, 10, 10, 5, 1))
 
     # loss should be dominated by special min/max values
-    x[:, 5, 5, 2, 0] = 20
-    y[:, 5, 5, 2, 0] = 25
+    x[:, 5, 5, 2, 0] = 100
+    y[:, 5, 5, 2, 0] = 150
     loss = loss_obj(x, y)
     assert loss.numpy() > 1.5
 
     # loss should be dominated by special min/max values
-    x[:, 5, 5, 2, 0] = -20
-    y[:, 5, 5, 2, 0] = -25
+    x[:, 5, 5, 2, 0] = -100
+    y[:, 5, 5, 2, 0] = -150
     loss = loss_obj(x, y)
     assert loss.numpy() > 1.5
 
@@ -137,21 +137,21 @@ def test_st_fft_loss():
     values in the timeseries and also encourages accuracy of the frequency
     spectrum"""
     loss_obj = StExtremesFftLoss(
-        spatial_weight=0.5, temporal_weight=0.5, fft_weight=1.0
+        spatial_weight=1.0, temporal_weight=1.0, fft_weight=1.0
     )
 
     x = np.zeros((1, 10, 10, 5, 1))
     y = np.zeros((1, 10, 10, 5, 1))
 
     # loss should be dominated by special min/max values
-    x[:, 5, 5, 2, 0] = 20
-    y[:, 5, 5, 2, 0] = 25
+    x[:, 5, 5, 2, 0] = 100
+    y[:, 5, 5, 2, 0] = 150
     loss = loss_obj(x, y)
     assert loss.numpy() > 1.5
 
     # loss should be dominated by special min/max values
-    x[:, 5, 5, 2, 0] = -20
-    y[:, 5, 5, 2, 0] = -25
+    x[:, 5, 5, 2, 0] = -100
+    y[:, 5, 5, 2, 0] = -150
     loss = loss_obj(x, y)
     assert loss.numpy() > 1.5
 
