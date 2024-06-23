@@ -218,7 +218,7 @@ def DailyDataHandlerFactory(
                 'shape is {}.'.format(self.data.shape)
             )
 
-            day_steps = int(24 / self.time_step / 3600)
+            day_steps = int(24 * 3600 / self.time_step)
             assert len(self.time_index) % day_steps == 0, msg
             assert len(self.time_index) > day_steps, msg
 

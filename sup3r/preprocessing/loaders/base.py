@@ -37,6 +37,13 @@ class Loader(Container, ABC):
         'xtime': Dimension.TIME,
     }
 
+    COORD_NAMES: ClassVar = {
+        'lat': Dimension.LATITUDE,
+        'lon': Dimension.LONGITUDE,
+        'xlat': Dimension.LATITUDE,
+        'xlong': Dimension.LONGITUDE,
+    }
+
     def __init__(
         self,
         file_paths,
@@ -86,27 +93,24 @@ class Loader(Container, ABC):
     def __exit__(self, exc_type, exc_value, trace):
         self.res.close()
 
+    def lower_names(self, data):
+        """Set all fields / coords / dims to lower case."""
+        return data.rename(
+            {
+                f: f.lower()
+                for f in [
+                    *list(data.data_vars),
+                    *list(data.dims),
+                    *list(data.coords),
+                ]
+                if f != f.lower()
+            }
+        )
+
     def rename(self, data, standard_names):
         """Standardize fields in the dataset using the `standard_names`
         dictionary."""
-        rename_map = {
-            feat: feat.lower()
-            for feat in [
-                *list(data.data_vars),
-                *list(data.coords),
-                *list(data.dims),
-            ]
-        }
-        data = data.rename(
-            {k: v for k, v in rename_map.items() if v != Dimension.TIME}
-        )
-        data = data.swap_dims(
-            {
-                k: v
-                for k, v in rename_map.items()
-                if v == Dimension.TIME and k in data
-            }
-        )
+        data = self.lower_names(data)
         data = data.rename(
             {k: v for k, v in standard_names.items() if k in data}
         )

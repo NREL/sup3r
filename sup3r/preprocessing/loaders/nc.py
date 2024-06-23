@@ -70,9 +70,29 @@ class LoaderNC(Loader):
 
     def load(self):
         """Load netcdf xarray.Dataset()."""
-        res = self.rename(self.res, self.DIM_NAMES)
-        lats = res[Dimension.SOUTH_NORTH].data.squeeze()
-        lons = res[Dimension.WEST_EAST].data.squeeze()
+        res = self.lower_names(self.res)
+        res = res.swap_dims(
+            {k: v for k, v in self.DIM_NAMES.items() if k in res.dims}
+        )
+        res = res.rename(
+            {k: v for k, v in self.COORD_NAMES.items() if k in res}
+        )
+        lats = res[Dimension.LATITUDE].data.squeeze()
+        lons = res[Dimension.LONGITUDE].data.squeeze()
+
+        if len(lats.shape) == 1:
+            lons, lats = da.meshgrid(lons, lats)
+
+        coords = {
+            Dimension.LATITUDE: (
+                (Dimension.SOUTH_NORTH, Dimension.WEST_EAST),
+                lats.astype(np.float32),
+            ),
+            Dimension.LONGITUDE: (
+                (Dimension.SOUTH_NORTH, Dimension.WEST_EAST),
+                lons.astype(np.float32),
+            ),
+        }
 
         time_independent = (
             Dimension.TIME not in res.coords and Dimension.TIME not in res.dims
@@ -88,24 +108,9 @@ class LoaderNC(Loader):
             if hasattr(times, 'to_datetimeindex'):
                 times = times.to_datetimeindex()
 
-            res = res.assign_coords({Dimension.TIME: times})
+            coords[Dimension.TIME] = times
 
-        if len(lats.shape) == 1:
-            lons, lats = da.meshgrid(lons, lats)
-
-        coords = {
-            Dimension.LATITUDE: (
-                (Dimension.SOUTH_NORTH, Dimension.WEST_EAST),
-                lats.astype(np.float32),
-            ),
-            Dimension.LONGITUDE: (
-                (Dimension.SOUTH_NORTH, Dimension.WEST_EAST),
-                lons.astype(np.float32),
-            ),
-        }
         out = res.assign_coords(coords)
-        out = out.drop_vars((Dimension.SOUTH_NORTH, Dimension.WEST_EAST))
-
         if isinstance(self.chunks, tuple):
             chunks = dict(zip(ordered_dims(out.dims), self.chunks))
             out = out.chunk(chunks)
