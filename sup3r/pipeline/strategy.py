@@ -420,7 +420,7 @@ class ForwardPassStrategy:
 
         return ForwardPassChunk(
             input_data=self.input_handler.data[
-                *lr_pad_slice[:2], ti_pad_slice
+                lr_pad_slice[0], lr_pad_slice[1], ti_pad_slice
             ],
             exo_data=self.get_exo_chunk(
                 self.exo_data,
@@ -493,11 +493,15 @@ class ForwardPassStrategy:
                     chunk_step = {k: step[k] for k in step if k != 'data'}
                     exo_shape = step['data'].shape
                     enhanced_slices = cls._get_enhanced_slices(
-                        [*lr_pad_slice[:2], ti_pad_slice],
+                        [lr_pad_slice[0], lr_pad_slice[1], ti_pad_slice],
                         input_data_shape=input_data_shape,
                         exo_data_shape=exo_shape,
                     )
-                    chunk_step['data'] = step['data'][*enhanced_slices]
+                    chunk_step['data'] = step['data'][
+                        enhanced_slices[0],
+                        enhanced_slices[1],
+                        enhanced_slices[2],
+                    ]
                     exo_chunk[feature]['steps'].append(chunk_step)
         return exo_chunk
 
