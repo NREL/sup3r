@@ -1,12 +1,51 @@
 """Miscellaneous utilities shared across the derivers module"""
 
 import logging
+import re
 
 import numpy as np
 
 np.random.seed(42)
 
 logger = logging.getLogger(__name__)
+
+
+def parse_feature(feature):
+    """Parse feature name to get the "basename" (i.e. U for U_100m), the height
+    (100 for U_100m), and pressure if available (1000 for U_1000pa)."""
+
+    class FeatureStruct:
+        """Feature structure storing `basename`, `height`, and `pressure`."""
+
+        def __init__(self):
+            height = re.findall(r'_\d+m', feature)
+            pressure = re.findall(r'_\d+pa', feature)
+            self.basename = (
+                feature.replace(height[0], '')
+                if height
+                else feature.replace(pressure[0], '')
+                if pressure
+                else feature.split('_(.*)')[0]
+                if '_(.*)' in feature
+                else feature
+            )
+            self.height = int(height[0][1:-1]) if height else None
+            self.pressure = int(pressure[0][1:-2]) if pressure else None
+
+        def map_wildcard(self, pattern):
+            """Return given pattern with wildcard replaced with height if
+            available, pressure if available, or just return the basename."""
+            if '(.*)' not in pattern:
+                return pattern
+            return (
+                f"{pattern.split('_(.*)')[0]}_{self.height}m"
+                if self.height
+                else f"{pattern.split('_(.*)')[0]}_{self.pressure}pa"
+                if self.pressure
+                else f"{pattern.split('_(.*)')[0]}"
+            )
+
+    return FeatureStruct()
 
 
 def windspeed_log_law(z, a, b, c):

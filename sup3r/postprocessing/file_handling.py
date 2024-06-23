@@ -20,10 +20,10 @@ from scipy.interpolate import griddata
 from sup3r import __version__
 from sup3r.preprocessing.derivers.utilities import (
     invert_uv,
+    parse_feature,
 )
 from sup3r.utilities import VERSION_RECORD
 from sup3r.utilities.utilities import (
-    Feature,
     get_time_dim_name,
     pd_date_range,
 )
@@ -138,7 +138,7 @@ class OutputMixIn:
         dtype : str
             Data type for requested dset. Defaults to float32
         """
-        feat_base_name = Feature.get_basename(feature)
+        feat_base_name = parse_feature(feature).basename
         if feat_base_name in H5_ATTRS:
             attrs = H5_ATTRS[feat_base_name]
             dtype = attrs.get('dtype', 'float32')
@@ -293,7 +293,7 @@ class OutputHandler(OutputMixIn):
         maxes = []
         mins = []
         for fidx, fn in enumerate(features):
-            dset_name = Feature.get_basename(fn)
+            dset_name = parse_feature(fn).basename
             if dset_name not in H5_ATTRS:
                 msg = f'Could not find "{dset_name}" in H5_ATTRS dict!'
                 logger.error(msg)
@@ -662,7 +662,7 @@ class OutputHandlerH5(OutputHandler):
             List of renamed features u/v -> windspeed/winddirection for each
             height
         """
-        heights = [Feature.get_height(f) for f in features
+        heights = [parse_feature(f).height for f in features
                    if re.match('U_(.*?)m'.lower(), f.lower())]
         renamed_features = features.copy()
 
@@ -695,7 +695,7 @@ class OutputHandlerH5(OutputHandler):
             possible will be used
         """
 
-        heights = [Feature.get_height(f) for f in features if
+        heights = [parse_feature(f).height for f in features if
                    re.match('U_(.*?)m'.lower(), f.lower())]
         if heights:
             logger.info('Converting u/v to windspeed/winddirection for h5'
