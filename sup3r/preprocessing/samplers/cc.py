@@ -1,6 +1,4 @@
-"""Data handling for H5 files.
-@author: bbenton
-"""
+"""Sampler for climate change applications."""
 
 import logging
 from typing import Dict, Optional

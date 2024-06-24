@@ -2,10 +2,15 @@
 data."""
 
 import logging
+from typing import ClassVar
 
 from rex import MultiFileNSRDBX
 
-from sup3r.preprocessing.base import Sup3rDataset
+from sup3r.preprocessing.base import (
+    FactoryMeta,
+    Sup3rDataset,
+    TypeGeneralClass,
+)
 from sup3r.preprocessing.cachers import Cacher
 from sup3r.preprocessing.derivers import Deriver
 from sup3r.preprocessing.derivers.methods import (
@@ -15,12 +20,7 @@ from sup3r.preprocessing.derivers.methods import (
     RegistryNC,
 )
 from sup3r.preprocessing.extracters import DirectExtracter
-from sup3r.preprocessing.utilities import (
-    FactoryMeta,
-    get_class_kwargs,
-    get_source_type,
-    parse_to_list,
-)
+from sup3r.preprocessing.utilities import get_class_kwargs, parse_to_list
 
 logger = logging.getLogger(__name__)
 
@@ -248,25 +248,12 @@ DataHandlerNC = DataHandlerFactory(
 )
 
 
-class DataHandler:
+class DataHandler(TypeGeneralClass):
     """`DataHandler` class which parses input file type and returns
     appropriate `TypeSpecificDataHandler`."""
 
-    _legos = (DataHandlerH5, DataHandlerNC)
-
-    def __new__(cls, file_paths, *args, **kwargs):
-        """Return a new `DataHandler` based on input file type."""
-        source_type = get_source_type(file_paths)
-        if source_type == 'h5':
-            return DataHandlerH5(file_paths, *args, **kwargs)
-        if source_type == 'nc':
-            return DataHandlerNC(file_paths, *args, **kwargs)
-        msg = (
-            f'Can only handle H5 or NETCDF files. Received '
-            f'"{source_type}" for file_paths: {file_paths}'
-        )
-        logger.error(msg)
-        raise ValueError(msg)
+    _legos = (DataHandlerNC, DataHandlerH5)
+    TypeSpecificClass: ClassVar = dict(zip(['nc', 'h5'], _legos))
 
 
 def _base_loader(file_paths, **kwargs):

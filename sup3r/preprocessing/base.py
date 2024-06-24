@@ -5,8 +5,9 @@ samplers, batch queues, batch handlers.
 
 import logging
 import pprint
+from abc import ABCMeta
 from collections import namedtuple
-from typing import Optional, Tuple, Union
+from typing import ClassVar, Optional, Tuple, Union
 from warnings import warn
 
 import numpy as np
@@ -14,7 +15,7 @@ import xarray as xr
 
 import sup3r.preprocessing.accessor  # noqa: F401 # pylint: disable=W0611
 from sup3r.preprocessing.accessor import Sup3rX
-from sup3r.preprocessing.utilities import _log_args
+from sup3r.preprocessing.utilities import _log_args, get_source_type
 from sup3r.typing import T_Dataset
 
 logger = logging.getLogger(__name__)
@@ -322,3 +323,43 @@ class Container:
         except Exception as e:
             msg = f'{self.__class__.__name__} object has no attribute "{attr}"'
             raise AttributeError(msg) from e
+
+
+class FactoryMeta(ABCMeta, type):
+    """Meta class to define __name__ attribute of factory generated classes."""
+
+    def __new__(mcs, name, bases, namespace, **kwargs):  # noqa: N804
+        """Define __name__"""
+        name = namespace.get('__name__', name)
+        return super().__new__(mcs, name, bases, namespace, **kwargs)
+
+    def __subclasscheck__(cls, subclass):
+        """Check if factory built class shares base classes."""
+        if super().__subclasscheck__(subclass):
+            return True
+        if hasattr(subclass, '_legos'):
+            return cls._legos == subclass._legos
+        return False
+
+    def __repr__(cls):
+        return f"<class '{cls.__module__}.{cls.__name__}'>"
+
+
+class TypeGeneralClass:
+    """Factory pattern for returning type specific classes based on input file
+    type."""
+
+    TypeSpecificClass: ClassVar[dict] = {'nc': None, 'h5': None}
+
+    def __new__(cls, file_paths, *args, **kwargs):
+        """Return a new object based on input file type."""
+        source_type = get_source_type(file_paths)
+        SpecificClass = cls.TypeSpecificClass.get(source_type, None)
+        if SpecificClass is not None:
+            return SpecificClass(file_paths, *args, **kwargs)
+        msg = (
+            f'Can only handle H5 or NETCDF files. Received '
+            f'"{source_type}" for file_paths: {file_paths}'
+        )
+        logger.error(msg)
+        raise ValueError(msg)

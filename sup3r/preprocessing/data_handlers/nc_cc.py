@@ -1,6 +1,4 @@
-"""Data handling for netcdf files.
-@author: bbenton
-"""
+"""NETCDF DataHandler for climate change applications."""
 
 import logging
 import os
