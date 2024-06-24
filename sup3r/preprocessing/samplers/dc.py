@@ -38,9 +38,6 @@ class SamplerDC(Sampler):
         """Update spatial and temporal sampling weights."""
         self.spatial_weights = spatial_weights
         self.temporal_weights = temporal_weights
-        logger.debug(f'Updated {self.__class__.__name__} with spatial '
-                     f'weights: {self.spatial_weights} and temporal weights: '
-                     f'{self.temporal_weights}.')
 
     def get_sample_index(self):
         """Randomly gets weighted spatial sample and time sample indices

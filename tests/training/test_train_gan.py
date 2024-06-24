@@ -20,7 +20,6 @@ FEATURES = ['U_100m', 'V_100m']
 
 np.random.seed(42)
 
-
 init_logger('sup3r', log_level='DEBUG')
 
 
@@ -185,11 +184,9 @@ def test_train(
         batch_handler.stop()
 
 
-def test_train_st_weight_update(n_epoch=2, log=False):
+def test_train_st_weight_update(n_epoch=2):
     """Test basic spatiotemporal model training with discriminators and
     adversarial loss updating."""
-    if log:
-        init_logger('sup3r', log_level='DEBUG')
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
