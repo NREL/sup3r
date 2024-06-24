@@ -466,6 +466,7 @@ def test_presrat_zero_rate(fp_fut_cc, threshold):
 
 
 def test_apply_zero_precipitation_rate():
+    """Reinforce the zero precipitation rate, standard run"""
     data = np.array([[[5, 0.1, 3, 0.2, 1]]])
     out = apply_zero_precipitation_rate(data, np.array([[[0.25]]]))
 
@@ -473,6 +474,7 @@ def test_apply_zero_precipitation_rate():
 
 
 def test_apply_zero_precipitation_rate_nan():
+    """Validate with NaN in the input"""
     data = np.array([[[5, 0.1, np.nan, 0.2, 1]]])
     out = apply_zero_precipitation_rate(data, np.array([[[0.25]]]))
 
@@ -480,6 +482,7 @@ def test_apply_zero_precipitation_rate_nan():
 
 
 def test_apply_zero_precipitation_rate_2D():
+    """Validate a 2D input"""
     data = np.array(
         [
             [
