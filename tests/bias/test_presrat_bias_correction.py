@@ -528,7 +528,7 @@ def test_presrat_transform_nochanges(presrat_nochanges_params, fut_cc_notrend):
     # that can't be easily reproduced for validation. One solution is to
     # allow the implicit interpolation but compare only where non-interpolated
     # values are available. Let's call it the 'Magic index'.
-    idx = (slice(1,3), slice(0,3))
+    idx = (slice(1, 3), slice(0, 3))
     assert np.allclose(
         data[idx], corrected[idx], equal_nan=False
     ), "This case shouldn't modify the data"
