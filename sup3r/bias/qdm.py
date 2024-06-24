@@ -208,7 +208,8 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                          base_handler_kwargs=base_handler_kwargs,
                          bias_handler_kwargs=bias_handler_kwargs,
                          decimals=decimals,
-                         match_zero_rate=match_zero_rate)
+                         match_zero_rate=match_zero_rate,
+                         )
 
         self.bias_fut_fps = bias_fut_fps
 
@@ -219,7 +220,8 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                                              target=self.target,
                                              shape=self.shape,
                                              val_split=0.0,
-                                             **self.bias_handler_kwargs)
+                                             **self.bias_handler_kwargs,
+                                             )
 
     def _init_out(self):
         """Initialize output arrays `self.out`
@@ -448,7 +450,8 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
             daily_reduction='avg',
             fill_extend=True,
             smooth_extend=0,
-            smooth_interior=0):
+            smooth_interior=0,
+            ):
         """Estimate the statistical distributions for each location
 
         Parameters
