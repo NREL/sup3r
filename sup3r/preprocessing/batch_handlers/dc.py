@@ -16,12 +16,9 @@ from .factory import BatchHandlerFactory
 logger = logging.getLogger(__name__)
 
 
-BaseBatchHandlerDC = BatchHandlerFactory(
-    BatchQueueDC, SamplerDC, ValBatchQueueDC, name='BatchHandlerDC'
-)
-
-
-class BatchHandlerDC(BaseBatchHandlerDC):
+class BatchHandlerDC(
+    BatchHandlerFactory(BatchQueueDC, SamplerDC, ValBatchQueueDC)
+):
     """Add validation data requirement. Makes no sense to use this handler
     without validation data."""
 
