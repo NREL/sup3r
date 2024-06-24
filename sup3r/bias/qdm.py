@@ -608,7 +608,7 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         smooth_interior=0,
         zero_rate_threshold=0.01,
     ):
-        """Estimate the statistical distributions for each location
+        """Estimate the required information for PresRat correction
 
         Parameters
         ----------
@@ -630,7 +630,6 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
             for each of the three given datasets. Each value has dimensions
             (lat, lon, n-parameters).
         """
-
         logger.debug('Calculate CDF parameters for QDM')
 
         logger.info(
