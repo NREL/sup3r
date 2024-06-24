@@ -704,3 +704,63 @@ def get_spatial_bc_presrat(lat_lon: np.array,
         cfg = res.global_attrs
 
     return params, cfg
+
+
+def local_presrat_bc(data: np.array,
+                     time: np.array,
+                     lat_lon: np.array,
+                     base_dset: str,
+                     feature_name: str,
+                     bias_fp,
+                     lr_padded_slice=None,
+                     threshold=0.1,
+                     relative=True,
+                     no_trend=False):
+
+    params, cfg = get_spatial_bc_presrat(lat_lon,
+                                         base_dset,
+                                         feature_name,
+                                         bias_fp,
+                                         threshold)
+    base = params["base"]
+    bias = params["bias"]
+    bias_fut = params["bias_fut"]
+
+    if lr_padded_slice is not None:
+        spatial_slice = (lr_padded_slice[0], lr_padded_slice[1])
+        base = base[spatial_slice]
+        bias = bias[spatial_slice]
+        bias_fut = bias_fut[spatial_slice]
+
+    if no_trend:
+        mf = None
+    else:
+        mf = bias_fut.reshape(-1, bias_fut.shape[-1])
+    # The distributions are 3D (space, space, N-params)
+    # Collapse 3D (space, space, N) into 2D (space**2, N)
+    QDM = QuantileDeltaMapping(base.reshape(-1, base.shape[-1]),
+                               bias.reshape(-1, bias.shape[-1]),
+                               mf,
+                               dist=cfg['dist'],
+                               relative=relative,
+                               sampling=cfg["sampling"],
+                               log_base=cfg["log_base"])
+
+    # input 3D shape (spatial, spatial, temporal)
+    # QDM expects input arr with shape (time, space)
+    tmp = data.reshape(-1, data.shape[-1]).T
+    # Apply QDM correction
+    tmp = QDM(tmp)
+    # Reorgnize array back from  (time, space) to (spatial, spatial, temporal)
+    tmp = tmp.T.reshape(data.shape)
+
+    tmp = apply_zero_precipitation_rate(tmp, params["base_zero_rate"])
+
+    month = time.month
+    for m in range(12):
+        idx = month == m + 1
+        x_hat = tmp[:, :, idx].mean(axis=-1)
+        k = params["bias_mean_mf"][:, :, m] / x_hat
+        tmp[:, :, idx] *= k[:, :, np.newaxis]
+
+    return tmp
