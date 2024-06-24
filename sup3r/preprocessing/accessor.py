@@ -376,15 +376,19 @@ class Sup3rX:
             if isinstance(v, tuple):
                 new_vals[k] = v
             elif isinstance(v, xr.DataArray):
-                new_vals[k] = (
-                    ordered_dims(v.dims),
-                    ordered_array(v).data.squeeze(),
+                data = (
+                    ordered_array(v).squeeze(dim='variable').data
+                    if 'variable' in v.dims
+                    else ordered_array(v).data
                 )
+                new_vals[k] = (ordered_dims(v.dims), data)
             elif isinstance(v, xr.Dataset):
-                new_vals[k] = (
-                    ordered_dims(v.dims),
-                    ordered_array(v[k]).data.squeeze(),
+                data = (
+                    ordered_array(v[k]).squeeze(dim='variable').data
+                    if 'variable' in v[k].dims
+                    else ordered_array(v[k]).data
                 )
+                new_vals[k] = (ordered_dims(v.dims), data)
             elif k in self._ds.data_vars:
                 new_vals[k] = (self._ds[k].dims, v)
             else:
