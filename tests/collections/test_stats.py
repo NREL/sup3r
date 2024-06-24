@@ -45,6 +45,15 @@ def test_stats_dual_data():
         'winddirection': np.nanstd(dat[..., 1]),
     }
 
+    direct_means = {
+        'windspeed': dat.data.mean(features='windspeed', skipna=True),
+        'winddirection': dat.data.mean(features='winddirection', skipna=True)
+    }
+    direct_stds = {
+        'windspeed': dat.data.std(features='windspeed', skipna=True),
+        'winddirection': dat.data.std(features='winddirection', skipna=True)
+    }
+
     with TemporaryDirectory() as td:
         means = os.path.join(td, 'means.json')
         stds = os.path.join(td, 'stds.json')
@@ -57,6 +66,9 @@ def test_stats_dual_data():
 
         assert np.allclose(list(means.values()), list(og_means.values()))
         assert np.allclose(list(stds.values()), list(og_stds.values()))
+
+        assert np.allclose(list(means.values()), list(direct_means.values()))
+        assert np.allclose(list(stds.values()), list(direct_stds.values()))
 
 
 def test_stats_known():

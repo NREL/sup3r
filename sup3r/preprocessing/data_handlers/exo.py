@@ -80,11 +80,11 @@ class ExoDataHandler:
     input_handler_kwargs : dict | None
         Any kwargs for initializing the `input_handler_name` class used by the
         exo handler.
-    exo_handler : str
-        Feature extract class to use for source data. For example, if
-        feature='topography' this should be either TopoExtracterH5 or
-        TopoExtracterNC. If None the correct handler will be guessed based on
-        file type and time series properties.
+    exo_handler_name : str
+        :class:`ExoExtracter` subclass to use for source data. For example, if
+        feature='topography' this should be either :class:`TopoExtracterH5` or
+        :class:`TopoExtracterNC`. If None the correct handler will be guessed
+        based on file type and time series properties.
     cache_dir : str | None
         Directory for storing cache data. Default is './exo_cache'. If None
         then no data will be cached.

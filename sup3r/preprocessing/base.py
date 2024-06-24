@@ -215,15 +215,17 @@ class Sup3rDataset:
             dat = data[i] if isinstance(data, (tuple, list)) else data
             self_i.__setitem__(variable, dat)
 
-    def mean(self, skipna=True):
+    def mean(self, **kwargs):
         """Use the high_res members to compute the means. These are used for
         normalization during training."""
-        return self._ds[-1].mean(skipna=skipna)
+        kwargs['skipna'] = kwargs.get('skipna', True)
+        return self._ds[-1].mean(**kwargs)
 
-    def std(self, skipna=True):
+    def std(self, **kwargs):
         """Use the high_res members to compute the stds. These are used for
         normalization during training."""
-        return self._ds[-1].std(skipna=skipna)
+        kwargs['skipna'] = kwargs.get('skipna', True)
+        return self._ds[-1].std(**kwargs)
 
     def compute(self, **kwargs):
         """Load data into memory for each data member."""

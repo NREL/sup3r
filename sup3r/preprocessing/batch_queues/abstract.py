@@ -1,7 +1,7 @@
 """Abstract batch queue class used for multi-threaded batching / training.
 
-TODO: Setup distributed data handling so this can work with data in memory but
-distributed over multiple nodes.
+TODO: Setup distributed data handling so this can work with data distributed
+over multiple nodes.
 """
 
 import logging
@@ -16,6 +16,7 @@ from rex import safe_json_load
 
 from sup3r.preprocessing.collections.base import Collection
 from sup3r.preprocessing.samplers import DualSampler, Sampler
+from sup3r.typing import T_Array
 from sup3r.utilities.utilities import Timer
 
 logger = logging.getLogger(__name__)
@@ -359,7 +360,7 @@ class AbstractBatchQueue(Collection, ABC):
         """Normalize an array with given means and stds."""
         return (array - means) / stds
 
-    def normalize(self, lr, hr) -> Tuple[np.ndarray, np.ndarray]:
+    def normalize(self, lr, hr) -> Tuple[T_Array, T_Array]:
         """Normalize a low-res / high-res pair with the stored means and
         stdevs."""
         return (

@@ -242,11 +242,23 @@ class Sup3rX:
 
     def mean(self, **kwargs):
         """Get mean directly from dataset object."""
-        return type(self)(self._ds.mean(**kwargs))
+        features = kwargs.pop('features', None)
+        out = (
+            self._ds[features].mean(**kwargs)
+            if features is not None
+            else self._ds.mean(**kwargs)
+        )
+        return type(self)(out) if isinstance(out, xr.Dataset) else out
 
     def std(self, **kwargs):
         """Get std directly from dataset object."""
-        return type(self)(self._ds.std(**kwargs))
+        features = kwargs.pop('features', None)
+        out = (
+            self._ds[features].std(**kwargs)
+            if features is not None
+            else self._ds.std(**kwargs)
+        )
+        return type(self)(out) if isinstance(out, xr.Dataset) else out
 
     def interpolate_na(self, **kwargs):
         """Use `xr.DataArray.interpolate_na` to fill NaN values with a dask
