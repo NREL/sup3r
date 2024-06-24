@@ -33,6 +33,7 @@ from .batch_queues import Batch, DualBatchQueue, SingleBatchQueue
 from .cachers import Cacher
 from .collections import Collection, StatsCollection
 from .data_handlers import (
+    DataHandler,
     DataHandlerH5,
     DataHandlerH5SolarCC,
     DataHandlerH5WindCC,

@@ -5,7 +5,10 @@ from typing import ClassVar
 
 from sup3r.preprocessing.base import FactoryMeta, TypeGeneralClass
 from sup3r.preprocessing.loaders import LoaderH5, LoaderNC
-from sup3r.preprocessing.utilities import get_class_kwargs
+from sup3r.preprocessing.utilities import (
+    get_class_kwargs,
+    get_composite_signature,
+)
 
 from .extended import ExtendedExtracter
 
@@ -37,6 +40,7 @@ def ExtracterFactory(LoaderClass, BaseLoader=None, name='DirectExtracter'):
 
         __name__ = name
         _legos = (LoaderClass, ExtendedExtracter)
+        __signature__ = get_composite_signature(_legos, exclude=['loader'])
 
         if BaseLoader is not None:
             BASE_LOADER = BaseLoader
@@ -50,22 +54,25 @@ def ExtracterFactory(LoaderClass, BaseLoader=None, name='DirectExtracter'):
             **kwargs : dict
                 Dictionary of keyword args for Extracter and Loader
             """
-            [loader_kwargs, extracter_kwargs] = get_class_kwargs(
-                [LoaderClass, ExtendedExtracter], kwargs
+            self.loader = LoaderClass(
+                file_paths, **get_class_kwargs(LoaderClass, kwargs)
             )
-            self.loader = LoaderClass(file_paths, **loader_kwargs)
-            super().__init__(loader=self.loader, **extracter_kwargs)
+            super().__init__(
+                loader=self.loader,
+                **get_class_kwargs(ExtendedExtracter, kwargs),
+            )
 
     return TypeSpecificExtracter
 
 
-ExtracterH5 = ExtracterFactory(LoaderH5, name='ExtracterH5')
-ExtracterNC = ExtracterFactory(LoaderNC, name='ExtracterNC')
+ExtracterH5 = ExtracterFactory(LoaderClass=LoaderH5, name='ExtracterH5')
+ExtracterNC = ExtracterFactory(LoaderClass=LoaderNC, name='ExtracterNC')
 
 
-class DirectExtracter(TypeGeneralClass):
+class Extracter(TypeGeneralClass):
     """`DirectExtracter` class which parses input file type and returns
     appropriate `TypeSpecificExtracter`."""
 
     _legos = (ExtracterNC, ExtracterH5)
+    __signature__ = get_composite_signature(_legos)
     TypeSpecificClass: ClassVar = dict(zip(['nc', 'h5'], _legos))

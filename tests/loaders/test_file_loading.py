@@ -8,7 +8,7 @@ import pandas as pd
 from rex import init_logger
 
 from sup3r import TEST_DATA_DIR
-from sup3r.preprocessing import LoaderH5, LoaderNC
+from sup3r.preprocessing import Loader, LoaderH5, LoaderNC
 from sup3r.preprocessing.utilities import Dimension
 from sup3r.utilities.pytest.helpers import (
     execute_pytest,
@@ -164,7 +164,8 @@ def test_load_cc():
 
 
 def test_load_era5():
-    """Test simple era5 file loading."""
+    """Test simple era5 file loading. Make sure general loader matches the type
+    specific loader"""
     chunks = (5, 5, 5)
     loader = LoaderNC(nc_files, chunks=chunks)
     assert all(
@@ -179,9 +180,13 @@ def test_load_era5():
         Dimension.TIME,
     )
 
+    gen_loader = Loader(nc_files, chunks=chunks)
+    assert np.array_equal(loader.as_array(), gen_loader.as_array())
+
 
 def test_load_nc():
-    """Test simple netcdf file loading."""
+    """Test simple netcdf file loading. Make sure general loader matches nc
+    specific loader"""
     with TemporaryDirectory() as td:
         temp_file = os.path.join(td, 'test.nc')
         make_fake_nc_file(
@@ -192,12 +197,17 @@ def test_load_nc():
         assert loader.shape == (10, 10, 20, 2)
         assert all(loader[f].data.chunksize == chunks for f in loader.features)
 
+        gen_loader = Loader(temp_file, chunks=chunks)
+
+        assert np.array_equal(loader.as_array(), gen_loader.as_array())
+
 
 def test_load_h5():
-    """Test simple netcdf file loading. Also checks renaming elevation ->
-    topography."""
+    """Test simple h5 file loading. Also checks renaming elevation ->
+    topography. Also makes sure that general loader matches type specific
+    loader"""
 
-    chunks = (5, 5)
+    chunks = (200, 200)
     loader = LoaderH5(h5_files[0], chunks=chunks)
     feats = [
         'pressure_100m',
@@ -211,6 +221,8 @@ def test_load_h5():
     assert loader.data.shape == (400, 8784, len(feats))
     assert sorted(loader.features) == sorted(feats)
     assert all(loader[f].data.chunksize == chunks for f in feats[:-1])
+    gen_loader = Loader(h5_files[0], chunks=chunks)
+    assert np.array_equal(loader.as_array(), gen_loader.as_array())
 
 
 def test_multi_file_load_nc():

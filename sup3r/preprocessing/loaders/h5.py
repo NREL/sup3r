@@ -12,12 +12,12 @@ from rex import MultiFileWindX
 
 from sup3r.preprocessing.utilities import Dimension
 
-from .base import Loader
+from .base import BaseLoader
 
 logger = logging.getLogger(__name__)
 
 
-class LoaderH5(Loader):
+class LoaderH5(BaseLoader):
     """Base H5 loader. "Loads" h5 files so that a `.data` attribute
     provides access to the data in the files. This object provides a
     `__getitem__` method that can be used by :class:`Sampler` objects to build

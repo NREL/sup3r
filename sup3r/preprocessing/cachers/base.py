@@ -2,7 +2,7 @@
 
 import logging
 import os
-from typing import Dict
+from typing import Dict, Optional
 
 import dask.array as da
 import h5py
@@ -22,7 +22,7 @@ class Cacher(Container):
     def __init__(
         self,
         data: T_Dataset,
-        cache_kwargs: Dict,
+        cache_kwargs: Optional[Dict] = None,
     ):
         """
         Parameters
@@ -44,7 +44,10 @@ class Cacher(Container):
             the cached files load them with a Loader object.
         """
         super().__init__(data=data)
-        if cache_kwargs.get('cache_pattern') is not None:
+        if (
+            cache_kwargs is not None
+            and cache_kwargs.get('cache_pattern') is not None
+        ):
             self.out_files = self.cache_data(cache_kwargs)
 
     def cache_data(self, kwargs):

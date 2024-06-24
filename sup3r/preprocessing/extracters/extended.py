@@ -10,12 +10,12 @@ import xarray as xr
 from sup3r.preprocessing.loaders import LoaderH5
 from sup3r.preprocessing.utilities import Dimension
 
-from .base import Extracter
+from .base import BaseExtracter
 
 logger = logging.getLogger(__name__)
 
 
-class ExtendedExtracter(Extracter):
+class ExtendedExtracter(BaseExtracter):
     """Extended `Extracter` class which also handles the flattened data format
     used for some H5 files (e.g. Wind Toolkit or NSRDB data)
 

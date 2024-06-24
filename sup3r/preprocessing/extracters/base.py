@@ -8,13 +8,12 @@ import dask.array as da
 import numpy as np
 
 from sup3r.preprocessing.base import Container
-from sup3r.preprocessing.loaders.base import Loader
 from sup3r.preprocessing.utilities import _compute_if_dask, _parse_time_slice
 
 logger = logging.getLogger(__name__)
 
 
-class Extracter(Container):
+class BaseExtracter(Container):
     """Container subclass with additional methods for extracting a
     spatiotemporal extent from contained data.
 
@@ -26,7 +25,7 @@ class Extracter(Container):
 
     def __init__(
         self,
-        loader: Loader,
+        loader,
         features='all',
         target=None,
         shape=None,

@@ -4,6 +4,7 @@ to GHI, DNI, and DHI using NSRDB data and utility modules like DISC
 Note that clearsky_ratio is assumed to be clearsky ghi ratio and is calculated
 as daily average GHI / daily average clearsky GHI.
 """
+
 import json
 import logging
 import os
@@ -138,8 +139,7 @@ class Solar:
         assert isinstance(self.nsrdb_tslice, slice)
 
         ti_gan = self.gan_data.time_index
-        ti_gan_1 = np.roll(ti_gan, 1)
-        delta = pd.Series(ti_gan - ti_gan_1)[1:].mean().total_seconds()
+        delta = pd.Series(ti_gan[1:] - ti_gan[:-1]).mean().total_seconds()
         msg = (
             'Its assumed that the sup3r GAN output solar data will be '
             'hourly but received time index: {}'.format(ti_gan)
@@ -236,8 +236,11 @@ class Solar:
             t0, t1 = ilocs[0], ilocs[-1] + 1
 
             ti_nsrdb = self.nsrdb.time_index
-            ti_nsrdb_1 = np.roll(ti_nsrdb, 1)
-            delta = pd.Series(ti_nsrdb - ti_nsrdb_1)[1:].mean().total_seconds()
+            delta = (
+                pd.Series(ti_nsrdb[1:] - ti_nsrdb[:-1])[1:]
+                .mean()
+                .total_seconds()
+            )
             step = int(3600 // delta)
             self._nsrdb_tslice = slice(t0, t1, step)
 
@@ -517,11 +520,11 @@ class Solar:
             log_arg_str += f', log_file="{log_file}"'
 
         cmd = (
-            f"python -c \'{import_str}\n"
-            "t0 = time.time();\n"
-            f"logger = init_logger({log_arg_str});\n"
-            f"{fun_str};\n"
-            "t_elap = time.time() - t0;\n"
+            f"python -c '{import_str}\n"
+            't0 = time.time();\n'
+            f'logger = init_logger({log_arg_str});\n'
+            f'{fun_str};\n'
+            't_elap = time.time() - t0;\n'
         )
 
         job_name = config.get('job_name', None)
@@ -535,15 +538,15 @@ class Solar:
 
             cmd += 'job_attrs = {};\n'.format(
                 json.dumps(config)
-                .replace("null", "None")
-                .replace("false", "False")
-                .replace("true", "True")
+                .replace('null', 'None')
+                .replace('false', 'False')
+                .replace('true', 'True')
             )
             cmd += 'job_attrs.update({"job_status": "successful"});\n'
             cmd += 'job_attrs.update({"time": t_elap});\n'
             cmd += f'Status.make_single_job_file({status_file_arg_str})'
 
-        cmd += ";\'\n"
+        cmd += ";'\n"
 
         return cmd.replace('\\', '/')
 

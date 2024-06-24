@@ -22,7 +22,10 @@ from sup3r.preprocessing.collections.stats import StatsCollection
 from sup3r.preprocessing.samplers.base import Sampler
 from sup3r.preprocessing.samplers.cc import DualSamplerCC
 from sup3r.preprocessing.samplers.dual import DualSampler
-from sup3r.preprocessing.utilities import get_class_kwargs
+from sup3r.preprocessing.utilities import (
+    get_class_kwargs,
+    get_composite_signature,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -71,29 +74,27 @@ def BatchHandlerFactory(
         SAMPLER = SamplerClass
 
         __name__ = name
-        _legos = (MainQueueClass, SamplerClass)
+        _legos = (MainQueueClass, SamplerClass, VAL_QUEUE)
+        __signature__ = get_composite_signature(_legos)
 
         def __init__(
             self,
             train_containers: List[Container],
             val_containers: Optional[List[Container]] = None,
-            batch_size: Optional[int] = 16,
-            n_batches: Optional[int] = 64,
-            s_enhance=1,
-            t_enhance=1,
+            batch_size: int = 16,
+            n_batches: int = 64,
+            s_enhance: int = 1,
+            t_enhance: int = 1,
             means: Optional[Union[Dict, str]] = None,
             stds: Optional[Union[Dict, str]] = None,
             **kwargs,
         ):
-            [sampler_kwargs, main_queue_kwargs, val_queue_kwargs] = (
-                get_class_kwargs(
-                    [SamplerClass, MainQueueClass, self.VAL_QUEUE],
-                    {'s_enhance': s_enhance, 't_enhance': t_enhance, **kwargs},
-                )
-            )
+            kwargs = {'s_enhance': s_enhance, 't_enhance': t_enhance, **kwargs}
 
             train_samplers, val_samplers = self.init_samplers(
-                train_containers, val_containers, sampler_kwargs
+                train_containers,
+                val_containers,
+                get_class_kwargs(SamplerClass, kwargs),
             )
 
             stats = StatsCollection(
@@ -112,7 +113,7 @@ def BatchHandlerFactory(
                     means=stats.means,
                     stds=stats.stds,
                     thread_name='validation',
-                    **val_queue_kwargs,
+                    **get_class_kwargs(self.VAL_QUEUE, kwargs),
                 )
 
             super().__init__(
@@ -121,7 +122,7 @@ def BatchHandlerFactory(
                 n_batches=n_batches,
                 means=stats.means,
                 stds=stats.stds,
-                **main_queue_kwargs,
+                **get_class_kwargs(MainQueueClass, kwargs),
             )
 
         def init_samplers(
