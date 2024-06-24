@@ -39,8 +39,8 @@ from sup3r.preprocessing.data_handling import DataHandlerNC
 FP_NSRDB = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')
 FP_CC = os.path.join(TEST_DATA_DIR, 'rsds_test.nc')
 FP_CC_LAT_LON = DataHandlerNC(FP_CC, 'rsds').lat_lon
-# A reference zero rate threshold. This might change in the future to result
-# in edge cases.
+# A reference zero rate threshold that might not make sense physically but for
+# testing purposes only. This might change in the future to force edge cases.
 ZR_THRESHOLD = 80
 
 with xr.open_dataset(FP_CC) as fh:
@@ -189,7 +189,7 @@ def presrat_params(tmpdir_factory, fp_fut_cc):
     fn = tmpdir_factory.mktemp('params').join('presrat.h5')
     # Physically non-sense threshold choosed to result in gridpoints with and
     # without zero rate correction for the given testing dataset.
-    _ = calc.run(max_workers=1, zero_rate_threshold=80, fp_out=fn)
+    _ = calc.run(max_workers=1, zero_rate_threshold=ZR_THRESHOLD, fp_out=fn)
 
     # DataHandlerNCforCC requires a string
     fn = str(fn)
