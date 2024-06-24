@@ -85,29 +85,33 @@ def fut_cc(fp_fut_cc):
                         axis=-1).astype('float32')
     """
     ds = xr.open_dataset(fp_fut_cc)
-    # This compute here is required.
+
+    # Operating with numpy arrays impose a fixed dimensions order
+    # This compute is required here.
     da = ds['rsds'].compute().transpose('lat', 'lon', 'time')
-    # Unfortunatelly, _get_factors() assume latitude as descending
+
+    # The _get_factors() assume latitude as descending and it will
+    # silently return wrong values otherwise.
     da = da.sortby('lat', ascending=False)
-    # data = da.data
-    # time = pd.to_datetime(da.time)
+
     latlon = np.stack(
         xr.broadcast(da['lat'], da['lon'] - 360), axis=-1
-    ).astype('float32')
-    # latlon = np.stack(np.meshgrid(da['lon'] - 360, da['lat']), axis=-1)[
-    #     :, :, ::-1
-    # ].astype('float32')
-    for ii in range(4):
-        for jj in range(4):
-            assert np.allclose(
-                da.sel(lat=latlon[ii, jj, 0], method='nearest').sel(
-                    lon=latlon[ii, jj, 1] + 360, method='nearest'
-                )[0],
-                da.data[ii, jj, 0],
-            )
-    assert np.allclose(latlon, FP_CC_LAT_LON)
+    )
+    # Confirm that dataset order is consistent
+    # Somewhere in pipeline latlon are downgraded to f32
+    assert np.allclose(latlon.astype('float32'), FP_CC_LAT_LON)
 
-    return da.compute()
+    # Verify data alignment in comparison with expected for FP_CC
+    for ii in range(ds.lat.size):
+        for jj in range(ds.lon.size):
+            assert np.allclose(
+                da.sel(lat=latlon[ii, jj, 0]).sel(
+                    lon=latlon[ii, jj, 1] + 360
+                ),
+                da.data[ii, jj],
+            )
+
+    return da
 
 
 @pytest.fixture(scope='module')
@@ -139,7 +143,7 @@ def fut_cc_notrend(fp_fut_cc_notrend):
     ds['lon'] = ds['lon'] - 360
 
     # Operating with numpy arrays impose a fixed dimensions order
-    # Somehow this compute is required here.
+    # This compute is required here.
     da = ds['rsds'].compute().transpose('lat', 'lon', 'time')
 
     # The _get_factors() assume latitude as descending and it will
@@ -157,7 +161,7 @@ def fut_cc_notrend(fp_fut_cc_notrend):
     for ii in range(ds.lat.size):
         for jj in range(ds.lon.size):
             np.allclose(
-                da.sel(lat=latlon[ii, jj, 0]).sel( lon=latlon[ii, jj, 1]),
+                da.sel(lat=latlon[ii, jj, 0]).sel(lon=latlon[ii, jj, 1]),
                 da.data[ii, jj],
             )
 
