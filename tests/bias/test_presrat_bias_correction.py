@@ -119,24 +119,43 @@ def fp_fut_cc_notrend(tmpdir_factory):
 
 @pytest.fixture(scope='module')
 def fut_cc_notrend(fp_fut_cc_notrend):
-    ds = xr.open_dataset(fp_fut_cc_notrend)
-    da = ds['rsds'].compute().transpose('lat', 'lon', 'time')
-    # Unfortunatelly, _get_factors() assume latitude as descending
-    da = da.sortby('lat', ascending=False)
-    latlon = np.stack(
-        xr.broadcast(da['lat'], da['lon'] - 360), axis=-1
-    ).astype('float32')
-    for ii in range(4):
-        for jj in range(4):
-            np.allclose(
-                da.sel(lat=latlon[ii, jj, 0], method='nearest').sel(
-                    lon=latlon[ii, jj, 1] + 360, method='nearest'
-                )[0],
-                da.data[ii, jj, 0],
-            )
-    assert np.allclose(latlon, FP_CC_LAT_LON)
+    """Extract the dataset from fp_fut_cc_notrend
 
-    return da.compute()
+    The internal process to read such dataset is way more complex than just
+    reading it and there are some transformations. This function must provide
+    a dataset compatible with the one expected from the standard processing.
+    """
+    ds = xr.open_dataset(fp_fut_cc_notrend)
+
+    # Although it is the same file, somewhere in the data reading process
+    # the longitude is tranformed to the standard [-180 to 180] and it is
+    # expected to be like that everywhere.
+    ds['lon'] = ds['lon'] - 360
+
+    # Operating with numpy arrays impose a fixed dimensions order
+    # Somehow this compute is required here.
+    da = ds['rsds'].compute().transpose('lat', 'lon', 'time')
+
+    # The _get_factors() assume latitude as descending and it will
+    # silently return wrong values otherwise.
+    da = da.sortby('lat', ascending=False)
+
+    latlon = np.stack(
+        xr.broadcast(da['lat'], da['lon']), axis=-1
+    )
+    # Confirm that dataset order is consistent
+    # Somewhere in pipeline latlon are downgraded to f32
+    assert np.allclose(latlon.astype('float32'), FP_CC_LAT_LON)
+
+    # Verify data alignment in comparison with expected for FP_CC
+    for ii in range(ds.lat.size):
+        for jj in range(ds.lon.size):
+            np.allclose(
+                da.sel(lat=latlon[ii, jj, 0]).sel( lon=latlon[ii, jj, 1]),
+                da.data[ii, jj],
+            )
+
+    return da
 
 
 @pytest.fixture(scope='module')
