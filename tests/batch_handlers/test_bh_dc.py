@@ -38,7 +38,6 @@ def test_counts(s_weights, t_weights):
     dat = DummyData((10, 10, 100), FEATURES)
     n_batches = 4
     batch_size = 50
-    transform_kwargs = {'smoothing_ignore': [], 'smoothing': None}
     batcher = TestBatchHandlerDC(
         train_containers=[dat],
         val_containers=[dat],
@@ -53,7 +52,6 @@ def test_counts(s_weights, t_weights):
         max_workers=1,
         n_time_bins=len(t_weights),
         n_space_bins=len(s_weights),
-        transform_kwargs=transform_kwargs,
     )
     assert batcher.val_data.n_batches == len(s_weights) * len(t_weights)
     batcher.update_spatial_weights(s_weights)
