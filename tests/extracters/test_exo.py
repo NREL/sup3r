@@ -66,8 +66,7 @@ def test_exo_cache(feature):
             feature,
             source_file=fp_topo,
             steps=steps,
-            target=TARGET,
-            shape=SHAPE,
+            input_handler_kwargs={'target': TARGET, 'shape': SHAPE},
             input_handler_name='ExtracterNC',
             cache_dir=os.path.join(td, 'exo_cache'),
         )
@@ -83,8 +82,7 @@ def test_exo_cache(feature):
             feature,
             source_file=FP_WTK,
             steps=steps,
-            target=TARGET,
-            shape=SHAPE,
+            input_handler_kwargs={'target': TARGET, 'shape': SHAPE},
             input_handler_name='ExtracterNC',
             cache_dir=os.path.join(td, 'exo_cache'),
         )
@@ -162,8 +160,10 @@ def test_topo_extraction_h5(s_enhance, plot=False):
             fp_exo_topo,
             s_enhance=s_enhance,
             t_enhance=1,
-            target=(39.01, -105.15),
-            shape=(20, 20),
+            input_handler_kwargs={
+                'target': (39.01, -105.15),
+                'shape': (20, 20),
+            },
             cache_dir=f'{td}/exo_cache/',
         )
 
@@ -222,9 +222,11 @@ def test_bad_s_enhance(s_enhance=10):
                 fp_exo_topo,
                 s_enhance=s_enhance,
                 t_enhance=1,
-                target=(39.01, -105.15),
-                shape=(20, 20),
-                cache_dir=f'{td}/exo_cache/'
+                input_handler_kwargs={
+                    'target': (39.01, -105.15),
+                    'shape': (20, 20),
+                },
+                cache_dir=f'{td}/exo_cache/',
             )
             _ = te.data
 
@@ -248,8 +250,6 @@ def test_topo_extraction_nc():
             FP_WRF,
             s_enhance=1,
             t_enhance=1,
-            target=None,
-            shape=None,
             cache_dir=f'{td}/exo_cache/',
         )
         hr_elev = te.data

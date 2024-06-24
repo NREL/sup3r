@@ -75,53 +75,28 @@ class ExoExtracter(ABC):
         example, if getting sza data, file_paths has hourly data, and
         t_enhance is 4, this class will output a sza raster
         corresponding to the file_paths temporally enhanced 4x to 15 min
-    target : tuple
-        (lat, lon) lower left corner of raster. Either need target+shape or
-        raster_file.
-    shape : tuple
-        (rows, cols) grid size. Either need target+shape or raster_file.
-    time_slice : slice | None
-        slice used to extract interval from temporal dimension for input
-        data and source data
-    raster_file : str | None
-        File for raster_index array for the corresponding target and shape.
-        If specified the raster_index will be loaded from the file if it
-        exists or written to the file if it does not yet exist.  If None
-        raster_index will be calculated directly. Either need target+shape
-        or raster_file.
-    max_delta : int, optional
-        Optional maximum limit on the raster shape that is retrieved at
-        once. If shape is (20, 20) and max_delta=10, the full raster will
-        be retrieved in four chunks of (10, 10). This helps adapt to
-        non-regular grids that curve over large distances, by default 20
     input_handler_name : str
         data handler class to use for input data. Provide a string name to
         match a :class:`Extracter`. If None the correct handler will
         be guessed based on file type and time series properties.
+    input_handler_kwargs : dict | None
+        Any kwargs for initializing the `input_handler_name` class.
     cache_dir : str
         Directory for storing cache data. Default is './exo_cache'
     distance_upper_bound : float | None
         Maximum distance to map high-resolution data from source_file to the
         low-resolution file_paths input. None (default) will calculate this
         based on the median distance between points in source_file
-    res_kwargs : dict | None
-        Dictionary of kwargs passed to lowest level resource handler. e.g.
-        xr.open_dataset(file_paths, **res_kwargs)
     """
 
     file_paths: str
     source_file: str
     s_enhance: int
     t_enhance: int
-    target: Optional[tuple] = None
-    shape: Optional[tuple] = None
-    time_slice: Optional[slice] = None
-    raster_file: Optional[str] = None
-    max_delta: Optional[int] = 20
     input_handler_name: Optional[str] = None
-    cache_dir: Optional[str] = './exo_cache/'
+    input_handler_kwargs: Optional[dict] = None
+    cache_dir: str = './exo_cache/'
     distance_upper_bound: Optional[int] = None
-    res_kwargs: Optional[dict] = None
 
     @log_args
     def __post_init__(self):
@@ -131,12 +106,15 @@ class ExoExtracter(ABC):
         self._source_lat_lon = None
         self._hr_time_index = None
         self._source_handler = None
+        self.input_handler_kwargs = self.input_handler_kwargs or {}
         InputHandler = get_input_handler_class(
             self.file_paths, self.input_handler_name
         )
         params = get_possible_class_args(InputHandler)
-        kwargs = {k: getattr(self, k) for k in params if hasattr(self, k)}
-        self.input_handler = InputHandler(**kwargs)
+        kwargs = {
+            k: v for k, v in self.input_handler_kwargs.items() if k in params
+        }
+        self.input_handler = InputHandler(self.file_paths, **kwargs)
 
     @property
     @abstractmethod
@@ -157,9 +135,9 @@ class ExoExtracter(ABC):
             Name of cache file. This is a netcdf files which will be saved with
             :class:`Cacher` and loaded with :class:`LoaderNC`
         """
-        fn = f'exo_{feature}_{"_".join(map(str, self.target))}_'
-        fn += f'{"x".join(map(str, self.shape))}_{self.s_enhance}x_'
-        fn += f'{self.t_enhance}x.nc'
+        fn = f'exo_{feature}_{"_".join(map(str, self.input_handler.target))}_'
+        fn += f'{"x".join(map(str, self.input_handler.grid_shape))}_'
+        fn += f'{self.s_enhance}x_{self.t_enhance}x.nc'
         cache_fp = os.path.join(self.cache_dir, fn)
         if self.cache_dir is not None:
             os.makedirs(self.cache_dir, exist_ok=True)

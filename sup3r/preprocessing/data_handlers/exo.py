@@ -72,29 +72,14 @@ class ExoDataHandler:
         should be a significantly higher resolution than file_paths.
         Warnings will be raised if the low-resolution pixels in file_paths
         do not have unique nearest pixels from this exo source data.
-    target : tuple
-        (lat, lon) lower left corner of raster. Either need target+shape or
-        raster_file.
-    shape : tuple
-        (rows, cols) grid size. Either need target+shape or raster_file.
-    time_slice : slice | None
-        slice used to extract interval from temporal dimension for input
-        data and source data
-    raster_file : str | None
-        File for raster_index array for the corresponding target and shape.
-        If specified the raster_index will be loaded from the file if it
-        exists or written to the file if it does not yet exist.  If None
-        raster_index will be calculated directly. Either need target+shape
-        or raster_file.
-    max_delta : int, optional
-        Optional maximum limit on the raster shape that is retrieved at
-        once. If shape is (20, 20) and max_delta=10, the full raster will
-        be retrieved in four chunks of (10, 10). This helps adapt to
-        non-regular grids that curve over large distances, by default 20
     input_handler_name : str
-        data handler class to use for input data. Provide a string name to
-        match a class in data_handling.py. If None the correct handler will
-        be guessed based on file type and time series properties.
+        data handler class used by the exo handler. Provide a string name to
+        match a :class:`Extracter`. If None the correct handler will
+        be guessed based on file type and time series properties. This is
+        passed directly to the exo handler, along with input_handler_kwargs
+    input_handler_kwargs : dict | None
+        Any kwargs for initializing the `input_handler_name` class used by the
+        exo handler.
     exo_handler : str
         Feature extract class to use for source data. For example, if
         feature='topography' this should be either TopoExtracterH5 or
@@ -103,9 +88,6 @@ class ExoDataHandler:
     cache_dir : str | None
         Directory for storing cache data. Default is './exo_cache'. If None
         then no data will be cached.
-    res_kwargs : dict | None
-        Dictionary of kwargs passed to lowest level resource handler. e.g.
-        xr.open_dataset(file_paths, **res_kwargs)
     """
 
     AVAILABLE_HANDLERS: ClassVar[dict] = {
@@ -118,15 +100,10 @@ class ExoDataHandler:
     steps: List[dict]
     models: Optional[list] = None
     source_file: Optional[str] = None
-    target: Optional[tuple] = None
-    shape: Optional[tuple] = None
-    time_slice: Optional[slice] = None
-    raster_file: Optional[str] = None
-    max_delta: int = 20
     input_handler_name: Optional[str] = None
-    exo_handler: Optional[str] = None
+    input_handler_kwargs: Optional[dict] = None
+    exo_handler_name: Optional[str] = None
     cache_dir: str = './exo_cache'
-    res_kwargs: Optional[dict] = None
 
     @log_args
     def __post_init__(self):
@@ -283,7 +260,7 @@ class ExoDataHandler:
         """
 
         ExoHandler = self.get_exo_handler(
-            feature, self.source_file, self.exo_handler
+            feature, self.source_file, self.exo_handler_name
         )
         kwargs = {
             's_enhance': s_enhance,
