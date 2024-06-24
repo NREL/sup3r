@@ -17,6 +17,7 @@ from rex.utilities.bc_utils import (
     sample_q_linear,
     sample_q_log,
 )
+from typing import Optional
 import xarray as xr
 
 from sup3r.preprocessing.data_handling.base import DataHandler
@@ -901,3 +902,54 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
             for d0 in day_of_year
         )
         return xr.merge(q)
+
+
+    def write_outputs(self, fp_out: str,
+                      out: dict = None,
+                      extra_attrs: Optional[dict] = None):
+        """Write outputs to an .h5 file.
+
+        Parameters
+        ----------
+        fp_out : str | None
+            An HDF5 filename to write the estimated statistical distributions.
+        out : dict, optional
+            A dictionary with the three statistical distribution parameters.
+            If not given, it uses :attr:`.out`.
+        extra_attrs: dict, optional
+            Extra attributes to be exported together with the dataset.
+
+        Examples
+        --------
+        >>> mycalc = PresRat(...)
+        >>> mycalc.write_outputs(fp_out="myfile.h5", out=mydictdataset,
+        ...   extra_attrs={'zero_rate_threshold': 80})
+        """
+
+        out = out or self.out
+
+        if fp_out is not None:
+            if not os.path.exists(os.path.dirname(fp_out)):
+                os.makedirs(os.path.dirname(fp_out), exist_ok=True)
+
+            with h5py.File(fp_out, 'w') as f:
+                # pylint: disable=E1136
+                lat = self.bias_dh.lat_lon[..., 0]
+                lon = self.bias_dh.lat_lon[..., 1]
+                f.create_dataset('latitude', data=lat)
+                f.create_dataset('longitude', data=lon)
+                for dset, data in out.items():
+                    f.create_dataset(dset, data=data)
+
+                for k, v in self.meta.items():
+                    f.attrs[k] = json.dumps(v)
+                f.attrs['dist'] = self.dist
+                f.attrs['sampling'] = self.sampling
+                f.attrs['log_base'] = self.log_base
+                f.attrs['base_fps'] = self.base_fps
+                f.attrs['bias_fps'] = self.bias_fps
+                f.attrs['bias_fut_fps'] = self.bias_fut_fps
+                if extra_attrs is not None:
+                    for a, v in extra_attrs.items():
+                        f.attrs[a] = v
+                logger.info('Wrote quantiles to file: {}'.format(fp_out))
