@@ -39,6 +39,9 @@ from sup3r.preprocessing.data_handling import DataHandlerNC
 FP_NSRDB = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')
 FP_CC = os.path.join(TEST_DATA_DIR, 'rsds_test.nc')
 FP_CC_LAT_LON = DataHandlerNC(FP_CC, 'rsds').lat_lon
+# A reference zero rate threshold. This might change in the future to result
+# in edge cases.
+ZR_THRESHOLD = 80
 
 with xr.open_dataset(FP_CC) as fh:
     MIN_LAT = np.min(fh.lat.values.astype(np.float32))
@@ -331,11 +334,12 @@ def test_parallel(fp_fut_cc, threshold):
         ), f'Different results for {k}'
 
 
-@pytest.mark.parametrize('threshold', [0, 50, 1e6])
-def test_presrat_zero_rate(fp_fut_cc, threshold):
-    """Estimate zero_rate within PresRat.run()
+def test_presrat_calc(fp_fut_cc):
+    """Standard PresRat (pre) calculation
 
-    Use thresholds that gives 0%, 100%, and something between.
+    Estimate the required parameters with a standard setup.
+
+    WIP: Just confirm it runs, but not checking much yet.
     """
     calc = PresRat(
         FP_NSRDB,
@@ -348,15 +352,21 @@ def test_presrat_zero_rate(fp_fut_cc, threshold):
         bias_handler='DataHandlerNCforCC',
     )
 
-    out = calc.run(zero_rate_threshold=threshold)
+    out = calc.run(zero_rate_threshold=ZR_THRESHOLD)
 
-    assert 'ghi_zero_rate' in out, 'Missing ghi_zero_rate in calc output'
+    expected_vars = ['bias_rsds_params', 'bias_fut_rsds_params',
+                     'base_ghi_params', 'ghi_zero_rate', 'rsds_mean_mh',
+                     'rsds_mean_mf']
+    sref = FP_CC_LAT_LON.shape[:2]
+    for v in expected_vars:
+        assert v in out, f"Missing {v} in the calculated output"
+        assert out[v].shape[:2] == sref, "Doesn't match expected spatial shape"
+        # This is only true because fill and extend are applied by default.
+        assert np.all(np.isfinite(out[v])), f"Unexpected NaN for {v}"
+
     zero_rate = out['ghi_zero_rate']
-    assert np.all(np.isfinite(zero_rate)), 'Unexpected NaN for ghi_zero_rate'
     assert np.all((zero_rate >= 0) & (zero_rate <= 1)), 'Out of range [0, 1]'
 
-    if threshold == 0:
-        assert np.all(zero_rate >= 0), 'It should be rate 0 for threshold==0'
 
     """
     calc = PresRat(
