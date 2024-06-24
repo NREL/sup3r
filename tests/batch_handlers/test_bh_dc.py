@@ -22,14 +22,15 @@ np.random.seed(42)
 
 @pytest.mark.parametrize(
     ('s_weights', 't_weights'),
-    [([0.25, 0.25, 0.25, 0.25], [1.0]),
-     ([0.5, 0.0, 0.25, 0.25], [1.0]),
-     ([0, 1, 0, 0], [0.25, 0.25, 0.25, 0.25]),
-     ([0, 0.5, 0.25, 0.25], [0.25, 0.25, 0.25, 0.25]),
-     ([0.25, 0.25, 0.25, 0.25], [0.25, 0.25, 0.25, 0.25]),
-     ([0.25, 0.25, 0.25, 0.25], [0.0, 0.0, 0.5, 0.5]),
-     ([0.75, 0.25, 0.0, 0.0], [0.0, 0.0, 0.75, 0.25]),
-    ]
+    [
+        ([0.25, 0.25, 0.25, 0.25], [1.0]),
+        ([0.5, 0.0, 0.25, 0.25], [1.0]),
+        ([0, 1, 0, 0], [0.25, 0.25, 0.25, 0.25]),
+        ([0, 0.5, 0.25, 0.25], [0.25, 0.25, 0.25, 0.25]),
+        ([0.25, 0.25, 0.25, 0.25], [0.25, 0.25, 0.25, 0.25]),
+        ([0.25, 0.25, 0.25, 0.25], [0.0, 0.0, 0.5, 0.5]),
+        ([0.75, 0.25, 0.0, 0.0], [0.0, 0.0, 0.75, 0.25]),
+    ],
 )
 def test_counts(s_weights, t_weights):
     """Make sure dc batch handler returns the correct number of samples for
@@ -64,12 +65,12 @@ def test_counts(s_weights, t_weights):
     assert np.allclose(
         batcher._space_norm_count(),
         batcher.spatial_weights,
-        atol=2 * batcher._space_norm_count().std()
+        atol=2 * batcher._space_norm_count().std(),
     )
     assert np.allclose(
         batcher._time_norm_count(),
         batcher.temporal_weights,
-        atol=2 * batcher._time_norm_count().std()
+        atol=2 * batcher._time_norm_count().std(),
     )
     batcher.stop()
 
