@@ -472,8 +472,9 @@ def test_presrat(fp_fut_cc):
 
 
 def test_presrat_transform(presrat_params, fut_cc):
-    """
-    WIP: Confirm it runs, but don't verify anything yet.
+    """A standard run with local_presrat_bc
+
+    WIP: Confirm it runs only.
     """
     data = fut_cc.values
     time = pd.to_datetime(fut_cc.time)
@@ -492,7 +493,7 @@ def test_presrat_transform(presrat_params, fut_cc):
 def test_presrat_transform_nochanges(presrat_nochanges_params, fut_cc_notrend):
     """The correction should result in no changes at all
 
-    Note that there are a lot of implicit transformations, so we can't expect
+    Note that there are a lot of implicit transformations, so we cannot expect
     to be able to esily compare all gridpoints.
 
     The corrected output must be the same if:
