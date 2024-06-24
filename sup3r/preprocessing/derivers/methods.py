@@ -1,7 +1,4 @@
-"""Sup3r derived features.
-
-@author: bbenton
-"""
+"""Derivation methods for deriving features from raw data."""
 
 import logging
 from abc import ABC, abstractmethod

@@ -3,7 +3,6 @@
 import logging
 import os
 import pprint
-from abc import ABCMeta
 from enum import Enum
 from glob import glob
 from inspect import getfullargspec, signature
@@ -221,26 +220,6 @@ def check_kwargs(Classes, kwargs):
     if len(extras) > 0:
         logger.warning(msg)
         warn(msg)
-
-
-class FactoryMeta(ABCMeta, type):
-    """Meta class to define __name__ attribute of factory generated classes."""
-
-    def __new__(mcs, name, bases, namespace, **kwargs):  # noqa: N804
-        """Define __name__"""
-        name = namespace.get('__name__', name)
-        return super().__new__(mcs, name, bases, namespace, **kwargs)
-
-    def __subclasscheck__(cls, subclass):
-        """Check if factory built class shares base classes."""
-        if super().__subclasscheck__(subclass):
-            return True
-        if hasattr(subclass, '_legos'):
-            return cls._legos == subclass._legos
-        return False
-
-    def __repr__(cls):
-        return f"<class '{cls.__module__}.{cls.__name__}'>"
 
 
 def _get_args_dict(thing, func, *args, **kwargs):

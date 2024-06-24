@@ -1,13 +1,11 @@
 """Composite objects built from loaders and extracters."""
 
 import logging
+from typing import ClassVar
 
+from sup3r.preprocessing.base import FactoryMeta, TypeGeneralClass
 from sup3r.preprocessing.loaders import LoaderH5, LoaderNC
-from sup3r.preprocessing.utilities import (
-    FactoryMeta,
-    get_class_kwargs,
-    get_source_type,
-)
+from sup3r.preprocessing.utilities import get_class_kwargs
 
 from .extended import ExtendedExtracter
 
@@ -65,20 +63,9 @@ ExtracterH5 = ExtracterFactory(LoaderH5, name='ExtracterH5')
 ExtracterNC = ExtracterFactory(LoaderNC, name='ExtracterNC')
 
 
-class DirectExtracter:
+class DirectExtracter(TypeGeneralClass):
     """`DirectExtracter` class which parses input file type and returns
     appropriate `TypeSpecificExtracter`."""
 
-    _legos = (ExtracterH5, ExtracterNC)
-
-    def __new__(cls, file_paths, *args, **kwargs):
-        """Return a new `DirectExtracter` based on input file type."""
-        source_type = get_source_type(file_paths)
-        if source_type == 'h5':
-            return ExtracterH5(file_paths, *args, **kwargs)
-        if source_type == 'nc':
-            return ExtracterNC(file_paths, *args, **kwargs)
-        msg = (f'Can only handle H5 or NETCDF files. Received '
-               f'"{source_type}" for file_paths: {file_paths}')
-        logger.error(msg)
-        raise ValueError(msg)
+    _legos = (ExtracterNC, ExtracterH5)
+    TypeSpecificClass: ClassVar = dict(zip(['nc', 'h5'], _legos))

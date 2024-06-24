@@ -1,13 +1,12 @@
-"""
-Sup3r batch_handling module.
-@author: bbenton
-"""
+"""BatchHandler factory. Builds BatchHandler objects from batch queues and
+samplers."""
 
 import logging
 from typing import Dict, List, Optional, Type, Union
 
 from sup3r.preprocessing.base import (
     Container,
+    FactoryMeta,
 )
 from sup3r.preprocessing.batch_queues.base import SingleBatchQueue
 from sup3r.preprocessing.batch_queues.conditional import (
@@ -23,7 +22,7 @@ from sup3r.preprocessing.collections.stats import StatsCollection
 from sup3r.preprocessing.samplers.base import Sampler
 from sup3r.preprocessing.samplers.cc import DualSamplerCC
 from sup3r.preprocessing.samplers.dual import DualSampler
-from sup3r.preprocessing.utilities import FactoryMeta, get_class_kwargs
+from sup3r.preprocessing.utilities import get_class_kwargs
 
 logger = logging.getLogger(__name__)
 
