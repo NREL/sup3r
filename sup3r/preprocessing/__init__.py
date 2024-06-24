@@ -44,9 +44,8 @@ from .data_handlers import (
 )
 from .derivers import Deriver
 from .extracters import (
-    BaseExtracterH5,
-    BaseExtracterNC,
     DualExtracter,
+    ExtendedExtracter,
     Extracter,
     ExtracterH5,
     ExtracterNC,

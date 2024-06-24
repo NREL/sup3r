@@ -131,48 +131,37 @@ def get_source_type(file_paths):
     return 'nc'
 
 
-def get_input_handler_class(file_paths, input_handler_name):
+def get_input_handler_class(input_handler_name: Optional[str] = None):
     """Get the :class:`DataHandler` or :class:`Extracter` object.
 
     Parameters
     ----------
-    file_paths : list | str
-        A list of files to extract raster data from. Each file must have
-        the same number of timesteps. Can also pass a string with a
-        unix-style file path which will be passed through glob.glob
     input_handler_name : str
-        data handler class to use for input data. Provide a string name to
-        match a class in data_handling.py. If None the correct handler will
-        be guessed based on file type and time series properties. The guessed
-        handler will default to an extracter type (simple raster / time
-        extraction from raw feature data, as opposed to derivation of new
-        features)
+        Class to use for input data. Provide a string name to match a class in
+        `sup3r.preprocessing`. If None this will return
+        :class:`DirectExtracter`, which uses `ExtracterNC` or `ExtracterH5`
+        depending on file type.  This is a simple handler object which does not
+        derive new features from raw data.
 
     Returns
     -------
     HandlerClass : ExtracterH5 | ExtracterNC | DataHandlerH5 | DataHandlerNC
         DataHandler or Extracter class from sup3r.preprocessing.
     """
-
-    HandlerClass = None
-
-    input_type = get_source_type(file_paths)
-
     if input_handler_name is None:
-        if input_type == 'nc':
-            input_handler_name = 'ExtracterNC'
-        elif input_type == 'h5':
-            input_handler_name = 'ExtracterH5'
+        input_handler_name = 'DirectExtracter'
 
         logger.info(
             '"input_handler_name" arg was not provided. Using '
-            f'"{input_handler_name}". If this is '
-            'incorrect, please provide '
+            f'"{input_handler_name}". If this is incorrect, please provide '
             'input_handler_name="DataHandlerName".'
         )
 
-    if isinstance(input_handler_name, str):
-        HandlerClass = getattr(sup3r.preprocessing, input_handler_name, None)
+    HandlerClass = (
+        getattr(sup3r.preprocessing, input_handler_name, None)
+        if isinstance(input_handler_name, str)
+        else None
+    )
 
     if HandlerClass is None:
         msg = (
@@ -189,9 +178,10 @@ def get_possible_class_args(Class):
     """Get all available arguments for given class by searching through the
     inheritance hierarchy."""
     class_args = list(signature(Class.__init__).parameters.keys())
-    if Class.__bases__ == (object,):
+    bases = Class.__bases__ + getattr(Class, '_legos', ())
+    if bases == (object,):
         return class_args
-    for base in Class.__bases__:
+    for base in bases:
         class_args += get_possible_class_args(base)
     return set(class_args)
 

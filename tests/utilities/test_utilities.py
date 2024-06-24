@@ -12,7 +12,7 @@ from scipy.interpolate import interp1d
 from sup3r import TEST_DATA_DIR
 from sup3r.models.utilities import st_interp
 from sup3r.pipeline.utilities import get_chunk_slices
-from sup3r.postprocessing.file_handling import OutputHandler
+from sup3r.postprocessing import OutputHandler
 from sup3r.preprocessing.derivers.utilities import transform_rotate_wind
 from sup3r.preprocessing.samplers.utilities import (
     uniform_box_sampler,

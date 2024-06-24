@@ -1,14 +1,8 @@
-"""Output handling
-
-author : @bbenton
-"""
+"""Output handling"""
 import json
 import logging
 import os
-import re
 from abc import abstractmethod
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime as dt
 from warnings import warn
 
 import numpy as np
@@ -18,15 +12,9 @@ from rex.outputs import Outputs as BaseRexOutputs
 from scipy.interpolate import griddata
 
 from sup3r import __version__
-from sup3r.preprocessing.derivers.utilities import (
-    invert_uv,
-    parse_feature,
-)
+from sup3r.preprocessing.derivers.utilities import parse_feature
 from sup3r.utilities import VERSION_RECORD
-from sup3r.utilities.utilities import (
-    get_time_dim_name,
-    pd_date_range,
-)
+from sup3r.utilities.utilities import pd_date_range
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +85,7 @@ H5_ATTRS = {'windspeed': {'scale_factor': 100.0,
             }
 
 
-class OutputMixIn:
+class OutputMixin:
     """Methods used by various Output and Collection classes"""
 
     @staticmethod
@@ -268,7 +256,7 @@ class RexOutputs(BaseRexOutputs):
         self.h5.attrs['package'] = 'sup3r'
 
 
-class OutputHandler(OutputMixIn):
+class OutputHandler(OutputMixin):
     """Class to handle forward pass output. This includes transforming features
     back to their original form and outputting to the correct file format.
     """
@@ -546,286 +534,3 @@ class OutputHandler(OutputMixIn):
         cls._write_output(data, features, lat_lon, times, out_file,
                           meta_data=meta_data, max_workers=max_workers,
                           gids=gids)
-
-
-class OutputHandlerNC(OutputHandler):
-    """OutputHandler subclass for NETCDF files"""
-
-    # pylint: disable=W0613
-    @classmethod
-    def _get_xr_dset(cls, data, features, lat_lon, times, meta_data=None):
-        """Convert data to xarray Dataset() object.
-
-        Parameters
-        ----------
-        data : ndarray
-            (spatial_1, spatial_2, temporal, features)
-            High resolution forward pass output
-        features : list
-            List of feature names corresponding to the last dimension of data
-        lat_lon : ndarray
-            Array of high res lat/lon for output data.
-            (spatial_1, spatial_2, 2)
-            Last dimension has ordering (lat, lon)
-        times : pd.Datetimeindex
-            List of times for high res output data
-        meta_data : dict | None
-            Dictionary of meta data from model
-        """
-        coords = {'Time': [str(t).encode('utf-8') for t in times],
-                  'south_north': lat_lon[:, 0, 0].astype(np.float32),
-                  'west_east': lat_lon[0, :, 1].astype(np.float32)}
-
-        data_vars = {}
-        for i, f in enumerate(features):
-            data_vars[f] = (['Time', 'south_north', 'west_east'],
-                            np.transpose(data[..., i], (2, 0, 1)))
-
-        attrs = {}
-        if meta_data is not None:
-            attrs = {k: v if isinstance(v, str) else json.dumps(v)
-                     for k, v in meta_data.items()}
-
-        attrs['date_modified'] = dt.utcnow().isoformat()
-        if 'date_created' not in attrs:
-            attrs['date_created'] = attrs['date_modified']
-
-        return xr.Dataset(data_vars=data_vars, coords=coords, attrs=attrs)
-
-    # pylint: disable=W0613
-    @classmethod
-    def _write_output(cls, data, features, lat_lon, times, out_file,
-                      meta_data=None, max_workers=None, gids=None):
-        """Write forward pass output to NETCDF file
-
-        Parameters
-        ----------
-        data : ndarray
-            (spatial_1, spatial_2, temporal, features)
-            High resolution forward pass output
-        features : list
-            List of feature names corresponding to the last dimension of data
-        lat_lon : ndarray
-            Array of high res lat/lon for output data.
-            (spatial_1, spatial_2, 2)
-            Last dimension has ordering (lat, lon)
-        times : pd.Datetimeindex
-            List of times for high res output data
-        out_file : string
-            Output file path
-        meta_data : dict | None
-            Dictionary of meta data from model
-        max_workers : int | None
-            Has no effect. For compliance with H5 output handler
-        gids : list
-            List of coordinate indices used to label each lat lon pair and to
-            help with spatial chunk data collection
-        """
-        cls._get_xr_dset(data=data, lat_lon=lat_lon, features=features,
-                         times=times,
-                         meta_data=meta_data).to_netcdf(out_file)
-        logger.info(f'Saved output of size {data.shape} to: {out_file}')
-
-    @classmethod
-    def combine_file(cls, files, outfile):
-        """Combine all chunked output files from ForwardPass into a single file
-
-        Parameters
-        ----------
-        files : list
-            List of chunked output files from ForwardPass runs
-        outfile : str
-            Output file name for combined file
-        """
-        time_key = get_time_dim_name(files[0])
-        ds = xr.open_mfdataset(files, combine='nested', concat_dim=time_key)
-        ds.to_netcdf(outfile)
-        logger.info(f'Saved combined file: {outfile}')
-
-
-class OutputHandlerH5(OutputHandler):
-    """Class to handle writing output to H5 file"""
-
-    @classmethod
-    def get_renamed_features(cls, features):
-        """Rename features based on transformation from u/v to
-        windspeed/winddirection
-
-        Parameters
-        ----------
-        features : list
-            List of output features
-
-        Returns
-        -------
-        list
-            List of renamed features u/v -> windspeed/winddirection for each
-            height
-        """
-        heights = [parse_feature(f).height for f in features
-                   if re.match('U_(.*?)m'.lower(), f.lower())]
-        renamed_features = features.copy()
-
-        for height in heights:
-            u_idx = features.index(f'U_{height}m')
-            v_idx = features.index(f'V_{height}m')
-
-            renamed_features[u_idx] = f'windspeed_{height}m'
-            renamed_features[v_idx] = f'winddirection_{height}m'
-
-        return renamed_features
-
-    @classmethod
-    def invert_uv_features(cls, data, features, lat_lon, max_workers=None):
-        """Invert U/V to windspeed and winddirection. Performed in place.
-
-        Parameters
-        ----------
-        data : ndarray
-            High res data from forward pass
-            (spatial_1, spatial_2, temporal, features)
-        features : list
-            List of output features. If this doesnt contain any names matching
-            U_*m, this method will do nothing.
-        lat_lon : ndarray
-            High res lat/lon array
-            (spatial_1, spatial_2, 2)
-        max_workers : int | None
-            Max workers to use for inverse transform. If None the maximum
-            possible will be used
-        """
-
-        heights = [parse_feature(f).height for f in features if
-                   re.match('U_(.*?)m'.lower(), f.lower())]
-        if heights:
-            logger.info('Converting u/v to windspeed/winddirection for h5'
-                        ' output')
-            logger.debug('Found heights {} for output features {}'
-                         .format(heights, features))
-
-        futures = {}
-        now = dt.now()
-        if max_workers == 1:
-            for height in heights:
-                u_idx = features.index(f'U_{height}m')
-                v_idx = features.index(f'V_{height}m')
-                cls.invert_uv_single_pair(data, lat_lon, u_idx, v_idx)
-                logger.info(f'U/V pair at height {height}m inverted.')
-        else:
-            with ThreadPoolExecutor(max_workers=max_workers) as exe:
-                for height in heights:
-                    u_idx = features.index(f'U_{height}m')
-                    v_idx = features.index(f'V_{height}m')
-                    future = exe.submit(cls.invert_uv_single_pair, data,
-                                        lat_lon, u_idx, v_idx)
-                    futures[future] = height
-
-                logger.info(f'Started inverse transforms on {len(heights)} '
-                            f'U/V pairs in {dt.now() - now}. ')
-
-                for i, _ in enumerate(as_completed(futures)):
-                    try:
-                        future.result()
-                    except Exception as e:
-                        msg = ('Failed to invert the U/V pair for for height '
-                               f'{futures[future]}')
-                        logger.exception(msg)
-                        raise RuntimeError(msg) from e
-                    logger.debug(f'{i + 1} out of {len(futures)} inverse '
-                                 'transforms completed.')
-
-    @staticmethod
-    def invert_uv_single_pair(data, lat_lon, u_idx, v_idx):
-        """Perform inverse transform in place on a single u/v pair.
-
-        Parameters
-        ----------
-        data : ndarray
-            High res data from forward pass
-            (spatial_1, spatial_2, temporal, features)
-        lat_lon : ndarray
-            High res lat/lon array
-            (spatial_1, spatial_2, 2)
-        u_idx : int
-            Index in data for U component to transform
-        v_idx : int
-            Index in data for V component to transform
-        """
-        ws, wd = invert_uv(data[..., u_idx], data[..., v_idx], lat_lon)
-        data[..., u_idx] = ws
-        data[..., v_idx] = wd
-
-    @classmethod
-    def _transform_output(cls, data, features, lat_lon, max_workers=None):
-        """Transform output data before writing to H5 file
-
-        Parameters
-        ----------
-        data : ndarray
-            (spatial_1, spatial_2, temporal, features)
-            High resolution forward pass output
-        features : list
-            List of feature names corresponding to the last dimension of data
-        lat_lon : ndarray
-            Array of high res lat/lon for output data.
-            (spatial_1, spatial_2, 2)
-            Last dimension has ordering (lat, lon)
-        max_workers : int | None
-            Max workers to use for inverse transform. If None the max_workers
-            will be estimated based on memory limits.
-        """
-
-        cls.invert_uv_features(data, features, lat_lon,
-                               max_workers=max_workers)
-        features = cls.get_renamed_features(features)
-        data = cls.enforce_limits(features, data)
-        return data, features
-
-    @classmethod
-    def _write_output(cls, data, features, lat_lon, times, out_file,
-                      meta_data=None, max_workers=None, gids=None):
-        """Write forward pass output to H5 file
-
-        Parameters
-        ----------
-        data : ndarray
-            (spatial_1, spatial_2, temporal, features)
-            High resolution forward pass output
-        features : list
-            List of feature names corresponding to the last dimension of data
-        lat_lon : ndarray
-            Array of high res lat/lon for output data.
-            (spatial_1, spatial_2, 2)
-            Last dimension has ordering (lat, lon)
-        times : pd.Datetimeindex
-            List of times for high res output data
-        out_file : string
-            Output file path
-        meta_data : dict | None
-            Dictionary of meta data from model
-        max_workers : int | None
-            Max workers to use for inverse transform. If None the max_workers
-            will be estimated based on memory limits.
-        gids : list
-            List of coordinate indices used to label each lat lon pair and to
-            help with spatial chunk data collection
-        """
-        msg = (f'Output data shape ({data.shape}) and lat_lon shape '
-               f'({lat_lon.shape}) conflict.')
-        assert data.shape[:2] == lat_lon.shape[:-1], msg
-        msg = (f'Output data shape ({data.shape}) and times shape '
-               f'({len(times)}) conflict.')
-        assert data.shape[-2] == len(times), msg
-        data, features = cls._transform_output(data.copy(), features, lat_lon,
-                                               max_workers)
-        gids = (gids if gids is not None
-                else np.arange(np.prod(lat_lon.shape[:-1])))
-        meta = pd.DataFrame({'gid': gids.flatten(),
-                             'latitude': lat_lon[..., 0].flatten(),
-                             'longitude': lat_lon[..., 1].flatten()})
-        data_list = []
-        for i, _ in enumerate(features):
-            flat_data = data[..., i].reshape((-1, len(times)))
-            flat_data = np.transpose(flat_data, (1, 0))
-            data_list.append(flat_data)
-        cls.write_data(out_file, features, times, data_list, meta, meta_data)

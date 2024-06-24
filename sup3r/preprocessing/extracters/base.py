@@ -1,10 +1,12 @@
 """Basic objects that can perform spatial / temporal extractions of requested
-features on loaded data."""
+features on 3D loaded data."""
 
 import logging
-from abc import ABC, abstractmethod
+from warnings import warn
 
-from sup3r.preprocessing.accessor import Sup3rX
+import dask.array as da
+import numpy as np
+
 from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.loaders.base import Loader
 from sup3r.preprocessing.utilities import _compute_if_dask, _parse_time_slice
@@ -12,9 +14,15 @@ from sup3r.preprocessing.utilities import _compute_if_dask, _parse_time_slice
 logger = logging.getLogger(__name__)
 
 
-class Extracter(Container, ABC):
+class Extracter(Container):
     """Container subclass with additional methods for extracting a
-    spatiotemporal extent from contained data."""
+    spatiotemporal extent from contained data.
+
+    Note
+    ----
+    This `Extracter` base class is for 3D rasterized data. This is usually
+    comes from NETCDF files but can also be cached H5 files cached from
+    previously rasterized data."""
 
     def __init__(
         self,
@@ -107,23 +115,84 @@ class Extracter(Container, ABC):
             self._lat_lon = self.get_lat_lon()
         return self._lat_lon
 
-    @abstractmethod
+    def extract_data(self):
+        """Get rasterized data."""
+        return self.loader.isel(
+            south_north=self.raster_index[0],
+            west_east=self.raster_index[1],
+            time=self.time_slice)
+
+    def check_target_and_shape(self, full_lat_lon):
+        """The data is assumed to use a regular grid so if either target or
+        shape is not given we can easily find the values that give the maximum
+        extent."""
+        if self._target is None:
+            self._target = full_lat_lon[-1, 0, :]
+        if self._grid_shape is None:
+            self._grid_shape = full_lat_lon.shape[:-1]
+
     def get_raster_index(self):
-        """Get array of indices used to select the spatial region of
-        interest."""
+        """Get set of slices or indices selecting the requested region from
+        the contained data."""
+        self.check_target_and_shape(self.full_lat_lon)
+        row, col = self.get_closest_row_col(self.full_lat_lon, self._target)
+        lat_slice = slice(row - self._grid_shape[0] + 1, row + 1)
+        lon_slice = slice(col, col + self._grid_shape[1])
+        return self._check_raster_index(lat_slice, lon_slice)
 
-    @abstractmethod
-    def get_lat_lon(self):
-        """Get 2D grid of coordinates with `target` as the lower left
-        coordinate. (lats, lons, 2)"""
+    def _check_raster_index(self, lat_slice, lon_slice):
+        """Check if raster index has bounds which exceed available region and
+        crop if so."""
+        lat_start, lat_end = lat_slice.start, lat_slice.stop
+        lon_start, lon_end = lon_slice.start, lon_slice.stop
+        lat_start = max(lat_start, 0)
+        lat_end = min(lat_end, self.full_lat_lon.shape[0])
+        lon_start = max(lon_start, 0)
+        lon_end = min(lon_end, self.full_lat_lon.shape[1])
+        new_lat_slice = slice(lat_start, lat_end)
+        new_lon_slice = slice(lon_start, lon_end)
+        msg = (
+            f'Computed lat_slice = {lat_slice} exceeds available region. '
+            f'Using {new_lat_slice}'
+        )
+        if lat_slice != new_lat_slice:
+            logger.warning(msg)
+            warn(msg)
+        msg = (
+            f'Computed lon_slice = {lon_slice} exceeds available region. '
+            f'Using {new_lon_slice}'
+        )
+        if lon_slice != new_lon_slice:
+            logger.warning(msg)
+            warn(msg)
+        return new_lat_slice, new_lon_slice
 
-    @abstractmethod
-    def extract_data(self) -> Sup3rX:
-        """Get extracted data by slicing loader.data with calculated
-        raster_index and time_slice.
+    @staticmethod
+    def get_closest_row_col(lat_lon, target):
+        """Get closest indices to target lat lon
+
+        Parameters
+        ----------
+        lat_lon : ndarray
+            Array of lat/lon
+            (spatial_1, spatial_2, 2)
+            Last dimension in order of (lat, lon)
+        target : tuple
+            (lat, lon) for target coordinate
 
         Returns
         -------
-        xr.Dataset()
-            xr.Dataset() object with extracted features.
+        row : int
+            row index for closest lat/lon to target lat/lon
+        col : int
+            col index for closest lat/lon to target lat/lon
         """
+        dist = np.hypot(
+            lat_lon[..., 0] - target[0], lat_lon[..., 1] - target[1]
+        )
+        return da.unravel_index(da.argmin(dist, axis=None), dist.shape)
+
+    def get_lat_lon(self):
+        """Get the 2D array of coordinates corresponding to the requested
+        target and shape."""
+        return self.full_lat_lon[self.raster_index[0], self.raster_index[1]]

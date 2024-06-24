@@ -216,9 +216,7 @@ class ForwardPassStrategy:
         )
         input_handler_kwargs = copy.deepcopy(self.input_handler_kwargs)
         self.time_slice = input_handler_kwargs.pop('time_slice', slice(None))
-        InputHandler = get_input_handler_class(
-            self.file_paths, self.input_handler_name
-        )
+        InputHandler = get_input_handler_class(self.input_handler_name)
         self.input_handler = InputHandler(**input_handler_kwargs)
         self.exo_data = self.load_exo_data(model)
         self.hr_lat_lon = self.get_hr_lat_lon()

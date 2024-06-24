@@ -12,11 +12,10 @@ from rex import Resource
 from rex.utilities.fun_utils import get_fun_call_str
 
 from sup3r.bias.utilities import bias_correct_feature
-from sup3r.postprocessing.file_handling import H5_ATTRS, RexOutputs
+from sup3r.postprocessing import H5_ATTRS, RexOutputs
 from sup3r.preprocessing.derivers import Deriver
 from sup3r.preprocessing.derivers.utilities import parse_feature
 from sup3r.preprocessing.utilities import (
-    Dimension,
     get_input_handler_class,
     get_source_type,
     lowered,
@@ -142,9 +141,7 @@ class Sup3rQa:
         )
         self.input_handler_kwargs = input_handler_kwargs or {}
 
-        HandlerClass = get_input_handler_class(
-            source_file_paths, input_handler_name
-        )
+        HandlerClass = get_input_handler_class(input_handler_name)
         self.input_handler = self.bias_correct_input_handler(
             HandlerClass(source_file_paths, **self.input_handler_kwargs)
         )
@@ -173,13 +170,7 @@ class Sup3rQa:
         list
         """
         # all lower case
-        ignore = (
-            'meta',
-            'time_index',
-            Dimension.TIME,
-            Dimension.SOUTH_NORTH,
-            Dimension.WEST_EAST,
-        )
+        ignore = ('meta', 'time_index')
 
         if self._features is None or self._features == [None]:
             if self.output_type == 'nc':
@@ -198,7 +189,6 @@ class Sup3rQa:
         """Get a list of output dataset names corresponding to the features
         list
         """
-
         if self._out_names is None or self._out_names == [None]:
             return self.features
         return self._out_names

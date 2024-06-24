@@ -9,8 +9,8 @@ import tensorflow as tf
 from rex import ResourceX, init_logger
 
 from sup3r import __version__
+from sup3r.postprocessing import OutputHandlerH5, OutputHandlerNC
 from sup3r.postprocessing.collection import CollectorH5
-from sup3r.postprocessing.file_handling import OutputHandlerH5, OutputHandlerNC
 from sup3r.preprocessing.derivers.utilities import (
     invert_uv,
     transform_rotate_wind,

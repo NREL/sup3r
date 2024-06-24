@@ -6,25 +6,21 @@ from sup3r.preprocessing.loaders import LoaderH5, LoaderNC
 from sup3r.preprocessing.utilities import (
     FactoryMeta,
     get_class_kwargs,
+    get_source_type,
 )
 
-from .h5 import BaseExtracterH5
-from .nc import BaseExtracterNC
+from .extended import ExtendedExtracter
 
 logger = logging.getLogger(__name__)
 
 
-def ExtracterFactory(
-    ExtracterClass, LoaderClass, BaseLoader=None, name='DirectExtracter'
-):
+def ExtracterFactory(LoaderClass, BaseLoader=None, name='DirectExtracter'):
     """Build composite :class:`Extracter` objects that also load from
     file_paths. Inputs are required to be provided as keyword args so that they
     can be split appropriately across different classes.
 
     Parameters
     ----------
-    ExtracterClass : class
-        :class:`Extracter` class to use in this object composition.
     LoaderClass : class
         :class:`Loader` class to use in this object composition.
     BaseLoader : function
@@ -38,11 +34,11 @@ def ExtracterFactory(
         logging.
     """
 
-    class DirectExtracter(ExtracterClass, metaclass=FactoryMeta):
+    class TypeSpecificExtracter(ExtendedExtracter, metaclass=FactoryMeta):
         """Extracter object built from factory arguments."""
 
         __name__ = name
-        _legos = (ExtracterClass, LoaderClass)
+        _legos = (LoaderClass, ExtendedExtracter)
 
         if BaseLoader is not None:
             BASE_LOADER = BaseLoader
@@ -57,13 +53,32 @@ def ExtracterFactory(
                 Dictionary of keyword args for Extracter and Loader
             """
             [loader_kwargs, extracter_kwargs] = get_class_kwargs(
-                [LoaderClass, ExtracterClass], kwargs
+                [LoaderClass, ExtendedExtracter], kwargs
             )
             self.loader = LoaderClass(file_paths, **loader_kwargs)
             super().__init__(loader=self.loader, **extracter_kwargs)
 
-    return DirectExtracter
+    return TypeSpecificExtracter
 
 
-ExtracterH5 = ExtracterFactory(BaseExtracterH5, LoaderH5, name='ExtracterH5')
-ExtracterNC = ExtracterFactory(BaseExtracterNC, LoaderNC, name='ExtracterNC')
+ExtracterH5 = ExtracterFactory(LoaderH5, name='ExtracterH5')
+ExtracterNC = ExtracterFactory(LoaderNC, name='ExtracterNC')
+
+
+class DirectExtracter:
+    """`DirectExtracter` class which parses input file type and returns
+    appropriate `TypeSpecificExtracter`."""
+
+    _legos = (ExtracterH5, ExtracterNC)
+
+    def __new__(cls, file_paths, *args, **kwargs):
+        """Return a new `DirectExtracter` based on input file type."""
+        source_type = get_source_type(file_paths)
+        if source_type == 'h5':
+            return ExtracterH5(file_paths, *args, **kwargs)
+        if source_type == 'nc':
+            return ExtracterNC(file_paths, *args, **kwargs)
+        msg = (f'Can only handle H5 or NETCDF files. Received '
+               f'"{source_type}" for file_paths: {file_paths}')
+        logger.error(msg)
+        raise ValueError(msg)

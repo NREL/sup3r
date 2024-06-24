@@ -16,7 +16,7 @@ from rex import MultiTimeResource, Resource
 from rex.utilities.fun_utils import get_fun_call_str
 from scipy.spatial import KDTree
 
-from sup3r.postprocessing.file_handling import H5_ATTRS, RexOutputs
+from sup3r.postprocessing import H5_ATTRS, RexOutputs
 from sup3r.preprocessing.utilities import expand_paths
 from sup3r.utilities import ModuleName
 

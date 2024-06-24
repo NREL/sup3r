@@ -16,14 +16,14 @@ from rex.utilities.fun_utils import get_fun_call_str
 from rex.utilities.loggers import init_logger
 from scipy.spatial import KDTree
 
-from sup3r.postprocessing.file_handling import OutputMixIn, RexOutputs
+from sup3r.postprocessing import OutputMixin, RexOutputs
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
 
 logger = logging.getLogger(__name__)
 
 
-class BaseCollector(OutputMixIn, ABC):
+class BaseCollector(OutputMixin, ABC):
     """Base collector class for H5/NETCDF collection"""
 
     def __init__(self, file_paths):

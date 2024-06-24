@@ -90,6 +90,12 @@ class Sup3rX:
             for f in list(self._ds.data_vars)
         )
 
+    @property
+    def flattened(self):
+        """Check if the contained data is flattened 2D data or 3D rasterized
+        data."""
+        return Dimension.FLATTENED_SPATIAL in self.dims
+
     @classmethod
     def good_dim_order(cls, ds):
         """Check if dims are in the right order for all variables.

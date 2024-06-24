@@ -14,14 +14,11 @@ from sup3r.preprocessing.derivers.methods import (
     RegistryH5WindCC,
     RegistryNC,
 )
-from sup3r.preprocessing.extracters import (
-    BaseExtracterH5,
-    BaseExtracterNC,
-)
-from sup3r.preprocessing.loaders import LoaderH5, LoaderNC
+from sup3r.preprocessing.extracters import DirectExtracter
 from sup3r.preprocessing.utilities import (
     FactoryMeta,
     get_class_kwargs,
+    get_source_type,
     parse_to_list,
 )
 
@@ -29,40 +26,35 @@ logger = logging.getLogger(__name__)
 
 
 def DataHandlerFactory(
-    ExtracterClass,
-    LoaderClass,
-    BaseLoader=None,
-    FeatureRegistry=None,
-    name='Handler',
+    BaseLoader=None, FeatureRegistry=None, name='TypeSpecificDataHandler'
 ):
     """Build composite objects that load from file_paths, extract specified
     region, derive new features, and cache derived data.
 
     Parameters
     ----------
-    ExtracterClass : class
-        :class:`Extracter` class to use in this object composition.
-    LoaderClass : class
-        :class:`Loader` class to use in this object composition.
-    BaseLoader : class
-        Optional base loader update. The default for h5 is MultiFileWindX and
-        for nc the default is xarray
+    BaseLoader : Callable
+        Optional base loader update. The default for H5 is MultiFileWindX and
+        for NETCDF the default is xarray
+    FeatureRegistry : Dict[str, DerivedFeature]
+        Dictionary of compute methods for features. This is used to look up how
+        to derive features that are not contained in the raw loaded data.
     name : str
         Optional name for class built from factory. This will display in
         logging.
 
     """
 
-    class Handler(Deriver, metaclass=FactoryMeta):
+    class TypeSpecificDataHandler(Deriver, metaclass=FactoryMeta):
         """Handler class returned by factory. Composes `Extracter`, `Loader`
         and `Deriver` classes."""
 
         __name__ = name
-        _legos = (Deriver, ExtracterClass, LoaderClass)
+        _legos = (Deriver, DirectExtracter)
 
-        BASE_LOADER = (
-            BaseLoader if BaseLoader is not None else LoaderClass.BASE_LOADER
-        )
+        if BaseLoader is not None:
+            BASE_LOADER = BaseLoader
+
         FEATURE_REGISTRY = (
             FeatureRegistry
             if FeatureRegistry is not None
@@ -81,20 +73,12 @@ def DataHandlerFactory(
                 Dictionary of keyword args for DirectExtracter, Deriver, and
                 Cacher
             """
-            [
-                cacher_kwargs,
-                loader_kwargs,
-                deriver_kwargs,
-                extracter_kwargs,
-            ] = get_class_kwargs(
-                [Cacher, LoaderClass, Deriver, ExtracterClass], kwargs
+            [cacher_kwargs, deriver_kwargs, extracter_kwargs] = (
+                get_class_kwargs([Cacher, Deriver, DirectExtracter], kwargs)
             )
             features = parse_to_list(features=features)
-            self.loader = LoaderClass(file_paths=file_paths, **loader_kwargs)
-            self._loader_hook()
-            self.extracter = ExtracterClass(
-                loader=self.loader,
-                **extracter_kwargs,
+            self.extracter = DirectExtracter(
+                file_paths=file_paths, **extracter_kwargs
             )
             self._extracter_hook()
             super().__init__(
@@ -104,13 +88,6 @@ def DataHandlerFactory(
             cache_kwargs = cacher_kwargs.get('cache_kwargs', {})
             if cache_kwargs is not None and 'cache_pattern' in cache_kwargs:
                 _ = Cacher(data=self.data, **cacher_kwargs)
-
-        def _loader_hook(self):
-            """Hook in after loader initialization. Implement this to extend
-            class functionality with operations after default loader
-            initialization. e.g. Extra preprocessing like renaming variables,
-            ensuring correct dimension ordering with non-standard dimensions,
-            etc."""
 
         def _extracter_hook(self):
             """Hook in after extracter initialization. Implement this to extend
@@ -157,29 +134,23 @@ def DataHandlerFactory(
         def __repr__(self):
             return f"<class '{self.__module__}.__name__'>"
 
-    return Handler
+    return TypeSpecificDataHandler
 
 
 def DailyDataHandlerFactory(
-    ExtracterClass,
-    LoaderClass,
-    BaseLoader=None,
-    FeatureRegistry=None,
-    name='Handler',
+    BaseLoader=None, FeatureRegistry=None, name='DailyDataHandler'
 ):
     """Handler factory for data handlers with additional daily_data.
 
-    TODO: Not a fan of manually adding cs_ghi / ghi and then removing
+    TODO: Not a fan of manually adding cs_ghi / ghi and then removing. Maybe
+    this could be handled through a derivation instead
     """
 
-    BaseHandler = DataHandlerFactory(
-        ExtracterClass,
-        LoaderClass=LoaderClass,
-        BaseLoader=BaseLoader,
-        FeatureRegistry=FeatureRegistry,
-    )
-
-    class DailyHandler(BaseHandler):
+    class DailyDataHandler(
+        DataHandlerFactory(
+            BaseLoader=BaseLoader, FeatureRegistry=FeatureRegistry
+        )
+    ):
         """General data handler class with daily data as an additional
         attribute. xr.Dataset coarsen method employed to compute averages /
         mins / maxes over daily windows. Special treatment of clearsky_ratio,
@@ -266,15 +237,36 @@ def DailyDataHandlerFactory(
             daily_data.attrs.update({'name': 'daily'})
             self.data = Sup3rDataset(daily=daily_data, hourly=hourly_data)
 
-    return DailyHandler
+    return DailyDataHandler
 
 
 DataHandlerH5 = DataHandlerFactory(
-    BaseExtracterH5, LoaderH5, FeatureRegistry=RegistryH5, name='DataHandlerH5'
+    FeatureRegistry=RegistryH5, name='DataHandlerH5'
 )
 DataHandlerNC = DataHandlerFactory(
-    BaseExtracterNC, LoaderNC, FeatureRegistry=RegistryNC, name='DataHandlerNC'
+    FeatureRegistry=RegistryNC, name='DataHandlerNC'
 )
+
+
+class DataHandler:
+    """`DataHandler` class which parses input file type and returns
+    appropriate `TypeSpecificDataHandler`."""
+
+    _legos = (DataHandlerH5, DataHandlerNC)
+
+    def __new__(cls, file_paths, *args, **kwargs):
+        """Return a new `DataHandler` based on input file type."""
+        source_type = get_source_type(file_paths)
+        if source_type == 'h5':
+            return DataHandlerH5(file_paths, *args, **kwargs)
+        if source_type == 'nc':
+            return DataHandlerNC(file_paths, *args, **kwargs)
+        msg = (
+            f'Can only handle H5 or NETCDF files. Received '
+            f'"{source_type}" for file_paths: {file_paths}'
+        )
+        logger.error(msg)
+        raise ValueError(msg)
 
 
 def _base_loader(file_paths, **kwargs):
@@ -282,8 +274,6 @@ def _base_loader(file_paths, **kwargs):
 
 
 DataHandlerH5SolarCC = DailyDataHandlerFactory(
-    BaseExtracterH5,
-    LoaderH5,
     BaseLoader=_base_loader,
     FeatureRegistry=RegistryH5SolarCC,
     name='DataHandlerH5SolarCC',
@@ -291,8 +281,6 @@ DataHandlerH5SolarCC = DailyDataHandlerFactory(
 
 
 DataHandlerH5WindCC = DailyDataHandlerFactory(
-    BaseExtracterH5,
-    LoaderH5,
     BaseLoader=_base_loader,
     FeatureRegistry=RegistryH5WindCC,
     name='DataHandlerH5WindCC',
