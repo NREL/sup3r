@@ -94,11 +94,7 @@ class LoaderNC(Loader):
             ),
         }
 
-        time_independent = (
-            Dimension.TIME not in res.coords and Dimension.TIME not in res.dims
-        )
-
-        if not time_independent:
+        if Dimension.TIME in res.coords or Dimension.TIME in res.dims:
             times = (
                 res.indexes[Dimension.TIME]
                 if Dimension.TIME in res.indexes

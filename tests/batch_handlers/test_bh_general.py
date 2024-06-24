@@ -24,6 +24,8 @@ FEATURES = ['windspeed', 'winddirection']
 means = dict.fromkeys(FEATURES, 0)
 stds = dict.fromkeys(FEATURES, 1)
 
+np.random.seed(42)
+
 
 class TestBatchHandler(BatchHandler):
     """Batch handler with sample counter for testing."""
@@ -97,7 +99,6 @@ def test_sample_counter():
     """Make sure samples are counted correctly, over multiple epochs."""
 
     dat = DummyData((10, 10, 100), FEATURES)
-    transform_kwargs = {'smoothing_ignore': [], 'smoothing': None}
     batcher = TestBatchHandler(
         train_containers=[dat],
         val_containers=[],
@@ -106,24 +107,23 @@ def test_sample_counter():
         n_batches=4,
         s_enhance=2,
         t_enhance=1,
-        queue_cap=3,
+        queue_cap=1,
         means=means,
         stds=stds,
         max_workers=1,
-        transform_kwargs=transform_kwargs,
-        mode='eager',
+        mode='eager'
     )
 
     n_epochs = 4
     for _ in range(n_epochs):
         for _ in batcher:
             pass
+    batcher.stop()
 
     assert (
         batcher.sample_count // batcher.batch_size
         == n_epochs * batcher.n_batches + batcher.queue.size().numpy()
     )
-    batcher.stop()
 
 
 def test_normalization():

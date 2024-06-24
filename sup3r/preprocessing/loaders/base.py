@@ -42,6 +42,7 @@ class Loader(Container, ABC):
         'lon': Dimension.LONGITUDE,
         'xlat': Dimension.LATITUDE,
         'xlong': Dimension.LONGITUDE,
+        'plev': Dimension.PRESSURE_LEVEL,
     }
 
     def __init__(
