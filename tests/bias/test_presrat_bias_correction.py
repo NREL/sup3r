@@ -1,13 +1,16 @@
 """Validating PresRat correction procedures
 
 
-Relevant sources used in the tests:
-- fp_fut_cc: Future dataset based on FP_CC + an offset + small noise
-- fp_fut_cc_notrend: Future dataset identical to FP_CC
-- presrat_params: Parameters of reference to test PresRat
-- presrat_notrend_params: Bias historical is identical to bias reference
-    (historical). Thus, there is no trend in the model.
-- presrat_identity_params: All distributions are identical (oh & mf) to mh,
+Relevant resources used in the tests:
+- FP_CC: Filename of standard biased dataset.
+- fut_cc: Future dataset sample based on FP_CC + an offset + small noise
+- fp_fut_cc: Filname to `fut_cc`.
+- fut_cc_notrend: Future dataset identical to FP_CC, i.e. no trend.
+- fp_fut_cc_notrend: Filename to fut_cc_notrend.
+- presrat_params: Parameters of reference to test PresRat (using fp_fut_cc).
+- presrat_notrend_params: Quantiles of future (mf) are identical to bias
+  reference (mh). Thus, there is no trend in the model.
+- presrat_identity_params: All distributions (oh & mf) are identical to mh,
     i.e. observations equal to model that doesn't change on time.
 - presrat_nochanges_params: Like presrat_identity_params, but also all
     zero_rate are zeros, i.e. no values should be forced to be zero.
@@ -293,7 +296,7 @@ def test_zero_precipitation_rate_nan():
 def test_parallel(fp_fut_cc, threshold):
     """Running in parallel must not alter results
 
-    Check with different thresholds that will result in different zero rates.
+    Check with different thresholds, which will result in different zero rates.
     """
     s = PresRat(
         FP_NSRDB,
