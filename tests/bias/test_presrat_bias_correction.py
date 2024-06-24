@@ -337,27 +337,6 @@ def test_zero_precipitation_rate_nan():
     assert r1 == r2
 
 
-"""
-    breakpoint()
-
-    # Physically non sense threshold.
-    out = calc.run(zero_rate_threshold=0)
-
-    assert 'ghi_zero_rate' in out, 'Missing ghi_zero_rate in calc output'
-    zero_rate = out['ghi_zero_rate']
-    assert np.all(np.isfinite(zero_rate)), "Unexpected NaN for ghi_zero_rate"
-    assert np.all(zero_rate==0), "It should be all zero percent"
-
-    # Physically non sense threshold.
-    out = calc.run(zero_rate_threshold=1e6)
-
-    assert 'ghi_zero_rate' in out, 'Missing ghi_zero_rate in calc output'
-    zero_rate = out['ghi_zero_rate']
-    assert np.all(np.isfinite(zero_rate)), "Unexpected NaN for ghi_zero_rate"
-    assert np.all(zero_rate==1), "It should be all zero percent"
-"""
-
-
 @pytest.mark.parametrize('threshold', [0, 50, 1e6])
 def test_parallel(fp_fut_cc, threshold):
     """Running in parallel must not alter results
