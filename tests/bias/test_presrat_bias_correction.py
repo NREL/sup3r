@@ -247,17 +247,18 @@ def test_zero_precipitation_rate_extremes():
 def test_zero_precipitation_rate_nanonly():
     """Zero rate estimate with only NaNs gives NaN"""
     f = ZeroRateMixin().zero_precipitation_rate
-    arr = np.arange(10)
+    arr = np.nan * np.zeros(10)
 
     # All NaN gives NaN rate
-    rate = f(np.nan * arr)
+    rate = f(arr)
     assert np.isnan(rate)
 
 
 def test_zero_precipitation_rate_nan():
     """Zero rate estimate with NaNs
 
-    NaN shouldn't be counted to find the rate.
+    NaN shouldn't be counted to find the rate. Thus an array with NaNs should
+    give the same results if the NaN were removed before the calculation.
     """
     f = ZeroRateMixin().zero_precipitation_rate
     arr = np.arange(10)
