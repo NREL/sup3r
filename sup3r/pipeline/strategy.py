@@ -120,7 +120,7 @@ class ForwardPassStrategy:
         Class to use for input data. Provide a string name to match an
         extracter or handler class in `sup3r.preprocessing`
     input_handler_kwargs : dict | None
-        Any kwargs for initializing the `input_handler` class.
+        Any kwargs for initializing the `input_handler_name` class.
     exo_kwargs : dict | None
         Dictionary of args to pass to :class:`ExoDataHandler` for
         extracting exogenous features for multistep foward pass. This
@@ -522,9 +522,13 @@ class ForwardPassStrategy:
             for feature in self.exo_features:
                 exo_kwargs = copy.deepcopy(self.exo_kwargs[feature])
                 exo_kwargs['feature'] = feature
-                exo_kwargs['target'] = self.input_handler.target
-                exo_kwargs['shape'] = self.input_handler.grid_shape
                 exo_kwargs['models'] = getattr(model, 'models', [model])
+                input_handler_kwargs = exo_kwargs.get(
+                    'input_handler_kwargs', {}
+                )
+                input_handler_kwargs['target'] = self.input_handler.target
+                input_handler_kwargs['shape'] = self.input_handler.grid_shape
+                exo_kwargs['input_handler_kwargs'] = input_handler_kwargs
                 sig = signature(ExoDataHandler)
                 exo_kwargs = {
                     k: v for k, v in exo_kwargs.items() if k in sig.parameters
