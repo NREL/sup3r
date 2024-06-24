@@ -48,6 +48,8 @@ HIGH_RES_TIMES = pd_date_range(
     '20500101', '20500104', inclusive='left', freq='1h'
 )
 
+init_logger('sup3r', log_level='DEBUG')
+
 
 @pytest.fixture(scope='module')
 def input_files(tmpdir_factory):
@@ -302,12 +304,9 @@ def test_fwd_pass_cli(runner, input_files):
         assert len(glob.glob(f'{td}/out*')) == n_chunks
 
 
-def test_pipeline_fwp_qa(runner, input_files, log=False):
+def test_pipeline_fwp_qa(runner, input_files):
     """Test the sup3r pipeline with Forward Pass and QA modules
     via pipeline cli"""
-
-    if log:
-        init_logger('sup3r', log_level='DEBUG')
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')

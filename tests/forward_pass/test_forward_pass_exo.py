@@ -967,7 +967,7 @@ def test_fwp_multi_step_model_multi_exo(input_files):
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
-                'exo_handler': 'SzaExtracter',
+                'exo_handler_name': 'SzaExtracter',
                 'steps': [{'model': 2, 'combine_type': 'input'}],
             },
         }
@@ -1217,7 +1217,7 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza(input_files):
             },
             'sza': {
                 'file_paths': input_files,
-                'exo_handler': 'SzaExtracter',
+                'exo_handler_name': 'SzaExtracter',
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,

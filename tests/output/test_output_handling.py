@@ -20,6 +20,9 @@ from sup3r.utilities.pytest.helpers import make_fake_h5_chunks
 np.random.seed(42)
 
 
+init_logger('sup3r', log_level='DEBUG')
+
+
 def test_get_lat_lon():
     """Check that regridding works correctly"""
     low_res_lats = np.array([[1, 1, 1], [0, 0, 0]])
@@ -198,11 +201,8 @@ def test_h5_out_and_collect():
             assert gan_meta == 'bar'
 
 
-def test_h5_collect_mask(log=False):
+def test_h5_collect_mask():
     """Test h5 file collection with mask meta"""
-
-    if log:
-        init_logger('sup3r', log_level='DEBUG')
 
     with tempfile.TemporaryDirectory() as td:
         fp_out = os.path.join(td, 'out_combined.h5')
