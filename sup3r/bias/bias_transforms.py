@@ -158,18 +158,19 @@ def get_spatial_bc_quantiles(lat_lon: np.array,
     >>> lat_lon = np.array([
     ...              [39.649033, -105.46875 ],
     ...              [39.649033, -104.765625]])
-    >>> params = get_spatial_bc_quantiles(
-    ...            lat_lon, "ghi", "rsds", "./dist_params.hdf")
+    >>> params, cfg = get_spatial_bc_quantiles(
+    ...                 lat_lon, "ghi", "rsds", "./dist_params.hdf")
     """
     ds = {'base': f'base_{base_dset}_params',
           'bias': f'bias_{feature_name}_params',
-          'bias_fut': f'bias_fut_{feature_name}_params'}
-    out = _get_factors(lat_lon, ds, bias_fp, threshold)
+          'bias_fut': f'bias_fut_{feature_name}_params',
+          }
+    params = _get_factors(lat_lon, ds, bias_fp, threshold)
 
     with Resource(bias_fp) as res:
         cfg = res.global_attrs
 
-    return out["base"], out["bias"], out["bias_fut"], cfg
+    return params, cfg
 
 
 def global_linear_bc(input, scalar, adder, out_range=None):
@@ -488,11 +489,15 @@ def local_qdm_bc(data: np.array,
     >>> unbiased = local_qdm_bc(biased_array, lat_lon_array, "ghi", "rsds",
     ...                         "./dist_params.hdf")
     """
-    base, bias, bias_fut, cfg = get_spatial_bc_quantiles(lat_lon,
-                                                         base_dset,
-                                                         feature_name,
-                                                         bias_fp,
-                                                         threshold)
+    params, cfg = get_spatial_bc_quantiles(lat_lon,
+                                           base_dset,
+                                           feature_name,
+                                           bias_fp,
+                                           threshold)
+    base = params["base"]
+    bias = params["bias"]
+    bias_fut = params["bias_fut"]
+
     if lr_padded_slice is not None:
         spatial_slice = (lr_padded_slice[0], lr_padded_slice[1])
         base = base[spatial_slice]
