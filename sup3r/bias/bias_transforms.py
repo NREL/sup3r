@@ -563,6 +563,7 @@ def local_qdm_bc(data: np.ndarray,
 
     return output
 
+
 def apply_zero_precipitation_rate(arr: np.ndarray, rate):
     """Enforce the zero precipitation rate
     Replace lowest values by zero to satisfy the given rate of zero

@@ -102,19 +102,18 @@ def dist_params(tmpdir_factory, fp_fut_cc):
     Use the standard datasets to estimate the distributions and save
     in a temporary place to be re-used
     """
-    calc = QuantileDeltaMappingCorrection(
-        FP_NSRDB,
-        FP_CC,
-        fp_fut_cc,
-        'ghi',
-        'rsds',
-        target=TARGET,
-        shape=SHAPE,
-        distance_upper_bound=0.7,
-        bias_handler='DataHandlerNCforCC',
-    )
+    calc = QuantileDeltaMappingCorrection(FP_NSRDB,
+                                          FP_CC,
+                                          fp_fut_cc,
+                                          'ghi',
+                                          'rsds',
+                                          target=TARGET,
+                                          shape=SHAPE,
+                                          distance_upper_bound=0.7,
+                                          bias_handler='DataHandlerNCforCC',
+                                          )
     fn = tmpdir_factory.mktemp('params').join('standard.h5')
-    _ = calc.run(max_workers=1, fp_out=fn)
+    _ = calc.run(fp_out=fn)
 
     # DataHandlerNCforCC requires a string
     fn = str(fn)
@@ -129,16 +128,15 @@ def test_qdm_bc(fp_fut_cc):
     something fundamental is wrong.
     """
 
-    calc = QuantileDeltaMappingCorrection(
-        FP_NSRDB,
-        FP_CC,
-        fp_fut_cc,
-        'ghi',
-        'rsds',
-        target=TARGET,
-        shape=SHAPE,
-        bias_handler='DataHandlerNCforCC',
-    )
+    calc = QuantileDeltaMappingCorrection(FP_NSRDB,
+                                          FP_CC,
+                                          fp_fut_cc,
+                                          'ghi',
+                                          'rsds',
+                                          target=TARGET,
+                                          shape=SHAPE,
+                                          bias_handler='DataHandlerNCforCC',
+                                          )
 
     out = calc.run()
 
@@ -446,7 +444,8 @@ def test_fwp_integration(tmp_path):
     input_files = [os.path.join(TEST_DATA_DIR, 'ua_test.nc'),
                    os.path.join(TEST_DATA_DIR, 'va_test.nc'),
                    os.path.join(TEST_DATA_DIR, 'orog_test.nc'),
-                   os.path.join(TEST_DATA_DIR, 'zg_test.nc')]
+                   os.path.join(TEST_DATA_DIR, 'zg_test.nc'),
+                   ]
 
     n_samples = 101
     quantiles = np.linspace(0, 1, n_samples)

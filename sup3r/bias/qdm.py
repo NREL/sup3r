@@ -67,9 +67,10 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                  decimals=None,
                  match_zero_rate=False,
                  n_quantiles=101,
-                 dist="empirical",
-                 sampling="linear",
-                 log_base=10):
+                 dist='empirical',
+                 sampling='linear',
+                 log_base=10,
+                 ):
         """
         Parameters
         ----------
