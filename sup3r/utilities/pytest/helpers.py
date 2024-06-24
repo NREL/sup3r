@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 import xarray as xr
 
-from sup3r.postprocessing.file_handling import OutputHandlerH5
+from sup3r.postprocessing import OutputHandlerH5
 from sup3r.preprocessing.base import Container, Sup3rDataset
 from sup3r.preprocessing.batch_handlers import BatchHandlerCC, BatchHandlerDC
 from sup3r.preprocessing.samplers import DualSamplerCC, Sampler, SamplerDC

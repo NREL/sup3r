@@ -15,8 +15,9 @@ from .base import Extracter
 logger = logging.getLogger(__name__)
 
 
-class BaseExtracterH5(Extracter):
-    """Extracter subclass for h5 files specifically.
+class ExtendedExtracter(Extracter):
+    """Extended `Extracter` class which also handles the flattened data format
+    used for some H5 files (e.g. Wind Toolkit or NSRDB data)
 
     Arguments added to parent class:
 
@@ -63,11 +64,14 @@ class BaseExtracterH5(Extracter):
             self.save_raster_index()
 
     def extract_data(self):
-        """Get rasterized data.
+        """Get rasterized data."""
+        if not self.loader.flattened:
+            return super().extract_data()
+        return self._extract_flat_data()
 
-        TODO: Generalize this to handle non-flattened H5 data. Would need to
-        encapsulate the flatten call somewhere.
-        """
+    def _extract_flat_data(self):
+        """Extract data from flattened source data, usually coming from WTK
+        or NSRDB data."""
         dims = (Dimension.SOUTH_NORTH, Dimension.WEST_EAST)
         coords = {
             Dimension.LATITUDE: (dims, self.lat_lon[..., 0]),
@@ -100,6 +104,15 @@ class BaseExtracterH5(Extracter):
     def get_raster_index(self):
         """Get set of slices or indices selecting the requested region from
         the contained data."""
+
+        if not self.loader.flattened:
+            return super().get_raster_index()
+        return self._get_flat_data_raster_index()
+
+    def _get_flat_data_raster_index(self):
+        """Get raster index for the flattened source data, which usually comes
+        from WTK or NSRDB data."""
+
         if self.raster_file is None or not os.path.exists(self.raster_file):
             logger.info(
                 f'Calculating raster_index for target={self._target}, '
@@ -117,6 +130,13 @@ class BaseExtracterH5(Extracter):
     def get_lat_lon(self):
         """Get the 2D array of coordinates corresponding to the requested
         target and shape."""
+
+        if not self.loader.flattened:
+            return super().get_lat_lon()
+        return self._get_flat_data_lat_lon()
+
+    def _get_flat_data_lat_lon(self):
+        """Get lat lon for flattened source data."""
         lat_lon = self.full_lat_lon[self.raster_index.flatten()].reshape(
             (*self.raster_index.shape, -1)
         )
