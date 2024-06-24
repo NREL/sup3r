@@ -368,6 +368,14 @@ def test_presrat_calc(fp_fut_cc):
     assert np.all((zero_rate >= 0) & (zero_rate <= 1)), 'Out of range [0, 1]'
 
 
+@pytest.mark.parametrize('threshold', [0, 50, 1e6])
+def test_presrat_zero_rate(fp_fut_cc, threshold):
+    """Estimate zero_rate within PresRat.run()
+
+    Use thresholds that gives 0%, 100%, and something between.
+
+    Notes:
+    - Rate should be zero if threshold is zero for this dataset.
     """
     calc = PresRat(
         FP_NSRDB,
@@ -380,38 +388,18 @@ def test_presrat_calc(fp_fut_cc):
         bias_handler='DataHandlerNCforCC',
     )
 
-    # Physically non sense threshold.
-    out = calc.run(zero_rate_threshold=0)
+    out = calc.run(zero_rate_threshold=threshold)
 
     assert 'ghi_zero_rate' in out, 'Missing ghi_zero_rate in calc output'
     zero_rate = out['ghi_zero_rate']
+    # True for this dataset because fill and extend are applied by default.
     assert np.all(np.isfinite(zero_rate)), 'Unexpected NaN for ghi_zero_rate'
-    assert np.all(zero_rate == 0), 'Threshold=0, rate should be 0'
+    assert np.all((zero_rate >= 0) & (zero_rate <= 1)), 'Out of range [0, 1]'
 
-
-def test_presrat_zero_rate_threshold_1e9(fp_fut_cc):
-    """Estimate zero_rate within PresRat.run(), zero threshold
-
-    This should give a zero rate answer, since all values are lower.
-    """
-    calc = PresRat(
-        FP_NSRDB,
-        FP_CC,
-        fp_fut_cc,
-        'ghi',
-        'rsds',
-        target=TARGET,
-        shape=SHAPE,
-        bias_handler='DataHandlerNCforCC',
-    )
-
-    # Physically non sense threshold.
-    out = calc.run(zero_rate_threshold=1e9)
-
-    assert 'ghi_zero_rate' in out, 'Missing ghi_zero_rate in calc output'
-    zero_rate = out['ghi_zero_rate']
-    assert np.all(np.isfinite(zero_rate)), 'Unexpected NaN for ghi_zero_rate'
-    assert np.all(zero_rate == 1), 'Threshold=0, rate should be 0'
+    if threshold <= 0:
+        assert np.all(zero_rate == 0), 'It should be rate 0 for threshold==0'
+    elif threshold >= 1e4:
+        assert np.all(zero_rate == 1), 'It should be rate 1 for threshold>=1e4'
 
 
 def test_apply_zero_precipitation_rate():
