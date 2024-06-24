@@ -5,8 +5,8 @@ data. :class:`Extracter` objects are mostly operated on by :class:`Deriver`
 objects, which derive new features from the data contained in
 :class:`Extracter` objects."""
 
-from .base import Extracter
+from .base import BaseExtracter
 from .dual import DualExtracter
 from .exo import SzaExtracter, TopoExtracterH5, TopoExtracterNC
 from .extended import ExtendedExtracter
-from .factory import DirectExtracter, ExtracterH5, ExtracterNC
+from .factory import Extracter, ExtracterH5, ExtracterNC

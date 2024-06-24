@@ -19,8 +19,12 @@ from sup3r.preprocessing.derivers.methods import (
     RegistryH5WindCC,
     RegistryNC,
 )
-from sup3r.preprocessing.extracters import DirectExtracter
-from sup3r.preprocessing.utilities import get_class_kwargs, parse_to_list
+from sup3r.preprocessing.extracters import Extracter
+from sup3r.preprocessing.utilities import (
+    get_class_kwargs,
+    get_composite_signature,
+    parse_to_list,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +54,8 @@ def DataHandlerFactory(
         and `Deriver` classes."""
 
         __name__ = name
-        _legos = (Deriver, DirectExtracter)
+        _legos = (Extracter, Deriver, Cacher)
+        __signature__ = get_composite_signature(_legos, exclude=['data'])
 
         if BaseLoader is not None:
             BASE_LOADER = BaseLoader
@@ -73,21 +78,21 @@ def DataHandlerFactory(
                 Dictionary of keyword args for DirectExtracter, Deriver, and
                 Cacher
             """
-            [cacher_kwargs, deriver_kwargs, extracter_kwargs] = (
-                get_class_kwargs([Cacher, Deriver, DirectExtracter], kwargs)
-            )
             features = parse_to_list(features=features)
-            self.extracter = DirectExtracter(
-                file_paths=file_paths, **extracter_kwargs
+            self.extracter = Extracter(
+                file_paths=file_paths, **get_class_kwargs(Extracter, kwargs)
             )
+            self.loader = self.extracter.loader
             self._extracter_hook()
             super().__init__(
-                data=self.extracter.data, features=features, **deriver_kwargs
+                data=self.extracter.data,
+                features=features,
+                **get_class_kwargs(Deriver, kwargs),
             )
             self._deriver_hook()
-            cache_kwargs = cacher_kwargs.get('cache_kwargs', {})
+            cache_kwargs = kwargs.get('cache_kwargs', None)
             if cache_kwargs is not None and 'cache_pattern' in cache_kwargs:
-                _ = Cacher(data=self.data, **cacher_kwargs)
+                _ = Cacher(data=self.data, **get_class_kwargs(Cacher, kwargs))
 
         def _extracter_hook(self):
             """Hook in after extracter initialization. Implement this to extend
@@ -132,7 +137,7 @@ def DataHandlerFactory(
                 raise AttributeError(msg) from e
 
         def __repr__(self):
-            return f"<class '{self.__module__}.__name__'>"
+            return f"<class '{self.__module__}.{self.__name__}'>"
 
     return TypeSpecificDataHandler
 
@@ -253,6 +258,7 @@ class DataHandler(TypeGeneralClass):
     appropriate `TypeSpecificDataHandler`."""
 
     _legos = (DataHandlerNC, DataHandlerH5)
+    __signature__ = get_composite_signature(_legos)
     TypeSpecificClass: ClassVar = dict(zip(['nc', 'h5'], _legos))
 
 

@@ -26,8 +26,8 @@ from sup3r.preprocessing.loaders import (
 from sup3r.preprocessing.utilities import (
     Dimension,
     _compute_if_dask,
+    get_class_kwargs,
     get_input_handler_class,
-    get_possible_class_args,
     log_args,
 )
 from sup3r.utilities.utilities import (
@@ -108,11 +108,10 @@ class ExoExtracter(ABC):
         self._source_handler = None
         self.input_handler_kwargs = self.input_handler_kwargs or {}
         InputHandler = get_input_handler_class(self.input_handler_name)
-        params = get_possible_class_args(InputHandler)
-        kwargs = {
-            k: v for k, v in self.input_handler_kwargs.items() if k in params
-        }
-        self.input_handler = InputHandler(self.file_paths, **kwargs)
+        self.input_handler = InputHandler(
+            self.file_paths,
+            **get_class_kwargs(InputHandler, self.input_handler_kwargs),
+        )
 
     @property
     @abstractmethod

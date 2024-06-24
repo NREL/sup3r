@@ -94,16 +94,14 @@ class DataHandlerNCforCC(DataHandlerNC):
             self._nsrdb_source_fp
         ), msg
 
-        time_freq_hours = self.loader.time_step / 3600
-
         msg = (
             'Can only handle source CC data in hourly frequency but '
             'received daily frequency of {}hrs (should be 24) '
             'with raw time index: {}'.format(
-                time_freq_hours, self.loader.time_index
+                self.loader.time_step / 3600, self.extracter.time_index
             )
         )
-        assert time_freq_hours == 24.0, msg
+        assert self.loader.time_step / 3600 == 24.0, msg
 
         msg = (
             'Can only handle source CC data with time_slice.step == 1 '

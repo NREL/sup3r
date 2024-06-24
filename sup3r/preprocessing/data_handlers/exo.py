@@ -19,7 +19,7 @@ from sup3r.preprocessing.extracters import (
     TopoExtracterNC,
 )
 from sup3r.preprocessing.utilities import (
-    get_possible_class_args,
+    get_class_params,
     get_source_type,
     log_args,
 )
@@ -230,12 +230,8 @@ class ExoDataHandler:
         for i, step in enumerate(self.steps):
             out = self._get_single_step_enhance(step)
             self.steps[i] = out
-        s_enhancements = [
-            step['s_enhance'] for step in self.steps
-        ]
-        t_enhancements = [
-            step['t_enhance'] for step in self.steps
-        ]
+        s_enhancements = [step['s_enhance'] for step in self.steps]
+        t_enhancements = [step['t_enhance'] for step in self.steps]
         return s_enhancements, t_enhancements
 
     def get_single_step_data(self, feature, s_enhance, t_enhance):
@@ -267,9 +263,13 @@ class ExoDataHandler:
             't_enhance': t_enhance,
         }
 
-        params = get_possible_class_args(ExoHandler)
+        params = get_class_params(ExoHandler)
         kwargs.update(
-            {k: getattr(self, k) for k in params if hasattr(self, k)}
+            {
+                k.name: getattr(self, k.name)
+                for k in params
+                if hasattr(self, k.name)
+            }
         )
         data = ExoHandler(**kwargs).data
         return data

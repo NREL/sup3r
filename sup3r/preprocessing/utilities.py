@@ -5,7 +5,7 @@ import os
 import pprint
 from enum import Enum
 from glob import glob
-from inspect import getfullargspec, signature
+from inspect import Parameter, Signature, getfullargspec, signature
 from pathlib import Path
 from typing import ClassVar, Optional, Tuple, Union
 from warnings import warn
@@ -137,10 +137,10 @@ def get_input_handler_class(input_handler_name: Optional[str] = None):
     ----------
     input_handler_name : str
         Class to use for input data. Provide a string name to match a class in
-        `sup3r.preprocessing`. If None this will return
-        :class:`DirectExtracter`, which uses `ExtracterNC` or `ExtracterH5`
-        depending on file type.  This is a simple handler object which does not
-        derive new features from raw data.
+        `sup3r.preprocessing`. If None this will return :class:`Extracter`,
+        which uses `ExtracterNC` or `ExtracterH5` depending on file type.  This
+        is a simple handler object which does not derive new features from raw
+        data.
 
     Returns
     -------
@@ -148,7 +148,7 @@ def get_input_handler_class(input_handler_name: Optional[str] = None):
         DataHandler or Extracter class from sup3r.preprocessing.
     """
     if input_handler_name is None:
-        input_handler_name = 'DirectExtracter'
+        input_handler_name = 'Extracter'
 
         logger.info(
             '"input_handler_name" arg was not provided. Using '
@@ -173,53 +173,64 @@ def get_input_handler_class(input_handler_name: Optional[str] = None):
     return HandlerClass
 
 
-def get_possible_class_args(Class):
-    """Get all available arguments for given class by searching through the
-    inheritance hierarchy."""
-    class_args = list(signature(Class.__init__).parameters.keys())
+def get_class_params(Class):
+    """Get list of `Paramater` instances for a given class."""
+    params = (
+        list(Class.__signature__.parameters.values())
+        if hasattr(Class, '__signature__')
+        else list(signature(Class.__init__).parameters.values())
+    )
+    params = [p for p in params if p.name not in ('args', 'kwargs')]
+    if Class.__bases__ == (object,):
+        return params
     bases = Class.__bases__ + getattr(Class, '_legos', ())
-    if bases == (object,):
-        return class_args
-    for base in bases:
-        class_args += get_possible_class_args(base)
-    return set(class_args)
+    bases = list(bases) if isinstance(bases, tuple) else [bases]
+    return _extend_params(bases, params)
 
 
-def _get_class_kwargs(Classes, kwargs):
-    """Go through class and class parents and get matching kwargs."""
-    if not isinstance(Classes, list):
-        Classes = [Classes]
-    out = []
-    for cname in Classes:
-        class_args = get_possible_class_args(cname)
-        out.append({k: v for k, v in kwargs.items() if k in class_args})
-    return out if len(out) > 1 else out[0]
+def _extend_params(Classes, params):
+    for kls in Classes:
+        new_params = get_class_params(kls)
+        param_names = [p.name for p in params]
+        new_params = [
+            p
+            for p in new_params
+            if p.name not in param_names and p.name not in ('args', 'kwargs')
+        ]
+        params.extend(new_params)
+    return params
 
 
-def get_class_kwargs(Classes, kwargs):
-    """Go through class and class parents and get matching kwargs."""
-    if not isinstance(Classes, list):
-        Classes = [Classes]
-    out = []
-    for cname in Classes:
-        class_args = get_possible_class_args(cname)
-        out.append({k: v for k, v in kwargs.items() if k in class_args})
-    check_kwargs(Classes, kwargs)
-    return out if len(out) > 1 else out[0]
-
-
-def check_kwargs(Classes, kwargs):
-    """Make sure all kwargs are valid kwargs for the set of given classes."""
-    extras = []
-    _ = [
-        extras.extend(list(_get_class_kwargs(cname, kwargs).keys()))
-        for cname in Classes
+def get_composite_signature(Classes, exclude=None):
+    """Get signature of an object built from the given list of classes, with
+    option to exclude some parameters."""
+    params = []
+    for kls in Classes:
+        new_params = get_class_params(kls)
+        param_names = [p.name for p in params]
+        new_params = [p for p in new_params if p.name not in param_names]
+        params.extend(new_params)
+    filtered = (
+        params
+        if exclude is None
+        else [p for p in params if p.name not in exclude]
+    )
+    defaults = [p for p in filtered if p.default != p.empty]
+    filtered = [p for p in filtered if p.default == p.empty] + defaults
+    filtered = [
+        Parameter(p.name, p.kind)
+        if p.kind
+        not in (Parameter.KEYWORD_ONLY, Parameter.POSITIONAL_OR_KEYWORD)
+        else Parameter(p.name, p.KEYWORD_ONLY, default=p.default)
+        for p in filtered
     ]
-    extras = set(kwargs.keys()) - set(extras)
-    msg = f'Received unknown kwargs: {extras}'
-    if len(extras) > 0:
-        logger.warning(msg)
-        warn(msg)
+    return Signature(parameters=filtered)
+
+
+def get_class_kwargs(Class, kwargs):
+    """Get kwargs which match Class signature."""
+    param_names = [p.name for p in get_class_params(Class)]
+    return {k: v for k, v in kwargs.items() if k in param_names}
 
 
 def _get_args_dict(thing, func, *args, **kwargs):
@@ -242,41 +253,6 @@ def _get_args_dict(thing, func, *args, **kwargs):
     args_dict.update(kwargs)
     args_dict.update(ann_dict)
 
-    return args_dict
-
-
-def get_full_args_dict(Class, func, *args, **kwargs):
-    """Get full args dict for given class by searching through the inheritance
-    hierarchy.
-
-    Parameters
-    ----------
-    Class : class object
-        Class object to search through
-    func : function
-        Function to check against args and kwargs
-    *args : list
-        Positional args for func
-    **kwargs : dict
-        Keyword arguments for func
-
-    Returns
-    -------
-    dict
-        Dictionary of argument names and values
-    """
-    args_dict = _get_args_dict(Class, func, *args, **kwargs)
-    if (
-        not kwargs
-        or not hasattr(Class, '__bases__')
-        or Class.__bases__ == (object,)
-    ):
-        return args_dict
-    for base in Class.__bases__:
-        base_dict = get_full_args_dict(base, base.__init__, *args, **kwargs)
-        args_dict.update(
-            {k: v for k, v in base_dict.items() if k not in args_dict}
-        )
     return args_dict
 
 

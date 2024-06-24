@@ -11,7 +11,7 @@ from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.utilities import Dimension, expand_paths
 
 
-class Loader(Container, ABC):
+class BaseLoader(Container, ABC):
     """Base loader. "Loads" files so that a `.data` attribute provides access
     to the data in the files as a dask array with shape (lats, lons, time,
     features). This object provides a `__getitem__` method that can be used by
