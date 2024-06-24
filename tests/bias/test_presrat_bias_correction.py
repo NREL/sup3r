@@ -21,6 +21,7 @@ Relevant resources used in the tests:
 import os
 import shutil
 
+import h5py
 import numpy as np
 import pandas as pd
 import pytest
@@ -225,6 +226,63 @@ def presrat_notrend_params(tmpdir_factory, fp_fut_cc_notrend):
     fn = str(fn)
 
     return fn
+
+
+@pytest.fixture(scope='module')
+def presrat_identity_params(tmpdir_factory, presrat_params):
+    """Identical distribution"""
+
+    fn = tmpdir_factory.mktemp('params').join('presrat_identity.h5')
+    shutil.copyfile(presrat_params, fn)
+
+    with h5py.File(fn, 'r+') as f:
+        f['bias_rsds_params'][:] = f['bias_fut_rsds_params'][:]
+        f['base_ghi_params'][:] = f['bias_fut_rsds_params'][:]
+        f.flush()
+
+    return str(fn)
+
+
+@pytest.fixture(scope='module')
+def presrat_nochanges_params(tmpdir_factory, presrat_params):
+    """Identical distribution and no zero rate
+
+    All distributions are identical and zero rate changes are all zero,
+    therefore, the PresRat correction should not change anything.
+
+    Note that distributions are based on bias_fut, so it is assumed that the
+    test cases will be datasets coherent with that bias_fut distribution,
+    otherwise it could lead to differences if out of that scale.
+    """
+    fn = tmpdir_factory.mktemp('params').join('presrat_nochanges.h5')
+    shutil.copyfile(presrat_params, fn)
+
+    with h5py.File(fn, 'r+') as f:
+        f['bias_fut_rsds_params'][:] = f['bias_rsds_params'][:]
+        f['base_ghi_params'][:] = f['bias_rsds_params'][:]
+        f['ghi_zero_rate'][:] *= 0
+        f['rsds_mean_mf'][:] = f['rsds_mean_mh'][:]
+        f.flush()
+
+    return str(fn)
+
+
+@pytest.fixture(scope='module')
+def presrat_nozeros_params(tmpdir_factory, presrat_params):
+    """PresRat parameters without zero rate correction
+
+    The same standard parameters but all zero_rate values are equal to zero,
+    which means that zero percent, i.e. none, of the values should be forced
+    to be zero.
+    """
+    fn = tmpdir_factory.mktemp('params').join('presrat_nozeros.h5')
+    shutil.copyfile(presrat_params, fn)
+
+    with h5py.File(fn, 'r+') as f:
+        f['ghi_zero_rate'][:] *= 0
+        f.flush()
+
+    return str(fn)
 
 
 def test_zero_precipitation_rate():
