@@ -526,6 +526,7 @@ def local_qdm_bc(data: np.array,
     # Reorgnize array back from  (time, space) to (spatial, spatial, temporal)
     return tmp.T.reshape(data.shape)
 
+
 def apply_zero_precipitation_rate(arr: np.ndarray, rate):
     """Enforce the zero precipitation rate
     Replace lowest values by zero to satisfy the given rate of zero

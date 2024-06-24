@@ -20,9 +20,9 @@ from sup3r.bias import (
 )
 from sup3r.preprocessing.data_handling import DataHandlerNC, DataHandlerNCforCC
 
-FP_NSRDB = os.path.join(TEST_DATA_DIR, "test_nsrdb_co_2018.h5")
-FP_CC = os.path.join(TEST_DATA_DIR, "rsds_test.nc")
-FP_CC_LAT_LON = DataHandlerNC(FP_CC, "rsds").lat_lon
+FP_NSRDB = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')
+FP_CC = os.path.join(TEST_DATA_DIR, 'rsds_test.nc')
+FP_CC_LAT_LON = DataHandlerNC(FP_CC, 'rsds').lat_lon
 
 with xr.open_dataset(FP_CC) as fh:
     MIN_LAT = np.min(fh.lat.values.astype(np.float32))
@@ -31,13 +31,13 @@ with xr.open_dataset(FP_CC) as fh:
     SHAPE = (len(fh.lat.values), len(fh.lon.values))
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope='module')
 def fp_fut_cc(tmpdir_factory):
     """Sample future CC dataset
 
     The same CC but with an offset (75.0) and negligible noise.
     """
-    fn = tmpdir_factory.mktemp("data").join("test_mf.nc")
+    fn = tmpdir_factory.mktemp('data').join('test_mf.nc')
     ds = xr.open_dataset(FP_CC)
     # Adding an offset
     ds['rsds'] += 75.0
@@ -49,39 +49,38 @@ def fp_fut_cc(tmpdir_factory):
     return fn
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope='module')
 def fp_fut_cc_notrend(tmpdir_factory):
     """Sample future CC dataset identical to historical CC
 
     This is currently a copy of FP_CC, thus no trend on time.
     """
-    fn = tmpdir_factory.mktemp("data").join("test_mf_notrend.nc")
+    fn = tmpdir_factory.mktemp('data').join('test_mf_notrend.nc')
     shutil.copyfile(FP_CC, fn)
     # DataHandlerNCforCC requires a string
     fn = str(fn)
     return fn
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope='module')
 def dist_params(tmpdir_factory, fp_fut_cc):
     """Distribution parameters for standard datasets
 
     Use the standard datasets to estimate the distributions and save
     in a temporary place to be re-used
     """
-    calc = QuantileDeltaMappingCorrection(
-        FP_NSRDB,
-        FP_CC,
-        fp_fut_cc,
-        "ghi",
-        "rsds",
-        target=TARGET,
-        shape=SHAPE,
-        distance_upper_bound=0.7,
-        bias_handler="DataHandlerNCforCC",
-    )
-    fn = tmpdir_factory.mktemp("params").join("standard.h5")
-    _ = calc.run(max_workers=1, fp_out=fn)
+    calc = QuantileDeltaMappingCorrection(FP_NSRDB,
+                                          FP_CC,
+                                          fp_fut_cc,
+                                          'ghi',
+                                          'rsds',
+                                          target=TARGET,
+                                          shape=SHAPE,
+                                          distance_upper_bound=0.7,
+                                          bias_handler='DataHandlerNCforCC',
+                                          )
+    fn = tmpdir_factory.mktemp('params').join('standard.h5')
+    _ = calc.run(fp_out=fn)
 
     # DataHandlerNCforCC requires a string
     fn = str(fn)
@@ -96,29 +95,34 @@ def test_qdm_bc(fp_fut_cc):
     something fundamental is wrong.
     """
 
-    calc = QuantileDeltaMappingCorrection(FP_NSRDB, FP_CC, fp_fut_cc,
-                                          'ghi', 'rsds',
-                                          target=TARGET, shape=SHAPE,
-                                          bias_handler='DataHandlerNCforCC')
+    calc = QuantileDeltaMappingCorrection(FP_NSRDB,
+                                          FP_CC,
+                                          fp_fut_cc,
+                                          'ghi',
+                                          'rsds',
+                                          target=TARGET,
+                                          shape=SHAPE,
+                                          bias_handler='DataHandlerNCforCC',
+                                          )
 
     out = calc.run()
 
     # Guarantee that we have some actual values, otherwise most of the
     # remaining tests would be useless
     for v in out:
-        assert np.isfinite(out[v]).any(), "Something wrong, all CDFs are NaN."
+        assert np.isfinite(out[v]).any(), 'Something wrong, all CDFs are NaN.'
 
     # Check possible range
     for v in out:
-        assert np.nanmin(out[v]) > 0, f"{v} should be all greater than zero."
-        assert np.nanmax(out[v]) < 1300, f"{v} should be all less than 1300."
+        assert np.nanmin(out[v]) > 0, f'{v} should be all greater than zero.'
+        assert np.nanmax(out[v]) < 1300, f'{v} should be all less than 1300.'
 
     # Each location can be all finite or all NaN, but not both
     for v in out:
         tmp = np.isfinite(out[v].reshape(-1, out[v].shape[-1]))
         assert np.all(
             np.all(tmp, axis=1) == ~np.all(~tmp, axis=1)
-        ), f"For each location of {v} it should be all finite or nonte"
+        ), f'For each location of {v} it should be all finite or nonte'
 
 
 def test_parallel(fp_fut_cc):
@@ -142,10 +146,10 @@ def test_parallel(fp_fut_cc):
     out_p = p.run(max_workers=2)
 
     for k in out_s.keys():
-        assert k in out_p, f"Missing {k} in parallel run"
+        assert k in out_p, f'Missing {k} in parallel run'
         assert np.allclose(
             out_s[k], out_p[k], equal_nan=True
-        ), f"Different results for {k}"
+        ), f'Different results for {k}'
 
 
 def test_fill_nan(fp_fut_cc):
@@ -159,14 +163,14 @@ def test_fill_nan(fp_fut_cc):
 
     # Without filling, at least one NaN or this test is useless.
     out = c.run(fill_extend=False)
-    assert np.all([np.isnan(v).any() for v in out.values()]), (
-        "Assume at least one NaN value for each param"
-    )
+    assert np.all(
+        [np.isnan(v).any() for v in out.values()]
+    ), 'Assume at least one NaN value for each param'
 
     out = c.run()
-    assert ~np.any([np.isnan(v) for v in out.values()]), (
-        "All NaN values where supposed to be filled"
-    )
+    assert ~np.any(
+        [np.isnan(v) for v in out.values()]
+    ), 'All NaN values where supposed to be filled'
 
 
 def test_save_file(tmp_path, fp_fut_cc):
@@ -181,14 +185,14 @@ def test_save_file(tmp_path, fp_fut_cc):
                                           distance_upper_bound=0.7,
                                           bias_handler='DataHandlerNCforCC')
 
-    filename = os.path.join(tmp_path, "test_saving.hdf")
+    filename = os.path.join(tmp_path, 'test_saving.hdf')
     _ = calc.run(filename)
 
     # File was created
     os.path.isfile(filename)
     # A valid HDF5, can open and read
-    with h5py.File(filename, "r") as f:
-        assert "latitude" in f.keys()
+    with h5py.File(filename, 'r') as f:
+        assert 'latitude' in f.keys()
 
 
 def test_qdm_transform(dist_params):
@@ -196,7 +200,7 @@ def test_qdm_transform(dist_params):
     WIP: Confirm it runs, but don't verify anything yet.
     """
     data = np.ones((*FP_CC_LAT_LON.shape[:-1], 2))
-    corrected = local_qdm_bc(data, FP_CC_LAT_LON, "ghi", "rsds", dist_params)
+    corrected = local_qdm_bc(data, FP_CC_LAT_LON, 'ghi', 'rsds', dist_params)
 
     assert not np.isnan(corrected).all(), "Can't compare if only NaN"
     assert not np.allclose(data, corrected, equal_nan=False)
@@ -219,7 +223,7 @@ def test_qdm_transform_notrend(tmp_path, dist_params):
                              no_trend=True)
 
     # Creates a new distribution with mo == mf
-    notrend_params = os.path.join(tmp_path, "notrend.hdf")
+    notrend_params = os.path.join(tmp_path, 'notrend.hdf')
     shutil.copyfile(dist_params, notrend_params)
     with h5py.File(notrend_params, 'r+') as f:
         f['bias_fut_rsds_params'][:] = f['bias_rsds_params'][:]
@@ -256,7 +260,7 @@ def test_bc_identity(tmp_path, fp_fut_cc, dist_params):
     anything. Note that NaNs in any component, i.e. any dataset, would
     propagate into a NaN transformation.
     """
-    ident_params = os.path.join(tmp_path, "identity.hdf")
+    ident_params = os.path.join(tmp_path, 'identity.hdf')
     shutil.copyfile(dist_params, ident_params)
     with h5py.File(ident_params, 'r+') as f:
         f['base_ghi_params'][:] = f['bias_fut_rsds_params'][:]
@@ -280,7 +284,7 @@ def test_bc_identity_absolute(tmp_path, fp_fut_cc, dist_params):
     anything. Note that NaNs in any component, i.e. any dataset, would
     propagate into a NaN transformation.
     """
-    ident_params = os.path.join(tmp_path, "identity.hdf")
+    ident_params = os.path.join(tmp_path, 'identity.hdf')
     shutil.copyfile(dist_params, ident_params)
     with h5py.File(ident_params, 'r+') as f:
         f['base_ghi_params'][:] = f['bias_fut_rsds_params'][:]
@@ -304,7 +308,7 @@ def test_bc_model_constant(tmp_path, fp_fut_cc, dist_params):
     has an offset with historical observed, that same offset should
     be corrected in the target (future modeled).
     """
-    offset_params = os.path.join(tmp_path, "offset.hdf")
+    offset_params = os.path.join(tmp_path, 'offset.hdf')
     shutil.copyfile(dist_params, offset_params)
     with h5py.File(offset_params, 'r+') as f:
         f['base_ghi_params'][:] = f['bias_fut_rsds_params'][:] - 10
@@ -328,7 +332,7 @@ def test_bc_trend(tmp_path, fp_fut_cc, dist_params):
     is a trend between modeled historical vs future, that same trend
     should be applied to correct
     """
-    offset_params = os.path.join(tmp_path, "offset.hdf")
+    offset_params = os.path.join(tmp_path, 'offset.hdf')
     shutil.copyfile(dist_params, offset_params)
     with h5py.File(offset_params, 'r+') as f:
         f['base_ghi_params'][:] = f['bias_fut_rsds_params'][:]
@@ -351,7 +355,7 @@ def test_bc_trend_same_hist(tmp_path, fp_fut_cc, dist_params):
     If there was no bias in historical (obs vs mod), there is nothing to
     correct, but trust the forecast.
     """
-    offset_params = os.path.join(tmp_path, "offset.hdf")
+    offset_params = os.path.join(tmp_path, 'offset.hdf')
     shutil.copyfile(dist_params, offset_params)
     with h5py.File(offset_params, 'r+') as f:
         f['base_ghi_params'][:] = f['bias_fut_rsds_params'][:] - 10
@@ -385,7 +389,8 @@ def test_fwp_integration(tmp_path):
     input_files = [os.path.join(TEST_DATA_DIR, 'ua_test.nc'),
                    os.path.join(TEST_DATA_DIR, 'va_test.nc'),
                    os.path.join(TEST_DATA_DIR, 'orog_test.nc'),
-                   os.path.join(TEST_DATA_DIR, 'zg_test.nc')]
+                   os.path.join(TEST_DATA_DIR, 'zg_test.nc'),
+                   ]
 
     n_samples = 101
     quantiles = np.linspace(0, 1, n_samples)
@@ -415,9 +420,9 @@ def test_fwp_integration(tmp_path):
     out_dir = os.path.join(tmp_path, 'st_gan')
     model.save(out_dir)
 
-    with h5py.File(bias_fp, "w") as f:
-        f.create_dataset("latitude", data=lat_lon[..., 0])
-        f.create_dataset("longitude", data=lat_lon[..., 1])
+    with h5py.File(bias_fp, 'w') as f:
+        f.create_dataset('latitude', data=lat_lon[..., 0])
+        f.create_dataset('longitude', data=lat_lon[..., 1])
 
         s = lat_lon.shape[:2]
         for k, v in params.items():
@@ -443,7 +448,8 @@ def test_fwp_integration(tmp_path):
                                   worker_kwargs=dict(max_workers=1)),
         out_pattern=os.path.join(tmp_path, 'out_{file_id}.nc'),
         worker_kwargs=dict(max_workers=1),
-        input_handler='DataHandlerNCforCC')
+        input_handler='DataHandlerNCforCC',
+    )
     bc_strat = ForwardPassStrategy(
         input_files,
         model_kwargs={'model_dir': out_dir},
@@ -456,7 +462,8 @@ def test_fwp_integration(tmp_path):
         worker_kwargs=dict(max_workers=1),
         input_handler='DataHandlerNCforCC',
         bias_correct_method='local_qdm_bc',
-        bias_correct_kwargs=bias_correct_kwargs)
+        bias_correct_kwargs=bias_correct_kwargs,
+    )
 
     for ichunk in range(strat.chunks):
         fwp = ForwardPass(strat, chunk_index=ichunk)
