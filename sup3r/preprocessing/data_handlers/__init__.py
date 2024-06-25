@@ -3,7 +3,6 @@
 from .base import ExoData, SingleExoDataStep
 from .exo import ExoDataHandler
 from .factory import (
-    DataHandler,
     DataHandlerH5,
     DataHandlerH5SolarCC,
     DataHandlerH5WindCC,

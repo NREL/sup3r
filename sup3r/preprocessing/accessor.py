@@ -533,6 +533,16 @@ class Sup3rX:
         self[[Dimension.LATITUDE, Dimension.LONGITUDE]] = lat_lon
 
     @property
+    def target(self):
+        """Return the value of the lower left hand coordinate."""
+        return _compute_if_dask(self.lat_lon[-1, 0])
+
+    @property
+    def grid_shape(self):
+        """Return the shape of the spatial dimensions."""
+        return self.lat_lon.shape[:-1]
+
+    @property
     def meta(self):
         """Return dataframe of flattened lat / lon values."""
         return pd.DataFrame(

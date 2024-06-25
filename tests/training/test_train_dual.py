@@ -21,11 +21,10 @@ from sup3r.preprocessing import (
 from sup3r.utilities.pytest.helpers import execute_pytest
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
-FP_ERA = os.path.join(TEST_DATA_DIR, 'test_era5_co_2012.nc')
 TARGET_COORD = (39.01, -105.15)
 FEATURES = ['U_100m', 'V_100m']
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
 init_logger('sup3r', log_level='DEBUG')
 
@@ -89,21 +88,21 @@ def test_train(
     """Test model training with a dual data handler / batch handler. Tests both
     spatiotemporal and spatial models."""
 
-    lr = 5e-5
+    lr = 1e-4
+    kwargs = {
+        'file_paths': FP_WTK,
+        'features': FEATURES,
+        'target': TARGET_COORD,
+        'shape': (20, 20),
+    }
     hr_handler = DataHandlerH5(
-        file_paths=FP_WTK,
-        features=FEATURES,
-        target=TARGET_COORD,
-        shape=(20, 20),
-        time_slice=slice(200, None, 10),
+        **kwargs,
+        time_slice=slice(1000, None, 1),
     )
     lr_handler = DataHandlerH5(
-        file_paths=FP_WTK,
-        features=FEATURES,
-        target=TARGET_COORD,
-        shape=(20, 20),
+        **kwargs,
         hr_spatial_coarsen=s_enhance,
-        time_slice=slice(200, None, 5),
+        time_slice=slice(1000, None, 30),
     )
 
     # time indices conflict with t_enhance
@@ -115,12 +114,9 @@ def test_train(
         )
 
     lr_handler = DataHandlerH5(
-        file_paths=FP_WTK,
-        features=FEATURES,
-        target=TARGET_COORD,
-        shape=(20, 20),
+        **kwargs,
         hr_spatial_coarsen=s_enhance,
-        time_slice=slice(200, None, t_enhance * 10),
+        time_slice=slice(1000, None, t_enhance),
     )
 
     dual_extracter = DualExtracter(
@@ -130,19 +126,13 @@ def test_train(
     )
 
     hr_val = DataHandlerH5(
-        file_paths=FP_WTK,
-        features=FEATURES,
-        target=TARGET_COORD,
-        shape=(20, 20),
-        time_slice=slice(None, 200, 10),
+        **kwargs,
+        time_slice=slice(None, 1000, 1),
     )
     lr_val = DataHandlerH5(
-        file_paths=FP_WTK,
-        features=FEATURES,
-        target=TARGET_COORD,
-        shape=(20, 20),
+        **kwargs,
         hr_spatial_coarsen=s_enhance,
-        time_slice=slice(None, 200, t_enhance * 10),
+        time_slice=slice(None, 1000, t_enhance),
     )
 
     dual_val = DualExtracter(

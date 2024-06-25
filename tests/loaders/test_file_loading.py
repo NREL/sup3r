@@ -166,7 +166,7 @@ def test_load_cc():
 def test_load_era5():
     """Test simple era5 file loading. Make sure general loader matches the type
     specific loader"""
-    chunks = (5, 5, 5)
+    chunks = (10, 10, 1000)
     loader = LoaderNC(nc_files, chunks=chunks)
     assert all(
         loader[f].data.chunksize == chunks
@@ -179,9 +179,6 @@ def test_load_era5():
         Dimension.WEST_EAST,
         Dimension.TIME,
     )
-
-    gen_loader = Loader(nc_files, chunks=chunks)
-    assert np.array_equal(loader.as_array(), gen_loader.as_array())
 
 
 def test_load_nc():

@@ -12,17 +12,8 @@ from typing import ClassVar, List, Optional, Union
 
 import numpy as np
 
-import sup3r.preprocessing
-from sup3r.preprocessing.extracters import (
-    SzaExtracter,
-    TopoExtracterH5,
-    TopoExtracterNC,
-)
-from sup3r.preprocessing.utilities import (
-    get_class_params,
-    get_source_type,
-    log_args,
-)
+from sup3r.preprocessing.extracters import SzaExtracter, TopoExtracter
+from sup3r.preprocessing.utilities import get_class_params, log_args
 
 from .base import SingleExoDataStep
 
@@ -80,19 +71,14 @@ class ExoDataHandler:
     input_handler_kwargs : dict | None
         Any kwargs for initializing the `input_handler_name` class used by the
         exo handler.
-    exo_handler_name : str
-        :class:`ExoExtracter` subclass to use for source data. For example, if
-        feature='topography' this should be either :class:`TopoExtracterH5` or
-        :class:`TopoExtracterNC`. If None the correct handler will be guessed
-        based on file type and time series properties.
     cache_dir : str | None
         Directory for storing cache data. Default is './exo_cache'. If None
         then no data will be cached.
     """
 
-    AVAILABLE_HANDLERS: ClassVar[dict] = {
-        'topography': {'h5': TopoExtracterH5, 'nc': TopoExtracterNC},
-        'sza': {'h5': SzaExtracter, 'nc': SzaExtracter},
+    AVAILABLE_HANDLERS: ClassVar = {
+        'topography': TopoExtracter,
+        'sza': SzaExtracter,
     }
 
     file_paths: Union[str, list, pathlib.Path]
@@ -102,7 +88,6 @@ class ExoDataHandler:
     source_file: Optional[str] = None
     input_handler_name: Optional[str] = None
     input_handler_kwargs: Optional[dict] = None
-    exo_handler_name: Optional[str] = None
     cache_dir: str = './exo_cache'
 
     @log_args
@@ -127,6 +112,10 @@ class ExoDataHandler:
         )
         assert not any(s is None for s in self.s_enhancements), msg
         assert not any(t is None for t in self.t_enhancements), msg
+
+        msg = ('No extracter available for the requested feature: '
+               f'{self.feature}')
+        assert self.feature.lower() in self.AVAILABLE_HANDLERS, msg
         self.get_all_step_data()
 
     def get_all_step_data(self):
@@ -140,25 +129,18 @@ class ExoDataHandler:
         for i, (s_enhance, t_enhance) in enumerate(
             zip(self.s_enhancements, self.t_enhancements)
         ):
-            if self.feature in list(self.AVAILABLE_HANDLERS):
-                data = self.get_single_step_data(
-                    feature=self.feature,
-                    s_enhance=s_enhance,
-                    t_enhance=t_enhance,
-                )
-                step = SingleExoDataStep(
-                    self.feature,
-                    self.steps[i]['combine_type'],
-                    self.steps[i]['model'],
-                    data,
-                )
-                self.data[self.feature]['steps'].append(step)
-            else:
-                msg = (
-                    f'Can only extract {list(self.AVAILABLE_HANDLERS)}. '
-                    f'Received {self.feature}.'
-                )
-                raise NotImplementedError(msg)
+            data = self.get_single_step_data(
+                feature=self.feature,
+                s_enhance=s_enhance,
+                t_enhance=t_enhance,
+            )
+            step = SingleExoDataStep(
+                self.feature,
+                self.steps[i]['combine_type'],
+                self.steps[i]['model'],
+                data,
+            )
+            self.data[self.feature]['steps'].append(step)
         shapes = [
             None if step is None else step.shape
             for step in self.data[self.feature]['steps']
@@ -255,13 +237,8 @@ class ExoDataHandler:
             lon, temporal)
         """
 
-        ExoHandler = self.get_exo_handler(
-            feature, self.source_file, self.exo_handler_name
-        )
-        kwargs = {
-            's_enhance': s_enhance,
-            't_enhance': t_enhance,
-        }
+        ExoHandler = self.AVAILABLE_HANDLERS[feature.lower()]
+        kwargs = {'s_enhance': s_enhance, 't_enhance': t_enhance}
 
         params = get_class_params(ExoHandler)
         kwargs.update(
@@ -273,46 +250,3 @@ class ExoDataHandler:
         )
         data = ExoHandler(**kwargs).data
         return data
-
-    @classmethod
-    def get_exo_handler(cls, feature, source_file, exo_handler):
-        """Get exogenous feature extraction class for source file
-
-        Parameters
-        ----------
-        feature : str
-            Name of feature to get exo handler for
-        source_file : str
-            Filepath to source wtk, nsrdb, or netcdf file to get hi-res (2km or
-            4km) data from which will be mapped to the enhanced grid of the
-            file_paths input
-        exo_handler : str
-            Feature extract class to use for source data. For example, if
-            feature='topography' this should be either TopoExtracterH5 or
-            TopoExtracterNC. If None the correct handler will be guessed based
-            on file type and time series properties.
-
-        Returns
-        -------
-        exo_handler : str
-            Exogenous feature extraction class to use for source data.
-        """
-        if exo_handler is None:
-            in_type = get_source_type(source_file)
-            msg = (
-                f'Did not recognize input type "{in_type}" for file '
-                f'paths: {source_file}'
-            )
-            assert in_type in ('h5', 'nc'), msg
-            msg = (
-                'Could not find exo handler class for '
-                f'feature={feature} and input_type={in_type}.'
-            )
-            assert (
-                feature in cls.AVAILABLE_HANDLERS
-                and in_type in cls.AVAILABLE_HANDLERS[feature]
-            ), msg
-            exo_handler = cls.AVAILABLE_HANDLERS[feature][in_type]
-        elif isinstance(exo_handler, str):
-            exo_handler = getattr(sup3r.preprocessing, exo_handler, None)
-        return exo_handler

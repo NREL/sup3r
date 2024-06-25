@@ -7,7 +7,7 @@ import logging
 import pprint
 from abc import ABCMeta
 from collections import namedtuple
-from typing import ClassVar, Optional, Tuple, Union
+from typing import ClassVar, Dict, Optional, Tuple, Union
 from warnings import warn
 
 import numpy as np
@@ -15,7 +15,11 @@ import xarray as xr
 
 import sup3r.preprocessing.accessor  # noqa: F401 # pylint: disable=W0611
 from sup3r.preprocessing.accessor import Sup3rX
-from sup3r.preprocessing.utilities import _log_args, get_source_type
+from sup3r.preprocessing.utilities import (
+    _log_args,
+    get_composite_signature,
+    get_source_type,
+)
 from sup3r.typing import T_Dataset
 
 logger = logging.getLogger(__name__)
@@ -326,11 +330,20 @@ class Container:
 
 
 class FactoryMeta(ABCMeta, type):
-    """Meta class to define __name__ attribute of factory generated classes."""
+    """Meta class to define __name__ and __signature__ of factory built
+    classes."""
 
     def __new__(mcs, name, bases, namespace, **kwargs):  # noqa: N804
-        """Define __name__"""
+        """Define __name__ and __signature__"""
         name = namespace.get('__name__', name)
+        type_spec_classes = namespace.get('TypeSpecificClasses', {})
+        _legos = namespace.get('_legos', ())
+        _legos += tuple(type_spec_classes.values())
+        namespace['_legos'] = _legos
+        sig = namespace.get('__signature__', None)
+        namespace['__signature__'] = (
+            sig if sig is not None else get_composite_signature(_legos)
+        )
         return super().__new__(mcs, name, bases, namespace, **kwargs)
 
     def __subclasscheck__(cls, subclass):
@@ -345,21 +358,27 @@ class FactoryMeta(ABCMeta, type):
         return f"<class '{cls.__module__}.{cls.__name__}'>"
 
 
-class TypeGeneralClass:
+class TypeAgnosticClass(metaclass=FactoryMeta):
     """Factory pattern for returning type specific classes based on input file
     type."""
 
-    TypeSpecificClass: ClassVar[dict] = {'nc': None, 'h5': None}
+    TypeSpecificClasses: ClassVar[Dict] = {}
 
     def __new__(cls, file_paths, *args, **kwargs):
         """Return a new object based on input file type."""
-        source_type = get_source_type(file_paths)
-        SpecificClass = cls.TypeSpecificClass.get(source_type, None)
-        if SpecificClass is not None:
-            return SpecificClass(file_paths, *args, **kwargs)
-        msg = (
-            f'Can only handle H5 or NETCDF files. Received '
-            f'"{source_type}" for file_paths: {file_paths}'
+        SpecificClass = cls.get_specific_class(file_paths)
+        return SpecificClass(file_paths, *args, **kwargs)
+
+    @classmethod
+    def get_specific_class(cls, file_arg):
+        """Get type specific class based on file type of `file_arg`."""
+        source_type = get_source_type(file_arg)
+        SpecificClass = cls.TypeSpecificClasses.get(source_type, None)
+        if SpecificClass is None:
+            msg = (
+                f'Can only handle H5 or NETCDF files. Received '
+                f'"{source_type}" for files: {file_arg}'
         )
-        logger.error(msg)
-        raise ValueError(msg)
+            logger.error(msg)
+            raise ValueError(msg)
+        return SpecificClass
