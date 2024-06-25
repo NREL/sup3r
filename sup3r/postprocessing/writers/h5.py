@@ -82,9 +82,7 @@ class OutputHandlerH5(OutputHandler):
             if re.match('U_(.*?)m'.lower(), f.lower())
         ]
         if heights:
-            logger.info(
-                'Converting u/v to windspeed/winddirection for h5' ' output'
-            )
+            logger.info('Converting u/v to ws/wd for H5 output')
             logger.debug(
                 'Found heights {} for output features {}'.format(
                     heights, features
