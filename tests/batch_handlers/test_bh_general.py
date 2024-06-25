@@ -83,7 +83,7 @@ def test_eager_vs_lazy():
     assert not lazy_batcher.loaded
 
     assert np.array_equal(
-        eager_batcher.data[0].as_array().compute(),
+        eager_batcher.data[0].as_array(),
         lazy_batcher.data[0].as_array().compute(),
     )
 
@@ -92,7 +92,7 @@ def test_eager_vs_lazy():
 
     for idx in eager_batcher.containers[0].index_record:
         assert np.array_equal(
-            eager_batcher.data[0][idx].compute(),
+            eager_batcher.data[0][idx],
             lazy_batcher.data[0][idx].compute(),
         )
 
