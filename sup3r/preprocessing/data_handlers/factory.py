@@ -2,14 +2,12 @@
 data."""
 
 import logging
-from typing import ClassVar
 
 from rex import MultiFileNSRDBX
 
 from sup3r.preprocessing.base import (
     FactoryMeta,
     Sup3rDataset,
-    TypeGeneralClass,
 )
 from sup3r.preprocessing.cachers import Cacher
 from sup3r.preprocessing.derivers import Deriver
@@ -83,6 +81,8 @@ def DataHandlerFactory(
                 file_paths=file_paths, **get_class_kwargs(Extracter, kwargs)
             )
             self.loader = self.extracter.loader
+            self.time_slice = self.extracter.time_slice
+            self.lat_lon = self.extracter.lat_lon
             self._extracter_hook()
             super().__init__(
                 data=self.extracter.data,
@@ -115,26 +115,6 @@ def DataHandlerFactory(
             initialization. e.g. If special methods are required to derive
             additional features which might depend on non-standard inputs (e.g.
             other source files than those used by the loader)."""
-
-        def __getattr__(self, attr):
-            """Look for attribute in extracter and then loader if not found in
-            self.
-
-            TODO: Not a fan of the hardcoded list here. Find better way.
-            """
-            if attr in [
-                'lat_lon',
-                'target',
-                'grid_shape',
-                'time_slice',
-                'time_index',
-            ]:
-                return getattr(self.extracter, attr)
-            try:
-                return Deriver.__getattr__(self, attr)
-            except Exception as e:
-                msg = f'{self.__class__.__name__} has no attribute "{attr}"'
-                raise AttributeError(msg) from e
 
         def __repr__(self):
             return f"<class '{self.__module__}.{self.__name__}'>"
@@ -251,15 +231,6 @@ DataHandlerH5 = DataHandlerFactory(
 DataHandlerNC = DataHandlerFactory(
     FeatureRegistry=RegistryNC, name='DataHandlerNC'
 )
-
-
-class DataHandler(TypeGeneralClass):
-    """`DataHandler` class which parses input file type and returns
-    appropriate `TypeSpecificDataHandler`."""
-
-    _legos = (DataHandlerNC, DataHandlerH5)
-    __signature__ = get_composite_signature(_legos)
-    TypeSpecificClass: ClassVar = dict(zip(['nc', 'h5'], _legos))
 
 
 def _base_loader(file_paths, **kwargs):

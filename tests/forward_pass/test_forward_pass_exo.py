@@ -196,7 +196,7 @@ def test_fwp_multi_step_model_topo_exoskip(input_files):
             out_pattern=out_files,
             exo_kwargs=exo_kwargs,
             max_nodes=1,
-            pass_workers=None,
+            pass_workers=2,
         )
 
         forward_pass = ForwardPass(handler)
@@ -489,6 +489,7 @@ def test_fwp_single_step_sfc_model(input_files, plot=False):
             input_handler_kwargs=input_handler_kwargs,
             out_pattern=out_files,
             exo_kwargs=exo_kwargs,
+            pass_workers=2,
             max_nodes=1,
         )
         forward_pass = ForwardPass(handler)
@@ -968,7 +969,6 @@ def test_fwp_multi_step_model_multi_exo(input_files):
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
-                'exo_handler_name': 'SzaExtracter',
                 'steps': [{'model': 2, 'combine_type': 'input'}],
             },
         }
@@ -1218,7 +1218,6 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza(input_files):
             },
             'sza': {
                 'file_paths': input_files,
-                'exo_handler_name': 'SzaExtracter',
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,

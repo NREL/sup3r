@@ -3,7 +3,7 @@
 import logging
 from typing import ClassVar
 
-from sup3r.preprocessing.base import FactoryMeta, TypeGeneralClass
+from sup3r.preprocessing.base import FactoryMeta, TypeAgnosticClass
 from sup3r.preprocessing.loaders import LoaderH5, LoaderNC
 from sup3r.preprocessing.utilities import (
     get_class_kwargs,
@@ -69,10 +69,8 @@ ExtracterH5 = ExtracterFactory(LoaderClass=LoaderH5, name='ExtracterH5')
 ExtracterNC = ExtracterFactory(LoaderClass=LoaderNC, name='ExtracterNC')
 
 
-class Extracter(TypeGeneralClass):
+class Extracter(TypeAgnosticClass):
     """`DirectExtracter` class which parses input file type and returns
     appropriate `TypeSpecificExtracter`."""
 
-    _legos = (ExtracterNC, ExtracterH5)
-    __signature__ = get_composite_signature(_legos)
-    TypeSpecificClass: ClassVar = dict(zip(['nc', 'h5'], _legos))
+    TypeSpecificClasses: ClassVar = {'nc': ExtracterNC, 'h5': ExtracterH5}

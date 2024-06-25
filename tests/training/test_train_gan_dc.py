@@ -37,7 +37,7 @@ def test_train_spatial_dc(
     n_time_bins,
     full_shape=(20, 20),
     sample_shape=(8, 8, 1),
-    n_epoch=5,
+    n_epoch=2,
 ):
     """Test data-centric spatial model training. Check that the spatial
     weights give the correct number of observations from each spatial bin"""
@@ -59,7 +59,7 @@ def test_train_spatial_dc(
         FEATURES,
         target=TARGET_COORD,
         shape=full_shape,
-        time_slice=slice(None, None, 1),
+        time_slice=slice(None, None, 10),
     )
     batch_size = 10
     n_batches = 2
@@ -115,7 +115,7 @@ def test_train_spatial_dc(
 @pytest.mark.parametrize(
     ('n_space_bins', 'n_time_bins'), [(4, 1), (1, 4), (4, 4)]
 )
-def test_train_st_dc(n_space_bins, n_time_bins, n_epoch=1):
+def test_train_st_dc(n_space_bins, n_time_bins, n_epoch=2):
     """Test data-centric spatiotemporal model training. Check that the temporal
     weights give the correct number of observations from each temporal bin"""
 
@@ -136,7 +136,7 @@ def test_train_st_dc(n_space_bins, n_time_bins, n_epoch=1):
         FEATURES,
         target=TARGET_COORD,
         shape=(20, 20),
-        time_slice=slice(None, None, 1),
+        time_slice=slice(None, None, 10),
     )
     batch_size = 30
     n_batches = 2

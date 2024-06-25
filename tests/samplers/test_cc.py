@@ -226,7 +226,7 @@ def test_nsrdb_sub_daily_sampler():
         freq='1h',
         inclusive='left',
     )
-    ti = ti[0 : len(handler.time_index)]
+    ti = ti[0 : len(handler.hourly.time_index)]
 
     for _ in range(20):
         tslice = nsrdb_sub_daily_sampler(handler.hourly, 4, ti)

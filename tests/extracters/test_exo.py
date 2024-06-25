@@ -14,6 +14,7 @@ from rex import Outputs, Resource, init_logger
 from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing import (
     ExoDataHandler,
+    TopoExtracter,
     TopoExtracterH5,
     TopoExtracterNC,
 )
@@ -155,17 +156,25 @@ def test_topo_extraction_h5(s_enhance, plot=False):
     with tempfile.TemporaryDirectory() as td:
         fp_exo_topo = make_topo_file(FP_WTK, td)
 
-        te = TopoExtracterH5(
-            FP_WTK,
-            fp_exo_topo,
-            s_enhance=s_enhance,
-            t_enhance=1,
-            input_handler_kwargs={
+        kwargs = {
+            'file_paths': FP_WTK,
+            'source_file': fp_exo_topo,
+            's_enhance': s_enhance,
+            't_enhance': 1,
+            'input_handler_kwargs': {
                 'target': (39.01, -105.15),
                 'shape': (20, 20),
             },
-            cache_dir=f'{td}/exo_cache/',
+            'cache_dir': f'{td}/exo_cache/',
+        }
+
+        te = TopoExtracterH5(**kwargs)
+
+        te_gen = TopoExtracter(
+            **{k: v for k, v in kwargs.items() if k != 'cache_dir'}
         )
+
+        assert np.array_equal(te.data, te_gen.data)
 
         hr_elev = te.data
 
@@ -253,4 +262,12 @@ def test_topo_extraction_nc():
             cache_dir=f'{td}/exo_cache/',
         )
         hr_elev = te.data
+
+        te_gen = TopoExtracter(
+            FP_WRF,
+            FP_WRF,
+            s_enhance=1,
+            t_enhance=1,
+        )
+        assert np.array_equal(te.data, te_gen.data)
     assert np.allclose(te.source_data.flatten(), hr_elev.flatten())

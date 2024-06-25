@@ -8,7 +8,7 @@ import os
 import shutil
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Optional
+from typing import ClassVar, Optional
 from warnings import warn
 
 import dask.array as da
@@ -17,12 +17,10 @@ import pandas as pd
 from rex.utilities.solar_position import SolarPosition
 from scipy.spatial import KDTree
 
-from sup3r.postprocessing import OutputHandler
+from sup3r.postprocessing.writers.base import OutputHandler
+from sup3r.preprocessing.base import TypeAgnosticClass
 from sup3r.preprocessing.cachers import Cacher
-from sup3r.preprocessing.loaders import (
-    LoaderH5,
-    LoaderNC,
-)
+from sup3r.preprocessing.loaders import LoaderH5, LoaderNC
 from sup3r.preprocessing.utilities import (
     Dimension,
     _compute_if_dask,
@@ -30,10 +28,7 @@ from sup3r.preprocessing.utilities import (
     get_input_handler_class,
     log_args,
 )
-from sup3r.utilities.utilities import (
-    generate_random_string,
-    nn_fill_array,
-)
+from sup3r.utilities.utilities import generate_random_string, nn_fill_array
 
 logger = logging.getLogger(__name__)
 
@@ -91,8 +86,8 @@ class ExoExtracter(ABC):
 
     file_paths: str
     source_file: str
-    s_enhance: int
-    t_enhance: int
+    s_enhance: int = 1
+    t_enhance: int = 1
     input_handler_name: Optional[str] = None
     input_handler_kwargs: Optional[dict] = None
     cache_dir: str = './exo_cache/'
@@ -384,3 +379,18 @@ class SzaExtracter(ExoExtracter):
         hr_data = self.source_data.reshape(self.hr_shape)
         logger.info('Finished computing SZA data')
         return hr_data.astype(np.float32)
+
+
+class TopoExtracter(TypeAgnosticClass):
+    """Type agnostic `TopoExtracter` class."""
+
+    TypeSpecificClasses: ClassVar = {
+        'nc': TopoExtracterNC,
+        'h5': TopoExtracterH5,
+    }
+
+    def __new__(cls, file_paths, source_file, *args, **kwargs):
+        """Override parent class to return type specific class based on
+        `source_file`"""
+        SpecificClass = cls.get_specific_class(source_file)
+        return SpecificClass(file_paths, source_file, *args, **kwargs)

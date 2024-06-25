@@ -7,6 +7,6 @@ objects, which derive new features from the data contained in
 
 from .base import BaseExtracter
 from .dual import DualExtracter
-from .exo import SzaExtracter, TopoExtracterH5, TopoExtracterNC
+from .exo import SzaExtracter, TopoExtracter, TopoExtracterH5, TopoExtracterNC
 from .extended import ExtendedExtracter
 from .factory import Extracter, ExtracterH5, ExtracterNC

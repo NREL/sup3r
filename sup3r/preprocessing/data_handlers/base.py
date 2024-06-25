@@ -99,10 +99,31 @@ class ExoData(dict):
                 model_step_exo[feature] = {'steps': steps}
         return ExoData(model_step_exo)
 
+    @staticmethod
+    def _get_bounded_steps(steps, min_step, max_step=None):
+        """Get the steps within `steps` which have a model index between min
+        and max step."""
+        if max_step is not None:
+            return [
+                s
+                for s in steps
+                if (s['model'] < max_step and min_step <= s['model'])
+            ]
+        return [s for s in steps if min_step <= s['model']]
+
     def split(self, split_steps):
-        """Split `self` into multiple dicts based on split_steps. The splits
-        are done such that the steps in the ith entry of the returned list
-        all have a `model number < split_steps[i].`
+        """Split `self` into multiple `ExoData` objects based on split_steps.
+        The splits are done such that the steps in the ith entry of the
+        returned list all have a `model number < split_steps[i].`
+
+        Note
+        ----
+        This is used for multi-step models to correctly distribute the set of
+        all exo data steps to the appropriate models. For example,
+        `TemporalThenSpatial` models or models with some spatial steps followed
+        by some temporal steps. The temporal (spatial) models might take the
+        first N exo data steps and then the spatial (temporal) models will take
+        the remaining exo data steps.
 
         TODO: lots of nested loops here. simplify the logic.
 
@@ -125,23 +146,19 @@ class ExoData(dict):
             according to `split_steps`
         """
         split_dict = {i: {} for i in range(len(split_steps) + 1)}
+        split_steps = [0, *split_steps] if split_steps[0] != 0 else split_steps
         for feature, entry in self.items():
-            steps = entry['steps']
-            for i, split_step in enumerate(split_steps):
-                steps_i = [s for s in steps if s['model'] < split_step]
-                steps = steps[len(steps_i) :]
+            for i, min_step in enumerate(split_steps):
+                max_step = (
+                    None if min_step == split_steps[-1] else split_steps[i + 1]
+                )
+                steps_i = self._get_bounded_steps(
+                    steps=entry['steps'], min_step=min_step, max_step=max_step
+                )
+                for s in steps_i:
+                    s.update({'model': s['model'] - min_step})
                 if any(steps_i):
-                    if i > 0:
-                        for s in steps_i:
-                            s.update(
-                                {'model': s['model'] - split_steps[i - 1]}
-                            )
                     split_dict[i][feature] = {'steps': steps_i}
-            if any(steps):
-                for s in steps:
-                    s.update({'model': s['model'] - split_steps[-1]})
-                split_dict[len(split_steps)][feature] = {'steps': steps}
-
         return [ExoData(split) for split in split_dict.values()]
 
     def get_combine_type_data(self, feature, combine_type, model_step=None):
@@ -173,8 +190,7 @@ class ExoData(dict):
             f'= "{combine_type}" steps'
         )
         assert combine_type in combine_types, msg
-        idx = combine_types.index(combine_type)
-        return tmp['steps'][idx]['data']
+        return tmp['steps'][combine_types.index(combine_type)]['data']
 
     @staticmethod
     def _get_enhanced_slices(lr_slices, input_data_shape, exo_data_shape):
@@ -208,17 +224,19 @@ class ExoData(dict):
            the extent specified by `lr_slices`.
         """
         logger.debug(f'Getting exo data chunk for lr_slices={lr_slices}.')
-        exo_chunk = {}
+        exo_chunk = {f: {'steps': []} for f in self}
         for feature in self:
-            exo_chunk[feature] = {}
-            exo_chunk[feature]['steps'] = []
             for step in self[feature]['steps']:
-                chunk_step = {k: step[k] for k in step if k != 'data'}
                 enhanced_slices = self._get_enhanced_slices(
-                    lr_slices,
+                    lr_slices=lr_slices,
                     input_data_shape=input_data_shape,
                     exo_data_shape=step['data'].shape,
                 )
-                chunk_step['data'] = step['data'][tuple(enhanced_slices)]
+                chunk_step = {
+                    k: step[k]
+                    if k != 'data'
+                    else step[k][tuple(enhanced_slices)]
+                    for k in step
+                }
                 exo_chunk[feature]['steps'].append(chunk_step)
         return exo_chunk

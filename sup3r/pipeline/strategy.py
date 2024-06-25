@@ -176,8 +176,8 @@ class ForwardPassStrategy:
     bias_correct_kwargs: Optional[dict] = None
     allowed_const: Optional[Union[list, bool]] = None
     incremental: bool = True
-    output_workers: Optional[int] = None
-    pass_workers: Optional[int] = None
+    output_workers: int = 1
+    pass_workers: int = 1
     max_nodes: Optional[int] = None
 
     @log_args
@@ -187,7 +187,6 @@ class ForwardPassStrategy:
         self.exo_kwargs = self.exo_kwargs or {}
         self.input_handler_kwargs = self.input_handler_kwargs or {}
         self.bias_correct_kwargs = self.bias_correct_kwargs or {}
-        self.input_type = get_source_type(self.file_paths)
         self.output_type = get_source_type(self.out_pattern)
         model = get_model(self.model_class, self.model_kwargs)
         models = getattr(model, 'models', [model])
@@ -216,7 +215,6 @@ class ForwardPassStrategy:
         self.hr_lat_lon = self.get_hr_lat_lon()
         self.gids = np.arange(np.prod(self.hr_lat_lon.shape[:-1]))
         self.gids = self.gids.reshape(self.hr_lat_lon.shape[:-1])
-        self.grid_shape = self.input_handler.lat_lon.shape[:-1]
 
         self.fwp_slicer = ForwardPassSlicer(
             coarse_shape=self.input_handler.lat_lon.shape[:-1],
@@ -370,10 +368,10 @@ class ForwardPassStrategy:
 
         return (
             self._get_pad_width(
-                lr_slice[0], self.grid_shape[0], self.spatial_pad
+                lr_slice[0], self.input_handler.grid_shape[0], self.spatial_pad
             ),
             self._get_pad_width(
-                lr_slice[1], self.grid_shape[1], self.spatial_pad
+                lr_slice[1], self.input_handler.grid_shape[1], self.spatial_pad
             ),
             self._get_pad_width(
                 ti_slice, len(self.input_handler.time_index), self.temporal_pad
@@ -464,8 +462,12 @@ class ForwardPassStrategy:
                 input_handler_kwargs = exo_kwargs.get(
                     'input_handler_kwargs', {}
                 )
-                input_handler_kwargs['target'] = self.input_handler.target
-                input_handler_kwargs['shape'] = self.input_handler.grid_shape
+                input_handler_kwargs.update(
+                    {
+                        'target': self.input_handler.target,
+                        'shape': self.input_handler.grid_shape,
+                    }
+                )
                 exo_kwargs['input_handler_kwargs'] = input_handler_kwargs
                 data.update(
                     ExoDataHandler(
