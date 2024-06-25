@@ -14,7 +14,7 @@ from sup3r.preprocessing import (
     DualSamplerCC,
 )
 from sup3r.preprocessing.samplers.utilities import nsrdb_sub_daily_sampler
-from sup3r.utilities.pytest.helpers import TestDualSamplerCC, execute_pytest
+from sup3r.utilities.pytest.helpers import DualSamplerTesterCC, execute_pytest
 from sup3r.utilities.utilities import pd_date_range
 
 SHAPE = (20, 20)
@@ -58,7 +58,9 @@ def test_solar_handler_sampling(plot=False):
     )
     assert ['clearsky_ghi', 'ghi', 'clearsky_ratio'] in handler
 
-    sampler = TestDualSamplerCC(data=handler.data, sample_shape=sample_shape)
+    sampler = DualSamplerTesterCC(
+        data=handler.data, sample_shape=sample_shape
+    )
 
     assert handler.data.shape[2] % 24 == 0
     assert sampler.data.shape[2] % 24 == 0
@@ -92,7 +94,8 @@ def test_solar_handler_sampling(plot=False):
         mask = np.isnan(handler.data.hourly[obs_ind_high_res].compute())
         assert np.array_equal(
             obs_high_res[~mask],
-            handler.data.hourly[obs_ind_high_res].compute()[~mask])
+            handler.data.hourly[obs_ind_high_res].compute()[~mask],
+        )
 
         cs_ratio_profile = handler.data.hourly.as_array()[0, 0, :, 0].compute()
         assert np.isnan(cs_ratio_profile[0]) & np.isnan(cs_ratio_profile[-1])
@@ -137,7 +140,7 @@ def test_solar_handler_sampling_spatial_only():
         INPUT_FILE_S, features=['clearsky_ratio'], **dh_kwargs
     )
 
-    sampler = TestDualSamplerCC(
+    sampler = DualSamplerTesterCC(
         data=handler.data, sample_shape=(20, 20, 1), t_enhance=1
     )
 

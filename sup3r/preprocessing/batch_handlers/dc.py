@@ -35,10 +35,10 @@ class BatchHandlerDC(
             val_containers=val_containers,
             **kwargs,
         )
-        max_space_bins = (self.data[0].shape[0] - self.sample_shape[0] + 2) * (
-            self.data[0].shape[1] - self.sample_shape[1] + 2
+        max_space_bins = (self.data[0].shape[0] - self.sample_shape[0] + 1) * (
+            self.data[0].shape[1] - self.sample_shape[1] + 1
         )
-        max_time_bins = self.data[0].shape[2] - self.sample_shape[2] + 2
+        max_time_bins = self.data[0].shape[2] - self.sample_shape[2] + 1
         msg = (
             f'The requested sample_shape {self.sample_shape} is too large '
             f'for the requested number of bins (space = {self.n_space_bins}, '

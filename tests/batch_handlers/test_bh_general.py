@@ -13,7 +13,7 @@ from sup3r.preprocessing import (
 from sup3r.preprocessing.base import Container
 from sup3r.utilities.pytest.helpers import (
     DummyData,
-    TestSampler,
+    SamplerTester,
     execute_pytest,
 )
 from sup3r.utilities.utilities import spatial_coarsening, temporal_coarsening
@@ -27,10 +27,10 @@ stds = dict.fromkeys(FEATURES, 1)
 np.random.seed(42)
 
 
-class TestBatchHandler(BatchHandler):
+class BatchHandlerTester(BatchHandler):
     """Batch handler with sample counter for testing."""
 
-    SAMPLER = TestSampler
+    SAMPLER = SamplerTester
 
     def __init__(self, *args, **kwargs):
         self.sample_count = 0
@@ -48,7 +48,7 @@ def test_eager_vs_lazy():
     eager_data = DummyData((10, 10, 100), FEATURES)
     lazy_data = Container(copy.deepcopy(eager_data.data))
     transform_kwargs = {'smoothing_ignore': [], 'smoothing': None}
-    lazy_batcher = TestBatchHandler(
+    lazy_batcher = BatchHandlerTester(
         train_containers=[lazy_data],
         val_containers=[],
         sample_shape=(8, 8, 4),
@@ -63,7 +63,7 @@ def test_eager_vs_lazy():
         transform_kwargs=transform_kwargs,
         mode='lazy',
     )
-    eager_batcher = TestBatchHandler(
+    eager_batcher = BatchHandlerTester(
         train_containers=[eager_data],
         val_containers=[],
         sample_shape=(8, 8, 4),
@@ -83,7 +83,8 @@ def test_eager_vs_lazy():
     assert not lazy_batcher.loaded
 
     assert np.array_equal(
-        eager_batcher.data[0].as_array(), lazy_batcher.data[0].as_array()
+        eager_batcher.data[0].as_array().compute(),
+        lazy_batcher.data[0].as_array().compute(),
     )
 
     _ = list(eager_batcher)
@@ -91,7 +92,8 @@ def test_eager_vs_lazy():
 
     for idx in eager_batcher.containers[0].index_record:
         assert np.array_equal(
-            eager_batcher.data[0][idx], lazy_batcher.data[0][idx]
+            eager_batcher.data[0][idx].compute(),
+            lazy_batcher.data[0][idx].compute(),
         )
 
 
@@ -99,7 +101,7 @@ def test_sample_counter():
     """Make sure samples are counted correctly, over multiple epochs."""
 
     dat = DummyData((10, 10, 100), FEATURES)
-    batcher = TestBatchHandler(
+    batcher = BatchHandlerTester(
         train_containers=[dat],
         val_containers=[],
         sample_shape=(8, 8, 4),
@@ -111,7 +113,7 @@ def test_sample_counter():
         means=means,
         stds=stds,
         max_workers=1,
-        mode='eager'
+        mode='eager',
     )
 
     n_epochs = 4

@@ -130,6 +130,7 @@ class Regridder:
         if self._weights is None:
             dists = np.array(self.distances, dtype=np.float32)
             mask = dists < self.min_distance
+            dists[mask] = self.min_distance
             if mask.sum() > 0:
                 logger.info(
                     f'{np.sum(mask)} of {np.prod(mask.shape)} '
