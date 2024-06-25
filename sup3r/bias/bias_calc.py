@@ -249,7 +249,7 @@ class DataRetrievalBase:
         import_str = 'import time;\n'
         import_str += 'from gaps import Status;\n'
         import_str += 'from rex import init_logger;\n'
-        import_str += f'from sup3r.bias.bias_calc import {cls.__name__};\n'
+        import_str += f'from sup3r.bias import {cls.__name__};\n'
 
         if not hasattr(cls, 'run'):
             msg = ('I can only get you a node command for subclasses of '

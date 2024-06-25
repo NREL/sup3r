@@ -1337,7 +1337,7 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
 
         Bias correct this DataHandler's data with Quantile Delta Mapping. The
         required statistical distributions should be pre-calculated using
-        :class:`sup3r.bias.bias_calc.QuantileDeltaMappingCorrection`.
+        :class:`sup3r.bias.qdm.QuantileDeltaMappingCorrection`.
 
         Warning: There is no guarantee that the coefficients from ``bc_files``
         match the resource processed here. Be careful choosing ``bc_files``.
