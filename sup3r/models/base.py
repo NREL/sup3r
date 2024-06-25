@@ -351,6 +351,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             'means': means,
             'stdevs': stdevs,
             'meta': self.meta,
+            'default_device': self.default_device,
         }
 
         return model_params
