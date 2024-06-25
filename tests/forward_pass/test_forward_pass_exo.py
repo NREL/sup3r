@@ -24,9 +24,8 @@ from sup3r.preprocessing.utilities import Dimension
 from sup3r.utilities.pytest.helpers import execute_pytest, make_fake_nc_file
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
-TARGET_COORD = (39.01, -105.15)
-FEATURES = ['U_100m', 'V_100m']
 target = (19.3, -123.5)
 shape = (8, 8)
 sample_shape = (8, 8, 6)
@@ -103,7 +102,9 @@ def input_files(tmpdir_factory):
 
     input_file = str(tmpdir_factory.mktemp('data').join('fwp_input.nc'))
     make_fake_nc_file(
-        input_file, shape=(100, 100, 8), features=['pressure_0m', *FEATURES]
+        input_file,
+        shape=(100, 100, 8),
+        features=['pressure_0m', 'u_100m', 'v_100m'],
     )
     return input_file
 
@@ -1344,7 +1345,7 @@ def test_solar_multistep_exo():
                         'model': 1,
                         'combine_type': 'layer',
                         'data': np.random.rand(3, 20, 20, 1),
-                    }
+                    },
                 ]
             }
         }

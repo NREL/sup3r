@@ -68,8 +68,8 @@ class ExoData(dict):
             (spatial_1, spatial_2, n_temporal, 1)
         """
         if isinstance(steps, dict):
-            for k, v in steps.items():
-                self.__setitem__(k, v)
+            self.update(steps)
+
         else:
             msg = 'ExoData must be initialized with a dictionary of features.'
             logger.error(msg)
@@ -175,3 +175,50 @@ class ExoData(dict):
         assert combine_type in combine_types, msg
         idx = combine_types.index(combine_type)
         return tmp['steps'][idx]['data']
+
+    @staticmethod
+    def _get_enhanced_slices(lr_slices, input_data_shape, exo_data_shape):
+        """Get lr_slices enhanced by the ratio of exo_data_shape to
+        input_data_shape. Used to slice exo data for each model step."""
+        return [
+            slice(
+                lr_slices[i].start * exo_data_shape[i] // input_data_shape[i],
+                lr_slices[i].stop * exo_data_shape[i] // input_data_shape[i],
+            )
+            for i in range(len(lr_slices))
+        ]
+
+    def get_chunk(self, input_data_shape, lr_slices):
+        """Get the data for all model steps corresponding to the low res extent
+        selected by `lr_slices`
+
+        Parameters
+        ----------
+        input_data_shape : tuple
+            Spatiotemporal shape of the full low-resolution extent.
+            (lats, lons, time)
+        lr_slices : list List of spatiotemporal slices which specify extent of
+        the low-resolution input data.
+
+        Returns
+        -------
+        exo_data : ExoData
+           :class:`ExoData` object composed of multiple
+           :class:`SingleExoDataStep` objects. This is the sliced exo data for
+           the extent specified by `lr_slices`.
+        """
+        logger.debug(f'Getting exo data chunk for lr_slices={lr_slices}.')
+        exo_chunk = {}
+        for feature in self:
+            exo_chunk[feature] = {}
+            exo_chunk[feature]['steps'] = []
+            for step in self[feature]['steps']:
+                chunk_step = {k: step[k] for k in step if k != 'data'}
+                enhanced_slices = self._get_enhanced_slices(
+                    lr_slices,
+                    input_data_shape=input_data_shape,
+                    exo_data_shape=step['data'].shape,
+                )
+                chunk_step['data'] = step['data'][tuple(enhanced_slices)]
+                exo_chunk[feature]['steps'].append(chunk_step)
+        return exo_chunk

@@ -8,7 +8,6 @@ import pathlib
 import pprint
 import warnings
 from dataclasses import dataclass
-from inspect import signature
 from typing import Dict, Optional, Tuple, Union
 
 import numpy as np
@@ -17,15 +16,11 @@ import pandas as pd
 from sup3r.bias.utilities import bias_correct_feature
 from sup3r.pipeline.slicer import ForwardPassSlicer
 from sup3r.pipeline.utilities import get_model
-from sup3r.postprocessing import (
-    OutputHandler,
-)
-from sup3r.preprocessing import (
-    ExoData,
-    ExoDataHandler,
-)
+from sup3r.postprocessing import OutputHandler
+from sup3r.preprocessing import ExoData, ExoDataHandler
 from sup3r.preprocessing.utilities import (
     expand_paths,
+    get_class_kwargs,
     get_input_handler_class,
     get_source_type,
     log_args,
@@ -89,68 +84,66 @@ class ForwardPassStrategy:
         model directory, but can be multiple models or arguments for more
         complex models.
     fwp_chunk_shape : tuple
-        Max shape (spatial_1, spatial_2, temporal) of an unpadded coarse
-        chunk to use for a forward pass. The number of nodes that the
+        Max shape (spatial_1, spatial_2, temporal) of an unpadded coarse chunk
+        to use for a forward pass. The number of nodes that the
         :class:`ForwardPassStrategy` is set to distribute to is calculated by
-        dividing up the total time index from all file_paths by the
-        temporal part of this chunk shape. Each node will then be
-        parallelized accross parallel processes by the spatial chunk shape.
-        If temporal_pad / spatial_pad are non zero the chunk sent
-        to the generator can be bigger than this shape. If running in
-        serial set this equal to the shape of the full spatiotemporal data
-        volume for best performance.
+        dividing up the total time index from all file_paths by the temporal
+        part of this chunk shape. Each node will then be parallelized accross
+        parallel processes by the spatial chunk shape.  If temporal_pad /
+        spatial_pad are non zero the chunk sent to the generator can be bigger
+        than this shape. If running in serial set this equal to the shape of
+        the full spatiotemporal data volume for best performance.
     spatial_pad : int
-        Size of spatial overlap between coarse chunks passed to forward
-        passes for subsequent spatial stitching. This overlap will pad both
-        sides of the fwp_chunk_shape.
+        Size of spatial overlap between coarse chunks passed to forward passes
+        for subsequent spatial stitching. This overlap will pad both sides of
+        the fwp_chunk_shape.
     temporal_pad : int
-        Size of temporal overlap between coarse chunks passed to forward
-        passes for subsequent temporal stitching. This overlap will pad
-        both sides of the fwp_chunk_shape.
+        Size of temporal overlap between coarse chunks passed to forward passes
+        for subsequent temporal stitching. This overlap will pad both sides of
+        the fwp_chunk_shape.
     model_class : str
-        Name of the sup3r model class for the GAN model to load. The
-        default is the basic spatial / spatiotemporal Sup3rGan model. This
-        will be loaded from sup3r.models
+        Name of the sup3r model class for the GAN model to load. The default is
+        the basic spatial / spatiotemporal Sup3rGan model. This will be loaded
+        from sup3r.models
     out_pattern : str
         Output file pattern. Must include {file_id} format key.  Each output
         file will have a unique file_id filled in and the ext determines the
-        output type. If pattern is None then data will be returned
-        in an array and not saved.
+        output type. If pattern is None then data will be returned in an array
+        and not saved.
     input_handler_name : str | None
         Class to use for input data. Provide a string name to match an
         extracter or handler class in `sup3r.preprocessing`
     input_handler_kwargs : dict | None
         Any kwargs for initializing the `input_handler_name` class.
     exo_kwargs : dict | None
-        Dictionary of args to pass to :class:`ExoDataHandler` for
-        extracting exogenous features for multistep foward pass. This
-        should be a nested dictionary with keys for each exogeneous
-        feature. The dictionaries corresponding to the feature names
-        should include the path to exogenous data source, the resolution
-        of the exogenous data, and how the exogenous data should be used
-        in the model. e.g. {'topography': {'file_paths': 'path to input
-        files', 'source_file': 'path to exo data', 'steps': [..]}.
+        Dictionary of args to pass to :class:`ExoDataHandler` for extracting
+        exogenous features for multistep foward pass. This should be a nested
+        dictionary with keys for each exogeneous feature. The dictionaries
+        corresponding to the feature names should include the path to exogenous
+        data source, the resolution of the exogenous data, and how the
+        exogenous data should be used in the model. e.g. {'topography':
+        {'file_paths': 'path to input files', 'source_file': 'path to exo
+        data', 'steps': [..]}.
     bias_correct_method : str | None
-        Optional bias correction function name that can be imported from
-        the :mod:`sup3r.bias.bias_transforms` module. This will transform
-        the source data according to some predefined bias correction
-        transformation along with the bias_correct_kwargs. As the first
-        argument, this method must receive a generic numpy array of data to
-        be bias corrected
+        Optional bias correction function name that can be imported from the
+        :mod:`sup3r.bias.bias_transforms` module. This will transform the
+        source data according to some predefined bias correction transformation
+        along with the bias_correct_kwargs. As the first argument, this method
+        must receive a generic numpy array of data to be bias corrected
     bias_correct_kwargs : dict | None
-        Optional namespace of kwargs to provide to bias_correct_method.
-        If this is provided, it must be a dictionary where each key is a
-        feature name and each value is a dictionary of kwargs to correct
-        that feature. You can bias correct only certain input features by
-        only including those feature names in this dict.
+        Optional namespace of kwargs to provide to bias_correct_method.  If
+        this is provided, it must be a dictionary where each key is a feature
+        name and each value is a dictionary of kwargs to correct that feature.
+        You can bias correct only certain input features by only including
+        those feature names in this dict.
     allowed_const : list | bool
         Tensorflow has a tensor memory limit of 2GB (result of protobuf
-        limitation) and when exceeded can return a tensor with a
-        constant output. sup3r will raise a ``MemoryError`` in response. If
-        your model is allowed to output a constant output, set this to True
-        to allow any constant output or a list of allowed possible constant
-        outputs. For example, a precipitation model should be allowed to
-        output all zeros so set this to ``[0]``. For details on this limit:
+        limitation) and when exceeded can return a tensor with a constant
+        output. sup3r will raise a ``MemoryError`` in response. If your model
+        is allowed to output a constant output, set this to True to allow any
+        constant output or a list of allowed possible constant outputs. For
+        example, a precipitation model should be allowed to output all zeros so
+        set this to ``[0]``. For details on this limit:
         https://github.com/tensorflow/tensorflow/issues/51870
     incremental : bool
         Allow the forward pass iteration to skip spatiotemporal chunks that
@@ -159,14 +152,14 @@ class ForwardPassStrategy:
     output_workers : int | None
         Max number of workers to use for writing forward pass output.
     pass_workers : int | None
-        Max number of workers to use for performing forward passes on a
-        single node. If 1 then all forward passes on chunks distributed to
-        a single node will be run serially. pass_workers=2 is the minimum
-        number of workers required to run the ForwardPass initialization
-        and :meth:`ForwardPass.run_chunk()` methods concurrently.
+        Max number of workers to use for performing forward passes on a single
+        node. If 1 then all forward passes on chunks distributed to a single
+        node will be run serially. pass_workers=2 is the minimum number of
+        workers required to run the ForwardPass initialization and
+        :meth:`ForwardPass.run_chunk()` methods concurrently.
     max_nodes : int | None
-        Maximum number of nodes to distribute spatiotemporal chunks across.
-        If None then a node will be used for each temporal chunk.
+        Maximum number of nodes to distribute spatiotemporal chunks across. If
+        None then a node will be used for each temporal chunk.
     """
 
     file_paths: Union[str, list, pathlib.Path]
@@ -189,6 +182,7 @@ class ForwardPassStrategy:
 
     @log_args
     def __post_init__(self):
+        """TODO: Clean this up. Too much going on here."""
         self.file_paths = expand_paths(self.file_paths)
         self.exo_kwargs = self.exo_kwargs or {}
         self.input_handler_kwargs = self.input_handler_kwargs or {}
@@ -387,7 +381,12 @@ class ForwardPassStrategy:
         )
 
     def init_chunk(self, chunk_index=0):
-        """Get :class:`FowardPassChunk` instance for the given chunk index."""
+        """Get :class:`FowardPassChunk` instance for the given chunk index.
+
+        This selects the appropriate data from `self.input_handler` and
+        `self.exo_data` and returns a structure object (`ForwardPassChunk`)
+        with that data and other chunk specific attributes.
+        """
 
         s_chunk_idx, t_chunk_idx = self.get_chunk_indices(chunk_index)
 
@@ -416,16 +415,20 @@ class ForwardPassStrategy:
 
         logger.info(f'Getting input data for chunk_index={chunk_index}.')
 
+        exo_data = (
+            self.exo_data.get_chunk(
+                self.input_handler.shape,
+                [lr_pad_slice[0], lr_pad_slice[1], ti_pad_slice],
+            )
+            if self.exo_data is not None
+            else None
+        )
+
         return ForwardPassChunk(
             input_data=self.input_handler.data[
                 lr_pad_slice[0], lr_pad_slice[1], ti_pad_slice
             ],
-            exo_data=self.get_exo_chunk(
-                self.exo_data,
-                self.input_handler.data.shape,
-                lr_pad_slice,
-                ti_pad_slice,
-            ),
+            exo_data=exo_data,
             lr_pad_slice=lr_pad_slice,
             hr_crop_slice=self.fwp_slicer.hr_crop_slices[t_chunk_idx][
                 s_chunk_idx
@@ -439,69 +442,6 @@ class ForwardPassStrategy:
             pad_width=self.get_pad_width(chunk_index),
             index=chunk_index,
         )
-
-    @staticmethod
-    def _get_enhanced_slices(lr_slices, input_data_shape, exo_data_shape):
-        """Get lr_slices enhanced by the ratio of exo_data_shape to
-        input_data_shape. Used to slice exo data for each model step."""
-        return [
-            slice(
-                lr_slices[i].start * exo_data_shape[i] // input_data_shape[i],
-                lr_slices[i].stop * exo_data_shape[i] // input_data_shape[i],
-            )
-            for i in range(len(lr_slices))
-        ]
-
-    @classmethod
-    def get_exo_chunk(
-        cls, exo_data, input_data_shape, lr_pad_slice, ti_pad_slice
-    ):
-        """Get exo data for the current chunk from the exo data for the full
-        extent.
-
-        Parameters
-        ----------
-        exo_data : ExoData
-           :class:`ExoData` object composed of multiple
-           :class:`SingleExoDataStep` objects. This includes the exo data for
-           the full spatiotemporal extent for each model step.
-        input_data_shape : tuple
-            Spatiotemporal shape of the full low-resolution extent.
-            (lats, lons, time)
-        lr_pad_slice : list
-            List of spatial slices for the low-resolution input data for the
-            current chunk.
-        ti_pad_slice : slice
-            Temporal slice for the low-resolution input data for the current
-            chunk.
-
-        Returns
-        -------
-        exo_data : ExoData
-           :class:`ExoData` object composed of multiple
-           :class:`SingleExoDataStep` objects. This is the sliced exo data for
-           the current chunk.
-        """
-        exo_chunk = {}
-        if exo_data is not None:
-            for feature in exo_data:
-                exo_chunk[feature] = {}
-                exo_chunk[feature]['steps'] = []
-                for step in exo_data[feature]['steps']:
-                    chunk_step = {k: step[k] for k in step if k != 'data'}
-                    exo_shape = step['data'].shape
-                    enhanced_slices = cls._get_enhanced_slices(
-                        [lr_pad_slice[0], lr_pad_slice[1], ti_pad_slice],
-                        input_data_shape=input_data_shape,
-                        exo_data_shape=exo_shape,
-                    )
-                    chunk_step['data'] = step['data'][
-                        enhanced_slices[0],
-                        enhanced_slices[1],
-                        enhanced_slices[2],
-                    ]
-                    exo_chunk[feature]['steps'].append(chunk_step)
-        return exo_chunk
 
     def load_exo_data(self, model):
         """Extract exogenous data for each exo feature and store data in
@@ -527,11 +467,11 @@ class ForwardPassStrategy:
                 input_handler_kwargs['target'] = self.input_handler.target
                 input_handler_kwargs['shape'] = self.input_handler.grid_shape
                 exo_kwargs['input_handler_kwargs'] = input_handler_kwargs
-                sig = signature(ExoDataHandler)
-                exo_kwargs = {
-                    k: v for k, v in exo_kwargs.items() if k in sig.parameters
-                }
-                data.update(ExoDataHandler(**exo_kwargs).data)
+                data.update(
+                    ExoDataHandler(
+                        **get_class_kwargs(ExoDataHandler, exo_kwargs)
+                    ).data
+                )
             exo_data = ExoData(data)
         return exo_data
 
@@ -560,9 +500,8 @@ class ForwardPassStrategy:
         out_file = self.out_files[chunk_index]
         if os.path.exists(out_file) and self.incremental:
             logger.info(
-                'Not running chunk index {}, output file ' 'exists: {}'.format(
-                    chunk_index, out_file
-                )
+                f'Not running chunk index {chunk_index}, output file exists: '
+                f'{out_file}'
             )
             return True
         return False

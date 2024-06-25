@@ -23,9 +23,6 @@ from .factory import (
 logger = logging.getLogger(__name__)
 
 
-logger = logging.getLogger(__name__)
-
-
 class DataHandlerNCforCC(DataHandlerNC):
     """Extended NETCDF data handler. This implements an extracter hook to add
     "clearsky_ghi" to the extracted data if "clearsky_ghi" is requested."""
@@ -41,8 +38,7 @@ class DataHandlerNCforCC(DataHandlerNC):
         nsrdb_smoothing=0,
         **kwargs,
     ):
-        """Initialize NETCDF extracter for climate change data.
-
+        """
         Parameters
         ----------
         file_paths : str | list | pathlib.Path
