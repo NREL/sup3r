@@ -15,16 +15,12 @@ from sup3r.preprocessing import (
     DataHandlerH5SolarCC,
 )
 
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 SHAPE = (20, 20)
-
 INPUT_FILE_S = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')
 FEATURES_S = ['clearsky_ratio', 'ghi', 'clearsky_ghi']
 TARGET_S = (39.01, -105.13)
-
-INPUT_FILE_W = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
-FEATURES_W = ['U_100m', 'V_100m', 'temperature_100m', 'topography']
-TARGET_W = (39.01, -105.15)
-
 
 np.random.seed(42)
 
@@ -55,7 +51,7 @@ def test_solar_cc_model():
         s_enhance=1,
         t_enhance=8,
         sample_shape=(20, 20, 72),
-        feature_sets={'lr_only_features': ['clearsky_ghi', 'ghi']}
+        feature_sets={'lr_only_features': ['clearsky_ghi', 'ghi']},
     )
 
     fp_gen = os.path.join(CONFIG_DIR, 'sup3rcc/gen_solar_1x_8x_1f.json')
@@ -130,7 +126,7 @@ def test_solar_cc_model_spatial():
         s_enhance=5,
         t_enhance=1,
         sample_shape=(20, 20),
-        feature_sets={'lr_only_features': ['clearsky_ghi', 'ghi']}
+        feature_sets={'lr_only_features': ['clearsky_ghi', 'ghi']},
     )
 
     fp_gen = os.path.join(CONFIG_DIR, 'sup3rcc/gen_solar_5x_1x_1f.json')
@@ -182,7 +178,7 @@ def test_solar_custom_loss():
         s_enhance=1,
         t_enhance=8,
         sample_shape=(5, 5, 24),
-        feature_sets={'lr_only_features': ['clearsky_ghi', 'ghi']}
+        feature_sets={'lr_only_features': ['clearsky_ghi', 'ghi']},
     )
 
     fp_gen = os.path.join(CONFIG_DIR, 'sup3rcc/gen_solar_1x_8x_1f.json')

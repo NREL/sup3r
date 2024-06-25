@@ -1,12 +1,12 @@
 """Sup3r data-centric model software"""
 
-import json
 import logging
 
 import numpy as np
 
 from sup3r.models.base import Sup3rGan
-from sup3r.utilities.utilities import round_array
+
+np.set_printoptions(precision=3)
 
 logger = logging.getLogger(__name__)
 
@@ -33,21 +33,26 @@ class Sup3rGanDC(Sup3rGan):
 
         Returns
         -------
-        list
-            List of total losses for all sample bins
+        array
+            Array of total losses for all sample bins, with shape
+            (n_space_bins, n_time_bins)
         """
-        losses = []
-        for batch in batch_handler.val_data:
+        losses = np.zeros(
+            (batch_handler.n_space_bins, batch_handler.n_time_bins),
+            dtype=np.float32,
+        )
+        for i, batch in enumerate(batch_handler.val_data):
             exo_data = self.get_high_res_exo_input(batch.high_res)
-            gen = self._tf_generate(batch.low_res, exo_data)
             loss, _ = self.calc_loss(
-                batch.high_res,
-                gen,
+                hi_res_true=batch.high_res,
+                hi_res_gen=self._tf_generate(batch.low_res, exo_data),
                 weight_gen_advers=weight_gen_advers,
                 train_gen=True,
                 train_disc=True,
             )
-            losses.append(np.float32(loss))
+            row = i // batch_handler.n_time_bins
+            col = i % batch_handler.n_time_bins
+            losses[row, col] = loss
         return losses
 
     def calc_val_loss_gen_content(self, batch_handler):
@@ -68,12 +73,19 @@ class Sup3rGanDC(Sup3rGan):
         list
             List of content losses for all sample bins
         """
-        losses = []
-        for batch in batch_handler.val_data:
+        losses = np.zeros(
+            (batch_handler.n_space_bins, batch_handler.n_time_bins),
+            dtype=np.float32,
+        )
+        for i, batch in enumerate(batch_handler.val_data):
             exo_data = self.get_high_res_exo_input(batch.high_res)
-            gen = self._tf_generate(batch.low_res, exo_data)
-            loss = self.calc_loss_gen_content(batch.high_res, gen)
-            losses.append(np.float32(loss))
+            loss = self.calc_loss_gen_content(
+                hi_res_true=batch.high_res,
+                hi_res_gen=self._tf_generate(batch.low_res, exo_data),
+            )
+            row = i // batch_handler.n_time_bins
+            col = i % batch_handler.n_time_bins
+            losses[row, col] = loss
         return losses
 
     def calc_val_loss(self, batch_handler, weight_gen_advers, loss_details):
@@ -101,74 +113,30 @@ class Sup3rGanDC(Sup3rGan):
         total_losses = self.calc_val_loss_gen(batch_handler, weight_gen_advers)
         content_losses = self.calc_val_loss_gen_content(batch_handler)
 
-        if batch_handler.n_time_bins > 1:
-            self.calc_bin_losses(
-                total_losses,
-                content_losses,
-                batch_handler,
-                dim='time',
-            )
-        if batch_handler.n_space_bins > 1:
-            self.calc_bin_losses(
-                total_losses,
-                content_losses,
-                batch_handler,
-                dim='space',
-            )
+        t_weights = total_losses.mean(axis=0)
+        t_weights /= t_weights.sum()
 
-        loss_details['val_losses'] = json.dumps(round_array(total_losses))
+        s_weights = total_losses.mean(axis=1)
+        s_weights /= s_weights.sum()
+
+        logger.debug(
+            f'Previous spatial weights: {batch_handler.spatial_weights}'
+        )
+        logger.debug(
+            f'Previous temporal weights: {batch_handler.temporal_weights}'
+        )
+        batch_handler.update_weights(
+            spatial_weights=s_weights, temporal_weights=t_weights
+        )
+        logger.debug(
+            'New spatiotemporal weights (space, time):\n'
+            f'{total_losses / total_losses.sum()}'
+        )
+        logger.debug(f'New spatial weights: {s_weights}')
+        logger.debug(f'New temporal weights: {t_weights}')
+
         loss_details['mean_val_loss_gen'] = round(np.mean(total_losses), 3)
         loss_details['mean_val_loss_gen_content'] = round(
             np.mean(content_losses), 3
         )
         return loss_details
-
-    @staticmethod
-    def calc_bin_losses(total_losses, content_losses, batch_handler, dim):
-        """Calculate losses across spatial (temporal) samples and update
-        corresponding weights. Spatial (temporal) weights are computed based on
-        the temporal (spatial) averages of losses.
-
-        Parameters
-        ----------
-        total_losses : array
-            Array of total loss values across all validation sample bins
-        content_losses : array
-            Array of content loss values across all validation sample bins
-        batch_handler : sup3r.preprocessing.BatchHandler
-            BatchHandler object to iterate through
-        dim : str
-            Either 'time' or 'space'
-        """
-        msg = f'"dim" must be either "space" or "time", receieved {dim}'
-        assert dim in ('time', 'space'), msg
-        if dim == 'time':
-            old_weights = batch_handler.temporal_weights.copy()
-            axis = 0
-        else:
-            old_weights = batch_handler.spatial_weights.copy()
-            axis = 1
-        t_losses = (
-            np.array(total_losses)
-            .reshape((batch_handler.n_space_bins, batch_handler.n_time_bins))
-            .mean(axis=axis)
-        )
-        c_losses = (
-            np.array(content_losses)
-            .reshape((batch_handler.n_space_bins, batch_handler.n_time_bins))
-            .mean(axis=axis)
-        )
-        new_weights = t_losses / np.sum(t_losses)
-
-        if dim == 'time':
-            batch_handler.update_temporal_weights(new_weights)
-        else:
-            batch_handler.update_spatial_weights(new_weights)
-        logger.debug(
-            f'Previous bin weights ({dim}): ' f'{round_array(old_weights)}'
-        )
-        logger.debug(f'Total losses ({dim}): {round_array(t_losses)}')
-        logger.debug(f'Content losses ({dim}): ' f'{round_array(c_losses)}')
-        logger.info(
-            f'Updated bin weights ({dim}): ' f'{round_array(new_weights)}'
-        )

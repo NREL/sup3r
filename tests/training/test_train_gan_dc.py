@@ -18,6 +18,8 @@ from sup3r.utilities.pytest.helpers import (
     execute_pytest,
 )
 
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)
 FEATURES = ['U_100m', 'V_100m']
@@ -25,8 +27,12 @@ FEATURES = ['U_100m', 'V_100m']
 
 init_logger('sup3r', log_level='DEBUG')
 
-
 np.random.seed(42)
+
+
+def _mean_record_normed(record):
+    mean = np.array(record[1:]).mean(axis=0)
+    return mean / mean.sum()
 
 
 @pytest.mark.parametrize(
@@ -37,7 +43,7 @@ def test_train_spatial_dc(
     n_time_bins,
     full_shape=(20, 20),
     sample_shape=(8, 8, 1),
-    n_epoch=2,
+    n_epoch=4,
 ):
     """Test data-centric spatial model training. Check that the spatial
     weights give the correct number of observations from each spatial bin"""
@@ -50,8 +56,8 @@ def test_train_spatial_dc(
         fp_gen,
         fp_disc,
         learning_rate=1e-4,
-        learning_rate_disc=3e-4,
-        loss='MmdMseLoss',
+        default_device='/cpu:0',
+        loss='MmdMseLoss'
     )
 
     handler = DataHandlerH5(
@@ -73,6 +79,7 @@ def test_train_spatial_dc(
         s_enhance=2,
         n_batches=n_batches,
         sample_shape=sample_shape,
+        default_device='/cpu:0'
     )
 
     assert batcher.val_data.n_batches == n_space_bins * n_time_bins
@@ -92,13 +99,13 @@ def test_train_spatial_dc(
             out_dir=os.path.join(td, 'test_{epoch}'),
         )
         assert np.allclose(
-            batcher._space_norm_count(),
-            batcher.spatial_weights,
+            _mean_record_normed(batcher.space_bin_record),
+            _mean_record_normed(batcher.spatial_weights_record),
             atol=deviation,
         )
         assert np.allclose(
-            batcher._time_norm_count(),
-            batcher.temporal_weights,
+            _mean_record_normed(batcher.time_bin_record),
+            _mean_record_normed(batcher.temporal_weights_record),
             atol=deviation,
         )
 
@@ -127,8 +134,8 @@ def test_train_st_dc(n_space_bins, n_time_bins, n_epoch=2):
         fp_gen,
         fp_disc,
         learning_rate=1e-4,
-        learning_rate_disc=3e-4,
-        loss='MmdMseLoss',
+        default_device='/cpu:0',
+        loss='MmdMseLoss'
     )
 
     handler = DataHandlerH5(
@@ -150,6 +157,7 @@ def test_train_st_dc(n_space_bins, n_time_bins, n_epoch=2):
         s_enhance=3,
         t_enhance=4,
         n_batches=n_batches,
+        default_device='/cpu:0'
     )
 
     deviation = 1 / np.sqrt(batcher.n_batches * batcher.batch_size - 1)
@@ -168,13 +176,13 @@ def test_train_st_dc(n_space_bins, n_time_bins, n_epoch=2):
             out_dir=os.path.join(td, 'test_{epoch}'),
         )
         assert np.allclose(
-            batcher._space_norm_count(),
-            batcher.spatial_weights,
+            _mean_record_normed(batcher.space_bin_record),
+            _mean_record_normed(batcher.spatial_weights_record),
             atol=deviation,
         )
         assert np.allclose(
-            batcher._time_norm_count(),
-            batcher.temporal_weights,
+            _mean_record_normed(batcher.time_bin_record),
+            _mean_record_normed(batcher.temporal_weights_record),
             atol=deviation,
         )
 

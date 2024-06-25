@@ -7,7 +7,6 @@ import time
 
 import numpy as np
 import pandas as pd
-import xarray as xr
 from packaging import version
 from scipy import ndimage as nd
 
@@ -63,47 +62,6 @@ def generate_random_string(length):
     files to avoid collisions."""
     letters = string.ascii_letters
     return ''.join(random.choice(letters) for i in range(length))
-
-
-def get_time_dim_name(filepath):
-    """Get the name of the time dimension in the given file. This is
-    specifically for netcdf files.
-
-    Parameters
-    ----------
-    filepath : str
-        Path to the file
-
-    Returns
-    -------
-    time_key : str
-        Name of the time dimension in the given file
-    """
-    with xr.open_dataset(filepath) as handle:
-        valid_vars = set(handle.dims)
-        time_key = list({'time', 'Time'}.intersection(valid_vars))
-    if len(time_key) > 0:
-        return time_key[0]
-    return 'time'
-
-
-def round_array(arr, digits=3):
-    """Method to round elements in an array or list. Used a lot in logging
-    losses from the data-centric model
-
-    Parameters
-    ----------
-    arr : list | ndarray
-        List or array to round elements of
-    digits : int, optional
-        Number of digits to round to, by default 3
-
-    Returns
-    -------
-    list
-        List with rounded elements
-    """
-    return [round(np.float64(a), digits) for a in arr]
 
 
 def temporal_coarsening(data, t_enhance=4, method='subsample'):
