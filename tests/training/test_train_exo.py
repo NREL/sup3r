@@ -60,7 +60,7 @@ def test_wind_hi_res_topo(CustomLayer, features, lr_only_features, mode):
         [train_handler],
         [val_handler],
         batch_size=2,
-        n_batches=2,
+        n_batches=1,
         s_enhance=2,
         t_enhance=1,
         sample_shape=(20, 20, 1),

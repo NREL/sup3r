@@ -484,3 +484,4 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
 
             if stop:
                 break
+        batch_handler.stop()

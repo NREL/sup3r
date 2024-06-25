@@ -11,7 +11,7 @@ from rex import init_logger
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.models import Sup3rGanDC
 from sup3r.preprocessing import DataHandlerH5
-from sup3r.utilities.pytest.helpers import TestBatchHandlerDC
+from sup3r.utilities.pytest.helpers import BatchHandlerTesterDC
 
 SHAPE = (20, 20)
 
@@ -53,13 +53,29 @@ def test_wind_dc_hi_res_topo(CustomLayer):
         time_slice=slice(None, 100, 2),
     )
 
-    batcher = TestBatchHandlerDC(
+    # number of bins conflicts with data shape and sample shape
+    with pytest.raises(AssertionError):
+        batcher = BatchHandlerTesterDC(
+            train_containers=[handler],
+            val_containers=[val_handler],
+            batch_size=2,
+            n_space_bins=4,
+            n_time_bins=4,
+            n_batches=1,
+            s_enhance=2,
+            sample_shape=(20, 20, 8),
+            feature_sets={'hr_exo_features': ['topography']},
+        )
+
+    batcher = BatchHandlerTesterDC(
         train_containers=[handler],
         val_containers=[val_handler],
         batch_size=2,
-        n_batches=2,
+        n_space_bins=4,
+        n_time_bins=4,
+        n_batches=1,
         s_enhance=2,
-        sample_shape=(20, 20, 8),
+        sample_shape=(10, 10, 8),
         feature_sets={'hr_exo_features': ['topography']},
     )
 

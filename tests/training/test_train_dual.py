@@ -104,6 +104,8 @@ def test_train(
         hr_spatial_coarsen=s_enhance,
         time_slice=slice(200, None, 5),
     )
+
+    # time indices conflict with t_enhance
     with pytest.raises(AssertionError):
         dual_extracter = DualExtracter(
             data=(lr_handler.data, hr_handler.data),

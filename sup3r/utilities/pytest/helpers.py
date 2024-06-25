@@ -130,7 +130,7 @@ class DummySampler(Sampler):
 def test_sampler_factory(SamplerClass):
     """Build test samplers which track indices."""
 
-    class TestSampler(SamplerClass):
+    class SamplerTester(SamplerClass):
         """Keep a record of sample indices for testing."""
 
         def __init__(self, *args, **kwargs):
@@ -144,24 +144,24 @@ def test_sampler_factory(SamplerClass):
             self.index_record.append(idx)
             return idx
 
-    return TestSampler
+    return SamplerTester
 
 
-TestDualSamplerCC = test_sampler_factory(DualSamplerCC)
-TestSamplerDC = test_sampler_factory(SamplerDC)
-TestSampler = test_sampler_factory(Sampler)
+DualSamplerTesterCC = test_sampler_factory(DualSamplerCC)
+SamplerTesterDC = test_sampler_factory(SamplerDC)
+SamplerTester = test_sampler_factory(Sampler)
 
 
-class TestBatchHandlerCC(BatchHandlerCC):
+class BatchHandlerTesterCC(BatchHandlerCC):
     """Batch handler with sampler with running index record."""
 
-    SAMPLER = TestDualSamplerCC
+    SAMPLER = DualSamplerTesterCC
 
 
-class TestBatchHandlerDC(BatchHandlerDC):
+class BatchHandlerTesterDC(BatchHandlerDC):
     """Data-centric batch handler with record for testing"""
 
-    SAMPLER = TestSamplerDC
+    SAMPLER = SamplerTesterDC
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

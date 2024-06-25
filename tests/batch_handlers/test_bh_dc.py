@@ -5,8 +5,8 @@ import pytest
 from rex import init_logger
 
 from sup3r.utilities.pytest.helpers import (
+    BatchHandlerTesterDC,
     DummyData,
-    TestBatchHandlerDC,
     execute_pytest,
 )
 
@@ -39,7 +39,7 @@ def test_counts(s_weights, t_weights):
     dat = DummyData((10, 10, 100), FEATURES)
     n_batches = 4
     batch_size = 50
-    batcher = TestBatchHandlerDC(
+    batcher = BatchHandlerTesterDC(
         train_containers=[dat],
         val_containers=[dat],
         sample_shape=(4, 4, 4),

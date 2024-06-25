@@ -6,13 +6,10 @@ import numpy as np
 import xarray as xr
 
 from sup3r.utilities.era_downloader import EraDownloader
-from sup3r.utilities.pytest.helpers import (
-    execute_pytest,
-    make_fake_dset,
-)
+from sup3r.utilities.pytest.helpers import execute_pytest, make_fake_dset
 
 
-class TestEraDownloader(EraDownloader):
+class EraDownloaderTester(EraDownloader):
     """Testing version of era downloader with download_file method overridden
     since we wont include a cdsapi key in tests."""
 
@@ -21,37 +18,12 @@ class TestEraDownloader(EraDownloader):
     def download_file(
         cls,
         variables,
-        time_dict,
-        area,
         out_file,
         level_type,
         levels=None,
-        product_type='reanalysis',
-        overwrite=False,
+        **kwargs
     ):
-        """Download either single-level or pressure-level file
-
-        Parameters
-        ----------
-        variables : list
-            List of variables to download
-        time_dict : dict
-            Dictionary with year, month, day, time entries.
-        area : list
-            List of bounding box coordinates.
-            e.g. [max_lat, min_lon, min_lat, max_lon]
-        out_file : str
-            Name of output file
-        level_type : str
-            Either 'single' or 'pressure'
-        levels : list
-            List of pressure levels to download, if level_type == 'pressure'
-        product_type : str
-            Can be 'reanalysis', 'ensemble_mean', 'ensemble_spread',
-            'ensemble_members'
-        overwrite : bool
-            Whether to overwrite existing file
-        """
+        """Download either single-level or pressure-level file"""
         shape = (10, 10, 100)
         if levels is not None:
             shape = (*shape, len(levels))
@@ -96,7 +68,7 @@ def test_era_dl(tmpdir_factory):
     month = 1
     area = [50, -130, 23, -65]
     levels = [1000, 900, 800]
-    TestEraDownloader.run_month(
+    EraDownloaderTester.run_month(
         year=year,
         month=month,
         area=area,
@@ -119,7 +91,7 @@ def test_era_dl_year(tmpdir_factory):
         tmpdir_factory.mktemp('tmp'), 'era5_{year}_{month}_{var}.nc'
     )
     yearly_file = os.path.join(tmpdir_factory.mktemp('tmp'), 'era5_final.nc')
-    TestEraDownloader.run_year(
+    EraDownloaderTester.run_year(
         year=2000,
         area=[50, -130, 23, -65],
         levels=[1000, 900, 800],

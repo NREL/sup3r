@@ -13,7 +13,10 @@ from sup3r.preprocessing import (
     DataHandlerH5,
 )
 from sup3r.utilities.loss_metrics import MmdMseLoss
-from sup3r.utilities.pytest.helpers import TestBatchHandlerDC, execute_pytest
+from sup3r.utilities.pytest.helpers import (
+    BatchHandlerTesterDC,
+    execute_pytest,
+)
 
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)
@@ -61,7 +64,7 @@ def test_train_spatial_dc(
     batch_size = 10
     n_batches = 2
 
-    batcher = TestBatchHandlerDC(
+    batcher = BatchHandlerTesterDC(
         train_containers=[handler],
         val_containers=[handler],
         n_space_bins=n_space_bins,
@@ -137,7 +140,7 @@ def test_train_st_dc(n_space_bins, n_time_bins, n_epoch=1):
     )
     batch_size = 30
     n_batches = 2
-    batcher = TestBatchHandlerDC(
+    batcher = BatchHandlerTesterDC(
         train_containers=[handler],
         val_containers=[handler],
         batch_size=batch_size,
