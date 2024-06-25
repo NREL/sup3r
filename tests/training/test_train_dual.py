@@ -25,6 +25,7 @@ FP_ERA = os.path.join(TEST_DATA_DIR, 'test_era5_co_2012.nc')
 TARGET_COORD = (39.01, -105.15)
 FEATURES = ['U_100m', 'V_100m']
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 
 init_logger('sup3r', log_level='DEBUG')
 
