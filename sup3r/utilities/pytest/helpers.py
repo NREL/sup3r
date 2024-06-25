@@ -186,12 +186,6 @@ class BatchHandlerTesterDC(BatchHandlerDC):
         )
         self.temporal_bins = [b[-1] + 1 for b in self.temporal_bins]
 
-    def _space_norm_count(self):
-        return self.space_bin_count / self.space_bin_count.sum()
-
-    def _time_norm_count(self):
-        return self.time_bin_count / self.time_bin_count.sum()
-
     def _update_bin_count(self, slices):
         s_idx = slices[0].start * self.max_cols + slices[1].start
         t_idx = slices[2].start
@@ -209,10 +203,10 @@ class BatchHandlerTesterDC(BatchHandlerDC):
 
     def reset(self):
         """Reset records for a new epoch."""
-        self.space_bin_count[:] = 0
-        self.time_bin_count[:] = 0
         self.space_bin_record.append(self.space_bin_count)
         self.time_bin_record.append(self.time_bin_count)
+        self.space_bin_count = np.zeros(self.n_space_bins)
+        self.time_bin_count = np.zeros(self.n_time_bins)
         self.temporal_weights_record.append(self.temporal_weights)
         self.spatial_weights_record.append(self.spatial_weights)
 

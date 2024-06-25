@@ -16,11 +16,12 @@ from sup3r.preprocessing import (
 )
 from sup3r.utilities.pytest.helpers import execute_pytest
 
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 SHAPE = (20, 20)
 INPUT_FILE_W = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 FEATURES_W = ['temperature_100m', 'U_100m', 'V_100m', 'topography']
 TARGET_W = (39.01, -105.15)
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 init_logger('sup3r', log_level='DEBUG')
 

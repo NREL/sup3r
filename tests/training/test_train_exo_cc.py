@@ -16,12 +16,9 @@ from sup3r.preprocessing import (
 )
 from sup3r.preprocessing.utilities import lowered
 
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 SHAPE = (20, 20)
-
-INPUT_FILE_S = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')
-FEATURES_S = ['clearsky_ratio', 'ghi', 'clearsky_ghi']
-TARGET_S = (39.01, -105.13)
-
 INPUT_FILE_W = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 FEATURES_W = ['temperature_100m', 'U_100m', 'V_100m', 'topography']
 TARGET_W = (39.01, -105.15)

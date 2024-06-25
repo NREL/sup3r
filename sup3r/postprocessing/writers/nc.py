@@ -10,8 +10,6 @@ from datetime import datetime as dt
 import numpy as np
 import xarray as xr
 
-from sup3r.utilities.utilities import get_time_dim_name
-
 from .base import OutputHandler
 
 logger = logging.getLogger(__name__)
@@ -125,7 +123,7 @@ class OutputHandlerNC(OutputHandler):
         outfile : str
             Output file name for combined file
         """
-        time_key = get_time_dim_name(files[0])
+        time_key = cls.get_time_dim_name(files[0])
         ds = xr.open_mfdataset(files, combine='nested', concat_dim=time_key)
         ds.to_netcdf(outfile)
         logger.info(f'Saved combined file: {outfile}')

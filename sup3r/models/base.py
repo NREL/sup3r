@@ -349,15 +349,12 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             means = {k: float(v) for k, v in means.items()}
             stdevs = {k: float(v) for k, v in stdevs.items()}
 
-        config_optm_g = self.get_optimizer_config(self.optimizer)
-        config_optm_d = self.get_optimizer_config(self.optimizer_disc)
-
         return {
             'name': self.name,
             'loss': self.loss_name,
             'version_record': self.version_record,
-            'optimizer': config_optm_g,
-            'optimizer_disc': config_optm_d,
+            'optimizer': self.get_optimizer_config(self.optimizer),
+            'optimizer_disc': self.get_optimizer_config(self.optimizer_disc),
             'means': means,
             'stdevs': stdevs,
             'meta': self.meta,
@@ -924,9 +921,12 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             then be viewed in the tensorboard dashboard under the profile tab
 
         TODO: (1) args here are getting excessive. Might be time for some
-        refactoring. (2) cal_val_loss should be done in a separate thread from
-        train_epoch so they can be done concurrently. This would be especially
-        important for batch handlers which require val data, like dc handlers.
+        refactoring.
+        (2) cal_val_loss should be done in a separate thread from train_epoch
+        so they can be done concurrently. This would be especially important
+        for batch handlers which require val data, like dc handlers.
+        (3) Would like an automatic way to exit the batch handler thread
+        instead of manually calling .stop() here.
         """
         if tensorboard_log:
             self._init_tensorboard_writer(out_dir)
@@ -988,19 +988,18 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
 
             logger.info(msg)
 
-            lr_g = self.get_optimizer_config(self.optimizer)['learning_rate']
-            lr_d = self.get_optimizer_config(self.optimizer_disc)[
-                'learning_rate'
-            ]
-
             extras = {
                 'train_n_obs': train_n_obs,
                 'val_n_obs': val_n_obs,
                 'weight_gen_advers': weight_gen_advers,
                 'disc_loss_bound_0': disc_loss_bounds[0],
                 'disc_loss_bound_1': disc_loss_bounds[1],
-                'learning_rate_gen': lr_g,
-                'learning_rate_disc': lr_d,
+                'learning_rate_gen': self.get_optimizer_config(self.optimizer)[
+                    'learning_rate'
+                ],
+                'learning_rate_disc': self.get_optimizer_config(
+                    self.optimizer_disc
+                )['learning_rate'],
             }
 
             weight_gen_advers = self.update_adversarial_weights(
