@@ -10,9 +10,9 @@ import numpy as np
 import pytest
 import tensorflow as tf
 import xarray as xr
-from rex import ResourceX, init_logger
+from rex import ResourceX
 
-from sup3r import CONFIG_DIR, TEST_DATA_DIR, __version__
+from sup3r import CONFIG_DIR, __version__
 from sup3r.models import (
     LinearInterp,
     SolarMultiStepGan,
@@ -21,11 +21,8 @@ from sup3r.models import (
 )
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.preprocessing.utilities import Dimension
-from sup3r.utilities.pytest.helpers import execute_pytest, make_fake_nc_file
+from sup3r.utilities.pytest.helpers import make_fake_nc_file
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
-FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 target = (19.3, -123.5)
 shape = (8, 8)
 sample_shape = (8, 8, 6)
@@ -34,11 +31,6 @@ list_chunk_size = 10
 fwp_chunk_shape = (4, 4, 150)
 s_enhance = 3
 t_enhance = 4
-
-np.random.seed(42)
-
-
-init_logger('sup3r', log_level='DEBUG')
 
 
 GEN_2X_2F_CONCAT = [
@@ -166,7 +158,7 @@ def test_fwp_multi_step_model_topo_exoskip(input_files):
         exo_kwargs = {
             'topography': {
                 'file_paths': input_files,
-                'source_file': FP_WTK,
+                'source_file': pytest.FP_WTK,
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
@@ -265,7 +257,7 @@ def test_fwp_multi_step_spatial_model_topo_noskip(input_files):
         exo_kwargs = {
             'topography': {
                 'file_paths': input_files,
-                'source_file': FP_WTK,
+                'source_file': pytest.FP_WTK,
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
@@ -382,7 +374,7 @@ def test_fwp_multi_step_model_topo_noskip(input_files):
         exo_kwargs = {
             'topography': {
                 'file_paths': input_files,
-                'source_file': FP_WTK,
+                'source_file': pytest.FP_WTK,
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
@@ -461,7 +453,7 @@ def test_fwp_single_step_sfc_model(input_files, plot=False):
         exo_kwargs = {
             'topography': {
                 'file_paths': input_files,
-                'source_file': FP_WTK,
+                'source_file': pytest.FP_WTK,
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
@@ -586,7 +578,7 @@ def test_fwp_single_step_wind_hi_res_topo(input_files, plot=False):
         exo_kwargs = {
             'topography': {
                 'file_paths': input_files,
-                'source_file': FP_WTK,
+                'source_file': pytest.FP_WTK,
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
@@ -703,7 +695,7 @@ def test_fwp_multi_step_wind_hi_res_topo(input_files):
         exo_kwargs = {
             'topography': {
                 'file_paths': input_files,
-                'source_file': FP_WTK,
+                'source_file': pytest.FP_WTK,
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
@@ -860,7 +852,7 @@ def test_fwp_wind_hi_res_topo_plus_linear(input_files):
         exo_kwargs = {
             'topography': {
                 'file_paths': input_files,
-                'source_file': FP_WTK,
+                'source_file': pytest.FP_WTK,
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
@@ -955,7 +947,7 @@ def test_fwp_multi_step_model_multi_exo(input_files):
         exo_kwargs = {
             'topography': {
                 'file_paths': input_files,
-                'source_file': FP_WTK,
+                'source_file': pytest.FP_WTK,
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
@@ -1205,7 +1197,7 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza(input_files):
         exo_kwargs = {
             'topography': {
                 'file_paths': input_files,
-                'source_file': FP_WTK,
+                'source_file': pytest.FP_WTK,
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
@@ -1350,7 +1342,3 @@ def test_solar_multistep_exo():
         }
         out = ms_model.generate(x, exogenous_data=exo_tmp)
         assert out.shape == (1, 20, 20, 24, 1)
-
-
-if __name__ == '__main__':
-    execute_pytest(__file__)

@@ -4,7 +4,6 @@ import tempfile
 
 import numpy as np
 import pytest
-from rex import init_logger
 
 from sup3r import CONFIG_DIR
 from sup3r.models import (
@@ -15,9 +14,6 @@ from sup3r.models import (
 )
 
 FEATURES = ['U_100m', 'V_100m']
-
-
-init_logger('sup3r', log_level='DEBUG')
 
 
 def test_multi_step_model():

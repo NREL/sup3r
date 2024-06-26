@@ -5,7 +5,6 @@ import tempfile
 
 import numpy as np
 import pytest
-from rex import init_logger
 
 from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing import (
@@ -15,7 +14,6 @@ from sup3r.preprocessing import (
     LoaderH5,
     LoaderNC,
 )
-from sup3r.utilities.pytest.helpers import execute_pytest
 
 h5_files = [
     os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5'),
@@ -26,8 +24,6 @@ nc_files = [os.path.join(TEST_DATA_DIR, 'test_era5_co_2012.nc')]
 target = (39.01, -105.15)
 shape = (20, 20)
 features = ['windspeed_100m', 'winddirection_100m']
-
-init_logger('sup3r', log_level='DEBUG')
 
 
 @pytest.mark.parametrize(
@@ -156,7 +152,3 @@ def test_caching_with_dh_loading(
 
         loader = Deriver(cacher.out_files, features=derive_features)
         assert np.array_equal(loader.as_array(), deriver.as_array())
-
-
-if __name__ == '__main__':
-    execute_pytest(__file__)

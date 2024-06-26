@@ -7,101 +7,57 @@ import tempfile
 import numpy as np
 import pytest
 import tensorflow as tf
-from rex import init_logger
 from tensorflow.python.framework.errors_impl import InvalidArgumentError
 
-from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.models import Sup3rGan
 from sup3r.preprocessing import (
     DataHandlerH5,
+    DataHandlerNC,
     DualBatchHandler,
     DualExtracter,
     StatsCollection,
 )
-from sup3r.utilities.pytest.helpers import execute_pytest
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
-FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)
 FEATURES = ['U_100m', 'V_100m']
-
-init_logger('sup3r', log_level='DEBUG')
-
-
-np.random.seed(42)
 
 
 @pytest.mark.parametrize(
     [
-        'gen_config',
-        'disc_config',
+        'fp_gen',
+        'fp_disc',
         's_enhance',
         't_enhance',
         'sample_shape',
         'mode',
     ],
     [
-        (
-            'spatiotemporal/gen_2x_2x_2f.json',
-            'spatiotemporal/disc.json',
-            2,
-            2,
-            (12, 12, 16),
-            'lazy',
-        ),
-        (
-            'spatial/gen_2x_2f.json',
-            'spatial/disc.json',
-            2,
-            1,
-            (20, 20, 1),
-            'lazy',
-        ),
-        (
-            'spatiotemporal/gen_2x_2x_2f.json',
-            'spatiotemporal/disc.json',
-            2,
-            2,
-            (12, 12, 16),
-            'eager',
-        ),
-        (
-            'spatial/gen_2x_2f.json',
-            'spatial/disc.json',
-            2,
-            1,
-            (20, 20, 1),
-            'eager',
-        ),
+        (pytest.ST_FP_GEN, pytest.ST_FP_DISC, 3, 4, (12, 12, 16), 'lazy'),
+        (pytest.S_FP_GEN, pytest.S_FP_DISC, 2, 1, (20, 20, 1), 'lazy'),
+        (pytest.ST_FP_GEN, pytest.ST_FP_DISC, 3, 4, (12, 12, 16), 'eager'),
+        (pytest.S_FP_GEN, pytest.S_FP_DISC, 2, 1, (20, 20, 1), 'eager'),
     ],
 )
 def test_train(
-    gen_config,
-    disc_config,
-    s_enhance,
-    t_enhance,
-    sample_shape,
-    mode,
-    n_epoch=2,
+    fp_gen, fp_disc, s_enhance, t_enhance, sample_shape, mode, n_epoch=2
 ):
     """Test model training with a dual data handler / batch handler. Tests both
     spatiotemporal and spatial models."""
 
     lr = 1e-4
     kwargs = {
-        'file_paths': FP_WTK,
         'features': FEATURES,
         'target': TARGET_COORD,
         'shape': (20, 20),
     }
     hr_handler = DataHandlerH5(
+        pytest.FP_WTK,
         **kwargs,
         time_slice=slice(1000, None, 1),
     )
-    lr_handler = DataHandlerH5(
+    lr_handler = DataHandlerNC(
+        pytest.FP_ERA,
         **kwargs,
-        hr_spatial_coarsen=s_enhance,
         time_slice=slice(1000, None, 30),
     )
 
@@ -113,9 +69,9 @@ def test_train(
             t_enhance=t_enhance,
         )
 
-    lr_handler = DataHandlerH5(
+    lr_handler = DataHandlerNC(
+        pytest.FP_ERA,
         **kwargs,
-        hr_spatial_coarsen=s_enhance,
         time_slice=slice(1000, None, t_enhance),
     )
 
@@ -126,12 +82,13 @@ def test_train(
     )
 
     hr_val = DataHandlerH5(
+        pytest.FP_WTK,
         **kwargs,
         time_slice=slice(None, 1000, 1),
     )
-    lr_val = DataHandlerH5(
+    lr_val = DataHandlerNC(
+        pytest.FP_ERA,
         **kwargs,
-        hr_spatial_coarsen=s_enhance,
         time_slice=slice(None, 1000, t_enhance),
     )
 
@@ -140,9 +97,6 @@ def test_train(
         s_enhance=s_enhance,
         t_enhance=t_enhance,
     )
-
-    fp_gen = os.path.join(CONFIG_DIR, gen_config)
-    fp_disc = os.path.join(CONFIG_DIR, disc_config)
 
     Sup3rGan.seed()
     model = Sup3rGan(
@@ -258,7 +212,3 @@ def test_train(
         assert y_test.shape[-1] == test_data.shape[-1]
 
         batch_handler.stop()
-
-
-if __name__ == '__main__':
-    execute_pytest(__file__)

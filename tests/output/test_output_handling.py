@@ -6,7 +6,7 @@ import tempfile
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from rex import ResourceX, init_logger
+from rex import ResourceX
 
 from sup3r import __version__
 from sup3r.postprocessing import OutputHandlerH5, OutputHandlerNC
@@ -16,11 +16,6 @@ from sup3r.preprocessing.derivers.utilities import (
     transform_rotate_wind,
 )
 from sup3r.utilities.pytest.helpers import make_fake_h5_chunks
-
-np.random.seed(42)
-
-
-init_logger('sup3r', log_level='DEBUG')
 
 
 def test_get_lat_lon():

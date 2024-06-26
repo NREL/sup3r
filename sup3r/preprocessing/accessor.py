@@ -7,6 +7,7 @@ from warnings import warn
 import dask.array as da
 import numpy as np
 import pandas as pd
+import psutil
 import xarray as xr
 from scipy.stats import mode
 from typing_extensions import Self
@@ -80,7 +81,14 @@ class Sup3rX:
         """Load `._ds` into memory. This updates the internal `xr.Dataset` if
         it has not been loaded already."""
         if not self.loaded:
+            logger.debug(f'Loading dataset into memory: {self._ds}')
+            mem = psutil.virtual_memory()
+            logger.debug(f'Pre-loading memory usage is {mem.used / 1e9:.3f} '
+                         f'GB out of {mem.total / 1e9:.3f} ')
             self._ds = self._ds.compute(**kwargs)
+            mem = psutil.virtual_memory()
+            logger.debug(f'Post-loading memory usage is {mem.used / 1e9:.3f} '
+                         f'GB out of {mem.total / 1e9:.3f} ')
 
     @property
     def loaded(self):

@@ -5,7 +5,6 @@ from tempfile import TemporaryDirectory
 
 import numpy as np
 import pytest
-from rex import init_logger
 
 from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing import (
@@ -13,7 +12,7 @@ from sup3r.preprocessing import (
     ExtracterNC,
 )
 from sup3r.utilities.interpolation import Interpolator
-from sup3r.utilities.pytest.helpers import execute_pytest, make_fake_nc_file
+from sup3r.utilities.pytest.helpers import make_fake_nc_file
 
 h5_files = [
     os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5'),
@@ -22,8 +21,6 @@ h5_files = [
 nc_files = [os.path.join(TEST_DATA_DIR, 'test_era5_co_2012.nc')]
 
 features = ['windspeed_100m', 'winddirection_100m']
-
-init_logger('sup3r', log_level='DEBUG')
 
 
 @pytest.mark.parametrize(
@@ -156,7 +153,3 @@ def test_log_interp(DirectExtracter, Deriver, shape, target):
     out = Interpolator.interp_to_level(hgt_array, u, [40], interp_method='log')
 
     assert np.array_equal(out, transform.data['u_40m'].data)
-
-
-if __name__ == '__main__':
-    execute_pytest(__file__)

@@ -7,27 +7,16 @@ import tempfile
 import numpy as np
 import pytest
 import tensorflow as tf
-from rex import init_logger
 from tensorflow.keras.losses import MeanAbsoluteError
 
-from sup3r import CONFIG_DIR, TEST_DATA_DIR
+from sup3r import CONFIG_DIR
 from sup3r.models import SolarCC, Sup3rGan
-from sup3r.preprocessing import (
-    BatchHandlerCC,
-    DataHandlerH5SolarCC,
-)
+from sup3r.preprocessing import BatchHandlerCC, DataHandlerH5SolarCC
 
 tf.config.experimental_run_functions_eagerly(True)
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 SHAPE = (20, 20)
-INPUT_FILE_S = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')
 FEATURES_S = ['clearsky_ratio', 'ghi', 'clearsky_ghi']
 TARGET_S = (39.01, -105.13)
-
-np.random.seed(42)
-
-
-init_logger('sup3r', log_level='DEBUG')
 
 
 def test_solar_cc_model():
@@ -37,19 +26,17 @@ def test_solar_cc_model():
     """
 
     kwargs = {
-        'file_paths': INPUT_FILE_S,
+        'file_paths': pytest.FP_NSRDB,
         'features': FEATURES_S,
         'target': TARGET_S,
         'shape': SHAPE,
         'time_roll': -7,
     }
     train_handler = DataHandlerH5SolarCC(
-        **kwargs,
-        time_slice=slice(720, None, 2),
+        **kwargs, time_slice=slice(720, None, 2)
     )
     val_handler = DataHandlerH5SolarCC(
-        **kwargs,
-        time_slice=slice(None, 720, 2),
+        **kwargs, time_slice=slice(None, 720, 2)
     )
 
     batcher = BatchHandlerCC(
@@ -111,19 +98,17 @@ def test_solar_cc_model_spatial():
     """
 
     kwargs = {
-        'file_paths': INPUT_FILE_S,
+        'file_paths': pytest.FP_NSRDB,
         'features': FEATURES_S,
         'target': TARGET_S,
         'shape': SHAPE,
         'time_roll': -7,
     }
     train_handler = DataHandlerH5SolarCC(
-        **kwargs,
-        time_slice=slice(720, None, 2),
+        **kwargs, time_slice=slice(720, None, 2)
     )
     val_handler = DataHandlerH5SolarCC(
-        **kwargs,
-        time_slice=slice(None, 720, 2),
+        **kwargs, time_slice=slice(None, 720, 2)
     )
 
     batcher = BatchHandlerCC(
@@ -170,7 +155,7 @@ def test_solar_cc_model_spatial():
 def test_solar_custom_loss():
     """Test custom solar loss with only disc and content over daylight hours"""
     handler = DataHandlerH5SolarCC(
-        INPUT_FILE_S,
+        pytest.FP_NSRDB,
         FEATURES_S,
         target=TARGET_S,
         shape=SHAPE,
@@ -217,16 +202,19 @@ def test_solar_custom_loss():
         with pytest.raises(RuntimeError):
             loss1, _ = model.calc_loss(
                 np.random.uniform(0, 1, (1, 5, 5, 24, 1)).astype(np.float32),
-                np.random.uniform(0, 1, (1, 10, 10, 24, 1)).astype(np.float32))
+                np.random.uniform(0, 1, (1, 10, 10, 24, 1)).astype(np.float32),
+            )
 
         # time steps need to be multiple of 24
         with pytest.raises(AssertionError):
             loss1, _ = model.calc_loss(
                 np.random.uniform(0, 1, (1, 5, 5, 20, 1)).astype(np.float32),
-                np.random.uniform(0, 1, (1, 5, 5, 20, 1)).astype(np.float32))
+                np.random.uniform(0, 1, (1, 5, 5, 20, 1)).astype(np.float32),
+            )
 
-        loss1, _ = model.calc_loss(hi_res_true, hi_res_gen,
-                                   weight_gen_advers=0.0)
+        loss1, _ = model.calc_loss(
+            hi_res_true, hi_res_gen, weight_gen_advers=0.0
+        )
 
         t_len = hi_res_true.shape[3]
         n_days = int(t_len // 24)
@@ -241,8 +229,9 @@ def test_solar_custom_loss():
         for tslice in day_slices:
             hi_res_gen[:, :, :, tslice, :] = hi_res_true[:, :, :, tslice, :]
 
-        loss2, _ = model.calc_loss(hi_res_true, hi_res_gen,
-                                   weight_gen_advers=0.0)
+        loss2, _ = model.calc_loss(
+            hi_res_true, hi_res_gen, weight_gen_advers=0.0
+        )
 
         assert loss1 > loss2
         assert loss2 == 0

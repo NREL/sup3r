@@ -156,7 +156,7 @@ class AbstractBatchQueue(Collection, ABC):
         self.check_enhancement_factors()
         _ = self.check_shared_attr('sample_shape')
         if mode == 'eager':
-            logger.info('Received mode = "eager". Loading data into memory.')
+            logger.info('Received mode = "eager".')
             self.compute()
 
     @property

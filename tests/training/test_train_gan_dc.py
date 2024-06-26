@@ -6,9 +6,7 @@ import tempfile
 import numpy as np
 import pytest
 import tensorflow as tf
-from rex import init_logger
 
-from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.models import Sup3rGan, Sup3rGanDC
 from sup3r.preprocessing import (
     DataHandlerH5,
@@ -16,19 +14,11 @@ from sup3r.preprocessing import (
 from sup3r.utilities.loss_metrics import MmdMseLoss
 from sup3r.utilities.pytest.helpers import (
     BatchHandlerTesterDC,
-    execute_pytest,
 )
 
 tf.config.experimental_run_functions_eagerly(True)
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)
 FEATURES = ['U_100m', 'V_100m']
-
-
-init_logger('sup3r', log_level='DEBUG')
-
-np.random.seed(42)
 
 
 @pytest.mark.parametrize(
@@ -44,20 +34,16 @@ def test_train_spatial_dc(
     """Test data-centric spatial model training. Check that the spatial
     weights give the correct number of observations from each spatial bin"""
 
-    fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
-    fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
-
     Sup3rGan.seed()
     model = Sup3rGanDC(
-        fp_gen,
-        fp_disc,
+        pytest.S_FP_GEN,
+        pytest.S_FP_DISC,
         learning_rate=1e-4,
-        default_device='/cpu:0',
-        loss='MmdMseLoss'
+        loss='MmdMseLoss',
     )
 
     handler = DataHandlerH5(
-        FP_WTK,
+        pytest.FP_WTK,
         FEATURES,
         target=TARGET_COORD,
         shape=full_shape,
@@ -75,7 +61,6 @@ def test_train_spatial_dc(
         s_enhance=2,
         n_batches=n_batches,
         sample_shape=sample_shape,
-        default_device='/cpu:0'
     )
 
     assert batcher.val_data.n_batches == n_space_bins * n_time_bins
@@ -122,20 +107,17 @@ def test_train_st_dc(n_space_bins, n_time_bins, n_epoch=2):
     """Test data-centric spatiotemporal model training. Check that the temporal
     weights give the correct number of observations from each temporal bin"""
 
-    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
-    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
-
     Sup3rGan.seed()
     model = Sup3rGanDC(
-        fp_gen,
-        fp_disc,
+        pytest.ST_FP_GEN,
+        pytest.ST_FP_DISC,
         learning_rate=1e-4,
         default_device='/cpu:0',
-        loss='MmdMseLoss'
+        loss='MmdMseLoss',
     )
 
     handler = DataHandlerH5(
-        FP_WTK,
+        pytest.FP_WTK,
         FEATURES,
         target=TARGET_COORD,
         shape=(20, 20),
@@ -153,7 +135,7 @@ def test_train_st_dc(n_space_bins, n_time_bins, n_epoch=2):
         s_enhance=3,
         t_enhance=4,
         n_batches=n_batches,
-        default_device='/cpu:0'
+        default_device='/cpu:0',
     )
 
     deviation = 1 / np.sqrt(batcher.n_batches * batcher.batch_size - 1)
@@ -190,7 +172,3 @@ def test_train_st_dc(n_space_bins, n_time_bins, n_epoch=2):
         assert isinstance(loaded.loss_fun, MmdMseLoss)
         assert model.meta['class'] == 'Sup3rGanDC'
         assert loaded.meta['class'] == 'Sup3rGanDC'
-
-
-if __name__ == '__main__':
-    execute_pytest(__file__)

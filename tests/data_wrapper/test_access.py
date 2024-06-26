@@ -4,17 +4,13 @@ accessor."""
 import dask.array as da
 import numpy as np
 import pytest
-from rex import init_logger
 
 from sup3r.preprocessing.accessor import Sup3rX
 from sup3r.preprocessing.base import Sup3rDataset
 from sup3r.preprocessing.utilities import Dimension
 from sup3r.utilities.pytest.helpers import (
-    execute_pytest,
     make_fake_dset,
 )
-
-init_logger('sup3r', log_level='DEBUG')
 
 
 @pytest.mark.parametrize(
@@ -122,7 +118,3 @@ def test_change_values():
     )
     data['u', slice(0, 10)] = 0
     assert np.allclose(data['u', ...][slice(0, 10)], [0])
-
-
-if __name__ == '__main__':
-    execute_pytest(__file__)

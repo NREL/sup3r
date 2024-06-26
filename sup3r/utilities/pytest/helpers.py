@@ -5,7 +5,6 @@ import os
 import dask.array as da
 import numpy as np
 import pandas as pd
-import pytest
 import xarray as xr
 
 from sup3r.postprocessing import OutputHandlerH5
@@ -14,24 +13,6 @@ from sup3r.preprocessing.batch_handlers import BatchHandlerCC, BatchHandlerDC
 from sup3r.preprocessing.samplers import DualSamplerCC, Sampler, SamplerDC
 from sup3r.preprocessing.utilities import Dimension
 from sup3r.utilities.utilities import pd_date_range
-
-np.random.seed(42)
-
-
-def execute_pytest(fname, capture='all', flags='-rapP'):
-    """Execute module as pytest with detailed summary report.
-
-    Parameters
-    ----------
-    fname : str
-        test file to run
-    capture : str
-        Log or stdout/stderr capture option. ex: log (only logger),
-        all (includes stdout/stderr)
-    flags : str
-        Which tests to show logs and results for.
-    """
-    pytest.main(['-q', '--show-capture={}'.format(capture), fname, flags])
 
 
 def make_fake_tif(shape, outfile):

@@ -10,14 +10,16 @@ import numpy as np
 import pytest
 import xarray as xr
 from click.testing import CliRunner
-from rex import ResourceX, init_logger
+from rex import ResourceX
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.bias.bias_calc_cli import from_config as bias_main
+from sup3r.bias.utilities import lin_bc
 from sup3r.models.base import Sup3rGan
 from sup3r.pipeline.forward_pass_cli import from_config as fwp_main
 from sup3r.pipeline.pipeline_cli import from_config as pipe_main
 from sup3r.postprocessing.data_collect_cli import from_config as dc_main
+from sup3r.preprocessing import DataHandlerNC
 from sup3r.solar.solar_cli import from_config as solar_main
 from sup3r.utilities.pytest.helpers import (
     make_fake_cs_ratio_files,
@@ -31,8 +33,6 @@ fwp_chunk_shape = (4, 4, 6)
 data_shape = (100, 100, 8)
 shape = (8, 8)
 
-FP_NSRDB = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')
-FP_CC = os.path.join(TEST_DATA_DIR, 'rsds_test.nc')
 FP_CS = os.path.join(TEST_DATA_DIR, 'test_nsrdb_clearsky_2018.h5')
 GAN_META = {'s_enhance': 4, 't_enhance': 24}
 LR_LAT = np.linspace(40, 39, 5)
@@ -48,8 +48,6 @@ HIGH_RES_TIMES = pd_date_range(
     '20500101', '20500104', inclusive='left', freq='1h'
 )
 
-init_logger('sup3r', log_level='DEBUG')
-
 
 @pytest.fixture(scope='module')
 def input_files(tmpdir_factory):
@@ -64,9 +62,6 @@ def input_files(tmpdir_factory):
 def runner():
     """Cli runner helper utility."""
     return CliRunner()
-
-
-init_logger('sup3r', log_level='DEBUG')
 
 
 def test_pipeline_fwp_collect(runner, input_files):
@@ -308,11 +303,8 @@ def test_pipeline_fwp_qa(runner, input_files):
     """Test the sup3r pipeline with Forward Pass and QA modules
     via pipeline cli"""
 
-    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
-    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
-
     Sup3rGan.seed()
-    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+    model = Sup3rGan(pytest.ST_FP_GEN, pytest.ST_FP_DISC, learning_rate=1e-4)
     input_resolution = {'spatial': '12km', 'temporal': '60min'}
     model.meta['input_resolution'] = input_resolution
     assert model.input_resolution == input_resolution
@@ -417,24 +409,26 @@ def test_pipeline_fwp_qa(runner, input_files):
 def test_cli_bias_calc(runner, bias_calc_class):
     """Test cli for bias correction"""
 
-    with xr.open_dataset(FP_CC) as fh:
+    with xr.open_dataset(pytest.FP_RSDS) as fh:
         MIN_LAT = np.min(fh.lat.values.astype(np.float32))
         MIN_LON = np.min(fh.lon.values.astype(np.float32)) - 360
         TARGET = (float(MIN_LAT), float(MIN_LON))
         SHAPE = (len(fh.lat.values), len(fh.lon.values))
 
     with tempfile.TemporaryDirectory() as td:
+        fp_out = f'{td}/bc_file.h5'
         bc_config = {
             'bias_calc_class': bias_calc_class,
             'jobs': [
                 {
-                    'base_fps': [FP_NSRDB],
-                    'bias_fps': [FP_CC],
+                    'base_fps': [pytest.FP_NSRDB],
+                    'bias_fps': [pytest.FP_RSDS],
                     'base_dset': 'ghi',
                     'bias_feature': 'rsds',
                     'target': TARGET,
                     'shape': SHAPE,
                     'max_workers': 2,
+                    'fp_out': fp_out,
                 }
             ],
             'execution_control': {
@@ -453,6 +447,17 @@ def test_cli_bias_calc(runner, bias_calc_class):
                 traceback.print_exception(*result.exc_info)
             )
             raise RuntimeError(msg)
+
+        assert os.path.exists(fp_out)
+
+        handler = DataHandlerNC(
+            pytest.FP_RSDS, features=['rsds'], target=TARGET, shape=SHAPE
+        )
+        og_data = handler['rsds', ...].copy()
+        lin_bc(handler, bc_files=[fp_out])
+        bc_data = handler['rsds', ...]
+
+        assert not np.array_equal(bc_data, og_data)
 
 
 def test_cli_solar(runner):

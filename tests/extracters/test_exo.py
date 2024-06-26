@@ -9,9 +9,8 @@ import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
-from rex import Outputs, Resource, init_logger
+from rex import Outputs, Resource
 
-from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing import (
     ExoDataHandler,
     TopoExtracter,
@@ -21,23 +20,10 @@ from sup3r.preprocessing import (
 from sup3r.preprocessing.data_handlers.base import ExoData
 from sup3r.preprocessing.utilities import Dimension
 
-FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
-FP_WRF = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
-
-FILE_PATHS = [
-    os.path.join(TEST_DATA_DIR, 'ua_test.nc'),
-    os.path.join(TEST_DATA_DIR, 'va_test.nc'),
-    os.path.join(TEST_DATA_DIR, 'orog_test.nc'),
-    os.path.join(TEST_DATA_DIR, 'zg_test.nc'),
-]
 TARGET = (13.67, 125.0)
 SHAPE = (8, 8)
 S_ENHANCE = [1, 4]
 T_ENHANCE = [1, 1]
-
-np.random.seed(42)
-
-init_logger('sup3r', log_level='DEBUG')
 
 
 def test_exo_data_init():
@@ -61,9 +47,9 @@ def test_exo_cache(feature):
             }
         )
     with TemporaryDirectory() as td:
-        fp_topo = make_topo_file(FILE_PATHS[0], td)
+        fp_topo = make_topo_file(pytest.FPS_GCM[0], td)
         base = ExoDataHandler(
-            FILE_PATHS,
+            pytest.FPS_GCM,
             feature,
             source_file=fp_topo,
             steps=steps,
@@ -79,9 +65,9 @@ def test_exo_cache(feature):
 
         # load cached data
         cache = ExoDataHandler(
-            FILE_PATHS,
+            pytest.FPS_GCM,
             feature,
-            source_file=FP_WTK,
+            source_file=pytest.FP_WTK,
             steps=steps,
             input_handler_kwargs={'target': TARGET, 'shape': SHAPE},
             input_handler_name='ExtracterNC',
@@ -154,10 +140,10 @@ def test_topo_extraction_h5(s_enhance, plot=False):
     """Test the spatial enhancement of a test grid and then the lookup of the
     elevation data to a reference WTK file (also the same file for the test)"""
     with tempfile.TemporaryDirectory() as td:
-        fp_exo_topo = make_topo_file(FP_WTK, td)
+        fp_exo_topo = make_topo_file(pytest.FP_WTK, td)
 
         kwargs = {
-            'file_paths': FP_WTK,
+            'file_paths': pytest.FP_WTK,
             'source_file': fp_exo_topo,
             's_enhance': s_enhance,
             't_enhance': 1,
@@ -223,11 +209,11 @@ def test_bad_s_enhance(s_enhance=10):
     """Test a large s_enhance factor that results in a bad mapping with
     enhanced grid pixels not having source exo data points"""
     with tempfile.TemporaryDirectory() as td:
-        fp_exo_topo = make_topo_file(FP_WTK, td)
+        fp_exo_topo = make_topo_file(pytest.FP_WTK, td)
 
         with pytest.warns(UserWarning) as warnings:
             te = TopoExtracterH5(
-                FP_WTK,
+                pytest.FP_WTK,
                 fp_exo_topo,
                 s_enhance=s_enhance,
                 t_enhance=1,
@@ -255,8 +241,8 @@ def test_topo_extraction_nc():
     """
     with TemporaryDirectory() as td:
         te = TopoExtracterNC(
-            FP_WRF,
-            FP_WRF,
+            pytest.FP_WRF,
+            pytest.FP_WRF,
             s_enhance=1,
             t_enhance=1,
             cache_dir=f'{td}/exo_cache/',
@@ -264,8 +250,8 @@ def test_topo_extraction_nc():
         hr_elev = te.data
 
         te_gen = TopoExtracter(
-            FP_WRF,
-            FP_WRF,
+            pytest.FP_WRF,
+            pytest.FP_WRF,
             s_enhance=1,
             t_enhance=1,
         )

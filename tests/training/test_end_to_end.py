@@ -3,22 +3,15 @@
 import os
 from tempfile import TemporaryDirectory
 
-from rex import init_logger
+import pytest
 
-from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.models import Sup3rGan
 from sup3r.preprocessing import (
     BatchHandler,
     DataHandlerH5,
     LoaderH5,
 )
-from sup3r.utilities.pytest.helpers import execute_pytest
 
-INPUT_FILES = [
-    os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5'),
-    os.path.join(TEST_DATA_DIR, 'test_wtk_co_2013.h5'),
-]
-FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)
 FEATURES = ['U_100m', 'V_100m']
 target = (39.01, -105.15)
@@ -29,8 +22,6 @@ kwargs = {
     'max_delta': 20,
     'time_slice': slice(None, None, 1),
 }
-
-init_logger('sup3r', log_level='DEBUG')
 
 
 def test_end_to_end():
@@ -44,7 +35,7 @@ def test_end_to_end():
         val_cache_pattern = os.path.join(td, 'val_{feature}.h5')
         # get training data
         _ = DataHandlerH5(
-            INPUT_FILES[0],
+            pytest.FPS_WTK[0],
             features=derive_features,
             **kwargs,
             cache_kwargs={
@@ -54,7 +45,7 @@ def test_end_to_end():
         )
         # get val data
         _ = DataHandlerH5(
-            INPUT_FILES[1],
+            pytest.FPS_WTK[1],
             features=derive_features,
             **kwargs,
             cache_kwargs={
@@ -89,15 +80,15 @@ def test_end_to_end():
             s_enhance=3,
             t_enhance=4,
             means=means,
-            stds=stds
+            stds=stds,
         )
-
-        fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
-        fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
 
         Sup3rGan.seed()
         model = Sup3rGan(
-            fp_gen, fp_disc, learning_rate=2e-5, loss='MeanAbsoluteError'
+            pytest.ST_FP_GEN,
+            pytest.ST_FP_DISC,
+            learning_rate=2e-5,
+            loss='MeanAbsoluteError',
         )
         model.train(
             batcher,
@@ -109,7 +100,3 @@ def test_end_to_end():
             checkpoint_int=10,
             out_dir=os.path.join(td, 'test_{epoch}'),
         )
-
-
-if __name__ == '__main__':
-    execute_pytest(__file__)

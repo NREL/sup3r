@@ -7,7 +7,6 @@ import dask.array as da
 import numpy as np
 import pytest
 import xarray as xr
-from rex import init_logger
 
 from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing import (
@@ -18,7 +17,7 @@ from sup3r.preprocessing import (
 from sup3r.preprocessing.derivers.utilities import (
     transform_rotate_wind,
 )
-from sup3r.utilities.pytest.helpers import execute_pytest, make_fake_nc_file
+from sup3r.utilities.pytest.helpers import make_fake_nc_file
 
 h5_files = [
     os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5'),
@@ -31,8 +30,6 @@ h5_target = (39.01, -105.15)
 nc_target = (37.25, -107)
 h5_shape = (20, 20)
 nc_shape = (10, 10)
-
-init_logger('sup3r', log_level='DEBUG')
 
 
 def make_5d_nc_file(td, features):
@@ -163,7 +160,3 @@ def test_hr_coarsening(input_files, DirectExtracter, Deriver, shape, target):
     assert deriver.lat_lon.shape == (shape[0] // 2, shape[1] // 2, 2)
     assert extracter.lat_lon.shape == (shape[0], shape[1], 2)
     assert deriver.data.dtype == np.dtype(np.float32)
-
-
-if __name__ == '__main__':
-    execute_pytest(__file__)

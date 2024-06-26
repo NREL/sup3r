@@ -3,9 +3,8 @@
 import os
 
 import pytest
-from rex import init_logger
 
-from sup3r import CONFIG_DIR, TEST_DATA_DIR
+from sup3r import CONFIG_DIR
 from sup3r.models import Sup3rCondMom
 from sup3r.preprocessing import (
     BatchHandlerMom1,
@@ -16,14 +15,9 @@ from sup3r.preprocessing import (
     BatchHandlerMom2SF,
     DataHandlerH5,
 )
-from sup3r.utilities.pytest.helpers import execute_pytest
 
-FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)
 FEATURES = ['U_100m', 'V_100m']
-
-
-init_logger('sup3r', log_level='DEBUG')
 
 
 @pytest.mark.parametrize(
@@ -50,7 +44,7 @@ def test_out_conditional(
     """Test basic spatiotemporal model outputing for
     first conditional moment."""
     handler = DataHandlerH5(
-        FP_WTK,
+        pytest.FP_WTK,
         FEATURES,
         target=TARGET_COORD,
         shape=full_shape,
@@ -106,7 +100,3 @@ def test_out_conditional(
             2,
         )
     batch_handler.stop()
-
-
-if __name__ == '__main__':
-    execute_pytest(__file__)

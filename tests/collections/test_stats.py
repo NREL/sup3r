@@ -10,7 +10,7 @@ from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing import ExtracterH5, StatsCollection
 from sup3r.preprocessing.accessor import Sup3rX
 from sup3r.preprocessing.base import Sup3rDataset
-from sup3r.utilities.pytest.helpers import DummyData, execute_pytest
+from sup3r.utilities.pytest.helpers import DummyData
 
 input_files = [
     os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5'),
@@ -142,7 +142,3 @@ def test_stats_calc():
 
         assert means == stats.means
         assert stds == stats.stds
-
-
-if __name__ == '__main__':
-    execute_pytest(__file__)

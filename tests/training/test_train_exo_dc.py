@@ -6,24 +6,14 @@ import tempfile
 
 import numpy as np
 import pytest
-from rex import init_logger
 
-from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.models import Sup3rGanDC
 from sup3r.preprocessing import DataHandlerH5
 from sup3r.utilities.pytest.helpers import BatchHandlerTesterDC
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 SHAPE = (20, 20)
-INPUT_FILE_W = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 FEATURES_W = ['temperature_100m', 'U_100m', 'V_100m', 'topography']
 TARGET_W = (39.01, -105.15)
-
-
-init_logger('sup3r', log_level='DEBUG')
-
-np.random.seed(42)
 
 
 @pytest.mark.parametrize('CustomLayer', ['Sup3rAdder', 'Sup3rConcat'])
@@ -32,20 +22,14 @@ def test_wind_dc_hi_res_topo(CustomLayer):
     Sup3rConcat layer that adds/concatenates hi-res topography in the middle of
     the network."""
 
-    handler = DataHandlerH5(
-        INPUT_FILE_W,
-        ('U_100m', 'V_100m', 'topography'),
-        target=TARGET_W,
-        shape=SHAPE,
-        time_slice=slice(100, None, 2),
-    )
-    val_handler = DataHandlerH5(
-        INPUT_FILE_W,
-        ('U_100m', 'V_100m', 'topography'),
-        target=TARGET_W,
-        shape=SHAPE,
-        time_slice=slice(None, 100, 2),
-    )
+    kwargs = {
+        'file_paths': pytest.FP_WTK,
+        'features': ('U_100m', 'V_100m', 'topography'),
+        'target': TARGET_W,
+        'shape': SHAPE,
+    }
+    handler = DataHandlerH5(**kwargs, time_slice=slice(100, None, 2))
+    val_handler = DataHandlerH5(**kwargs, time_slice=slice(None, 100, 2))
 
     # number of bins conflicts with data shape and sample shape
     with pytest.raises(AssertionError):
@@ -131,10 +115,8 @@ def test_wind_dc_hi_res_topo(CustomLayer):
         {'class': 'Cropping3D', 'cropping': 2},
     ]
 
-    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
-
     Sup3rGanDC.seed()
-    model = Sup3rGanDC(gen_model, fp_disc, learning_rate=1e-4)
+    model = Sup3rGanDC(gen_model, pytest.ST_FP_DISC, learning_rate=1e-4)
 
     with tempfile.TemporaryDirectory() as td:
         model.train(
