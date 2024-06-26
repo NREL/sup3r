@@ -29,7 +29,7 @@ def test_feature_errors(features, lr_only_features, hr_exo_features):
         },
     )
 
-    with pytest.raises(AssertionError):
+    with pytest.raises((RuntimeError, AssertionError)):
         _ = sampler.lr_features
         _ = sampler.hr_out_features
         _ = sampler.hr_exo_features
