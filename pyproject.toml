@@ -179,6 +179,9 @@ ignore = [
 #  "E402", # unused-import
 #  ]
 
+[tool.ruff.lint.pylint]
+max-nested-blocks = 5
+
 [tool.ruff.format]
 # quote-style = "single"
 # indent-style = "space"
