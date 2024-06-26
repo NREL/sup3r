@@ -55,24 +55,28 @@ def test_counts(s_weights, t_weights):
         n_space_bins=len(s_weights),
     )
     assert batcher.val_data.n_batches == len(s_weights) * len(t_weights)
-    batcher.update_spatial_weights(s_weights)
-    batcher.update_temporal_weights(t_weights)
+    batcher.update_weights(
+        spatial_weights=s_weights, temporal_weights=t_weights
+    )
 
     for _ in batcher:
         assert batcher.spatial_weights == s_weights
         assert batcher.temporal_weights == t_weights
-
-    assert np.allclose(
-        batcher._space_norm_count(),
-        batcher.spatial_weights,
-        atol=2 * batcher._space_norm_count().std(),
-    )
-    assert np.allclose(
-        batcher._time_norm_count(),
-        batcher.temporal_weights,
-        atol=2 * batcher._time_norm_count().std(),
-    )
     batcher.stop()
+
+    s_normed = batcher._mean_record_normed(batcher.space_bin_record)
+    assert np.allclose(
+        s_normed,
+        batcher._mean_record_normed(batcher.spatial_weights_record),
+        atol=2 * s_normed.std(),
+    )
+
+    t_normed = batcher._mean_record_normed(batcher.time_bin_record)
+    assert np.allclose(
+        t_normed,
+        batcher._mean_record_normed(batcher.temporal_weights_record),
+        atol=2 * t_normed.std(),
+    )
 
 
 if __name__ == '__main__':

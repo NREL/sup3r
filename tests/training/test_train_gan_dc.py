@@ -30,11 +30,6 @@ init_logger('sup3r', log_level='DEBUG')
 np.random.seed(42)
 
 
-def _mean_record_normed(record):
-    mean = np.array(record[1:]).mean(axis=0)
-    return mean / mean.sum()
-
-
 @pytest.mark.parametrize(
     ('n_space_bins', 'n_time_bins'), [(4, 1), (1, 4), (4, 4)]
 )
@@ -99,13 +94,13 @@ def test_train_spatial_dc(
             out_dir=os.path.join(td, 'test_{epoch}'),
         )
         assert np.allclose(
-            _mean_record_normed(batcher.space_bin_record),
-            _mean_record_normed(batcher.spatial_weights_record),
+            batcher._mean_record_normed(batcher.space_bin_record),
+            batcher._mean_record_normed(batcher.spatial_weights_record),
             atol=deviation,
         )
         assert np.allclose(
-            _mean_record_normed(batcher.time_bin_record),
-            _mean_record_normed(batcher.temporal_weights_record),
+            batcher._mean_record_normed(batcher.time_bin_record),
+            batcher._mean_record_normed(batcher.temporal_weights_record),
             atol=deviation,
         )
 
@@ -176,13 +171,13 @@ def test_train_st_dc(n_space_bins, n_time_bins, n_epoch=2):
             out_dir=os.path.join(td, 'test_{epoch}'),
         )
         assert np.allclose(
-            _mean_record_normed(batcher.space_bin_record),
-            _mean_record_normed(batcher.spatial_weights_record),
+            batcher._mean_record_normed(batcher.space_bin_record),
+            batcher._mean_record_normed(batcher.spatial_weights_record),
             atol=deviation,
         )
         assert np.allclose(
-            _mean_record_normed(batcher.time_bin_record),
-            _mean_record_normed(batcher.temporal_weights_record),
+            batcher._mean_record_normed(batcher.time_bin_record),
+            batcher._mean_record_normed(batcher.temporal_weights_record),
             atol=deviation,
         )
 

@@ -518,8 +518,8 @@ class Sup3rX:
         """Get time step in seconds."""
         return float(
             mode(
-                (self.time_index[1:] - self.time_index[:-1]).total_seconds()
-            ).mode
+                (self.time_index[1:] - self.time_index[:-1]).total_seconds(),
+                keepdims=False).mode
         )
 
     @property

@@ -201,7 +201,13 @@ class BatchHandlerTesterDC(BatchHandlerDC):
             self._update_bin_count(self.containers[0].index_record[-1])
         return out
 
-    def reset(self):
+    def __next__(self):
+        out = super().__next__()
+        if self._batch_counter == self.n_batches:
+            self.update_record()
+        return out
+
+    def update_record(self):
         """Reset records for a new epoch."""
         self.space_bin_record.append(self.space_bin_count)
         self.time_bin_record.append(self.time_bin_count)
@@ -210,9 +216,10 @@ class BatchHandlerTesterDC(BatchHandlerDC):
         self.temporal_weights_record.append(self.temporal_weights)
         self.spatial_weights_record.append(self.spatial_weights)
 
-    def __iter__(self):
-        self.reset()
-        return super().__iter__()
+    @staticmethod
+    def _mean_record_normed(record):
+        mean = np.array(record).mean(axis=0)
+        return mean / mean.sum()
 
 
 def make_fake_h5_chunks(td):
