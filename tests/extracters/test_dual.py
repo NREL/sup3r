@@ -4,24 +4,17 @@ import os
 import tempfile
 
 import numpy as np
-from rex import init_logger
+import pytest
 
-from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing import (
     DataHandlerH5,
     DataHandlerNC,
     DualExtracter,
     LoaderH5,
 )
-from sup3r.utilities.pytest.helpers import execute_pytest
 
-FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
-FP_ERA = os.path.join(TEST_DATA_DIR, 'test_era5_co_2012.nc')
 TARGET_COORD = (39.01, -105.15)
 FEATURES = ['U_100m', 'V_100m']
-
-
-init_logger('sup3r', log_level='DEBUG')
 
 
 def test_dual_extracter_shapes(full_shape=(20, 20)):
@@ -29,14 +22,14 @@ def test_dual_extracter_shapes(full_shape=(20, 20)):
 
     # need to reduce the number of temporal examples to test faster
     hr_container = DataHandlerH5(
-        file_paths=FP_WTK,
+        file_paths=pytest.FP_WTK,
         features=FEATURES,
         target=TARGET_COORD,
         shape=full_shape,
         time_slice=slice(None, None, 10),
     )
     lr_container = DataHandlerNC(
-        file_paths=FP_ERA,
+        file_paths=pytest.FP_ERA,
         features=FEATURES,
         time_slice=slice(None, None, 10),
     )
@@ -56,14 +49,14 @@ def test_dual_nan_fill(full_shape=(20, 20)):
 
     # need to reduce the number of temporal examples to test faster
     hr_container = DataHandlerH5(
-        file_paths=FP_WTK,
+        file_paths=pytest.FP_WTK,
         features=FEATURES,
         target=TARGET_COORD,
         shape=full_shape,
         time_slice=slice(0, 5),
     )
     lr_container = DataHandlerH5(
-        file_paths=FP_WTK,
+        file_paths=pytest.FP_WTK,
         features=FEATURES,
         target=TARGET_COORD,
         shape=full_shape,
@@ -86,14 +79,14 @@ def test_regrid_caching(full_shape=(20, 20)):
     # need to reduce the number of temporal examples to test faster
     with tempfile.TemporaryDirectory() as td:
         hr_container = DataHandlerH5(
-            file_paths=FP_WTK,
+            file_paths=pytest.FP_WTK,
             features=FEATURES,
             target=TARGET_COORD,
             shape=full_shape,
             time_slice=slice(None, None, 10),
         )
         lr_container = DataHandlerNC(
-            file_paths=FP_ERA,
+            file_paths=pytest.FP_ERA,
             features=FEATURES,
             time_slice=slice(None, None, 10),
         )
@@ -123,7 +116,3 @@ def test_regrid_caching(full_shape=(20, 20)):
             hr_container_new.data[FEATURES, ...],
             pair_extracter.hr_data[FEATURES, ...],
         )
-
-
-if __name__ == '__main__':
-    execute_pytest(__file__)

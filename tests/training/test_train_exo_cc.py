@@ -6,9 +6,8 @@ import tempfile
 
 import numpy as np
 import pytest
-from rex import init_logger
 
-from sup3r import CONFIG_DIR, TEST_DATA_DIR
+from sup3r import CONFIG_DIR
 from sup3r.models import Sup3rGan
 from sup3r.preprocessing import (
     BatchHandlerCC,
@@ -16,16 +15,9 @@ from sup3r.preprocessing import (
 )
 from sup3r.preprocessing.utilities import lowered
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 SHAPE = (20, 20)
-INPUT_FILE_W = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 FEATURES_W = ['temperature_100m', 'U_100m', 'V_100m', 'topography']
 TARGET_W = (39.01, -105.15)
-
-init_logger('sup3r', log_level='DEBUG')
-
-np.random.seed(42)
 
 
 @pytest.mark.parametrize(('CustomLayer', 'features', 'lr_only_features'),
@@ -39,7 +31,7 @@ def test_wind_hi_res_topo(CustomLayer, features, lr_only_features):
     network. The first two parameter sets include an lr only feature."""
 
     handler = DataHandlerH5WindCC(
-        INPUT_FILE_W,
+        pytest.FP_WTK,
         features,
         target=TARGET_W,
         shape=SHAPE,

@@ -8,10 +8,9 @@ import h5py
 import numpy as np
 import pytest
 import xarray as xr
-from rex import init_logger
 from scipy import stats
 
-from sup3r import CONFIG_DIR, TEST_DATA_DIR
+from sup3r import CONFIG_DIR
 from sup3r.bias.bias_calc import (
     LinearCorrection,
     MonthlyLinearCorrection,
@@ -23,29 +22,20 @@ from sup3r.models import Sup3rGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.preprocessing import DataHandlerNCforCC
 from sup3r.qa.qa import Sup3rQa
-from sup3r.utilities.pytest.helpers import execute_pytest
 
-FP_NSRDB = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')
-FP_CC = os.path.join(TEST_DATA_DIR, 'rsds_test.nc')
-
-with xr.open_dataset(FP_CC) as fh:
+with xr.open_dataset(pytest.FP_RSDS) as fh:
     MIN_LAT = np.min(fh.lat.values.astype(np.float32))
     MIN_LON = np.min(fh.lon.values.astype(np.float32)) - 360
     TARGET = (float(MIN_LAT), float(MIN_LON))
     SHAPE = (len(fh.lat.values), len(fh.lon.values))
-
-np.random.seed(42)
-
-
-init_logger('sup3r', log_level='DEBUG')
 
 
 def test_smooth_interior_bc():
     """Test linear bias correction with interior smoothing"""
 
     calc = LinearCorrection(
-        FP_NSRDB,
-        FP_CC,
+        pytest.FP_NSRDB,
+        pytest.FP_RSDS,
         'ghi',
         'rsds',
         target=TARGET,
@@ -60,8 +50,8 @@ def test_smooth_interior_bc():
     assert np.isnan(og_adder[nan_mask]).all()
 
     calc = LinearCorrection(
-        FP_NSRDB,
-        FP_CC,
+        pytest.FP_NSRDB,
+        pytest.FP_RSDS,
         'ghi',
         'rsds',
         target=TARGET,
@@ -80,8 +70,8 @@ def test_smooth_interior_bc():
 
     # make sure smoothing affects the interior pixels but not the exterior
     calc = LinearCorrection(
-        FP_NSRDB,
-        FP_CC,
+        pytest.FP_NSRDB,
+        pytest.FP_RSDS,
         'ghi',
         'rsds',
         target=TARGET,
@@ -103,8 +93,8 @@ def test_linear_bc():
     """Test linear bias correction"""
 
     calc = LinearCorrection(
-        FP_NSRDB,
-        FP_CC,
+        pytest.FP_NSRDB,
+        pytest.FP_RSDS,
         'ghi',
         'rsds',
         target=TARGET,
@@ -156,8 +146,8 @@ def test_linear_bc():
 
     # make sure the NN fill works for out-of-bounds pixels
     calc = LinearCorrection(
-        FP_NSRDB,
-        FP_CC,
+        pytest.FP_NSRDB,
+        pytest.FP_RSDS,
         'ghi',
         'rsds',
         target=TARGET,
@@ -179,8 +169,8 @@ def test_linear_bc():
 
     # make sure smoothing affects the out-of-bounds pixels but not the in-bound
     calc = LinearCorrection(
-        FP_NSRDB,
-        FP_CC,
+        pytest.FP_NSRDB,
+        pytest.FP_RSDS,
         'ghi',
         'rsds',
         target=TARGET,
@@ -205,8 +195,8 @@ def test_linear_bc_parallel():
 
     # parallel test
     calc = LinearCorrection(
-        FP_NSRDB,
-        FP_CC,
+        pytest.FP_NSRDB,
+        pytest.FP_RSDS,
         'ghi',
         'rsds',
         target=TARGET,
@@ -231,8 +221,8 @@ def test_monthly_bc(bc_class):
     """Test bias correction on a month-by-month basis"""
 
     calc = bc_class(
-        FP_NSRDB,
-        FP_CC,
+        pytest.FP_NSRDB,
+        pytest.FP_RSDS,
         'ghi',
         'rsds',
         target=TARGET,
@@ -290,8 +280,8 @@ def test_monthly_bc(bc_class):
 def test_linear_transform():
     """Test the linear bc transform method"""
     calc = LinearCorrection(
-        FP_NSRDB,
-        FP_CC,
+        pytest.FP_NSRDB,
+        pytest.FP_RSDS,
         'ghi',
         'rsds',
         target=TARGET,
@@ -364,8 +354,8 @@ def test_linear_transform():
 def test_monthly_linear_transform():
     """Test the monthly linear bc transform method"""
     calc = MonthlyLinearCorrection(
-        FP_NSRDB,
-        FP_CC,
+        pytest.FP_NSRDB,
+        pytest.FP_RSDS,
         'ghi',
         'rsds',
         target=TARGET,
@@ -424,13 +414,13 @@ def test_clearsky_ratio():
     """Test that bias correction of daily clearsky ratio instead of raw ghi
     works."""
     bias_handler_kwargs = {
-        'nsrdb_source_fp': FP_NSRDB,
+        'nsrdb_source_fp': pytest.FP_NSRDB,
         'nsrdb_agg': 4,
         'time_slice': [0, 30, 1],
     }
     calc = LinearCorrection(
-        FP_NSRDB,
-        FP_CC,
+        pytest.FP_NSRDB,
+        pytest.FP_RSDS,
         'clearsky_ratio',
         'clearsky_ratio',
         target=TARGET,
@@ -464,15 +454,9 @@ def test_fwp_integration():
     shape = (8, 8)
     time_slice = slice(None, None, 1)
     fwp_chunk_shape = (4, 4, 150)
-    input_files = [
-        os.path.join(TEST_DATA_DIR, 'ua_test.nc'),
-        os.path.join(TEST_DATA_DIR, 'va_test.nc'),
-        os.path.join(TEST_DATA_DIR, 'orog_test.nc'),
-        os.path.join(TEST_DATA_DIR, 'zg_test.nc'),
-    ]
 
     lat_lon = DataHandlerNCforCC(
-        file_paths=input_files,
+        file_paths=pytest.FPS_GCM,
         features=[],
         target=target,
         shape=shape,
@@ -508,7 +492,7 @@ def test_fwp_integration():
         }
 
         strat = ForwardPassStrategy(
-            input_files,
+            file_paths=pytest.FPS_GCM,
             model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=0,
@@ -522,7 +506,7 @@ def test_fwp_integration():
             input_handler_name='DataHandlerNCforCC',
         )
         bc_strat = ForwardPassStrategy(
-            input_files,
+            file_paths=pytest.FPS_GCM,
             model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=0,
@@ -555,14 +539,8 @@ def test_fwp_integration():
 def test_qa_integration():
     """Test BC integration with QA module"""
     features = ['U_100m', 'V_100m']
-    input_files = [
-        os.path.join(TEST_DATA_DIR, 'ua_test.nc'),
-        os.path.join(TEST_DATA_DIR, 'va_test.nc'),
-        os.path.join(TEST_DATA_DIR, 'orog_test.nc'),
-        os.path.join(TEST_DATA_DIR, 'zg_test.nc'),
-    ]
 
-    lat_lon = DataHandlerNCforCC(input_files, features=[]).lat_lon
+    lat_lon = DataHandlerNCforCC(pytest.FPS_GCM, features=[]).lat_lon
 
     with tempfile.TemporaryDirectory() as td:
         bias_fp = os.path.join(td, 'bc.h5')
@@ -614,10 +592,10 @@ def test_qa_integration():
         }
 
         for feature in features:
-            with Sup3rQa(input_files, out_file_path, **qa_kw) as qa:
+            with Sup3rQa(pytest.FPS_GCM, out_file_path, **qa_kw) as qa:
                 data_base = qa.input_handler[feature, ...]
                 data_truth = data_base * scalar + adder
-            with Sup3rQa(input_files, out_file_path, **bc_qa_kw) as qa:
+            with Sup3rQa(pytest.FPS_GCM, out_file_path, **bc_qa_kw) as qa:
                 data_bc = qa.input_handler[feature, ...]
 
             assert np.allclose(data_bc, data_truth, equal_nan=True)
@@ -626,8 +604,8 @@ def test_qa_integration():
 def test_skill_assessment():
     """Test the skill assessment of a climate model vs. historical data"""
     calc = SkillAssessment(
-        FP_NSRDB,
-        FP_CC,
+        pytest.FP_NSRDB,
+        pytest.FP_RSDS,
         'ghi',
         'rsds',
         target=TARGET,
@@ -672,8 +650,8 @@ def test_skill_assessment():
 def test_nc_base_file():
     """Test a base file being a .nc like ERA5"""
     calc = SkillAssessment(
-        FP_CC,
-        FP_CC,
+        pytest.FP_RSDS,
+        pytest.FP_RSDS,
         'rsds',
         'rsds',
         target=TARGET,
@@ -743,15 +721,17 @@ def test_match_zero_rate():
         )
 
     with tempfile.TemporaryDirectory() as td:
-        fp_nsrdb_temp = os.path.join(td, os.path.basename(FP_NSRDB))
-        shutil.copy(FP_NSRDB, fp_nsrdb_temp)
-        with h5py.File(fp_nsrdb_temp, 'a') as nsrdb_temp:
+        pytest.FP_NSRDB_temp = os.path.join(
+            td, os.path.basename(pytest.FP_NSRDB)
+        )
+        shutil.copy(pytest.FP_NSRDB, pytest.FP_NSRDB_temp)
+        with h5py.File(pytest.FP_NSRDB_temp, 'a') as nsrdb_temp:
             ghi = nsrdb_temp['ghi'][...]
             ghi[:1000, :] = 0
             nsrdb_temp['ghi'][...] = ghi
         calc = SkillAssessment(
-            fp_nsrdb_temp,
-            FP_CC,
+            pytest.FP_NSRDB_temp,
+            pytest.FP_RSDS,
             'ghi',
             'rsds',
             target=TARGET,
@@ -765,7 +745,3 @@ def test_match_zero_rate():
     bias_rate = out['bias_rsds_zero_rate']
     base_rate = out['base_ghi_zero_rate']
     assert np.allclose(bias_rate, base_rate, rtol=0.005)
-
-
-if __name__ == '__main__':
-    execute_pytest(__file__)

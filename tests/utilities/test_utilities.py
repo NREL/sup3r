@@ -1,15 +1,13 @@
 """pytests for general utilities"""
 
-import os
 
 import dask.array as da
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
-from rex import Resource, init_logger
+from rex import Resource
 from scipy.interpolate import interp1d
 
-from sup3r import TEST_DATA_DIR
 from sup3r.models.utilities import st_interp
 from sup3r.pipeline.utilities import get_chunk_slices
 from sup3r.postprocessing import OutputHandler
@@ -26,12 +24,6 @@ from sup3r.utilities.utilities import (
     spatial_coarsening,
     temporal_coarsening,
 )
-
-FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
-FP_ERA = os.path.join(TEST_DATA_DIR, 'test_era5_co_2012.nc')
-init_logger('sup3r', log_level='DEBUG')
-
-np.random.seed(42)
 
 
 def test_log_interp():
@@ -66,7 +58,7 @@ def test_regridding():
     """Make sure regridding reproduces original data when coordinates in the
     meta is the same"""
 
-    with Resource(FP_WTK) as res:
+    with Resource(pytest.FP_WTK) as res:
         source_meta = res.meta.copy()
         source_meta['gid'] = np.arange(len(source_meta))
         shuffled_meta = source_meta.sample(frac=1, random_state=0)

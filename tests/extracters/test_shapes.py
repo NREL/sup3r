@@ -3,11 +3,9 @@
 import os
 from tempfile import TemporaryDirectory
 
-from rex import init_logger
-
 from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing import ExtracterNC
-from sup3r.utilities.pytest.helpers import execute_pytest, make_fake_nc_file
+from sup3r.utilities.pytest.helpers import make_fake_nc_file
 
 h5_files = [
     os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5'),
@@ -16,8 +14,6 @@ h5_files = [
 nc_files = [os.path.join(TEST_DATA_DIR, 'test_era5_co_2012.nc')]
 
 features = ['windspeed_100m', 'winddirection_100m']
-
-init_logger('sup3r', log_level='DEBUG')
 
 h5_target = (39.01, -105.15)
 nc_target = (37.25, -107)
@@ -45,7 +41,3 @@ def test_5d_extract_nc():
         )
         assert extracter['U_100m'].shape == (10, 10, 20)
         assert extracter['U'].shape == (10, 10, 20, 3)
-
-
-if __name__ == '__main__':
-    execute_pytest(__file__)

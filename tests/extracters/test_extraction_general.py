@@ -1,33 +1,22 @@
 """Tests across general functionality of :class:`Extracter` objects"""
 
-import os
 
 import numpy as np
 import pytest
 import xarray as xr
-from rex import Resource, init_logger
+from rex import Resource
 
-from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing import ExtracterH5, ExtracterNC
 from sup3r.preprocessing.utilities import Dimension
-from sup3r.utilities.pytest.helpers import execute_pytest
-
-h5_files = [
-    os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5'),
-    os.path.join(TEST_DATA_DIR, 'test_wtk_co_2013.h5'),
-]
-nc_files = [os.path.join(TEST_DATA_DIR, 'test_era5_co_2012.nc')]
 
 features = ['windspeed_100m', 'winddirection_100m']
-
-init_logger('sup3r', log_level='DEBUG')
 
 
 def test_get_full_domain_nc():
     """Test data handling without target, shape, or raster_file input"""
 
-    extracter = ExtracterNC(file_paths=nc_files)
-    nc_res = xr.open_mfdataset(nc_files)
+    extracter = ExtracterNC(file_paths=pytest.FP_ERA)
+    nc_res = xr.open_mfdataset(pytest.FP_ERA)
     shape = (len(nc_res[Dimension.LATITUDE]), len(nc_res[Dimension.LONGITUDE]))
     target = (
         nc_res[Dimension.LATITUDE].values.min(),
@@ -55,8 +44,8 @@ def test_get_full_domain_nc():
 
 def test_get_target_nc():
     """Test data handling without target or raster_file input"""
-    extracter = ExtracterNC(file_paths=nc_files, shape=(4, 4))
-    nc_res = xr.open_mfdataset(nc_files)
+    extracter = ExtracterNC(file_paths=pytest.FP_ERA, shape=(4, 4))
+    nc_res = xr.open_mfdataset(pytest.FP_ERA)
     target = (
         nc_res[Dimension.LATITUDE].values.min(),
         nc_res[Dimension.LONGITUDE].values.min(),
@@ -69,13 +58,13 @@ def test_get_target_nc():
     ['input_files', 'Extracter', 'shape', 'target'],
     [
         (
-            h5_files,
+            pytest.FP_WTK,
             ExtracterH5,
             (20, 20),
             (39.01, -105.15),
         ),
         (
-            nc_files,
+            pytest.FP_ERA,
             ExtracterNC,
             (10, 10),
             (37.25, -107),
@@ -85,7 +74,7 @@ def test_get_target_nc():
 def test_data_extraction(input_files, Extracter, shape, target):
     """Test extraction of raw features"""
     extracter = Extracter(
-        file_paths=input_files[0],
+        file_paths=input_files,
         target=target,
         shape=shape,
     )
@@ -100,9 +89,9 @@ def test_data_extraction(input_files, Extracter, shape, target):
 def test_topography_h5():
     """Test that topography is extracted correctly"""
 
-    with Resource(h5_files[0]) as res:
+    with Resource(pytest.FP_WTK) as res:
         extracter = ExtracterH5(
-            file_paths=h5_files[0],
+            file_paths=pytest.FP_WTK,
             target=(39.01, -105.15),
             shape=(20, 20),
         )
@@ -110,7 +99,3 @@ def test_topography_h5():
         topo = res.get_meta_arr('elevation')[(ri.flatten(),)]
         topo = topo.reshape((ri.shape[0], ri.shape[1]))
     assert np.allclose(topo, extracter['topography'])
-
-
-if __name__ == '__main__':
-    execute_pytest(__file__)

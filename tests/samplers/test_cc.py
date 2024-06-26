@@ -6,28 +6,25 @@ import tempfile
 
 import matplotlib.pyplot as plt
 import numpy as np
-from rex import Outputs, init_logger
+import pytest
+from rex import Outputs
 
-from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing import (
     DataHandlerH5SolarCC,
     DualSamplerCC,
 )
 from sup3r.preprocessing.samplers.utilities import nsrdb_sub_daily_sampler
-from sup3r.utilities.pytest.helpers import DualSamplerTesterCC, execute_pytest
+from sup3r.utilities.pytest.helpers import DualSamplerTesterCC
 from sup3r.utilities.utilities import pd_date_range
 
 SHAPE = (20, 20)
 
-INPUT_FILE_S = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')
 FEATURES_S = ['clearsky_ratio', 'ghi', 'clearsky_ghi']
 TARGET_S = (39.01, -105.13)
 
-INPUT_FILE_W = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 FEATURES_W = ['U_100m', 'V_100m', 'temperature_100m']
 TARGET_W = (39.01, -105.15)
 
-INPUT_FILE_SURF = os.path.join(TEST_DATA_DIR, 'test_wtk_surface_vars.h5')
 TARGET_SURF = (39.1, -105.4)
 
 dh_kwargs = {
@@ -38,23 +35,18 @@ dh_kwargs = {
 }
 sample_shape = (20, 20, 24)
 
-np.random.seed(42)
-
-
-init_logger('sup3r', log_level='DEBUG')
-
 
 def test_solar_handler_sampling(plot=False):
     """Test sampling from solar cc handler for spatiotemporal models."""
 
     handler = DataHandlerH5SolarCC(
-        INPUT_FILE_S, features=['clearsky_ratio'], **dh_kwargs
+        pytest.FP_NSRDB, features=['clearsky_ratio'], **dh_kwargs
     )
     assert ['clearsky_ghi', 'ghi'] not in handler
     assert 'clearsky_ratio' in handler
 
     handler = DataHandlerH5SolarCC(
-        INPUT_FILE_S, features=FEATURES_S, **dh_kwargs
+        pytest.FP_NSRDB, features=FEATURES_S, **dh_kwargs
     )
     assert ['clearsky_ghi', 'ghi', 'clearsky_ratio'] in handler
 
@@ -137,7 +129,7 @@ def test_solar_handler_sampling_spatial_only():
     (sample_shape[-1] = 1)"""
 
     handler = DataHandlerH5SolarCC(
-        INPUT_FILE_S, features=['clearsky_ratio'], **dh_kwargs
+        pytest.FP_NSRDB, features=['clearsky_ratio'], **dh_kwargs
     )
 
     sampler = DualSamplerTesterCC(
@@ -179,7 +171,7 @@ def test_solar_handler_w_wind():
 
     with tempfile.TemporaryDirectory() as td:
         res_fp = os.path.join(td, 'solar_w_wind.h5')
-        shutil.copy(INPUT_FILE_S, res_fp)
+        shutil.copy(pytest.FP_NSRDB, res_fp)
 
         with Outputs(res_fp, mode='a') as res:
             res.write_dataset(
@@ -219,7 +211,7 @@ def test_solar_handler_w_wind():
 def test_nsrdb_sub_daily_sampler():
     """Test the nsrdb data sampler which does centered sampling on daylight
     hours."""
-    handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S, **dh_kwargs)
+    handler = DataHandlerH5SolarCC(pytest.FP_NSRDB, FEATURES_S, **dh_kwargs)
     ti = pd_date_range(
         '20220101',
         '20230101',
@@ -255,7 +247,3 @@ def test_nsrdb_sub_daily_sampler():
         assert np.isnan(handler.hourly['clearsky_ratio'][0, 0, tslice])[
             -3:
         ].all()
-
-
-if __name__ == '__main__':
-    execute_pytest(__file__)

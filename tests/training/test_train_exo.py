@@ -6,24 +6,17 @@ import time
 
 import numpy as np
 import pytest
-from rex import init_logger
 
-from sup3r import CONFIG_DIR, TEST_DATA_DIR
+from sup3r import CONFIG_DIR
 from sup3r.models import Sup3rGan
 from sup3r.preprocessing import (
     BatchHandler,
     DataHandlerH5,
 )
-from sup3r.utilities.pytest.helpers import execute_pytest
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 SHAPE = (20, 20)
-INPUT_FILE_W = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 FEATURES_W = ['temperature_100m', 'U_100m', 'V_100m', 'topography']
 TARGET_W = (39.01, -105.15)
-
-init_logger('sup3r', log_level='DEBUG')
 
 
 @pytest.mark.parametrize(
@@ -40,22 +33,16 @@ def test_wind_hi_res_topo(CustomLayer, features, lr_only_features, mode):
     """Test a special wind model for non cc with the custom Sup3rAdder or
     Sup3rConcat layer that adds/concatenates hi-res topography in the middle of
     the network."""
+    kwargs = {
+        'file_paths': pytest.FP_WTK,
+        'features': features,
+        'target': TARGET_W,
+        'shape': SHAPE,
+    }
 
-    train_handler = DataHandlerH5(
-        INPUT_FILE_W,
-        features=features,
-        target=TARGET_W,
-        shape=SHAPE,
-        time_slice=slice(None, 3000, 10),
-    )
+    train_handler = DataHandlerH5(**kwargs, time_slice=slice(None, 3000, 10))
 
-    val_handler = DataHandlerH5(
-        INPUT_FILE_W,
-        features=features,
-        target=TARGET_W,
-        shape=SHAPE,
-        time_slice=slice(3000, None, 10),
-    )
+    val_handler = DataHandlerH5(**kwargs, time_slice=slice(3000, None, 10))
 
     batcher = BatchHandler(
         [train_handler],
@@ -182,7 +169,3 @@ def test_wind_hi_res_topo(CustomLayer, features, lr_only_features, mode):
     assert y.shape[3] == len(features) - len(lr_only_features) - 1
 
     print(f'Elapsed: {time.time() - start}')
-
-
-if __name__ == '__main__':
-    execute_pytest(__file__)

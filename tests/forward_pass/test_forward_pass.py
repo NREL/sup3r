@@ -9,19 +9,17 @@ import numpy as np
 import pytest
 import tensorflow as tf
 import xarray as xr
-from rex import ResourceX, init_logger
+from rex import ResourceX
 
-from sup3r import CONFIG_DIR, TEST_DATA_DIR, __version__
+from sup3r import CONFIG_DIR, __version__
 from sup3r.models import Sup3rGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.preprocessing import DataHandlerNC
 from sup3r.preprocessing.utilities import Dimension
 from sup3r.utilities.pytest.helpers import (
-    execute_pytest,
     make_fake_nc_file,
 )
 
-FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 FEATURES = ['U_100m', 'V_100m']
 target = (19.3, -123.5)
 shape = (8, 8)
@@ -29,9 +27,6 @@ time_slice = slice(None, None, 1)
 fwp_chunk_shape = (4, 4, 150)
 s_enhance = 3
 t_enhance = 4
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-
-init_logger('sup3r', log_level='DEBUG')
 
 
 @pytest.fixture(scope='module')
@@ -52,12 +47,6 @@ def test_fwp_nc_cc():
     Sup3rGan.seed()
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
 
-    input_files = [
-        os.path.join(TEST_DATA_DIR, 'ua_test.nc'),
-        os.path.join(TEST_DATA_DIR, 'va_test.nc'),
-        os.path.join(TEST_DATA_DIR, 'orog_test.nc'),
-        os.path.join(TEST_DATA_DIR, 'zg_test.nc'),
-    ]
     features = ['U_100m', 'V_100m']
     target = (13.67, 125.0)
     _ = model.generate(np.ones((4, 10, 10, 6, len(features))))
@@ -72,7 +61,7 @@ def test_fwp_nc_cc():
         out_files = os.path.join(td, 'out_{file_id}.nc')
         # 1st forward pass
         strat = ForwardPassStrategy(
-            input_files,
+            pytest.FPS_GCM,
             model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=1,
@@ -740,7 +729,3 @@ def test_slicing_pad(input_files):
 
             assert chunk.input_data.shape == padded_truth.shape
             assert np.allclose(chunk.input_data, padded_truth)
-
-
-if __name__ == '__main__':
-    execute_pytest(__file__)

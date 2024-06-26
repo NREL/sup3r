@@ -59,6 +59,7 @@ doc = [
 ]
 test = [
   "pytest>=5.2",
+  "pytest-env"
 ]
 
 [project.urls]
@@ -224,10 +225,10 @@ max-complexity = 12
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = [
   "F401", # unused-import
-  ]
-#"docs/source/conf.py" = [
-#  "E402", # unused-import
-#  ]
+]
+"docs/source/conf.py" = [
+  "E402", # unused-import
+]
 
 [tool.ruff.lint.pylint]
 max-args = 5 # (PLR0913) Maximum number of arguments for function / method
@@ -301,3 +302,7 @@ twine = ">=5.0"
 ruff = ">=0.4"
 ipython = ">=8.0"
 pytest-xdist = ">=3.0"
+
+[tool.pytest_env]
+CUDA_VISIBLE_DEVICES=-1
+TF_ENABLE_ONEDNN_OPTS=0

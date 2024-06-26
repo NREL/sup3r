@@ -7,29 +7,21 @@ import tempfile
 import numpy as np
 import pytest
 import tensorflow as tf
-from rex import init_logger
 from tensorflow.python.framework.errors_impl import InvalidArgumentError
 
-from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.models import Sup3rGan
 from sup3r.preprocessing import BatchHandler, DataHandlerH5
 
 tf.config.experimental_run_functions_eagerly(True)
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)
 FEATURES = ['U_100m', 'V_100m']
-
-np.random.seed(42)
-
-init_logger('sup3r', log_level='DEBUG')
 
 
 def _get_handlers():
     """Initialize training and validation handlers used across tests."""
 
     kwargs = {
-        'file_paths': FP_WTK,
+        'file_paths': pytest.FP_WTK,
         'features': FEATURES,
         'target': TARGET_COORD,
         'shape': (20, 20),
@@ -48,31 +40,15 @@ def _get_handlers():
 
 
 @pytest.mark.parametrize(
-    ['gen_config', 'disc_config', 's_enhance', 't_enhance', 'sample_shape'],
+    ['fp_gen', 'fp_disc', 's_enhance', 't_enhance', 'sample_shape'],
     [
-        (
-            'spatiotemporal/gen_3x_4x_2f.json',
-            'spatiotemporal/disc.json',
-            3,
-            4,
-            (12, 12, 16),
-        ),
-        ('spatial/gen_2x_2f.json', 'spatial/disc.json', 2, 1, (10, 10, 1)),
+        (pytest.ST_FP_GEN, pytest.ST_FP_DISC, 3, 4, (12, 12, 16)),
+        (pytest.S_FP_GEN, pytest.S_FP_DISC, 2, 1, (10, 10, 1)),
     ],
 )
-def test_train(
-    gen_config,
-    disc_config,
-    s_enhance,
-    t_enhance,
-    sample_shape,
-    n_epoch=3,
-):
+def test_train(fp_gen, fp_disc, s_enhance, t_enhance, sample_shape, n_epoch=3):
     """Test basic model training with only gen content loss. Tests both
     spatiotemporal and spatial models."""
-
-    fp_gen = os.path.join(CONFIG_DIR, gen_config)
-    fp_disc = os.path.join(CONFIG_DIR, disc_config)
 
     lr = 1e-4
     Sup3rGan.seed()
@@ -188,12 +164,12 @@ def test_train_st_weight_update(n_epoch=2):
     """Test basic spatiotemporal model training with discriminators and
     adversarial loss updating."""
 
-    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
-    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
-
     Sup3rGan.seed()
     model = Sup3rGan(
-        fp_gen, fp_disc, learning_rate=1e-4, learning_rate_disc=3e-4
+        pytest.ST_FP_GEN,
+        pytest.ST_FP_DISC,
+        learning_rate=1e-4,
+        learning_rate_disc=4e-4,
     )
 
     train_handler, val_handler = _get_handlers()
@@ -253,12 +229,12 @@ def test_train_st_weight_update(n_epoch=2):
 def test_optimizer_update():
     """Test updating optimizer method."""
 
-    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
-    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
-
     Sup3rGan.seed()
     model = Sup3rGan(
-        fp_gen, fp_disc, learning_rate=1e-4, learning_rate_disc=4e-4
+        pytest.ST_FP_GEN,
+        pytest.ST_FP_DISC,
+        learning_rate=1e-4,
+        learning_rate_disc=4e-4,
     )
 
     assert model.optimizer.learning_rate == 1e-4
@@ -283,12 +259,12 @@ def test_optimizer_update():
 def test_input_res_check():
     """Make sure error is raised for invalid input resolution"""
 
-    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
-    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
-
     Sup3rGan.seed()
     model = Sup3rGan(
-        fp_gen, fp_disc, learning_rate=1e-4, learning_rate_disc=4e-4
+        pytest.ST_FP_GEN,
+        pytest.ST_FP_DISC,
+        learning_rate=1e-4,
+        learning_rate_disc=4e-4,
     )
 
     with pytest.raises(RuntimeError):
@@ -300,12 +276,12 @@ def test_input_res_check():
 def test_enhancement_check():
     """Make sure error is raised for invalid enhancement factor inputs"""
 
-    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
-    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
-
     Sup3rGan.seed()
     model = Sup3rGan(
-        fp_gen, fp_disc, learning_rate=1e-4, learning_rate_disc=4e-4
+        pytest.ST_FP_GEN,
+        pytest.ST_FP_DISC,
+        learning_rate=1e-4,
+        learning_rate_disc=4e-4,
     )
 
     with pytest.raises(RuntimeError):

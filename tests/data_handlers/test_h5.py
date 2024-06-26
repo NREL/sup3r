@@ -7,7 +7,6 @@ import pytest
 
 from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing import BatchHandler, DataHandlerH5, Sampler
-from sup3r.utilities.pytest.helpers import execute_pytest
 
 sample_shape = (10, 10, 12)
 t_enhance = 2
@@ -64,7 +63,3 @@ def test_solar_spatial_h5(nan_method_kwargs):
         assert batch.high_res.shape == (8, 10, 10, 1)
 
     batch_handler.stop()
-
-
-if __name__ == '__main__':
-    execute_pytest(__file__)

@@ -1,13 +1,9 @@
 """pytests for H5 climate change data batch handlers"""
 
-import os
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
-from rex import init_logger
 
-from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing import (
     BatchHandlerCC,
     DataHandlerH5SolarCC,
@@ -15,20 +11,13 @@ from sup3r.preprocessing import (
 )
 from sup3r.utilities.pytest.helpers import (
     BatchHandlerTesterCC,
-    execute_pytest,
 )
 
 SHAPE = (20, 20)
-
-INPUT_FILE_S = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')
 FEATURES_S = ['clearsky_ratio', 'ghi', 'clearsky_ghi']
 TARGET_S = (39.01, -105.13)
-
-INPUT_FILE_W = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 FEATURES_W = ['U_100m', 'V_100m', 'temperature_100m']
 TARGET_W = (39.01, -105.15)
-
-INPUT_FILE_SURF = os.path.join(TEST_DATA_DIR, 'test_wtk_surface_vars.h5')
 TARGET_SURF = (39.1, -105.4)
 
 dh_kwargs = {
@@ -37,10 +26,6 @@ dh_kwargs = {
     'time_slice': slice(None, None, 2),
     'time_roll': -7,
 }
-
-np.random.seed(42)
-
-init_logger('sup3r', log_level='DEBUG')
 
 
 @pytest.mark.parametrize(
@@ -56,9 +41,10 @@ def test_solar_batching(hr_tsteps, t_enhance, features, plot=False):
     """Test batching of nsrdb data with and without down sampling to day
     hours"""
     handler = DataHandlerH5SolarCC(
-        INPUT_FILE_S, features=features,
+        pytest.FP_NSRDB,
+        features=features,
         nan_method_kwargs={'method': 'nearest', 'dim': 'time'},
-        **dh_kwargs
+        **dh_kwargs,
     )
     batcher = BatchHandlerTesterCC(
         [handler],
@@ -101,7 +87,9 @@ def test_solar_batching(hr_tsteps, t_enhance, features, plot=False):
     batcher.stop()
 
     if plot:
-        handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S, **dh_kwargs)
+        handler = DataHandlerH5SolarCC(
+            pytest.FP_NSRDB, FEATURES_S, **dh_kwargs
+        )
         batcher = BatchHandlerCC(
             [handler],
             [],
@@ -160,7 +148,7 @@ def test_solar_batching(hr_tsteps, t_enhance, features, plot=False):
 
 def test_solar_batching_spatial(plot=False):
     """Test batching of nsrdb data with spatial only enhancement"""
-    handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S, **dh_kwargs)
+    handler = DataHandlerH5SolarCC(pytest.FP_NSRDB, FEATURES_S, **dh_kwargs)
 
     batcher = BatchHandlerTesterCC(
         [handler],
@@ -213,7 +201,7 @@ def test_solar_batching_spatial(plot=False):
 def test_solar_batch_nan_stats():
     """Test that the batch handler calculates the correct statistics even with
     NaN data present"""
-    handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S, **dh_kwargs)
+    handler = DataHandlerH5SolarCC(pytest.FP_NSRDB, FEATURES_S, **dh_kwargs)
 
     true_csr_mean = np.nanmean(handler.data.hourly['clearsky_ratio', ...])
     true_csr_stdev = np.nanstd(handler.data.hourly['clearsky_ratio', ...])
@@ -247,7 +235,7 @@ def test_solar_batch_nan_stats():
 
 def test_solar_multi_day_coarse_data():
     """Test a multi day sample with only 9 hours of high res data output"""
-    handler = DataHandlerH5SolarCC(INPUT_FILE_S, FEATURES_S, **dh_kwargs)
+    handler = DataHandlerH5SolarCC(pytest.FP_NSRDB, FEATURES_S, **dh_kwargs)
 
     batcher = BatchHandlerTesterCC(
         train_containers=[handler],
@@ -272,7 +260,7 @@ def test_solar_multi_day_coarse_data():
     # run another test with u/v on low res side but not high res
     features = ['clearsky_ratio', 'u', 'v', 'ghi', 'clearsky_ghi']
     feature_sets = {'lr_only_features': ['u', 'v', 'clearsky_ghi', 'ghi']}
-    handler = DataHandlerH5SolarCC(INPUT_FILE_S, features, **dh_kwargs)
+    handler = DataHandlerH5SolarCC(pytest.FP_NSRDB, features, **dh_kwargs)
 
     batcher = BatchHandlerTesterCC(
         train_containers=[handler],
@@ -283,7 +271,7 @@ def test_solar_multi_day_coarse_data():
         t_enhance=3,
         sample_shape=(20, 20, 9),
         feature_sets=feature_sets,
-        mode='eager'
+        mode='eager',
     )
 
     for batch in batcher:
@@ -301,7 +289,7 @@ def test_wind_batching():
     dh_kwargs_new = dh_kwargs.copy()
     dh_kwargs_new['target'] = TARGET_W
     dh_kwargs_new['time_slice'] = slice(None)
-    handler = DataHandlerH5WindCC(INPUT_FILE_W, FEATURES_W, **dh_kwargs_new)
+    handler = DataHandlerH5WindCC(pytest.FP_WTK, FEATURES_W, **dh_kwargs_new)
 
     batcher = BatchHandlerTesterCC(
         [handler],
@@ -334,7 +322,7 @@ def test_wind_batching_spatial(plot=False):
     dh_kwargs_new = dh_kwargs.copy()
     dh_kwargs_new['target'] = TARGET_W
     dh_kwargs_new['time_slice'] = slice(None)
-    handler = DataHandlerH5WindCC(INPUT_FILE_W, FEATURES_W, **dh_kwargs_new)
+    handler = DataHandlerH5WindCC(pytest.FP_WTK, FEATURES_W, **dh_kwargs_new)
 
     batcher = BatchHandlerTesterCC(
         [handler],
@@ -344,7 +332,7 @@ def test_wind_batching_spatial(plot=False):
         s_enhance=5,
         t_enhance=1,
         sample_shape=(20, 20),
-        mode='eager'
+        mode='eager',
     )
 
     for batch in batcher:
@@ -399,7 +387,7 @@ def test_surf_min_max_vars():
     dh_kwargs_new['target'] = TARGET_SURF
     dh_kwargs_new['time_slice'] = slice(None, None, 1)
     handler = DataHandlerH5WindCC(
-        INPUT_FILE_SURF, surf_features, **dh_kwargs_new
+        pytest.FP_WTK_SURF, surf_features, **dh_kwargs_new
     )
 
     batcher = BatchHandlerTesterCC(
@@ -411,7 +399,7 @@ def test_surf_min_max_vars():
         t_enhance=24,
         sample_shape=(20, 20, 72),
         feature_sets={'lr_only_features': ['*_min_*', '*_max_*']},
-        mode='eager'
+        mode='eager',
     )
 
     assert (
@@ -443,7 +431,6 @@ def test_surf_min_max_vars():
     )
 
     for _, batch in enumerate(batcher):
-
         assert batch.high_res.shape[3] == 72
         assert batch.low_res.shape[3] == 3
 
@@ -458,7 +445,3 @@ def test_surf_min_max_vars():
         assert (batch.low_res[..., 1] > batch.low_res[..., 4]).numpy().all()
         assert (batch.low_res[..., 1] < batch.low_res[..., 5]).numpy().all()
     batcher.stop()
-
-
-if __name__ == '__main__':
-    execute_pytest(__file__)

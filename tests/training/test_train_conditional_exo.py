@@ -4,11 +4,9 @@ inputs."""
 import os
 import tempfile
 
-import numpy as np
 import pytest
-from rex import init_logger
 
-from sup3r import CONFIG_DIR, TEST_DATA_DIR
+from sup3r import CONFIG_DIR
 from sup3r.models import Sup3rCondMom
 from sup3r.preprocessing import (
     BatchHandlerMom1,
@@ -19,17 +17,9 @@ from sup3r.preprocessing import (
     BatchHandlerMom2SF,
     DataHandlerH5,
 )
-from sup3r.utilities.pytest.helpers import execute_pytest
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 SHAPE = (20, 20)
-FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)
-
-init_logger('sup3r', log_level='DEBUG')
-
-np.random.seed(42)
 
 
 def make_s_gen_model(custom_layer):
@@ -105,7 +95,7 @@ def test_wind_non_cc_hi_res_st_topo_mom1(
     the network. Test for direct first moment or subfilter velocity."""
 
     handler = DataHandlerH5(
-        FP_WTK,
+        pytest.FP_WTK,
         ['U_100m', 'V_100m', 'topography'],
         target=TARGET_COORD,
         shape=SHAPE,
@@ -159,7 +149,7 @@ def test_wind_non_cc_hi_res_st_topo_mom2(
     Test for separate or learning coupled with first moment."""
 
     handler = DataHandlerH5(
-        FP_WTK,
+        pytest.FP_WTK,
         ['U_100m', 'V_100m', 'topography'],
         target=TARGET_COORD,
         shape=SHAPE,
@@ -192,7 +182,3 @@ def test_wind_non_cc_hi_res_st_topo_mom2(
             checkpoint_int=None,
             out_dir=os.path.join(td, 'test_{epoch}'),
         )
-
-
-if __name__ == '__main__':
-    execute_pytest(__file__)

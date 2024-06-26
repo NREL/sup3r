@@ -4,7 +4,7 @@ import pytest
 
 from sup3r.preprocessing import DualSampler, Sampler
 from sup3r.preprocessing.base import Sup3rDataset
-from sup3r.utilities.pytest.helpers import DummyData, execute_pytest
+from sup3r.utilities.pytest.helpers import DummyData
 
 
 @pytest.mark.parametrize(
@@ -29,7 +29,7 @@ def test_feature_errors(features, lr_only_features, hr_exo_features):
         },
     )
 
-    with pytest.raises(Exception):
+    with pytest.raises(AssertionError):
         _ = sampler.lr_features
         _ = sampler.hr_out_features
         _ = sampler.hr_exo_features
@@ -84,7 +84,3 @@ def test_mixed_lr_hr_features(lr_features, hr_features, hr_exo_features):
         _ = pair.lr_features
         _ = pair.hr_out_features
         _ = pair.hr_exo_features
-
-
-if __name__ == '__main__':
-    execute_pytest(__file__)

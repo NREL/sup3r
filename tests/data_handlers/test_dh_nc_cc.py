@@ -6,7 +6,7 @@ import tempfile
 import numpy as np
 import pytest
 import xarray as xr
-from rex import Resource, init_logger
+from rex import Resource
 from scipy.spatial import KDTree
 
 from sup3r import TEST_DATA_DIR
@@ -17,18 +17,14 @@ from sup3r.preprocessing import (
 )
 from sup3r.preprocessing.derivers.methods import UWindPowerLaw, VWindPowerLaw
 from sup3r.preprocessing.utilities import Dimension
-from sup3r.utilities.pytest.helpers import execute_pytest
-
-init_logger('sup3r', log_level='DEBUG')
 
 
 def test_get_just_coords_nc():
     """Test data handling without features, target, shape, or raster_file
     input"""
 
-    input_files = [os.path.join(TEST_DATA_DIR, 'uas_test.nc')]
-    handler = DataHandlerNCforCC(file_paths=input_files, features=[])
-    nc_res = LoaderNC(input_files)
+    handler = DataHandlerNCforCC(file_paths=pytest.FP_UAS, features=[])
+    nc_res = LoaderNC(pytest.FP_UAS)
     shape = (len(nc_res[Dimension.LATITUDE]), len(nc_res[Dimension.LONGITUDE]))
     target = (
         nc_res[Dimension.LATITUDE].min(),
@@ -52,10 +48,9 @@ def test_get_just_coords_nc():
 )
 def test_data_handling_nc_cc_power_law(features, feat_class, src_name):
     """Make sure the power law extrapolation of wind operates correctly"""
-    input_files = [os.path.join(TEST_DATA_DIR, 'uas_test.nc')]
 
     with tempfile.TemporaryDirectory() as td, xr.open_mfdataset(
-        input_files
+        pytest.FP_UAS
     ) as fh:
         tmp_file = os.path.join(td, f'{src_name}.nc')
         if src_name not in fh:
@@ -76,14 +71,7 @@ def test_data_handling_nc_cc_power_law(features, feat_class, src_name):
 def test_data_handling_nc_cc():
     """Make sure the netcdf cc data handler operates correctly"""
 
-    input_files = [
-        os.path.join(TEST_DATA_DIR, 'ua_test.nc'),
-        os.path.join(TEST_DATA_DIR, 'va_test.nc'),
-        os.path.join(TEST_DATA_DIR, 'orog_test.nc'),
-        os.path.join(TEST_DATA_DIR, 'zg_test.nc'),
-    ]
-
-    with xr.open_mfdataset(input_files) as fh:
+    with xr.open_mfdataset(pytest.FPS_GCM) as fh:
         min_lat = np.min(fh.lat.values.astype(np.float32))
         min_lon = np.min(fh.lon.values.astype(np.float32))
         target = (min_lat, min_lon)
@@ -92,7 +80,7 @@ def test_data_handling_nc_cc():
         va = np.transpose(fh['va'][:, -1, ...].values, (1, 2, 0))
 
     handler = DataHandlerNCforCC(
-        input_files,
+        pytest.FPS_GCM,
         features=['U_100m', 'V_100m'],
         target=target,
         shape=(20, 20),
@@ -100,7 +88,7 @@ def test_data_handling_nc_cc():
     assert handler.data.shape == (20, 20, 20, 2)
 
     handler = DataHandlerNCforCC(
-        input_files,
+        pytest.FPS_GCM,
         features=[f'U_{int(plevel)}pa', f'V_{int(plevel)}pa'],
         target=target,
         shape=(20, 20),
@@ -163,7 +151,3 @@ def test_solar_cc(agg):
             _, inn = tree.query(test_coord, k=agg)
 
             assert np.allclose(cs_ghi_true[0:48, inn].mean(), cs_ghi[i, j])
-
-
-if __name__ == '__main__':
-    execute_pytest(__file__)

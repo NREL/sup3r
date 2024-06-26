@@ -3,13 +3,10 @@
 import calendar
 import os
 
-from rex import Resource, init_logger
+from rex import Resource
 
 from sup3r.bias.bias_calc_vortex import VortexMeanPrepper
-from sup3r.utilities.pytest.helpers import execute_pytest, make_fake_tif
-
-init_logger("sup3r", log_level="DEBUG")
-
+from sup3r.utilities.pytest.helpers import make_fake_tif
 
 in_heights = [10, 100, 120, 140]
 out_heights = [10, 40, 80, 100, 120, 160, 200]
@@ -39,7 +36,3 @@ def test_vortex_prepper(tmpdir_factory):
     with Resource(vortex_out_file) as res:
         for h in out_heights:
             assert f'windspeed_{h}m' in res
-
-
-if __name__ == "__main__":
-    execute_pytest(__file__)

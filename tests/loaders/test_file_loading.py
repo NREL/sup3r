@@ -5,27 +5,16 @@ from tempfile import TemporaryDirectory
 
 import numpy as np
 import pandas as pd
-from rex import init_logger
+import pytest
 
-from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing import Loader, LoaderH5, LoaderNC
 from sup3r.preprocessing.utilities import Dimension
 from sup3r.utilities.pytest.helpers import (
-    execute_pytest,
     make_fake_dset,
     make_fake_nc_file,
 )
 
-h5_files = [
-    os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5'),
-    os.path.join(TEST_DATA_DIR, 'test_wtk_co_2013.h5'),
-]
-nc_files = [os.path.join(TEST_DATA_DIR, 'test_era5_co_2012.nc')]
-cc_files = [os.path.join(TEST_DATA_DIR, 'uas_test.nc')]
-
 features = ['windspeed_100m', 'winddirection_100m']
-
-init_logger('sup3r', log_level='DEBUG')
 
 
 def test_time_independent_loading():
@@ -47,20 +36,14 @@ def test_time_independent_loading():
 
 def test_time_independent_loading_h5():
     """Make sure loaders work with time independent files."""
-    loader = LoaderH5(h5_files[0], features=['topography'])
+    loader = LoaderH5(pytest.FP_WTK, features=['topography'])
     assert len(loader['topography'].shape) == 1
 
 
 def test_dim_ordering():
     """Make sure standard reordering works with dimensions not in the standard
     list."""
-    input_files = [
-        os.path.join(TEST_DATA_DIR, 'ua_test.nc'),
-        os.path.join(TEST_DATA_DIR, 'va_test.nc'),
-        os.path.join(TEST_DATA_DIR, 'orog_test.nc'),
-        os.path.join(TEST_DATA_DIR, 'zg_test.nc'),
-    ]
-    loader = LoaderNC(input_files)
+    loader = LoaderNC(pytest.FPS_GCM)
     assert tuple(loader.dims) == (
         Dimension.SOUTH_NORTH,
         Dimension.WEST_EAST,
@@ -149,7 +132,7 @@ def test_level_inversion():
 def test_load_cc():
     """Test simple era5 file loading."""
     chunks = (5, 5, 5)
-    loader = LoaderNC(cc_files, chunks=chunks)
+    loader = LoaderNC(pytest.FP_UAS, chunks=chunks)
     assert all(
         loader[f].data.chunksize == chunks
         for f in loader.features
@@ -167,7 +150,7 @@ def test_load_era5():
     """Test simple era5 file loading. Make sure general loader matches the type
     specific loader"""
     chunks = (10, 10, 1000)
-    loader = LoaderNC(nc_files, chunks=chunks)
+    loader = LoaderNC(pytest.FP_ERA, chunks=chunks)
     assert all(
         loader[f].data.chunksize == chunks
         for f in loader.features
@@ -205,7 +188,7 @@ def test_load_h5():
     loader"""
 
     chunks = (200, 200)
-    loader = LoaderH5(h5_files[0], chunks=chunks)
+    loader = LoaderH5(pytest.FP_WTK, chunks=chunks)
     feats = [
         'pressure_100m',
         'temperature_100m',
@@ -218,7 +201,7 @@ def test_load_h5():
     assert loader.data.shape == (400, 8784, len(feats))
     assert sorted(loader.features) == sorted(feats)
     assert all(loader[f].data.chunksize == chunks for f in feats[:-1])
-    gen_loader = Loader(h5_files[0], chunks=chunks)
+    gen_loader = Loader(pytest.FP_WTK, chunks=chunks)
     assert np.array_equal(loader.as_array(), gen_loader.as_array())
 
 
@@ -263,7 +246,3 @@ def test_5d_load_nc():
         assert loader['u'].shape == (10, 10, 20, 3)
         assert loader[['u', 'topography']].shape == (10, 10, 20, 3, 2)
         assert loader.data.dtype == np.float32
-
-
-if __name__ == '__main__':
-    execute_pytest(__file__)

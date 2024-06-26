@@ -5,27 +5,23 @@ import shutil
 import tempfile
 
 import numpy as np
-from rex import Outputs, Resource, init_logger
+import pytest
+from rex import Outputs, Resource
 
-from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing import (
     DataHandlerH5SolarCC,
     DataHandlerH5WindCC,
 )
 from sup3r.preprocessing.utilities import lowered
-from sup3r.utilities.pytest.helpers import execute_pytest
 
 SHAPE = (20, 20)
 
-INPUT_FILE_S = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')
 FEATURES_S = ['clearsky_ratio', 'ghi', 'clearsky_ghi']
 TARGET_S = (39.01, -105.13)
 
-INPUT_FILE_W = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 FEATURES_W = ['U_100m', 'V_100m', 'temperature_100m']
 TARGET_W = (39.01, -105.15)
 
-INPUT_FILE_SURF = os.path.join(TEST_DATA_DIR, 'test_wtk_surface_vars.h5')
 TARGET_SURF = (39.1, -105.4)
 
 dh_kwargs = {
@@ -35,18 +31,13 @@ dh_kwargs = {
     'time_roll': -7,
 }
 
-np.random.seed(42)
-
-
-init_logger('sup3r', log_level='DEBUG')
-
 
 def test_daily_handler():
     """Make sure the daily handler is performing averages correctly."""
 
     dh_kwargs_new = dh_kwargs.copy()
     dh_kwargs_new['target'] = TARGET_W
-    handler = DataHandlerH5WindCC(INPUT_FILE_W, FEATURES_W, **dh_kwargs_new)
+    handler = DataHandlerH5WindCC(pytest.FP_WTK, FEATURES_W, **dh_kwargs_new)
     daily_og = handler.daily
     tstep = handler.time_slice.step
     daily = handler.hourly.coarsen(time=int(24 / tstep)).mean()
@@ -64,7 +55,7 @@ def test_solar_handler():
     with NaN values for nighttime."""
 
     handler = DataHandlerH5SolarCC(
-        INPUT_FILE_S,
+        pytest.FP_NSRDB,
         features=['clearsky_ratio'],
         target=TARGET_S,
         shape=SHAPE,
@@ -72,7 +63,7 @@ def test_solar_handler():
     assert 'clearsky_ratio' in handler
     assert ['clearsky_ghi', 'ghi'] not in handler
     handler = DataHandlerH5SolarCC(
-        INPUT_FILE_S, features=FEATURES_S, **dh_kwargs
+        pytest.FP_NSRDB, features=FEATURES_S, **dh_kwargs
     )
 
     assert handler.data.shape[2] % 24 == 0
@@ -90,7 +81,7 @@ def test_solar_handler_w_wind():
 
     with tempfile.TemporaryDirectory() as td:
         res_fp = os.path.join(td, 'solar_w_wind.h5')
-        shutil.copy(INPUT_FILE_S, res_fp)
+        shutil.copy(pytest.FP_NSRDB, res_fp)
 
         with Outputs(res_fp, mode='a') as res:
             res.write_dataset(
@@ -121,7 +112,7 @@ def test_solar_ancillary_vars():
         'ghi',
         'clearsky_ghi',
     ]
-    handler = DataHandlerH5SolarCC(INPUT_FILE_S, features, **dh_kwargs)
+    handler = DataHandlerH5SolarCC(pytest.FP_NSRDB, features, **dh_kwargs)
 
     assert np.allclose(np.min(handler.hourly['U', ...]), -6.1, atol=1)
     assert np.allclose(np.max(handler.hourly['U', ...]), 9.7, atol=1)
@@ -136,7 +127,7 @@ def test_solar_ancillary_vars():
         np.max(handler.hourly['air_temperature', ...]), 22.9, atol=1
     )
 
-    with Resource(INPUT_FILE_S) as res:
+    with Resource(pytest.FP_NSRDB) as res:
         ws_source = res['wind_speed']
 
     ws_true = np.roll(ws_source[::2, 0], -7, axis=0)
@@ -158,7 +149,7 @@ def test_wind_handler():
     """Test the wind climate change data handler object."""
     dh_kwargs_new = dh_kwargs.copy()
     dh_kwargs_new['target'] = TARGET_W
-    handler = DataHandlerH5WindCC(INPUT_FILE_W, FEATURES_W, **dh_kwargs_new)
+    handler = DataHandlerH5WindCC(pytest.FP_WTK, FEATURES_W, **dh_kwargs_new)
 
     tstep = handler.time_slice.step
     assert handler.data.hourly.shape[2] % (24 // tstep) == 0
@@ -192,7 +183,7 @@ def test_surf_min_max_vars():
     dh_kwargs_new = dh_kwargs.copy()
     dh_kwargs_new['target'] = TARGET_SURF
     handler = DataHandlerH5WindCC(
-        INPUT_FILE_SURF, surf_features, **dh_kwargs_new
+        pytest.FP_WTK_SURF, surf_features, **dh_kwargs_new
     )
 
     # all of the source hi-res hourly temperature data should be the same
@@ -200,7 +191,3 @@ def test_surf_min_max_vars():
     assert np.allclose(handler.hourly[..., 0], handler.hourly[..., 3])
     assert np.allclose(handler.hourly[..., 1], handler.hourly[..., 4])
     assert np.allclose(handler.hourly[..., 1], handler.hourly[..., 5])
-
-
-if __name__ == '__main__':
-    execute_pytest(__file__)

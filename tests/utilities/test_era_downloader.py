@@ -6,7 +6,7 @@ import numpy as np
 import xarray as xr
 
 from sup3r.utilities.era_downloader import EraDownloader
-from sup3r.utilities.pytest.helpers import execute_pytest, make_fake_dset
+from sup3r.utilities.pytest.helpers import make_fake_dset
 
 
 class EraDownloaderTester(EraDownloader):
@@ -100,7 +100,3 @@ def test_era_dl_year(tmpdir_factory):
         combined_yearly_file=yearly_file,
         max_workers=1,
     )
-
-
-if __name__ == '__main__':
-    execute_pytest(__file__)

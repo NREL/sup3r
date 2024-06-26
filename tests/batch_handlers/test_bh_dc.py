@@ -3,22 +3,16 @@
 import numpy as np
 import pytest
 import tensorflow as tf
-from rex import init_logger
 
 from sup3r.utilities.pytest.helpers import (
     BatchHandlerTesterDC,
     DummyData,
-    execute_pytest,
 )
 
 tf.data.experimental.enable_debug_mode()
 FEATURES = ['windspeed', 'winddirection']
 means = dict.fromkeys(FEATURES, 0)
 stds = dict.fromkeys(FEATURES, 1)
-
-init_logger('sup3r', log_level='DEBUG')
-
-np.random.seed(42)
 
 
 @pytest.mark.parametrize(
@@ -78,7 +72,3 @@ def test_counts(s_weights, t_weights):
         batcher._mean_record_normed(batcher.temporal_weights_record),
         atol=2 * t_normed.std(),
     )
-
-
-if __name__ == '__main__':
-    execute_pytest(__file__)

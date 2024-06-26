@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 def lin_bc(handler, bc_files, threshold=0.1):
-    """Bias correct the data in this DataHandler using linear bias
+    """Bias correct the data in this DataHandler in place using linear bias
     correction factors from files output by MonthlyLinearCorrection or
     LinearCorrection from sup3r.bias.bias_calc
 

@@ -6,7 +6,7 @@ import tempfile
 import numpy as np
 import pandas as pd
 import pytest
-from rex import Resource, init_logger
+from rex import Resource
 
 from sup3r import CONFIG_DIR
 from sup3r.models import Sup3rGan
@@ -33,10 +33,6 @@ TEMPORAL_SLICE = slice(None, None, 1)
 FWP_CHUNK_SHAPE = (8, 8, int(1e6))
 S_ENHANCE = 3
 T_ENHANCE = 4
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-
-
-init_logger('sup3r', log_level='DEBUG')
 
 
 @pytest.fixture(scope='module')

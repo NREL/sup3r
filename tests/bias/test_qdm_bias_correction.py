@@ -8,28 +8,21 @@ import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
-from rex import init_logger
 
-from sup3r import CONFIG_DIR, TEST_DATA_DIR
+from sup3r import TEST_DATA_DIR
 from sup3r.bias import QuantileDeltaMappingCorrection, local_qdm_bc
 from sup3r.bias.utilities import qdm_bc
 from sup3r.models import Sup3rGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.preprocessing import DataHandlerNC, DataHandlerNCforCC
-from sup3r.utilities.pytest.helpers import execute_pytest
 
-FP_NSRDB = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')
-FP_CC = os.path.join(TEST_DATA_DIR, 'rsds_test.nc')
-FP_CC_LAT_LON = DataHandlerNC(FP_CC, 'rsds').lat_lon
+CC_LAT_LON = DataHandlerNC(pytest.FP_RSDS, 'rsds').lat_lon
 
-with xr.open_dataset(FP_CC) as fh:
+with xr.open_dataset(pytest.FP_RSDS) as fh:
     MIN_LAT = np.min(fh.lat.values.astype(np.float32))
     MIN_LON = np.min(fh.lon.values.astype(np.float32)) - 360
     TARGET = (float(MIN_LAT), float(MIN_LON))
     SHAPE = (len(fh.lat.values), len(fh.lon.values))
-
-
-init_logger('sup3r', log_level='DEBUG')
 
 
 @pytest.fixture(scope='module')
@@ -39,7 +32,7 @@ def fp_fut_cc(tmpdir_factory):
     The same CC but with an offset (75.0) and negligible noise.
     """
     fn = tmpdir_factory.mktemp('data').join('test_mf.nc')
-    ds = xr.open_dataset(FP_CC)
+    ds = xr.open_dataset(pytest.FP_RSDS)
     # Adding an offset
     ds['rsds'] += 75.0
     # adding a noise
@@ -54,10 +47,10 @@ def fp_fut_cc(tmpdir_factory):
 def fp_fut_cc_notrend(tmpdir_factory):
     """Sample future CC dataset identical to historical CC
 
-    This is currently a copy of FP_CC, thus no trend on time.
+    This is currently a copy of pytest.FP_RSDS, thus no trend on time.
     """
     fn = tmpdir_factory.mktemp('data').join('test_mf_notrend.nc')
-    shutil.copyfile(FP_CC, fn)
+    shutil.copyfile(pytest.FP_RSDS, fn)
     # DataHandlerNCforCC requires a string
     fn = str(fn)
     return fn
@@ -165,8 +158,8 @@ def test_parallel(fp_fut_cc):
     """
 
     s = QuantileDeltaMappingCorrection(
-        FP_NSRDB,
-        FP_CC,
+        pytest.FP_NSRDB,
+        pytest.FP_RSDS,
         fp_fut_cc,
         'ghi',
         'rsds',
@@ -178,8 +171,8 @@ def test_parallel(fp_fut_cc):
     out_s = s.run(max_workers=1)
 
     p = QuantileDeltaMappingCorrection(
-        FP_NSRDB,
-        FP_CC,
+        pytest.FP_NSRDB,
+        pytest.FP_RSDS,
         fp_fut_cc,
         'ghi',
         'rsds',
@@ -201,8 +194,8 @@ def test_fill_nan(fp_fut_cc):
     """No NaN when running with fill_extend"""
 
     c = QuantileDeltaMappingCorrection(
-        FP_NSRDB,
-        FP_CC,
+        pytest.FP_NSRDB,
+        pytest.FP_RSDS,
         fp_fut_cc,
         'ghi',
         'rsds',
@@ -233,8 +226,8 @@ def test_save_file(tmp_path, fp_fut_cc):
     """
 
     calc = QuantileDeltaMappingCorrection(
-        FP_NSRDB,
-        FP_CC,
+        pytest.FP_NSRDB,
+        pytest.FP_RSDS,
         fp_fut_cc,
         'ghi',
         'rsds',
@@ -251,19 +244,19 @@ def test_save_file(tmp_path, fp_fut_cc):
     os.path.isfile(filename)
     # A valid HDF5, can open and read
     with h5py.File(filename, 'r') as f:
-        assert 'latitude' in f.keys()
+        assert 'latitude' in f
 
 
 def test_qdm_transform(dist_params):
     """
     WIP: Confirm it runs, but don't verify anything yet.
     """
-    data = np.ones((*FP_CC_LAT_LON.shape[:-1], 2))
+    data = np.ones((*CC_LAT_LON.shape[:-1], 2))
     time = pd.DatetimeIndex(
         (np.datetime64('2018-01-01'), np.datetime64('2018-01-02'))
     )
     corrected = local_qdm_bc(
-        data, FP_CC_LAT_LON, 'ghi', 'rsds', dist_params, time,
+        data, CC_LAT_LON, 'ghi', 'rsds', dist_params, time,
     )
 
     assert not np.isnan(corrected).all(), "Can't compare if only NaN"
@@ -288,8 +281,8 @@ def test_qdm_transform_notrend(tmp_path, dist_params):
     )
     # Run the standard pipeline with flag 'no_trend'
     corrected = local_qdm_bc(
-        np.ones((*FP_CC_LAT_LON.shape[:-1], 2)),
-        FP_CC_LAT_LON,
+        np.ones((*CC_LAT_LON.shape[:-1], 2)),
+        CC_LAT_LON,
         'ghi',
         'rsds',
         dist_params,
@@ -305,8 +298,8 @@ def test_qdm_transform_notrend(tmp_path, dist_params):
         f.flush()
 
     unbiased = local_qdm_bc(
-        np.ones((*FP_CC_LAT_LON.shape[:-1], 2)),
-        FP_CC_LAT_LON,
+        np.ones((*CC_LAT_LON.shape[:-1], 2)),
+        CC_LAT_LON,
         'ghi',
         'rsds',
         notrend_params,
@@ -460,19 +453,11 @@ def test_fwp_integration(tmp_path):
     - We should be able to run a forward pass with unbiased data.
     - The bias trend should be observed in the predicted output.
     """
-    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
-    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
     features = ['U_100m', 'V_100m']
     target = (13.67, 125.0)
     shape = (8, 8)
     temporal_slice = slice(None, None, 1)
     fwp_chunk_shape = (4, 4, 150)
-    input_files = [
-        os.path.join(TEST_DATA_DIR, 'ua_test.nc'),
-        os.path.join(TEST_DATA_DIR, 'va_test.nc'),
-        os.path.join(TEST_DATA_DIR, 'orog_test.nc'),
-        os.path.join(TEST_DATA_DIR, 'zg_test.nc'),
-    ]
 
     n_samples = 101
     quantiles = np.linspace(0, 1, n_samples)
@@ -493,14 +478,14 @@ def test_fwp_integration(tmp_path):
     params['bias_fut_V_100m_params'] = params['bias_V_100m_params']
 
     lat_lon = DataHandlerNCforCC(
-        input_files,
+        pytest.FPS_GCM,
         features=[],
         target=target,
         shape=shape,
     ).lat_lon
 
     Sup3rGan.seed()
-    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+    model = Sup3rGan(pytest.ST_FP_GEN, pytest.ST_FP_DISC, learning_rate=1e-4)
     _ = model.generate(np.ones((4, 10, 10, 6, len(features))))
     model.meta['lr_features'] = features
     model.meta['hr_out_features'] = features
@@ -543,7 +528,7 @@ def test_fwp_integration(tmp_path):
     }
 
     strat = ForwardPassStrategy(
-        input_files,
+        pytest.FPS_GCM,
         model_kwargs={'model_dir': out_dir},
         fwp_chunk_shape=fwp_chunk_shape,
         spatial_pad=0,
@@ -557,7 +542,7 @@ def test_fwp_integration(tmp_path):
         input_handler_name='DataHandlerNCforCC',
     )
     bc_strat = ForwardPassStrategy(
-        input_files,
+        pytest.FPS_GCM,
         model_kwargs={'model_dir': out_dir},
         fwp_chunk_shape=fwp_chunk_shape,
         spatial_pad=0,
@@ -608,7 +593,3 @@ def test_fwp_integration(tmp_path):
         delta = bc_data - data
         assert delta[..., 0].mean() < 0, 'Predicted U should trend <0'
         assert delta[..., 1].mean() > 0, 'Predicted V should trend >0'
-
-
-if __name__ == '__main__':
-    execute_pytest(__file__)

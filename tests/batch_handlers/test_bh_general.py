@@ -4,7 +4,7 @@ import copy
 
 import numpy as np
 import pytest
-from rex import init_logger
+import tensorflow as tf
 from scipy.ndimage import gaussian_filter
 
 from sup3r.preprocessing import (
@@ -14,11 +14,8 @@ from sup3r.preprocessing.base import Container
 from sup3r.utilities.pytest.helpers import (
     DummyData,
     SamplerTester,
-    execute_pytest,
 )
 from sup3r.utilities.utilities import spatial_coarsening, temporal_coarsening
-
-init_logger('sup3r', log_level='DEBUG')
 
 FEATURES = ['windspeed', 'winddirection']
 means = dict.fromkeys(FEATURES, 0)
@@ -41,41 +38,42 @@ class BatchHandlerTester(BatchHandler):
         self.sample_count += 1
         return super().get_samples()
 
+    def prep_batches(self):
+        """Override prep batches to run without parallel prefetching."""
+        data = tf.data.Dataset.from_generator(
+            self.generator, output_signature=self.output_signature
+        )
+        batches = data.batch(
+            self.batch_size, drop_remainder=True, deterministic=True
+        )
+        return batches.as_numpy_iterator()
+
 
 def test_eager_vs_lazy():
     """Make sure eager and lazy loading agree."""
 
     eager_data = DummyData((10, 10, 100), FEATURES)
     lazy_data = Container(copy.deepcopy(eager_data.data))
-    transform_kwargs = {'smoothing_ignore': [], 'smoothing': None}
+    kwargs = {
+        'val_containers': [],
+        'sample_shape': (8, 8, 4),
+        'batch_size': 4,
+        'n_batches': 4,
+        's_enhance': 2,
+        't_enhance': 1,
+        'queue_cap': 3,
+        'means': means,
+        'stds': stds,
+        'max_workers': 1,
+    }
     lazy_batcher = BatchHandlerTester(
-        train_containers=[lazy_data],
-        val_containers=[],
-        sample_shape=(8, 8, 4),
-        batch_size=4,
-        n_batches=4,
-        s_enhance=2,
-        t_enhance=1,
-        queue_cap=3,
-        means=means,
-        stds=stds,
-        max_workers=1,
-        transform_kwargs=transform_kwargs,
+        [lazy_data],
+        **kwargs,
         mode='lazy',
     )
     eager_batcher = BatchHandlerTester(
         train_containers=[eager_data],
-        val_containers=[],
-        sample_shape=(8, 8, 4),
-        batch_size=4,
-        n_batches=4,
-        s_enhance=2,
-        t_enhance=1,
-        queue_cap=3,
-        means=means,
-        stds=stds,
-        max_workers=1,
-        transform_kwargs=transform_kwargs,
+        **kwargs,
         mode='eager',
     )
 
@@ -97,7 +95,8 @@ def test_eager_vs_lazy():
         )
 
 
-def test_sample_counter():
+@pytest.mark.parametrize('n_epochs', [1, 2, 3, 4])
+def test_sample_counter(n_epochs):
     """Make sure samples are counted correctly, over multiple epochs."""
 
     dat = DummyData((10, 10, 100), FEATURES)
@@ -116,7 +115,6 @@ def test_sample_counter():
         mode='eager',
     )
 
-    n_epochs = 2
     for _ in range(n_epochs):
         for _ in batcher:
             pass
@@ -309,7 +307,3 @@ def test_smoothing():
         assert np.array_equal(batch.low_res, low_res)
         assert not np.array_equal(low_res, low_res_no_smooth)
     batcher.stop()
-
-
-if __name__ == '__main__':
-    execute_pytest(__file__)

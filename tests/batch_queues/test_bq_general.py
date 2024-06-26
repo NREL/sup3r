@@ -1,7 +1,6 @@
 """Smoke tests for batcher objects. Just make sure things run without errors"""
 
 import pytest
-from rex import init_logger
 
 from sup3r.preprocessing import (
     DualBatchQueue,
@@ -12,10 +11,7 @@ from sup3r.preprocessing.base import Sup3rDataset
 from sup3r.utilities.pytest.helpers import (
     DummyData,
     DummySampler,
-    execute_pytest,
 )
-
-init_logger('sup3r', log_level='DEBUG')
 
 FEATURES = ['windspeed', 'winddirection']
 means = dict.fromkeys(FEATURES, 0)
@@ -301,7 +297,3 @@ def test_bad_sample_shapes():
             stds=stds,
             max_workers=1,
         )
-
-
-if __name__ == '__main__':
-    execute_pytest(__file__)
