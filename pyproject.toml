@@ -67,7 +67,7 @@ documentation = "https://nrel.github.io/sup3r/"
 repository = "https://github.com/NREL/sup3r"
 
 [tool.ruff]
-# line-length = 79
+line-length = 79
 # indent-width = 4
 
 target-version = "py38"
