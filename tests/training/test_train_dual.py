@@ -15,11 +15,17 @@ from sup3r.preprocessing import (
     DataHandlerNC,
     DualBatchHandler,
     DualExtracter,
-    StatsCollection,
 )
+from sup3r.preprocessing.samplers import DualSampler
+from sup3r.utilities.pytest.helpers import BatchHandlerTesterFactory
 
 TARGET_COORD = (39.01, -105.15)
 FEATURES = ['U_100m', 'V_100m']
+
+
+DualBatchHandlerTester = BatchHandlerTesterFactory(
+    DualBatchHandler, DualSampler
+)
 
 
 @pytest.mark.parametrize(
@@ -33,8 +39,8 @@ FEATURES = ['U_100m', 'V_100m']
     ],
     [
         (pytest.ST_FP_GEN, pytest.ST_FP_DISC, 3, 4, (12, 12, 16), 'lazy'),
-        (pytest.S_FP_GEN, pytest.S_FP_DISC, 2, 1, (20, 20, 1), 'lazy'),
         (pytest.ST_FP_GEN, pytest.ST_FP_DISC, 3, 4, (12, 12, 16), 'eager'),
+        (pytest.S_FP_GEN, pytest.S_FP_DISC, 2, 1, (20, 20, 1), 'lazy'),
         (pytest.S_FP_GEN, pytest.S_FP_DISC, 2, 1, (20, 20, 1), 'eager'),
     ],
 )
@@ -44,7 +50,7 @@ def test_train(
     """Test model training with a dual data handler / batch handler. Tests both
     spatiotemporal and spatial models."""
 
-    lr = 1e-4
+    lr = 1e-5
     kwargs = {
         'features': FEATURES,
         'target': TARGET_COORD,
@@ -57,7 +63,7 @@ def test_train(
     )
     lr_handler = DataHandlerNC(
         pytest.FP_ERA,
-        **kwargs,
+        features=FEATURES,
         time_slice=slice(1000, None, 30),
     )
 
@@ -71,7 +77,7 @@ def test_train(
 
     lr_handler = DataHandlerNC(
         pytest.FP_ERA,
-        **kwargs,
+        features=FEATURES,
         time_slice=slice(1000, None, t_enhance),
     )
 
@@ -88,7 +94,7 @@ def test_train(
     )
     lr_val = DataHandlerNC(
         pytest.FP_ERA,
-        **kwargs,
+        features=FEATURES,
         time_slice=slice(None, 1000, t_enhance),
     )
 
@@ -98,37 +104,25 @@ def test_train(
         t_enhance=t_enhance,
     )
 
+    np.random.seed(42)
+    print(np.random.get_state())
+    batch_handler = DualBatchHandlerTester(
+        train_containers=[dual_extracter],
+        val_containers=[dual_val],
+        sample_shape=sample_shape,
+        batch_size=4,
+        s_enhance=s_enhance,
+        t_enhance=t_enhance,
+        n_batches=3,
+        mode=mode,
+    )
+
     Sup3rGan.seed()
     model = Sup3rGan(
-        fp_gen,
-        fp_disc,
-        learning_rate=lr,
-        loss='MeanAbsoluteError',
-        default_device='/cpu:0',
+        fp_gen, fp_disc, learning_rate=lr, loss='MeanAbsoluteError'
     )
 
     with tempfile.TemporaryDirectory() as td:
-        means = os.path.join(td, 'means.json')
-        stds = os.path.join(td, 'stds.json')
-        _ = StatsCollection(
-            [dual_extracter],
-            means=means,
-            stds=stds,
-        )
-
-        batch_handler = DualBatchHandler(
-            train_containers=[dual_extracter],
-            val_containers=[dual_val],
-            sample_shape=sample_shape,
-            batch_size=4,
-            s_enhance=s_enhance,
-            t_enhance=t_enhance,
-            n_batches=3,
-            means=means,
-            stds=stds,
-            mode=mode,
-        )
-
         model_kwargs = {
             'input_resolution': {'spatial': '30km', 'temporal': '60min'},
             'n_epoch': n_epoch,
