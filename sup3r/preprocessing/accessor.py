@@ -152,8 +152,8 @@ class Sup3rX:
         """Update `self._ds` with coords and data_vars replaced with those
         provided. These are both provided as dictionaries {name: dask.array}.
 
-        Parmeters
-        ---------
+        Parameters
+        ----------
         new_dset : Dict[str, dask.array]
             Can contain any existing or new variable / coordinate as long as
             they all have a consistent shape.

@@ -17,7 +17,6 @@ from sup3r.preprocessing import (
 )
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 SHAPE = (20, 20)
 INPUT_FILE_S = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')
 FEATURES_S = ['clearsky_ratio', 'ghi', 'clearsky_ghi']
