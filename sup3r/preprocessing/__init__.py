@@ -30,7 +30,7 @@ from .batch_handlers import (
     BatchHandlerMom2SF,
     DualBatchHandler,
 )
-from .batch_queues import Batch, DualBatchQueue, SingleBatchQueue
+from .batch_queues import DualBatchQueue, SingleBatchQueue
 from .cachers import Cacher
 from .collections import Collection, StatsCollection
 from .data_handlers import (

@@ -5,6 +5,7 @@ import tempfile
 
 import numpy as np
 import pytest
+import tensorflow as tf
 from rex import init_logger
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
@@ -18,6 +19,7 @@ from sup3r.utilities.pytest.helpers import (
     execute_pytest,
 )
 
+tf.config.experimental_run_functions_eagerly(True)
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
 TARGET_COORD = (39.01, -105.15)

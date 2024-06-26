@@ -2,6 +2,7 @@
 
 import numpy as np
 import pytest
+import tensorflow as tf
 from rex import init_logger
 
 from sup3r.utilities.pytest.helpers import (
@@ -10,12 +11,12 @@ from sup3r.utilities.pytest.helpers import (
     execute_pytest,
 )
 
-init_logger('sup3r', log_level='DEBUG')
-
+tf.data.experimental.enable_debug_mode()
 FEATURES = ['windspeed', 'winddirection']
 means = dict.fromkeys(FEATURES, 0)
 stds = dict.fromkeys(FEATURES, 1)
 
+init_logger('sup3r', log_level='DEBUG')
 
 np.random.seed(42)
 

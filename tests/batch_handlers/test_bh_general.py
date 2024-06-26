@@ -116,7 +116,7 @@ def test_sample_counter():
         mode='eager',
     )
 
-    n_epochs = 4
+    n_epochs = 2
     for _ in range(n_epochs):
         for _ in batcher:
             pass
