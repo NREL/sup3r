@@ -68,7 +68,7 @@ repository = "https://github.com/NREL/sup3r"
 
 [tool.ruff]
 line-length = 79
-# indent-width = 4
+indent-width = 4
 
 target-version = "py38"
 exclude = [
