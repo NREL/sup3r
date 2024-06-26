@@ -79,6 +79,15 @@ select = [
   "E", # pycodestyle
   "F", # Pyflakes
   "W", # Warning
+  "B", # flake8-bugbear
+  "C901", # too-complex 
+  "D", # pydocstyle
+  "ARG", # flake8-unused-arguments
+  "I002", # isort
+  "N", # pep8-naming
+  "C4", # flake8-comprehensions
+  "PL", # Pylint
+  "C", # convention
   ]
 
 ignore = [
@@ -98,9 +107,25 @@ ignore = [
   "D415", # ends-in-punctuation
   "E902", # io-error
   "PLR0913", # too-many-arguments
-  "UP009", # utf8-encoding-declaration
-  "UP032", # f-string
-  "UP038" # non-pep604-isinstance
+  "D107", # undocumented-public-init
+  "D200", # fits-on-one-line
+  "D204", # one-blank-line-after-class
+  "PLR2004", # magic-value-comparison
+  "PLR0904", # too-many-public-methods 
+  "PLR0917", # too-many-positional
+  "PLR6301", # no-self-use
+  "PLR6201", # literal-membership
+  "PLR0914", # too-many-locals
+  "PLR0915", # too-many-statements
+  "PLR6104", # non-augmented-assignment 
+  "N806", # non-lowercase-variable-in-function
+  "N803", # lowercase-argument
+  "N802", # invalid-function-name
+  "PLW2901", # redefined-loop-name
+  "PLW1514", # unspecified-encoding
+  "PLC0415", # import-outside-top-level
+  "C408", # unnecessary-collection-call 
+  "ARG005", # unused-lambda-argument
   ]
 
 [tool.ruff.lint.per-file-ignores]
