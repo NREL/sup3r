@@ -72,14 +72,8 @@ def test_eager_vs_lazy():
     lazy_batcher.stop()
 
     for eb, lb in zip(eager_batches, lazy_batches):
-        np.array_equal(eb.high_res, lb.high_res)
-        np.array_equal(eb.low_res, lb.low_res)
-
-    for idx in eager_batcher.containers[0].index_record:
-        assert np.array_equal(
-            eager_batcher.data[0][idx],
-            lazy_batcher.data[0][idx].compute(),
-        )
+        assert np.array_equal(eb.high_res, lb.high_res)
+        assert np.array_equal(eb.low_res, lb.low_res)
 
 
 @pytest.mark.parametrize('n_epochs', [1, 2, 3, 4])
