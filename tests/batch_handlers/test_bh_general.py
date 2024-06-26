@@ -4,7 +4,6 @@ import copy
 
 import numpy as np
 import pytest
-import tensorflow as tf
 from scipy.ndimage import gaussian_filter
 
 from sup3r.preprocessing import (
@@ -12,6 +11,7 @@ from sup3r.preprocessing import (
 )
 from sup3r.preprocessing.base import Container
 from sup3r.utilities.pytest.helpers import (
+    BatchHandlerTesterFactory,
     DummyData,
     SamplerTester,
 )
@@ -24,29 +24,7 @@ stds = dict.fromkeys(FEATURES, 1)
 np.random.seed(42)
 
 
-class BatchHandlerTester(BatchHandler):
-    """Batch handler with sample counter for testing."""
-
-    SAMPLER = SamplerTester
-
-    def __init__(self, *args, **kwargs):
-        self.sample_count = 0
-        super().__init__(*args, **kwargs)
-
-    def get_samples(self):
-        """Override get_samples to track sample count."""
-        self.sample_count += 1
-        return super().get_samples()
-
-    def prep_batches(self):
-        """Override prep batches to run without parallel prefetching."""
-        data = tf.data.Dataset.from_generator(
-            self.generator, output_signature=self.output_signature
-        )
-        batches = data.batch(
-            self.batch_size, drop_remainder=True, deterministic=True
-        )
-        return batches.as_numpy_iterator()
+BatchHandlerTester = BatchHandlerTesterFactory(BatchHandler, SamplerTester)
 
 
 def test_eager_vs_lazy():
@@ -66,6 +44,7 @@ def test_eager_vs_lazy():
         'stds': stds,
         'max_workers': 1,
     }
+
     lazy_batcher = BatchHandlerTester(
         [lazy_data],
         **kwargs,
@@ -85,8 +64,16 @@ def test_eager_vs_lazy():
         lazy_batcher.data[0].as_array().compute(),
     )
 
-    _ = list(eager_batcher)
+    np.random.seed(42)
+    eager_batches = list(eager_batcher)
     eager_batcher.stop()
+    np.random.seed(42)
+    lazy_batches = list(lazy_batcher)
+    lazy_batcher.stop()
+
+    for eb, lb in zip(eager_batches, lazy_batches):
+        np.array_equal(eb.high_res, lb.high_res)
+        np.array_equal(eb.low_res, lb.low_res)
 
     for idx in eager_batcher.containers[0].index_record:
         assert np.array_equal(

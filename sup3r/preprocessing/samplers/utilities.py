@@ -106,7 +106,7 @@ def weighted_time_sampler(data_shape, sample_shape, weights):
     Parameters
     ----------
     data_shape : tuple
-        (rows, cols, n_steps) Size of full spatialtemporal data grid available
+        (rows, cols, n_steps) Size of full spatiotemporal data grid available
         for sampling
     shape : tuple
         (time_steps) Size of time slice to sample from data
@@ -147,7 +147,7 @@ def uniform_time_sampler(data_shape, sample_shape, crop_slice=slice(None)):
     Parameters
     ----------
     data_shape : tuple
-        (rows, cols, n_steps) Size of full spatialtemporal data grid available
+        (rows, cols, n_steps) Size of full spatiotemporal data grid available
         for sampling
     sample_shape : int
         (time_steps) Size of time slice to sample from data grid
@@ -177,7 +177,7 @@ def daily_time_sampler(data, shape, time_index):
     shape : int
         (time_steps) Size of time slice to sample from data, must be an integer
         less than or equal to 24.
-    time_index : pd.Datetimeindex
+    time_index : pd.DatetimeIndex
         Time index that matches the data axis=2
 
     Returns

@@ -112,7 +112,6 @@ def test_train_st_dc(n_space_bins, n_time_bins, n_epoch=2):
         pytest.ST_FP_GEN,
         pytest.ST_FP_DISC,
         learning_rate=1e-4,
-        default_device='/cpu:0',
         loss='MmdMseLoss',
     )
 
@@ -135,7 +134,6 @@ def test_train_st_dc(n_space_bins, n_time_bins, n_epoch=2):
         s_enhance=3,
         t_enhance=4,
         n_batches=n_batches,
-        default_device='/cpu:0',
     )
 
     deviation = 1 / np.sqrt(batcher.n_batches * batcher.batch_size - 1)

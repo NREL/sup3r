@@ -5,6 +5,7 @@ import os
 import dask.array as da
 import numpy as np
 import pandas as pd
+import tensorflow as tf
 import xarray as xr
 
 from sup3r.postprocessing import OutputHandlerH5
@@ -201,6 +202,37 @@ class BatchHandlerTesterDC(BatchHandlerDC):
     def _mean_record_normed(record):
         mean = np.array(record).mean(axis=0)
         return mean / mean.sum()
+
+
+def BatchHandlerTesterFactory(BatchHandlerClass, SamplerClass):
+    """Batch handler factory with sample counter and deterministic sampling for
+    testing."""
+
+    class BatchHandlerTester(BatchHandlerClass):
+        """testing version of BatchHandler."""
+
+        SAMPLER = SamplerClass
+
+        def __init__(self, *args, **kwargs):
+            self.sample_count = 0
+            super().__init__(*args, **kwargs)
+
+        def get_samples(self):
+            """Override get_samples to track sample count."""
+            self.sample_count += 1
+            return super().get_samples()
+
+        def prep_batches(self):
+            """Override prep batches to run without parallel prefetching."""
+            data = tf.data.Dataset.from_generator(
+                self.generator, output_signature=self.output_signature
+            )
+            batches = data.batch(
+                self.batch_size, drop_remainder=True, deterministic=True
+            )
+            return batches.as_numpy_iterator()
+
+    return BatchHandlerTester
 
 
 def make_fake_h5_chunks(td):
