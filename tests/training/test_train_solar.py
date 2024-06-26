@@ -6,6 +6,7 @@ import tempfile
 
 import numpy as np
 import pytest
+import tensorflow as tf
 from rex import init_logger
 from tensorflow.keras.losses import MeanAbsoluteError
 
@@ -16,6 +17,7 @@ from sup3r.preprocessing import (
     DataHandlerH5SolarCC,
 )
 
+tf.config.experimental_run_functions_eagerly(True)
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 SHAPE = (20, 20)
 INPUT_FILE_S = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')

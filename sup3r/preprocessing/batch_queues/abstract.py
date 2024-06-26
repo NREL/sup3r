@@ -22,13 +22,12 @@ from sup3r.utilities.utilities import Timer
 logger = logging.getLogger(__name__)
 
 
-Batch = namedtuple('Batch', ['low_res', 'high_res'])
-
-
 class AbstractBatchQueue(Collection, ABC):
     """Abstract BatchQueue class. This class gets batches from a dataset
     generator and maintains a queue of batches in a dedicated thread so the
     training routine can proceed as soon as batches are available."""
+
+    Batch = namedtuple('Batch', ['low_res', 'high_res'])
 
     def __init__(
         self,
@@ -148,6 +147,10 @@ class AbstractBatchQueue(Collection, ABC):
         self._default_device = self._default_device or (
             '/cpu:0' if len(gpu_list) == 0 else '/gpu:0'
         )
+        msg = ('Queue cap needs to be at least 1 but received queue_cap = '
+               f'{self.queue_cap}. Batching without a queue is not currently '
+               'supported.')
+        assert self.queue_cap > 0, msg
         self.check_stats()
         self.check_features()
         self.check_enhancement_factors()
@@ -224,7 +227,7 @@ class AbstractBatchQueue(Collection, ABC):
         return batches.as_numpy_iterator()
 
     def generator(self):
-        """Generator over samples. The samples are retreived with the
+        """Generator over samples. The samples are retrieved with the
         :meth:`get_samples` method through randomly selecting a sampler from
         the collection and then returning a sample from that sampler. Batches
         are constructed from a set (`batch_size`) of these samples.
@@ -265,7 +268,7 @@ class AbstractBatchQueue(Collection, ABC):
         """
         lr, hr = self.transform(samples, **self.transform_kwargs)
         lr, hr = self.normalize(lr, hr)
-        return Batch(low_res=lr, high_res=hr)
+        return self.Batch(low_res=lr, high_res=hr)
 
     def start(self) -> None:
         """Start thread to keep sample queue full for batches."""

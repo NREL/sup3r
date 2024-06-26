@@ -15,13 +15,12 @@ from .utilities import spatial_simple_enhancing, temporal_simple_enhancing
 logger = logging.getLogger(__name__)
 
 
-ConditionalBatch = namedtuple(
-    'ConditionalBatch', ['low_res', 'high_res', 'output', 'mask']
-)
-
-
 class ConditionalBatchQueue(SingleBatchQueue):
     """BatchQueue class for conditional moment estimation."""
+
+    ConditionalBatch = namedtuple(
+        'ConditionalBatch', ['low_res', 'high_res', 'output', 'mask']
+    )
 
     def __init__(
         self,
@@ -40,8 +39,8 @@ class ConditionalBatchQueue(SingleBatchQueue):
             Positional arguments for parent class
         time_enhance_mode : str
             [constant, linear]
-            Method to enhance temporally when constructing subfilter.  At every
-            temporal location, a low-res temporal data is substracted from the
+            Method to enhance temporally when constructing subfilter. At every
+            temporal location, a low-res temporal data is subtracted from the
             high-res temporal data predicted.  constant will assume that the
             low-res temporal data is constant between landmarks.  linear will
             linearly interpolate between landmarks to generate the low-res data
@@ -163,7 +162,7 @@ class ConditionalBatchQueue(SingleBatchQueue):
         lr, hr = self.normalize(lr, hr)
         mask = self.make_mask(high_res=hr)
         output = self.make_output(samples=(lr, hr))
-        return ConditionalBatch(
+        return self.ConditionalBatch(
             low_res=lr, high_res=hr, output=output, mask=mask
         )
 

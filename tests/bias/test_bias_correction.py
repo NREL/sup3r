@@ -362,7 +362,7 @@ def test_linear_transform():
 
 
 def test_monthly_linear_transform():
-    """Test the montly linear bc transform method"""
+    """Test the monthly linear bc transform method"""
     calc = MonthlyLinearCorrection(
         FP_NSRDB,
         FP_CC,
