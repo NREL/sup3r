@@ -113,11 +113,63 @@ ignore = [
 #  "D413", # blank-line-after-last-section
 #  "D415", # ends-in-punctuation
 #  "E902", # io-error
-#  "PLR0913", # too-many-arguments
+  "FIX001",	# line-contains-fixme
+  "PLR0904", # too-many-public-methods
+  "PLR0912", # too-many-branches
+  "PLR0913", # too-many-arguments
+  "PLR0914", # too-many-locals
+  "PLR0915", # too-many-statements
+  "PLR1702", # too-many-nested-blocks
+  "PLR1704", # redefined-argument-from-local
+  "PLW1514", # unspecified-encoding
 #  "UP009", # utf8-encoding-declaration
 #  "UP032", # f-string
 #  "UP038" # non-pep604-isinstance
   ]
+# Ignored in pylint setup but missing on ruff. We shall delete from the
+# following lines what is not intended to follow anymore.
+# arguments-renamed
+# consider-using-f-string
+# raw-checker-failed
+# bad-inline-option
+# locally-disabled
+# file-ignored
+# suppressed-message
+# useless-suppression
+# deprecated-pragma
+# protected-access
+# redefined-outer-name
+# redefined-builtin
+# broad-except
+# logging-format-interpolation
+# logging-fstring-interpolation
+# wrong-import-order
+# wrong-import-position
+# relative-beyond-top-level
+# too-many-instance-attributes
+# too-few-public-methods
+# invalid-name
+# import-error
+# try-except-raise
+# no-else-raise
+# no-else-return
+# unexpected-keyword-arg
+# no-value-for-parameter
+# too-many-lines
+# arguments-differ
+# import-outside-toplevel
+# super-init-not-called
+# isinstance-second-argument-not-valid-type
+# inconsistent-return-statements
+# no-else-break
+# too-many-function-args
+# redundant-keyword-arg
+# c-extension-no-member
+
+
+
+
+
 
 [tool.ruff.lint.per-file-ignores]
 #"__init__.py" = [
