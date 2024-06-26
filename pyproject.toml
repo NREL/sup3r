@@ -185,6 +185,8 @@ max-nested-blocks = 5
 [tool.ruff.format]
 # quote-style = "single"
 # indent-style = "space"
+# Consider adopting "lf" instead
+line-ending = "auto"
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
