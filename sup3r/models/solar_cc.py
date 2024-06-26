@@ -100,14 +100,9 @@ class SolarCC(Sup3rGan):
             raise RuntimeError(msg)
 
         msg = ('Special SolarCC model can only accept multi-day hourly '
-               '(multiple of 24) high res data in the axis=3 position but '
-               'received shape {}'.format(hi_res_true.shape))
+               '(multiple of 24) true / synthetic high res data in the axis=3 '
+               'position but received shape {}'.format(hi_res_true.shape))
         assert hi_res_true.shape[3] % 24 == 0
-
-        msg = ('Special SolarCC model can only accept multi-day hourly '
-               '(multiple of 24) high res synthetic data in the axis=3 '
-               'position but received shape {}'.format(hi_res_gen.shape))
-        assert hi_res_gen.shape[3] % 24 == 0
 
         t_len = hi_res_true.shape[3]
         n_days = int(t_len // 24)

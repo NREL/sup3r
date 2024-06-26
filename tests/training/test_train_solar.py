@@ -5,6 +5,7 @@ import os
 import tempfile
 
 import numpy as np
+import pytest
 from rex import init_logger
 from tensorflow.keras.losses import MeanAbsoluteError
 
@@ -31,21 +32,28 @@ init_logger('sup3r', log_level='DEBUG')
 def test_solar_cc_model():
     """Test the solar climate change nsrdb super res model.
 
-    NOTE that the full 10x model is too big to train on the 20x20 test data.
+    NOTE: that the full 10x model is too big to train on the 20x20 test data.
     """
 
-    handler = DataHandlerH5SolarCC(
-        INPUT_FILE_S,
-        FEATURES_S,
-        target=TARGET_S,
-        shape=SHAPE,
-        time_slice=slice(None, None, 2),
-        time_roll=-7,
+    kwargs = {
+        'file_paths': INPUT_FILE_S,
+        'features': FEATURES_S,
+        'target': TARGET_S,
+        'shape': SHAPE,
+        'time_roll': -7,
+    }
+    train_handler = DataHandlerH5SolarCC(
+        **kwargs,
+        time_slice=slice(720, None, 2),
+    )
+    val_handler = DataHandlerH5SolarCC(
+        **kwargs,
+        time_slice=slice(None, 720, 2),
     )
 
     batcher = BatchHandlerCC(
-        [handler],
-        [],
+        [train_handler],
+        [val_handler],
         batch_size=2,
         n_batches=2,
         s_enhance=1,
@@ -58,7 +66,7 @@ def test_solar_cc_model():
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
 
     Sup3rGan.seed()
-    model = Sup3rGan(
+    model = SolarCC(
         fp_gen, fp_disc, learning_rate=1e-4, loss='MeanAbsoluteError'
     )
 
@@ -76,7 +84,7 @@ def test_solar_cc_model():
 
         assert 'test_0' in os.listdir(td)
         assert model.meta['hr_out_features'] == ['clearsky_ratio']
-        assert model.meta['class'] == 'Sup3rGan'
+        assert model.meta['class'] == 'SolarCC'
 
         out_dir = os.path.join(td, 'cc_gan')
         model.save(out_dir)
@@ -84,8 +92,8 @@ def test_solar_cc_model():
 
         assert isinstance(model.loss_fun, MeanAbsoluteError)
         assert isinstance(loaded.loss_fun, MeanAbsoluteError)
-        assert model.meta['class'] == 'Sup3rGan'
-        assert loaded.meta['class'] == 'Sup3rGan'
+        assert model.meta['class'] == 'SolarCC'
+        assert loaded.meta['class'] == 'SolarCC'
 
     x = np.random.uniform(0, 1, (1, 30, 30, 3, 1))
     y = model.generate(x)
@@ -101,21 +109,20 @@ def test_solar_cc_model_spatial():
     enhancement only.
     """
 
-    val_handler = DataHandlerH5SolarCC(
-        INPUT_FILE_S,
-        FEATURES_S,
-        target=TARGET_S,
-        shape=SHAPE,
-        time_slice=slice(None, 720, 2),
-        time_roll=-7,
-    )
+    kwargs = {
+        'file_paths': INPUT_FILE_S,
+        'features': FEATURES_S,
+        'target': TARGET_S,
+        'shape': SHAPE,
+        'time_roll': -7,
+    }
     train_handler = DataHandlerH5SolarCC(
-        INPUT_FILE_S,
-        FEATURES_S,
-        target=TARGET_S,
-        shape=SHAPE,
+        **kwargs,
         time_slice=slice(720, None, 2),
-        time_roll=-7,
+    )
+    val_handler = DataHandlerH5SolarCC(
+        **kwargs,
+        time_slice=slice(None, 720, 2),
     )
 
     batcher = BatchHandlerCC(
@@ -202,15 +209,23 @@ def test_solar_custom_loss():
         )
 
         shape = (1, 4, 4, 72, 1)
-        hi_res_true = np.random.uniform(0, 1, shape).astype(np.float32)
         hi_res_gen = np.random.uniform(0, 1, shape).astype(np.float32)
-        loss1, _ = model.calc_loss(
-            hi_res_true,
-            hi_res_gen,
-            weight_gen_advers=0.0,
-            train_gen=True,
-            train_disc=False,
-        )
+        hi_res_true = np.random.uniform(0, 1, shape).astype(np.float32)
+
+        # hi res true and gen shapes need to match
+        with pytest.raises(RuntimeError):
+            loss1, _ = model.calc_loss(
+                np.random.uniform(0, 1, (1, 5, 5, 24, 1)).astype(np.float32),
+                np.random.uniform(0, 1, (1, 10, 10, 24, 1)).astype(np.float32))
+
+        # time steps need to be multiple of 24
+        with pytest.raises(AssertionError):
+            loss1, _ = model.calc_loss(
+                np.random.uniform(0, 1, (1, 5, 5, 20, 1)).astype(np.float32),
+                np.random.uniform(0, 1, (1, 5, 5, 20, 1)).astype(np.float32))
+
+        loss1, _ = model.calc_loss(hi_res_true, hi_res_gen,
+                                   weight_gen_advers=0.0)
 
         t_len = hi_res_true.shape[3]
         n_days = int(t_len // 24)
@@ -225,13 +240,8 @@ def test_solar_custom_loss():
         for tslice in day_slices:
             hi_res_gen[:, :, :, tslice, :] = hi_res_true[:, :, :, tslice, :]
 
-        loss2, _ = model.calc_loss(
-            hi_res_true,
-            hi_res_gen,
-            weight_gen_advers=0.0,
-            train_gen=True,
-            train_disc=False,
-        )
+        loss2, _ = model.calc_loss(hi_res_true, hi_res_gen,
+                                   weight_gen_advers=0.0)
 
         assert loss1 > loss2
         assert loss2 == 0

@@ -28,20 +28,20 @@ init_logger('sup3r', log_level='DEBUG')
 def _get_handlers():
     """Initialize training and validation handlers used across tests."""
 
+    kwargs = {
+        'file_paths': FP_WTK,
+        'features': FEATURES,
+        'target': TARGET_COORD,
+        'shape': (20, 20),
+    }
     train_handler = DataHandlerH5(
-        FP_WTK,
-        features=FEATURES,
-        target=TARGET_COORD,
-        shape=(20, 20),
-        time_slice=slice(None, 3000, 1),
+        **kwargs,
+        time_slice=slice(1000, None, 1),
     )
 
     val_handler = DataHandlerH5(
-        FP_WTK,
-        features=FEATURES,
-        target=TARGET_COORD,
-        shape=(20, 20),
-        time_slice=slice(3000, None, 1),
+        **kwargs,
+        time_slice=slice(None, 1000, 1),
     )
 
     return train_handler, val_handler
@@ -88,7 +88,7 @@ def test_train(
             train_containers=[train_handler],
             val_containers=[val_handler],
             sample_shape=sample_shape,
-            batch_size=3,
+            batch_size=10,
             s_enhance=s_enhance,
             t_enhance=t_enhance,
             n_batches=3,
@@ -134,9 +134,7 @@ def test_train(
             model_params = json.load(f)
 
         assert np.allclose(model_params['optimizer']['learning_rate'], lr)
-        assert np.allclose(
-            model_params['optimizer_disc']['learning_rate'], lr
-        )
+        assert np.allclose(model_params['optimizer_disc']['learning_rate'], lr)
         assert 'learning_rate_gen' in model.history
         assert 'learning_rate_disc' in model.history
 

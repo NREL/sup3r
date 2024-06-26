@@ -188,7 +188,9 @@ class DataHandlerNCforCC(DataHandlerNC):
             .mean()
         )
         time_freq = float(
-            mode((ti_nsrdb[1:] - ti_nsrdb[:-1]).seconds / 3600).mode
+            mode(
+                (ti_nsrdb[1:] - ti_nsrdb[:-1]).seconds / 3600, keepdims=False
+            ).mode
         )
 
         cs_ghi = cs_ghi.coarsen({Dimension.TIME: int(24 // time_freq)}).mean()
