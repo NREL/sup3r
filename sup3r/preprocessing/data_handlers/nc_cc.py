@@ -78,7 +78,7 @@ class DataHandlerNCforCC(DataHandlerNC):
             self.extracter.data['clearsky_ghi'] = self.get_clearsky_ghi()
 
     def run_input_checks(self):
-        """Run checks on the files provided for extracting clearksky_ghi. Make
+        """Run checks on the files provided for extracting clearsky_ghi. Make
         sure the loaded data is daily data and the step size is one day."""
 
         msg = (
