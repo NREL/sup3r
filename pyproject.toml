@@ -71,6 +71,10 @@ repository = "https://github.com/NREL/sup3r"
 # indent-width = 4
 
 target-version = "py38"
+exclude = [
+  "CSV",
+  "ref.*?py",
+]
 
 [tool.ruff.lint]
 # fixable = ["ALL"]
