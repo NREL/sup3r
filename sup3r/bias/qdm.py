@@ -364,14 +364,13 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
 
                 for k, v in self.meta.items():
                     f.attrs[k] = json.dumps(v)
-                f.attrs["dist"] = self.dist
-                f.attrs["sampling"] = self.sampling
-                f.attrs["log_base"] = self.log_base
-                f.attrs["base_fps"] = self.base_fps
-                f.attrs["bias_fps"] = self.bias_fps
-                f.attrs["bias_fut_fps"] = self.bias_fut_fps
-                logger.info(
-                    'Wrote quantiles to file: {}'.format(fp_out))
+                f.attrs['dist'] = self.dist
+                f.attrs['sampling'] = self.sampling
+                f.attrs['log_base'] = self.log_base
+                f.attrs['base_fps'] = self.base_fps
+                f.attrs['bias_fps'] = self.bias_fps
+                f.attrs['bias_fut_fps'] = self.bias_fut_fps
+                logger.info('Wrote quantiles to file: {}'.format(fp_out))
 
     def run(self,
             fp_out=None,
@@ -528,10 +527,16 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         super()._init_out()
 
         shape = (*self.bias_gid_raster.shape, 1)
-        self.out[f'{self.base_dset}_zero_rate'] = np.full(shape, np.nan, np.float32)
+        self.out[f'{self.base_dset}_zero_rate'] = np.full(shape,
+                                                          np.nan,
+                                                          np.float32)
         shape = (*self.bias_gid_raster.shape, 12)
-        self.out[f'{self.bias_feature}_mean_mh'] = np.full(shape, np.nan, np.float32)
-        self.out[f'{self.bias_feature}_mean_mf'] = np.full(shape, np.nan, np.float32)
+        self.out[f'{self.bias_feature}_mean_mh'] = np.full(shape,
+                                                           np.nan,
+                                                           np.float32)
+        self.out[f'{self.bias_feature}_mean_mf'] = np.full(shape,
+                                                           np.nan,
+                                                           np.float32)
 
     # pylint: disable=W0613
     @classmethod
@@ -595,8 +600,8 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         mh = np.full(12, np.nan, np.float32)
         mf = np.full(12, np.nan, np.float32)
         for m in range(12):
-            mh[m] = bias_data[bias_ti.month==(m + 1)].mean()
-            mf[m] = bias_fut_data[bias_fut_ti.month==(m + 1)].mean()
+            mh[m] = bias_data[bias_ti.month == (m + 1)].mean()
+            mf[m] = bias_fut_data[bias_fut_ti.month == (m + 1)].mean()
         out[f'{bias_feature}_mean_mh'] = mh
         out[f'{bias_feature}_mean_mf'] = mf
 
@@ -680,8 +685,8 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
                         log_base=self.log_base,
                         base_dh_inst=self.base_dh,
                         zero_rate_threshold=zero_rate_threshold,
-                        bias_ti = self.bias_fut_dh.time_index,
-                        bias_fut_ti = self.bias_fut_dh.time_index,
+                        bias_ti=self.bias_fut_dh.time_index,
+                        bias_fut_ti=self.bias_fut_dh.time_index,
                     )
                     for key, arr in single_out.items():
                         self.out[key][raster_loc] = arr
@@ -725,8 +730,8 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
                             n_samples=self.n_quantiles,
                             log_base=self.log_base,
                             zero_rate_threshold=zero_rate_threshold,
-                            bias_ti = self.bias_fut_dh.time_index,
-                            bias_fut_ti = self.bias_fut_dh.time_index,
+                            bias_ti=self.bias_fut_dh.time_index,
+                            bias_fut_ti=self.bias_fut_dh.time_index,
                         )
                         futures[future] = raster_loc
 
@@ -749,7 +754,11 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         )
 
         self.zero_rate_threshold = zero_rate_threshold
-        self.write_outputs(fp_out, self.out, extra_attrs={'zero_rate_threshold': zero_rate_threshold})
+        extra_attrs = {'zero_rate_threshold': zero_rate_threshold}
+        self.write_outputs(fp_out,
+                           self.out,
+                           extra_attrs=extra_attrs,
+                           )
 
         return copy.deepcopy(self.out)
 
