@@ -1,14 +1,3 @@
-name: Lint Code Base
-
-on:
-  push:
-    branches-ignore:
-      - 'gh-pages'
-
-jobs:
-  ruff:
-    name: Lint Code Base
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: chartboost/ruff-action@v1
+[ruff]
+exclude = .git,__pycache__,docs/source/conf.py,old,build,dist,bin/tmp/*
+max-complexity = 20
