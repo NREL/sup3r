@@ -96,9 +96,10 @@ select = [
   "F401", # unused-import
   "G", # flake8-logging-format
   "I", # isort
-  "LOG",
+  "LOG", # flake8-logging
   "N", # pep8-naming
   "NPY", # numpy-specific
+  "PERF", # Perflint
   "PL", # Pylint
   "Q", # flake8-quotes
   "SIM", # flake8-simplify
@@ -148,6 +149,9 @@ ignore = [
   "N806", # non-lowercase-variable-in-function
   # Consider conforming with NPY002
   "NPY002", # numpy-legacy-random
+  "PERF102", # incorrect-dict-iterator
+  "PERF203", # try-except-in-loop
+  "PERF401", # manual-list-comprehension
   "PLR0904", # too-many-public-methods
   "PLR0912", # too-many-branches
   "PLR0913", # too-many-arguments
