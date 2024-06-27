@@ -84,6 +84,7 @@ task-tags = ["TODO", "FIXME", "XXX"]
 select = [
   "A", # flake8-builtins
   "ARG", # flake8-unused-arguments
+  "C4", # flake8-comprehensions
   "COM", # flake8-commas
   "D", # pydocstyle
   "E", # pycodestyle
@@ -114,6 +115,8 @@ ignore = [
 #  "B024", # abstract-base-class-without-abstract-method
 #  "B028", # no-explicit-stacklevel
 #  "B905", # zip-without-explicit-strict
+  "C408", # unnecessary-collection-call
+  "C414", # unnecessary-double-cast-or-process
   "COM812", # missing-trailing-comma
   "D105", # undocumented-magic-method
   "D200", # fits-on-one-line
