@@ -100,7 +100,7 @@ select = [
 #  "NPY", # numpy-specific
 #  "Q", # flake8-quotes
 #  "UP", # pyupgrade
-#  "W", # Warning
+  "W", # Warning
   ]
 
 ignore = [
