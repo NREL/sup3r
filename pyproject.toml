@@ -79,6 +79,7 @@ exclude = [
 [tool.ruff.lint]
 # fixable = ["ALL"]
 # preview = true
+task-tags = ["TODO", "FIXME", "XXX"]
 select = [
 #  "E", # pycodestyle
 #  "F", # Pyflakes
