@@ -79,6 +79,7 @@ exclude = [
 [tool.ruff.lint]
 # fixable = ["ALL"]
 # preview = true
+# logger-objects = []
 task-tags = ["TODO", "FIXME", "XXX"]
 select = [
 #  "E", # pycodestyle
@@ -92,6 +93,7 @@ select = [
 #  "E", # pycodestyle
   "E701", # multiple-statements-on-one-line-colon
 #  "F", # Pyflakes
+  "G", # flake8-logging-format
 #  "I", # isort
 #  "NPY", # numpy-specific
 #  "Q", # flake8-quotes
@@ -116,6 +118,10 @@ ignore = [
 #  "D415", # ends-in-punctuation
 #  "E902", # io-error
   "FIX001",	# line-contains-fixme
+  # We currently don't conform but we might want to reconsider
+  "G001", # logging-string-format
+  # We currently don't conform but we might want to reconsider
+  "G004", # logging-f-string
   "PLR0904", # too-many-public-methods
   "PLR0912", # too-many-branches
   "PLR0913", # too-many-arguments
