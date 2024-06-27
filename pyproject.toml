@@ -90,10 +90,7 @@ select = [
   "COM", # flake8-commas
   "D", # pydocstyle
   "E", # pycodestyle
-  "E701", # multiple-statements-on-one-line-colon
-  "E722", # bare-except
   "F", # Pyflakes
-  "F401", # unused-import
   "G", # flake8-logging-format
   "I", # isort
   "LOG", # flake8-logging
