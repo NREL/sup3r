@@ -89,6 +89,7 @@ select = [
 #  "COM", # flake8-commas
 #  # "D", # pydocstyle
 #  "E", # pycodestyle
+  "E701", # multiple-statements-on-one-line-colon
 #  "F", # Pyflakes
 #  "I", # isort
 #  "NPY", # numpy-specific
