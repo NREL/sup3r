@@ -83,7 +83,7 @@ exclude = [
 task-tags = ["TODO", "FIXME", "XXX"]
 select = [
   "A", # flake8-builtins
-#  "ARG", # flake8-unused-arguments
+  "ARG", # flake8-unused-arguments
 #  "COM", # flake8-commas
 #  # "D", # pydocstyle
 #  "E", # pycodestyle
@@ -104,6 +104,10 @@ ignore = [
   "A001", # builtin-variable-shadowing
   # Currently don't conform but we might want to reconsider
   "A002", # builtin-argument-shadowing
+  "ARG002", # unused-method-argument
+  "ARG003", # unused-class-method-argument
+  "ARG004", # unused-static-method-argument
+  "ARG005", # unused-lambda-argument
 #  "B008", # function-call-in-default-argument
 #  "B024", # abstract-base-class-without-abstract-method
 #  "B028", # no-explicit-stacklevel
