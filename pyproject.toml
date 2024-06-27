@@ -189,6 +189,7 @@ ignore = [
 #  ]
 
 [tool.ruff.lint.pylint]
+max-args = 5 # Maximum number of arguments for function / method
 max-nested-blocks = 5
 
 [tool.ruff.format]
