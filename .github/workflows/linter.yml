@@ -4,6 +4,8 @@ on:
   push:
     branches-ignore:
       - 'gh-pages'
+  pull_request:
+    branches: [main]
 
 jobs:
   build:
@@ -17,7 +19,7 @@ jobs:
       - name: Lint Code Base
         uses: super-linter/super-linter@v4
         env:
-          VALIDATE_ALL_CODEBASE: false
+          VALIDATE_ALL_CODEBASE: true
           VALIDATE_PYTHON_BLACK: false
           VALIDATE_PYTHON_ISORT: false
           VALIDATE_PYTHON_MYPY: false
