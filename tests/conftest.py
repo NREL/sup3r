@@ -10,7 +10,7 @@ from sup3r import CONFIG_DIR, TEST_DATA_DIR
 
 
 @pytest.hookimpl
-def pytest_configure():
+def pytest_configure(config):  # pylint: disable=unused-argument # noqa: ARG001
     """Global pytest config."""
     init_logger('sup3r', log_level='DEBUG')
     np.random.seed(42)
