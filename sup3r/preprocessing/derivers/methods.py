@@ -171,8 +171,8 @@ class Winddirection(DerivedFeature):
     def compute(cls, data, height):
         """Compute winddirection"""
         _, wd = invert_uv(
-            data[f'U_{height}m'],
-            data[f'V_{height}m'],
+            data[f'u_{height}m'],
+            data[f'v_{height}m'],
             data.lat_lon,
         )
         return wd
@@ -359,10 +359,10 @@ class TasMax(Tas):
 
 
 RegistryBase = {
-    'U_(.*)': UWind,
-    'V_(.*)': VWind,
-    'Windspeed_(.*)': Windspeed,
-    'Winddirection_(.*)': Winddirection,
+    'u_(.*)': UWind,
+    'v_(.*)': VWind,
+    'windspeed_(.*)': Windspeed,
+    'winddirection_(.*)': Winddirection,
 }
 
 RegistryNC = RegistryBase
@@ -391,8 +391,8 @@ RegistryH5SolarCC = {
 
 RegistryNCforCC = {
     **RegistryNC,
-    'U_(.*)': 'ua_(.*)',
-    'V_(.*)': 'va_(.*)',
+    'u_(.*)': 'ua_(.*)',
+    'v_(.*)': 'va_(.*)',
     'relativehumidity_2m': 'hurs',
     'relativehumidity_min_2m': 'hursmin',
     'relativehumidity_max_2m': 'hursmax',
@@ -407,6 +407,6 @@ RegistryNCforCC = {
 
 RegistryNCforCCwithPowerLaw = {
     **RegistryNCforCC,
-    'U_(.*)': UWindPowerLaw,
-    'V_(.*)': VWindPowerLaw,
+    'u_(.*)': UWindPowerLaw,
+    'v_(.*)': VWindPowerLaw,
 }

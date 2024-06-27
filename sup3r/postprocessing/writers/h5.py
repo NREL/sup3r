@@ -43,13 +43,13 @@ class OutputHandlerH5(OutputHandler):
         heights = [
             parse_feature(f).height
             for f in features
-            if re.match('U_(.*?)m'.lower(), f.lower())
+            if re.match('u_(.*?)m'.lower(), f.lower())
         ]
         renamed_features = features.copy()
 
         for height in heights:
-            u_idx = features.index(f'U_{height}m')
-            v_idx = features.index(f'V_{height}m')
+            u_idx = features.index(f'u_{height}m')
+            v_idx = features.index(f'v_{height}m')
 
             renamed_features[u_idx] = f'windspeed_{height}m'
             renamed_features[v_idx] = f'winddirection_{height}m'
@@ -66,7 +66,7 @@ class OutputHandlerH5(OutputHandler):
             High res data from forward pass
             (spatial_1, spatial_2, temporal, features)
         features : list
-            List of output features. If this doesnt contain any names matching
+            List of output features. If this doesn't contain any names matching
             U_*m, this method will do nothing.
         lat_lon : ndarray
             High res lat/lon array
@@ -79,7 +79,7 @@ class OutputHandlerH5(OutputHandler):
         heights = [
             parse_feature(f).height
             for f in features
-            if re.match('U_(.*?)m'.lower(), f.lower())
+            if re.match('u_(.*?)m'.lower(), f.lower())
         ]
         if heights:
             logger.info('Converting u/v to ws/wd for H5 output')
@@ -93,15 +93,15 @@ class OutputHandlerH5(OutputHandler):
         now = dt.now()
         if max_workers == 1:
             for height in heights:
-                u_idx = features.index(f'U_{height}m')
-                v_idx = features.index(f'V_{height}m')
+                u_idx = features.index(f'u_{height}m')
+                v_idx = features.index(f'v_{height}m')
                 cls.invert_uv_single_pair(data, lat_lon, u_idx, v_idx)
-                logger.info(f'U/V pair at height {height}m inverted.')
+                logger.info(f'u/v pair at height {height}m inverted.')
         else:
             with ThreadPoolExecutor(max_workers=max_workers) as exe:
                 for height in heights:
-                    u_idx = features.index(f'U_{height}m')
-                    v_idx = features.index(f'V_{height}m')
+                    u_idx = features.index(f'u_{height}m')
+                    v_idx = features.index(f'v_{height}m')
                     future = exe.submit(
                         cls.invert_uv_single_pair, data, lat_lon, u_idx, v_idx
                     )
@@ -109,7 +109,7 @@ class OutputHandlerH5(OutputHandler):
 
                 logger.info(
                     f'Started inverse transforms on {len(heights)} '
-                    f'U/V pairs in {dt.now() - now}. '
+                    f'u/v pairs in {dt.now() - now}. '
                 )
 
                 for i, _ in enumerate(as_completed(futures)):
@@ -117,7 +117,7 @@ class OutputHandlerH5(OutputHandler):
                         future.result()
                     except Exception as e:
                         msg = (
-                            'Failed to invert the U/V pair for for height '
+                            'Failed to invert the u/v pair for for height '
                             f'{futures[future]}'
                         )
                         logger.exception(msg)

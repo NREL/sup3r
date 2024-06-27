@@ -13,13 +13,6 @@ from .utilities import smooth_data
 logger = logging.getLogger(__name__)
 
 
-option_no_order = tf.data.Options()
-option_no_order.experimental_deterministic = False
-
-option_no_order.experimental_optimization.noop_elimination = True
-option_no_order.experimental_optimization.apply_default_optimizations = True
-
-
 class SingleBatchQueue(AbstractBatchQueue):
     """Base BatchQueue class for single dataset containers
 
