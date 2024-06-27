@@ -101,6 +101,7 @@ select = [
   "NPY", # numpy-specific
   "PL", # Pylint
   "Q", # flake8-quotes
+  "SIM", # flake8-simplify
   "UP", # pyupgrade
   "W", # Warning
   ]
@@ -159,6 +160,10 @@ ignore = [
   "PLW2901", # redefined-loop-name
   "Q000", # bad-quotes-inline-string
   "Q004", # unnecessary-escaped-quote
+  "SIM108", # if-else-block-instead-of-if-exp
+  "SIM117", #multiple-with-statements
+  "SIM118", # in-dict-keys
+  "SIM211", # if-expr-with-false-true
   "UP009", # utf8-encoding-declaration
   "UP015", # redundant-open-modes
   "UP032", # f-string
