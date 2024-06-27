@@ -81,18 +81,20 @@ def test_data_handling_nc_cc():
 
     handler = DataHandlerNCforCC(
         pytest.FPS_GCM,
-        features=['U_100m', 'V_100m'],
+        features=['u_100m', 'v_100m'],
         target=target,
         shape=(20, 20),
     )
     assert handler.data.shape == (20, 20, 20, 2)
 
-    handler = DataHandlerNCforCC(
-        pytest.FPS_GCM,
-        features=[f'U_{int(plevel)}pa', f'V_{int(plevel)}pa'],
-        target=target,
-        shape=(20, 20),
-    )
+    # upper case features warning
+    with pytest.warns():
+        handler = DataHandlerNCforCC(
+            pytest.FPS_GCM,
+            features=[f'U_{int(plevel)}pa', f'V_{int(plevel)}pa'],
+            target=target,
+            shape=(20, 20),
+        )
 
     assert handler.data.shape == (20, 20, 20, 2)
     assert np.allclose(ua[::-1], handler.data[..., 0])

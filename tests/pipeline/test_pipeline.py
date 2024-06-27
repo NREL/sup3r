@@ -17,7 +17,7 @@ from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.models.base import Sup3rGan
 from sup3r.utilities.pytest.helpers import make_fake_nc_file
 
-FEATURES = ['U_100m', 'V_100m', 'pressure_0m']
+FEATURES = ['u_100m', 'v_100m', 'pressure_0m']
 
 
 @pytest.fixture(scope='module')

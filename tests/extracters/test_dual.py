@@ -14,7 +14,7 @@ from sup3r.preprocessing import (
 )
 
 TARGET_COORD = (39.01, -105.15)
-FEATURES = ['U_100m', 'V_100m']
+FEATURES = ['u_100m', 'v_100m']
 
 
 def test_dual_extracter_shapes(full_shape=(20, 20)):

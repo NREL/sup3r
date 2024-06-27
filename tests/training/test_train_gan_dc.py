@@ -5,7 +5,6 @@ import tempfile
 
 import numpy as np
 import pytest
-import tensorflow as tf
 
 from sup3r.models import Sup3rGan, Sup3rGanDC
 from sup3r.preprocessing import (
@@ -16,9 +15,8 @@ from sup3r.utilities.pytest.helpers import (
     BatchHandlerTesterDC,
 )
 
-tf.config.experimental_run_functions_eagerly(True)
 TARGET_COORD = (39.01, -105.15)
-FEATURES = ['U_100m', 'V_100m']
+FEATURES = ['u_100m', 'v_100m']
 
 
 @pytest.mark.parametrize(

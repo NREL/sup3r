@@ -151,15 +151,15 @@ class BaseExtracter(Container):
         new_lat_slice = slice(lat_start, lat_end)
         new_lon_slice = slice(lon_start, lon_end)
         msg = (
-            f'Computed lat_slice = {lat_slice} exceeds available region. '
-            f'Using {new_lat_slice}'
+            f'Computed lat_slice = {_compute_if_dask(lat_slice)} exceeds '
+            f'available region. Using {_compute_if_dask(new_lat_slice)}.'
         )
         if lat_slice != new_lat_slice:
             logger.warning(msg)
             warn(msg)
         msg = (
-            f'Computed lon_slice = {lon_slice} exceeds available region. '
-            f'Using {new_lon_slice}'
+            f'Computed lon_slice = {_compute_if_dask(lon_slice)} exceeds '
+            f'available region. Using {_compute_if_dask(new_lon_slice)}.'
         )
         if lon_slice != new_lon_slice:
             logger.warning(msg)

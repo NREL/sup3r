@@ -24,8 +24,8 @@ from sup3r.qa.utilities import (
 )
 from sup3r.utilities.pytest.helpers import make_fake_nc_file
 
-TRAIN_FEATURES = ['U_100m', 'V_100m', 'pressure_0m']
-MODEL_OUT_FEATURES = ['U_100m', 'V_100m']
+TRAIN_FEATURES = ['u_100m', 'v_100m', 'pressure_0m']
+MODEL_OUT_FEATURES = ['u_100m', 'v_100m']
 FOUT_FEATURES = ['windspeed_100m', 'winddirection_100m']
 TARGET = (19.3, -123.5)
 SHAPE = (8, 8)

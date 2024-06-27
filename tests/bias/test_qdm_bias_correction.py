@@ -410,7 +410,7 @@ def test_fwp_integration(tmp_path):
     - We should be able to run a forward pass with unbiased data.
     - The bias trend should be observed in the predicted output.
     """
-    features = ['U_100m', 'V_100m']
+    features = ['u_100m', 'v_100m']
     target = (13.67, 125.0)
     shape = (8, 8)
     temporal_slice = slice(None, None, 1)
@@ -420,13 +420,13 @@ def test_fwp_integration(tmp_path):
     quantiles = np.linspace(0, 1, n_samples)
     params = {}
     with xr.open_dataset(os.path.join(TEST_DATA_DIR, 'ua_test.nc')) as ds:
-        params['bias_U_100m_params'] = ds['ua'].quantile(quantiles).to_numpy()
-    params['base_Uref_100m_params'] = params['bias_U_100m_params'] - 2.72
-    params['bias_fut_U_100m_params'] = params['bias_U_100m_params']
+        params['bias_u_100m_params'] = ds['ua'].quantile(quantiles).to_numpy()
+    params['base_Uref_100m_params'] = params['bias_u_100m_params'] - 2.72
+    params['bias_fut_u_100m_params'] = params['bias_u_100m_params']
     with xr.open_dataset(os.path.join(TEST_DATA_DIR, 'va_test.nc')) as ds:
-        params['bias_V_100m_params'] = ds['va'].quantile(quantiles).to_numpy()
-    params['base_Vref_100m_params'] = params['bias_V_100m_params'] + 2.72
-    params['bias_fut_V_100m_params'] = params['bias_V_100m_params']
+        params['bias_v_100m_params'] = ds['va'].quantile(quantiles).to_numpy()
+    params['base_Vref_100m_params'] = params['bias_v_100m_params'] + 2.72
+    params['bias_fut_v_100m_params'] = params['bias_v_100m_params']
 
     lat_lon = DataHandlerNCforCC(
         pytest.FPS_GCM,
@@ -459,13 +459,13 @@ def test_fwp_integration(tmp_path):
         f.attrs['log_base'] = 10
 
     bias_correct_kwargs = {
-        'U_100m': {
-            'feature_name': 'U_100m',
+        'u_100m': {
+            'feature_name': 'u_100m',
             'base_dset': 'Uref_100m',
             'bias_fp': bias_fp,
         },
-        'V_100m': {
-            'feature_name': 'V_100m',
+        'v_100m': {
+            'feature_name': 'v_100m',
             'base_dset': 'Vref_100m',
             'bias_fp': bias_fp,
         },

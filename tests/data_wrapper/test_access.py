@@ -33,7 +33,7 @@ def test_correct_single_member_access(data):
     out = data[[Dimension.LATITUDE, Dimension.LONGITUDE], :]
     assert ['u', 'v'] in data
     assert out.shape == (20, 20, 2)
-    assert np.array_equal(out, data.lat_lon)
+    assert np.array_equal(out.compute(), data.lat_lon.compute())
     assert len(data.time_index) == 100
     out = data.isel(time=slice(0, 10))
     assert out.sx.as_array().shape == (20, 20, 10, 3, 2)
@@ -44,10 +44,11 @@ def test_correct_single_member_access(data):
     assert out.shape == (10, 20, 100, 1, 2)
     out = data.as_array()[..., 0]
     assert out.shape == (20, 20, 100, 3)
-    assert np.array_equal(out, data['u', ...])
-    assert np.array_equal(out[..., None], data[..., 'u'])
+    assert np.array_equal(out.compute(), data['u', ...].compute())
+    assert np.array_equal(out[..., None].compute(), data[..., 'u'].compute())
     assert np.array_equal(
-        data[['v', 'u']].as_darray().data, data.as_array()[..., [1, 0]]
+        data[['v', 'u']].as_darray().data.compute(),
+        data.as_array()[..., [1, 0]].compute(),
     )
     data.compute()
     assert data.loaded
@@ -68,7 +69,10 @@ def test_correct_multi_member_access():
     lat_lon = data.lat_lon
     time_index = data.time_index
     assert all(o.shape == (20, 20, 2) for o in out)
-    assert all(np.array_equal(o, ll) for o, ll in zip(out, lat_lon))
+    assert all(
+        np.array_equal(o.compute(), ll.compute())
+        for o, ll in zip(out, lat_lon)
+    )
     assert all(len(ti) == 100 for ti in time_index)
     out = data.isel(time=slice(0, 10))
     assert (o.as_array().shape == (20, 20, 10, 3, 2) for o in out)
@@ -79,12 +83,18 @@ def test_correct_multi_member_access():
     assert all(o.shape == (10, 20, 100, 1, 2) for o in out)
     out = data[..., 0]
     assert all(o.shape == (20, 20, 100, 3) for o in out)
-    assert all(np.array_equal(o, d) for o, d in zip(out, data['u', ...]))
     assert all(
-        np.array_equal(o[..., None], d) for o, d in zip(out, data[..., 'u'])
+        np.array_equal(o.compute(), d.compute())
+        for o, d in zip(out, data['u', ...])
     )
     assert all(
-        np.array_equal(da.moveaxis(d0.to_array().data, 0, -1), d1)
+        np.array_equal(o[..., None].compute(), d.compute())
+        for o, d in zip(out, data[..., 'u'])
+    )
+    assert all(
+        np.array_equal(
+            da.moveaxis(d0.to_array().data, 0, -1).compute(), d1.compute()
+        )
         for d0, d1 in zip(data[['v', 'u']], data[..., [1, 0]])
     )
     out = data[
@@ -106,7 +116,7 @@ def test_change_values():
 
     rand_u = np.random.uniform(0, 20, data['u', ...].shape)
     data['u'] = rand_u
-    assert np.array_equal(rand_u, data['u', ...])
+    assert np.array_equal(rand_u, data['u', ...].compute())
 
     rand_v = np.random.uniform(0, 10, data['v', ...].shape)
     data['v'] = rand_v
@@ -114,7 +124,8 @@ def test_change_values():
 
     data[['u', 'v']] = da.stack([rand_u, rand_v], axis=-1)
     assert np.array_equal(
-        data[['u', 'v']].as_darray().data, da.stack([rand_u, rand_v], axis=-1)
+        data[['u', 'v']].as_darray().data.compute(),
+        da.stack([rand_u, rand_v], axis=-1).compute(),
     )
     data['u', slice(0, 10)] = 0
     assert np.allclose(data['u', ...][slice(0, 10)], [0])

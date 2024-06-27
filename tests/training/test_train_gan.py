@@ -12,9 +12,8 @@ from tensorflow.python.framework.errors_impl import InvalidArgumentError
 from sup3r.models import Sup3rGan
 from sup3r.preprocessing import BatchHandler, DataHandlerH5
 
-tf.config.experimental_run_functions_eagerly(True)
 TARGET_COORD = (39.01, -105.15)
-FEATURES = ['U_100m', 'V_100m']
+FEATURES = ['u_100m', 'v_100m']
 
 
 def _get_handlers():

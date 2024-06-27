@@ -109,8 +109,8 @@ def test_fwp_multi_step_model_topo_exoskip(input_files):
     fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
     s1_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-    s1_model.meta['lr_features'] = ['U_100m', 'V_100m', 'topography']
-    s1_model.meta['hr_out_features'] = ['U_100m', 'V_100m']
+    s1_model.meta['lr_features'] = ['u_100m', 'v_100m', 'topography']
+    s1_model.meta['hr_out_features'] = ['u_100m', 'v_100m']
     s1_model.meta['s_enhance'] = 2
     s1_model.meta['t_enhance'] = 1
     s1_model.meta['input_resolution'] = {
@@ -120,8 +120,8 @@ def test_fwp_multi_step_model_topo_exoskip(input_files):
     _ = s1_model.generate(np.ones((4, 10, 10, 3)))
 
     s2_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-    s2_model.meta['lr_features'] = ['U_100m', 'V_100m', 'topography']
-    s2_model.meta['hr_out_features'] = ['U_100m', 'V_100m']
+    s2_model.meta['lr_features'] = ['u_100m', 'v_100m', 'topography']
+    s2_model.meta['hr_out_features'] = ['u_100m', 'v_100m']
     s2_model.meta['s_enhance'] = 2
     s2_model.meta['t_enhance'] = 1
     s2_model.meta['input_resolution'] = {
@@ -133,8 +133,8 @@ def test_fwp_multi_step_model_topo_exoskip(input_files):
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
     st_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-    st_model.meta['lr_features'] = ['U_100m', 'V_100m']
-    st_model.meta['hr_out_features'] = ['U_100m', 'V_100m']
+    st_model.meta['lr_features'] = ['u_100m', 'v_100m']
+    st_model.meta['hr_out_features'] = ['u_100m', 'v_100m']
     st_model.meta['s_enhance'] = 3
     st_model.meta['t_enhance'] = 4
     st_model.meta['input_resolution'] = {
@@ -213,8 +213,8 @@ def test_fwp_multi_step_model_topo_exoskip(input_files):
             gan_meta = json.loads(fh.global_attrs['gan_meta'])
             assert len(gan_meta) == 3  # three step model
             assert gan_meta[0]['lr_features'] == [
-                'U_100m',
-                'V_100m',
+                'u_100m',
+                'v_100m',
                 'topography',
             ]
 
@@ -226,8 +226,8 @@ def test_fwp_multi_step_spatial_model_topo_noskip(input_files):
     fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
     s1_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-    s1_model.meta['lr_features'] = ['U_100m', 'V_100m', 'topography']
-    s1_model.meta['hr_out_features'] = ['U_100m', 'V_100m']
+    s1_model.meta['lr_features'] = ['u_100m', 'v_100m', 'topography']
+    s1_model.meta['hr_out_features'] = ['u_100m', 'v_100m']
     s1_model.meta['s_enhance'] = 2
     s1_model.meta['t_enhance'] = 1
     s1_model.meta['input_resolution'] = {
@@ -237,8 +237,8 @@ def test_fwp_multi_step_spatial_model_topo_noskip(input_files):
     _ = s1_model.generate(np.ones((4, 10, 10, 3)))
 
     s2_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-    s2_model.meta['lr_features'] = ['U_100m', 'V_100m', 'topography']
-    s2_model.meta['hr_out_features'] = ['U_100m', 'V_100m']
+    s2_model.meta['lr_features'] = ['u_100m', 'v_100m', 'topography']
+    s2_model.meta['hr_out_features'] = ['u_100m', 'v_100m']
     s2_model.meta['s_enhance'] = 2
     s2_model.meta['t_enhance'] = 1
     s2_model.meta['input_resolution'] = {'spatial': '8km', 'temporal': '60min'}
@@ -311,8 +311,8 @@ def test_fwp_multi_step_spatial_model_topo_noskip(input_files):
             gan_meta = json.loads(fh.global_attrs['gan_meta'])
             assert len(gan_meta) == 2  # two step model
             assert gan_meta[0]['lr_features'] == [
-                'U_100m',
-                'V_100m',
+                'u_100m',
+                'v_100m',
                 'topography',
             ]
 
@@ -324,8 +324,8 @@ def test_fwp_multi_step_model_topo_noskip(input_files):
     fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
     s1_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-    s1_model.meta['lr_features'] = ['U_100m', 'V_100m', 'topography']
-    s1_model.meta['hr_out_features'] = ['U_100m', 'V_100m']
+    s1_model.meta['lr_features'] = ['u_100m', 'v_100m', 'topography']
+    s1_model.meta['hr_out_features'] = ['u_100m', 'v_100m']
     s1_model.meta['s_enhance'] = 2
     s1_model.meta['t_enhance'] = 1
     s1_model.meta['input_resolution'] = {
@@ -335,8 +335,8 @@ def test_fwp_multi_step_model_topo_noskip(input_files):
     _ = s1_model.generate(np.ones((4, 10, 10, 3)))
 
     s2_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-    s2_model.meta['lr_features'] = ['U_100m', 'V_100m', 'topography']
-    s2_model.meta['hr_out_features'] = ['U_100m', 'V_100m']
+    s2_model.meta['lr_features'] = ['u_100m', 'v_100m', 'topography']
+    s2_model.meta['hr_out_features'] = ['u_100m', 'v_100m']
     s2_model.meta['s_enhance'] = 2
     s2_model.meta['t_enhance'] = 1
     s2_model.meta['input_resolution'] = {
@@ -348,8 +348,8 @@ def test_fwp_multi_step_model_topo_noskip(input_files):
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
     st_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-    st_model.meta['lr_features'] = ['U_100m', 'V_100m', 'topography']
-    st_model.meta['hr_out_features'] = ['U_100m', 'V_100m']
+    st_model.meta['lr_features'] = ['u_100m', 'v_100m', 'topography']
+    st_model.meta['hr_out_features'] = ['u_100m', 'v_100m']
     st_model.meta['s_enhance'] = 3
     st_model.meta['t_enhance'] = 4
     st_model.meta['input_resolution'] = {
@@ -429,8 +429,8 @@ def test_fwp_multi_step_model_topo_noskip(input_files):
             gan_meta = json.loads(fh.global_attrs['gan_meta'])
             assert len(gan_meta) == 3  # three step model
             assert gan_meta[0]['lr_features'] == [
-                'U_100m',
-                'V_100m',
+                'u_100m',
+                'v_100m',
                 'topography',
             ]
 
@@ -553,8 +553,8 @@ def test_fwp_single_step_wind_hi_res_topo(input_files, plot=False):
 
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
     model = Sup3rGan(gen_model, fp_disc, learning_rate=1e-4)
-    model.meta['lr_features'] = ['U_100m', 'V_100m', 'topography']
-    model.meta['hr_out_features'] = ['U_100m', 'V_100m']
+    model.meta['lr_features'] = ['u_100m', 'v_100m', 'topography']
+    model.meta['hr_out_features'] = ['u_100m', 'v_100m']
     model.meta['s_enhance'] = 2
     model.meta['t_enhance'] = 2
     model.meta['input_resolution'] = {'spatial': '8km', 'temporal': '60min'}
@@ -638,8 +638,8 @@ def test_fwp_multi_step_wind_hi_res_topo(input_files):
     Sup3rGan.seed()
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
     s1_model = Sup3rGan(GEN_2X_2F_CONCAT, fp_disc, learning_rate=1e-4)
-    s1_model.meta['lr_features'] = ['U_100m', 'V_100m', 'topography']
-    s1_model.meta['hr_out_features'] = ['U_100m', 'V_100m']
+    s1_model.meta['lr_features'] = ['u_100m', 'v_100m', 'topography']
+    s1_model.meta['hr_out_features'] = ['u_100m', 'v_100m']
     s1_model.meta['s_enhance'] = 2
     s1_model.meta['t_enhance'] = 1
     s1_model.meta['input_resolution'] = {
@@ -661,8 +661,8 @@ def test_fwp_multi_step_wind_hi_res_topo(input_files):
     _ = s1_model.generate(np.ones((4, 10, 10, 3)), exogenous_data=exo_tmp)
 
     s2_model = Sup3rGan(GEN_2X_2F_CONCAT, fp_disc, learning_rate=1e-4)
-    s2_model.meta['lr_features'] = ['U_100m', 'V_100m', 'topography']
-    s2_model.meta['hr_out_features'] = ['U_100m', 'V_100m']
+    s2_model.meta['lr_features'] = ['u_100m', 'v_100m', 'topography']
+    s2_model.meta['hr_out_features'] = ['u_100m', 'v_100m']
     s2_model.meta['s_enhance'] = 2
     s2_model.meta['t_enhance'] = 1
     s2_model.meta['input_resolution'] = {
@@ -674,8 +674,8 @@ def test_fwp_multi_step_wind_hi_res_topo(input_files):
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
     st_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-    st_model.meta['lr_features'] = ['U_100m', 'V_100m', 'topography']
-    st_model.meta['hr_out_features'] = ['U_100m', 'V_100m']
+    st_model.meta['lr_features'] = ['u_100m', 'v_100m', 'topography']
+    st_model.meta['hr_out_features'] = ['u_100m', 'v_100m']
     st_model.meta['s_enhance'] = 3
     st_model.meta['t_enhance'] = 4
     st_model.meta['input_resolution'] = {
@@ -824,8 +824,8 @@ def test_fwp_wind_hi_res_topo_plus_linear(input_files):
 
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
     s_model = Sup3rGan(gen_model, fp_disc, learning_rate=1e-4)
-    s_model.meta['lr_features'] = ['U_100m', 'V_100m', 'topography']
-    s_model.meta['hr_out_features'] = ['U_100m', 'V_100m']
+    s_model.meta['lr_features'] = ['u_100m', 'v_100m', 'topography']
+    s_model.meta['hr_out_features'] = ['u_100m', 'v_100m']
     s_model.meta['s_enhance'] = 2
     s_model.meta['t_enhance'] = 1
     s_model.meta['input_resolution'] = {'spatial': '12km', 'temporal': '60min'}
@@ -839,7 +839,7 @@ def test_fwp_wind_hi_res_topo_plus_linear(input_files):
     _ = s_model.generate(np.ones((4, 10, 10, 3)), exogenous_data=exo_tmp)
 
     t_model = LinearInterp(
-        lr_features=['U_100m', 'V_100m'], s_enhance=1, t_enhance=4
+        lr_features=['u_100m', 'v_100m'], s_enhance=1, t_enhance=4
     )
     t_model.meta['input_resolution'] = {'spatial': '4km', 'temporal': '60min'}
 
@@ -897,8 +897,8 @@ def test_fwp_multi_step_model_multi_exo(input_files):
     fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
     s1_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-    s1_model.meta['lr_features'] = ['U_100m', 'V_100m', 'topography']
-    s1_model.meta['hr_out_features'] = ['U_100m', 'V_100m']
+    s1_model.meta['lr_features'] = ['u_100m', 'v_100m', 'topography']
+    s1_model.meta['hr_out_features'] = ['u_100m', 'v_100m']
     s1_model.meta['s_enhance'] = 2
     s1_model.meta['t_enhance'] = 1
     s1_model.meta['input_resolution'] = {
@@ -908,8 +908,8 @@ def test_fwp_multi_step_model_multi_exo(input_files):
     _ = s1_model.generate(np.ones((4, 10, 10, 3)))
 
     s2_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-    s2_model.meta['lr_features'] = ['U_100m', 'V_100m', 'topography']
-    s2_model.meta['hr_out_features'] = ['U_100m', 'V_100m']
+    s2_model.meta['lr_features'] = ['u_100m', 'v_100m', 'topography']
+    s2_model.meta['hr_out_features'] = ['u_100m', 'v_100m']
     s2_model.meta['s_enhance'] = 2
     s2_model.meta['t_enhance'] = 1
     s2_model.meta['input_resolution'] = {
@@ -925,8 +925,8 @@ def test_fwp_multi_step_model_multi_exo(input_files):
         'spatial': '12km',
         'temporal': '60min',
     }
-    st_model.meta['lr_features'] = ['U_100m', 'V_100m', 'sza']
-    st_model.meta['hr_out_features'] = ['U_100m', 'V_100m']
+    st_model.meta['lr_features'] = ['u_100m', 'v_100m', 'sza']
+    st_model.meta['hr_out_features'] = ['u_100m', 'v_100m']
     st_model.meta['s_enhance'] = 3
     st_model.meta['t_enhance'] = 4
     _ = st_model.generate(np.ones((4, 10, 10, 6, 3)))
@@ -1008,8 +1008,8 @@ def test_fwp_multi_step_model_multi_exo(input_files):
             gan_meta = json.loads(fh.global_attrs['gan_meta'])
             assert len(gan_meta) == 3  # three step model
             assert gan_meta[0]['lr_features'] == [
-                'U_100m',
-                'V_100m',
+                'u_100m',
+                'v_100m',
                 'topography',
             ]
 
@@ -1122,8 +1122,8 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza(input_files):
 
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
     s1_model = Sup3rGan(gen_s_model, fp_disc, learning_rate=1e-4)
-    s1_model.meta['lr_features'] = ['U_100m', 'V_100m', 'topography', 'sza']
-    s1_model.meta['hr_out_features'] = ['U_100m', 'V_100m']
+    s1_model.meta['lr_features'] = ['u_100m', 'v_100m', 'topography', 'sza']
+    s1_model.meta['hr_out_features'] = ['u_100m', 'v_100m']
     s1_model.meta['s_enhance'] = 2
     s1_model.meta['t_enhance'] = 1
     s1_model.meta['input_resolution'] = {
@@ -1153,8 +1153,8 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza(input_files):
     _ = s1_model.generate(np.ones((4, 10, 10, 4)), exogenous_data=exo_tmp)
 
     s2_model = Sup3rGan(gen_s_model, fp_disc, learning_rate=1e-4)
-    s2_model.meta['lr_features'] = ['U_100m', 'V_100m', 'topography', 'sza']
-    s2_model.meta['hr_out_features'] = ['U_100m', 'V_100m']
+    s2_model.meta['lr_features'] = ['u_100m', 'v_100m', 'topography', 'sza']
+    s2_model.meta['hr_out_features'] = ['u_100m', 'v_100m']
     s2_model.meta['s_enhance'] = 2
     s2_model.meta['t_enhance'] = 1
     s2_model.meta['input_resolution'] = {
@@ -1165,8 +1165,8 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza(input_files):
 
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
     st_model = Sup3rGan(gen_t_model, fp_disc, learning_rate=1e-4)
-    st_model.meta['lr_features'] = ['U_100m', 'V_100m', 'sza']
-    st_model.meta['hr_out_features'] = ['U_100m', 'V_100m']
+    st_model.meta['lr_features'] = ['u_100m', 'v_100m', 'sza']
+    st_model.meta['hr_out_features'] = ['u_100m', 'v_100m']
     st_model.meta['s_enhance'] = 3
     st_model.meta['t_enhance'] = 2
     st_model.meta['input_resolution'] = {

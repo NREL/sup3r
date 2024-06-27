@@ -3,7 +3,6 @@
 import os
 import tempfile
 
-import dask.array as da
 import numpy as np
 import pytest
 
@@ -32,11 +31,7 @@ def test_raster_index_caching():
         # loading raster file
         extracter = ExtracterH5(pytest.FP_WTK, raster_file=raster_file)
     assert np.allclose(extracter.target, target, atol=1)
-    assert extracter.shape[:3] == (
-        shape[0],
-        shape[1],
-        extracter.shape[2],
-    )
+    assert extracter.shape[:3] == (shape[0], shape[1], extracter.shape[2])
 
 
 @pytest.mark.parametrize(
@@ -77,24 +72,14 @@ def test_data_caching(
 
     with tempfile.TemporaryDirectory() as td:
         cache_pattern = os.path.join(td, 'cached_{feature}.' + ext)
-        extracter = Extracter(
-            input_files,
-            shape=shape,
-            target=target,
-        )
+        extracter = Extracter(input_files, shape=shape, target=target)
         cacher = Cacher(
             extracter, cache_kwargs={'cache_pattern': cache_pattern}
         )
 
-        assert extracter.shape[:3] == (
-            shape[0],
-            shape[1],
-            extracter.shape[2],
-        )
+        assert extracter.shape[:3] == (shape[0], shape[1], extracter.shape[2])
         assert extracter.data.dtype == np.dtype(np.float32)
         loader = Loader(cacher.out_files)
-        assert da.map_blocks(
-            lambda x, y: x == y,
-            loader[features, ...],
-            extracter[features, ...],
-        ).all()
+        assert np.array_equal(
+            loader[features, ...].compute(), extracter[features, ...].compute()
+        )

@@ -13,7 +13,7 @@ from sup3r.preprocessing import (
 )
 
 TARGET_COORD = (39.01, -105.15)
-FEATURES = ['U_100m', 'V_100m']
+FEATURES = ['u_100m', 'v_100m']
 target = (39.01, -105.15)
 shape = (20, 20)
 kwargs = {
@@ -28,7 +28,7 @@ def test_end_to_end():
     """Test data loading, extraction to h5 files with chunks, batch building,
     and training with validation end to end workflow."""
 
-    derive_features = ['U_100m', 'V_100m']
+    derive_features = ['u_100m', 'v_100m']
 
     with TemporaryDirectory() as td:
         train_cache_pattern = os.path.join(td, 'train_{feature}.h5')
@@ -40,7 +40,7 @@ def test_end_to_end():
             **kwargs,
             cache_kwargs={
                 'cache_pattern': train_cache_pattern,
-                'chunks': {'U_100m': (50, 20, 20), 'V_100m': (50, 20, 20)},
+                'chunks': {'u_100m': (50, 20, 20), 'v_100m': (50, 20, 20)},
             },
         )
         # get val data
@@ -50,7 +50,7 @@ def test_end_to_end():
             **kwargs,
             cache_kwargs={
                 'cache_pattern': val_cache_pattern,
-                'chunks': {'U_100m': (50, 20, 20), 'V_100m': (50, 20, 20)},
+                'chunks': {'u_100m': (50, 20, 20), 'v_100m': (50, 20, 20)},
             },
         )
 

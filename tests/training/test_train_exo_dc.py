@@ -12,7 +12,7 @@ from sup3r.preprocessing import DataHandlerH5
 from sup3r.utilities.pytest.helpers import BatchHandlerTesterDC
 
 SHAPE = (20, 20)
-FEATURES_W = ['temperature_100m', 'U_100m', 'V_100m', 'topography']
+FEATURES_W = ['temperature_100m', 'u_100m', 'v_100m', 'topography']
 TARGET_W = (39.01, -105.15)
 
 
@@ -24,7 +24,7 @@ def test_wind_dc_hi_res_topo(CustomLayer):
 
     kwargs = {
         'file_paths': pytest.FP_WTK,
-        'features': ('U_100m', 'V_100m', 'topography'),
+        'features': ('u_100m', 'v_100m', 'topography'),
         'target': TARGET_W,
         'shape': SHAPE,
     }

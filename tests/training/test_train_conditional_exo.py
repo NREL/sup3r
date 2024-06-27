@@ -96,7 +96,7 @@ def test_wind_non_cc_hi_res_st_topo_mom1(
 
     handler = DataHandlerH5(
         pytest.FP_WTK,
-        ['U_100m', 'V_100m', 'topography'],
+        ['u_100m', 'v_100m', 'topography'],
         target=TARGET_COORD,
         shape=SHAPE,
         time_slice=slice(None, None, 1),
@@ -150,7 +150,7 @@ def test_wind_non_cc_hi_res_st_topo_mom2(
 
     handler = DataHandlerH5(
         pytest.FP_WTK,
-        ['U_100m', 'V_100m', 'topography'],
+        ['u_100m', 'v_100m', 'topography'],
         target=TARGET_COORD,
         shape=SHAPE,
         time_slice=slice(None, None, 1),

@@ -17,7 +17,7 @@ from sup3r.preprocessing import (
 )
 
 TARGET_COORD = (39.01, -105.15)
-FEATURES = ['U_100m', 'V_100m']
+FEATURES = ['u_100m', 'v_100m']
 
 ST_SAMPLE_SHAPE = (12, 12, 16)
 S_SAMPLE_SHAPE = (12, 12, 1)

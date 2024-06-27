@@ -18,7 +18,7 @@ input_files = [
 ]
 target = (39.01, -105.15)
 shape = (20, 20)
-features = ['U_100m', 'V_100m']
+features = ['u_100m', 'v_100m']
 kwargs = {
     'target': target,
     'shape': shape,

@@ -20,7 +20,7 @@ from sup3r.utilities.pytest.helpers import (
     make_fake_nc_file,
 )
 
-FEATURES = ['U_100m', 'V_100m']
+FEATURES = ['u_100m', 'v_100m']
 target = (19.3, -123.5)
 shape = (8, 8)
 time_slice = slice(None, None, 1)
@@ -47,7 +47,7 @@ def test_fwp_nc_cc():
     Sup3rGan.seed()
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
 
-    features = ['U_100m', 'V_100m']
+    features = ['u_100m', 'v_100m']
     target = (13.67, 125.0)
     _ = model.generate(np.ones((4, 10, 10, 6, len(features))))
     model.meta['lr_features'] = features
@@ -101,7 +101,7 @@ def test_fwp_spatial_only(input_files):
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
     _ = model.generate(np.ones((4, 10, 10, len(FEATURES))))
     model.meta['lr_features'] = FEATURES
-    model.meta['hr_out_features'] = ['U_100m', 'V_100m']
+    model.meta['hr_out_features'] = ['u_100m', 'v_100m']
     model.meta['s_enhance'] = 2
     model.meta['t_enhance'] = 1
     with tempfile.TemporaryDirectory() as td:
@@ -152,7 +152,7 @@ def test_fwp_nc(input_files):
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
     _ = model.generate(np.ones((4, 10, 10, 6, len(FEATURES))))
     model.meta['lr_features'] = FEATURES
-    model.meta['hr_out_features'] = ['U_100m', 'V_100m']
+    model.meta['hr_out_features'] = ['u_100m', 'v_100m']
     model.meta['s_enhance'] = 3
     model.meta['t_enhance'] = 4
     with tempfile.TemporaryDirectory() as td:
@@ -200,8 +200,8 @@ def test_fwp_time_slice(input_files):
     Sup3rGan.seed()
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
     _ = model.generate(np.ones((4, 10, 10, 6, 2)))
-    model.meta['lr_features'] = ['U_100m', 'V_100m']
-    model.meta['hr_out_features'] = ['U_100m', 'V_100m']
+    model.meta['lr_features'] = ['u_100m', 'v_100m']
+    model.meta['hr_out_features'] = ['u_100m', 'v_100m']
     model.meta['s_enhance'] = 3
     model.meta['t_enhance'] = 4
     with tempfile.TemporaryDirectory() as td:
@@ -245,7 +245,7 @@ def test_fwp_time_slice(input_files):
             assert 'gan_meta' in fh.global_attrs
             gan_meta = json.loads(fh.global_attrs['gan_meta'])
             assert isinstance(gan_meta, dict)
-            assert gan_meta['lr_features'] == ['U_100m', 'V_100m']
+            assert gan_meta['lr_features'] == ['u_100m', 'v_100m']
 
 
 def test_fwp_handler(input_files):
@@ -490,8 +490,8 @@ def test_fwp_multi_step_model(input_files):
     fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
     s_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-    s_model.meta['lr_features'] = ['U_100m', 'V_100m']
-    s_model.meta['hr_out_features'] = ['U_100m', 'V_100m']
+    s_model.meta['lr_features'] = ['u_100m', 'v_100m']
+    s_model.meta['hr_out_features'] = ['u_100m', 'v_100m']
     assert s_model.s_enhance == 2
     assert s_model.t_enhance == 1
     _ = s_model.generate(np.ones((4, 10, 10, 2)))
@@ -499,8 +499,8 @@ def test_fwp_multi_step_model(input_files):
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
     st_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-    st_model.meta['lr_features'] = ['U_100m', 'V_100m']
-    st_model.meta['hr_out_features'] = ['U_100m', 'V_100m']
+    st_model.meta['lr_features'] = ['u_100m', 'v_100m']
+    st_model.meta['hr_out_features'] = ['u_100m', 'v_100m']
     assert st_model.s_enhance == 3
     assert st_model.t_enhance == 4
     _ = st_model.generate(np.ones((4, 10, 10, 6, 2)))
@@ -564,7 +564,7 @@ def test_fwp_multi_step_model(input_files):
             assert 'gan_meta' in fh.global_attrs
             gan_meta = json.loads(fh.global_attrs['gan_meta'])
             assert len(gan_meta) == 2  # two step model
-            assert gan_meta[0]['lr_features'] == ['U_100m', 'V_100m']
+            assert gan_meta[0]['lr_features'] == ['u_100m', 'v_100m']
 
 
 def test_slicing_no_pad(input_files):
@@ -578,7 +578,7 @@ def test_slicing_no_pad(input_files):
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
     st_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-    features = ['U_100m', 'V_100m']
+    features = ['u_100m', 'v_100m']
     st_model.meta['lr_features'] = features
     st_model.meta['hr_out_features'] = features
     st_model.meta['s_enhance'] = s_enhance
@@ -638,7 +638,7 @@ def test_slicing_pad(input_files):
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
     st_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-    features = ['U_100m', 'V_100m']
+    features = ['u_100m', 'v_100m']
     st_model.meta['lr_features'] = features
     st_model.meta['hr_out_features'] = features
     st_model.meta['s_enhance'] = s_enhance
