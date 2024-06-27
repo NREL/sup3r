@@ -82,11 +82,7 @@ exclude = [
 # logger-objects = []
 task-tags = ["TODO", "FIXME", "XXX"]
 select = [
-#  "E", # pycodestyle
-#  "F", # Pyflakes
-#  "W", # Warning
-
-#  "A", # flake8-builtins
+  "A", # flake8-builtins
 #  "ARG", # flake8-unused-arguments
 #  "COM", # flake8-commas
 #  # "D", # pydocstyle
@@ -104,6 +100,10 @@ select = [
   ]
 
 ignore = [
+  # Currently don't conform but we might want to reconsider
+  "A001", # builtin-variable-shadowing
+  # Currently don't conform but we might want to reconsider
+  "A002", # builtin-argument-shadowing
 #  "B008", # function-call-in-default-argument
 #  "B024", # abstract-base-class-without-abstract-method
 #  "B028", # no-explicit-stacklevel
