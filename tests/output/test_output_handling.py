@@ -208,7 +208,7 @@ def test_h5_collect_mask(log=False):
         (out_files, data, _, _, features, _, _, _, _, _, _) = out
 
         CollectorH5.collect(out_files, fp_out, features=features)
-        indices = np.arange(np.product(data.shape[:2]))
+        indices = np.arange(np.prod(data.shape[:2]))
         indices = indices[slice(-len(indices) // 2, None)]
         removed = []
         for _ in range(10):

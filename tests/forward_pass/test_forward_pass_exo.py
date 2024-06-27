@@ -190,7 +190,7 @@ def test_fwp_multi_step_spatial_model_topo_noskip():
         max_workers = 1
         fwp_chunk_shape = (4, 4, 8)
         s_enhancements = [2, 2, 1]
-        s_enhance = np.product(s_enhancements)
+        s_enhance = np.prod(s_enhancements)
 
         exo_kwargs = {
             'topography': {
@@ -299,7 +299,7 @@ def test_fwp_multi_step_model_topo_noskip():
         max_workers = 1
         fwp_chunk_shape = (4, 4, 8)
         s_enhancements = [2, 2, 3]
-        s_enhance = np.product(s_enhancements)
+        s_enhance = np.prod(s_enhancements)
         t_enhance = 4
 
         exo_kwargs = {
@@ -955,7 +955,7 @@ def test_fwp_multi_step_model_multi_exo():
         max_workers = 1
         fwp_chunk_shape = (4, 4, 8)
         s_enhancements = [2, 2, 3]
-        s_enhance = np.product(s_enhancements)
+        s_enhance = np.prod(s_enhancements)
         t_enhance = 4
 
         exo_kwargs = {

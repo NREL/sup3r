@@ -195,7 +195,7 @@ def test_weighted_box_sampler():
                 or chunks[5][0] <= slice_3.start <= chunks[5][-1])
 
     shape = (1, 1)
-    weights = np.zeros(np.product(data.shape))
+    weights = np.zeros(np.prod(data.shape))
     weights_4 = weights.copy()
     weights_4[5] = 1
 
@@ -366,7 +366,7 @@ def test_t_coarsen():
     """Test temporal coarsening of 5D array"""
     t_enhance = 4
     hr_shape = (3, 10, 10, 48, 2)
-    arr = np.arange(np.product(hr_shape)).reshape(hr_shape).astype(float)
+    arr = np.arange(np.prod(hr_shape)).reshape(hr_shape).astype(float)
 
     # test 4x temporal enhancement averaging
     arr_lr = temporal_coarsening(arr, t_enhance=t_enhance, method='average')
