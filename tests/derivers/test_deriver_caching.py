@@ -31,7 +31,7 @@ features = ['windspeed_100m', 'winddirection_100m']
     ],
     [
         (
-            pytest.FPS_WTK,
+            pytest.FP_WTK,
             LoaderH5,
             DataHandlerH5,
             ['u_100m', 'v_100m'],
@@ -64,7 +64,7 @@ def test_derived_data_caching(
     with tempfile.TemporaryDirectory() as td:
         cache_pattern = os.path.join(td, 'cached_{feature}.' + ext)
         deriver = Deriver(
-            file_paths=input_files[0],
+            file_paths=input_files,
             features=derive_features,
             shape=shape,
             target=target,
@@ -96,7 +96,7 @@ def test_derived_data_caching(
     ],
     [
         (
-            pytest.FPS_WTK,
+            pytest.FP_WTK,
             DataHandlerH5,
             ['u_100m', 'v_100m'],
             'h5',
@@ -126,7 +126,7 @@ def test_caching_with_dh_loading(
     with tempfile.TemporaryDirectory() as td:
         cache_pattern = os.path.join(td, 'cached_{feature}.' + ext)
         deriver = Deriver(
-            file_paths=input_files[0],
+            file_paths=input_files,
             features=derive_features,
             shape=shape,
             target=target,
