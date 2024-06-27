@@ -6,6 +6,7 @@ import tempfile
 
 import numpy as np
 import pytest
+import tensorflow as tf
 from tensorflow.keras.losses import MeanAbsoluteError
 
 from sup3r import CONFIG_DIR
@@ -15,6 +16,9 @@ from sup3r.preprocessing import BatchHandlerCC, DataHandlerH5SolarCC
 SHAPE = (20, 20)
 FEATURES_S = ['clearsky_ratio', 'ghi', 'clearsky_ghi']
 TARGET_S = (39.01, -105.13)
+
+# added to get accurate pytest-cov report on tf.function
+tf.config.run_functions_eagerly(True)
 
 
 def test_solar_cc_model():

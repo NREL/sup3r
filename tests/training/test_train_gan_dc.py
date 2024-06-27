@@ -11,9 +11,7 @@ from sup3r.preprocessing import (
     DataHandlerH5,
 )
 from sup3r.utilities.loss_metrics import MmdMseLoss
-from sup3r.utilities.pytest.helpers import (
-    BatchHandlerTesterDC,
-)
+from sup3r.utilities.pytest.helpers import BatchHandlerTesterDC
 
 TARGET_COORD = (39.01, -105.15)
 FEATURES = ['u_100m', 'v_100m']

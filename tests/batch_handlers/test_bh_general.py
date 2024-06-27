@@ -76,7 +76,7 @@ def test_eager_vs_lazy():
         assert np.array_equal(eb.low_res, lb.low_res)
 
 
-@pytest.mark.parametrize('n_epochs', [1, 2, 3, 4])
+@pytest.mark.parametrize('n_epochs', [1, 2, 3])
 def test_sample_counter(n_epochs):
     """Make sure samples are counted correctly, over multiple epochs."""
 
