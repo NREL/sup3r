@@ -84,6 +84,7 @@ task-tags = ["TODO", "FIXME", "XXX"]
 select = [
   "A", # flake8-builtins
   "ARG", # flake8-unused-arguments
+  "C",
   "C4", # flake8-comprehensions
   "C90", # mccabe
   "COM", # flake8-commas
@@ -95,6 +96,7 @@ select = [
   "F401", # unused-import
   "G", # flake8-logging-format
   "I", # isort
+  "LOG",
   "N", # pep8-naming
   "NPY", # numpy-specific
   "PL", # Pylint
