@@ -93,6 +93,7 @@ select = [
 #  "E", # pycodestyle
   "E701", # multiple-statements-on-one-line-colon
 #  "F", # Pyflakes
+  "F401", # unused-import
   "G", # flake8-logging-format
 #  "I", # isort
 #  "NPY", # numpy-specific
@@ -180,9 +181,9 @@ ignore = [
 
 
 [tool.ruff.lint.per-file-ignores]
-#"__init__.py" = [
-#  "F401", # unused-import
-#  ]
+"__init__.py" = [
+  "F401", # unused-import
+  ]
 #"docs/source/conf.py" = [
 #  "E402", # unused-import
 #  ]
