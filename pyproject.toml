@@ -89,7 +89,7 @@ select = [
   "E", # pycodestyle
   "E701", # multiple-statements-on-one-line-colon
   "E722", # bare-except
-#  "F", # Pyflakes
+  "F", # Pyflakes
   "F401", # unused-import
   "G", # flake8-logging-format
   "I", # isort
