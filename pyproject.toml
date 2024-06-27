@@ -99,7 +99,7 @@ select = [
   "I", # isort
   "NPY", # numpy-specific
   "Q", # flake8-quotes
-#  "UP", # pyupgrade
+  "UP", # pyupgrade
   "W", # Warning
   ]
 
@@ -137,8 +137,9 @@ ignore = [
   "PLW1514", # unspecified-encoding
   "Q000", # bad-quotes-inline-string
   "Q004", # unnecessary-escaped-quote
-#  "UP009", # utf8-encoding-declaration
-#  "UP032", # f-string
+  "UP009", # utf8-encoding-declaration
+  "UP015", # redundant-open-modes
+  "UP032", # f-string
 #  "UP038" # non-pep604-isinstance
   ]
 # Ignored in pylint setup but missing on ruff. We shall delete from the
