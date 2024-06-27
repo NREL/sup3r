@@ -59,7 +59,6 @@ doc = [
 ]
 test = [
   "pytest>=5.2",
-  "pytest-env"
 ]
 
 [project.urls]
