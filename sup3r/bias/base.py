@@ -634,9 +634,9 @@ class DataRetrievalBase:
 
         base_cs_ghi = None
 
-        if base_dset.startswith(('U_', 'V_')):
-            dset_ws = base_dset.replace('U_', 'windspeed_')
-            dset_ws = dset_ws.replace('V_', 'windspeed_')
+        if base_dset.lower().startswith(('u_', 'v_')):
+            dset_ws = base_dset.lower().replace('u_', 'windspeed_')
+            dset_ws = dset_ws.lower().replace('v_', 'windspeed_')
             dset_wd = dset_ws.replace('speed', 'direction')
             base_ws = res[dset_ws, :, base_gid]
             base_wd = res[dset_wd, :, base_gid]
