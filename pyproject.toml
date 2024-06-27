@@ -77,7 +77,7 @@ exclude = [
 ]
 
 [tool.ruff.lint]
-# fixable = ["ALL"]
+fixable = []
 # preview = true
 # logger-objects = []
 task-tags = ["TODO", "FIXME", "XXX"]
