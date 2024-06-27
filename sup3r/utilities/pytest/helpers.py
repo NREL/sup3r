@@ -230,6 +230,8 @@ def BatchHandlerTesterFactory(BatchHandlerClass, SamplerClass):
             batches = data.batch(
                 self.batch_size,
                 drop_remainder=True,
+                deterministic=True,
+                num_parallel_calls=1
             )
             return batches.as_numpy_iterator()
 

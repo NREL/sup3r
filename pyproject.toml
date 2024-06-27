@@ -294,5 +294,5 @@ twine = ">=5.0"
 ruff = ">=0.4"
 
 [tool.pytest_env]
-CUDA_VISIBLE_DEVICES=-1
-TF_ENABLE_ONEDNN_OPTS=0
+CUDA_VISIBLE_DEVICES = "-1"
+TF_ENABLE_ONEDNN_OPTS = "0"

@@ -66,7 +66,7 @@ def test_train(fp_gen, fp_disc, s_enhance, t_enhance, sample_shape, n_epoch=3):
             batch_size=10,
             s_enhance=s_enhance,
             t_enhance=t_enhance,
-            n_batches=3,
+            n_batches=4,
             means=None,
             stds=None,
         )
