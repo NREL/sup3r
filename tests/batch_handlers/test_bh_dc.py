@@ -2,14 +2,12 @@
 
 import numpy as np
 import pytest
-import tensorflow as tf
 
 from sup3r.utilities.pytest.helpers import (
     BatchHandlerTesterDC,
     DummyData,
 )
 
-tf.data.experimental.enable_debug_mode()
 FEATURES = ['windspeed', 'winddirection']
 means = dict.fromkeys(FEATURES, 0)
 stds = dict.fromkeys(FEATURES, 1)

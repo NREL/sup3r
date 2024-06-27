@@ -453,7 +453,7 @@ def test_fwp_integration(tmp_path):
     - We should be able to run a forward pass with unbiased data.
     - The bias trend should be observed in the predicted output.
     """
-    features = ['U_100m', 'V_100m']
+    features = ['u_100m', 'v_100m']
     target = (13.67, 125.0)
     shape = (8, 8)
     temporal_slice = slice(None, None, 1)
@@ -509,16 +509,16 @@ def test_fwp_integration(tmp_path):
         f.attrs['time_window_center'] = [182.5]
 
     bias_correct_kwargs = {
-        'U_100m': {
-            'feature_name': 'U_100m',
+        'u_100m': {
+            'feature_name': 'u_100m',
             'base_dset': 'Uref_100m',
             'bias_fp': bias_fp,
             'time_index': pd.DatetimeIndex(
                 [np.datetime64(t) for t in ds.time.values]
             ),
         },
-        'V_100m': {
-            'feature_name': 'V_100m',
+        'v_100m': {
+            'feature_name': 'v_100m',
             'base_dset': 'Vref_100m',
             'bias_fp': bias_fp,
             'time_index': pd.DatetimeIndex(

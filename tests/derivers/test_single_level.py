@@ -3,12 +3,10 @@
 import os
 from tempfile import TemporaryDirectory
 
-import dask.array as da
 import numpy as np
 import pytest
 import xarray as xr
 
-from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing import (
     Deriver,
     ExtracterH5,
@@ -18,12 +16,6 @@ from sup3r.preprocessing.derivers.utilities import (
     transform_rotate_wind,
 )
 from sup3r.utilities.pytest.helpers import make_fake_nc_file
-
-h5_files = [
-    os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5'),
-    os.path.join(TEST_DATA_DIR, 'test_wtk_co_2013.h5'),
-]
-nc_files = [os.path.join(TEST_DATA_DIR, 'test_era5_co_2012.nc')]
 
 features = ['windspeed_100m', 'winddirection_100m']
 h5_target = (39.01, -105.15)
@@ -46,16 +38,8 @@ def make_5d_nc_file(td, features):
 
 
 @pytest.mark.parametrize(
-    [
-        'input_files',
-        'DirectExtracter',
-        'Deriver',
-        'shape',
-        'target',
-    ],
-    [
-        (None, ExtracterNC, Deriver, nc_shape, nc_target),
-    ],
+    ['input_files', 'DirectExtracter', 'Deriver', 'shape', 'target'],
+    [(None, ExtracterNC, Deriver, nc_shape, nc_target)],
 )
 def test_unneeded_uv_transform(
     input_files, DirectExtracter, Deriver, shape, target
@@ -67,32 +51,25 @@ def test_unneeded_uv_transform(
         if input_files is None:
             input_files = [make_5d_nc_file(td, ['u_100m', 'v_100m'])]
         derive_features = ['U_100m', 'V_100m']
-        extracter = DirectExtracter(
-            input_files[0],
-            target=target,
-            shape=shape,
-        )
-    deriver = Deriver(extracter.data, features=derive_features)
+        extracter = DirectExtracter(input_files[0], target=target, shape=shape)
 
-    assert da.map_blocks(
-        lambda x, y: x == y, extracter['U_100m'].data, deriver['U_100m'].data
-    ).all()
-    assert da.map_blocks(
-        lambda x, y: x == y, extracter['V_100m'].data, deriver['V_100m'].data
-    ).all()
+    # upper case features warning
+    with pytest.warns():
+        deriver = Deriver(extracter.data, features=derive_features)
+
+        assert np.array_equal(
+            extracter['U_100m'].data.compute(),
+            deriver['U_100m'].data.compute())
+        assert np.array_equal(
+            extracter['V_100m'].data.compute(),
+            deriver['V_100m'].data.compute())
 
 
 @pytest.mark.parametrize(
-    [
-        'input_files',
-        'DirectExtracter',
-        'Deriver',
-        'shape',
-        'target',
-    ],
+    ['input_files', 'DirectExtracter', 'Deriver', 'shape', 'target'],
     [
         (None, ExtracterNC, Deriver, nc_shape, nc_target),
-        (h5_files, ExtracterH5, Deriver, h5_shape, h5_target),
+        (pytest.FPS_WTK, ExtracterH5, Deriver, h5_shape, h5_target),
     ],
 )
 def test_uv_transform(input_files, DirectExtracter, Deriver, shape, target):
@@ -109,7 +86,10 @@ def test_uv_transform(input_files, DirectExtracter, Deriver, shape, target):
             target=target,
             shape=shape,
         )
-    deriver = Deriver(extracter.data, features=derive_features)
+
+    # warning about upper case features
+    with pytest.warns():
+        deriver = Deriver(extracter.data, features=derive_features)
     u, v = transform_rotate_wind(
         extracter['windspeed_100m'],
         extracter['winddirection_100m'],
@@ -120,21 +100,9 @@ def test_uv_transform(input_files, DirectExtracter, Deriver, shape, target):
 
 
 @pytest.mark.parametrize(
+    ['input_files', 'DirectExtracter', 'Deriver', 'shape', 'target'],
     [
-        'input_files',
-        'DirectExtracter',
-        'Deriver',
-        'shape',
-        'target',
-    ],
-    [
-        (
-            h5_files,
-            ExtracterH5,
-            Deriver,
-            h5_shape,
-            h5_target,
-        ),
+        (pytest.FPS_WTK, ExtracterH5, Deriver, h5_shape, h5_target),
         (None, ExtracterNC, Deriver, nc_shape, nc_target),
     ],
 )
@@ -145,11 +113,7 @@ def test_hr_coarsening(input_files, DirectExtracter, Deriver, shape, target):
     with TemporaryDirectory() as td:
         if input_files is None:
             input_files = [make_5d_nc_file(td, features=features)]
-        extracter = DirectExtracter(
-            input_files[0],
-            target=target,
-            shape=shape,
-        )
+        extracter = DirectExtracter(input_files[0], target=target, shape=shape)
     deriver = Deriver(extracter.data, features=features, hr_spatial_coarsen=2)
     assert deriver.data.shape == (
         shape[0] // 2,

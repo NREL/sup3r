@@ -53,12 +53,20 @@ class Dimension(str, Enum):
 
 def _compute_chunks_if_dask(arr):
     return (
-        arr.compute_chunk_sizes() if not isinstance(arr, np.ndarray) else arr
+        arr.compute_chunk_sizes()
+        if hasattr(arr, 'compute_chunk_sizes')
+        else arr
     )
 
 
 def _compute_if_dask(arr):
-    return arr.compute() if not isinstance(arr, np.ndarray) else arr
+    if isinstance(arr, slice):
+        return slice(
+            _compute_if_dask(arr.start),
+            _compute_if_dask(arr.stop),
+            _compute_if_dask(arr.step),
+        )
+    return arr.compute() if hasattr(arr, 'compute') else arr
 
 
 def _parse_time_slice(value):
@@ -174,7 +182,7 @@ def get_input_handler_class(input_handler_name: Optional[str] = None):
 
 
 def get_class_params(Class):
-    """Get list of `Paramater` instances for a given class."""
+    """Get list of `Parameter` instances for a given class."""
     params = (
         list(Class.__signature__.parameters.values())
         if hasattr(Class, '__signature__')

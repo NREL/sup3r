@@ -6,14 +6,12 @@ import tempfile
 
 import numpy as np
 import pytest
-import tensorflow as tf
 from tensorflow.keras.losses import MeanAbsoluteError
 
 from sup3r import CONFIG_DIR
 from sup3r.models import SolarCC, Sup3rGan
 from sup3r.preprocessing import BatchHandlerCC, DataHandlerH5SolarCC
 
-tf.config.experimental_run_functions_eagerly(True)
 SHAPE = (20, 20)
 FEATURES_S = ['clearsky_ratio', 'ghi', 'clearsky_ghi']
 TARGET_S = (39.01, -105.13)

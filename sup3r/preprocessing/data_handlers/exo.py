@@ -224,10 +224,10 @@ class ExoDataHandler:
         feature : str
             Name of feature to get exo data for
         s_enhance : int
-            Spatial enhancement for this exogeneous data step (cumulative for
+            Spatial enhancement for this exogenous data step (cumulative for
             all model steps up to the current step).
         t_enhance : int
-            Temporal enhancement for this exogeneous data step (cumulative for
+            Temporal enhancement for this exogenous data step (cumulative for
             all model steps up to the current step).
 
         Returns

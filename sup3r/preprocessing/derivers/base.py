@@ -72,7 +72,7 @@ class BaseDeriver(Container):
 
     def check_registry(self, feature) -> Union[T_Array, str, None]:
         """Get compute method from the registry if available. Will check for
-        pattern feature match in feature registry. e.g. if U_100m matches a
+        pattern feature match in feature registry. e.g. if u_100m matches a
         feature registry entry of U_(.*)m
         """
         method = self._check_registry(feature)
@@ -157,8 +157,8 @@ class BaseDeriver(Container):
 
     def add_single_level_data(self, feature, lev_array, var_array):
         """When doing level interpolation we should include the single level
-        data available. e.g. If we have U_100m already and want to
-        interpolation U_40m from multi-level data U we should add U_100m at
+        data available. e.g. If we have u_100m already and want to
+        interpolation U_40m from multi-level data U we should add u_100m at
         height 100m before doing interpolation since 100 could be a closer
         level to 40m than those available in U."""
         fstruct = parse_feature(feature)

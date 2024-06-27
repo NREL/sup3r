@@ -17,7 +17,7 @@ from sup3r.preprocessing.samplers import DualSampler
 from sup3r.utilities.pytest.helpers import BatchHandlerTesterFactory
 
 TARGET_COORD = (39.01, -105.15)
-FEATURES = ['U_100m', 'V_100m']
+FEATURES = ['u_100m', 'v_100m']
 
 
 DualBatchHandlerTester = BatchHandlerTesterFactory(

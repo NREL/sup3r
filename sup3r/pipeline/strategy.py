@@ -65,7 +65,7 @@ class ForwardPassStrategy:
     chunks are distributed across nodes according to the max nodes input or
     number of temporal chunks. This strategy stores information on these
     chunks, how they overlap, how they are distributed to nodes, and how to
-    crop generator output to stich the chunks back togerther.
+    crop generator output to stich the chunks back together.
 
     Use the following inputs to initialize data handlers on different nodes and
     to define the size of the data chunks that will be passed through the
@@ -88,7 +88,7 @@ class ForwardPassStrategy:
         to use for a forward pass. The number of nodes that the
         :class:`ForwardPassStrategy` is set to distribute to is calculated by
         dividing up the total time index from all file_paths by the temporal
-        part of this chunk shape. Each node will then be parallelized accross
+        part of this chunk shape. Each node will then be parallelized across
         parallel processes by the spatial chunk shape.  If temporal_pad /
         spatial_pad are non zero the chunk sent to the generator can be bigger
         than this shape. If running in serial set this equal to the shape of
@@ -118,7 +118,7 @@ class ForwardPassStrategy:
     exo_kwargs : dict | None
         Dictionary of args to pass to :class:`ExoDataHandler` for extracting
         exogenous features for multistep foward pass. This should be a nested
-        dictionary with keys for each exogeneous feature. The dictionaries
+        dictionary with keys for each exogenous feature. The dictionaries
         corresponding to the feature names should include the path to exogenous
         data source, the resolution of the exogenous data, and how the
         exogenous data should be used in the model. e.g. {'topography':

@@ -103,7 +103,7 @@ def test_invert_uv_inplace():
     data = np.concatenate(
         [np.expand_dims(u, axis=-1), np.expand_dims(v, axis=-1)], axis=-1
     )
-    OutputHandlerH5.invert_uv_features(data, ['U_100m', 'V_100m'], lat_lon)
+    OutputHandlerH5.invert_uv_features(data, ['u_100m', 'v_100m'], lat_lon)
 
     ws, wd = invert_uv(u, v, lat_lon)
 
@@ -114,7 +114,7 @@ def test_invert_uv_inplace():
     data = np.concatenate(
         [np.expand_dims(u, axis=-1), np.expand_dims(v, axis=-1)], axis=-1
     )
-    OutputHandlerH5.invert_uv_features(data, ['U_100m', 'V_100m'], lat_lon)
+    OutputHandlerH5.invert_uv_features(data, ['u_100m', 'v_100m'], lat_lon)
 
     ws, wd = invert_uv(u, v, lat_lon)
 

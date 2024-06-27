@@ -15,7 +15,7 @@ from sup3r.preprocessing import (
 )
 
 SHAPE = (20, 20)
-FEATURES_W = ['temperature_100m', 'U_100m', 'V_100m', 'topography']
+FEATURES_W = ['temperature_100m', 'u_100m', 'v_100m', 'topography']
 TARGET_W = (39.01, -105.15)
 
 

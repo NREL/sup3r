@@ -28,7 +28,7 @@ from sup3r.utilities.pytest.helpers import (
 )
 from sup3r.utilities.utilities import pd_date_range
 
-FEATURES = ['U_100m', 'V_100m', 'pressure_0m']
+FEATURES = ['u_100m', 'v_100m', 'pressure_0m']
 fwp_chunk_shape = (4, 4, 6)
 data_shape = (100, 100, 8)
 shape = (8, 8)

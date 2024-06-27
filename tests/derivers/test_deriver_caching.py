@@ -6,7 +6,6 @@ import tempfile
 import numpy as np
 import pytest
 
-from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing import (
     Cacher,
     DataHandlerH5,
@@ -14,12 +13,6 @@ from sup3r.preprocessing import (
     LoaderH5,
     LoaderNC,
 )
-
-h5_files = [
-    os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5'),
-    os.path.join(TEST_DATA_DIR, 'test_wtk_co_2013.h5'),
-]
-nc_files = [os.path.join(TEST_DATA_DIR, 'test_era5_co_2012.nc')]
 
 target = (39.01, -105.15)
 shape = (20, 20)
@@ -38,7 +31,7 @@ features = ['windspeed_100m', 'winddirection_100m']
     ],
     [
         (
-            h5_files,
+            pytest.FPS_WTK,
             LoaderH5,
             DataHandlerH5,
             ['u_100m', 'v_100m'],
@@ -47,7 +40,7 @@ features = ['windspeed_100m', 'winddirection_100m']
             (39.01, -105.15),
         ),
         (
-            nc_files,
+            pytest.FP_ERA,
             LoaderNC,
             DataHandlerNC,
             ['windspeed_100m', 'winddirection_100m'],
@@ -103,7 +96,7 @@ def test_derived_data_caching(
     ],
     [
         (
-            h5_files,
+            pytest.FPS_WTK,
             DataHandlerH5,
             ['u_100m', 'v_100m'],
             'h5',
@@ -111,7 +104,7 @@ def test_derived_data_caching(
             (39.01, -105.15),
         ),
         (
-            nc_files,
+            pytest.FP_ERA,
             DataHandlerNC,
             ['windspeed_100m', 'winddirection_100m'],
             'nc',

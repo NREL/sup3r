@@ -22,7 +22,7 @@ SHAPE = (20, 20)
 FEATURES_S = ['clearsky_ratio', 'ghi', 'clearsky_ghi']
 TARGET_S = (39.01, -105.13)
 
-FEATURES_W = ['U_100m', 'V_100m', 'temperature_100m']
+FEATURES_W = ['u_100m', 'v_100m', 'temperature_100m']
 TARGET_W = (39.01, -105.15)
 
 TARGET_SURF = (39.1, -105.4)

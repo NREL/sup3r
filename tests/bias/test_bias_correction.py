@@ -449,7 +449,7 @@ def test_fwp_integration():
     framework"""
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
-    features = ['U_100m', 'V_100m']
+    features = ['u_100m', 'v_100m']
     target = (13.67, 125.0)
     shape = (8, 8)
     time_slice = slice(None, None, 1)
@@ -479,16 +479,16 @@ def test_fwp_integration():
         adder = np.random.uniform(0, 1, (8, 8, 1))
 
         with h5py.File(bias_fp, 'w') as f:
-            f.create_dataset('U_100m_scalar', data=scalar)
-            f.create_dataset('U_100m_adder', data=adder)
-            f.create_dataset('V_100m_scalar', data=scalar)
-            f.create_dataset('V_100m_adder', data=adder)
+            f.create_dataset('u_100m_scalar', data=scalar)
+            f.create_dataset('u_100m_adder', data=adder)
+            f.create_dataset('v_100m_scalar', data=scalar)
+            f.create_dataset('v_100m_adder', data=adder)
             f.create_dataset('latitude', data=lat_lon[..., 0])
             f.create_dataset('longitude', data=lat_lon[..., 1])
 
         bias_correct_kwargs = {
-            'U_100m': {'feature_name': 'U_100m', 'bias_fp': bias_fp},
-            'V_100m': {'feature_name': 'V_100m', 'bias_fp': bias_fp},
+            'u_100m': {'feature_name': 'u_100m', 'bias_fp': bias_fp},
+            'v_100m': {'feature_name': 'v_100m', 'bias_fp': bias_fp},
         }
 
         strat = ForwardPassStrategy(
@@ -538,7 +538,7 @@ def test_fwp_integration():
 
 def test_qa_integration():
     """Test BC integration with QA module"""
-    features = ['U_100m', 'V_100m']
+    features = ['u_100m', 'v_100m']
 
     lat_lon = DataHandlerNCforCC(pytest.FPS_GCM, features=[]).lat_lon
 
@@ -553,10 +553,10 @@ def test_qa_integration():
         adder = np.random.uniform(0, 1, (20, 20, 1))
 
         with h5py.File(bias_fp, 'w') as f:
-            f.create_dataset('U_100m_scalar', data=scalar)
-            f.create_dataset('U_100m_adder', data=adder)
-            f.create_dataset('V_100m_scalar', data=scalar)
-            f.create_dataset('V_100m_adder', data=adder)
+            f.create_dataset('u_100m_scalar', data=scalar)
+            f.create_dataset('u_100m_adder', data=adder)
+            f.create_dataset('v_100m_scalar', data=scalar)
+            f.create_dataset('v_100m_adder', data=adder)
             f.create_dataset('latitude', data=lat_lon[..., 0])
             f.create_dataset('longitude', data=lat_lon[..., 1])
 
@@ -569,13 +569,13 @@ def test_qa_integration():
         }
 
         bias_correct_kwargs = {
-            'U_100m': {
-                'feature_name': 'U_100m',
+            'u_100m': {
+                'feature_name': 'u_100m',
                 'bias_fp': bias_fp,
                 'lr_padded_slice': None,
             },
-            'V_100m': {
-                'feature_name': 'V_100m',
+            'v_100m': {
+                'feature_name': 'v_100m',
                 'bias_fp': bias_fp,
                 'lr_padded_slice': None,
             },
