@@ -93,6 +93,7 @@ select = [
   "F401", # unused-import
   "G", # flake8-logging-format
   "I", # isort
+  "N", # pep8-naming
   "NPY", # numpy-specific
   "Q", # flake8-quotes
   "UP", # pyupgrade
@@ -130,6 +131,9 @@ ignore = [
   # We currently don't conform but we might want to reconsider
   "G004", # logging-f-string
   "I001", # unsorted-imports
+  "N802", # invalid-function-name
+  "N803", # invalid-argument-name
+  "N806", # non-lowercase-variable-in-function
   # Consider conforming with NPY002
   "NPY002", # numpy-legacy-random
   "PLR0904", # too-many-public-methods
