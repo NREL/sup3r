@@ -222,8 +222,8 @@ max-returns=6 # (PLR0911) return statements for a function or method body
 max-statements=50 # (PLR0915) statements allowed for a function or method body
 
 [tool.ruff.format]
-# quote-style = "single"
-# indent-style = "space"
+quote-style = "single"
+indent-style = "space"
 # Consider adopting "lf" instead
 line-ending = "auto"
 
