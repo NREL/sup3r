@@ -82,7 +82,9 @@ def test_derived_data_caching(
         assert deriver.data.dtype == np.dtype(np.float32)
 
         loader = Loader(cacher.out_files, features=derive_features)
-        assert np.array_equal(loader.as_array(), deriver.as_array())
+        assert np.array_equal(
+            loader.as_array().compute(), deriver.as_array().compute()
+        )
 
 
 @pytest.mark.parametrize(
@@ -144,4 +146,6 @@ def test_caching_with_dh_loading(
         assert deriver.data.dtype == np.dtype(np.float32)
 
         loader = Deriver(cacher.out_files, features=derive_features)
-        assert np.array_equal(loader.as_array(), deriver.as_array())
+        assert np.array_equal(
+            loader.as_array().compute(), deriver.as_array().compute()
+        )

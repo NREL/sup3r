@@ -304,5 +304,5 @@ ipython = ">=8.0"
 pytest-xdist = ">=3.0"
 
 [tool.pytest_env]
-CUDA_VISIBLE_DEVICES=-1
-TF_ENABLE_ONEDNN_OPTS=0
+CUDA_VISIBLE_DEVICES = "-1"
+TF_ENABLE_ONEDNN_OPTS = "0"
