@@ -96,7 +96,7 @@ select = [
 #  "F", # Pyflakes
   "F401", # unused-import
   "G", # flake8-logging-format
-#  "I", # isort
+  "I", # isort
 #  "NPY", # numpy-specific
   "Q", # flake8-quotes
 #  "UP", # pyupgrade
@@ -124,6 +124,7 @@ ignore = [
   "G001", # logging-string-format
   # We currently don't conform but we might want to reconsider
   "G004", # logging-f-string
+  "I001", # unsorted-imports
   "PLR0904", # too-many-public-methods
   "PLR0912", # too-many-branches
   "PLR0913", # too-many-arguments
