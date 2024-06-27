@@ -95,6 +95,7 @@ select = [
   "I", # isort
   "N", # pep8-naming
   "NPY", # numpy-specific
+  "PL", # Pylint
   "Q", # flake8-quotes
   "UP", # pyupgrade
   "W", # Warning
@@ -147,7 +148,9 @@ ignore = [
   "PLR0915", # too-many-statements
   "PLR1702", # too-many-nested-blocks
   "PLR1704", # redefined-argument-from-local
+  "PLR2004", # magic-value-comparison
   "PLW1514", # unspecified-encoding
+  "PLW2901", # redefined-loop-name
   "Q000", # bad-quotes-inline-string
   "Q004", # unnecessary-escaped-quote
   "UP009", # utf8-encoding-declaration
