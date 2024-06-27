@@ -85,7 +85,7 @@ select = [
   "A", # flake8-builtins
   "ARG", # flake8-unused-arguments
   "COM", # flake8-commas
-#  # "D", # pydocstyle
+  "D", # pydocstyle
   "E", # pycodestyle
   "E701", # multiple-statements-on-one-line-colon
   "E722", # bare-except
@@ -114,14 +114,18 @@ ignore = [
 #  "B028", # no-explicit-stacklevel
 #  "B905", # zip-without-explicit-strict
   "COM812", # missing-trailing-comma
-#  "D105", # undocumented-magic-method
-#  "D202", # no-blank-line-after-function
-#  "D205", # blank-line-after-summary
-#  "D209", # new-line-after-last-paragraph
+  "D105", # undocumented-magic-method
+  "D200", # fits-on-one-line
+  "D202", # no-blank-line-after-function
+  "D204", # one-blank-line-after-class
+  "D205", # blank-line-after-summary
+  "D207", # under-indentation
+  "D209", # new-line-after-last-paragraph
 #  "D212", # multi-line-summary-first-line
 #  "D213", # multi-line-summary-second-linek
-#  "D400", # ends-in-period
-#  "D401", # non-imperative-mood
+  "D400", # ends-in-period
+  "D401", # non-imperative-mood
+  "D404", # docstring-starts-with-this
 #  "D413", # blank-line-after-last-section
 #  "D415", # ends-in-punctuation
 #  "E902", # io-error
