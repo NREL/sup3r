@@ -29,7 +29,7 @@ s_enhance = 5
 val_split = 0.2
 dh_kwargs = {'target': target, 'shape': shape, 'max_delta': 20,
              'sample_shape': sample_shape,
-             'lr_only_features': ('BVF*m', 'topography',),
+             'lr_only_features': ('BVF*m', 'topography'),
              'temporal_slice': slice(None, None, 1),
              'worker_kwargs': {'max_workers': 1}}
 bh_kwargs = {'batch_size': 8, 'n_batches': 20,

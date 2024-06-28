@@ -10,7 +10,7 @@ from sup3r.utilities.utilities import nn_fill_array
 logger = logging.getLogger(__name__)
 
 
-class FillAndSmoothMixin():
+class FillAndSmoothMixin:
     """Fill and extend parameters for calibration on missing positions"""
     def fill_and_smooth(self,
                         out,

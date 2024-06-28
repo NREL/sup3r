@@ -29,7 +29,7 @@ t_enhance = 2
 dh_kwargs = dict(target=target,
                  shape=shape,
                  max_delta=20,
-                 lr_only_features=('BVF*m', 'topography',),
+                 lr_only_features=('BVF*m', 'topography'),
                  sample_shape=sample_shape,
                  temporal_slice=slice(None, None, 1),
                  worker_kwargs=dict(max_workers=1),

@@ -71,49 +71,172 @@ line-length = 79
 indent-width = 4
 
 target-version = "py38"
+exclude = [
+  "CSV",
+  "ref.*?py",
+]
 
 [tool.ruff.lint]
-fixable = ["ALL"]
-preview = true
+fixable = []
+# preview = true
+# logger-objects = []
+task-tags = ["TODO", "FIXME", "XXX"]
 select = [
+  "A", # flake8-builtins
+  "ARG", # flake8-unused-arguments
+  "C",
+  "C4", # flake8-comprehensions
+  "C90", # mccabe
+  "COM", # flake8-commas
+  "D", # pydocstyle
   "E", # pycodestyle
   "F", # Pyflakes
+  "G", # flake8-logging-format
+  "I", # isort
+  "LOG", # flake8-logging
+  "N", # pep8-naming
+  "NPY", # numpy-specific
+  "PERF", # Perflint
+  "PL", # Pylint
+  "Q", # flake8-quotes
+  "SIM", # flake8-simplify
+  "UP", # pyupgrade
   "W", # Warning
   ]
 
 ignore = [
-  "B008", # function-call-in-default-argument
-  "B024", # abstract-base-class-without-abstract-method
-  "B028", # no-explicit-stacklevel
-  "B905", # zip-without-explicit-strict
+  # Currently don't conform but we might want to reconsider
+  "A001", # builtin-variable-shadowing
+  # Currently don't conform but we might want to reconsider
+  "A002", # builtin-argument-shadowing
+  "ARG002", # unused-method-argument
+  "ARG003", # unused-class-method-argument
+  "ARG004", # unused-static-method-argument
+  "ARG005", # unused-lambda-argument
+#  "B008", # function-call-in-default-argument
+#  "B024", # abstract-base-class-without-abstract-method
+#  "B028", # no-explicit-stacklevel
+#  "B905", # zip-without-explicit-strict
+  "C408", # unnecessary-collection-call
+  "C414", # unnecessary-double-cast-or-process
+  "COM812", # missing-trailing-comma
   "D105", # undocumented-magic-method
+  "D200", # fits-on-one-line
   "D202", # no-blank-line-after-function
+  "D204", # one-blank-line-after-class
   "D205", # blank-line-after-summary
+  "D207", # under-indentation
   "D209", # new-line-after-last-paragraph
-  "D212", # multi-line-summary-first-line
-  "D213", # multi-line-summary-second-linek
+#  "D212", # multi-line-summary-first-line
+#  "D213", # multi-line-summary-second-linek
   "D400", # ends-in-period
   "D401", # non-imperative-mood
-  "D413", # blank-line-after-last-section
-  "D415", # ends-in-punctuation
-  "E902", # io-error
+  "D404", # docstring-starts-with-this
+#  "D413", # blank-line-after-last-section
+#  "D415", # ends-in-punctuation
+#  "E902", # io-error
+  "FIX001",	# line-contains-fixme
+  # We currently don't conform but we might want to reconsider
+  "G001", # logging-string-format
+  # We currently don't conform but we might want to reconsider
+  "G004", # logging-f-string
+  "I001", # unsorted-imports
+  "N802", # invalid-function-name
+  "N803", # invalid-argument-name
+  "N806", # non-lowercase-variable-in-function
+  # Consider conforming with NPY002
+  "NPY002", # numpy-legacy-random
+  "PERF102", # incorrect-dict-iterator
+  "PERF203", # try-except-in-loop
+  "PERF401", # manual-list-comprehension
+  "PLR0904", # too-many-public-methods
+  "PLR0912", # too-many-branches
   "PLR0913", # too-many-arguments
+  "PLR0914", # too-many-locals
+  "PLR0915", # too-many-statements
+  "PLR1702", # too-many-nested-blocks
+  "PLR1704", # redefined-argument-from-local
+  "PLR2004", # magic-value-comparison
+  "PLW1514", # unspecified-encoding
+  "PLW2901", # redefined-loop-name
+  "Q000", # bad-quotes-inline-string
+  "Q004", # unnecessary-escaped-quote
+  "SIM108", # if-else-block-instead-of-if-exp
+  "SIM117", #multiple-with-statements
+  "SIM118", # in-dict-keys
+  "SIM211", # if-expr-with-false-true
   "UP009", # utf8-encoding-declaration
+  "UP015", # redundant-open-modes
   "UP032", # f-string
-  "UP038" # non-pep604-isinstance
+#  "UP038" # non-pep604-isinstance
   ]
+# Ignored in pylint setup but missing on ruff. We shall delete from the
+# following lines what is not intended to follow anymore.
+# arguments-renamed
+# consider-using-f-string
+# raw-checker-failed
+# bad-inline-option
+# locally-disabled
+# file-ignored
+# suppressed-message
+# useless-suppression
+# deprecated-pragma
+# protected-access
+# redefined-outer-name
+# redefined-builtin
+# broad-except
+# logging-format-interpolation
+# logging-fstring-interpolation
+# wrong-import-order
+# wrong-import-position
+# relative-beyond-top-level
+# too-many-instance-attributes
+# too-few-public-methods
+# invalid-name
+# import-error
+# try-except-raise
+# no-else-raise
+# no-else-return
+# unexpected-keyword-arg
+# no-value-for-parameter
+# too-many-lines
+# arguments-differ
+# import-outside-toplevel
+# super-init-not-called
+# isinstance-second-argument-not-valid-type
+# inconsistent-return-statements
+# no-else-break
+# too-many-function-args
+# redundant-keyword-arg
+# c-extension-no-member
+
+[tool.ruff.lint.mccabe]
+# Flag errors (`C901`) whenever the complexity level exceeds 5.
+max-complexity = 12
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = [
   "F401", # unused-import
   ]
-"docs/source/conf.py" = [
-  "E402", # unused-import
-  ]
+#"docs/source/conf.py" = [
+#  "E402", # unused-import
+#  ]
+
+[tool.ruff.lint.pylint]
+max-args = 5 # (PLR0913) Maximum number of arguments for function / method
+max-bool-expr = 5 # ( PLR0916) Boolean in a single if statement
+max-branches=12 # (PLR0912) branches allowed for a function or method body
+max-locals=15 # (PLR0912) local variables allowed for a function or method body
+max-nested-blocks = 5 # (PLR1702) nested blocks within a function or method body
+max-public-methods=20 # (R0904) public methods allowed for a class
+max-returns=6 # (PLR0911) return statements for a function or method body
+max-statements=50 # (PLR0915) statements allowed for a function or method body
 
 [tool.ruff.format]
 quote-style = "single"
 indent-style = "space"
+# Consider adopting "lf" instead
+line-ending = "auto"
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
@@ -167,4 +290,4 @@ pytest = ">=5.2"
 [tool.pixi.feature.dev.dependencies]
 build = ">=0.6"
 twine = ">=5.0"
-ruff = ">=0.2"
+ruff = ">=0.4"
