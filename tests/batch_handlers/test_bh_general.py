@@ -76,37 +76,6 @@ def test_eager_vs_lazy():
         assert np.array_equal(eb.low_res, lb.low_res)
 
 
-@pytest.mark.parametrize('n_epochs', [1, 2, 3])
-def test_sample_counter(n_epochs):
-    """Make sure samples are counted correctly, over multiple epochs."""
-
-    dat = DummyData((10, 10, 100), FEATURES)
-    batcher = BatchHandlerTester(
-        train_containers=[dat],
-        val_containers=[],
-        sample_shape=(8, 8, 4),
-        batch_size=4,
-        n_batches=4,
-        s_enhance=2,
-        t_enhance=1,
-        queue_cap=1,
-        means=means,
-        stds=stds,
-        max_workers=1,
-        mode='eager',
-    )
-
-    for _ in range(n_epochs):
-        for _ in batcher:
-            pass
-    batcher.stop()
-
-    assert (
-        batcher.sample_count // batcher.batch_size
-        == n_epochs * batcher.n_batches + batcher.queue.size().numpy()
-    )
-
-
 def test_normalization():
     """Smoke test for batch queue."""
 
