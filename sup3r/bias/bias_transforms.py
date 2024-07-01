@@ -707,8 +707,8 @@ def get_spatial_bc_presrat(lat_lon: np.array,
     return params, cfg
 
 
-def local_presrat_bc(data: np.array,
-                     time: np.array,
+def local_presrat_bc(data: np.ndarray,
+                     time: np.ndarray,
                      lat_lon: np.array,
                      base_dset: str,
                      feature_name: str,
