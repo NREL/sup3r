@@ -202,7 +202,7 @@ def bias_calc(ctx, verbose):
     arguments required to call the
 
     The config has high level ``bias_calc_class`` and ``jobs`` keys. The
-    ``bias_calc_class`` is a class name from the :mod:`sup3r.bias.bias_calc`
+    ``bias_calc_class`` is a class name from the :mod:`sup3r.bias`
     module, and the ``jobs`` argument is a list of kwargs required to
     initialize the ``bias_calc_class`` and run the ``bias_calc_class.run()``
     method (for example, see

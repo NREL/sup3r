@@ -85,7 +85,7 @@ def get_spatial_bc_quantiles(lat_lon: np.array,
 
     Recover the parameters that describe the statistical distribution
     previously estimated with
-    :class:`~sup3r.bias.bias_calc.QuantileDeltaMappingCorrection` for three
+    :class:`~sup3r.bias.qdm.QuantileDeltaMappingCorrection` for three
     datasets: ``base`` (historical reference), ``bias`` (historical biased
     reference), and ``bias_fut`` (the future biased dataset, usually the data
     to correct).
@@ -119,27 +119,27 @@ def get_spatial_bc_quantiles(lat_lon: np.array,
         the ``base_dset``. It has a shape of (I, J, P), where (I, J) are the
         same first two dimensions of the given `lat_lon` and P is the number
         of parameters and depends on the type of distribution. See
-        :class:`~sup3r.bias.bias_calc.QuantileDeltaMappingCorrection` for more
+        :class:`~sup3r.bias.qdm.QuantileDeltaMappingCorrection` for more
         details.
     bias : np.array
         Parameters used to define the statistical distribution estimated for
         (historical) ``feature_name``. It has a shape of (I, J, P), where
         (I, J) are the same first two dimensions of the given `lat_lon` and P
         is the number of parameters and depends on the type of distribution.
-        See :class:`~sup3r.bias.bias_calc.QuantileDeltaMappingCorrection` for
+        See :class:`~sup3r.bias.qdm.QuantileDeltaMappingCorrection` for
         more details.
     bias_fut : np.array
         Parameters used to define the statistical distribution estimated for
         (future) ``feature_name``. It has a shape of (I, J, P), where (I, J)
         are the same first two dimensions of the given `lat_lon` and P is the
         number of parameters used and depends on the type of distribution. See
-        :class:`~sup3r.bias.bias_calc.QuantileDeltaMappingCorrection` for more
+        :class:`~sup3r.bias.qdm.QuantileDeltaMappingCorrection` for more
         details.
     cfg : dict
         Metadata used to guide how to use of the previous parameters on
         reconstructing the statistical distributions. For instance,
         `cfg['dist']` defines the type of distribution. See
-        :class:`~sup3r.bias.bias_calc.QuantileDeltaMappingCorrection` for more
+        :class:`~sup3r.bias.qdm.QuantileDeltaMappingCorrection` for more
         details, including which metadata is saved.
 
     Warnings
@@ -150,7 +150,7 @@ def get_spatial_bc_quantiles(lat_lon: np.array,
 
     See Also
     --------
-    sup3r.bias.bias_calc.QuantileDeltaMappingCorrection
+    sup3r.bias.qdm.QuantileDeltaMappingCorrection
         Estimate the statistical distributions loaded here.
 
     Examples
@@ -458,7 +458,7 @@ def local_qdm_bc(data: np.array,
 
     See Also
     --------
-    sup3r.bias.bias_calc.QuantileDeltaMappingCorrection :
+    sup3r.bias.qdm.QuantileDeltaMappingCorrection :
         Estimate probability distributions required by QDM method
 
     Notes

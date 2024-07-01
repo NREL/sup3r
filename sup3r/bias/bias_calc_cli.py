@@ -42,7 +42,7 @@ def from_config(ctx, config_file, verbose=False, pipeline_step=None):
     exec_kwargs = config.get('execution_control', {})
     hardware_option = exec_kwargs.pop('option', 'local')
     calc_class_name = config['bias_calc_class']
-    BiasCalcClass = getattr(sup3r.bias.bias_calc, calc_class_name)
+    BiasCalcClass = getattr(sup3r.bias, calc_class_name)
     basename = config['job_name']
     log_pattern = config.get('log_pattern', None)
 
