@@ -1,0 +1,36 @@
+sup3r.preprocessing.data\_handling
+==================================
+
+.. automodule:: sup3r.preprocessing.data_handling
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+
+.. autosummary::
+   :toctree:
+   :template: custom-module-template.rst
+   :recursive:
+
+   sup3r.preprocessing.data_handling.base
+   sup3r.preprocessing.data_handling.dual_data_handling
+   sup3r.preprocessing.data_handling.exo_extraction
+   sup3r.preprocessing.data_handling.exogenous_data_handling
+   sup3r.preprocessing.data_handling.h5_data_handling
+   sup3r.preprocessing.data_handling.mixin
+   sup3r.preprocessing.data_handling.nc_data_handling
+

@@ -1,0 +1,1641 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>sup3r.postprocessing.collection &mdash; sup3r 0.1.3.dev147+gee6ab7b4 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/copybutton.css?v=76b2166b" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/tabs.css?v=a5c4661c" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=b68f4368"></script>
+        <script src="../../../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="../../../_static/clipboard.min.js?v=a7894cd8"></script>
+        <script src="../../../_static/copybutton.js?v=f281be69"></script>
+        <script src="../../../_static/tabs.js?v=3030b3cb"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            sup3r
+          </a>
+              <div class="version">
+                0.1.3.dev147+gee6ab7b4
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">Home page</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../misc/installation_usage.html">Installation and Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../misc/installation.html">Installation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../misc/installation.html#option-1-install-from-pip-recommended-for-analysts">Option 1: Install from PIP (recommended for analysts):</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../misc/installation.html#option-2-clone-repo-recommended-for-developers">Option 2: Clone repo (recommended for developers)</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/examples.html">Examples</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples/sup3rcc.html">Sup3rCC Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#sup3rcc-data-access">Sup3rCC Data Access</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#directory-structure">Directory Structure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#example-sup3rcc-data-usage">Example Sup3rCC Data Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#running-sup3rcc-models">Running Sup3rCC Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#nuances-of-sup3rcc">Nuances of Sup3rCC</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#sup3rcc-versions">Sup3rCC Versions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#recommended-citation">Recommended Citation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#acknowledgements">Acknowledgements</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples/sup3rwind.html">Sup3rWind Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rwind.html#sup3rwind-data-access">Sup3rWind Data Access</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rwind.html#example-sup3rwind-data-usage">Example Sup3rWind Data Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rwind.html#running-sup3rwind-models">Running Sup3rWind Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rwind.html#sup3rwind-versions">Sup3rWind Versions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rwind.html#recommended-citation">Recommended Citation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rwind.html#acknowledgements">Acknowledgements</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../_autosummary/sup3r.html">API reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.batch.html">sup3r.batch</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.batch.batch_cli.html">sup3r.batch.batch_cli</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.bias.html">sup3r.bias</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc.html">sup3r.bias.bias_calc</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc.DataRetrievalBase.html">sup3r.bias.bias_calc.DataRetrievalBase</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc.LinearCorrection.html">sup3r.bias.bias_calc.LinearCorrection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc.MonthlyLinearCorrection.html">sup3r.bias.bias_calc.MonthlyLinearCorrection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc.MonthlyScalarCorrection.html">sup3r.bias.bias_calc.MonthlyScalarCorrection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc.SkillAssessment.html">sup3r.bias.bias_calc.SkillAssessment</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc_cli.html">sup3r.bias.bias_calc_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc_cli.kickoff_local_job.html">sup3r.bias.bias_calc_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc_cli.kickoff_slurm_job.html">sup3r.bias.bias_calc_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_correct_means.html">sup3r.bias.bias_correct_means</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_correct_means.BiasCorrectUpdate.html">sup3r.bias.bias_correct_means.BiasCorrectUpdate</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_correct_means.VortexMeanPrepper.html">sup3r.bias.bias_correct_means.VortexMeanPrepper</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_transforms.html">sup3r.bias.bias_transforms</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_transforms.get_spatial_bc_factors.html">sup3r.bias.bias_transforms.get_spatial_bc_factors</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_transforms.get_spatial_bc_quantiles.html">sup3r.bias.bias_transforms.get_spatial_bc_quantiles</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_transforms.global_linear_bc.html">sup3r.bias.bias_transforms.global_linear_bc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_transforms.local_linear_bc.html">sup3r.bias.bias_transforms.local_linear_bc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_transforms.local_qdm_bc.html">sup3r.bias.bias_transforms.local_qdm_bc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_transforms.monthly_local_linear_bc.html">sup3r.bias.bias_transforms.monthly_local_linear_bc</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.bias.mixins.html">sup3r.bias.mixins</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.mixins.FillAndSmoothMixin.html">sup3r.bias.mixins.FillAndSmoothMixin</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.bias.qdm.html">sup3r.bias.qdm</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.qdm.QuantileDeltaMappingCorrection.html">sup3r.bias.qdm.QuantileDeltaMappingCorrection</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.cli.html">sup3r.cli</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.models.html">sup3r.models</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.abstract.html">sup3r.models.abstract</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.abstract.AbstractInterface.html">sup3r.models.abstract.AbstractInterface</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.abstract.AbstractSingleModel.html">sup3r.models.abstract.AbstractSingleModel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.abstract.TensorboardMixIn.html">sup3r.models.abstract.TensorboardMixIn</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.base.html">sup3r.models.base</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.base.Sup3rGan.html">sup3r.models.base.Sup3rGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.conditional_moments.html">sup3r.models.conditional_moments</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.conditional_moments.Sup3rCondMom.html">sup3r.models.conditional_moments.Sup3rCondMom</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.data_centric.html">sup3r.models.data_centric</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.data_centric.Sup3rGanDC.html">sup3r.models.data_centric.Sup3rGanDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.data_centric.Sup3rGanSpatialDC.html">sup3r.models.data_centric.Sup3rGanSpatialDC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.linear.html">sup3r.models.linear</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.linear.LinearInterp.html">sup3r.models.linear.LinearInterp</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.multi_step.html">sup3r.models.multi_step</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.multi_step.MultiStepGan.html">sup3r.models.multi_step.MultiStepGan</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.multi_step.MultiStepSurfaceMetGan.html">sup3r.models.multi_step.MultiStepSurfaceMetGan</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.multi_step.SolarMultiStepGan.html">sup3r.models.multi_step.SolarMultiStepGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.solar_cc.html">sup3r.models.solar_cc</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.solar_cc.SolarCC.html">sup3r.models.solar_cc.SolarCC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.surface.html">sup3r.models.surface</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.surface.SurfaceSpatialMetModel.html">sup3r.models.surface.SurfaceSpatialMetModel</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.html">sup3r.pipeline</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass.html">sup3r.pipeline.forward_pass</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass.ForwardPass.html">sup3r.pipeline.forward_pass.ForwardPass</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass.ForwardPassSlicer.html">sup3r.pipeline.forward_pass.ForwardPassSlicer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass.ForwardPassStrategy.html">sup3r.pipeline.forward_pass.ForwardPassStrategy</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass_cli.html">sup3r.pipeline.forward_pass_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass_cli.kickoff_local_job.html">sup3r.pipeline.forward_pass_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass_cli.kickoff_slurm_job.html">sup3r.pipeline.forward_pass_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.pipeline_cli.html">sup3r.pipeline.pipeline_cli</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.html">sup3r.postprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.collection.html">sup3r.postprocessing.collection</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.collection.BaseCollector.html">sup3r.postprocessing.collection.BaseCollector</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.collection.CollectorH5.html">sup3r.postprocessing.collection.CollectorH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.collection.CollectorNC.html">sup3r.postprocessing.collection.CollectorNC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.data_collect_cli.html">sup3r.postprocessing.data_collect_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.data_collect_cli.kickoff_local_job.html">sup3r.postprocessing.data_collect_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.data_collect_cli.kickoff_slurm_job.html">sup3r.postprocessing.data_collect_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.html">sup3r.postprocessing.file_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.OutputHandler.html">sup3r.postprocessing.file_handling.OutputHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.OutputHandlerH5.html">sup3r.postprocessing.file_handling.OutputHandlerH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.OutputHandlerNC.html">sup3r.postprocessing.file_handling.OutputHandlerNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.OutputMixIn.html">sup3r.postprocessing.file_handling.OutputMixIn</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.RexOutputs.html">sup3r.postprocessing.file_handling.RexOutputs</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.html">sup3r.preprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.html">sup3r.preprocessing.batch_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.Batch.html">sup3r.preprocessing.batch_handling.Batch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.BatchHandler.html">sup3r.preprocessing.batch_handling.BatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.BatchHandlerCC.html">sup3r.preprocessing.batch_handling.BatchHandlerCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.BatchHandlerDC.html">sup3r.preprocessing.batch_handling.BatchHandlerDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.BatchHandlerSpatialDC.html">sup3r.preprocessing.batch_handling.BatchHandlerSpatialDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.SpatialBatchHandler.html">sup3r.preprocessing.batch_handling.SpatialBatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC.html">sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.ValidationData.html">sup3r.preprocessing.batch_handling.ValidationData</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.ValidationDataDC.html">sup3r.preprocessing.batch_handling.ValidationDataDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.ValidationDataSpatialDC.html">sup3r.preprocessing.batch_handling.ValidationDataSpatialDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.ValidationDataTemporalDC.html">sup3r.preprocessing.batch_handling.ValidationDataTemporalDC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.html">sup3r.preprocessing.conditional_moment_batch_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1SF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2Sep.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SepSF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SepSF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1SF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2Sep.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SepSF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SepSF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1SF.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SF.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2Sep.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SepSF.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SepSF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1SF.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SF.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2Sep.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SepSF.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SepSF</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_extract_cli.html">sup3r.preprocessing.data_extract_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_extract_cli.kickoff_local_job.html">sup3r.preprocessing.data_extract_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_extract_cli.kickoff_slurm_job.html">sup3r.preprocessing.data_extract_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.html">sup3r.preprocessing.data_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.base.html">sup3r.preprocessing.data_handling.base</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.dual_data_handling.html">sup3r.preprocessing.data_handling.dual_data_handling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.exo_extraction.html">sup3r.preprocessing.data_handling.exo_extraction</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.exogenous_data_handling.html">sup3r.preprocessing.data_handling.exogenous_data_handling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.h5_data_handling.html">sup3r.preprocessing.data_handling.h5_data_handling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.mixin.html">sup3r.preprocessing.data_handling.mixin</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.nc_data_handling.html">sup3r.preprocessing.data_handling.nc_data_handling</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.dual_batch_handling.html">sup3r.preprocessing.dual_batch_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.dual_batch_handling.DualBatchHandler.html">sup3r.preprocessing.dual_batch_handling.DualBatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.dual_batch_handling.DualValidationData.html">sup3r.preprocessing.dual_batch_handling.DualValidationData</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.dual_batch_handling.SpatialDualBatchHandler.html">sup3r.preprocessing.dual_batch_handling.SpatialDualBatchHandler</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.html">sup3r.preprocessing.feature_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.BVFreqMon.html">sup3r.preprocessing.feature_handling.BVFreqMon</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.BVFreqSquaredH5.html">sup3r.preprocessing.feature_handling.BVFreqSquaredH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.BVFreqSquaredNC.html">sup3r.preprocessing.feature_handling.BVFreqSquaredNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.ClearSkyRatioCC.html">sup3r.preprocessing.feature_handling.ClearSkyRatioCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.ClearSkyRatioH5.html">sup3r.preprocessing.feature_handling.ClearSkyRatioH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.CloudMaskH5.html">sup3r.preprocessing.feature_handling.CloudMaskH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.DerivedFeature.html">sup3r.preprocessing.feature_handling.DerivedFeature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Feature.html">sup3r.preprocessing.feature_handling.Feature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.FeatureHandler.html">sup3r.preprocessing.feature_handling.FeatureHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.InverseMonNC.html">sup3r.preprocessing.feature_handling.InverseMonNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.LatLonH5.html">sup3r.preprocessing.feature_handling.LatLonH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.LatLonNC.html">sup3r.preprocessing.feature_handling.LatLonNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.PotentialTempNC.html">sup3r.preprocessing.feature_handling.PotentialTempNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.PressureNC.html">sup3r.preprocessing.feature_handling.PressureNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Rews.html">sup3r.preprocessing.feature_handling.Rews</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Shear.html">sup3r.preprocessing.feature_handling.Shear</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Tas.html">sup3r.preprocessing.feature_handling.Tas</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.TasMax.html">sup3r.preprocessing.feature_handling.TasMax</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.TasMin.html">sup3r.preprocessing.feature_handling.TasMin</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.TempNC.html">sup3r.preprocessing.feature_handling.TempNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.TempNCforCC.html">sup3r.preprocessing.feature_handling.TempNCforCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.TopoH5.html">sup3r.preprocessing.feature_handling.TopoH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.UWind.html">sup3r.preprocessing.feature_handling.UWind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.UWindPowerLaw.html">sup3r.preprocessing.feature_handling.UWindPowerLaw</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.VWind.html">sup3r.preprocessing.feature_handling.VWind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.VWindPowerLaw.html">sup3r.preprocessing.feature_handling.VWindPowerLaw</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Veer.html">sup3r.preprocessing.feature_handling.Veer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Vorticity.html">sup3r.preprocessing.feature_handling.Vorticity</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.WinddirectionNC.html">sup3r.preprocessing.feature_handling.WinddirectionNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.WindspeedNC.html">sup3r.preprocessing.feature_handling.WindspeedNC</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.qa.html">sup3r.qa</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.qa.qa.html">sup3r.qa.qa</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.qa.Sup3rQa.html">sup3r.qa.qa.Sup3rQa</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.qa.qa_cli.html">sup3r.qa.qa_cli</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.qa.stats.html">sup3r.qa.stats</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.stats.Sup3rStatsBase.html">sup3r.qa.stats.Sup3rStatsBase</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.stats.Sup3rStatsCompute.html">sup3r.qa.stats.Sup3rStatsCompute</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.stats.Sup3rStatsMulti.html">sup3r.qa.stats.Sup3rStatsMulti</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.stats.Sup3rStatsSingle.html">sup3r.qa.stats.Sup3rStatsSingle</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.qa.stats_cli.html">sup3r.qa.stats_cli</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.html">sup3r.qa.utilities</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.continuous_dist.html">sup3r.qa.utilities.continuous_dist</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.direct_dist.html">sup3r.qa.utilities.direct_dist</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.frequency_spectrum.html">sup3r.qa.utilities.frequency_spectrum</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.gradient_dist.html">sup3r.qa.utilities.gradient_dist</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.time_derivative_dist.html">sup3r.qa.utilities.time_derivative_dist</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.tke_frequency_spectrum.html">sup3r.qa.utilities.tke_frequency_spectrum</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.tke_wavenumber_spectrum.html">sup3r.qa.utilities.tke_wavenumber_spectrum</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.wavenumber_spectrum.html">sup3r.qa.utilities.wavenumber_spectrum</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.qa.visual_qa.html">sup3r.qa.visual_qa</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.visual_qa.Sup3rVisualQa.html">sup3r.qa.visual_qa.Sup3rVisualQa</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.qa.visual_qa_cli.html">sup3r.qa.visual_qa_cli</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.solar.html">sup3r.solar</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.solar.solar.html">sup3r.solar.solar</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.solar.solar.Solar.html">sup3r.solar.solar.Solar</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.solar.solar_cli.html">sup3r.solar.solar_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.solar.solar_cli.kickoff_local_job.html">sup3r.solar.solar_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.solar.solar_cli.kickoff_slurm_job.html">sup3r.solar.solar_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.html">sup3r.utilities</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.ModuleName.html">sup3r.utilities.ModuleName</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.ModuleName.html#sup3r.utilities.ModuleName"><code class="docutils literal notranslate"><span class="pre">ModuleName</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.cli.html">sup3r.utilities.cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.cli.BaseCLI.html">sup3r.utilities.cli.BaseCLI</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.cli.SlurmManager.html">sup3r.utilities.cli.SlurmManager</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.era_downloader.html">sup3r.utilities.era_downloader</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.era_downloader.EraDownloader.html">sup3r.utilities.era_downloader.EraDownloader</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.execution.html">sup3r.utilities.execution</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.execution.DistributedProcess.html">sup3r.utilities.execution.DistributedProcess</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.interpolate_log_profile.html">sup3r.utilities.interpolate_log_profile</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.interpolate_log_profile.LogLinInterpolator.html">sup3r.utilities.interpolate_log_profile.LogLinInterpolator</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.interpolation.html">sup3r.utilities.interpolation</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.interpolation.Interpolator.html">sup3r.utilities.interpolation.Interpolator</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.html">sup3r.utilities.loss_metrics</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.gaussian_kernel.html">sup3r.utilities.loss_metrics.gaussian_kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.CoarseMseLoss.html">sup3r.utilities.loss_metrics.CoarseMseLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.ExpLoss.html">sup3r.utilities.loss_metrics.ExpLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.LowResLoss.html">sup3r.utilities.loss_metrics.LowResLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.MaterialDerivativeLoss.html">sup3r.utilities.loss_metrics.MaterialDerivativeLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.MmdLoss.html">sup3r.utilities.loss_metrics.MmdLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.MmdMseLoss.html">sup3r.utilities.loss_metrics.MmdMseLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.MseExpLoss.html">sup3r.utilities.loss_metrics.MseExpLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.SpatialExtremesLoss.html">sup3r.utilities.loss_metrics.SpatialExtremesLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.SpatialExtremesOnlyLoss.html">sup3r.utilities.loss_metrics.SpatialExtremesOnlyLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.SpatialFftOnlyLoss.html">sup3r.utilities.loss_metrics.SpatialFftOnlyLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.SpatiotemporalExtremesLoss.html">sup3r.utilities.loss_metrics.SpatiotemporalExtremesLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.SpatiotemporalFftOnlyLoss.html">sup3r.utilities.loss_metrics.SpatiotemporalFftOnlyLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.StExtremesFftLoss.html">sup3r.utilities.loss_metrics.StExtremesFftLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.TemporalExtremesLoss.html">sup3r.utilities.loss_metrics.TemporalExtremesLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.TemporalExtremesOnlyLoss.html">sup3r.utilities.loss_metrics.TemporalExtremesOnlyLoss</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.html">sup3r.utilities.plotting</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.ax_plot_legend.html">sup3r.utilities.plotting.ax_plot_legend</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.ax_pretty_labels.html">sup3r.utilities.plotting.ax_pretty_labels</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.make_movie.html">sup3r.utilities.plotting.make_movie</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.plot_legend.html">sup3r.utilities.plotting.plot_legend</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.plot_multi_contour.html">sup3r.utilities.plotting.plot_multi_contour</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.plot_single_contour.html">sup3r.utilities.plotting.plot_single_contour</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.pretty_labels.html">sup3r.utilities.plotting.pretty_labels</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.pytest.html">sup3r.utilities.pytest</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.pytest.make_fake_cs_ratio_files.html">sup3r.utilities.pytest.make_fake_cs_ratio_files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.pytest.make_fake_era_files.html">sup3r.utilities.pytest.make_fake_era_files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.pytest.make_fake_h5_chunks.html">sup3r.utilities.pytest.make_fake_h5_chunks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.pytest.make_fake_multi_time_nc_files.html">sup3r.utilities.pytest.make_fake_multi_time_nc_files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.pytest.make_fake_nc_files.html">sup3r.utilities.pytest.make_fake_nc_files</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.regridder.html">sup3r.utilities.regridder</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.regridder.RegridOutput.html">sup3r.utilities.regridder.RegridOutput</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.regridder.Regridder.html">sup3r.utilities.regridder.Regridder</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.regridder.WindRegridder.html">sup3r.utilities.regridder.WindRegridder</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.regridder_cli.html">sup3r.utilities.regridder_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.regridder_cli.kickoff_local_job.html">sup3r.utilities.regridder_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.regridder_cli.kickoff_slurm_job.html">sup3r.utilities.regridder_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.html">sup3r.utilities.stitching</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.blend_domains.html">sup3r.utilities.stitching.blend_domains</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.forward_avg.html">sup3r.utilities.stitching.forward_avg</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.get_domain_region.html">sup3r.utilities.stitching.get_domain_region</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.get_files.html">sup3r.utilities.stitching.get_files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.get_handles.html">sup3r.utilities.stitching.get_handles</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.impute_domain.html">sup3r.utilities.stitching.impute_domain</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.prune_levels.html">sup3r.utilities.stitching.prune_levels</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.regrid_main_domain.html">sup3r.utilities.stitching.regrid_main_domain</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.stitch_and_save.html">sup3r.utilities.stitching.stitch_and_save</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.stitch_domains.html">sup3r.utilities.stitching.stitch_domains</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.unstagger_vars.html">sup3r.utilities.stitching.unstagger_vars</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.Regridder.html">sup3r.utilities.stitching.Regridder</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.html">sup3r.utilities.utilities</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.bvf_squared.html">sup3r.utilities.utilities.bvf_squared</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.correct_path.html">sup3r.utilities.utilities.correct_path</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.daily_temporal_coarsening.html">sup3r.utilities.utilities.daily_temporal_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.daily_time_sampler.html">sup3r.utilities.utilities.daily_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.estimate_max_workers.html">sup3r.utilities.utilities.estimate_max_workers</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.expand_paths.html">sup3r.utilities.utilities.expand_paths</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.forward_average.html">sup3r.utilities.utilities.forward_average</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.generate_random_string.html">sup3r.utilities.utilities.generate_random_string</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_chunk_slices.html">sup3r.utilities.utilities.get_chunk_slices</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_input_handler_class.html">sup3r.utilities.utilities.get_input_handler_class</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_raster_shape.html">sup3r.utilities.utilities.get_raster_shape</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_source_type.html">sup3r.utilities.utilities.get_source_type</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_time_dim_name.html">sup3r.utilities.utilities.get_time_dim_name</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_wrf_date_range.html">sup3r.utilities.utilities.get_wrf_date_range</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.gradient_richardson_number.html">sup3r.utilities.utilities.gradient_richardson_number</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.ignore_case_path_fetch.html">sup3r.utilities.utilities.ignore_case_path_fetch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.inverse_mo_length.html">sup3r.utilities.utilities.inverse_mo_length</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.invert_pot_temp.html">sup3r.utilities.utilities.invert_pot_temp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.invert_uv.html">sup3r.utilities.utilities.invert_uv</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.lat_lon_coarsening.html">sup3r.utilities.utilities.lat_lon_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.nn_fill_array.html">sup3r.utilities.utilities.nn_fill_array</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.np_to_pd_times.html">sup3r.utilities.utilities.np_to_pd_times</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.nsrdb_reduce_daily_data.html">sup3r.utilities.utilities.nsrdb_reduce_daily_data</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.nsrdb_sub_daily_sampler.html">sup3r.utilities.utilities.nsrdb_sub_daily_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.pd_date_range.html">sup3r.utilities.utilities.pd_date_range</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.potential_temperature.html">sup3r.utilities.utilities.potential_temperature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.potential_temperature_average.html">sup3r.utilities.utilities.potential_temperature_average</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.potential_temperature_difference.html">sup3r.utilities.utilities.potential_temperature_difference</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.rotor_area.html">sup3r.utilities.utilities.rotor_area</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.rotor_equiv_ws.html">sup3r.utilities.utilities.rotor_equiv_ws</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.round_array.html">sup3r.utilities.utilities.round_array</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.smooth_data.html">sup3r.utilities.utilities.smooth_data</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.spatial_coarsening.html">sup3r.utilities.utilities.spatial_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.spatial_simple_enhancing.html">sup3r.utilities.utilities.spatial_simple_enhancing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.st_interp.html">sup3r.utilities.utilities.st_interp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.temporal_coarsening.html">sup3r.utilities.utilities.temporal_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.temporal_simple_enhancing.html">sup3r.utilities.utilities.temporal_simple_enhancing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.transform_rotate_wind.html">sup3r.utilities.utilities.transform_rotate_wind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.uniform_box_sampler.html">sup3r.utilities.utilities.uniform_box_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.uniform_time_sampler.html">sup3r.utilities.utilities.uniform_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.vorticity_calc.html">sup3r.utilities.utilities.vorticity_calc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.weighted_box_sampler.html">sup3r.utilities.utilities.weighted_box_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.weighted_time_sampler.html">sup3r.utilities.utilities.weighted_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.windspeed_log_law.html">sup3r.utilities.utilities.windspeed_log_law</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.Timer.html">sup3r.utilities.utilities.Timer</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../_cli/cli.html">CLI reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../_cli/sup3r.html">sup3r</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-batch">batch</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-bias-calc">bias-calc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-data-collect">data-collect</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-data-extract">data-extract</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-forward-pass">forward-pass</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-pipeline">pipeline</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-qa">qa</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-regrid">regrid</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-solar">solar</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-stats">stats</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-visual-qa">visual-qa</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">sup3r</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">sup3r.postprocessing.collection</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for sup3r.postprocessing.collection</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;H5/NETCDF file collection.&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">glob</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">abc</span> <span class="kn">import</span> <span class="n">ABC</span><span class="p">,</span> <span class="n">abstractmethod</span>
+<span class="kn">from</span> <span class="nn">concurrent.futures</span> <span class="kn">import</span> <span class="n">ThreadPoolExecutor</span><span class="p">,</span> <span class="n">as_completed</span>
+<span class="kn">from</span> <span class="nn">warnings</span> <span class="kn">import</span> <span class="n">warn</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">psutil</span>
+<span class="kn">import</span> <span class="nn">xarray</span> <span class="k">as</span> <span class="nn">xr</span>
+<span class="kn">from</span> <span class="nn">gaps</span> <span class="kn">import</span> <span class="n">Status</span>
+<span class="kn">from</span> <span class="nn">rex.utilities.fun_utils</span> <span class="kn">import</span> <span class="n">get_fun_call_str</span>
+<span class="kn">from</span> <span class="nn">rex.utilities.loggers</span> <span class="kn">import</span> <span class="n">init_logger</span>
+<span class="kn">from</span> <span class="nn">scipy.spatial</span> <span class="kn">import</span> <span class="n">KDTree</span>
+
+<span class="kn">from</span> <span class="nn">sup3r.postprocessing.file_handling</span> <span class="kn">import</span> <span class="n">OutputMixIn</span><span class="p">,</span> <span class="n">RexOutputs</span>
+<span class="kn">from</span> <span class="nn">sup3r.utilities</span> <span class="kn">import</span> <span class="n">ModuleName</span>
+<span class="kn">from</span> <span class="nn">sup3r.utilities.cli</span> <span class="kn">import</span> <span class="n">BaseCLI</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="BaseCollector">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.postprocessing.collection.BaseCollector.html#sup3r.postprocessing.collection.BaseCollector">[docs]</a>
+<span class="k">class</span> <span class="nc">BaseCollector</span><span class="p">(</span><span class="n">OutputMixIn</span><span class="p">,</span> <span class="n">ABC</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base collector class for H5/NETCDF collection&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_paths</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        file_paths : list | str</span>
+<span class="sd">            Explicit list of str file paths that will be sorted and collected</span>
+<span class="sd">            or a single string with unix-style /search/patt*ern.&lt;ext&gt;. Files</span>
+<span class="sd">            should have non-overlapping time_index and spatial domains.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">file_paths</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="n">file_paths</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">file_paths</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">file_paths</span> <span class="o">=</span> <span class="n">file_paths</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">flist</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">file_paths</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">file_attrs</span> <span class="o">=</span> <span class="p">{}</span>
+
+<div class="viewcode-block" id="BaseCollector.collect">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.postprocessing.collection.BaseCollector.html#sup3r.postprocessing.collection.BaseCollector.collect">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">collect</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Collect data files from a dir to one output file.&quot;&quot;&quot;</span></div>
+
+
+<div class="viewcode-block" id="BaseCollector.get_node_cmd">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.postprocessing.collection.BaseCollector.html#sup3r.postprocessing.collection.BaseCollector.get_node_cmd">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">get_node_cmd</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">config</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get a CLI call to collect data.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        config : dict</span>
+<span class="sd">            sup3r collection config with all necessary args and kwargs to</span>
+<span class="sd">            run data collection.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">import_str</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="s1">&#39;from sup3r.postprocessing.collection &#39;</span>
+            <span class="sa">f</span><span class="s1">&#39;import </span><span class="si">{</span><span class="bp">cls</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s1">;</span><span class="se">\n</span><span class="s1">&#39;</span>
+            <span class="s1">&#39;from rex import init_logger;</span><span class="se">\n</span><span class="s1">&#39;</span>
+            <span class="s1">&#39;import time;</span><span class="se">\n</span><span class="s1">&#39;</span>
+            <span class="s1">&#39;from gaps import Status;</span><span class="se">\n</span><span class="s1">&#39;</span>
+        <span class="p">)</span>
+
+        <span class="n">dc_fun_str</span> <span class="o">=</span> <span class="n">get_fun_call_str</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">collect</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
+
+        <span class="n">log_file</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;log_file&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">log_level</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;log_level&#39;</span><span class="p">,</span> <span class="s1">&#39;INFO&#39;</span><span class="p">)</span>
+        <span class="n">log_arg_str</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;&quot;sup3r&quot;, log_level=&quot;</span><span class="si">{</span><span class="n">log_level</span><span class="si">}</span><span class="s1">&quot;&#39;</span>
+        <span class="k">if</span> <span class="n">log_file</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">log_arg_str</span> <span class="o">+=</span> <span class="sa">f</span><span class="s1">&#39;, log_file=&quot;</span><span class="si">{</span><span class="n">log_file</span><span class="si">}</span><span class="s1">&quot;&#39;</span>
+
+        <span class="n">cmd</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;python -c </span><span class="se">\&#39;</span><span class="si">{</span><span class="n">import_str</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="s2">&quot;t0 = time.time();</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;logger = init_logger(</span><span class="si">{</span><span class="n">log_arg_str</span><span class="si">}</span><span class="s2">);</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">dc_fun_str</span><span class="si">}</span><span class="s2">;</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="s2">&quot;t_elap = time.time() - t0;</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+
+        <span class="n">pipeline_step</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;pipeline_step&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">ModuleName</span><span class="o">.</span><span class="n">DATA_COLLECT</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="n">BaseCLI</span><span class="o">.</span><span class="n">add_status_cmd</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">pipeline_step</span><span class="p">,</span> <span class="n">cmd</span><span class="p">)</span>
+        <span class="n">cmd</span> <span class="o">+=</span> <span class="s2">&quot;;</span><span class="se">\&#39;\n</span><span class="s2">&quot;</span>
+
+        <span class="k">return</span> <span class="n">cmd</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;/&#39;</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="CollectorNC">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.postprocessing.collection.CollectorNC.html#sup3r.postprocessing.collection.CollectorNC">[docs]</a>
+<span class="k">class</span> <span class="nc">CollectorNC</span><span class="p">(</span><span class="n">BaseCollector</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Sup3r NETCDF file collection framework&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="CollectorNC.collect">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.postprocessing.collection.CollectorNC.html#sup3r.postprocessing.collection.CollectorNC.collect">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">collect</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">file_paths</span><span class="p">,</span>
+        <span class="n">out_file</span><span class="p">,</span>
+        <span class="n">features</span><span class="p">,</span>
+        <span class="n">log_level</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">log_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">write_status</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">job_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">res_kwargs</span><span class="o">=</span><span class="kc">None</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Collect data files from a dir to one output file.</span>
+
+<span class="sd">        Filename requirements:</span>
+<span class="sd">         - Should end with &quot;.nc&quot;</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        file_paths : list | str</span>
+<span class="sd">            Explicit list of str file paths that will be sorted and collected</span>
+<span class="sd">            or a single string with unix-style /search/patt*ern.nc.</span>
+<span class="sd">        out_file : str</span>
+<span class="sd">            File path of final output file.</span>
+<span class="sd">        features : list</span>
+<span class="sd">            List of dsets to collect</span>
+<span class="sd">        log_level : str | None</span>
+<span class="sd">            Desired log level, None will not initialize logging.</span>
+<span class="sd">        log_file : str | None</span>
+<span class="sd">            Target log file. None logs to stdout.</span>
+<span class="sd">        write_status : bool</span>
+<span class="sd">            Flag to write status file once complete if running from pipeline.</span>
+<span class="sd">        job_name : str</span>
+<span class="sd">            Job name for status file if running from pipeline.</span>
+<span class="sd">        overwrite : bool</span>
+<span class="sd">            Whether to overwrite existing output file</span>
+<span class="sd">        res_kwargs : dict | None</span>
+<span class="sd">            Dictionary of kwargs to pass to xarray.open_mfdataset.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">t0</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s1">&#39;Initializing collection for file_paths=</span><span class="si">{</span><span class="n">file_paths</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">log_level</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">init_logger</span><span class="p">(</span>
+                <span class="s1">&#39;sup3r.preprocessing&#39;</span><span class="p">,</span> <span class="n">log_file</span><span class="o">=</span><span class="n">log_file</span><span class="p">,</span> <span class="n">log_level</span><span class="o">=</span><span class="n">log_level</span>
+            <span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">out_file</span><span class="p">)):</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">out_file</span><span class="p">),</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="n">collector</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">file_paths</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s1">&#39;Collecting </span><span class="si">{}</span><span class="s1"> files to </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">collector</span><span class="o">.</span><span class="n">flist</span><span class="p">),</span> <span class="n">out_file</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">overwrite</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">out_file</span><span class="p">):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;overwrite=True, removing </span><span class="si">{</span><span class="n">out_file</span><span class="si">}</span><span class="s1">.&#39;</span><span class="p">)</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">out_file</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">out_file</span><span class="p">):</span>
+            <span class="n">res_kwargs</span> <span class="o">=</span> <span class="n">res_kwargs</span> <span class="ow">or</span> <span class="p">{}</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_mfdataset</span><span class="p">(</span><span class="n">collector</span><span class="o">.</span><span class="n">flist</span><span class="p">,</span> <span class="o">**</span><span class="n">res_kwargs</span><span class="p">)</span>
+            <span class="n">features</span> <span class="o">=</span> <span class="p">[</span><span class="n">feat</span> <span class="k">for</span> <span class="n">feat</span> <span class="ow">in</span> <span class="n">out</span> <span class="k">if</span> <span class="n">feat</span> <span class="ow">in</span> <span class="n">features</span>
+                        <span class="ow">or</span> <span class="n">feat</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">features</span><span class="p">]</span>
+            <span class="n">out</span><span class="p">[</span><span class="n">features</span><span class="p">]</span><span class="o">.</span><span class="n">to_netcdf</span><span class="p">(</span><span class="n">out_file</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">write_status</span> <span class="ow">and</span> <span class="n">job_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;out_dir&#39;</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">out_file</span><span class="p">),</span>
+                <span class="s1">&#39;fout&#39;</span><span class="p">:</span> <span class="n">out_file</span><span class="p">,</span>
+                <span class="s1">&#39;flist&#39;</span><span class="p">:</span> <span class="n">collector</span><span class="o">.</span><span class="n">flist</span><span class="p">,</span>
+                <span class="s1">&#39;job_status&#39;</span><span class="p">:</span> <span class="s1">&#39;successful&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;runtime&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">t0</span><span class="p">)</span> <span class="o">/</span> <span class="mi">60</span><span class="p">,</span>
+            <span class="p">}</span>
+            <span class="n">Status</span><span class="o">.</span><span class="n">make_single_job_file</span><span class="p">(</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">out_file</span><span class="p">),</span> <span class="s1">&#39;collect&#39;</span><span class="p">,</span> <span class="n">job_name</span><span class="p">,</span> <span class="n">status</span>
+            <span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Finished file collection.&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CollectorNC.group_spatial_chunks">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.postprocessing.collection.CollectorNC.html#sup3r.postprocessing.collection.CollectorNC.group_spatial_chunks">[docs]</a>
+    <span class="k">def</span> <span class="nf">group_spatial_chunks</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Group same spatial chunks together so each chunk has same spatial</span>
+<span class="sd">        footprint but different times&quot;&quot;&quot;</span>
+        <span class="n">chunks</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">flist</span><span class="p">:</span>
+            <span class="n">s_chunk</span> <span class="o">=</span> <span class="n">file</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">dirname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
+            <span class="n">s_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dirname</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;s_</span><span class="si">{</span><span class="n">s_chunk</span><span class="si">}</span><span class="s1">.nc&#39;</span><span class="p">)</span>
+            <span class="n">chunks</span><span class="p">[</span><span class="n">s_file</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="o">*</span><span class="n">chunks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">s_file</span><span class="p">,</span> <span class="p">[]),</span> <span class="n">s_file</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">chunks</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="CollectorH5">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.postprocessing.collection.CollectorH5.html#sup3r.postprocessing.collection.CollectorH5">[docs]</a>
+<span class="k">class</span> <span class="nc">CollectorH5</span><span class="p">(</span><span class="n">BaseCollector</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Sup3r H5 file collection framework&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="CollectorH5.get_slices">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.postprocessing.collection.CollectorH5.html#sup3r.postprocessing.collection.CollectorH5.get_slices">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">get_slices</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span> <span class="n">final_time_index</span><span class="p">,</span> <span class="n">final_meta</span><span class="p">,</span> <span class="n">new_time_index</span><span class="p">,</span> <span class="n">new_meta</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get index slices where the new ti/meta belong in the final ti/meta.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        final_time_index : pd.Datetimeindex</span>
+<span class="sd">            Time index of the final file that new_time_index is being written</span>
+<span class="sd">            to.</span>
+<span class="sd">        final_meta : pd.DataFrame</span>
+<span class="sd">            Meta data of the final file that new_meta is being written to.</span>
+<span class="sd">        new_time_index : pd.Datetimeindex</span>
+<span class="sd">            Chunk time index that is a subset of the final_time_index.</span>
+<span class="sd">        new_meta : pd.DataFrame</span>
+<span class="sd">            Chunk meta data that is a subset of the final_meta.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        row_slice : slice</span>
+<span class="sd">            final_time_index[row_slice] = new_time_index</span>
+<span class="sd">        col_slice : slice</span>
+<span class="sd">            final_meta[col_slice] = new_meta</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">final_index</span> <span class="o">=</span> <span class="n">final_meta</span><span class="o">.</span><span class="n">index</span>
+        <span class="n">new_index</span> <span class="o">=</span> <span class="n">new_meta</span><span class="o">.</span><span class="n">index</span>
+        <span class="n">row_loc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">final_time_index</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">new_time_index</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">col_loc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">final_meta</span><span class="p">[</span><span class="s1">&#39;gid&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">new_meta</span><span class="p">[</span><span class="s1">&#39;gid&#39;</span><span class="p">]))[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">row_loc</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="s1">&#39;Could not find row locations in file collection. &#39;</span>
+                <span class="s1">&#39;New time index: </span><span class="si">{}</span><span class="s1"> final time index: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">new_time_index</span><span class="p">,</span> <span class="n">final_time_index</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">col_loc</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="s1">&#39;Could not find col locations in file collection. &#39;</span>
+                <span class="s1">&#39;New index: </span><span class="si">{}</span><span class="s1"> final index: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">new_index</span><span class="p">,</span> <span class="n">final_index</span><span class="p">)</span>
+            <span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+        <span class="n">row_slice</span> <span class="o">=</span> <span class="nb">slice</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">row_loc</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">row_loc</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="sa">f</span><span class="s1">&#39;row_slice=</span><span class="si">{</span><span class="n">row_slice</span><span class="si">}</span><span class="s1"> conflict with row_indices=</span><span class="si">{</span><span class="n">row_loc</span><span class="si">}</span><span class="s1">. &#39;</span>
+            <span class="s1">&#39;Indices do not seem to be increasing and/or contiguous.&#39;</span>
+        <span class="p">)</span>
+        <span class="k">assert</span> <span class="p">(</span><span class="n">row_slice</span><span class="o">.</span><span class="n">stop</span> <span class="o">-</span> <span class="n">row_slice</span><span class="o">.</span><span class="n">start</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">row_loc</span><span class="p">),</span> <span class="n">msg</span>
+
+        <span class="k">return</span> <span class="n">row_slice</span><span class="p">,</span> <span class="n">col_loc</span></div>
+
+
+<div class="viewcode-block" id="CollectorH5.get_coordinate_indices">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.postprocessing.collection.CollectorH5.html#sup3r.postprocessing.collection.CollectorH5.get_coordinate_indices">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_coordinate_indices</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target_meta</span><span class="p">,</span> <span class="n">full_meta</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mf">1e-4</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get coordindate indices in meta data for given targets</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        target_meta : pd.DataFrame</span>
+<span class="sd">            Dataframe of coordinates to find within the full meta</span>
+<span class="sd">        full_meta : pd.DataFrame</span>
+<span class="sd">            Dataframe of full set of coordinates for unfiltered dataset</span>
+<span class="sd">        threshold : float</span>
+<span class="sd">            Threshold distance for finding target coordinates within full meta</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ll2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">full_meta</span><span class="o">.</span><span class="n">latitude</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">full_meta</span><span class="o">.</span><span class="n">longitude</span><span class="o">.</span><span class="n">values</span><span class="p">)</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">T</span>
+        <span class="n">tree</span> <span class="o">=</span> <span class="n">KDTree</span><span class="p">(</span><span class="n">ll2</span><span class="p">)</span>
+        <span class="n">targets</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">target_meta</span><span class="o">.</span><span class="n">latitude</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">target_meta</span><span class="o">.</span><span class="n">longitude</span><span class="o">.</span><span class="n">values</span><span class="p">)</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">T</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">indices</span> <span class="o">=</span> <span class="n">tree</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">targets</span><span class="p">,</span> <span class="n">distance_upper_bound</span><span class="o">=</span><span class="n">threshold</span><span class="p">)</span>
+        <span class="n">indices</span> <span class="o">=</span> <span class="n">indices</span><span class="p">[</span><span class="n">indices</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">full_meta</span><span class="p">)]</span>
+        <span class="k">return</span> <span class="n">indices</span></div>
+
+
+<div class="viewcode-block" id="CollectorH5.get_data">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.postprocessing.collection.CollectorH5.html#sup3r.postprocessing.collection.CollectorH5.get_data">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_data</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">file_path</span><span class="p">,</span>
+        <span class="n">feature</span><span class="p">,</span>
+        <span class="n">time_index</span><span class="p">,</span>
+        <span class="n">meta</span><span class="p">,</span>
+        <span class="n">scale_factor</span><span class="p">,</span>
+        <span class="n">dtype</span><span class="p">,</span>
+        <span class="n">threshold</span><span class="o">=</span><span class="mf">1e-4</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Retreive a data array from a chunked file.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        file_path : str</span>
+<span class="sd">            h5 file to get data from</span>
+<span class="sd">        feature : str</span>
+<span class="sd">            dataset to retrieve data from fpath.</span>
+<span class="sd">        time_index : pd.Datetimeindex</span>
+<span class="sd">            Time index of the final file.</span>
+<span class="sd">        meta : pd.DataFrame</span>
+<span class="sd">            Meta data of the final file.</span>
+<span class="sd">        scale_factor : int | float</span>
+<span class="sd">            Final destination scale factor after collection. If the data</span>
+<span class="sd">            retrieval from the files to be collected has a different scale</span>
+<span class="sd">            factor, the collected data will be rescaled and returned as</span>
+<span class="sd">            float32.</span>
+<span class="sd">        dtype : np.dtype</span>
+<span class="sd">            Final dtype to return data as</span>
+<span class="sd">        threshold : float</span>
+<span class="sd">            Threshold distance for finding target coordinates within full meta</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        f_data : np.ndarray</span>
+<span class="sd">            Data array from the fpath cast as input dtype.</span>
+<span class="sd">        row_slice : slice</span>
+<span class="sd">            final_time_index[row_slice] = new_time_index</span>
+<span class="sd">        col_slice : slice</span>
+<span class="sd">            final_meta[col_slice] = new_meta</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="n">RexOutputs</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">unscale</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">f_ti</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">time_index</span>
+            <span class="n">f_meta</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">meta</span>
+            <span class="n">source_scale_factor</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="n">feature</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;scale_factor&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">feature</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">f</span><span class="o">.</span><span class="n">dsets</span><span class="p">:</span>
+                <span class="n">e</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="s1">&#39;Trying to collect dataset &quot;</span><span class="si">{}</span><span class="s1">&quot; but cannot find in &#39;</span>
+                    <span class="s1">&#39;available: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">feature</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">dsets</span><span class="p">)</span>
+                <span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+
+            <span class="n">mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_coordinate_indices</span><span class="p">(</span>
+                <span class="n">meta</span><span class="p">,</span> <span class="n">f_meta</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="n">threshold</span>
+            <span class="p">)</span>
+            <span class="n">f_meta</span> <span class="o">=</span> <span class="n">f_meta</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+            <span class="n">f_data</span> <span class="o">=</span> <span class="n">f</span><span class="p">[</span><span class="n">feature</span><span class="p">][:,</span> <span class="n">mask</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="s1">&#39;No target coordinates found in masked meta. &#39;</span>
+                <span class="sa">f</span><span class="s1">&#39;Skipping collection for </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s1">.&#39;</span>
+            <span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="n">warn</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">row_slice</span><span class="p">,</span> <span class="n">col_slice</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_slices</span><span class="p">(</span>
+                <span class="n">time_index</span><span class="p">,</span> <span class="n">meta</span><span class="p">,</span> <span class="n">f_ti</span><span class="p">,</span> <span class="n">f_meta</span>
+            <span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">scale_factor</span> <span class="o">!=</span> <span class="n">source_scale_factor</span><span class="p">:</span>
+                <span class="n">f_data</span> <span class="o">=</span> <span class="n">f_data</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+                <span class="n">f_data</span> <span class="o">*=</span> <span class="n">scale_factor</span> <span class="o">/</span> <span class="n">source_scale_factor</span>
+
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">issubdtype</span><span class="p">(</span><span class="n">dtype</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">integer</span><span class="p">):</span>
+                <span class="n">f_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">f_data</span><span class="p">)</span>
+
+            <span class="n">f_data</span> <span class="o">=</span> <span class="n">f_data</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">row_slice</span><span class="p">,</span> <span class="n">col_slice</span><span class="p">]</span> <span class="o">=</span> <span class="n">f_data</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Failed to add data to self.data[</span><span class="si">{</span><span class="n">row_slice</span><span class="si">}</span><span class="s1">, &#39;</span>
+                       <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">col_slice</span><span class="si">}</span><span class="s1">] for feature=</span><span class="si">{</span><span class="n">feature</span><span class="si">}</span><span class="s1">, &#39;</span>
+                       <span class="sa">f</span><span class="s1">&#39;file_path=</span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s1">, time_index=</span><span class="si">{</span><span class="n">time_index</span><span class="si">}</span><span class="s1">, &#39;</span>
+                       <span class="sa">f</span><span class="s1">&#39;meta=</span><span class="si">{</span><span class="n">meta</span><span class="si">}</span><span class="s1">. </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">OSError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span> <span class="kn">from</span> <span class="nn">e</span></div>
+
+
+    <span class="k">def</span> <span class="nf">_get_file_attrs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get meta data and time index for a single file&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">file</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_attrs</span><span class="p">:</span>
+            <span class="n">meta</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_attrs</span><span class="p">[</span><span class="n">file</span><span class="p">][</span><span class="s1">&#39;meta&#39;</span><span class="p">]</span>
+            <span class="n">time_index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_attrs</span><span class="p">[</span><span class="n">file</span><span class="p">][</span><span class="s1">&#39;time_index&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">with</span> <span class="n">RexOutputs</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">meta</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">meta</span>
+                <span class="n">time_index</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">time_index</span>
+        <span class="k">if</span> <span class="n">file</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_attrs</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">file_attrs</span><span class="p">[</span><span class="n">file</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;meta&#39;</span><span class="p">:</span> <span class="n">meta</span><span class="p">,</span> <span class="s1">&#39;time_index&#39;</span><span class="p">:</span> <span class="n">time_index</span><span class="p">}</span>
+        <span class="k">return</span> <span class="n">meta</span><span class="p">,</span> <span class="n">time_index</span>
+
+    <span class="k">def</span> <span class="nf">_get_collection_attrs</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">file_paths</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">sort_key</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_workers</span><span class="o">=</span><span class="kc">None</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get important dataset attributes from a file list to be collected.</span>
+
+<span class="sd">        Assumes the file list is chunked in time (row chunked).</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        file_paths : list | str</span>
+<span class="sd">            Explicit list of str file paths that will be sorted and collected</span>
+<span class="sd">            or a single string with unix-style /search/patt*ern.h5.</span>
+<span class="sd">        sort : bool</span>
+<span class="sd">            flag to sort flist to determine meta data order.</span>
+<span class="sd">        sort_key : None | fun</span>
+<span class="sd">            Optional sort key to sort flist by (determines how meta is built</span>
+<span class="sd">            if out_file does not exist).</span>
+<span class="sd">        max_workers : int | None</span>
+<span class="sd">            Number of workers to use in parallel. 1 runs serial,</span>
+<span class="sd">            None will use all available workers.</span>
+<span class="sd">        target_final_meta_file : str</span>
+<span class="sd">            Path to target final meta containing coordinates to keep from the</span>
+<span class="sd">            full list of coordinates present in the collected meta for the full</span>
+<span class="sd">            file list.</span>
+<span class="sd">        threshold : float</span>
+<span class="sd">            Threshold distance for finding target coordinates within full meta</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        time_index : pd.datetimeindex</span>
+<span class="sd">            Concatenated full size datetime index from the flist that is</span>
+<span class="sd">            being collected</span>
+<span class="sd">        meta : pd.DataFrame</span>
+<span class="sd">            Concatenated full size meta data from the flist that is being</span>
+<span class="sd">            collected or provided target meta</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">sort</span><span class="p">:</span>
+            <span class="n">file_paths</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">file_paths</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">sort_key</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s1">&#39;Getting collection attrs for full dataset with &#39;</span>
+            <span class="sa">f</span><span class="s1">&#39;max_workers=</span><span class="si">{</span><span class="n">max_workers</span><span class="si">}</span><span class="s1">.&#39;</span>
+        <span class="p">)</span>
+
+        <span class="n">time_index</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">file_paths</span><span class="p">)</span>
+        <span class="n">meta</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">file_paths</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">max_workers</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">fn</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">file_paths</span><span class="p">):</span>
+                <span class="n">meta</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">time_index</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_file_attrs</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s1"> / </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">file_paths</span><span class="p">)</span><span class="si">}</span><span class="s1"> files finished&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">futures</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">with</span> <span class="n">ThreadPoolExecutor</span><span class="p">(</span><span class="n">max_workers</span><span class="o">=</span><span class="n">max_workers</span><span class="p">)</span> <span class="k">as</span> <span class="n">exe</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">fn</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">file_paths</span><span class="p">):</span>
+                    <span class="n">future</span> <span class="o">=</span> <span class="n">exe</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_file_attrs</span><span class="p">,</span> <span class="n">fn</span><span class="p">)</span>
+                    <span class="n">futures</span><span class="p">[</span><span class="n">future</span><span class="p">]</span> <span class="o">=</span> <span class="n">i</span>
+
+                <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">future</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">as_completed</span><span class="p">(</span><span class="n">futures</span><span class="p">)):</span>
+                    <span class="n">mem</span> <span class="o">=</span> <span class="n">psutil</span><span class="o">.</span><span class="n">virtual_memory</span><span class="p">()</span>
+                    <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span>
+                        <span class="sa">f</span><span class="s1">&#39;Meta collection futures completed: </span><span class="si">{</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s1"> out &#39;</span>
+                        <span class="sa">f</span><span class="s1">&#39;of </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">futures</span><span class="p">)</span><span class="si">}</span><span class="s1">. Current memory usage is &#39;</span>
+                        <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">mem</span><span class="o">.</span><span class="n">used</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mf">1e9</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1"> GB out of &#39;</span>
+                        <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">mem</span><span class="o">.</span><span class="n">total</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mf">1e9</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1"> GB total.&#39;</span>
+                    <span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">idx</span> <span class="o">=</span> <span class="n">futures</span><span class="p">[</span><span class="n">future</span><span class="p">]</span>
+                        <span class="n">meta</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span> <span class="n">time_index</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">future</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
+                    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                        <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span>
+                            <span class="s1">&#39;Falied to get attrs from &#39;</span>
+                            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">file_paths</span><span class="p">[</span><span class="n">futures</span><span class="p">[</span><span class="n">future</span><span class="p">]]</span><span class="si">}</span><span class="s1">&#39;</span>
+                        <span class="p">)</span>
+                        <span class="n">logger</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+                        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span> <span class="kn">from</span> <span class="nn">e</span>
+        <span class="n">time_index</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DatetimeIndex</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">time_index</span><span class="p">))</span>
+        <span class="n">time_index</span> <span class="o">=</span> <span class="n">time_index</span><span class="o">.</span><span class="n">sort_values</span><span class="p">()</span>
+        <span class="n">time_index</span> <span class="o">=</span> <span class="n">time_index</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">()</span>
+        <span class="n">meta</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">meta</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s1">&#39;latitude&#39;</span> <span class="ow">in</span> <span class="n">meta</span> <span class="ow">and</span> <span class="s1">&#39;longitude&#39;</span> <span class="ow">in</span> <span class="n">meta</span><span class="p">:</span>
+            <span class="n">meta</span> <span class="o">=</span> <span class="n">meta</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;latitude&#39;</span><span class="p">,</span> <span class="s1">&#39;longitude&#39;</span><span class="p">])</span>
+        <span class="n">meta</span> <span class="o">=</span> <span class="n">meta</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="s1">&#39;gid&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">time_index</span><span class="p">,</span> <span class="n">meta</span>
+
+<div class="viewcode-block" id="CollectorH5.get_target_and_masked_meta">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.postprocessing.collection.CollectorH5.html#sup3r.postprocessing.collection.CollectorH5.get_target_and_masked_meta">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_target_and_masked_meta</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">meta</span><span class="p">,</span> <span class="n">target_final_meta_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mf">1e-4</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Use combined meta for all files and target_final_meta_file to get</span>
+<span class="sd">        mapping from the full meta to the target meta and the mapping from the</span>
+<span class="sd">        target meta to the full meta, both of which are masked to remove</span>
+<span class="sd">        coordinates not present in the target_meta.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        meta : pd.DataFrame</span>
+<span class="sd">            Concatenated full size meta data from the flist that is being</span>
+<span class="sd">            collected or provided target meta</span>
+<span class="sd">        target_final_meta_file : str</span>
+<span class="sd">            Path to target final meta containing coordinates to keep from the</span>
+<span class="sd">            full list of coordinates present in the collected meta for the full</span>
+<span class="sd">            file list.</span>
+<span class="sd">        threshold : float</span>
+<span class="sd">            Threshold distance for finding target coordinates within full meta</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        target_final_meta : pd.DataFrame</span>
+<span class="sd">            Concatenated full size meta data from the flist that is being</span>
+<span class="sd">            collected or provided target meta</span>
+<span class="sd">        masked_meta : pd.DataFrame</span>
+<span class="sd">            Concatenated full size meta data from the flist that is being</span>
+<span class="sd">            collected masked against target_final_meta</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">target_final_meta_file</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span>
+            <span class="n">target_final_meta_file</span>
+        <span class="p">):</span>
+            <span class="n">target_final_meta</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">target_final_meta_file</span><span class="p">)</span>
+            <span class="k">if</span> <span class="s1">&#39;gid&#39;</span> <span class="ow">in</span> <span class="n">target_final_meta</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+                <span class="n">target_final_meta</span> <span class="o">=</span> <span class="n">target_final_meta</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s1">&#39;gid&#39;</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_coordinate_indices</span><span class="p">(</span>
+                <span class="n">target_final_meta</span><span class="p">,</span> <span class="n">meta</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="n">threshold</span>
+            <span class="p">)</span>
+            <span class="n">masked_meta</span> <span class="o">=</span> <span class="n">meta</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Masked meta coordinates: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">masked_meta</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_coordinate_indices</span><span class="p">(</span>
+                <span class="n">masked_meta</span><span class="p">,</span> <span class="n">target_final_meta</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="n">threshold</span>
+            <span class="p">)</span>
+            <span class="n">target_final_meta</span> <span class="o">=</span> <span class="n">target_final_meta</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Target meta coordinates: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">target_final_meta</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">target_final_meta</span> <span class="o">=</span> <span class="n">masked_meta</span> <span class="o">=</span> <span class="n">meta</span>
+
+        <span class="k">return</span> <span class="n">target_final_meta</span><span class="p">,</span> <span class="n">masked_meta</span></div>
+
+
+<div class="viewcode-block" id="CollectorH5.get_collection_attrs">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.postprocessing.collection.CollectorH5.html#sup3r.postprocessing.collection.CollectorH5.get_collection_attrs">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_collection_attrs</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">file_paths</span><span class="p">,</span>
+        <span class="n">sort</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">sort_key</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">max_workers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">target_final_meta_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">threshold</span><span class="o">=</span><span class="mf">1e-4</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get important dataset attributes from a file list to be collected.</span>
+
+<span class="sd">        Assumes the file list is chunked in time (row chunked).</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        file_paths : list | str</span>
+<span class="sd">            Explicit list of str file paths that will be sorted and collected</span>
+<span class="sd">            or a single string with unix-style /search/patt*ern.h5.</span>
+<span class="sd">        sort : bool</span>
+<span class="sd">            flag to sort flist to determine meta data order.</span>
+<span class="sd">        sort_key : None | fun</span>
+<span class="sd">            Optional sort key to sort flist by (determines how meta is built</span>
+<span class="sd">            if out_file does not exist).</span>
+<span class="sd">        max_workers : int | None</span>
+<span class="sd">            Number of workers to use in parallel. 1 runs serial,</span>
+<span class="sd">            None will use all available workers.</span>
+<span class="sd">        target_final_meta_file : str</span>
+<span class="sd">            Path to target final meta containing coordinates to keep from the</span>
+<span class="sd">            full list of coordinates present in the collected meta for the full</span>
+<span class="sd">            file list.</span>
+<span class="sd">        threshold : float</span>
+<span class="sd">            Threshold distance for finding target coordinates within full meta</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        time_index : pd.datetimeindex</span>
+<span class="sd">            Concatenated full size datetime index from the flist that is</span>
+<span class="sd">            being collected</span>
+<span class="sd">        target_final_meta : pd.DataFrame</span>
+<span class="sd">            Concatenated full size meta data from the flist that is being</span>
+<span class="sd">            collected or provided target meta</span>
+<span class="sd">        masked_meta : pd.DataFrame</span>
+<span class="sd">            Concatenated full size meta data from the flist that is being</span>
+<span class="sd">            collected masked against target_final_meta</span>
+<span class="sd">        shape : tuple</span>
+<span class="sd">            Output (collected) dataset shape</span>
+<span class="sd">        global_attrs : dict</span>
+<span class="sd">            Global attributes from the first file in file_paths (it&#39;s assumed</span>
+<span class="sd">            that all the files in file_paths have the same global file</span>
+<span class="sd">            attributes).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Using target_final_meta_file=</span><span class="si">{</span><span class="n">target_final_meta_file</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">target_final_meta_file</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="sa">f</span><span class="s1">&#39;Provided target meta (</span><span class="si">{</span><span class="n">target_final_meta_file</span><span class="si">}</span><span class="s1">) does not &#39;</span>
+                <span class="s1">&#39;exist.&#39;</span>
+            <span class="p">)</span>
+            <span class="k">assert</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">target_final_meta_file</span><span class="p">),</span> <span class="n">msg</span>
+
+        <span class="n">time_index</span><span class="p">,</span> <span class="n">meta</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_collection_attrs</span><span class="p">(</span>
+            <span class="n">file_paths</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="n">sort</span><span class="p">,</span> <span class="n">sort_key</span><span class="o">=</span><span class="n">sort_key</span><span class="p">,</span> <span class="n">max_workers</span><span class="o">=</span><span class="n">max_workers</span>
+        <span class="p">)</span>
+
+        <span class="n">target_final_meta</span><span class="p">,</span> <span class="n">masked_meta</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_target_and_masked_meta</span><span class="p">(</span>
+            <span class="n">meta</span><span class="p">,</span> <span class="n">target_final_meta_file</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="n">threshold</span>
+        <span class="p">)</span>
+
+        <span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">time_index</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">target_final_meta</span><span class="p">))</span>
+
+        <span class="k">with</span> <span class="n">RexOutputs</span><span class="p">(</span><span class="n">file_paths</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fin</span><span class="p">:</span>
+            <span class="n">global_attrs</span> <span class="o">=</span> <span class="n">fin</span><span class="o">.</span><span class="n">global_attrs</span>
+
+        <span class="k">return</span> <span class="n">time_index</span><span class="p">,</span> <span class="n">target_final_meta</span><span class="p">,</span> <span class="n">masked_meta</span><span class="p">,</span> <span class="n">shape</span><span class="p">,</span> <span class="n">global_attrs</span></div>
+
+
+    <span class="k">def</span> <span class="nf">_write_flist_data</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">out_file</span><span class="p">,</span>
+        <span class="n">feature</span><span class="p">,</span>
+        <span class="n">time_index</span><span class="p">,</span>
+        <span class="n">subset_masked_meta</span><span class="p">,</span>
+        <span class="n">target_masked_meta</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Write spatiotemporal file list data to output file for given</span>
+<span class="sd">        feature</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        out_file : str</span>
+<span class="sd">            Name of output file</span>
+<span class="sd">        feature : str</span>
+<span class="sd">            Name of feature for output chunk</span>
+<span class="sd">        time_index : pd.DateTimeIndex</span>
+<span class="sd">            Time index for corresponding file list data</span>
+<span class="sd">        subset_masked_meta : pd.DataFrame</span>
+<span class="sd">            Meta for corresponding file list data</span>
+<span class="sd">        target_masked_meta : pd.DataFrame</span>
+<span class="sd">            Meta for full output file</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="n">RexOutputs</span><span class="p">(</span><span class="n">out_file</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">target_ti</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">time_index</span>
+            <span class="n">y_write_slice</span><span class="p">,</span> <span class="n">x_write_slice</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_slices</span><span class="p">(</span>
+                <span class="n">target_ti</span><span class="p">,</span>
+                <span class="n">target_masked_meta</span><span class="p">,</span>
+                <span class="n">time_index</span><span class="p">,</span>
+                <span class="n">subset_masked_meta</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_dset_in_output</span><span class="p">(</span><span class="n">out_file</span><span class="p">,</span> <span class="n">feature</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="n">RexOutputs</span><span class="p">(</span><span class="n">out_file</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;a&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">f</span><span class="p">[</span><span class="n">feature</span><span class="p">,</span> <span class="n">y_write_slice</span><span class="p">,</span> <span class="n">x_write_slice</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="sa">f</span><span class="s1">&#39;Problem with writing data to </span><span class="si">{</span><span class="n">out_file</span><span class="si">}</span><span class="s1"> with &#39;</span>
+                    <span class="sa">f</span><span class="s1">&#39;t_slice=</span><span class="si">{</span><span class="n">y_write_slice</span><span class="si">}</span><span class="s1">, &#39;</span>
+                    <span class="sa">f</span><span class="s1">&#39;s_slice=</span><span class="si">{</span><span class="n">x_write_slice</span><span class="si">}</span><span class="s1">. </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span>
+                <span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">OSError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span> <span class="kn">from</span> <span class="nn">e</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+            <span class="s1">&#39;Finished writing &quot;</span><span class="si">{}</span><span class="s1">&quot; for row </span><span class="si">{}</span><span class="s1"> and col </span><span class="si">{}</span><span class="s1"> to: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">feature</span><span class="p">,</span>
+                <span class="n">y_write_slice</span><span class="p">,</span>
+                <span class="n">x_write_slice</span><span class="p">,</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">out_file</span><span class="p">),</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_collect_flist</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">feature</span><span class="p">,</span>
+        <span class="n">subset_masked_meta</span><span class="p">,</span>
+        <span class="n">time_index</span><span class="p">,</span>
+        <span class="n">shape</span><span class="p">,</span>
+        <span class="n">file_paths</span><span class="p">,</span>
+        <span class="n">out_file</span><span class="p">,</span>
+        <span class="n">target_masked_meta</span><span class="p">,</span>
+        <span class="n">max_workers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Collect a dataset from a file list without getting attributes first.</span>
+<span class="sd">        This file list can be a subset of a full file list to be collected.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        feature : str</span>
+<span class="sd">            Dataset name to collect.</span>
+<span class="sd">        subset_masked_meta : pd.DataFrame</span>
+<span class="sd">            Meta data containing the list of coordinates present in both the</span>
+<span class="sd">            given file paths and the target_final_meta. This can be a subset of</span>
+<span class="sd">            the coordinates present in the full file list. The coordinates</span>
+<span class="sd">            contained in this dataframe have the same gids as those present in</span>
+<span class="sd">            the meta for the full file list.</span>
+<span class="sd">        time_index : pd.datetimeindex</span>
+<span class="sd">            Concatenated datetime index for the given file paths.</span>
+<span class="sd">        shape : tuple</span>
+<span class="sd">            Output (collected) dataset shape</span>
+<span class="sd">        file_paths : list | str</span>
+<span class="sd">            File list to be collected. This can be a subset of a full file list</span>
+<span class="sd">            to be collected.</span>
+<span class="sd">        out_file : str</span>
+<span class="sd">            File path of final output file.</span>
+<span class="sd">        target_masked_meta : pd.DataFrame</span>
+<span class="sd">            Same as subset_masked_meta but instead for the entire list of files</span>
+<span class="sd">            to be collected.</span>
+<span class="sd">        max_workers : int | None</span>
+<span class="sd">            Number of workers to use in parallel. 1 runs serial,</span>
+<span class="sd">            None uses all available.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">subset_masked_meta</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">attrs</span><span class="p">,</span> <span class="n">final_dtype</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_dset_attrs</span><span class="p">(</span><span class="n">feature</span><span class="p">)</span>
+            <span class="n">scale_factor</span> <span class="o">=</span> <span class="n">attrs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;scale_factor&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                <span class="s1">&#39;Collecting file list of shape </span><span class="si">{}</span><span class="s1">: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">shape</span><span class="p">,</span> <span class="n">file_paths</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">final_dtype</span><span class="p">)</span>
+            <span class="n">mem</span> <span class="o">=</span> <span class="n">psutil</span><span class="o">.</span><span class="n">virtual_memory</span><span class="p">()</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                <span class="s1">&#39;Initializing output dataset &quot;</span><span class="si">{}</span><span class="s1">&quot; in-memory with &#39;</span>
+                <span class="s1">&#39;shape </span><span class="si">{}</span><span class="s1"> and dtype </span><span class="si">{}</span><span class="s1">. Current memory usage is &#39;</span>
+                <span class="s1">&#39;</span><span class="si">{:.3f}</span><span class="s1"> GB out of </span><span class="si">{:.3f}</span><span class="s1"> GB total.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">feature</span><span class="p">,</span>
+                    <span class="n">shape</span><span class="p">,</span>
+                    <span class="n">final_dtype</span><span class="p">,</span>
+                    <span class="n">mem</span><span class="o">.</span><span class="n">used</span> <span class="o">/</span> <span class="mf">1e9</span><span class="p">,</span>
+                    <span class="n">mem</span><span class="o">.</span><span class="n">total</span> <span class="o">/</span> <span class="mf">1e9</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">max_workers</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">fname</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">file_paths</span><span class="p">):</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                        <span class="s1">&#39;Collecting data from file </span><span class="si">{}</span><span class="s1"> out of </span><span class="si">{}</span><span class="s1">.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                            <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">file_paths</span><span class="p">)</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">get_data</span><span class="p">(</span>
+                        <span class="n">fname</span><span class="p">,</span>
+                        <span class="n">feature</span><span class="p">,</span>
+                        <span class="n">time_index</span><span class="p">,</span>
+                        <span class="n">subset_masked_meta</span><span class="p">,</span>
+                        <span class="n">scale_factor</span><span class="p">,</span>
+                        <span class="n">final_dtype</span><span class="p">,</span>
+                    <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s1">&#39;Running parallel collection on </span><span class="si">{}</span><span class="s1"> workers.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">max_workers</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+
+                <span class="n">futures</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="n">completed</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">with</span> <span class="n">ThreadPoolExecutor</span><span class="p">(</span><span class="n">max_workers</span><span class="o">=</span><span class="n">max_workers</span><span class="p">)</span> <span class="k">as</span> <span class="n">exe</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">fname</span> <span class="ow">in</span> <span class="n">file_paths</span><span class="p">:</span>
+                        <span class="n">future</span> <span class="o">=</span> <span class="n">exe</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">get_data</span><span class="p">,</span>
+                            <span class="n">fname</span><span class="p">,</span>
+                            <span class="n">feature</span><span class="p">,</span>
+                            <span class="n">time_index</span><span class="p">,</span>
+                            <span class="n">subset_masked_meta</span><span class="p">,</span>
+                            <span class="n">scale_factor</span><span class="p">,</span>
+                            <span class="n">final_dtype</span><span class="p">,</span>
+                        <span class="p">)</span>
+                        <span class="n">futures</span><span class="p">[</span><span class="n">future</span><span class="p">]</span> <span class="o">=</span> <span class="n">fname</span>
+                    <span class="k">for</span> <span class="n">future</span> <span class="ow">in</span> <span class="n">as_completed</span><span class="p">(</span><span class="n">futures</span><span class="p">):</span>
+                        <span class="n">completed</span> <span class="o">+=</span> <span class="mi">1</span>
+                        <span class="n">mem</span> <span class="o">=</span> <span class="n">psutil</span><span class="o">.</span><span class="n">virtual_memory</span><span class="p">()</span>
+                        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                            <span class="s1">&#39;Collection futures completed: &#39;</span>
+                            <span class="s1">&#39;</span><span class="si">{}</span><span class="s1"> out of </span><span class="si">{}</span><span class="s1">. &#39;</span>
+                            <span class="s1">&#39;Current memory usage is &#39;</span>
+                            <span class="s1">&#39;</span><span class="si">{:.3f}</span><span class="s1"> GB out of </span><span class="si">{:.3f}</span><span class="s1"> GB total.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                <span class="n">completed</span><span class="p">,</span>
+                                <span class="nb">len</span><span class="p">(</span><span class="n">futures</span><span class="p">),</span>
+                                <span class="n">mem</span><span class="o">.</span><span class="n">used</span> <span class="o">/</span> <span class="mf">1e9</span><span class="p">,</span>
+                                <span class="n">mem</span><span class="o">.</span><span class="n">total</span> <span class="o">/</span> <span class="mf">1e9</span><span class="p">,</span>
+                            <span class="p">)</span>
+                        <span class="p">)</span>
+                        <span class="k">try</span><span class="p">:</span>
+                            <span class="n">future</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
+                        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                            <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;Failed to collect data from &#39;</span>
+                            <span class="n">msg</span> <span class="o">+=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">futures</span><span class="p">[</span><span class="n">future</span><span class="p">]</span><span class="si">}</span><span class="s1">&#39;</span>
+                            <span class="n">logger</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+                            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span> <span class="kn">from</span> <span class="nn">e</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_write_flist_data</span><span class="p">(</span>
+                <span class="n">out_file</span><span class="p">,</span>
+                <span class="n">feature</span><span class="p">,</span>
+                <span class="n">time_index</span><span class="p">,</span>
+                <span class="n">subset_masked_meta</span><span class="p">,</span>
+                <span class="n">target_masked_meta</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="s1">&#39;No target coordinates found in masked meta. Skipping &#39;</span>
+                <span class="sa">f</span><span class="s1">&#39;collection for </span><span class="si">{</span><span class="n">file_paths</span><span class="si">}</span><span class="s1">.&#39;</span>
+            <span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="n">warn</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+<div class="viewcode-block" id="CollectorH5.group_time_chunks">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.postprocessing.collection.CollectorH5.html#sup3r.postprocessing.collection.CollectorH5.group_time_chunks">[docs]</a>
+    <span class="k">def</span> <span class="nf">group_time_chunks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_paths</span><span class="p">,</span> <span class="n">n_writes</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Group files by temporal_chunk_index. Assumes file_paths have a</span>
+<span class="sd">        suffix format like _{temporal_chunk_index}_{spatial_chunk_index}.h5</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        file_paths : list</span>
+<span class="sd">            List of file paths each with a suffix</span>
+<span class="sd">            _{temporal_chunk_index}_{spatial_chunk_index}.h5</span>
+<span class="sd">        n_writes : int | None</span>
+<span class="sd">            Number of writes to use for collection</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        file_chunks : list</span>
+<span class="sd">            List of lists of file paths groups by temporal_chunk_index</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">file_split</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">file_paths</span><span class="p">:</span>
+            <span class="n">t_chunk</span> <span class="o">=</span> <span class="n">file</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span>
+            <span class="n">file_split</span><span class="p">[</span><span class="n">t_chunk</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="o">*</span><span class="n">file_split</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">t_chunk</span><span class="p">,</span> <span class="p">[]),</span> <span class="n">file</span><span class="p">]</span>
+        <span class="n">file_chunks</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">file_split</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s1">&#39;Split file list into </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">file_chunks</span><span class="p">)</span><span class="si">}</span><span class="s1"> chunks &#39;</span>
+            <span class="s1">&#39;according to temporal chunk indices&#39;</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">n_writes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="sa">f</span><span class="s1">&#39;n_writes (</span><span class="si">{</span><span class="n">n_writes</span><span class="si">}</span><span class="s1">) must be less than or equal &#39;</span>
+                <span class="sa">f</span><span class="s1">&#39;to the number of temporal chunks (</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">file_chunks</span><span class="p">)</span><span class="si">}</span><span class="s1">).&#39;</span>
+            <span class="p">)</span>
+            <span class="k">assert</span> <span class="n">n_writes</span> <span class="o">&lt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">file_chunks</span><span class="p">),</span> <span class="n">msg</span>
+        <span class="k">return</span> <span class="n">file_chunks</span></div>
+
+
+<div class="viewcode-block" id="CollectorH5.get_flist_chunks">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.postprocessing.collection.CollectorH5.html#sup3r.postprocessing.collection.CollectorH5.get_flist_chunks">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_flist_chunks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_paths</span><span class="p">,</span> <span class="n">n_writes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">join_times</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get file list chunks based on n_writes</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        file_paths : list</span>
+<span class="sd">            List of file paths to collect</span>
+<span class="sd">        n_writes : int | None</span>
+<span class="sd">            Number of writes to use for collection</span>
+<span class="sd">        join_times : bool</span>
+<span class="sd">            Option to split full file list into chunks with each chunk having</span>
+<span class="sd">            the same temporal_chunk_index. The number of writes will then be</span>
+<span class="sd">            min(number of temporal chunks, n_writes). This ensures that each</span>
+<span class="sd">            write has all the spatial chunks for a given time index. Assumes</span>
+<span class="sd">            file_paths have a suffix format</span>
+<span class="sd">            _{temporal_chunk_index}_{spatial_chunk_index}.h5.  This is required</span>
+<span class="sd">            if there are multiple writes and chunks have different time</span>
+<span class="sd">            indices.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        flist_chunks : list</span>
+<span class="sd">            List of file list chunks. Used to split collection and writing into</span>
+<span class="sd">            multiple steps.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">join_times</span><span class="p">:</span>
+            <span class="n">flist_chunks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">group_time_chunks</span><span class="p">(</span>
+                <span class="n">file_paths</span><span class="p">,</span> <span class="n">n_writes</span><span class="o">=</span><span class="n">n_writes</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">flist_chunks</span> <span class="o">=</span> <span class="p">[[</span><span class="n">f</span><span class="p">]</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">file_paths</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">n_writes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">flist_chunks</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array_split</span><span class="p">(</span><span class="n">flist_chunks</span><span class="p">,</span> <span class="n">n_writes</span><span class="p">)</span>
+            <span class="n">flist_chunks</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">fp_chunk</span><span class="p">)</span> <span class="k">for</span> <span class="n">fp_chunk</span> <span class="ow">in</span> <span class="n">flist_chunks</span>
+            <span class="p">]</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s1">&#39;Split file list into </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">flist_chunks</span><span class="p">)</span><span class="si">}</span><span class="s1"> &#39;</span>
+                <span class="sa">f</span><span class="s1">&#39;chunks according to n_writes=</span><span class="si">{</span><span class="n">n_writes</span><span class="si">}</span><span class="s1">&#39;</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">flist_chunks</span></div>
+
+
+<div class="viewcode-block" id="CollectorH5.collect">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.postprocessing.collection.CollectorH5.html#sup3r.postprocessing.collection.CollectorH5.collect">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">collect</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">file_paths</span><span class="p">,</span>
+        <span class="n">out_file</span><span class="p">,</span>
+        <span class="n">features</span><span class="p">,</span>
+        <span class="n">max_workers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">log_level</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">log_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">write_status</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">job_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">pipeline_step</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">join_times</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">target_final_meta_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">n_writes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">threshold</span><span class="o">=</span><span class="mf">1e-4</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Collect data files from a dir to one output file.</span>
+
+<span class="sd">        Filename requirements:</span>
+<span class="sd">         - Should end with &quot;.h5&quot;</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        file_paths : list | str</span>
+<span class="sd">            Explicit list of str file paths that will be sorted and collected</span>
+<span class="sd">            or a single string with unix-style /search/patt*ern.h5.</span>
+<span class="sd">        out_file : str</span>
+<span class="sd">            File path of final output file.</span>
+<span class="sd">        features : list</span>
+<span class="sd">            List of dsets to collect</span>
+<span class="sd">        max_workers : int | None</span>
+<span class="sd">            Number of workers to use in parallel. 1 runs serial,</span>
+<span class="sd">            None will use all available workers.</span>
+<span class="sd">        log_level : str | None</span>
+<span class="sd">            Desired log level, None will not initialize logging.</span>
+<span class="sd">        log_file : str | None</span>
+<span class="sd">            Target log file. None logs to stdout.</span>
+<span class="sd">        write_status : bool</span>
+<span class="sd">            Flag to write status file once complete if running from pipeline.</span>
+<span class="sd">        job_name : str</span>
+<span class="sd">            Job name for status file if running from pipeline.</span>
+<span class="sd">        pipeline_step : str, optional</span>
+<span class="sd">            Name of the pipeline step being run. If ``None``, the</span>
+<span class="sd">            ``pipeline_step`` will be set to the ``&quot;collect``,</span>
+<span class="sd">            mimicking old reV behavior. By default, ``None``.</span>
+<span class="sd">        join_times : bool</span>
+<span class="sd">            Option to split full file list into chunks with each chunk having</span>
+<span class="sd">            the same temporal_chunk_index. The number of writes will then be</span>
+<span class="sd">            min(number of temporal chunks, n_writes). This ensures that each</span>
+<span class="sd">            write has all the spatial chunks for a given time index. Assumes</span>
+<span class="sd">            file_paths have a suffix format</span>
+<span class="sd">            _{temporal_chunk_index}_{spatial_chunk_index}.h5.  This is required</span>
+<span class="sd">            if there are multiple writes and chunks have different time</span>
+<span class="sd">            indices.</span>
+<span class="sd">        target_final_meta_file : str</span>
+<span class="sd">            Path to target final meta containing coordinates to keep from the</span>
+<span class="sd">            full file list collected meta. This can be but is not necessarily a</span>
+<span class="sd">            subset of the full list of coordinates for all files in the file</span>
+<span class="sd">            list. This is used to remove coordinates from the full file list</span>
+<span class="sd">            which are not present in the target_final_meta. Either this full</span>
+<span class="sd">            meta or a subset, depending on which coordinates are present in</span>
+<span class="sd">            the data to be collected, will be the final meta for the collected</span>
+<span class="sd">            output files.</span>
+<span class="sd">        n_writes : int | None</span>
+<span class="sd">            Number of writes to split full file list into. Must be less than</span>
+<span class="sd">            or equal to the number of temporal chunks if chunks have different</span>
+<span class="sd">            time indices.</span>
+<span class="sd">        overwrite : bool</span>
+<span class="sd">            Whether to overwrite existing output file</span>
+<span class="sd">        threshold : float</span>
+<span class="sd">            Threshold distance for finding target coordinates within full meta</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">t0</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s1">&#39;Initializing collection for file_paths=</span><span class="si">{</span><span class="n">file_paths</span><span class="si">}</span><span class="s1">, &#39;</span>
+            <span class="sa">f</span><span class="s1">&#39;with max_workers=</span><span class="si">{</span><span class="n">max_workers</span><span class="si">}</span><span class="s1">.&#39;</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">log_level</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">init_logger</span><span class="p">(</span>
+                <span class="s1">&#39;sup3r.preprocessing&#39;</span><span class="p">,</span> <span class="n">log_file</span><span class="o">=</span><span class="n">log_file</span><span class="p">,</span> <span class="n">log_level</span><span class="o">=</span><span class="n">log_level</span>
+            <span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">out_file</span><span class="p">)):</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">out_file</span><span class="p">),</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="n">collector</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">file_paths</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s1">&#39;Collecting </span><span class="si">{}</span><span class="s1"> files to </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">collector</span><span class="o">.</span><span class="n">flist</span><span class="p">),</span> <span class="n">out_file</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">overwrite</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">out_file</span><span class="p">):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;overwrite=True, removing </span><span class="si">{</span><span class="n">out_file</span><span class="si">}</span><span class="s1">.&#39;</span><span class="p">)</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">out_file</span><span class="p">)</span>
+
+        <span class="n">out</span> <span class="o">=</span> <span class="n">collector</span><span class="o">.</span><span class="n">get_collection_attrs</span><span class="p">(</span>
+            <span class="n">collector</span><span class="o">.</span><span class="n">flist</span><span class="p">,</span>
+            <span class="n">max_workers</span><span class="o">=</span><span class="n">max_workers</span><span class="p">,</span>
+            <span class="n">target_final_meta_file</span><span class="o">=</span><span class="n">target_final_meta_file</span><span class="p">,</span>
+            <span class="n">threshold</span><span class="o">=</span><span class="n">threshold</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">time_index</span><span class="p">,</span> <span class="n">target_final_meta</span><span class="p">,</span> <span class="n">target_masked_meta</span> <span class="o">=</span> <span class="n">out</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span>
+        <span class="n">shape</span><span class="p">,</span> <span class="n">global_attrs</span> <span class="o">=</span> <span class="n">out</span><span class="p">[</span><span class="mi">3</span><span class="p">:]</span>
+
+        <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">dset</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">features</span><span class="p">):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Collecting dataset &quot;</span><span class="si">{}</span><span class="s1">&quot;.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dset</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">join_times</span> <span class="ow">or</span> <span class="n">n_writes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">flist_chunks</span> <span class="o">=</span> <span class="n">collector</span><span class="o">.</span><span class="n">get_flist_chunks</span><span class="p">(</span>
+                    <span class="n">collector</span><span class="o">.</span><span class="n">flist</span><span class="p">,</span> <span class="n">n_writes</span><span class="o">=</span><span class="n">n_writes</span><span class="p">,</span> <span class="n">join_times</span><span class="o">=</span><span class="n">join_times</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">flist_chunks</span> <span class="o">=</span> <span class="p">[</span><span class="n">collector</span><span class="o">.</span><span class="n">flist</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">out_file</span><span class="p">):</span>
+                <span class="n">collector</span><span class="o">.</span><span class="n">_init_h5</span><span class="p">(</span>
+                    <span class="n">out_file</span><span class="p">,</span> <span class="n">time_index</span><span class="p">,</span> <span class="n">target_final_meta</span><span class="p">,</span> <span class="n">global_attrs</span>
+                <span class="p">)</span>
+
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">flist_chunks</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">collector</span><span class="o">.</span><span class="n">_collect_flist</span><span class="p">(</span>
+                    <span class="n">dset</span><span class="p">,</span>
+                    <span class="n">target_masked_meta</span><span class="p">,</span>
+                    <span class="n">time_index</span><span class="p">,</span>
+                    <span class="n">shape</span><span class="p">,</span>
+                    <span class="n">flist_chunks</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                    <span class="n">out_file</span><span class="p">,</span>
+                    <span class="n">target_masked_meta</span><span class="p">,</span>
+                    <span class="n">max_workers</span><span class="o">=</span><span class="n">max_workers</span><span class="p">,</span>
+                <span class="p">)</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">flist</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">flist_chunks</span><span class="p">):</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                        <span class="s1">&#39;Collecting file list chunk </span><span class="si">{}</span><span class="s1"> out of </span><span class="si">{}</span><span class="s1"> &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                            <span class="n">j</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">flist_chunks</span><span class="p">)</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
+                    <span class="p">(</span>
+                        <span class="n">time_index</span><span class="p">,</span>
+                        <span class="n">target_final_meta</span><span class="p">,</span>
+                        <span class="n">masked_meta</span><span class="p">,</span>
+                        <span class="n">shape</span><span class="p">,</span>
+                        <span class="n">_</span><span class="p">,</span>
+                    <span class="p">)</span> <span class="o">=</span> <span class="n">collector</span><span class="o">.</span><span class="n">get_collection_attrs</span><span class="p">(</span>
+                        <span class="n">flist</span><span class="p">,</span>
+                        <span class="n">max_workers</span><span class="o">=</span><span class="n">max_workers</span><span class="p">,</span>
+                        <span class="n">target_final_meta_file</span><span class="o">=</span><span class="n">target_final_meta_file</span><span class="p">,</span>
+                        <span class="n">threshold</span><span class="o">=</span><span class="n">threshold</span><span class="p">,</span>
+                    <span class="p">)</span>
+                    <span class="n">collector</span><span class="o">.</span><span class="n">_collect_flist</span><span class="p">(</span>
+                        <span class="n">dset</span><span class="p">,</span>
+                        <span class="n">masked_meta</span><span class="p">,</span>
+                        <span class="n">time_index</span><span class="p">,</span>
+                        <span class="n">shape</span><span class="p">,</span>
+                        <span class="n">flist</span><span class="p">,</span>
+                        <span class="n">out_file</span><span class="p">,</span>
+                        <span class="n">target_masked_meta</span><span class="p">,</span>
+                        <span class="n">max_workers</span><span class="o">=</span><span class="n">max_workers</span><span class="p">,</span>
+                    <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">write_status</span> <span class="ow">and</span> <span class="n">job_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;out_dir&#39;</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">out_file</span><span class="p">),</span>
+                <span class="s1">&#39;fout&#39;</span><span class="p">:</span> <span class="n">out_file</span><span class="p">,</span>
+                <span class="s1">&#39;flist&#39;</span><span class="p">:</span> <span class="n">collector</span><span class="o">.</span><span class="n">flist</span><span class="p">,</span>
+                <span class="s1">&#39;job_status&#39;</span><span class="p">:</span> <span class="s1">&#39;successful&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;runtime&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">t0</span><span class="p">)</span> <span class="o">/</span> <span class="mi">60</span><span class="p">,</span>
+            <span class="p">}</span>
+            <span class="n">pipeline_step</span> <span class="o">=</span> <span class="n">pipeline_step</span> <span class="ow">or</span> <span class="s1">&#39;collect&#39;</span>
+            <span class="n">Status</span><span class="o">.</span><span class="n">make_single_job_file</span><span class="p">(</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">out_file</span><span class="p">),</span> <span class="n">pipeline_step</span><span class="p">,</span> <span class="n">job_name</span><span class="p">,</span> <span class="n">status</span>
+            <span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Finished file collection.&#39;</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Alliance for Sustainable Energy, LLC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,6 @@
+sup3r.utilities.utilities.round\_array
+======================================
+
+.. currentmodule:: sup3r.utilities.utilities
+
+.. autofunction:: round_array

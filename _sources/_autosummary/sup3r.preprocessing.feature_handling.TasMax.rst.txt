@@ -1,0 +1,31 @@
+sup3r.preprocessing.feature\_handling.TasMax
+============================================
+
+.. currentmodule:: sup3r.preprocessing.feature_handling
+
+.. autoclass:: TasMax
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~TasMax.compute
+      ~TasMax.inputs
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~TasMax.CC_FEATURE_NAME
+   
+   

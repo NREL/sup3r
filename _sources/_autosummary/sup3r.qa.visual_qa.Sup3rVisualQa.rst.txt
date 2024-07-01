@@ -1,0 +1,26 @@
+sup3r.qa.visual\_qa.Sup3rVisualQa
+=================================
+
+.. currentmodule:: sup3r.qa.visual_qa
+
+.. autoclass:: Sup3rVisualQa
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~Sup3rVisualQa.get_node_cmd
+      ~Sup3rVisualQa.plot_figure
+      ~Sup3rVisualQa.run
+   
+   
+
+   
+   
+   

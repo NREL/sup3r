@@ -1,0 +1,85 @@
+sup3r.pipeline.forward\_pass.ForwardPassStrategy
+================================================
+
+.. currentmodule:: sup3r.pipeline.forward_pass
+
+.. autoclass:: ForwardPassStrategy
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~ForwardPassStrategy.cap_worker_args
+      ~ForwardPassStrategy.check_cached_features
+      ~ForwardPassStrategy.chunk_finished
+      ~ForwardPassStrategy.get_cache_file_names
+      ~ForwardPassStrategy.get_capped_workers
+      ~ForwardPassStrategy.get_full_domain
+      ~ForwardPassStrategy.get_lat_lon
+      ~ForwardPassStrategy.get_output_file_names
+      ~ForwardPassStrategy.get_time_index
+      ~ForwardPassStrategy.init_mixin
+      ~ForwardPassStrategy.lats_are_descending
+      ~ForwardPassStrategy.node_finished
+      ~ForwardPassStrategy.parallel_load
+      ~ForwardPassStrategy.preflight
+      ~ForwardPassStrategy.time_index_conflict_check
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~ForwardPassStrategy.all_finished
+      ~ForwardPassStrategy.cache_files
+      ~ForwardPassStrategy.cache_pattern
+      ~ForwardPassStrategy.cached_features
+      ~ForwardPassStrategy.chunks
+      ~ForwardPassStrategy.failed_chunks
+      ~ForwardPassStrategy.file_ids
+      ~ForwardPassStrategy.file_paths
+      ~ForwardPassStrategy.full_raw_lat_lon
+      ~ForwardPassStrategy.grid_shape
+      ~ForwardPassStrategy.handle_features
+      ~ForwardPassStrategy.hr_lat_lon
+      ~ForwardPassStrategy.init_handler
+      ~ForwardPassStrategy.input_file_info
+      ~ForwardPassStrategy.input_handler_class
+      ~ForwardPassStrategy.input_type
+      ~ForwardPassStrategy.invert_lat
+      ~ForwardPassStrategy.lat_lon
+      ~ForwardPassStrategy.latitude
+      ~ForwardPassStrategy.longitude
+      ~ForwardPassStrategy.lr_lat_lon
+      ~ForwardPassStrategy.max_nodes
+      ~ForwardPassStrategy.meta
+      ~ForwardPassStrategy.need_full_domain
+      ~ForwardPassStrategy.node_chunks
+      ~ForwardPassStrategy.node_files
+      ~ForwardPassStrategy.nodes
+      ~ForwardPassStrategy.noncached_features
+      ~ForwardPassStrategy.out_files
+      ~ForwardPassStrategy.output_type
+      ~ForwardPassStrategy.raw_lat_lon
+      ~ForwardPassStrategy.raw_time_index
+      ~ForwardPassStrategy.raw_tsteps
+      ~ForwardPassStrategy.single_ts_files
+      ~ForwardPassStrategy.source_type
+      ~ForwardPassStrategy.target
+      ~ForwardPassStrategy.temporal_slice
+      ~ForwardPassStrategy.ti_workers
+      ~ForwardPassStrategy.time_freq_hours
+      ~ForwardPassStrategy.time_index
+      ~ForwardPassStrategy.time_index_file
+      ~ForwardPassStrategy.try_load
+   
+   

@@ -1,0 +1,6 @@
+sup3r.utilities.stitching.unstagger\_vars
+=========================================
+
+.. currentmodule:: sup3r.utilities.stitching
+
+.. autofunction:: unstagger_vars

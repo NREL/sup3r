@@ -1,0 +1,32 @@
+sup3r.bias.bias\_correct\_means
+===============================
+
+.. automodule:: sup3r.bias.bias_correct_means
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+      :template: custom-class-template.rst
+   
+      BiasCorrectUpdate
+      VortexMeanPrepper
+   
+   
+
+   
+   
+   
+
+
+

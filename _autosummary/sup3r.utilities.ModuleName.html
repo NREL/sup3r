@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>sup3r.utilities.ModuleName &mdash; sup3r 0.1.3.dev147+gee6ab7b4 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+      <link rel="stylesheet" type="text/css" href="../_static/tabs.css?v=a5c4661c" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=b68f4368"></script>
+        <script src="../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+        <script src="../_static/copybutton.js?v=f281be69"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="sup3r.utilities.cli" href="sup3r.utilities.cli.html" />
+    <link rel="prev" title="sup3r.utilities" href="sup3r.utilities.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            sup3r
+          </a>
+              <div class="version">
+                0.1.3.dev147+gee6ab7b4
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../index.html">Home page</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../misc/installation_usage.html">Installation and Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../misc/installation.html">Installation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../misc/installation.html#option-1-install-from-pip-recommended-for-analysts">Option 1: Install from PIP (recommended for analysts):</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../misc/installation.html#option-2-clone-repo-recommended-for-developers">Option 2: Clone repo (recommended for developers)</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../examples/examples.html">Examples</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../examples/sup3rcc.html">Sup3rCC Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rcc.html#sup3rcc-data-access">Sup3rCC Data Access</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rcc.html#directory-structure">Directory Structure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rcc.html#example-sup3rcc-data-usage">Example Sup3rCC Data Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rcc.html#running-sup3rcc-models">Running Sup3rCC Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rcc.html#nuances-of-sup3rcc">Nuances of Sup3rCC</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rcc.html#sup3rcc-versions">Sup3rCC Versions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rcc.html#recommended-citation">Recommended Citation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rcc.html#acknowledgements">Acknowledgements</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../examples/sup3rwind.html">Sup3rWind Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rwind.html#sup3rwind-data-access">Sup3rWind Data Access</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rwind.html#example-sup3rwind-data-usage">Example Sup3rWind Data Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rwind.html#running-sup3rwind-models">Running Sup3rWind Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rwind.html#sup3rwind-versions">Sup3rWind Versions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rwind.html#recommended-citation">Recommended Citation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rwind.html#acknowledgements">Acknowledgements</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="sup3r.html">API reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="sup3r.batch.html">sup3r.batch</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.batch.batch_cli.html">sup3r.batch.batch_cli</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.bias.html">sup3r.bias</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.bias.bias_calc.html">sup3r.bias.bias_calc</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.bias.bias_calc.DataRetrievalBase.html">sup3r.bias.bias_calc.DataRetrievalBase</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.bias.bias_calc.LinearCorrection.html">sup3r.bias.bias_calc.LinearCorrection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.bias.bias_calc.MonthlyLinearCorrection.html">sup3r.bias.bias_calc.MonthlyLinearCorrection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.bias.bias_calc.MonthlyScalarCorrection.html">sup3r.bias.bias_calc.MonthlyScalarCorrection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.bias.bias_calc.SkillAssessment.html">sup3r.bias.bias_calc.SkillAssessment</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.bias.bias_calc_cli.html">sup3r.bias.bias_calc_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.bias.bias_calc_cli.kickoff_local_job.html">sup3r.bias.bias_calc_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.bias.bias_calc_cli.kickoff_slurm_job.html">sup3r.bias.bias_calc_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.bias.bias_correct_means.html">sup3r.bias.bias_correct_means</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.bias.bias_correct_means.BiasCorrectUpdate.html">sup3r.bias.bias_correct_means.BiasCorrectUpdate</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.bias.bias_correct_means.VortexMeanPrepper.html">sup3r.bias.bias_correct_means.VortexMeanPrepper</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.bias.bias_transforms.html">sup3r.bias.bias_transforms</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.bias.bias_transforms.get_spatial_bc_factors.html">sup3r.bias.bias_transforms.get_spatial_bc_factors</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.bias.bias_transforms.get_spatial_bc_quantiles.html">sup3r.bias.bias_transforms.get_spatial_bc_quantiles</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.bias.bias_transforms.global_linear_bc.html">sup3r.bias.bias_transforms.global_linear_bc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.bias.bias_transforms.local_linear_bc.html">sup3r.bias.bias_transforms.local_linear_bc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.bias.bias_transforms.local_qdm_bc.html">sup3r.bias.bias_transforms.local_qdm_bc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.bias.bias_transforms.monthly_local_linear_bc.html">sup3r.bias.bias_transforms.monthly_local_linear_bc</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.bias.mixins.html">sup3r.bias.mixins</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.bias.mixins.FillAndSmoothMixin.html">sup3r.bias.mixins.FillAndSmoothMixin</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.bias.qdm.html">sup3r.bias.qdm</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.bias.qdm.QuantileDeltaMappingCorrection.html">sup3r.bias.qdm.QuantileDeltaMappingCorrection</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.cli.html">sup3r.cli</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.models.html">sup3r.models</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.abstract.html">sup3r.models.abstract</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.abstract.AbstractInterface.html">sup3r.models.abstract.AbstractInterface</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.abstract.AbstractSingleModel.html">sup3r.models.abstract.AbstractSingleModel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.abstract.TensorboardMixIn.html">sup3r.models.abstract.TensorboardMixIn</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.base.html">sup3r.models.base</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.base.Sup3rGan.html">sup3r.models.base.Sup3rGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.conditional_moments.html">sup3r.models.conditional_moments</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.conditional_moments.Sup3rCondMom.html">sup3r.models.conditional_moments.Sup3rCondMom</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.data_centric.html">sup3r.models.data_centric</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.data_centric.Sup3rGanDC.html">sup3r.models.data_centric.Sup3rGanDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.data_centric.Sup3rGanSpatialDC.html">sup3r.models.data_centric.Sup3rGanSpatialDC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.linear.html">sup3r.models.linear</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.linear.LinearInterp.html">sup3r.models.linear.LinearInterp</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.multi_step.html">sup3r.models.multi_step</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.multi_step.MultiStepGan.html">sup3r.models.multi_step.MultiStepGan</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.multi_step.MultiStepSurfaceMetGan.html">sup3r.models.multi_step.MultiStepSurfaceMetGan</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.multi_step.SolarMultiStepGan.html">sup3r.models.multi_step.SolarMultiStepGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.solar_cc.html">sup3r.models.solar_cc</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.solar_cc.SolarCC.html">sup3r.models.solar_cc.SolarCC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.models.surface.html">sup3r.models.surface</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.models.surface.SurfaceSpatialMetModel.html">sup3r.models.surface.SurfaceSpatialMetModel</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.pipeline.html">sup3r.pipeline</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.pipeline.forward_pass.html">sup3r.pipeline.forward_pass</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.forward_pass.ForwardPass.html">sup3r.pipeline.forward_pass.ForwardPass</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.forward_pass.ForwardPassSlicer.html">sup3r.pipeline.forward_pass.ForwardPassSlicer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.forward_pass.ForwardPassStrategy.html">sup3r.pipeline.forward_pass.ForwardPassStrategy</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.pipeline.forward_pass_cli.html">sup3r.pipeline.forward_pass_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.forward_pass_cli.kickoff_local_job.html">sup3r.pipeline.forward_pass_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.pipeline.forward_pass_cli.kickoff_slurm_job.html">sup3r.pipeline.forward_pass_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.pipeline.pipeline_cli.html">sup3r.pipeline.pipeline_cli</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.postprocessing.html">sup3r.postprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.postprocessing.collection.html">sup3r.postprocessing.collection</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.collection.BaseCollector.html">sup3r.postprocessing.collection.BaseCollector</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.collection.CollectorH5.html">sup3r.postprocessing.collection.CollectorH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.collection.CollectorNC.html">sup3r.postprocessing.collection.CollectorNC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.postprocessing.data_collect_cli.html">sup3r.postprocessing.data_collect_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.data_collect_cli.kickoff_local_job.html">sup3r.postprocessing.data_collect_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.data_collect_cli.kickoff_slurm_job.html">sup3r.postprocessing.data_collect_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.postprocessing.file_handling.html">sup3r.postprocessing.file_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.file_handling.OutputHandler.html">sup3r.postprocessing.file_handling.OutputHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.file_handling.OutputHandlerH5.html">sup3r.postprocessing.file_handling.OutputHandlerH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.file_handling.OutputHandlerNC.html">sup3r.postprocessing.file_handling.OutputHandlerNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.file_handling.OutputMixIn.html">sup3r.postprocessing.file_handling.OutputMixIn</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.postprocessing.file_handling.RexOutputs.html">sup3r.postprocessing.file_handling.RexOutputs</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.preprocessing.html">sup3r.preprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.preprocessing.batch_handling.html">sup3r.preprocessing.batch_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.Batch.html">sup3r.preprocessing.batch_handling.Batch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.BatchHandler.html">sup3r.preprocessing.batch_handling.BatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.BatchHandlerCC.html">sup3r.preprocessing.batch_handling.BatchHandlerCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.BatchHandlerDC.html">sup3r.preprocessing.batch_handling.BatchHandlerDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.BatchHandlerSpatialDC.html">sup3r.preprocessing.batch_handling.BatchHandlerSpatialDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.SpatialBatchHandler.html">sup3r.preprocessing.batch_handling.SpatialBatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC.html">sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.ValidationData.html">sup3r.preprocessing.batch_handling.ValidationData</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.ValidationDataDC.html">sup3r.preprocessing.batch_handling.ValidationDataDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.ValidationDataSpatialDC.html">sup3r.preprocessing.batch_handling.ValidationDataSpatialDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.batch_handling.ValidationDataTemporalDC.html">sup3r.preprocessing.batch_handling.ValidationDataTemporalDC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.html">sup3r.preprocessing.conditional_moment_batch_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1SF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2Sep.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SepSF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SepSF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1SF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2Sep.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SepSF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SepSF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1SF.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SF.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2Sep.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SepSF.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SepSF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1SF.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SF.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2Sep.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SepSF.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SepSF</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.preprocessing.data_extract_cli.html">sup3r.preprocessing.data_extract_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_extract_cli.kickoff_local_job.html">sup3r.preprocessing.data_extract_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_extract_cli.kickoff_slurm_job.html">sup3r.preprocessing.data_extract_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.preprocessing.data_handling.html">sup3r.preprocessing.data_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.base.html">sup3r.preprocessing.data_handling.base</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.dual_data_handling.html">sup3r.preprocessing.data_handling.dual_data_handling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.exo_extraction.html">sup3r.preprocessing.data_handling.exo_extraction</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.exogenous_data_handling.html">sup3r.preprocessing.data_handling.exogenous_data_handling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.h5_data_handling.html">sup3r.preprocessing.data_handling.h5_data_handling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.mixin.html">sup3r.preprocessing.data_handling.mixin</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.data_handling.nc_data_handling.html">sup3r.preprocessing.data_handling.nc_data_handling</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.preprocessing.dual_batch_handling.html">sup3r.preprocessing.dual_batch_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.dual_batch_handling.DualBatchHandler.html">sup3r.preprocessing.dual_batch_handling.DualBatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.dual_batch_handling.DualValidationData.html">sup3r.preprocessing.dual_batch_handling.DualValidationData</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.dual_batch_handling.SpatialDualBatchHandler.html">sup3r.preprocessing.dual_batch_handling.SpatialDualBatchHandler</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.preprocessing.feature_handling.html">sup3r.preprocessing.feature_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.BVFreqMon.html">sup3r.preprocessing.feature_handling.BVFreqMon</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.BVFreqSquaredH5.html">sup3r.preprocessing.feature_handling.BVFreqSquaredH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.BVFreqSquaredNC.html">sup3r.preprocessing.feature_handling.BVFreqSquaredNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.ClearSkyRatioCC.html">sup3r.preprocessing.feature_handling.ClearSkyRatioCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.ClearSkyRatioH5.html">sup3r.preprocessing.feature_handling.ClearSkyRatioH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.CloudMaskH5.html">sup3r.preprocessing.feature_handling.CloudMaskH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.DerivedFeature.html">sup3r.preprocessing.feature_handling.DerivedFeature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.Feature.html">sup3r.preprocessing.feature_handling.Feature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.FeatureHandler.html">sup3r.preprocessing.feature_handling.FeatureHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.InverseMonNC.html">sup3r.preprocessing.feature_handling.InverseMonNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.LatLonH5.html">sup3r.preprocessing.feature_handling.LatLonH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.LatLonNC.html">sup3r.preprocessing.feature_handling.LatLonNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.PotentialTempNC.html">sup3r.preprocessing.feature_handling.PotentialTempNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.PressureNC.html">sup3r.preprocessing.feature_handling.PressureNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.Rews.html">sup3r.preprocessing.feature_handling.Rews</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.Shear.html">sup3r.preprocessing.feature_handling.Shear</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.Tas.html">sup3r.preprocessing.feature_handling.Tas</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.TasMax.html">sup3r.preprocessing.feature_handling.TasMax</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.TasMin.html">sup3r.preprocessing.feature_handling.TasMin</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.TempNC.html">sup3r.preprocessing.feature_handling.TempNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.TempNCforCC.html">sup3r.preprocessing.feature_handling.TempNCforCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.TopoH5.html">sup3r.preprocessing.feature_handling.TopoH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.UWind.html">sup3r.preprocessing.feature_handling.UWind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.UWindPowerLaw.html">sup3r.preprocessing.feature_handling.UWindPowerLaw</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.VWind.html">sup3r.preprocessing.feature_handling.VWind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.VWindPowerLaw.html">sup3r.preprocessing.feature_handling.VWindPowerLaw</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.Veer.html">sup3r.preprocessing.feature_handling.Veer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.Vorticity.html">sup3r.preprocessing.feature_handling.Vorticity</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.WinddirectionNC.html">sup3r.preprocessing.feature_handling.WinddirectionNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.preprocessing.feature_handling.WindspeedNC.html">sup3r.preprocessing.feature_handling.WindspeedNC</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.qa.html">sup3r.qa</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.qa.qa.html">sup3r.qa.qa</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.qa.qa.Sup3rQa.html">sup3r.qa.qa.Sup3rQa</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.qa.qa_cli.html">sup3r.qa.qa_cli</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.qa.stats.html">sup3r.qa.stats</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.qa.stats.Sup3rStatsBase.html">sup3r.qa.stats.Sup3rStatsBase</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.qa.stats.Sup3rStatsCompute.html">sup3r.qa.stats.Sup3rStatsCompute</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.qa.stats.Sup3rStatsMulti.html">sup3r.qa.stats.Sup3rStatsMulti</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.qa.stats.Sup3rStatsSingle.html">sup3r.qa.stats.Sup3rStatsSingle</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.qa.stats_cli.html">sup3r.qa.stats_cli</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.qa.utilities.html">sup3r.qa.utilities</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.qa.utilities.continuous_dist.html">sup3r.qa.utilities.continuous_dist</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.qa.utilities.direct_dist.html">sup3r.qa.utilities.direct_dist</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.qa.utilities.frequency_spectrum.html">sup3r.qa.utilities.frequency_spectrum</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.qa.utilities.gradient_dist.html">sup3r.qa.utilities.gradient_dist</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.qa.utilities.time_derivative_dist.html">sup3r.qa.utilities.time_derivative_dist</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.qa.utilities.tke_frequency_spectrum.html">sup3r.qa.utilities.tke_frequency_spectrum</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.qa.utilities.tke_wavenumber_spectrum.html">sup3r.qa.utilities.tke_wavenumber_spectrum</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.qa.utilities.wavenumber_spectrum.html">sup3r.qa.utilities.wavenumber_spectrum</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.qa.visual_qa.html">sup3r.qa.visual_qa</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.qa.visual_qa.Sup3rVisualQa.html">sup3r.qa.visual_qa.Sup3rVisualQa</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.qa.visual_qa_cli.html">sup3r.qa.visual_qa_cli</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sup3r.solar.html">sup3r.solar</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.solar.solar.html">sup3r.solar.solar</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.solar.solar.Solar.html">sup3r.solar.solar.Solar</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.solar.solar_cli.html">sup3r.solar.solar_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.solar.solar_cli.kickoff_local_job.html">sup3r.solar.solar_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.solar.solar_cli.kickoff_slurm_job.html">sup3r.solar.solar_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 current"><a class="reference internal" href="sup3r.utilities.html">sup3r.utilities</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">sup3r.utilities.ModuleName</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sup3r.utilities.ModuleName"><code class="docutils literal notranslate"><span class="pre">ModuleName</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.cli.html">sup3r.utilities.cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.cli.BaseCLI.html">sup3r.utilities.cli.BaseCLI</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.cli.SlurmManager.html">sup3r.utilities.cli.SlurmManager</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.era_downloader.html">sup3r.utilities.era_downloader</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.era_downloader.EraDownloader.html">sup3r.utilities.era_downloader.EraDownloader</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.execution.html">sup3r.utilities.execution</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.execution.DistributedProcess.html">sup3r.utilities.execution.DistributedProcess</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.interpolate_log_profile.html">sup3r.utilities.interpolate_log_profile</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.interpolate_log_profile.LogLinInterpolator.html">sup3r.utilities.interpolate_log_profile.LogLinInterpolator</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.interpolation.html">sup3r.utilities.interpolation</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.interpolation.Interpolator.html">sup3r.utilities.interpolation.Interpolator</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.loss_metrics.html">sup3r.utilities.loss_metrics</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.gaussian_kernel.html">sup3r.utilities.loss_metrics.gaussian_kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.CoarseMseLoss.html">sup3r.utilities.loss_metrics.CoarseMseLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.ExpLoss.html">sup3r.utilities.loss_metrics.ExpLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.LowResLoss.html">sup3r.utilities.loss_metrics.LowResLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.MaterialDerivativeLoss.html">sup3r.utilities.loss_metrics.MaterialDerivativeLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.MmdLoss.html">sup3r.utilities.loss_metrics.MmdLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.MmdMseLoss.html">sup3r.utilities.loss_metrics.MmdMseLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.MseExpLoss.html">sup3r.utilities.loss_metrics.MseExpLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.SpatialExtremesLoss.html">sup3r.utilities.loss_metrics.SpatialExtremesLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.SpatialExtremesOnlyLoss.html">sup3r.utilities.loss_metrics.SpatialExtremesOnlyLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.SpatialFftOnlyLoss.html">sup3r.utilities.loss_metrics.SpatialFftOnlyLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.SpatiotemporalExtremesLoss.html">sup3r.utilities.loss_metrics.SpatiotemporalExtremesLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.SpatiotemporalFftOnlyLoss.html">sup3r.utilities.loss_metrics.SpatiotemporalFftOnlyLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.StExtremesFftLoss.html">sup3r.utilities.loss_metrics.StExtremesFftLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.TemporalExtremesLoss.html">sup3r.utilities.loss_metrics.TemporalExtremesLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.loss_metrics.TemporalExtremesOnlyLoss.html">sup3r.utilities.loss_metrics.TemporalExtremesOnlyLoss</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.plotting.html">sup3r.utilities.plotting</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.plotting.ax_plot_legend.html">sup3r.utilities.plotting.ax_plot_legend</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.plotting.ax_pretty_labels.html">sup3r.utilities.plotting.ax_pretty_labels</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.plotting.make_movie.html">sup3r.utilities.plotting.make_movie</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.plotting.plot_legend.html">sup3r.utilities.plotting.plot_legend</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.plotting.plot_multi_contour.html">sup3r.utilities.plotting.plot_multi_contour</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.plotting.plot_single_contour.html">sup3r.utilities.plotting.plot_single_contour</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.plotting.pretty_labels.html">sup3r.utilities.plotting.pretty_labels</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.pytest.html">sup3r.utilities.pytest</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.pytest.make_fake_cs_ratio_files.html">sup3r.utilities.pytest.make_fake_cs_ratio_files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.pytest.make_fake_era_files.html">sup3r.utilities.pytest.make_fake_era_files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.pytest.make_fake_h5_chunks.html">sup3r.utilities.pytest.make_fake_h5_chunks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.pytest.make_fake_multi_time_nc_files.html">sup3r.utilities.pytest.make_fake_multi_time_nc_files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.pytest.make_fake_nc_files.html">sup3r.utilities.pytest.make_fake_nc_files</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.regridder.html">sup3r.utilities.regridder</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.regridder.RegridOutput.html">sup3r.utilities.regridder.RegridOutput</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.regridder.Regridder.html">sup3r.utilities.regridder.Regridder</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.regridder.WindRegridder.html">sup3r.utilities.regridder.WindRegridder</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.regridder_cli.html">sup3r.utilities.regridder_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.regridder_cli.kickoff_local_job.html">sup3r.utilities.regridder_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.regridder_cli.kickoff_slurm_job.html">sup3r.utilities.regridder_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.stitching.html">sup3r.utilities.stitching</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.stitching.blend_domains.html">sup3r.utilities.stitching.blend_domains</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.stitching.forward_avg.html">sup3r.utilities.stitching.forward_avg</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.stitching.get_domain_region.html">sup3r.utilities.stitching.get_domain_region</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.stitching.get_files.html">sup3r.utilities.stitching.get_files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.stitching.get_handles.html">sup3r.utilities.stitching.get_handles</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.stitching.impute_domain.html">sup3r.utilities.stitching.impute_domain</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.stitching.prune_levels.html">sup3r.utilities.stitching.prune_levels</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.stitching.regrid_main_domain.html">sup3r.utilities.stitching.regrid_main_domain</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.stitching.stitch_and_save.html">sup3r.utilities.stitching.stitch_and_save</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.stitching.stitch_domains.html">sup3r.utilities.stitching.stitch_domains</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.stitching.unstagger_vars.html">sup3r.utilities.stitching.unstagger_vars</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.stitching.Regridder.html">sup3r.utilities.stitching.Regridder</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="sup3r.utilities.utilities.html">sup3r.utilities.utilities</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.bvf_squared.html">sup3r.utilities.utilities.bvf_squared</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.correct_path.html">sup3r.utilities.utilities.correct_path</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.daily_temporal_coarsening.html">sup3r.utilities.utilities.daily_temporal_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.daily_time_sampler.html">sup3r.utilities.utilities.daily_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.estimate_max_workers.html">sup3r.utilities.utilities.estimate_max_workers</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.expand_paths.html">sup3r.utilities.utilities.expand_paths</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.forward_average.html">sup3r.utilities.utilities.forward_average</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.generate_random_string.html">sup3r.utilities.utilities.generate_random_string</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.get_chunk_slices.html">sup3r.utilities.utilities.get_chunk_slices</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.get_input_handler_class.html">sup3r.utilities.utilities.get_input_handler_class</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.get_raster_shape.html">sup3r.utilities.utilities.get_raster_shape</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.get_source_type.html">sup3r.utilities.utilities.get_source_type</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.get_time_dim_name.html">sup3r.utilities.utilities.get_time_dim_name</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.get_wrf_date_range.html">sup3r.utilities.utilities.get_wrf_date_range</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.gradient_richardson_number.html">sup3r.utilities.utilities.gradient_richardson_number</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.ignore_case_path_fetch.html">sup3r.utilities.utilities.ignore_case_path_fetch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.inverse_mo_length.html">sup3r.utilities.utilities.inverse_mo_length</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.invert_pot_temp.html">sup3r.utilities.utilities.invert_pot_temp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.invert_uv.html">sup3r.utilities.utilities.invert_uv</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.lat_lon_coarsening.html">sup3r.utilities.utilities.lat_lon_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.nn_fill_array.html">sup3r.utilities.utilities.nn_fill_array</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.np_to_pd_times.html">sup3r.utilities.utilities.np_to_pd_times</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.nsrdb_reduce_daily_data.html">sup3r.utilities.utilities.nsrdb_reduce_daily_data</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.nsrdb_sub_daily_sampler.html">sup3r.utilities.utilities.nsrdb_sub_daily_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.pd_date_range.html">sup3r.utilities.utilities.pd_date_range</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.potential_temperature.html">sup3r.utilities.utilities.potential_temperature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.potential_temperature_average.html">sup3r.utilities.utilities.potential_temperature_average</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.potential_temperature_difference.html">sup3r.utilities.utilities.potential_temperature_difference</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.rotor_area.html">sup3r.utilities.utilities.rotor_area</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.rotor_equiv_ws.html">sup3r.utilities.utilities.rotor_equiv_ws</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.round_array.html">sup3r.utilities.utilities.round_array</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.smooth_data.html">sup3r.utilities.utilities.smooth_data</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.spatial_coarsening.html">sup3r.utilities.utilities.spatial_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.spatial_simple_enhancing.html">sup3r.utilities.utilities.spatial_simple_enhancing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.st_interp.html">sup3r.utilities.utilities.st_interp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.temporal_coarsening.html">sup3r.utilities.utilities.temporal_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.temporal_simple_enhancing.html">sup3r.utilities.utilities.temporal_simple_enhancing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.transform_rotate_wind.html">sup3r.utilities.utilities.transform_rotate_wind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.uniform_box_sampler.html">sup3r.utilities.utilities.uniform_box_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.uniform_time_sampler.html">sup3r.utilities.utilities.uniform_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.vorticity_calc.html">sup3r.utilities.utilities.vorticity_calc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.weighted_box_sampler.html">sup3r.utilities.utilities.weighted_box_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.weighted_time_sampler.html">sup3r.utilities.utilities.weighted_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.windspeed_log_law.html">sup3r.utilities.utilities.windspeed_log_law</a></li>
+<li class="toctree-l4"><a class="reference internal" href="sup3r.utilities.utilities.Timer.html">sup3r.utilities.utilities.Timer</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../_cli/cli.html">CLI reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_cli/sup3r.html">sup3r</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-batch">batch</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-bias-calc">bias-calc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-data-collect">data-collect</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-data-extract">data-extract</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-forward-pass">forward-pass</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-pipeline">pipeline</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-qa">qa</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-regrid">regrid</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-solar">solar</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-stats">stats</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_cli/sup3r.html#sup3r-visual-qa">visual-qa</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">sup3r</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="sup3r.html">sup3r</a></li>
+          <li class="breadcrumb-item"><a href="sup3r.utilities.html">sup3r.utilities</a></li>
+      <li class="breadcrumb-item active">sup3r.utilities.ModuleName</li>
+      <li class="wy-breadcrumbs-aside">
+              <a href="https://github.com/nrel/sup3r/blob/main/docs/source/_autosummary/sup3r.utilities.ModuleName.rst" class="fa fa-github"> Edit on GitHub</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="sup3r-utilities-modulename">
+<h1>sup3r.utilities.ModuleName<a class="headerlink" href="#sup3r-utilities-modulename" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">ModuleName</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/utilities.html#ModuleName"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.utilities.ModuleName" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/enum.html#enum.Enum" title="(in Python v3.12)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Enum</span></code></a></p>
+<p>A collection of the module names available in sup3r.
+Each module name should match the name of the click command
+that will be used to invoke its respective cli. As of 5/26/2022,
+this means that all commands are lowercase with underscores
+replaced by dashes.</p>
+<p class="rubric">Methods</p>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.encode" title="sup3r.utilities.ModuleName.encode"><code class="xref py py-obj docutils literal notranslate"><span class="pre">encode</span></code></a>([encoding, errors])</p></td>
+<td><p>Encode the string using the codec registered for encoding.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.replace" title="sup3r.utilities.ModuleName.replace"><code class="xref py py-obj docutils literal notranslate"><span class="pre">replace</span></code></a>(old, new[, count])</p></td>
+<td><p>Return a copy with all occurrences of substring old replaced by new.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.split" title="sup3r.utilities.ModuleName.split"><code class="xref py py-obj docutils literal notranslate"><span class="pre">split</span></code></a>([sep, maxsplit])</p></td>
+<td><p>Return a list of the substrings in the string, using sep as the separator string.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.rsplit" title="sup3r.utilities.ModuleName.rsplit"><code class="xref py py-obj docutils literal notranslate"><span class="pre">rsplit</span></code></a>([sep, maxsplit])</p></td>
+<td><p>Return a list of the substrings in the string, using sep as the separator string.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.join" title="sup3r.utilities.ModuleName.join"><code class="xref py py-obj docutils literal notranslate"><span class="pre">join</span></code></a>(iterable, /)</p></td>
+<td><p>Concatenate any number of strings.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.capitalize" title="sup3r.utilities.ModuleName.capitalize"><code class="xref py py-obj docutils literal notranslate"><span class="pre">capitalize</span></code></a>()</p></td>
+<td><p>Return a capitalized version of the string.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.casefold" title="sup3r.utilities.ModuleName.casefold"><code class="xref py py-obj docutils literal notranslate"><span class="pre">casefold</span></code></a>()</p></td>
+<td><p>Return a version of the string suitable for caseless comparisons.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.title" title="sup3r.utilities.ModuleName.title"><code class="xref py py-obj docutils literal notranslate"><span class="pre">title</span></code></a>()</p></td>
+<td><p>Return a version of the string where each word is titlecased.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.center" title="sup3r.utilities.ModuleName.center"><code class="xref py py-obj docutils literal notranslate"><span class="pre">center</span></code></a>(width[, fillchar])</p></td>
+<td><p>Return a centered string of length width.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.count" title="sup3r.utilities.ModuleName.count"><code class="xref py py-obj docutils literal notranslate"><span class="pre">count</span></code></a>(sub[, start[, end]])</p></td>
+<td><p>Return the number of non-overlapping occurrences of substring sub in string S[start:end].</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.expandtabs" title="sup3r.utilities.ModuleName.expandtabs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">expandtabs</span></code></a>([tabsize])</p></td>
+<td><p>Return a copy where all tab characters are expanded using spaces.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.find" title="sup3r.utilities.ModuleName.find"><code class="xref py py-obj docutils literal notranslate"><span class="pre">find</span></code></a>(sub[, start[, end]])</p></td>
+<td><p>Return the lowest index in S where substring sub is found, such that sub is contained within S[start:end].</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.partition" title="sup3r.utilities.ModuleName.partition"><code class="xref py py-obj docutils literal notranslate"><span class="pre">partition</span></code></a>(sep, /)</p></td>
+<td><p>Partition the string into three parts using the given separator.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.index" title="sup3r.utilities.ModuleName.index"><code class="xref py py-obj docutils literal notranslate"><span class="pre">index</span></code></a>(sub[, start[, end]])</p></td>
+<td><p>Return the lowest index in S where substring sub is found, such that sub is contained within S[start:end].</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.ljust" title="sup3r.utilities.ModuleName.ljust"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ljust</span></code></a>(width[, fillchar])</p></td>
+<td><p>Return a left-justified string of length width.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.lower" title="sup3r.utilities.ModuleName.lower"><code class="xref py py-obj docutils literal notranslate"><span class="pre">lower</span></code></a>()</p></td>
+<td><p>Return a copy of the string converted to lowercase.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.lstrip" title="sup3r.utilities.ModuleName.lstrip"><code class="xref py py-obj docutils literal notranslate"><span class="pre">lstrip</span></code></a>([chars])</p></td>
+<td><p>Return a copy of the string with leading whitespace removed.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.rfind" title="sup3r.utilities.ModuleName.rfind"><code class="xref py py-obj docutils literal notranslate"><span class="pre">rfind</span></code></a>(sub[, start[, end]])</p></td>
+<td><p>Return the highest index in S where substring sub is found, such that sub is contained within S[start:end].</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.rindex" title="sup3r.utilities.ModuleName.rindex"><code class="xref py py-obj docutils literal notranslate"><span class="pre">rindex</span></code></a>(sub[, start[, end]])</p></td>
+<td><p>Return the highest index in S where substring sub is found, such that sub is contained within S[start:end].</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.rjust" title="sup3r.utilities.ModuleName.rjust"><code class="xref py py-obj docutils literal notranslate"><span class="pre">rjust</span></code></a>(width[, fillchar])</p></td>
+<td><p>Return a right-justified string of length width.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.rstrip" title="sup3r.utilities.ModuleName.rstrip"><code class="xref py py-obj docutils literal notranslate"><span class="pre">rstrip</span></code></a>([chars])</p></td>
+<td><p>Return a copy of the string with trailing whitespace removed.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.rpartition" title="sup3r.utilities.ModuleName.rpartition"><code class="xref py py-obj docutils literal notranslate"><span class="pre">rpartition</span></code></a>(sep, /)</p></td>
+<td><p>Partition the string into three parts using the given separator.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.splitlines" title="sup3r.utilities.ModuleName.splitlines"><code class="xref py py-obj docutils literal notranslate"><span class="pre">splitlines</span></code></a>([keepends])</p></td>
+<td><p>Return a list of the lines in the string, breaking at line boundaries.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.strip" title="sup3r.utilities.ModuleName.strip"><code class="xref py py-obj docutils literal notranslate"><span class="pre">strip</span></code></a>([chars])</p></td>
+<td><p>Return a copy of the string with leading and trailing whitespace removed.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.swapcase" title="sup3r.utilities.ModuleName.swapcase"><code class="xref py py-obj docutils literal notranslate"><span class="pre">swapcase</span></code></a>()</p></td>
+<td><p>Convert uppercase characters to lowercase and lowercase characters to uppercase.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.translate" title="sup3r.utilities.ModuleName.translate"><code class="xref py py-obj docutils literal notranslate"><span class="pre">translate</span></code></a>(table, /)</p></td>
+<td><p>Replace each character in the string using the given translation table.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.upper" title="sup3r.utilities.ModuleName.upper"><code class="xref py py-obj docutils literal notranslate"><span class="pre">upper</span></code></a>()</p></td>
+<td><p>Return a copy of the string converted to uppercase.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.startswith" title="sup3r.utilities.ModuleName.startswith"><code class="xref py py-obj docutils literal notranslate"><span class="pre">startswith</span></code></a>(prefix[, start[, end]])</p></td>
+<td><p>Return True if S starts with the specified prefix, False otherwise.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.endswith" title="sup3r.utilities.ModuleName.endswith"><code class="xref py py-obj docutils literal notranslate"><span class="pre">endswith</span></code></a>(suffix[, start[, end]])</p></td>
+<td><p>Return True if S ends with the specified suffix, False otherwise.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.removeprefix" title="sup3r.utilities.ModuleName.removeprefix"><code class="xref py py-obj docutils literal notranslate"><span class="pre">removeprefix</span></code></a>(prefix, /)</p></td>
+<td><p>Return a str with the given prefix string removed if present.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.removesuffix" title="sup3r.utilities.ModuleName.removesuffix"><code class="xref py py-obj docutils literal notranslate"><span class="pre">removesuffix</span></code></a>(suffix, /)</p></td>
+<td><p>Return a str with the given suffix string removed if present.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.isascii" title="sup3r.utilities.ModuleName.isascii"><code class="xref py py-obj docutils literal notranslate"><span class="pre">isascii</span></code></a>()</p></td>
+<td><p>Return True if all characters in the string are ASCII, False otherwise.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.islower" title="sup3r.utilities.ModuleName.islower"><code class="xref py py-obj docutils literal notranslate"><span class="pre">islower</span></code></a>()</p></td>
+<td><p>Return True if the string is a lowercase string, False otherwise.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.isupper" title="sup3r.utilities.ModuleName.isupper"><code class="xref py py-obj docutils literal notranslate"><span class="pre">isupper</span></code></a>()</p></td>
+<td><p>Return True if the string is an uppercase string, False otherwise.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.istitle" title="sup3r.utilities.ModuleName.istitle"><code class="xref py py-obj docutils literal notranslate"><span class="pre">istitle</span></code></a>()</p></td>
+<td><p>Return True if the string is a title-cased string, False otherwise.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.isspace" title="sup3r.utilities.ModuleName.isspace"><code class="xref py py-obj docutils literal notranslate"><span class="pre">isspace</span></code></a>()</p></td>
+<td><p>Return True if the string is a whitespace string, False otherwise.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.isdecimal" title="sup3r.utilities.ModuleName.isdecimal"><code class="xref py py-obj docutils literal notranslate"><span class="pre">isdecimal</span></code></a>()</p></td>
+<td><p>Return True if the string is a decimal string, False otherwise.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.isdigit" title="sup3r.utilities.ModuleName.isdigit"><code class="xref py py-obj docutils literal notranslate"><span class="pre">isdigit</span></code></a>()</p></td>
+<td><p>Return True if the string is a digit string, False otherwise.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.isnumeric" title="sup3r.utilities.ModuleName.isnumeric"><code class="xref py py-obj docutils literal notranslate"><span class="pre">isnumeric</span></code></a>()</p></td>
+<td><p>Return True if the string is a numeric string, False otherwise.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.isalpha" title="sup3r.utilities.ModuleName.isalpha"><code class="xref py py-obj docutils literal notranslate"><span class="pre">isalpha</span></code></a>()</p></td>
+<td><p>Return True if the string is an alphabetic string, False otherwise.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.isalnum" title="sup3r.utilities.ModuleName.isalnum"><code class="xref py py-obj docutils literal notranslate"><span class="pre">isalnum</span></code></a>()</p></td>
+<td><p>Return True if the string is an alpha-numeric string, False otherwise.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.isidentifier" title="sup3r.utilities.ModuleName.isidentifier"><code class="xref py py-obj docutils literal notranslate"><span class="pre">isidentifier</span></code></a>()</p></td>
+<td><p>Return True if the string is a valid Python identifier, False otherwise.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.isprintable" title="sup3r.utilities.ModuleName.isprintable"><code class="xref py py-obj docutils literal notranslate"><span class="pre">isprintable</span></code></a>()</p></td>
+<td><p>Return True if the string is printable, False otherwise.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.zfill" title="sup3r.utilities.ModuleName.zfill"><code class="xref py py-obj docutils literal notranslate"><span class="pre">zfill</span></code></a>(width, /)</p></td>
+<td><p>Pad a numeric string with zeros on the left, to fill a field of the given width.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.format" title="sup3r.utilities.ModuleName.format"><code class="xref py py-obj docutils literal notranslate"><span class="pre">format</span></code></a>(*args, **kwargs)</p></td>
+<td><p>Return a formatted version of S, using substitutions from args and kwargs.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.format_map" title="sup3r.utilities.ModuleName.format_map"><code class="xref py py-obj docutils literal notranslate"><span class="pre">format_map</span></code></a>(mapping)</p></td>
+<td><p>Return a formatted version of S, using substitutions from mapping.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.maketrans" title="sup3r.utilities.ModuleName.maketrans"><code class="xref py py-obj docutils literal notranslate"><span class="pre">maketrans</span></code></a></p></td>
+<td><p>Return a translation table usable for str.translate().</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#sup3r.utilities.ModuleName.all_names" title="sup3r.utilities.ModuleName.all_names"><code class="xref py py-obj docutils literal notranslate"><span class="pre">all_names</span></code></a>()</p></td>
+<td><p>All module names.</p></td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Attributes</p>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">FORWARD_PASS</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">DATA_EXTRACT</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">DATA_COLLECT</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">QA</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">SOLAR</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">STATS</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">BIAS_CALC</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">VISUAL_QA</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">REGRID</span></code></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.all_names">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">all_names</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sup3r/utilities.html#ModuleName.all_names"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#sup3r.utilities.ModuleName.all_names" title="Link to this definition"></a></dt>
+<dd><p>All module names.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>set</em> – The set of all module name strings.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.__add__">
+<span class="sig-name descname"><span class="pre">__add__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">/</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.__add__" title="Link to this definition"></a></dt>
+<dd><p>Return self+value.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.__mul__">
+<span class="sig-name descname"><span class="pre">__mul__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">/</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.__mul__" title="Link to this definition"></a></dt>
+<dd><p>Return self*value.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.encode">
+<span class="sig-name descname"><span class="pre">encode</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">encoding</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'utf-8'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">errors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'strict'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.encode" title="Link to this definition"></a></dt>
+<dd><p>Encode the string using the codec registered for encoding.</p>
+<dl class="simple">
+<dt>encoding</dt><dd><p>The encoding in which to encode the string.</p>
+</dd>
+<dt>errors</dt><dd><p>The error handling scheme to use for encoding errors.
+The default is ‘strict’ meaning that encoding errors raise a
+UnicodeEncodeError.  Other possible values are ‘ignore’, ‘replace’ and
+‘xmlcharrefreplace’ as well as any other name registered with
+codecs.register_error that can handle UnicodeEncodeErrors.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.replace">
+<span class="sig-name descname"><span class="pre">replace</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">old</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">new</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">count</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">/</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.replace" title="Link to this definition"></a></dt>
+<dd><p>Return a copy with all occurrences of substring old replaced by new.</p>
+<blockquote>
+<div><dl class="simple">
+<dt>count</dt><dd><p>Maximum number of occurrences to replace.
+-1 (the default value) means replace all occurrences.</p>
+</dd>
+</dl>
+</div></blockquote>
+<p>If the optional argument count is given, only the first count occurrences are
+replaced.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.split">
+<span class="sig-name descname"><span class="pre">split</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sep</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxsplit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.split" title="Link to this definition"></a></dt>
+<dd><p>Return a list of the substrings in the string, using sep as the separator string.</p>
+<blockquote>
+<div><dl>
+<dt>sep</dt><dd><p>The separator used to split the string.</p>
+<p>When set to None (the default value), will split on any whitespace
+character (including \n \r \t \f and spaces) and will discard
+empty strings from the result.</p>
+</dd>
+<dt>maxsplit</dt><dd><p>Maximum number of splits (starting from the left).
+-1 (the default value) means no limit.</p>
+</dd>
+</dl>
+</div></blockquote>
+<p>Note, str.split() is mainly useful for data that has been intentionally
+delimited.  With natural text that includes punctuation, consider using
+the regular expression module.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.rsplit">
+<span class="sig-name descname"><span class="pre">rsplit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sep</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxsplit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.rsplit" title="Link to this definition"></a></dt>
+<dd><p>Return a list of the substrings in the string, using sep as the separator string.</p>
+<blockquote>
+<div><dl>
+<dt>sep</dt><dd><p>The separator used to split the string.</p>
+<p>When set to None (the default value), will split on any whitespace
+character (including \n \r \t \f and spaces) and will discard
+empty strings from the result.</p>
+</dd>
+<dt>maxsplit</dt><dd><p>Maximum number of splits (starting from the left).
+-1 (the default value) means no limit.</p>
+</dd>
+</dl>
+</div></blockquote>
+<p>Splitting starts at the end of the string and works to the front.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.join">
+<span class="sig-name descname"><span class="pre">join</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">iterable</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">/</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.join" title="Link to this definition"></a></dt>
+<dd><p>Concatenate any number of strings.</p>
+<p>The string whose method is called is inserted in between each given string.
+The result is returned as a new string.</p>
+<p>Example: ‘.’.join([‘ab’, ‘pq’, ‘rs’]) -&gt; ‘ab.pq.rs’</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.capitalize">
+<span class="sig-name descname"><span class="pre">capitalize</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.capitalize" title="Link to this definition"></a></dt>
+<dd><p>Return a capitalized version of the string.</p>
+<p>More specifically, make the first character have upper case and the rest lower
+case.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.casefold">
+<span class="sig-name descname"><span class="pre">casefold</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.casefold" title="Link to this definition"></a></dt>
+<dd><p>Return a version of the string suitable for caseless comparisons.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.title">
+<span class="sig-name descname"><span class="pre">title</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.title" title="Link to this definition"></a></dt>
+<dd><p>Return a version of the string where each word is titlecased.</p>
+<p>More specifically, words start with uppercased characters and all remaining
+cased characters have lower case.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.center">
+<span class="sig-name descname"><span class="pre">center</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">width</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fillchar</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'</span> <span class="pre">'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">/</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.center" title="Link to this definition"></a></dt>
+<dd><p>Return a centered string of length width.</p>
+<p>Padding is done using the specified fill character (default is a space).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.count">
+<span class="sig-name descname"><span class="pre">count</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sub</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">start</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">end</span></span></em><span class="optional">]</span><span class="optional">]</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><span class="pre">int</span></a></span></span><a class="headerlink" href="#sup3r.utilities.ModuleName.count" title="Link to this definition"></a></dt>
+<dd><p>Return the number of non-overlapping occurrences of substring sub in
+string S[start:end].  Optional arguments start and end are
+interpreted as in slice notation.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.expandtabs">
+<span class="sig-name descname"><span class="pre">expandtabs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tabsize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">8</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.expandtabs" title="Link to this definition"></a></dt>
+<dd><p>Return a copy where all tab characters are expanded using spaces.</p>
+<p>If tabsize is not given, a tab size of 8 characters is assumed.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.find">
+<span class="sig-name descname"><span class="pre">find</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sub</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">start</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">end</span></span></em><span class="optional">]</span><span class="optional">]</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><span class="pre">int</span></a></span></span><a class="headerlink" href="#sup3r.utilities.ModuleName.find" title="Link to this definition"></a></dt>
+<dd><p>Return the lowest index in S where substring sub is found,
+such that sub is contained within S[start:end].  Optional
+arguments start and end are interpreted as in slice notation.</p>
+<p>Return -1 on failure.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.partition">
+<span class="sig-name descname"><span class="pre">partition</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sep</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">/</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.partition" title="Link to this definition"></a></dt>
+<dd><p>Partition the string into three parts using the given separator.</p>
+<p>This will search for the separator in the string.  If the separator is found,
+returns a 3-tuple containing the part before the separator, the separator
+itself, and the part after it.</p>
+<p>If the separator is not found, returns a 3-tuple containing the original string
+and two empty strings.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.index">
+<span class="sig-name descname"><span class="pre">index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sub</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">start</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">end</span></span></em><span class="optional">]</span><span class="optional">]</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><span class="pre">int</span></a></span></span><a class="headerlink" href="#sup3r.utilities.ModuleName.index" title="Link to this definition"></a></dt>
+<dd><p>Return the lowest index in S where substring sub is found,
+such that sub is contained within S[start:end].  Optional
+arguments start and end are interpreted as in slice notation.</p>
+<p>Raises ValueError when the substring is not found.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.ljust">
+<span class="sig-name descname"><span class="pre">ljust</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">width</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fillchar</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'</span> <span class="pre">'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">/</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.ljust" title="Link to this definition"></a></dt>
+<dd><p>Return a left-justified string of length width.</p>
+<p>Padding is done using the specified fill character (default is a space).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.lower">
+<span class="sig-name descname"><span class="pre">lower</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.lower" title="Link to this definition"></a></dt>
+<dd><p>Return a copy of the string converted to lowercase.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.lstrip">
+<span class="sig-name descname"><span class="pre">lstrip</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">chars</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">/</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.lstrip" title="Link to this definition"></a></dt>
+<dd><p>Return a copy of the string with leading whitespace removed.</p>
+<p>If chars is given and not None, remove characters in chars instead.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.rfind">
+<span class="sig-name descname"><span class="pre">rfind</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sub</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">start</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">end</span></span></em><span class="optional">]</span><span class="optional">]</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><span class="pre">int</span></a></span></span><a class="headerlink" href="#sup3r.utilities.ModuleName.rfind" title="Link to this definition"></a></dt>
+<dd><p>Return the highest index in S where substring sub is found,
+such that sub is contained within S[start:end].  Optional
+arguments start and end are interpreted as in slice notation.</p>
+<p>Return -1 on failure.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.rindex">
+<span class="sig-name descname"><span class="pre">rindex</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sub</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">start</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">end</span></span></em><span class="optional">]</span><span class="optional">]</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><span class="pre">int</span></a></span></span><a class="headerlink" href="#sup3r.utilities.ModuleName.rindex" title="Link to this definition"></a></dt>
+<dd><p>Return the highest index in S where substring sub is found,
+such that sub is contained within S[start:end].  Optional
+arguments start and end are interpreted as in slice notation.</p>
+<p>Raises ValueError when the substring is not found.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.rjust">
+<span class="sig-name descname"><span class="pre">rjust</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">width</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fillchar</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'</span> <span class="pre">'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">/</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.rjust" title="Link to this definition"></a></dt>
+<dd><p>Return a right-justified string of length width.</p>
+<p>Padding is done using the specified fill character (default is a space).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.rstrip">
+<span class="sig-name descname"><span class="pre">rstrip</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">chars</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">/</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.rstrip" title="Link to this definition"></a></dt>
+<dd><p>Return a copy of the string with trailing whitespace removed.</p>
+<p>If chars is given and not None, remove characters in chars instead.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.rpartition">
+<span class="sig-name descname"><span class="pre">rpartition</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sep</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">/</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.rpartition" title="Link to this definition"></a></dt>
+<dd><p>Partition the string into three parts using the given separator.</p>
+<p>This will search for the separator in the string, starting at the end. If
+the separator is found, returns a 3-tuple containing the part before the
+separator, the separator itself, and the part after it.</p>
+<p>If the separator is not found, returns a 3-tuple containing two empty strings
+and the original string.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.splitlines">
+<span class="sig-name descname"><span class="pre">splitlines</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">keepends</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.splitlines" title="Link to this definition"></a></dt>
+<dd><p>Return a list of the lines in the string, breaking at line boundaries.</p>
+<p>Line breaks are not included in the resulting list unless keepends is given and
+true.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.strip">
+<span class="sig-name descname"><span class="pre">strip</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">chars</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">/</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.strip" title="Link to this definition"></a></dt>
+<dd><p>Return a copy of the string with leading and trailing whitespace removed.</p>
+<p>If chars is given and not None, remove characters in chars instead.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.swapcase">
+<span class="sig-name descname"><span class="pre">swapcase</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.swapcase" title="Link to this definition"></a></dt>
+<dd><p>Convert uppercase characters to lowercase and lowercase characters to uppercase.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.translate">
+<span class="sig-name descname"><span class="pre">translate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">table</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">/</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.translate" title="Link to this definition"></a></dt>
+<dd><p>Replace each character in the string using the given translation table.</p>
+<blockquote>
+<div><dl class="simple">
+<dt>table</dt><dd><p>Translation table, which must be a mapping of Unicode ordinals to
+Unicode ordinals, strings, or None.</p>
+</dd>
+</dl>
+</div></blockquote>
+<p>The table must implement lookup/indexing via __getitem__, for instance a
+dictionary or list.  If this operation raises LookupError, the character is
+left untouched.  Characters mapped to None are deleted.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.upper">
+<span class="sig-name descname"><span class="pre">upper</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.upper" title="Link to this definition"></a></dt>
+<dd><p>Return a copy of the string converted to uppercase.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.startswith">
+<span class="sig-name descname"><span class="pre">startswith</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prefix</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">start</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">end</span></span></em><span class="optional">]</span><span class="optional">]</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a></span></span><a class="headerlink" href="#sup3r.utilities.ModuleName.startswith" title="Link to this definition"></a></dt>
+<dd><p>Return True if S starts with the specified prefix, False otherwise.
+With optional start, test S beginning at that position.
+With optional end, stop comparing S at that position.
+prefix can also be a tuple of strings to try.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.endswith">
+<span class="sig-name descname"><span class="pre">endswith</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">suffix</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">start</span></span></em><span class="optional">[</span>, <em class="sig-param"><span class="n"><span class="pre">end</span></span></em><span class="optional">]</span><span class="optional">]</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a></span></span><a class="headerlink" href="#sup3r.utilities.ModuleName.endswith" title="Link to this definition"></a></dt>
+<dd><p>Return True if S ends with the specified suffix, False otherwise.
+With optional start, test S beginning at that position.
+With optional end, stop comparing S at that position.
+suffix can also be a tuple of strings to try.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.removeprefix">
+<span class="sig-name descname"><span class="pre">removeprefix</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prefix</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">/</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.removeprefix" title="Link to this definition"></a></dt>
+<dd><p>Return a str with the given prefix string removed if present.</p>
+<p>If the string starts with the prefix string, return string[len(prefix):].
+Otherwise, return a copy of the original string.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.removesuffix">
+<span class="sig-name descname"><span class="pre">removesuffix</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">suffix</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">/</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.removesuffix" title="Link to this definition"></a></dt>
+<dd><p>Return a str with the given suffix string removed if present.</p>
+<p>If the string ends with the suffix string and that suffix is not empty,
+return string[:-len(suffix)]. Otherwise, return a copy of the original
+string.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.isascii">
+<span class="sig-name descname"><span class="pre">isascii</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.isascii" title="Link to this definition"></a></dt>
+<dd><p>Return True if all characters in the string are ASCII, False otherwise.</p>
+<p>ASCII characters have code points in the range U+0000-U+007F.
+Empty string is ASCII too.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.islower">
+<span class="sig-name descname"><span class="pre">islower</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.islower" title="Link to this definition"></a></dt>
+<dd><p>Return True if the string is a lowercase string, False otherwise.</p>
+<p>A string is lowercase if all cased characters in the string are lowercase and
+there is at least one cased character in the string.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.isupper">
+<span class="sig-name descname"><span class="pre">isupper</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.isupper" title="Link to this definition"></a></dt>
+<dd><p>Return True if the string is an uppercase string, False otherwise.</p>
+<p>A string is uppercase if all cased characters in the string are uppercase and
+there is at least one cased character in the string.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.istitle">
+<span class="sig-name descname"><span class="pre">istitle</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.istitle" title="Link to this definition"></a></dt>
+<dd><p>Return True if the string is a title-cased string, False otherwise.</p>
+<p>In a title-cased string, upper- and title-case characters may only
+follow uncased characters and lowercase characters only cased ones.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.isspace">
+<span class="sig-name descname"><span class="pre">isspace</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.isspace" title="Link to this definition"></a></dt>
+<dd><p>Return True if the string is a whitespace string, False otherwise.</p>
+<p>A string is whitespace if all characters in the string are whitespace and there
+is at least one character in the string.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.isdecimal">
+<span class="sig-name descname"><span class="pre">isdecimal</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.isdecimal" title="Link to this definition"></a></dt>
+<dd><p>Return True if the string is a decimal string, False otherwise.</p>
+<p>A string is a decimal string if all characters in the string are decimal and
+there is at least one character in the string.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.isdigit">
+<span class="sig-name descname"><span class="pre">isdigit</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.isdigit" title="Link to this definition"></a></dt>
+<dd><p>Return True if the string is a digit string, False otherwise.</p>
+<p>A string is a digit string if all characters in the string are digits and there
+is at least one character in the string.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.isnumeric">
+<span class="sig-name descname"><span class="pre">isnumeric</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.isnumeric" title="Link to this definition"></a></dt>
+<dd><p>Return True if the string is a numeric string, False otherwise.</p>
+<p>A string is numeric if all characters in the string are numeric and there is at
+least one character in the string.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.isalpha">
+<span class="sig-name descname"><span class="pre">isalpha</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.isalpha" title="Link to this definition"></a></dt>
+<dd><p>Return True if the string is an alphabetic string, False otherwise.</p>
+<p>A string is alphabetic if all characters in the string are alphabetic and there
+is at least one character in the string.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.isalnum">
+<span class="sig-name descname"><span class="pre">isalnum</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.isalnum" title="Link to this definition"></a></dt>
+<dd><p>Return True if the string is an alpha-numeric string, False otherwise.</p>
+<p>A string is alpha-numeric if all characters in the string are alpha-numeric and
+there is at least one character in the string.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.isidentifier">
+<span class="sig-name descname"><span class="pre">isidentifier</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.isidentifier" title="Link to this definition"></a></dt>
+<dd><p>Return True if the string is a valid Python identifier, False otherwise.</p>
+<p>Call keyword.iskeyword(s) to test whether string s is a reserved identifier,
+such as “def” or “class”.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.isprintable">
+<span class="sig-name descname"><span class="pre">isprintable</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.isprintable" title="Link to this definition"></a></dt>
+<dd><p>Return True if the string is printable, False otherwise.</p>
+<p>A string is printable if all of its characters are considered printable in
+repr() or if it is empty.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.zfill">
+<span class="sig-name descname"><span class="pre">zfill</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">width</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">/</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.zfill" title="Link to this definition"></a></dt>
+<dd><p>Pad a numeric string with zeros on the left, to fill a field of the given width.</p>
+<p>The string is never truncated.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.format">
+<span class="sig-name descname"><span class="pre">format</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a></span></span><a class="headerlink" href="#sup3r.utilities.ModuleName.format" title="Link to this definition"></a></dt>
+<dd><p>Return a formatted version of S, using substitutions from args and kwargs.
+The substitutions are identified by braces (‘{’ and ‘}’).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.format_map">
+<span class="sig-name descname"><span class="pre">format_map</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mapping</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a></span></span><a class="headerlink" href="#sup3r.utilities.ModuleName.format_map" title="Link to this definition"></a></dt>
+<dd><p>Return a formatted version of S, using substitutions from mapping.
+The substitutions are identified by braces (‘{’ and ‘}’).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="sup3r.utilities.ModuleName.maketrans">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">maketrans</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sup3r.utilities.ModuleName.maketrans" title="Link to this definition"></a></dt>
+<dd><p>Return a translation table usable for str.translate().</p>
+<p>If there is only one argument, it must be a dictionary mapping Unicode
+ordinals (integers) or characters to Unicode ordinals, strings or None.
+Character keys will be then converted to ordinals.
+If there are two arguments, they must be strings of equal length, and
+in the resulting dictionary, each character in x will be mapped to the
+character at the same position in y. If there is a third argument, it
+must be a string, whose characters will be mapped to None in the result.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="sup3r.utilities.html" class="btn btn-neutral float-left" title="sup3r.utilities" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="sup3r.utilities.cli.html" class="btn btn-neutral float-right" title="sup3r.utilities.cli" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Alliance for Sustainable Energy, LLC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

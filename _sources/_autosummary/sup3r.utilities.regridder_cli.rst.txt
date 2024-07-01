@@ -1,0 +1,31 @@
+sup3r.utilities.regridder\_cli
+==============================
+
+.. automodule:: sup3r.utilities.regridder_cli
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      kickoff_local_job
+      kickoff_slurm_job
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

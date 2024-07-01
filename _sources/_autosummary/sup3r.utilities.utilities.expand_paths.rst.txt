@@ -1,0 +1,6 @@
+sup3r.utilities.utilities.expand\_paths
+=======================================
+
+.. currentmodule:: sup3r.utilities.utilities
+
+.. autofunction:: expand_paths

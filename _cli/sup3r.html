@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>sup3r &mdash; sup3r 0.1.3.dev147+gee6ab7b4 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+      <link rel="stylesheet" type="text/css" href="../_static/tabs.css?v=a5c4661c" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=b68f4368"></script>
+        <script src="../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+        <script src="../_static/copybutton.js?v=f281be69"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="Command Line Interfaces (CLIs)" href="cli.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            sup3r
+          </a>
+              <div class="version">
+                0.1.3.dev147+gee6ab7b4
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../index.html">Home page</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../misc/installation_usage.html">Installation and Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../misc/installation.html">Installation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../misc/installation.html#option-1-install-from-pip-recommended-for-analysts">Option 1: Install from PIP (recommended for analysts):</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../misc/installation.html#option-2-clone-repo-recommended-for-developers">Option 2: Clone repo (recommended for developers)</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../examples/examples.html">Examples</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../examples/sup3rcc.html">Sup3rCC Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rcc.html#sup3rcc-data-access">Sup3rCC Data Access</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rcc.html#directory-structure">Directory Structure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rcc.html#example-sup3rcc-data-usage">Example Sup3rCC Data Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rcc.html#running-sup3rcc-models">Running Sup3rCC Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rcc.html#nuances-of-sup3rcc">Nuances of Sup3rCC</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rcc.html#sup3rcc-versions">Sup3rCC Versions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rcc.html#recommended-citation">Recommended Citation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rcc.html#acknowledgements">Acknowledgements</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../examples/sup3rwind.html">Sup3rWind Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rwind.html#sup3rwind-data-access">Sup3rWind Data Access</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rwind.html#example-sup3rwind-data-usage">Example Sup3rWind Data Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rwind.html#running-sup3rwind-models">Running Sup3rWind Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rwind.html#sup3rwind-versions">Sup3rWind Versions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rwind.html#recommended-citation">Recommended Citation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/sup3rwind.html#acknowledgements">Acknowledgements</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../_autosummary/sup3r.html">API reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/sup3r.batch.html">sup3r.batch</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.batch.batch_cli.html">sup3r.batch.batch_cli</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/sup3r.bias.html">sup3r.bias</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.bias.bias_calc.html">sup3r.bias.bias_calc</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.bias.bias_calc.DataRetrievalBase.html">sup3r.bias.bias_calc.DataRetrievalBase</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.bias.bias_calc.LinearCorrection.html">sup3r.bias.bias_calc.LinearCorrection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.bias.bias_calc.MonthlyLinearCorrection.html">sup3r.bias.bias_calc.MonthlyLinearCorrection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.bias.bias_calc.MonthlyScalarCorrection.html">sup3r.bias.bias_calc.MonthlyScalarCorrection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.bias.bias_calc.SkillAssessment.html">sup3r.bias.bias_calc.SkillAssessment</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.bias.bias_calc_cli.html">sup3r.bias.bias_calc_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.bias.bias_calc_cli.kickoff_local_job.html">sup3r.bias.bias_calc_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.bias.bias_calc_cli.kickoff_slurm_job.html">sup3r.bias.bias_calc_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.bias.bias_correct_means.html">sup3r.bias.bias_correct_means</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.bias.bias_correct_means.BiasCorrectUpdate.html">sup3r.bias.bias_correct_means.BiasCorrectUpdate</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.bias.bias_correct_means.VortexMeanPrepper.html">sup3r.bias.bias_correct_means.VortexMeanPrepper</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.bias.bias_transforms.html">sup3r.bias.bias_transforms</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.bias.bias_transforms.get_spatial_bc_factors.html">sup3r.bias.bias_transforms.get_spatial_bc_factors</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.bias.bias_transforms.get_spatial_bc_quantiles.html">sup3r.bias.bias_transforms.get_spatial_bc_quantiles</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.bias.bias_transforms.global_linear_bc.html">sup3r.bias.bias_transforms.global_linear_bc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.bias.bias_transforms.local_linear_bc.html">sup3r.bias.bias_transforms.local_linear_bc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.bias.bias_transforms.local_qdm_bc.html">sup3r.bias.bias_transforms.local_qdm_bc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.bias.bias_transforms.monthly_local_linear_bc.html">sup3r.bias.bias_transforms.monthly_local_linear_bc</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.bias.mixins.html">sup3r.bias.mixins</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.bias.mixins.FillAndSmoothMixin.html">sup3r.bias.mixins.FillAndSmoothMixin</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.bias.qdm.html">sup3r.bias.qdm</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.bias.qdm.QuantileDeltaMappingCorrection.html">sup3r.bias.qdm.QuantileDeltaMappingCorrection</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/sup3r.cli.html">sup3r.cli</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/sup3r.models.html">sup3r.models</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.models.abstract.html">sup3r.models.abstract</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.models.abstract.AbstractInterface.html">sup3r.models.abstract.AbstractInterface</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.models.abstract.AbstractSingleModel.html">sup3r.models.abstract.AbstractSingleModel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.models.abstract.TensorboardMixIn.html">sup3r.models.abstract.TensorboardMixIn</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.models.base.html">sup3r.models.base</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.models.base.Sup3rGan.html">sup3r.models.base.Sup3rGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.models.conditional_moments.html">sup3r.models.conditional_moments</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.models.conditional_moments.Sup3rCondMom.html">sup3r.models.conditional_moments.Sup3rCondMom</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.models.data_centric.html">sup3r.models.data_centric</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.models.data_centric.Sup3rGanDC.html">sup3r.models.data_centric.Sup3rGanDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.models.data_centric.Sup3rGanSpatialDC.html">sup3r.models.data_centric.Sup3rGanSpatialDC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.models.linear.html">sup3r.models.linear</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.models.linear.LinearInterp.html">sup3r.models.linear.LinearInterp</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.models.multi_step.html">sup3r.models.multi_step</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.models.multi_step.MultiStepGan.html">sup3r.models.multi_step.MultiStepGan</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.models.multi_step.MultiStepSurfaceMetGan.html">sup3r.models.multi_step.MultiStepSurfaceMetGan</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.models.multi_step.SolarMultiStepGan.html">sup3r.models.multi_step.SolarMultiStepGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.models.solar_cc.html">sup3r.models.solar_cc</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.models.solar_cc.SolarCC.html">sup3r.models.solar_cc.SolarCC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.models.surface.html">sup3r.models.surface</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.models.surface.SurfaceSpatialMetModel.html">sup3r.models.surface.SurfaceSpatialMetModel</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/sup3r.pipeline.html">sup3r.pipeline</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.pipeline.forward_pass.html">sup3r.pipeline.forward_pass</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.pipeline.forward_pass.ForwardPass.html">sup3r.pipeline.forward_pass.ForwardPass</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.pipeline.forward_pass.ForwardPassSlicer.html">sup3r.pipeline.forward_pass.ForwardPassSlicer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.pipeline.forward_pass.ForwardPassStrategy.html">sup3r.pipeline.forward_pass.ForwardPassStrategy</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.pipeline.forward_pass_cli.html">sup3r.pipeline.forward_pass_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.pipeline.forward_pass_cli.kickoff_local_job.html">sup3r.pipeline.forward_pass_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.pipeline.forward_pass_cli.kickoff_slurm_job.html">sup3r.pipeline.forward_pass_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.pipeline.pipeline_cli.html">sup3r.pipeline.pipeline_cli</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/sup3r.postprocessing.html">sup3r.postprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.postprocessing.collection.html">sup3r.postprocessing.collection</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.postprocessing.collection.BaseCollector.html">sup3r.postprocessing.collection.BaseCollector</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.postprocessing.collection.CollectorH5.html">sup3r.postprocessing.collection.CollectorH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.postprocessing.collection.CollectorNC.html">sup3r.postprocessing.collection.CollectorNC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.postprocessing.data_collect_cli.html">sup3r.postprocessing.data_collect_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.postprocessing.data_collect_cli.kickoff_local_job.html">sup3r.postprocessing.data_collect_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.postprocessing.data_collect_cli.kickoff_slurm_job.html">sup3r.postprocessing.data_collect_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.postprocessing.file_handling.html">sup3r.postprocessing.file_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.postprocessing.file_handling.OutputHandler.html">sup3r.postprocessing.file_handling.OutputHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.postprocessing.file_handling.OutputHandlerH5.html">sup3r.postprocessing.file_handling.OutputHandlerH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.postprocessing.file_handling.OutputHandlerNC.html">sup3r.postprocessing.file_handling.OutputHandlerNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.postprocessing.file_handling.OutputMixIn.html">sup3r.postprocessing.file_handling.OutputMixIn</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.postprocessing.file_handling.RexOutputs.html">sup3r.postprocessing.file_handling.RexOutputs</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.html">sup3r.preprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.batch_handling.html">sup3r.preprocessing.batch_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.batch_handling.Batch.html">sup3r.preprocessing.batch_handling.Batch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.batch_handling.BatchHandler.html">sup3r.preprocessing.batch_handling.BatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.batch_handling.BatchHandlerCC.html">sup3r.preprocessing.batch_handling.BatchHandlerCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.batch_handling.BatchHandlerDC.html">sup3r.preprocessing.batch_handling.BatchHandlerDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.batch_handling.BatchHandlerSpatialDC.html">sup3r.preprocessing.batch_handling.BatchHandlerSpatialDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.batch_handling.SpatialBatchHandler.html">sup3r.preprocessing.batch_handling.SpatialBatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC.html">sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.batch_handling.ValidationData.html">sup3r.preprocessing.batch_handling.ValidationData</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.batch_handling.ValidationDataDC.html">sup3r.preprocessing.batch_handling.ValidationDataDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.batch_handling.ValidationDataSpatialDC.html">sup3r.preprocessing.batch_handling.ValidationDataSpatialDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.batch_handling.ValidationDataTemporalDC.html">sup3r.preprocessing.batch_handling.ValidationDataTemporalDC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.html">sup3r.preprocessing.conditional_moment_batch_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1SF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2Sep.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SepSF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SepSF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1SF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2Sep.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SepSF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SepSF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1SF.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SF.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2Sep.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SepSF.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SepSF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1SF.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SF.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2Sep.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SepSF.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SepSF</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.data_extract_cli.html">sup3r.preprocessing.data_extract_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.data_extract_cli.kickoff_local_job.html">sup3r.preprocessing.data_extract_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.data_extract_cli.kickoff_slurm_job.html">sup3r.preprocessing.data_extract_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.data_handling.html">sup3r.preprocessing.data_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.data_handling.base.html">sup3r.preprocessing.data_handling.base</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.data_handling.dual_data_handling.html">sup3r.preprocessing.data_handling.dual_data_handling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.data_handling.exo_extraction.html">sup3r.preprocessing.data_handling.exo_extraction</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.data_handling.exogenous_data_handling.html">sup3r.preprocessing.data_handling.exogenous_data_handling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.data_handling.h5_data_handling.html">sup3r.preprocessing.data_handling.h5_data_handling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.data_handling.mixin.html">sup3r.preprocessing.data_handling.mixin</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.data_handling.nc_data_handling.html">sup3r.preprocessing.data_handling.nc_data_handling</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.dual_batch_handling.html">sup3r.preprocessing.dual_batch_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.dual_batch_handling.DualBatchHandler.html">sup3r.preprocessing.dual_batch_handling.DualBatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.dual_batch_handling.DualValidationData.html">sup3r.preprocessing.dual_batch_handling.DualValidationData</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.dual_batch_handling.SpatialDualBatchHandler.html">sup3r.preprocessing.dual_batch_handling.SpatialDualBatchHandler</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.feature_handling.html">sup3r.preprocessing.feature_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.feature_handling.BVFreqMon.html">sup3r.preprocessing.feature_handling.BVFreqMon</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.feature_handling.BVFreqSquaredH5.html">sup3r.preprocessing.feature_handling.BVFreqSquaredH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.feature_handling.BVFreqSquaredNC.html">sup3r.preprocessing.feature_handling.BVFreqSquaredNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.feature_handling.ClearSkyRatioCC.html">sup3r.preprocessing.feature_handling.ClearSkyRatioCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.feature_handling.ClearSkyRatioH5.html">sup3r.preprocessing.feature_handling.ClearSkyRatioH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.feature_handling.CloudMaskH5.html">sup3r.preprocessing.feature_handling.CloudMaskH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.feature_handling.DerivedFeature.html">sup3r.preprocessing.feature_handling.DerivedFeature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.feature_handling.Feature.html">sup3r.preprocessing.feature_handling.Feature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.feature_handling.FeatureHandler.html">sup3r.preprocessing.feature_handling.FeatureHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.feature_handling.InverseMonNC.html">sup3r.preprocessing.feature_handling.InverseMonNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.feature_handling.LatLonH5.html">sup3r.preprocessing.feature_handling.LatLonH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.feature_handling.LatLonNC.html">sup3r.preprocessing.feature_handling.LatLonNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.feature_handling.PotentialTempNC.html">sup3r.preprocessing.feature_handling.PotentialTempNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.feature_handling.PressureNC.html">sup3r.preprocessing.feature_handling.PressureNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.feature_handling.Rews.html">sup3r.preprocessing.feature_handling.Rews</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.feature_handling.Shear.html">sup3r.preprocessing.feature_handling.Shear</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.feature_handling.Tas.html">sup3r.preprocessing.feature_handling.Tas</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.feature_handling.TasMax.html">sup3r.preprocessing.feature_handling.TasMax</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.feature_handling.TasMin.html">sup3r.preprocessing.feature_handling.TasMin</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.feature_handling.TempNC.html">sup3r.preprocessing.feature_handling.TempNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.feature_handling.TempNCforCC.html">sup3r.preprocessing.feature_handling.TempNCforCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.feature_handling.TopoH5.html">sup3r.preprocessing.feature_handling.TopoH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.feature_handling.UWind.html">sup3r.preprocessing.feature_handling.UWind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.feature_handling.UWindPowerLaw.html">sup3r.preprocessing.feature_handling.UWindPowerLaw</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.feature_handling.VWind.html">sup3r.preprocessing.feature_handling.VWind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.feature_handling.VWindPowerLaw.html">sup3r.preprocessing.feature_handling.VWindPowerLaw</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.feature_handling.Veer.html">sup3r.preprocessing.feature_handling.Veer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.feature_handling.Vorticity.html">sup3r.preprocessing.feature_handling.Vorticity</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.feature_handling.WinddirectionNC.html">sup3r.preprocessing.feature_handling.WinddirectionNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.preprocessing.feature_handling.WindspeedNC.html">sup3r.preprocessing.feature_handling.WindspeedNC</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/sup3r.qa.html">sup3r.qa</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.qa.qa.html">sup3r.qa.qa</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.qa.qa.Sup3rQa.html">sup3r.qa.qa.Sup3rQa</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.qa.qa_cli.html">sup3r.qa.qa_cli</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.qa.stats.html">sup3r.qa.stats</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.qa.stats.Sup3rStatsBase.html">sup3r.qa.stats.Sup3rStatsBase</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.qa.stats.Sup3rStatsCompute.html">sup3r.qa.stats.Sup3rStatsCompute</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.qa.stats.Sup3rStatsMulti.html">sup3r.qa.stats.Sup3rStatsMulti</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.qa.stats.Sup3rStatsSingle.html">sup3r.qa.stats.Sup3rStatsSingle</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.qa.stats_cli.html">sup3r.qa.stats_cli</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.qa.utilities.html">sup3r.qa.utilities</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.qa.utilities.continuous_dist.html">sup3r.qa.utilities.continuous_dist</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.qa.utilities.direct_dist.html">sup3r.qa.utilities.direct_dist</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.qa.utilities.frequency_spectrum.html">sup3r.qa.utilities.frequency_spectrum</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.qa.utilities.gradient_dist.html">sup3r.qa.utilities.gradient_dist</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.qa.utilities.time_derivative_dist.html">sup3r.qa.utilities.time_derivative_dist</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.qa.utilities.tke_frequency_spectrum.html">sup3r.qa.utilities.tke_frequency_spectrum</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.qa.utilities.tke_wavenumber_spectrum.html">sup3r.qa.utilities.tke_wavenumber_spectrum</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.qa.utilities.wavenumber_spectrum.html">sup3r.qa.utilities.wavenumber_spectrum</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.qa.visual_qa.html">sup3r.qa.visual_qa</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.qa.visual_qa.Sup3rVisualQa.html">sup3r.qa.visual_qa.Sup3rVisualQa</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.qa.visual_qa_cli.html">sup3r.qa.visual_qa_cli</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/sup3r.solar.html">sup3r.solar</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.solar.solar.html">sup3r.solar.solar</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.solar.solar.Solar.html">sup3r.solar.solar.Solar</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.solar.solar_cli.html">sup3r.solar.solar_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.solar.solar_cli.kickoff_local_job.html">sup3r.solar.solar_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.solar.solar_cli.kickoff_slurm_job.html">sup3r.solar.solar_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../_autosummary/sup3r.utilities.html">sup3r.utilities</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.utilities.ModuleName.html">sup3r.utilities.ModuleName</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.ModuleName.html#sup3r.utilities.ModuleName"><code class="docutils literal notranslate"><span class="pre">ModuleName</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.utilities.cli.html">sup3r.utilities.cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.cli.BaseCLI.html">sup3r.utilities.cli.BaseCLI</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.cli.SlurmManager.html">sup3r.utilities.cli.SlurmManager</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.utilities.era_downloader.html">sup3r.utilities.era_downloader</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.era_downloader.EraDownloader.html">sup3r.utilities.era_downloader.EraDownloader</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.utilities.execution.html">sup3r.utilities.execution</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.execution.DistributedProcess.html">sup3r.utilities.execution.DistributedProcess</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.utilities.interpolate_log_profile.html">sup3r.utilities.interpolate_log_profile</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.interpolate_log_profile.LogLinInterpolator.html">sup3r.utilities.interpolate_log_profile.LogLinInterpolator</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.utilities.interpolation.html">sup3r.utilities.interpolation</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.interpolation.Interpolator.html">sup3r.utilities.interpolation.Interpolator</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.utilities.loss_metrics.html">sup3r.utilities.loss_metrics</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.loss_metrics.gaussian_kernel.html">sup3r.utilities.loss_metrics.gaussian_kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.loss_metrics.CoarseMseLoss.html">sup3r.utilities.loss_metrics.CoarseMseLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.loss_metrics.ExpLoss.html">sup3r.utilities.loss_metrics.ExpLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.loss_metrics.LowResLoss.html">sup3r.utilities.loss_metrics.LowResLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.loss_metrics.MaterialDerivativeLoss.html">sup3r.utilities.loss_metrics.MaterialDerivativeLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.loss_metrics.MmdLoss.html">sup3r.utilities.loss_metrics.MmdLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.loss_metrics.MmdMseLoss.html">sup3r.utilities.loss_metrics.MmdMseLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.loss_metrics.MseExpLoss.html">sup3r.utilities.loss_metrics.MseExpLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.loss_metrics.SpatialExtremesLoss.html">sup3r.utilities.loss_metrics.SpatialExtremesLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.loss_metrics.SpatialExtremesOnlyLoss.html">sup3r.utilities.loss_metrics.SpatialExtremesOnlyLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.loss_metrics.SpatialFftOnlyLoss.html">sup3r.utilities.loss_metrics.SpatialFftOnlyLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.loss_metrics.SpatiotemporalExtremesLoss.html">sup3r.utilities.loss_metrics.SpatiotemporalExtremesLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.loss_metrics.SpatiotemporalFftOnlyLoss.html">sup3r.utilities.loss_metrics.SpatiotemporalFftOnlyLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.loss_metrics.StExtremesFftLoss.html">sup3r.utilities.loss_metrics.StExtremesFftLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.loss_metrics.TemporalExtremesLoss.html">sup3r.utilities.loss_metrics.TemporalExtremesLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.loss_metrics.TemporalExtremesOnlyLoss.html">sup3r.utilities.loss_metrics.TemporalExtremesOnlyLoss</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.utilities.plotting.html">sup3r.utilities.plotting</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.plotting.ax_plot_legend.html">sup3r.utilities.plotting.ax_plot_legend</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.plotting.ax_pretty_labels.html">sup3r.utilities.plotting.ax_pretty_labels</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.plotting.make_movie.html">sup3r.utilities.plotting.make_movie</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.plotting.plot_legend.html">sup3r.utilities.plotting.plot_legend</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.plotting.plot_multi_contour.html">sup3r.utilities.plotting.plot_multi_contour</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.plotting.plot_single_contour.html">sup3r.utilities.plotting.plot_single_contour</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.plotting.pretty_labels.html">sup3r.utilities.plotting.pretty_labels</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.utilities.pytest.html">sup3r.utilities.pytest</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.pytest.make_fake_cs_ratio_files.html">sup3r.utilities.pytest.make_fake_cs_ratio_files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.pytest.make_fake_era_files.html">sup3r.utilities.pytest.make_fake_era_files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.pytest.make_fake_h5_chunks.html">sup3r.utilities.pytest.make_fake_h5_chunks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.pytest.make_fake_multi_time_nc_files.html">sup3r.utilities.pytest.make_fake_multi_time_nc_files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.pytest.make_fake_nc_files.html">sup3r.utilities.pytest.make_fake_nc_files</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.utilities.regridder.html">sup3r.utilities.regridder</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.regridder.RegridOutput.html">sup3r.utilities.regridder.RegridOutput</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.regridder.Regridder.html">sup3r.utilities.regridder.Regridder</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.regridder.WindRegridder.html">sup3r.utilities.regridder.WindRegridder</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.utilities.regridder_cli.html">sup3r.utilities.regridder_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.regridder_cli.kickoff_local_job.html">sup3r.utilities.regridder_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.regridder_cli.kickoff_slurm_job.html">sup3r.utilities.regridder_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.utilities.stitching.html">sup3r.utilities.stitching</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.stitching.blend_domains.html">sup3r.utilities.stitching.blend_domains</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.stitching.forward_avg.html">sup3r.utilities.stitching.forward_avg</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.stitching.get_domain_region.html">sup3r.utilities.stitching.get_domain_region</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.stitching.get_files.html">sup3r.utilities.stitching.get_files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.stitching.get_handles.html">sup3r.utilities.stitching.get_handles</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.stitching.impute_domain.html">sup3r.utilities.stitching.impute_domain</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.stitching.prune_levels.html">sup3r.utilities.stitching.prune_levels</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.stitching.regrid_main_domain.html">sup3r.utilities.stitching.regrid_main_domain</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.stitching.stitch_and_save.html">sup3r.utilities.stitching.stitch_and_save</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.stitching.stitch_domains.html">sup3r.utilities.stitching.stitch_domains</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.stitching.unstagger_vars.html">sup3r.utilities.stitching.unstagger_vars</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.stitching.Regridder.html">sup3r.utilities.stitching.Regridder</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.html">sup3r.utilities.utilities</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.bvf_squared.html">sup3r.utilities.utilities.bvf_squared</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.correct_path.html">sup3r.utilities.utilities.correct_path</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.daily_temporal_coarsening.html">sup3r.utilities.utilities.daily_temporal_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.daily_time_sampler.html">sup3r.utilities.utilities.daily_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.estimate_max_workers.html">sup3r.utilities.utilities.estimate_max_workers</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.expand_paths.html">sup3r.utilities.utilities.expand_paths</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.forward_average.html">sup3r.utilities.utilities.forward_average</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.generate_random_string.html">sup3r.utilities.utilities.generate_random_string</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.get_chunk_slices.html">sup3r.utilities.utilities.get_chunk_slices</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.get_input_handler_class.html">sup3r.utilities.utilities.get_input_handler_class</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.get_raster_shape.html">sup3r.utilities.utilities.get_raster_shape</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.get_source_type.html">sup3r.utilities.utilities.get_source_type</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.get_time_dim_name.html">sup3r.utilities.utilities.get_time_dim_name</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.get_wrf_date_range.html">sup3r.utilities.utilities.get_wrf_date_range</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.gradient_richardson_number.html">sup3r.utilities.utilities.gradient_richardson_number</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.ignore_case_path_fetch.html">sup3r.utilities.utilities.ignore_case_path_fetch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.inverse_mo_length.html">sup3r.utilities.utilities.inverse_mo_length</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.invert_pot_temp.html">sup3r.utilities.utilities.invert_pot_temp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.invert_uv.html">sup3r.utilities.utilities.invert_uv</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.lat_lon_coarsening.html">sup3r.utilities.utilities.lat_lon_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.nn_fill_array.html">sup3r.utilities.utilities.nn_fill_array</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.np_to_pd_times.html">sup3r.utilities.utilities.np_to_pd_times</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.nsrdb_reduce_daily_data.html">sup3r.utilities.utilities.nsrdb_reduce_daily_data</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.nsrdb_sub_daily_sampler.html">sup3r.utilities.utilities.nsrdb_sub_daily_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.pd_date_range.html">sup3r.utilities.utilities.pd_date_range</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.potential_temperature.html">sup3r.utilities.utilities.potential_temperature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.potential_temperature_average.html">sup3r.utilities.utilities.potential_temperature_average</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.potential_temperature_difference.html">sup3r.utilities.utilities.potential_temperature_difference</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.rotor_area.html">sup3r.utilities.utilities.rotor_area</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.rotor_equiv_ws.html">sup3r.utilities.utilities.rotor_equiv_ws</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.round_array.html">sup3r.utilities.utilities.round_array</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.smooth_data.html">sup3r.utilities.utilities.smooth_data</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.spatial_coarsening.html">sup3r.utilities.utilities.spatial_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.spatial_simple_enhancing.html">sup3r.utilities.utilities.spatial_simple_enhancing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.st_interp.html">sup3r.utilities.utilities.st_interp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.temporal_coarsening.html">sup3r.utilities.utilities.temporal_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.temporal_simple_enhancing.html">sup3r.utilities.utilities.temporal_simple_enhancing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.transform_rotate_wind.html">sup3r.utilities.utilities.transform_rotate_wind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.uniform_box_sampler.html">sup3r.utilities.utilities.uniform_box_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.uniform_time_sampler.html">sup3r.utilities.utilities.uniform_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.vorticity_calc.html">sup3r.utilities.utilities.vorticity_calc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.weighted_box_sampler.html">sup3r.utilities.utilities.weighted_box_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.weighted_time_sampler.html">sup3r.utilities.utilities.weighted_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.windspeed_log_law.html">sup3r.utilities.utilities.windspeed_log_law</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/sup3r.utilities.utilities.Timer.html">sup3r.utilities.utilities.Timer</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="cli.html">CLI reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">sup3r</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#sup3r-batch">batch</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sup3r-bias-calc">bias-calc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sup3r-data-collect">data-collect</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sup3r-data-extract">data-extract</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sup3r-forward-pass">forward-pass</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sup3r-pipeline">pipeline</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sup3r-qa">qa</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sup3r-regrid">regrid</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sup3r-solar">solar</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sup3r-stats">stats</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sup3r-visual-qa">visual-qa</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">sup3r</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="cli.html">Command Line Interfaces (CLIs)</a></li>
+      <li class="breadcrumb-item active">sup3r</li>
+      <li class="wy-breadcrumbs-aside">
+              <a href="https://github.com/nrel/sup3r/blob/main/docs/source/_cli/sup3r.rst" class="fa fa-github"> Edit on GitHub</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="sup3r">
+<h1>sup3r<a class="headerlink" href="#sup3r" title="Link to this heading"></a></h1>
+<p>Sup3r command line interface.</p>
+<p>Try using the following commands to pull up the help pages for the
+respective sup3r CLIs:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ sup3r --help
+
+$ sup3r -c config.json pipeline --help
+
+$ sup3r -c config.json forward-pass --help
+
+$ sup3r -c config.json data-collect --help
+
+$ sup3r -c config.json data-extract --help
+</pre></div>
+</div>
+<p>Typically, a good place to start is to set up a sup3r job with a pipeline
+config that points to several sup3r modules that you want to run in serial.
+You would call the sup3r pipeline CLI using either of these equivalent
+commands:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ sup3r -c config_pipeline.json pipeline
+
+$ sup3r-pipeline from-config -c config_pipeline.json
+</pre></div>
+</div>
+<p>See the help pages of the module CLIs for more details on the config files
+for each CLI.</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>sup3r<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>COMMAND<span class="w"> </span><span class="o">[</span>ARGS<span class="o">]</span>...
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-sup3r-version">
+<span class="sig-name descname"><span class="pre">--version</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-sup3r-version" title="Link to this definition"></a></dt>
+<dd><p>Show the version and exit.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-sup3r-c">
+<span id="cmdoption-sup3r-config_file"></span><span class="sig-name descname"><span class="pre">-c</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--config_file</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;config_file&gt;</span></span><a class="headerlink" href="#cmdoption-sup3r-c" title="Link to this definition"></a></dt>
+<dd><p><strong>Required</strong> sup3r configuration file json for a single module.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-sup3r-v">
+<span id="cmdoption-sup3r-verbose"></span><span class="sig-name descname"><span class="pre">-v</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--verbose</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-sup3r-v" title="Link to this definition"></a></dt>
+<dd><p>Flag to turn on debug logging. Default is not verbose.</p>
+</dd></dl>
+
+<section id="sup3r-batch">
+<h2>batch<a class="headerlink" href="#sup3r-batch" title="Link to this heading"></a></h2>
+<p>Create and run multiple sup3r project directories based on batch
+permutation logic.</p>
+<p>The sup3r batch module (built on the reV batch functionality) is a way to
+create and run many sup3r pipeline projects based on permutations of
+key-value pairs in the run config files. A user configures the batch file
+by creating one or more “sets” that contain one or more arguments (keys
+found in config files) that are to be parameterized. For example, in the
+config below, four sup3r pipelines will be created where arg1 and arg2 are
+set to [0, “a”], [0, “b”], [1, “a”], [1, “b”] in config_fwp.json:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+    <span class="s2">&quot;pipeline_config&quot;</span><span class="p">:</span> <span class="s2">&quot;./config_pipeline.json&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;sets&quot;</span><span class="p">:</span> <span class="p">[</span>
+      <span class="p">{</span>
+        <span class="s2">&quot;args&quot;</span><span class="p">:</span> <span class="p">{</span>
+          <span class="s2">&quot;arg1&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+          <span class="s2">&quot;arg2&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;a&quot;</span><span class="p">,</span> <span class="s2">&quot;b&quot;</span><span class="p">],</span>
+        <span class="p">},</span>
+        <span class="s2">&quot;files&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;./config_fwp.json&quot;</span><span class="p">],</span>
+        <span class="s2">&quot;set_tag&quot;</span><span class="p">:</span> <span class="s2">&quot;set1&quot;</span>
+      <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Note that you can use multiple “sets” to isolate parameter permutations.</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>sup3r<span class="w"> </span>batch<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>COMMAND<span class="w"> </span><span class="o">[</span>ARGS<span class="o">]</span>...
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-sup3r-batch-dry-run">
+<span class="sig-name descname"><span class="pre">--dry-run</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-sup3r-batch-dry-run" title="Link to this definition"></a></dt>
+<dd><p>Flag to do a dry run (make batch dirs without running).</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-sup3r-batch-cancel">
+<span class="sig-name descname"><span class="pre">--cancel</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-sup3r-batch-cancel" title="Link to this definition"></a></dt>
+<dd><p>Flag to cancel all jobs associated with a given batch.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-sup3r-batch-delete">
+<span class="sig-name descname"><span class="pre">--delete</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-sup3r-batch-delete" title="Link to this definition"></a></dt>
+<dd><p>Flag to delete all batch job sub directories associated with the batch_jobs.csv in the current batch config directory.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-sup3r-batch-monitor-background">
+<span class="sig-name descname"><span class="pre">--monitor-background</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-sup3r-batch-monitor-background" title="Link to this definition"></a></dt>
+<dd><p>Flag to monitor all batch pipelines continuously in the background using the nohup command. Note that the stdout/stderr will not be captured, but you can set a pipeline “log_file” to capture logs.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-sup3r-batch-v">
+<span id="cmdoption-sup3r-batch-verbose"></span><span class="sig-name descname"><span class="pre">-v</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--verbose</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-sup3r-batch-v" title="Link to this definition"></a></dt>
+<dd><p>Flag to turn on debug logging.</p>
+</dd></dl>
+
+</section>
+<section id="sup3r-bias-calc">
+<h2>bias-calc<a class="headerlink" href="#sup3r-bias-calc" title="Link to this heading"></a></h2>
+<p>Sup3r bias correction calculation module to create bias correction
+factors for low res input data.</p>
+<p>This is typically used to understand and correct the biases in global
+climate model (GCM) data from CMIP. Bias correcting GCM data is a very
+common process when dealing with climate data and this helps automate that
+process prior to passing GCM data through sup3r generative models. This is
+typically the first step in a GCM downscaling pipeline.</p>
+<p>You can call the bias calc module via the sup3r-pipeline CLI, or call it
+directly with either of these equivalent commands:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ sup3r -c config_bias.json bias-calc
+
+$ sup3r-bias-calc from-config -c config_bias.json
+</pre></div>
+</div>
+<p>A sup3r bias calc config.json file can contain any arguments or keyword
+arguments required to call the</p>
+<p>The config has high level <code class="docutils literal notranslate"><span class="pre">bias_calc_class</span></code> and <code class="docutils literal notranslate"><span class="pre">jobs</span></code> keys. The
+<code class="docutils literal notranslate"><span class="pre">bias_calc_class</span></code> is a class name from the <a class="reference internal" href="../_autosummary/sup3r.bias.html#module-sup3r.bias" title="sup3r.bias"><code class="xref py py-mod docutils literal notranslate"><span class="pre">sup3r.bias</span></code></a>
+module, and the <code class="docutils literal notranslate"><span class="pre">jobs</span></code> argument is a list of kwargs required to
+initialize the <code class="docutils literal notranslate"><span class="pre">bias_calc_class</span></code> and run the <code class="docutils literal notranslate"><span class="pre">bias_calc_class.run()</span></code>
+method (for example, see
+<a class="reference internal" href="../_autosummary/sup3r.bias.bias_calc.LinearCorrection.html#sup3r.bias.bias_calc.LinearCorrection.run" title="sup3r.bias.bias_calc.LinearCorrection.run"><code class="xref py py-meth docutils literal notranslate"><span class="pre">sup3r.bias.bias_calc.LinearCorrection.run()</span></code></a>). There are also has
+several optional arguments: <code class="docutils literal notranslate"><span class="pre">log_pattern</span></code>, <code class="docutils literal notranslate"><span class="pre">log_level</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">execution_control</span></code>. Here’s a small example bias calc config:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+    <span class="s2">&quot;bias_calc_class&quot;</span><span class="p">:</span> <span class="s2">&quot;LinearCorrection&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;jobs&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="p">{</span>
+            <span class="s2">&quot;base_fps&quot;</span> <span class="p">:</span> <span class="p">[</span><span class="s2">&quot;/datasets/WIND/HRRR/HRRR_2015.h5&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;bias_fps&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;./ta_day_EC-Earth3-Veg_ssp585.nc&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;base_dset&quot;</span><span class="p">:</span> <span class="s2">&quot;U_100m&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;bias_feature&quot;</span><span class="p">:</span> <span class="s2">&quot;U_100m&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;target&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">20</span><span class="p">,</span> <span class="o">-</span><span class="mi">130</span><span class="p">],</span>
+            <span class="s2">&quot;shape&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">48</span><span class="p">,</span> <span class="mi">95</span><span class="p">]</span>
+         <span class="p">}</span>
+    <span class="p">],</span>
+    <span class="s2">&quot;execution_control&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;option&quot;</span><span class="p">:</span> <span class="s2">&quot;kestrel&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;walltime&quot;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
+        <span class="s2">&quot;alloc&quot;</span><span class="p">:</span> <span class="s2">&quot;sup3r&quot;</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Note that the <code class="docutils literal notranslate"><span class="pre">execution_control</span></code> block contains kwargs that would
+be required to distribute the job on multiple nodes on the NREL HPC.
+To run the job locally, use <code class="docutils literal notranslate"><span class="pre">execution_control:</span> <span class="pre">{&quot;option&quot;:</span> <span class="pre">&quot;local&quot;}</span></code>.</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>sup3r<span class="w"> </span>bias-calc<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-sup3r-bias-calc-v">
+<span id="cmdoption-sup3r-bias-calc-verbose"></span><span class="sig-name descname"><span class="pre">-v</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--verbose</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-sup3r-bias-calc-v" title="Link to this definition"></a></dt>
+<dd><p>Flag to turn on debug logging.</p>
+</dd></dl>
+
+</section>
+<section id="sup3r-data-collect">
+<h2>data-collect<a class="headerlink" href="#sup3r-data-collect" title="Link to this heading"></a></h2>
+<p>Sup3r data collection following forward pass.</p>
+<p>The sup3r data-collect module can be used to collect time-chunked files
+that were spit out by multi-node forward pass jobs. You can call the
+data-collect module via the sup3r-pipeline CLI, or call it directly with
+either of these equivalent commands:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ sup3r -c config_collect.json data-collect
+
+$ sup3r-data-collect from-config -c config_collect.json
+</pre></div>
+</div>
+<p>A sup3r data-collect config.json file can contain any arguments or keyword
+arguments required to run the
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">sup3r.postprocessing.collection.Collector.collect()</span></code> method. The
+config also has several optional arguments: <code class="docutils literal notranslate"><span class="pre">log_file</span></code>, <code class="docutils literal notranslate"><span class="pre">log_level</span></code>,
+and <code class="docutils literal notranslate"><span class="pre">execution_control</span></code>. Here’s a small example data-collect config:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+    <span class="s2">&quot;file_paths&quot;</span><span class="p">:</span> <span class="s2">&quot;./outputs/*.h5&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;out_file&quot;</span><span class="p">:</span> <span class="s2">&quot;./outputs/output_file.h5&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;features&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;windspeed_100m&quot;</span><span class="p">,</span> <span class="s2">&quot;winddirection_100m&quot;</span><span class="p">],</span>
+    <span class="s2">&quot;log_file&quot;</span><span class="p">:</span> <span class="s2">&quot;./logs/collect.log&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;execution_control&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;option&quot;</span><span class="p">:</span> <span class="s2">&quot;local&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;log_level&quot;</span><span class="p">:</span> <span class="s2">&quot;DEBUG&quot;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Note that the <code class="docutils literal notranslate"><span class="pre">execution_control</span></code> has the same options as forward-pass
+and you can set <code class="docutils literal notranslate"><span class="pre">&quot;option&quot;:</span> <span class="pre">&quot;kestrel&quot;</span></code> to run on the NREL HPC.</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>sup3r<span class="w"> </span>data-collect<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-sup3r-data-collect-v">
+<span id="cmdoption-sup3r-data-collect-verbose"></span><span class="sig-name descname"><span class="pre">-v</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--verbose</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-sup3r-data-collect-v" title="Link to this definition"></a></dt>
+<dd><p>Flag to turn on debug logging.</p>
+</dd></dl>
+
+</section>
+<section id="sup3r-data-extract">
+<h2>data-extract<a class="headerlink" href="#sup3r-data-extract" title="Link to this heading"></a></h2>
+<p>Sup3r data extraction and caching prior to training</p>
+<p>The sup3r data-extract module is a utility to pre-extract and pre-process
+data from a source file to disk pickle files for faster restarts while
+debugging. You can call the data-extract module via the sup3r-pipeline CLI,
+or call it directly with either of these equivalent commands:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ sup3r -c config_extract.json data-extract
+
+$ sup3r-data-extract from-config -c config_extract.json
+</pre></div>
+</div>
+<p>A sup3r data-extract config.json file can contain any arguments or keyword
+arguments required to initialize the
+<code class="xref py py-class docutils literal notranslate"><span class="pre">sup3r.preprocessing.data_handling.DataHandler</span></code> class. The config
+also has several optional arguments: <code class="docutils literal notranslate"><span class="pre">handler_class</span></code>, <code class="docutils literal notranslate"><span class="pre">log_level</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">execution_control</span></code>. Here’s a small example data-extract config:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+    <span class="s2">&quot;file_paths&quot;</span><span class="p">:</span> <span class="s2">&quot;/datasets/WIND/conus/v1.0.0/wtk_conus_2007.h5&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;features&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;U_100m&quot;</span><span class="p">,</span> <span class="s2">&quot;V_100m&quot;</span><span class="p">],</span>
+    <span class="s2">&quot;target&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">27</span><span class="p">,</span> <span class="o">-</span><span class="mi">97</span><span class="p">],</span>
+    <span class="s2">&quot;shape&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">800</span><span class="p">,</span> <span class="mi">800</span><span class="p">],</span>
+    <span class="s2">&quot;execution_control&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;option&quot;</span><span class="p">:</span> <span class="s2">&quot;local&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;log_level&quot;</span><span class="p">:</span> <span class="s2">&quot;DEBUG&quot;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Note that the <code class="docutils literal notranslate"><span class="pre">execution_control</span></code> has the same options as forward-pass
+and you can set <code class="docutils literal notranslate"><span class="pre">&quot;option&quot;:</span> <span class="pre">&quot;kestrel&quot;</span></code> to run on the NREL HPC.</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>sup3r<span class="w"> </span>data-extract<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-sup3r-data-extract-v">
+<span id="cmdoption-sup3r-data-extract-verbose"></span><span class="sig-name descname"><span class="pre">-v</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--verbose</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-sup3r-data-extract-v" title="Link to this definition"></a></dt>
+<dd><p>Flag to turn on debug logging.</p>
+</dd></dl>
+
+</section>
+<section id="sup3r-forward-pass">
+<h2>forward-pass<a class="headerlink" href="#sup3r-forward-pass" title="Link to this heading"></a></h2>
+<p>Sup3r forward pass to super-resolve data.</p>
+<p>The sup3r forward pass is where all the magic happens. This module takes in
+low resolution data from source files (e.g. WRF or GCM outputs), loads a
+saved Sup3rGan model, does a forward pass of the low res data through the
+generator, and then saves the output high resolution data to disk. This
+module also handles multi-node and multi-core parallelization.</p>
+<p>You can call the forward-pass module via the sup3r-pipeline CLI, or call it
+directly with either of these equivalent commands:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ sup3r -c config_fwp.json forward-pass
+
+$ sup3r-forward-pass from-config -c config_fwp.json
+</pre></div>
+</div>
+<p>A sup3r forward pass config.json file can contain any arguments or keyword
+arguments required to initialize the
+<a class="reference internal" href="../_autosummary/sup3r.pipeline.forward_pass.ForwardPassStrategy.html#sup3r.pipeline.forward_pass.ForwardPassStrategy" title="sup3r.pipeline.forward_pass.ForwardPassStrategy"><code class="xref py py-class docutils literal notranslate"><span class="pre">sup3r.pipeline.forward_pass.ForwardPassStrategy</span></code></a> module. The config
+also has several optional arguments: <code class="docutils literal notranslate"><span class="pre">log_pattern</span></code>, <code class="docutils literal notranslate"><span class="pre">log_level</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">execution_control</span></code>. Here’s a small example forward pass config:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+    <span class="s2">&quot;file_paths&quot;</span><span class="p">:</span> <span class="s2">&quot;./source_files*.nc&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;model_kwargs&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;model_dir&quot;</span><span class="p">:</span> <span class="s2">&quot;./sup3r_model/&quot;</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;out_pattern&quot;</span><span class="p">:</span> <span class="s2">&quot;./output/sup3r_out_</span><span class="si">{file_id}</span><span class="s2">.h5&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;log_pattern&quot;</span><span class="p">:</span> <span class="s2">&quot;./logs/log_</span><span class="si">{node_index}</span><span class="s2">.log&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;log_level&quot;</span><span class="p">:</span> <span class="s2">&quot;DEBUG&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;fwp_chunk_shape&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span>
+    <span class="s2">&quot;spatial_pad&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="s2">&quot;temporal_pad&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="s2">&quot;max_nodes&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="s2">&quot;worker_kwargs&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;max_workers&quot;</span><span class="p">:</span> <span class="n">null</span><span class="p">,</span>
+        <span class="s2">&quot;output_workers&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="s2">&quot;pass_workers&quot;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span>
+        <span class="s2">&quot;ti_workers&quot;</span><span class="p">:</span> <span class="mi">1</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;input_handler_kwargs&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;worker_kwargs&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;max_workers&quot;</span><span class="p">:</span> <span class="mi">1</span>
+        <span class="p">},</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;execution_control&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;option&quot;</span><span class="p">:</span> <span class="s2">&quot;kestrel&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;walltime&quot;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
+        <span class="s2">&quot;alloc&quot;</span><span class="p">:</span> <span class="s2">&quot;sup3r&quot;</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Note that the <code class="docutils literal notranslate"><span class="pre">execution_control</span></code> block contains kwargs that would
+be required to distribute the job on multiple nodes on the NREL HPC.
+To run the job locally, use <code class="docutils literal notranslate"><span class="pre">execution_control:</span> <span class="pre">{&quot;option&quot;:</span> <span class="pre">&quot;local&quot;}</span></code>.</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>sup3r<span class="w"> </span>forward-pass<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-sup3r-forward-pass-v">
+<span id="cmdoption-sup3r-forward-pass-verbose"></span><span class="sig-name descname"><span class="pre">-v</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--verbose</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-sup3r-forward-pass-v" title="Link to this definition"></a></dt>
+<dd><p>Flag to turn on debug logging.</p>
+</dd></dl>
+
+</section>
+<section id="sup3r-pipeline">
+<h2>pipeline<a class="headerlink" href="#sup3r-pipeline" title="Link to this heading"></a></h2>
+<p>Execute multiple steps in a Sup3r pipeline.</p>
+<p>Typically, a good place to start is to set up a sup3r job with a pipeline
+config that points to several sup3r modules that you want to run in serial.
+You would call the sup3r pipeline CLI using either of these equivalent
+commands:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ sup3r -c config_pipeline.json pipeline
+
+$ sup3r-pipeline from-config -c config_pipeline.json
+</pre></div>
+</div>
+<p>A typical sup3r pipeline config.json file might look like this:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+    <span class="s2">&quot;logging&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;log_level&quot;</span><span class="p">:</span> <span class="s2">&quot;DEBUG&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;pipeline&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="p">{</span><span class="s2">&quot;forward-pass&quot;</span><span class="p">:</span> <span class="s2">&quot;./config_fwp.json&quot;</span><span class="p">},</span>
+        <span class="p">{</span><span class="s2">&quot;data-collect&quot;</span><span class="p">:</span> <span class="s2">&quot;./config_collect.json&quot;</span><span class="p">}</span>
+    <span class="p">]</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>See the other CLI help pages for what the respective module configs
+require.</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>sup3r<span class="w"> </span>pipeline<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>COMMAND<span class="w"> </span><span class="o">[</span>ARGS<span class="o">]</span>...
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-sup3r-pipeline-cancel">
+<span class="sig-name descname"><span class="pre">--cancel</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-sup3r-pipeline-cancel" title="Link to this definition"></a></dt>
+<dd><p>Flag to cancel all jobs associated with a given pipeline.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-sup3r-pipeline-monitor">
+<span class="sig-name descname"><span class="pre">--monitor</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-sup3r-pipeline-monitor" title="Link to this definition"></a></dt>
+<dd><p>Flag to monitor pipeline jobs continuously. Default is not to monitor (kick off jobs and exit).</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-sup3r-pipeline-background">
+<span class="sig-name descname"><span class="pre">--background</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-sup3r-pipeline-background" title="Link to this definition"></a></dt>
+<dd><p>Flag to monitor pipeline jobs continuously in the background using the nohup command. Note that the stdout/stderr will not be captured, but you can set a pipeline “log_file” to capture logs.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-sup3r-pipeline-v">
+<span id="cmdoption-sup3r-pipeline-verbose"></span><span class="sig-name descname"><span class="pre">-v</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--verbose</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-sup3r-pipeline-v" title="Link to this definition"></a></dt>
+<dd><p>Flag to turn on debug logging.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-sup3r-pipeline-0">
+<span id="cmdoption-sup3r-pipeline-1"></span><span class="sig-name descname"><span class="pre">-v</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--verbose</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-sup3r-pipeline-0" title="Link to this definition"></a></dt>
+<dd><p>Flag to turn on debug logging.</p>
+</dd></dl>
+
+</section>
+<section id="sup3r-qa">
+<h2>qa<a class="headerlink" href="#sup3r-qa" title="Link to this heading"></a></h2>
+<p>Sup3r QA module following forward pass and collection.</p>
+<p>The sup3r QA module can be used to verify how well the high-resolution
+sup3r resolved outputs adhere to the low-resolution source data. You can
+call the QA module via the sup3r-pipeline CLI, or call it
+directly with either of these equivalent commands:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ sup3r -c config_qa.json qa
+
+$ sup3r-qa from-config -c config_qa.json
+</pre></div>
+</div>
+<p>A sup3r QA config.json file can contain any arguments or keyword
+arguments required to initialize the <a class="reference internal" href="../_autosummary/sup3r.qa.qa.Sup3rQa.html#sup3r.qa.qa.Sup3rQa" title="sup3r.qa.qa.Sup3rQa"><code class="xref py py-class docutils literal notranslate"><span class="pre">sup3r.qa.qa.Sup3rQa</span></code></a> class.
+The config also has several optional arguments: <code class="docutils literal notranslate"><span class="pre">log_file</span></code>,
+<code class="docutils literal notranslate"><span class="pre">log_level</span></code>, and <code class="docutils literal notranslate"><span class="pre">execution_control</span></code>. Here’s a small example
+QA config:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+    <span class="s2">&quot;source_file_paths&quot;</span><span class="p">:</span> <span class="s2">&quot;./source_files*.nc&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;out_file_path&quot;</span><span class="p">:</span> <span class="s2">&quot;./outputs/collected_output_file.h5&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;s_enhance&quot;</span><span class="p">:</span> <span class="mi">25</span><span class="p">,</span>
+    <span class="s2">&quot;t_enhance&quot;</span><span class="p">:</span> <span class="mi">24</span><span class="p">,</span>
+    <span class="s2">&quot;temporal_coarsening_method&quot;</span><span class="p">:</span> <span class="s2">&quot;average&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;log_file&quot;</span><span class="p">:</span> <span class="s2">&quot;./logs/qa.log&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;execution_control&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;option&quot;</span><span class="p">:</span> <span class="s2">&quot;local&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;log_level&quot;</span><span class="p">:</span> <span class="s2">&quot;DEBUG&quot;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Note that the <code class="docutils literal notranslate"><span class="pre">execution_control</span></code> has the same options as forward-pass
+and you can set <code class="docutils literal notranslate"><span class="pre">&quot;option&quot;:</span> <span class="pre">&quot;kestrel&quot;</span></code> to run on the NREL HPC.</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>sup3r<span class="w"> </span>qa<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-sup3r-qa-v">
+<span id="cmdoption-sup3r-qa-verbose"></span><span class="sig-name descname"><span class="pre">-v</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--verbose</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-sup3r-qa-v" title="Link to this definition"></a></dt>
+<dd><p>Flag to turn on debug logging.</p>
+</dd></dl>
+
+</section>
+<section id="sup3r-regrid">
+<h2>regrid<a class="headerlink" href="#sup3r-regrid" title="Link to this heading"></a></h2>
+<p>Sup3r regrid module for regridding forward pass output to a different
+meta file.</p>
+<p>You can call the regrid module via the sup3r-pipeline CLI, or call it
+directly with either of these equivalent commands:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ sup3r -c config_regrid.json regrid
+
+$ sup3r-regrid from-config -c config_regrid.json
+</pre></div>
+</div>
+<p>A sup3r regrid config.json file can contain any arguments or keyword
+arguments required to initialize the
+<a class="reference internal" href="../_autosummary/sup3r.utilities.regridder.RegridOutput.html#sup3r.utilities.regridder.RegridOutput" title="sup3r.utilities.regridder.RegridOutput"><code class="xref py py-class docutils literal notranslate"><span class="pre">sup3r.utilities.regridder.RegridOutput</span></code></a> class. The config also has
+several optional arguments: <code class="docutils literal notranslate"><span class="pre">log_file</span></code>, <code class="docutils literal notranslate"><span class="pre">log_level</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">execution_control</span></code>.
+Here’s a small example regrid config:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+    <span class="s2">&quot;source_files&quot;</span><span class="p">:</span> <span class="s2">&quot;./source_files*.h5&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;out_pattern&quot;</span><span class="p">:</span> <span class="s2">&quot;./chunks_</span><span class="si">{file_id}</span><span class="s2">.h5&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;heights&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">100</span><span class="p">,</span> <span class="mi">200</span><span class="p">],</span>
+    <span class="s2">&quot;target_meta&quot;</span><span class="p">:</span> <span class="s2">&quot;./target_meta.csv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;n_chunks&quot;</span><span class="p">:</span> <span class="mi">100</span><span class="p">,</span>
+    <span class="s2">&quot;worker_kwargs&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;regrid_workers&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span> <span class="s2">&quot;query_workers&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">},</span>
+    <span class="s2">&quot;cache_pattern&quot;</span><span class="p">:</span> <span class="s2">&quot;./</span><span class="si">{array_name}</span><span class="s2">.pkl&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;log_file&quot;</span><span class="p">:</span> <span class="s2">&quot;./logs/regrid.log&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;execution_control&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;option&quot;</span><span class="p">:</span> <span class="s2">&quot;local&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;log_level&quot;</span><span class="p">:</span> <span class="s2">&quot;DEBUG&quot;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Note that the <code class="docutils literal notranslate"><span class="pre">execution_control</span></code> has the same options as forward-pass
+and you can set <code class="docutils literal notranslate"><span class="pre">&quot;option&quot;:</span> <span class="pre">&quot;kestrel&quot;</span></code> to run on the NREL HPC.</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>sup3r<span class="w"> </span>regrid<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-sup3r-regrid-v">
+<span id="cmdoption-sup3r-regrid-verbose"></span><span class="sig-name descname"><span class="pre">-v</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--verbose</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-sup3r-regrid-v" title="Link to this definition"></a></dt>
+<dd><p>Flag to turn on debug logging.</p>
+</dd></dl>
+
+</section>
+<section id="sup3r-solar">
+<h2>solar<a class="headerlink" href="#sup3r-solar" title="Link to this heading"></a></h2>
+<p>Sup3r solar module to convert GAN output clearsky ratio to irradiance</p>
+<blockquote>
+<div><p>Typically we train solar GAN’s on clearsky ratio to remove the dependence
+on known variables like solar position and clearsky irradiance. This module
+converts the clearsky ratio output by the GAN in the forward-pass step to
+actual irradiance values (ghi, dni, and dhi). This should be run after the
+forward-pass but before the data-collect step.</p>
+<p>You can call the solar module via the sup3r-pipeline CLI, or call it
+directly with either of these equivalent commands:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ sup3r -c config_solar.json solar
+
+$ sup3r-solar from-config -c config_solar.json
+</pre></div>
+</div>
+<p>A sup3r solar config.json file can contain any arguments or keyword
+arguments required to call the
+<a class="reference internal" href="../_autosummary/sup3r.solar.solar.Solar.html#sup3r.solar.solar.Solar.run_temporal_chunk" title="sup3r.solar.solar.Solar.run_temporal_chunk"><code class="xref py py-meth docutils literal notranslate"><span class="pre">sup3r.solar.solar.Solar.run_temporal_chunk()</span></code></a> method. You do not need
+to include the <code class="docutils literal notranslate"><span class="pre">i_t_chunk</span></code> input, this is added by the CLI. The config
+also has several optional arguments: <code class="docutils literal notranslate"><span class="pre">log_pattern</span></code>, <code class="docutils literal notranslate"><span class="pre">log_level</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">execution_control</span></code>. Here’s a small example solar config:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+    <span class="s2">&quot;fp_pattern&quot;</span><span class="p">:</span> <span class="s2">&quot;./chunks/sup3r*.h5&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;nsrdb_fp&quot;</span><span class="p">:</span> <span class="s2">&quot;/datasets/NSRDB/current/nsrdb_2015.h5&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;execution_control&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;option&quot;</span><span class="p">:</span> <span class="s2">&quot;kestrel&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;walltime&quot;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
+        <span class="s2">&quot;alloc&quot;</span><span class="p">:</span> <span class="s2">&quot;sup3r&quot;</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div></blockquote>
+<dl class="simple">
+<dt>Note that the <code class="docutils literal notranslate"><span class="pre">execution_control</span></code> block contains kwargs that would</dt><dd><p>be required to distribute the job on multiple nodes on the NREL HPC.
+To run the job locally, use <code class="docutils literal notranslate"><span class="pre">execution_control:</span> <span class="pre">{&quot;option&quot;:</span> <span class="pre">&quot;local&quot;}</span></code>.</p>
+</dd>
+</dl>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>sup3r<span class="w"> </span>solar<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-sup3r-solar-v">
+<span id="cmdoption-sup3r-solar-verbose"></span><span class="sig-name descname"><span class="pre">-v</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--verbose</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-sup3r-solar-v" title="Link to this definition"></a></dt>
+<dd><p>Flag to turn on debug logging.</p>
+</dd></dl>
+
+</section>
+<section id="sup3r-stats">
+<h2>stats<a class="headerlink" href="#sup3r-stats" title="Link to this heading"></a></h2>
+<p>Sup3r stats module following forward pass and collection.</p>
+<p>The sup3r stats module computes various statistics on wind fields of at
+given hub heights. These statistics include energy spectra, time derivative
+pdfs, velocity gradient pdfs, and vorticity pdfs.
+You can call the stats module via the sup3r-pipeline CLI, or call it
+directly with either of these equivalent commands:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ sup3r -c config_stats.json stats
+
+$ sup3r-stats from-config -c config_stats.json
+</pre></div>
+</div>
+<p>A sup3r stats config.json file can contain any arguments or keyword
+arguments required to initialize the
+<a class="reference internal" href="../_autosummary/sup3r.qa.stats.Sup3rStatsMulti.html#sup3r.qa.stats.Sup3rStatsMulti" title="sup3r.qa.stats.Sup3rStatsMulti"><code class="xref py py-class docutils literal notranslate"><span class="pre">sup3r.qa.stats.Sup3rStatsMulti</span></code></a> class. The config also has several
+optional arguments: <code class="docutils literal notranslate"><span class="pre">log_file</span></code>, <code class="docutils literal notranslate"><span class="pre">log_level</span></code>, and <code class="docutils literal notranslate"><span class="pre">execution_control</span></code>.
+Here’s a small example stats config:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+    <span class="s2">&quot;source_file_paths&quot;</span><span class="p">:</span> <span class="s2">&quot;./source_files*.nc&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;out_file_path&quot;</span><span class="p">:</span> <span class="s2">&quot;./outputs/collected_output_file.h5&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;s_enhance&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+    <span class="s2">&quot;t_enhance&quot;</span><span class="p">:</span> <span class="mi">12</span><span class="p">,</span>
+    <span class="s2">&quot;features&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;windspeed_100m&quot;</span><span class="p">,</span> <span class="s2">&quot;winddirection_100m&quot;</span><span class="p">],</span>
+    <span class="s2">&quot;include_stats&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;time_derivative&quot;</span><span class="p">,</span> <span class="s2">&quot;gradient&quot;</span><span class="p">,</span> <span class="s2">&quot;spectrum_k&quot;</span><span class="p">]</span>
+    <span class="s2">&quot;get_interp&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="s2">&quot;log_file&quot;</span><span class="p">:</span> <span class="s2">&quot;./logs/stats.log&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;execution_control&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;option&quot;</span><span class="p">:</span> <span class="s2">&quot;local&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;log_level&quot;</span><span class="p">:</span> <span class="s2">&quot;DEBUG&quot;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Note that the <code class="docutils literal notranslate"><span class="pre">execution_control</span></code> has the same options as forward-pass
+and you can set <code class="docutils literal notranslate"><span class="pre">&quot;option&quot;:</span> <span class="pre">&quot;kestrel&quot;</span></code> to run on the NREL HPC.</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>sup3r<span class="w"> </span>stats<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-sup3r-stats-v">
+<span id="cmdoption-sup3r-stats-verbose"></span><span class="sig-name descname"><span class="pre">-v</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--verbose</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-sup3r-stats-v" title="Link to this definition"></a></dt>
+<dd><p>Flag to turn on debug logging.</p>
+</dd></dl>
+
+</section>
+<section id="sup3r-visual-qa">
+<h2>visual-qa<a class="headerlink" href="#sup3r-visual-qa" title="Link to this heading"></a></h2>
+<p>Sup3r visual QA module following forward pass and collection.</p>
+<p>The sup3r visual QA module can be used to perform a visual inspection on
+the high-resolution sup3r resolved output. You can call the visual QA
+module via the sup3r-pipeline CLI, or call it directly with either of
+these equivalent commands:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ sup3r -c config_qa.json visual-qa
+
+$ sup3r-visual-qa from-config -c config_qa.json
+</pre></div>
+</div>
+<p>A sup3r visual QA config.json file can contain any arguments or keyword
+arguments required to initialize the <code class="xref py py-class docutils literal notranslate"><span class="pre">sup3r.qa.qa.Sup3rVisualQa</span></code>
+class. The config also has several optional arguments: <code class="docutils literal notranslate"><span class="pre">log_file</span></code>,
+<code class="docutils literal notranslate"><span class="pre">log_level</span></code>, and <code class="docutils literal notranslate"><span class="pre">execution_control</span></code>. Here’s a small example
+visual QA config:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+    <span class="s2">&quot;file_paths&quot;</span><span class="p">:</span> <span class="s2">&quot;./outputs/collected_output*.h5&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;out_pattern&quot;</span><span class="p">:</span> <span class="s2">&quot;./outputs/plots/</span><span class="si">{feature}</span><span class="s2">_</span><span class="si">{index}</span><span class="s2">.png&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;features&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;windspeed_100m&#39;</span><span class="p">,</span> <span class="s1">&#39;winddirection_100m&#39;</span><span class="p">],</span>
+    <span class="s2">&quot;time_step&quot;</span><span class="p">:</span> <span class="mi">100</span><span class="p">,</span>
+    <span class="s2">&quot;spatial_slice&quot;</span><span class="p">:</span> <span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">100</span><span class="p">],</span>
+    <span class="s2">&quot;execution_control&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;option&quot;</span><span class="p">:</span> <span class="s2">&quot;local&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;log_level&quot;</span><span class="p">:</span> <span class="s2">&quot;DEBUG&quot;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Note that the <code class="docutils literal notranslate"><span class="pre">execution_control</span></code> has the same options as forward-pass
+and you can set <code class="docutils literal notranslate"><span class="pre">&quot;option&quot;:</span> <span class="pre">&quot;kestrel&quot;</span></code> to run on the NREL HPC.</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>sup3r<span class="w"> </span>visual-qa<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-sup3r-visual-qa-v">
+<span id="cmdoption-sup3r-visual-qa-verbose"></span><span class="sig-name descname"><span class="pre">-v</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--verbose</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-sup3r-visual-qa-v" title="Link to this definition"></a></dt>
+<dd><p>Flag to turn on debug logging.</p>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="cli.html" class="btn btn-neutral float-left" title="Command Line Interfaces (CLIs)" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Alliance for Sustainable Energy, LLC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

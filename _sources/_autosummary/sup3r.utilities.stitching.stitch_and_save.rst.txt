@@ -1,0 +1,6 @@
+sup3r.utilities.stitching.stitch\_and\_save
+===========================================
+
+.. currentmodule:: sup3r.utilities.stitching
+
+.. autofunction:: stitch_and_save

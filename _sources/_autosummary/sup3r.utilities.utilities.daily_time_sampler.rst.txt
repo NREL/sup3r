@@ -1,0 +1,6 @@
+sup3r.utilities.utilities.daily\_time\_sampler
+==============================================
+
+.. currentmodule:: sup3r.utilities.utilities
+
+.. autofunction:: daily_time_sampler

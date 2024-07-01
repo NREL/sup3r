@@ -1,0 +1,31 @@
+sup3r.preprocessing.feature\_handling.Veer
+==========================================
+
+.. currentmodule:: sup3r.preprocessing.feature_handling
+
+.. autoclass:: Veer
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~Veer.compute
+      ~Veer.inputs
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~Veer.HEIGHTS
+   
+   

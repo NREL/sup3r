@@ -1,0 +1,47 @@
+sup3r.preprocessing.conditional\_moment\_batch\_handling.BatchHandlerMom1SF
+===========================================================================
+
+.. currentmodule:: sup3r.preprocessing.conditional_moment_batch_handling
+
+.. autoclass:: BatchHandlerMom1SF
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~BatchHandlerMom1SF.cache_stats
+      ~BatchHandlerMom1SF.check_cached_stats
+      ~BatchHandlerMom1SF.get_handler_index
+      ~BatchHandlerMom1SF.get_rand_handler
+      ~BatchHandlerMom1SF.get_stats
+      ~BatchHandlerMom1SF.load_handler_data
+      ~BatchHandlerMom1SF.normalize
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~BatchHandlerMom1SF.DATA_HANDLER_CLASS
+      ~BatchHandlerMom1SF.feature_mem
+      ~BatchHandlerMom1SF.features
+      ~BatchHandlerMom1SF.handler_weights
+      ~BatchHandlerMom1SF.hr_exo_features
+      ~BatchHandlerMom1SF.hr_features_ind
+      ~BatchHandlerMom1SF.hr_out_features
+      ~BatchHandlerMom1SF.load_workers
+      ~BatchHandlerMom1SF.lr_features
+      ~BatchHandlerMom1SF.norm_workers
+      ~BatchHandlerMom1SF.shape
+      ~BatchHandlerMom1SF.stats_workers
+   
+   

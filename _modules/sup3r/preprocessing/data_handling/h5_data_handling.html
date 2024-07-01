@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>sup3r.preprocessing.data_handling.h5_data_handling &mdash; sup3r 0.1.3.dev147+gee6ab7b4 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/copybutton.css?v=76b2166b" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/tabs.css?v=a5c4661c" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../../_static/documentation_options.js?v=b68f4368"></script>
+        <script src="../../../../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="../../../../_static/clipboard.min.js?v=a7894cd8"></script>
+        <script src="../../../../_static/copybutton.js?v=f281be69"></script>
+        <script src="../../../../_static/tabs.js?v=3030b3cb"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            sup3r
+          </a>
+              <div class="version">
+                0.1.3.dev147+gee6ab7b4
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../index.html">Home page</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../misc/installation_usage.html">Installation and Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../misc/installation.html">Installation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../misc/installation.html#option-1-install-from-pip-recommended-for-analysts">Option 1: Install from PIP (recommended for analysts):</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../misc/installation.html#option-2-clone-repo-recommended-for-developers">Option 2: Clone repo (recommended for developers)</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples/examples.html">Examples</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../examples/sup3rcc.html">Sup3rCC Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../examples/sup3rcc.html#sup3rcc-data-access">Sup3rCC Data Access</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../examples/sup3rcc.html#directory-structure">Directory Structure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../examples/sup3rcc.html#example-sup3rcc-data-usage">Example Sup3rCC Data Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../examples/sup3rcc.html#running-sup3rcc-models">Running Sup3rCC Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../examples/sup3rcc.html#nuances-of-sup3rcc">Nuances of Sup3rCC</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../examples/sup3rcc.html#sup3rcc-versions">Sup3rCC Versions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../examples/sup3rcc.html#recommended-citation">Recommended Citation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../examples/sup3rcc.html#acknowledgements">Acknowledgements</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../examples/sup3rwind.html">Sup3rWind Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../examples/sup3rwind.html#sup3rwind-data-access">Sup3rWind Data Access</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../examples/sup3rwind.html#example-sup3rwind-data-usage">Example Sup3rWind Data Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../examples/sup3rwind.html#running-sup3rwind-models">Running Sup3rWind Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../examples/sup3rwind.html#sup3rwind-versions">Sup3rWind Versions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../examples/sup3rwind.html#recommended-citation">Recommended Citation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../examples/sup3rwind.html#acknowledgements">Acknowledgements</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../_autosummary/sup3r.html">API reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../_autosummary/sup3r.batch.html">sup3r.batch</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.batch.batch_cli.html">sup3r.batch.batch_cli</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../_autosummary/sup3r.bias.html">sup3r.bias</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.bias.bias_calc.html">sup3r.bias.bias_calc</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.bias.bias_calc.DataRetrievalBase.html">sup3r.bias.bias_calc.DataRetrievalBase</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.bias.bias_calc.LinearCorrection.html">sup3r.bias.bias_calc.LinearCorrection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.bias.bias_calc.MonthlyLinearCorrection.html">sup3r.bias.bias_calc.MonthlyLinearCorrection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.bias.bias_calc.MonthlyScalarCorrection.html">sup3r.bias.bias_calc.MonthlyScalarCorrection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.bias.bias_calc.SkillAssessment.html">sup3r.bias.bias_calc.SkillAssessment</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.bias.bias_calc_cli.html">sup3r.bias.bias_calc_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.bias.bias_calc_cli.kickoff_local_job.html">sup3r.bias.bias_calc_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.bias.bias_calc_cli.kickoff_slurm_job.html">sup3r.bias.bias_calc_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.bias.bias_correct_means.html">sup3r.bias.bias_correct_means</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.bias.bias_correct_means.BiasCorrectUpdate.html">sup3r.bias.bias_correct_means.BiasCorrectUpdate</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.bias.bias_correct_means.VortexMeanPrepper.html">sup3r.bias.bias_correct_means.VortexMeanPrepper</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.bias.bias_transforms.html">sup3r.bias.bias_transforms</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.bias.bias_transforms.get_spatial_bc_factors.html">sup3r.bias.bias_transforms.get_spatial_bc_factors</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.bias.bias_transforms.get_spatial_bc_quantiles.html">sup3r.bias.bias_transforms.get_spatial_bc_quantiles</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.bias.bias_transforms.global_linear_bc.html">sup3r.bias.bias_transforms.global_linear_bc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.bias.bias_transforms.local_linear_bc.html">sup3r.bias.bias_transforms.local_linear_bc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.bias.bias_transforms.local_qdm_bc.html">sup3r.bias.bias_transforms.local_qdm_bc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.bias.bias_transforms.monthly_local_linear_bc.html">sup3r.bias.bias_transforms.monthly_local_linear_bc</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.bias.mixins.html">sup3r.bias.mixins</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.bias.mixins.FillAndSmoothMixin.html">sup3r.bias.mixins.FillAndSmoothMixin</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.bias.qdm.html">sup3r.bias.qdm</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.bias.qdm.QuantileDeltaMappingCorrection.html">sup3r.bias.qdm.QuantileDeltaMappingCorrection</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../_autosummary/sup3r.cli.html">sup3r.cli</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../_autosummary/sup3r.models.html">sup3r.models</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.models.abstract.html">sup3r.models.abstract</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.models.abstract.AbstractInterface.html">sup3r.models.abstract.AbstractInterface</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.models.abstract.AbstractSingleModel.html">sup3r.models.abstract.AbstractSingleModel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.models.abstract.TensorboardMixIn.html">sup3r.models.abstract.TensorboardMixIn</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.models.base.html">sup3r.models.base</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.models.base.Sup3rGan.html">sup3r.models.base.Sup3rGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.models.conditional_moments.html">sup3r.models.conditional_moments</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.models.conditional_moments.Sup3rCondMom.html">sup3r.models.conditional_moments.Sup3rCondMom</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.models.data_centric.html">sup3r.models.data_centric</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.models.data_centric.Sup3rGanDC.html">sup3r.models.data_centric.Sup3rGanDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.models.data_centric.Sup3rGanSpatialDC.html">sup3r.models.data_centric.Sup3rGanSpatialDC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.models.linear.html">sup3r.models.linear</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.models.linear.LinearInterp.html">sup3r.models.linear.LinearInterp</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.models.multi_step.html">sup3r.models.multi_step</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.models.multi_step.MultiStepGan.html">sup3r.models.multi_step.MultiStepGan</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.models.multi_step.MultiStepSurfaceMetGan.html">sup3r.models.multi_step.MultiStepSurfaceMetGan</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.models.multi_step.SolarMultiStepGan.html">sup3r.models.multi_step.SolarMultiStepGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.models.solar_cc.html">sup3r.models.solar_cc</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.models.solar_cc.SolarCC.html">sup3r.models.solar_cc.SolarCC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.models.surface.html">sup3r.models.surface</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.models.surface.SurfaceSpatialMetModel.html">sup3r.models.surface.SurfaceSpatialMetModel</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../_autosummary/sup3r.pipeline.html">sup3r.pipeline</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.pipeline.forward_pass.html">sup3r.pipeline.forward_pass</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.pipeline.forward_pass.ForwardPass.html">sup3r.pipeline.forward_pass.ForwardPass</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.pipeline.forward_pass.ForwardPassSlicer.html">sup3r.pipeline.forward_pass.ForwardPassSlicer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.pipeline.forward_pass.ForwardPassStrategy.html">sup3r.pipeline.forward_pass.ForwardPassStrategy</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.pipeline.forward_pass_cli.html">sup3r.pipeline.forward_pass_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.pipeline.forward_pass_cli.kickoff_local_job.html">sup3r.pipeline.forward_pass_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.pipeline.forward_pass_cli.kickoff_slurm_job.html">sup3r.pipeline.forward_pass_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.pipeline.pipeline_cli.html">sup3r.pipeline.pipeline_cli</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../_autosummary/sup3r.postprocessing.html">sup3r.postprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.postprocessing.collection.html">sup3r.postprocessing.collection</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.postprocessing.collection.BaseCollector.html">sup3r.postprocessing.collection.BaseCollector</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.postprocessing.collection.CollectorH5.html">sup3r.postprocessing.collection.CollectorH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.postprocessing.collection.CollectorNC.html">sup3r.postprocessing.collection.CollectorNC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.postprocessing.data_collect_cli.html">sup3r.postprocessing.data_collect_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.postprocessing.data_collect_cli.kickoff_local_job.html">sup3r.postprocessing.data_collect_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.postprocessing.data_collect_cli.kickoff_slurm_job.html">sup3r.postprocessing.data_collect_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.postprocessing.file_handling.html">sup3r.postprocessing.file_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.postprocessing.file_handling.OutputHandler.html">sup3r.postprocessing.file_handling.OutputHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.postprocessing.file_handling.OutputHandlerH5.html">sup3r.postprocessing.file_handling.OutputHandlerH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.postprocessing.file_handling.OutputHandlerNC.html">sup3r.postprocessing.file_handling.OutputHandlerNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.postprocessing.file_handling.OutputMixIn.html">sup3r.postprocessing.file_handling.OutputMixIn</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.postprocessing.file_handling.RexOutputs.html">sup3r.postprocessing.file_handling.RexOutputs</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.html">sup3r.preprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.batch_handling.html">sup3r.preprocessing.batch_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.batch_handling.Batch.html">sup3r.preprocessing.batch_handling.Batch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.batch_handling.BatchHandler.html">sup3r.preprocessing.batch_handling.BatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.batch_handling.BatchHandlerCC.html">sup3r.preprocessing.batch_handling.BatchHandlerCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.batch_handling.BatchHandlerDC.html">sup3r.preprocessing.batch_handling.BatchHandlerDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.batch_handling.BatchHandlerSpatialDC.html">sup3r.preprocessing.batch_handling.BatchHandlerSpatialDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.batch_handling.SpatialBatchHandler.html">sup3r.preprocessing.batch_handling.SpatialBatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC.html">sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.batch_handling.ValidationData.html">sup3r.preprocessing.batch_handling.ValidationData</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.batch_handling.ValidationDataDC.html">sup3r.preprocessing.batch_handling.ValidationDataDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.batch_handling.ValidationDataSpatialDC.html">sup3r.preprocessing.batch_handling.ValidationDataSpatialDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.batch_handling.ValidationDataTemporalDC.html">sup3r.preprocessing.batch_handling.ValidationDataTemporalDC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.html">sup3r.preprocessing.conditional_moment_batch_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1SF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2Sep.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SepSF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SepSF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1SF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2Sep.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SepSF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SepSF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1SF.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SF.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2Sep.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SepSF.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SepSF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1SF.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SF.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2Sep.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SepSF.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SepSF</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.data_extract_cli.html">sup3r.preprocessing.data_extract_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.data_extract_cli.kickoff_local_job.html">sup3r.preprocessing.data_extract_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.data_extract_cli.kickoff_slurm_job.html">sup3r.preprocessing.data_extract_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.data_handling.html">sup3r.preprocessing.data_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.data_handling.base.html">sup3r.preprocessing.data_handling.base</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.data_handling.dual_data_handling.html">sup3r.preprocessing.data_handling.dual_data_handling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.data_handling.exo_extraction.html">sup3r.preprocessing.data_handling.exo_extraction</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.data_handling.exogenous_data_handling.html">sup3r.preprocessing.data_handling.exogenous_data_handling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.data_handling.h5_data_handling.html">sup3r.preprocessing.data_handling.h5_data_handling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.data_handling.mixin.html">sup3r.preprocessing.data_handling.mixin</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.data_handling.nc_data_handling.html">sup3r.preprocessing.data_handling.nc_data_handling</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.dual_batch_handling.html">sup3r.preprocessing.dual_batch_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.dual_batch_handling.DualBatchHandler.html">sup3r.preprocessing.dual_batch_handling.DualBatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.dual_batch_handling.DualValidationData.html">sup3r.preprocessing.dual_batch_handling.DualValidationData</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.dual_batch_handling.SpatialDualBatchHandler.html">sup3r.preprocessing.dual_batch_handling.SpatialDualBatchHandler</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.feature_handling.html">sup3r.preprocessing.feature_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.feature_handling.BVFreqMon.html">sup3r.preprocessing.feature_handling.BVFreqMon</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.feature_handling.BVFreqSquaredH5.html">sup3r.preprocessing.feature_handling.BVFreqSquaredH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.feature_handling.BVFreqSquaredNC.html">sup3r.preprocessing.feature_handling.BVFreqSquaredNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.feature_handling.ClearSkyRatioCC.html">sup3r.preprocessing.feature_handling.ClearSkyRatioCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.feature_handling.ClearSkyRatioH5.html">sup3r.preprocessing.feature_handling.ClearSkyRatioH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.feature_handling.CloudMaskH5.html">sup3r.preprocessing.feature_handling.CloudMaskH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.feature_handling.DerivedFeature.html">sup3r.preprocessing.feature_handling.DerivedFeature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.feature_handling.Feature.html">sup3r.preprocessing.feature_handling.Feature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.feature_handling.FeatureHandler.html">sup3r.preprocessing.feature_handling.FeatureHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.feature_handling.InverseMonNC.html">sup3r.preprocessing.feature_handling.InverseMonNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.feature_handling.LatLonH5.html">sup3r.preprocessing.feature_handling.LatLonH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.feature_handling.LatLonNC.html">sup3r.preprocessing.feature_handling.LatLonNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.feature_handling.PotentialTempNC.html">sup3r.preprocessing.feature_handling.PotentialTempNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.feature_handling.PressureNC.html">sup3r.preprocessing.feature_handling.PressureNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.feature_handling.Rews.html">sup3r.preprocessing.feature_handling.Rews</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.feature_handling.Shear.html">sup3r.preprocessing.feature_handling.Shear</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.feature_handling.Tas.html">sup3r.preprocessing.feature_handling.Tas</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.feature_handling.TasMax.html">sup3r.preprocessing.feature_handling.TasMax</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.feature_handling.TasMin.html">sup3r.preprocessing.feature_handling.TasMin</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.feature_handling.TempNC.html">sup3r.preprocessing.feature_handling.TempNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.feature_handling.TempNCforCC.html">sup3r.preprocessing.feature_handling.TempNCforCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.feature_handling.TopoH5.html">sup3r.preprocessing.feature_handling.TopoH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.feature_handling.UWind.html">sup3r.preprocessing.feature_handling.UWind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.feature_handling.UWindPowerLaw.html">sup3r.preprocessing.feature_handling.UWindPowerLaw</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.feature_handling.VWind.html">sup3r.preprocessing.feature_handling.VWind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.feature_handling.VWindPowerLaw.html">sup3r.preprocessing.feature_handling.VWindPowerLaw</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.feature_handling.Veer.html">sup3r.preprocessing.feature_handling.Veer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.feature_handling.Vorticity.html">sup3r.preprocessing.feature_handling.Vorticity</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.feature_handling.WinddirectionNC.html">sup3r.preprocessing.feature_handling.WinddirectionNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.preprocessing.feature_handling.WindspeedNC.html">sup3r.preprocessing.feature_handling.WindspeedNC</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../_autosummary/sup3r.qa.html">sup3r.qa</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.qa.qa.html">sup3r.qa.qa</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.qa.qa.Sup3rQa.html">sup3r.qa.qa.Sup3rQa</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.qa.qa_cli.html">sup3r.qa.qa_cli</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.qa.stats.html">sup3r.qa.stats</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.qa.stats.Sup3rStatsBase.html">sup3r.qa.stats.Sup3rStatsBase</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.qa.stats.Sup3rStatsCompute.html">sup3r.qa.stats.Sup3rStatsCompute</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.qa.stats.Sup3rStatsMulti.html">sup3r.qa.stats.Sup3rStatsMulti</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.qa.stats.Sup3rStatsSingle.html">sup3r.qa.stats.Sup3rStatsSingle</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.qa.stats_cli.html">sup3r.qa.stats_cli</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.qa.utilities.html">sup3r.qa.utilities</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.qa.utilities.continuous_dist.html">sup3r.qa.utilities.continuous_dist</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.qa.utilities.direct_dist.html">sup3r.qa.utilities.direct_dist</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.qa.utilities.frequency_spectrum.html">sup3r.qa.utilities.frequency_spectrum</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.qa.utilities.gradient_dist.html">sup3r.qa.utilities.gradient_dist</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.qa.utilities.time_derivative_dist.html">sup3r.qa.utilities.time_derivative_dist</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.qa.utilities.tke_frequency_spectrum.html">sup3r.qa.utilities.tke_frequency_spectrum</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.qa.utilities.tke_wavenumber_spectrum.html">sup3r.qa.utilities.tke_wavenumber_spectrum</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.qa.utilities.wavenumber_spectrum.html">sup3r.qa.utilities.wavenumber_spectrum</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.qa.visual_qa.html">sup3r.qa.visual_qa</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.qa.visual_qa.Sup3rVisualQa.html">sup3r.qa.visual_qa.Sup3rVisualQa</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.qa.visual_qa_cli.html">sup3r.qa.visual_qa_cli</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../_autosummary/sup3r.solar.html">sup3r.solar</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.solar.solar.html">sup3r.solar.solar</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.solar.solar.Solar.html">sup3r.solar.solar.Solar</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.solar.solar_cli.html">sup3r.solar.solar_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.solar.solar_cli.kickoff_local_job.html">sup3r.solar.solar_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.solar.solar_cli.kickoff_slurm_job.html">sup3r.solar.solar_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.html">sup3r.utilities</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.ModuleName.html">sup3r.utilities.ModuleName</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.ModuleName.html#sup3r.utilities.ModuleName"><code class="docutils literal notranslate"><span class="pre">ModuleName</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.cli.html">sup3r.utilities.cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.cli.BaseCLI.html">sup3r.utilities.cli.BaseCLI</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.cli.SlurmManager.html">sup3r.utilities.cli.SlurmManager</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.era_downloader.html">sup3r.utilities.era_downloader</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.era_downloader.EraDownloader.html">sup3r.utilities.era_downloader.EraDownloader</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.execution.html">sup3r.utilities.execution</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.execution.DistributedProcess.html">sup3r.utilities.execution.DistributedProcess</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.interpolate_log_profile.html">sup3r.utilities.interpolate_log_profile</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.interpolate_log_profile.LogLinInterpolator.html">sup3r.utilities.interpolate_log_profile.LogLinInterpolator</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.interpolation.html">sup3r.utilities.interpolation</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.interpolation.Interpolator.html">sup3r.utilities.interpolation.Interpolator</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.loss_metrics.html">sup3r.utilities.loss_metrics</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.loss_metrics.gaussian_kernel.html">sup3r.utilities.loss_metrics.gaussian_kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.loss_metrics.CoarseMseLoss.html">sup3r.utilities.loss_metrics.CoarseMseLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.loss_metrics.ExpLoss.html">sup3r.utilities.loss_metrics.ExpLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.loss_metrics.LowResLoss.html">sup3r.utilities.loss_metrics.LowResLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.loss_metrics.MaterialDerivativeLoss.html">sup3r.utilities.loss_metrics.MaterialDerivativeLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.loss_metrics.MmdLoss.html">sup3r.utilities.loss_metrics.MmdLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.loss_metrics.MmdMseLoss.html">sup3r.utilities.loss_metrics.MmdMseLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.loss_metrics.MseExpLoss.html">sup3r.utilities.loss_metrics.MseExpLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.loss_metrics.SpatialExtremesLoss.html">sup3r.utilities.loss_metrics.SpatialExtremesLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.loss_metrics.SpatialExtremesOnlyLoss.html">sup3r.utilities.loss_metrics.SpatialExtremesOnlyLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.loss_metrics.SpatialFftOnlyLoss.html">sup3r.utilities.loss_metrics.SpatialFftOnlyLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.loss_metrics.SpatiotemporalExtremesLoss.html">sup3r.utilities.loss_metrics.SpatiotemporalExtremesLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.loss_metrics.SpatiotemporalFftOnlyLoss.html">sup3r.utilities.loss_metrics.SpatiotemporalFftOnlyLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.loss_metrics.StExtremesFftLoss.html">sup3r.utilities.loss_metrics.StExtremesFftLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.loss_metrics.TemporalExtremesLoss.html">sup3r.utilities.loss_metrics.TemporalExtremesLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.loss_metrics.TemporalExtremesOnlyLoss.html">sup3r.utilities.loss_metrics.TemporalExtremesOnlyLoss</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.plotting.html">sup3r.utilities.plotting</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.plotting.ax_plot_legend.html">sup3r.utilities.plotting.ax_plot_legend</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.plotting.ax_pretty_labels.html">sup3r.utilities.plotting.ax_pretty_labels</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.plotting.make_movie.html">sup3r.utilities.plotting.make_movie</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.plotting.plot_legend.html">sup3r.utilities.plotting.plot_legend</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.plotting.plot_multi_contour.html">sup3r.utilities.plotting.plot_multi_contour</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.plotting.plot_single_contour.html">sup3r.utilities.plotting.plot_single_contour</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.plotting.pretty_labels.html">sup3r.utilities.plotting.pretty_labels</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.pytest.html">sup3r.utilities.pytest</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.pytest.make_fake_cs_ratio_files.html">sup3r.utilities.pytest.make_fake_cs_ratio_files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.pytest.make_fake_era_files.html">sup3r.utilities.pytest.make_fake_era_files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.pytest.make_fake_h5_chunks.html">sup3r.utilities.pytest.make_fake_h5_chunks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.pytest.make_fake_multi_time_nc_files.html">sup3r.utilities.pytest.make_fake_multi_time_nc_files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.pytest.make_fake_nc_files.html">sup3r.utilities.pytest.make_fake_nc_files</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.regridder.html">sup3r.utilities.regridder</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.regridder.RegridOutput.html">sup3r.utilities.regridder.RegridOutput</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.regridder.Regridder.html">sup3r.utilities.regridder.Regridder</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.regridder.WindRegridder.html">sup3r.utilities.regridder.WindRegridder</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.regridder_cli.html">sup3r.utilities.regridder_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.regridder_cli.kickoff_local_job.html">sup3r.utilities.regridder_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.regridder_cli.kickoff_slurm_job.html">sup3r.utilities.regridder_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.stitching.html">sup3r.utilities.stitching</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.stitching.blend_domains.html">sup3r.utilities.stitching.blend_domains</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.stitching.forward_avg.html">sup3r.utilities.stitching.forward_avg</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.stitching.get_domain_region.html">sup3r.utilities.stitching.get_domain_region</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.stitching.get_files.html">sup3r.utilities.stitching.get_files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.stitching.get_handles.html">sup3r.utilities.stitching.get_handles</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.stitching.impute_domain.html">sup3r.utilities.stitching.impute_domain</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.stitching.prune_levels.html">sup3r.utilities.stitching.prune_levels</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.stitching.regrid_main_domain.html">sup3r.utilities.stitching.regrid_main_domain</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.stitching.stitch_and_save.html">sup3r.utilities.stitching.stitch_and_save</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.stitching.stitch_domains.html">sup3r.utilities.stitching.stitch_domains</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.stitching.unstagger_vars.html">sup3r.utilities.stitching.unstagger_vars</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.stitching.Regridder.html">sup3r.utilities.stitching.Regridder</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.html">sup3r.utilities.utilities</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.bvf_squared.html">sup3r.utilities.utilities.bvf_squared</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.correct_path.html">sup3r.utilities.utilities.correct_path</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.daily_temporal_coarsening.html">sup3r.utilities.utilities.daily_temporal_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.daily_time_sampler.html">sup3r.utilities.utilities.daily_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.estimate_max_workers.html">sup3r.utilities.utilities.estimate_max_workers</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.expand_paths.html">sup3r.utilities.utilities.expand_paths</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.forward_average.html">sup3r.utilities.utilities.forward_average</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.generate_random_string.html">sup3r.utilities.utilities.generate_random_string</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.get_chunk_slices.html">sup3r.utilities.utilities.get_chunk_slices</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.get_input_handler_class.html">sup3r.utilities.utilities.get_input_handler_class</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.get_raster_shape.html">sup3r.utilities.utilities.get_raster_shape</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.get_source_type.html">sup3r.utilities.utilities.get_source_type</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.get_time_dim_name.html">sup3r.utilities.utilities.get_time_dim_name</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.get_wrf_date_range.html">sup3r.utilities.utilities.get_wrf_date_range</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.gradient_richardson_number.html">sup3r.utilities.utilities.gradient_richardson_number</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.ignore_case_path_fetch.html">sup3r.utilities.utilities.ignore_case_path_fetch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.inverse_mo_length.html">sup3r.utilities.utilities.inverse_mo_length</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.invert_pot_temp.html">sup3r.utilities.utilities.invert_pot_temp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.invert_uv.html">sup3r.utilities.utilities.invert_uv</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.lat_lon_coarsening.html">sup3r.utilities.utilities.lat_lon_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.nn_fill_array.html">sup3r.utilities.utilities.nn_fill_array</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.np_to_pd_times.html">sup3r.utilities.utilities.np_to_pd_times</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.nsrdb_reduce_daily_data.html">sup3r.utilities.utilities.nsrdb_reduce_daily_data</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.nsrdb_sub_daily_sampler.html">sup3r.utilities.utilities.nsrdb_sub_daily_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.pd_date_range.html">sup3r.utilities.utilities.pd_date_range</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.potential_temperature.html">sup3r.utilities.utilities.potential_temperature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.potential_temperature_average.html">sup3r.utilities.utilities.potential_temperature_average</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.potential_temperature_difference.html">sup3r.utilities.utilities.potential_temperature_difference</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.rotor_area.html">sup3r.utilities.utilities.rotor_area</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.rotor_equiv_ws.html">sup3r.utilities.utilities.rotor_equiv_ws</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.round_array.html">sup3r.utilities.utilities.round_array</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.smooth_data.html">sup3r.utilities.utilities.smooth_data</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.spatial_coarsening.html">sup3r.utilities.utilities.spatial_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.spatial_simple_enhancing.html">sup3r.utilities.utilities.spatial_simple_enhancing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.st_interp.html">sup3r.utilities.utilities.st_interp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.temporal_coarsening.html">sup3r.utilities.utilities.temporal_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.temporal_simple_enhancing.html">sup3r.utilities.utilities.temporal_simple_enhancing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.transform_rotate_wind.html">sup3r.utilities.utilities.transform_rotate_wind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.uniform_box_sampler.html">sup3r.utilities.utilities.uniform_box_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.uniform_time_sampler.html">sup3r.utilities.utilities.uniform_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.vorticity_calc.html">sup3r.utilities.utilities.vorticity_calc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.weighted_box_sampler.html">sup3r.utilities.utilities.weighted_box_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.weighted_time_sampler.html">sup3r.utilities.utilities.weighted_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.windspeed_log_law.html">sup3r.utilities.utilities.windspeed_log_law</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../_autosummary/sup3r.utilities.utilities.Timer.html">sup3r.utilities.utilities.Timer</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../_cli/cli.html">CLI reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../_cli/sup3r.html">sup3r</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_cli/sup3r.html#sup3r-batch">batch</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_cli/sup3r.html#sup3r-bias-calc">bias-calc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_cli/sup3r.html#sup3r-data-collect">data-collect</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_cli/sup3r.html#sup3r-data-extract">data-extract</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_cli/sup3r.html#sup3r-forward-pass">forward-pass</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_cli/sup3r.html#sup3r-pipeline">pipeline</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_cli/sup3r.html#sup3r-qa">qa</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_cli/sup3r.html#sup3r-regrid">regrid</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_cli/sup3r.html#sup3r-solar">solar</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_cli/sup3r.html#sup3r-stats">stats</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../_cli/sup3r.html#sup3r-visual-qa">visual-qa</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">sup3r</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">sup3r.preprocessing.data_handling.h5_data_handling</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for sup3r.preprocessing.data_handling.h5_data_handling</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Data handling for H5 files.</span>
+<span class="sd">@author: bbenton</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">ClassVar</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">rex</span> <span class="kn">import</span> <span class="n">MultiFileNSRDBX</span><span class="p">,</span> <span class="n">MultiFileWindX</span>
+
+<span class="kn">from</span> <span class="nn">sup3r.preprocessing.data_handling.base</span> <span class="kn">import</span> <span class="n">DataHandler</span><span class="p">,</span> <span class="n">DataHandlerDC</span>
+<span class="kn">from</span> <span class="nn">sup3r.preprocessing.feature_handling</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">BVFreqMon</span><span class="p">,</span>
+    <span class="n">BVFreqSquaredH5</span><span class="p">,</span>
+    <span class="n">ClearSkyRatioH5</span><span class="p">,</span>
+    <span class="n">CloudMaskH5</span><span class="p">,</span>
+    <span class="n">LatLonH5</span><span class="p">,</span>
+    <span class="n">Rews</span><span class="p">,</span>
+    <span class="n">TopoH5</span><span class="p">,</span>
+    <span class="n">UWind</span><span class="p">,</span>
+    <span class="n">VWind</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">sup3r.utilities.utilities</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">daily_temporal_coarsening</span><span class="p">,</span>
+    <span class="n">uniform_box_sampler</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">42</span><span class="p">)</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="DataHandlerH5">
+<a class="viewcode-back" href="../../../../_autosummary/sup3r.preprocessing.data_handling.h5_data_handling.DataHandlerH5.html#sup3r.preprocessing.data_handling.h5_data_handling.DataHandlerH5">[docs]</a>
+<span class="k">class</span> <span class="nc">DataHandlerH5</span><span class="p">(</span><span class="n">DataHandler</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;DataHandler for H5 Data&quot;&quot;&quot;</span>
+
+    <span class="n">FEATURE_REGISTRY</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;BVF2_(.*)m&#39;</span><span class="p">:</span> <span class="n">BVFreqSquaredH5</span><span class="p">,</span>
+        <span class="s1">&#39;BVF_MO_(.*)m&#39;</span><span class="p">:</span> <span class="n">BVFreqMon</span><span class="p">,</span>
+        <span class="s1">&#39;U_(.*)m&#39;</span><span class="p">:</span> <span class="n">UWind</span><span class="p">,</span>
+        <span class="s1">&#39;V_(.*)m&#39;</span><span class="p">:</span> <span class="n">VWind</span><span class="p">,</span>
+        <span class="s1">&#39;lat_lon&#39;</span><span class="p">:</span> <span class="n">LatLonH5</span><span class="p">,</span>
+        <span class="s1">&#39;REWS_(.*)m&#39;</span><span class="p">:</span> <span class="n">Rews</span><span class="p">,</span>
+        <span class="s1">&#39;RMOL&#39;</span><span class="p">:</span> <span class="s1">&#39;inversemoninobukhovlength_2m&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;P_(.*)m&#39;</span><span class="p">:</span> <span class="s1">&#39;pressure_(.*)m&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;topography&#39;</span><span class="p">:</span> <span class="n">TopoH5</span><span class="p">,</span>
+        <span class="s1">&#39;cloud_mask&#39;</span><span class="p">:</span> <span class="n">CloudMaskH5</span><span class="p">,</span>
+        <span class="s1">&#39;clearsky_ratio&#39;</span><span class="p">:</span> <span class="n">ClearSkyRatioH5</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="c1"># the handler from rex to open h5 data.</span>
+    <span class="n">REX_HANDLER</span> <span class="o">=</span> <span class="n">MultiFileWindX</span>
+
+<div class="viewcode-block" id="DataHandlerH5.source_handler">
+<a class="viewcode-back" href="../../../../_autosummary/sup3r.preprocessing.data_handling.h5_data_handling.DataHandlerH5.html#sup3r.preprocessing.data_handling.h5_data_handling.DataHandlerH5.source_handler">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">source_handler</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">file_paths</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Rex data handler</span>
+
+<span class="sd">        Note that xarray appears to treat open file handlers as singletons</span>
+<span class="sd">        within a threadpool, so its okay to open this source_handler without a</span>
+<span class="sd">        context handler or a .close() statement.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        file_paths : str | list</span>
+<span class="sd">            paths to data files</span>
+<span class="sd">        kwargs : dict</span>
+<span class="sd">            keyword arguments passed to source handler</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        data : ResourceX</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">REX_HANDLER</span><span class="p">(</span><span class="n">file_paths</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="DataHandlerH5.get_full_domain">
+<a class="viewcode-back" href="../../../../_autosummary/sup3r.preprocessing.data_handling.h5_data_handling.DataHandlerH5.html#sup3r.preprocessing.data_handling.h5_data_handling.DataHandlerH5.get_full_domain">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">get_full_domain</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">file_paths</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get target and shape for largest domain possible&quot;&quot;&quot;</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;You must either provide the target+shape inputs or an &#39;</span>
+               <span class="s1">&#39;existing raster_file input.&#39;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="DataHandlerH5.get_time_index">
+<a class="viewcode-back" href="../../../../_autosummary/sup3r.preprocessing.data_handling.h5_data_handling.DataHandlerH5.html#sup3r.preprocessing.data_handling.h5_data_handling.DataHandlerH5.get_time_index">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">get_time_index</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">file_paths</span><span class="p">,</span> <span class="n">max_workers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get time index from data files</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        file_paths : list</span>
+<span class="sd">            path to data file</span>
+<span class="sd">        max_workers : int | None</span>
+<span class="sd">            placeholder to match signature</span>
+<span class="sd">        kwargs : dict</span>
+<span class="sd">            placeholder to match signature</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        time_index : pd.DateTimeIndex</span>
+<span class="sd">            Time index from h5 source file(s)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">handle</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">source_handler</span><span class="p">(</span><span class="n">file_paths</span><span class="p">)</span>
+        <span class="n">time_index</span> <span class="o">=</span> <span class="n">handle</span><span class="o">.</span><span class="n">time_index</span>
+        <span class="k">return</span> <span class="n">time_index</span></div>
+
+
+<div class="viewcode-block" id="DataHandlerH5.extract_feature">
+<a class="viewcode-back" href="../../../../_autosummary/sup3r.preprocessing.data_handling.h5_data_handling.DataHandlerH5.html#sup3r.preprocessing.data_handling.h5_data_handling.DataHandlerH5.extract_feature">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">extract_feature</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span>
+                        <span class="n">file_paths</span><span class="p">,</span>
+                        <span class="n">raster_index</span><span class="p">,</span>
+                        <span class="n">feature</span><span class="p">,</span>
+                        <span class="n">time_slice</span><span class="o">=</span><span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">),</span>
+                        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+                        <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Extract single feature from data source</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        file_paths : list</span>
+<span class="sd">            path to data file</span>
+<span class="sd">        raster_index : ndarray</span>
+<span class="sd">            Raster index array</span>
+<span class="sd">        feature : str</span>
+<span class="sd">            Feature to extract from data</span>
+<span class="sd">        time_slice : slice</span>
+<span class="sd">            slice of time to extract</span>
+<span class="sd">        kwargs : dict</span>
+<span class="sd">            keyword arguments passed to source handler</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ndarray</span>
+<span class="sd">            Data array for extracted feature</span>
+<span class="sd">            (spatial_1, spatial_2, temporal)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Extracting </span><span class="si">{</span><span class="n">feature</span><span class="si">}</span><span class="s1"> with kwargs=</span><span class="si">{</span><span class="n">kwargs</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">handle</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">source_handler</span><span class="p">(</span><span class="n">file_paths</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">fdata</span> <span class="o">=</span> <span class="n">handle</span><span class="p">[(</span><span class="n">feature</span><span class="p">,</span> <span class="n">time_slice</span><span class="p">,</span> <span class="o">*</span><span class="p">(</span><span class="n">raster_index</span><span class="o">.</span><span class="n">flatten</span><span class="p">(),))]</span>
+        <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">hfeatures</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">get_handle_features</span><span class="p">(</span><span class="n">file_paths</span><span class="p">)</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Requested feature &quot;</span><span class="si">{</span><span class="n">feature</span><span class="si">}</span><span class="s1">&quot; cannot be extracted from &#39;</span>
+                   <span class="sa">f</span><span class="s1">&#39;source data that has handle features: </span><span class="si">{</span><span class="n">hfeatures</span><span class="si">}</span><span class="s1">.&#39;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span> <span class="kn">from</span> <span class="nn">e</span>
+
+        <span class="n">fdata</span> <span class="o">=</span> <span class="n">fdata</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span>
+            <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">raster_index</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">raster_index</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+        <span class="n">fdata</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">fdata</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">fdata</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="DataHandlerH5.get_raster_index">
+<a class="viewcode-back" href="../../../../_autosummary/sup3r.preprocessing.data_handling.h5_data_handling.DataHandlerH5.html#sup3r.preprocessing.data_handling.h5_data_handling.DataHandlerH5.get_raster_index">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_raster_index</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get raster index for file data. Here we assume the list of paths in</span>
+<span class="sd">        file_paths all have data with the same spatial domain. We use the first</span>
+<span class="sd">        file in the list to compute the raster.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        raster_index : np.ndarray</span>
+<span class="sd">            2D array of grid indices</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">raster_file</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">raster_file</span><span class="p">):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Loading raster index: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">raster_file</span><span class="si">}</span><span class="s1"> &#39;</span>
+                         <span class="sa">f</span><span class="s1">&#39;for </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">input_file_info</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">raster_index</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">raster_file</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint32</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">check</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">grid_shape</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">target</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;Must provide raster file or shape + target to get &#39;</span>
+                   <span class="s1">&#39;raster index&#39;</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="n">check</span><span class="p">,</span> <span class="n">msg</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Calculating raster index from .h5 file &#39;</span>
+                         <span class="sa">f</span><span class="s1">&#39;for shape </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">grid_shape</span><span class="si">}</span><span class="s1"> and target &#39;</span>
+                         <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">target</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">handle</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">source_handler</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file_paths</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">raster_index</span> <span class="o">=</span> <span class="n">handle</span><span class="o">.</span><span class="n">get_raster_index</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">target</span><span class="p">,</span>
+                                                   <span class="bp">self</span><span class="o">.</span><span class="n">grid_shape</span><span class="p">,</span>
+                                                   <span class="n">max_delta</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">max_delta</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">raster_file</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">basedir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">raster_file</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">basedir</span><span class="p">):</span>
+                    <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">basedir</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Saving raster index: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">raster_file</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">savetxt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">raster_file</span><span class="p">,</span> <span class="n">raster_index</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">raster_index</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="DataHandlerH5WindCC">
+<a class="viewcode-back" href="../../../../_autosummary/sup3r.preprocessing.data_handling.h5_data_handling.DataHandlerH5WindCC.html#sup3r.preprocessing.data_handling.h5_data_handling.DataHandlerH5WindCC">[docs]</a>
+<span class="k">class</span> <span class="nc">DataHandlerH5WindCC</span><span class="p">(</span><span class="n">DataHandlerH5</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Special data handling and batch sampling for h5 wtk or nsrdb data for</span>
+<span class="sd">    climate change applications&quot;&quot;&quot;</span>
+
+    <span class="n">FEATURE_REGISTRY</span> <span class="o">=</span> <span class="n">DataHandlerH5</span><span class="o">.</span><span class="n">FEATURE_REGISTRY</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">FEATURE_REGISTRY</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
+        <span class="s1">&#39;temperature_max_(.*)m&#39;</span><span class="p">:</span> <span class="s1">&#39;temperature_(.*)m&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;temperature_min_(.*)m&#39;</span><span class="p">:</span> <span class="s1">&#39;temperature_(.*)m&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;relativehumidity_max_(.*)m&#39;</span><span class="p">:</span> <span class="s1">&#39;relativehumidity_(.*)m&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;relativehumidity_min_(.*)m&#39;</span><span class="p">:</span> <span class="s1">&#39;relativehumidity_(.*)m&#39;</span>
+    <span class="p">})</span>
+
+    <span class="c1"># the handler from rex to open h5 data.</span>
+    <span class="n">REX_HANDLER</span> <span class="o">=</span> <span class="n">MultiFileWindX</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        *args : list</span>
+<span class="sd">            Same positional args as DataHandlerH5</span>
+<span class="sd">        **kwargs : dict</span>
+<span class="sd">            Same keyword args as DataHandlerH5</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">sample_shape</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;sample_shape&#39;</span><span class="p">,</span> <span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">24</span><span class="p">))</span>
+        <span class="n">t_shape</span> <span class="o">=</span> <span class="n">sample_shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">sample_shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s1">&#39;Found 2D sample shape of </span><span class="si">{}</span><span class="s1">. Adding spatial dim of 24&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">sample_shape</span><span class="p">))</span>
+            <span class="n">sample_shape</span> <span class="o">=</span> <span class="p">(</span><span class="o">*</span><span class="n">sample_shape</span><span class="p">,</span> <span class="mi">24</span><span class="p">)</span>
+            <span class="n">t_shape</span> <span class="o">=</span> <span class="n">sample_shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;sample_shape&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sample_shape</span>
+
+        <span class="k">if</span> <span class="n">t_shape</span> <span class="o">&lt;</span> <span class="mi">24</span> <span class="ow">or</span> <span class="n">t_shape</span> <span class="o">%</span> <span class="mi">24</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;Climate Change DataHandler can only work with temporal &#39;</span>
+                   <span class="s1">&#39;sample shapes that are one or more days of hourly data &#39;</span>
+                   <span class="s1">&#39;(e.g. 24, 48, 72...). The requested temporal sample &#39;</span>
+                   <span class="s1">&#39;shape was: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">t_shape</span><span class="p">))</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+        <span class="c1"># validation splits not enabled for solar CC model.</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;val_split&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">daily_data</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">daily_data_slices</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_daily_averages</span><span class="p">()</span>
+
+<div class="viewcode-block" id="DataHandlerH5WindCC.run_daily_averages">
+<a class="viewcode-back" href="../../../../_autosummary/sup3r.preprocessing.data_handling.h5_data_handling.DataHandlerH5WindCC.html#sup3r.preprocessing.data_handling.h5_data_handling.DataHandlerH5WindCC.run_daily_averages">[docs]</a>
+    <span class="k">def</span> <span class="nf">run_daily_averages</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate daily average data and store as attribute.&quot;&quot;&quot;</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;Data needs to be hourly with at least 24 hours, but data &#39;</span>
+               <span class="s1">&#39;shape is </span><span class="si">{}</span><span class="s1">.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">%</span> <span class="mi">24</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="n">msg</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">24</span><span class="p">,</span> <span class="n">msg</span>
+
+        <span class="n">n_data_days</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">/</span> <span class="mi">24</span><span class="p">)</span>
+        <span class="n">daily_data_shape</span> <span class="o">=</span> <span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">2</span><span class="p">],</span> <span class="n">n_data_days</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">3</span><span class="p">])</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Calculating daily average datasets for </span><span class="si">{}</span><span class="s1"> training &#39;</span>
+                    <span class="s1">&#39;data days.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">n_data_days</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">daily_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">daily_data_shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">daily_data_slices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array_split</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]),</span>
+                                                <span class="n">n_data_days</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">daily_data_slices</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="nb">slice</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">x</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">daily_data_slices</span>
+        <span class="p">]</span>
+        <span class="k">for</span> <span class="n">idf</span><span class="p">,</span> <span class="n">fname</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">features</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">d</span><span class="p">,</span> <span class="n">t_slice</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">daily_data_slices</span><span class="p">):</span>
+                <span class="k">if</span> <span class="s1">&#39;_max_&#39;</span> <span class="ow">in</span> <span class="n">fname</span><span class="p">:</span>
+                    <span class="n">tmp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">t_slice</span><span class="p">,</span> <span class="n">idf</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">daily_data</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">d</span><span class="p">,</span> <span class="n">idf</span><span class="p">]</span> <span class="o">=</span> <span class="n">tmp</span><span class="p">[:,</span> <span class="p">:]</span>
+                <span class="k">elif</span> <span class="s1">&#39;_min_&#39;</span> <span class="ow">in</span> <span class="n">fname</span><span class="p">:</span>
+                    <span class="n">tmp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">t_slice</span><span class="p">,</span> <span class="n">idf</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">daily_data</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">d</span><span class="p">,</span> <span class="n">idf</span><span class="p">]</span> <span class="o">=</span> <span class="n">tmp</span><span class="p">[:,</span> <span class="p">:]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">tmp</span> <span class="o">=</span> <span class="n">daily_temporal_coarsening</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">t_slice</span><span class="p">,</span>
+                                                              <span class="n">idf</span><span class="p">],</span>
+                                                    <span class="n">temporal_axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">daily_data</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">d</span><span class="p">,</span> <span class="n">idf</span><span class="p">]</span> <span class="o">=</span> <span class="n">tmp</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">]</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Finished calculating daily average datasets for </span><span class="si">{}</span><span class="s1"> &#39;</span>
+                    <span class="s1">&#39;training data days.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">n_data_days</span><span class="p">))</span></div>
+
+
+    <span class="k">def</span> <span class="nf">_normalize_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">val_data</span><span class="p">,</span> <span class="n">feature_index</span><span class="p">,</span> <span class="n">mean</span><span class="p">,</span> <span class="n">std</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Normalize data with initialized mean and standard deviation for a</span>
+<span class="sd">        specific feature</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data : np.ndarray</span>
+<span class="sd">            Array of training data.</span>
+<span class="sd">            (spatial_1, spatial_2, temporal, n_features)</span>
+<span class="sd">        val_data : np.ndarray</span>
+<span class="sd">            Array of validation data.</span>
+<span class="sd">            (spatial_1, spatial_2, temporal, n_features)</span>
+<span class="sd">        feature_index : int</span>
+<span class="sd">            index of feature to be normalized</span>
+<span class="sd">        mean : float32</span>
+<span class="sd">            specified mean of associated feature</span>
+<span class="sd">        std : float32</span>
+<span class="sd">            specificed standard deviation for associated feature</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_normalize_data</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">val_data</span><span class="p">,</span> <span class="n">feature_index</span><span class="p">,</span> <span class="n">mean</span><span class="p">,</span> <span class="n">std</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">daily_data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">feature_index</span><span class="p">]</span> <span class="o">-=</span> <span class="n">mean</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">daily_data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">feature_index</span><span class="p">]</span> <span class="o">/=</span> <span class="n">std</span>
+
+<div class="viewcode-block" id="DataHandlerH5WindCC.get_observation_index">
+<a class="viewcode-back" href="../../../../_autosummary/sup3r.preprocessing.data_handling.h5_data_handling.DataHandlerH5WindCC.html#sup3r.preprocessing.data_handling.h5_data_handling.DataHandlerH5WindCC.get_observation_index">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_observation_index</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Randomly gets spatial sample and time sample</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        obs_ind_hourly : tuple</span>
+<span class="sd">            Tuple of sampled spatial grid, time slice, and features indices.</span>
+<span class="sd">            Used to get single observation like self.data[observation_index].</span>
+<span class="sd">            This is for hourly high-res data slicing.</span>
+<span class="sd">        obs_ind_daily : tuple</span>
+<span class="sd">            Same as obs_ind_hourly but the temporal index (i=2) is a slice of</span>
+<span class="sd">            the daily data (self.daily_data) with day integers.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">spatial_slice</span> <span class="o">=</span> <span class="n">uniform_box_sampler</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_shape</span><span class="p">[:</span><span class="mi">2</span><span class="p">])</span>
+
+        <span class="n">n_days</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">/</span> <span class="mi">24</span><span class="p">)</span>
+        <span class="n">rand_day_ind</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">daily_data_slices</span><span class="p">)</span> <span class="o">-</span> <span class="n">n_days</span><span class="p">)</span>
+        <span class="n">t_slice_0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">daily_data_slices</span><span class="p">[</span><span class="n">rand_day_ind</span><span class="p">]</span>
+        <span class="n">t_slice_1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">daily_data_slices</span><span class="p">[</span><span class="n">rand_day_ind</span> <span class="o">+</span> <span class="n">n_days</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">t_slice_hourly</span> <span class="o">=</span> <span class="nb">slice</span><span class="p">(</span><span class="n">t_slice_0</span><span class="o">.</span><span class="n">start</span><span class="p">,</span> <span class="n">t_slice_1</span><span class="o">.</span><span class="n">stop</span><span class="p">)</span>
+        <span class="n">t_slice_daily</span> <span class="o">=</span> <span class="nb">slice</span><span class="p">(</span><span class="n">rand_day_ind</span><span class="p">,</span> <span class="n">rand_day_ind</span> <span class="o">+</span> <span class="n">n_days</span><span class="p">)</span>
+
+        <span class="n">obs_ind_hourly</span> <span class="o">=</span> <span class="p">(</span><span class="o">*</span><span class="n">spatial_slice</span><span class="p">,</span> <span class="n">t_slice_hourly</span><span class="p">,</span>
+                          <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">features</span><span class="p">)))</span>
+
+        <span class="n">obs_ind_daily</span> <span class="o">=</span> <span class="p">(</span><span class="o">*</span><span class="n">spatial_slice</span><span class="p">,</span> <span class="n">t_slice_daily</span><span class="p">,</span>
+                         <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">features</span><span class="p">)))</span>
+
+        <span class="k">return</span> <span class="n">obs_ind_hourly</span><span class="p">,</span> <span class="n">obs_ind_daily</span></div>
+
+
+<div class="viewcode-block" id="DataHandlerH5WindCC.get_next">
+<a class="viewcode-back" href="../../../../_autosummary/sup3r.preprocessing.data_handling.h5_data_handling.DataHandlerH5WindCC.html#sup3r.preprocessing.data_handling.h5_data_handling.DataHandlerH5WindCC.get_next">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_next</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get data for observation using random observation index. Loops</span>
+<span class="sd">        repeatedly over randomized time index</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        obs_hourly : np.ndarray</span>
+<span class="sd">            4D array</span>
+<span class="sd">            (spatial_1, spatial_2, temporal_hourly, features)</span>
+<span class="sd">        obs_daily_avg : np.ndarray</span>
+<span class="sd">            4D array but the temporal axis is temporal_hourly//24</span>
+<span class="sd">            (spatial_1, spatial_2, temporal_daily, features)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">obs_ind_hourly</span><span class="p">,</span> <span class="n">obs_ind_daily</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_observation_index</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_obs_index</span> <span class="o">=</span> <span class="n">obs_ind_hourly</span>
+        <span class="n">obs_hourly</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">obs_ind_hourly</span><span class="p">]</span>
+        <span class="n">obs_daily_avg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">daily_data</span><span class="p">[</span><span class="n">obs_ind_daily</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">obs_hourly</span><span class="p">,</span> <span class="n">obs_daily_avg</span></div>
+
+
+<div class="viewcode-block" id="DataHandlerH5WindCC.split_data">
+<a class="viewcode-back" href="../../../../_autosummary/sup3r.preprocessing.data_handling.h5_data_handling.DataHandlerH5WindCC.html#sup3r.preprocessing.data_handling.h5_data_handling.DataHandlerH5WindCC.split_data">[docs]</a>
+    <span class="k">def</span> <span class="nf">split_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">val_split</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">shuffle_time</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Split time dimension into set of training indices and validation</span>
+<span class="sd">        indices. For NSRDB it makes sure that the splits happen at midnight.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data : np.ndarray</span>
+<span class="sd">            4D array of high res data</span>
+<span class="sd">            (spatial_1, spatial_2, temporal, features)</span>
+<span class="sd">        val_split : float</span>
+<span class="sd">            Fraction of data to separate for validation.</span>
+<span class="sd">        shuffle_time : bool</span>
+<span class="sd">            No effect. Used to fit base class function signature.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        data : np.ndarray</span>
+<span class="sd">            (spatial_1, spatial_2, temporal, features)</span>
+<span class="sd">            Training data fraction of initial data array. Initial data array is</span>
+<span class="sd">            overwritten by this new data array.</span>
+<span class="sd">        val_data : np.ndarray</span>
+<span class="sd">            (spatial_1, spatial_2, temporal, features)</span>
+<span class="sd">            Validation data fraction of initial data array.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">data</span>
+
+        <span class="n">midnight_ilocs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">time_index</span><span class="o">.</span><span class="n">hour</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+                                  <span class="o">&amp;</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">time_index</span><span class="o">.</span><span class="n">minute</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+                                  <span class="o">&amp;</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">time_index</span><span class="o">.</span><span class="n">second</span> <span class="o">==</span> <span class="mi">0</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="n">n_val_obs</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">val_split</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">midnight_ilocs</span><span class="p">)))</span>
+        <span class="n">val_split_index</span> <span class="o">=</span> <span class="n">midnight_ilocs</span><span class="p">[</span><span class="n">n_val_obs</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">val_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[:,</span> <span class="p">:,</span> <span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">val_split_index</span><span class="p">),</span> <span class="p">:]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[:,</span> <span class="p">:,</span> <span class="nb">slice</span><span class="p">(</span><span class="n">val_split_index</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="p">:]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">val_time_index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">time_index</span><span class="p">[</span><span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">val_split_index</span><span class="p">)]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">time_index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">time_index</span><span class="p">[</span><span class="nb">slice</span><span class="p">(</span><span class="n">val_split_index</span><span class="p">,</span> <span class="kc">None</span><span class="p">)]</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">val_data</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="DataHandlerH5SolarCC">
+<a class="viewcode-back" href="../../../../_autosummary/sup3r.preprocessing.data_handling.h5_data_handling.DataHandlerH5SolarCC.html#sup3r.preprocessing.data_handling.h5_data_handling.DataHandlerH5SolarCC">[docs]</a>
+<span class="k">class</span> <span class="nc">DataHandlerH5SolarCC</span><span class="p">(</span><span class="n">DataHandlerH5WindCC</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Special data handling and batch sampling for h5 NSRDB solar data for</span>
+<span class="sd">    climate change applications&quot;&quot;&quot;</span>
+
+    <span class="n">FEATURE_REGISTRY</span> <span class="o">=</span> <span class="n">DataHandlerH5WindCC</span><span class="o">.</span><span class="n">FEATURE_REGISTRY</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">FEATURE_REGISTRY</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
+        <span class="s1">&#39;windspeed&#39;</span><span class="p">:</span> <span class="s1">&#39;wind_speed&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;winddirection&#39;</span><span class="p">:</span> <span class="s1">&#39;wind_direction&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;U&#39;</span><span class="p">:</span> <span class="n">UWind</span><span class="p">,</span>
+        <span class="s1">&#39;V&#39;</span><span class="p">:</span> <span class="n">VWind</span><span class="p">,</span>
+    <span class="p">})</span>
+
+    <span class="c1"># the handler from rex to open h5 data.</span>
+    <span class="n">REX_HANDLER</span> <span class="o">=</span> <span class="n">MultiFileNSRDBX</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        *args : list</span>
+<span class="sd">            Same positional args as DataHandlerH5</span>
+<span class="sd">        **kwargs : dict</span>
+<span class="sd">            Same keyword args as DataHandlerH5</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">args</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>  <span class="c1"># safe copy for manipulation</span>
+        <span class="n">required</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;ghi&#39;</span><span class="p">,</span> <span class="s1">&#39;clearsky_ghi&#39;</span><span class="p">,</span> <span class="s1">&#39;clearsky_ratio&#39;</span><span class="p">]</span>
+        <span class="n">missing</span> <span class="o">=</span> <span class="p">[</span><span class="n">dset</span> <span class="k">for</span> <span class="n">dset</span> <span class="ow">in</span> <span class="n">required</span> <span class="k">if</span> <span class="n">dset</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">missing</span><span class="p">):</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;Cannot initialize DataHandlerH5SolarCC without required &#39;</span>
+                   <span class="s1">&#39;features </span><span class="si">{}</span><span class="s1">. All three are necessary to get the daily &#39;</span>
+                   <span class="s1">&#39;average clearsky ratio (ghi sum / clearsky ghi sum), &#39;</span>
+                   <span class="s1">&#39;even though only the clearsky ratio will be passed to the &#39;</span>
+                   <span class="s1">&#39;GAN.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">required</span><span class="p">))</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="DataHandlerH5SolarCC.run_daily_averages">
+<a class="viewcode-back" href="../../../../_autosummary/sup3r.preprocessing.data_handling.h5_data_handling.DataHandlerH5SolarCC.html#sup3r.preprocessing.data_handling.h5_data_handling.DataHandlerH5SolarCC.run_daily_averages">[docs]</a>
+    <span class="k">def</span> <span class="nf">run_daily_averages</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate daily average data and store as attribute.</span>
+
+<span class="sd">        Note that the H5 clearsky ratio feature requires special logic to match</span>
+<span class="sd">        the climate change dataset of daily average GHI / daily average CS_GHI.</span>
+<span class="sd">        This target climate change dataset is not equivalent to the average of</span>
+<span class="sd">        instantaneous hourly clearsky ratios</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;Data needs to be hourly with at least 24 hours, but data &#39;</span>
+               <span class="s1">&#39;shape is </span><span class="si">{}</span><span class="s1">.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">%</span> <span class="mi">24</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="n">msg</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">24</span><span class="p">,</span> <span class="n">msg</span>
+
+        <span class="n">n_data_days</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">/</span> <span class="mi">24</span><span class="p">)</span>
+        <span class="n">daily_data_shape</span> <span class="o">=</span> <span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">2</span><span class="p">],</span> <span class="n">n_data_days</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">3</span><span class="p">])</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Calculating daily average datasets for </span><span class="si">{}</span><span class="s1"> training &#39;</span>
+                    <span class="s1">&#39;data days.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">n_data_days</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">daily_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">daily_data_shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">daily_data_slices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array_split</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]),</span>
+                                                <span class="n">n_data_days</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">daily_data_slices</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="nb">slice</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">x</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">daily_data_slices</span>
+        <span class="p">]</span>
+
+        <span class="n">i_ghi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;ghi&#39;</span><span class="p">)</span>
+        <span class="n">i_cs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;clearsky_ghi&#39;</span><span class="p">)</span>
+        <span class="n">i_ratio</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;clearsky_ratio&#39;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">d</span><span class="p">,</span> <span class="n">t_slice</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">daily_data_slices</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">idf</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">daily_data</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">d</span><span class="p">,</span> <span class="n">idf</span><span class="p">]</span> <span class="o">=</span> <span class="n">daily_temporal_coarsening</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">t_slice</span><span class="p">,</span> <span class="n">idf</span><span class="p">],</span> <span class="n">temporal_axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)[:,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">]</span>
+
+            <span class="c1"># note that this ratio of daily irradiance sums is not the same as</span>
+            <span class="c1"># the average of hourly ratios.</span>
+            <span class="n">total_ghi</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nansum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">t_slice</span><span class="p">,</span> <span class="n">i_ghi</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">total_cs_ghi</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nansum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">t_slice</span><span class="p">,</span> <span class="n">i_cs</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">avg_cs_ratio</span> <span class="o">=</span> <span class="n">total_ghi</span> <span class="o">/</span> <span class="n">total_cs_ghi</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">daily_data</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">d</span><span class="p">,</span> <span class="n">i_ratio</span><span class="p">]</span> <span class="o">=</span> <span class="n">avg_cs_ratio</span>
+
+        <span class="c1"># remove ghi and clearsky ghi from feature set. These shouldn&#39;t be used</span>
+        <span class="c1"># downstream for solar cc and keeping them confuses the batch handler</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Finished calculating daily average clearsky_ratio, &#39;</span>
+                    <span class="s1">&#39;removing ghi and clearsky_ghi from the &#39;</span>
+                    <span class="s1">&#39;DataHandlerH5SolarCC feature list.&#39;</span><span class="p">)</span>
+        <span class="n">ifeats</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">features</span><span class="p">))</span> <span class="k">if</span> <span class="n">i</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="n">i_ghi</span><span class="p">,</span> <span class="n">i_cs</span><span class="p">)])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">ifeats</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">daily_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">daily_data</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">ifeats</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s1">&#39;ghi&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s1">&#39;clearsky_ghi&#39;</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Finished calculating daily average datasets for </span><span class="si">{}</span><span class="s1"> &#39;</span>
+                    <span class="s1">&#39;training data days.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">n_data_days</span><span class="p">))</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="DataHandlerDCforH5">
+<a class="viewcode-back" href="../../../../_autosummary/sup3r.preprocessing.data_handling.h5_data_handling.DataHandlerDCforH5.html#sup3r.preprocessing.data_handling.h5_data_handling.DataHandlerDCforH5">[docs]</a>
+<span class="k">class</span> <span class="nc">DataHandlerDCforH5</span><span class="p">(</span><span class="n">DataHandlerH5</span><span class="p">,</span> <span class="n">DataHandlerDC</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Data centric data handler for H5 files&quot;&quot;&quot;</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Alliance for Sustainable Energy, LLC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,32 @@
+sup3r.preprocessing.feature\_handling.UWindPowerLaw
+===================================================
+
+.. currentmodule:: sup3r.preprocessing.feature_handling
+
+.. autoclass:: UWindPowerLaw
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~UWindPowerLaw.compute
+      ~UWindPowerLaw.inputs
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~UWindPowerLaw.ALPHA
+      ~UWindPowerLaw.NEAR_SFC_HEIGHT
+   
+   

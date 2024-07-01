@@ -1,0 +1,6 @@
+sup3r.utilities.stitching.blend\_domains
+========================================
+
+.. currentmodule:: sup3r.utilities.stitching
+
+.. autofunction:: blend_domains

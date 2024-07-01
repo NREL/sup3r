@@ -1,0 +1,47 @@
+sup3r.preprocessing.conditional\_moment\_batch\_handling.BatchHandlerMom2Sep
+============================================================================
+
+.. currentmodule:: sup3r.preprocessing.conditional_moment_batch_handling
+
+.. autoclass:: BatchHandlerMom2Sep
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~BatchHandlerMom2Sep.cache_stats
+      ~BatchHandlerMom2Sep.check_cached_stats
+      ~BatchHandlerMom2Sep.get_handler_index
+      ~BatchHandlerMom2Sep.get_rand_handler
+      ~BatchHandlerMom2Sep.get_stats
+      ~BatchHandlerMom2Sep.load_handler_data
+      ~BatchHandlerMom2Sep.normalize
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~BatchHandlerMom2Sep.DATA_HANDLER_CLASS
+      ~BatchHandlerMom2Sep.feature_mem
+      ~BatchHandlerMom2Sep.features
+      ~BatchHandlerMom2Sep.handler_weights
+      ~BatchHandlerMom2Sep.hr_exo_features
+      ~BatchHandlerMom2Sep.hr_features_ind
+      ~BatchHandlerMom2Sep.hr_out_features
+      ~BatchHandlerMom2Sep.load_workers
+      ~BatchHandlerMom2Sep.lr_features
+      ~BatchHandlerMom2Sep.norm_workers
+      ~BatchHandlerMom2Sep.shape
+      ~BatchHandlerMom2Sep.stats_workers
+   
+   

@@ -1,0 +1,67 @@
+sup3r.utilities.era\_downloader.EraDownloader
+=============================================
+
+.. currentmodule:: sup3r.utilities.era_downloader
+
+.. autoclass:: EraDownloader
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~EraDownloader.add_pressure
+      ~EraDownloader.all_months_exist
+      ~EraDownloader.already_pruned
+      ~EraDownloader.check_existing_files
+      ~EraDownloader.check_good_vars
+      ~EraDownloader.check_heights
+      ~EraDownloader.check_single_file
+      ~EraDownloader.convert_z
+      ~EraDownloader.download_file
+      ~EraDownloader.download_process_combine
+      ~EraDownloader.get_cds_client
+      ~EraDownloader.get_hours
+      ~EraDownloader.get_monthly_file
+      ~EraDownloader.get_nan_pct
+      ~EraDownloader.get_tmp_file
+      ~EraDownloader.good_file
+      ~EraDownloader.make_yearly_file
+      ~EraDownloader.map_vars
+      ~EraDownloader.prep_var_lists
+      ~EraDownloader.process_and_combine
+      ~EraDownloader.process_level_file
+      ~EraDownloader.process_surface_file
+      ~EraDownloader.prune_output
+      ~EraDownloader.run_files_checks
+      ~EraDownloader.run_interpolation
+      ~EraDownloader.run_month
+      ~EraDownloader.run_year
+      ~EraDownloader.shape_check
+      ~EraDownloader.shift_temp
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~EraDownloader.LEVEL_VARS
+      ~EraDownloader.NAME_MAP
+      ~EraDownloader.SFC_VARS
+      ~EraDownloader.SHORT_NAME_MAP
+      ~EraDownloader.combined_file
+      ~EraDownloader.days
+      ~EraDownloader.interp_file
+      ~EraDownloader.level_file
+      ~EraDownloader.surface_file
+      ~EraDownloader.variables
+   
+   

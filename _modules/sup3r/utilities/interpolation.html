@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>sup3r.utilities.interpolation &mdash; sup3r 0.1.3.dev147+gee6ab7b4 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/copybutton.css?v=76b2166b" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/tabs.css?v=a5c4661c" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=b68f4368"></script>
+        <script src="../../../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="../../../_static/clipboard.min.js?v=a7894cd8"></script>
+        <script src="../../../_static/copybutton.js?v=f281be69"></script>
+        <script src="../../../_static/tabs.js?v=3030b3cb"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            sup3r
+          </a>
+              <div class="version">
+                0.1.3.dev147+gee6ab7b4
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">Home page</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../misc/installation_usage.html">Installation and Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../misc/installation.html">Installation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../misc/installation.html#option-1-install-from-pip-recommended-for-analysts">Option 1: Install from PIP (recommended for analysts):</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../misc/installation.html#option-2-clone-repo-recommended-for-developers">Option 2: Clone repo (recommended for developers)</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/examples.html">Examples</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples/sup3rcc.html">Sup3rCC Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#sup3rcc-data-access">Sup3rCC Data Access</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#directory-structure">Directory Structure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#example-sup3rcc-data-usage">Example Sup3rCC Data Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#running-sup3rcc-models">Running Sup3rCC Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#nuances-of-sup3rcc">Nuances of Sup3rCC</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#sup3rcc-versions">Sup3rCC Versions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#recommended-citation">Recommended Citation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#acknowledgements">Acknowledgements</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples/sup3rwind.html">Sup3rWind Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rwind.html#sup3rwind-data-access">Sup3rWind Data Access</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rwind.html#example-sup3rwind-data-usage">Example Sup3rWind Data Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rwind.html#running-sup3rwind-models">Running Sup3rWind Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rwind.html#sup3rwind-versions">Sup3rWind Versions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rwind.html#recommended-citation">Recommended Citation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rwind.html#acknowledgements">Acknowledgements</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../_autosummary/sup3r.html">API reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.batch.html">sup3r.batch</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.batch.batch_cli.html">sup3r.batch.batch_cli</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.bias.html">sup3r.bias</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc.html">sup3r.bias.bias_calc</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc.DataRetrievalBase.html">sup3r.bias.bias_calc.DataRetrievalBase</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc.LinearCorrection.html">sup3r.bias.bias_calc.LinearCorrection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc.MonthlyLinearCorrection.html">sup3r.bias.bias_calc.MonthlyLinearCorrection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc.MonthlyScalarCorrection.html">sup3r.bias.bias_calc.MonthlyScalarCorrection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc.SkillAssessment.html">sup3r.bias.bias_calc.SkillAssessment</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc_cli.html">sup3r.bias.bias_calc_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc_cli.kickoff_local_job.html">sup3r.bias.bias_calc_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc_cli.kickoff_slurm_job.html">sup3r.bias.bias_calc_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_correct_means.html">sup3r.bias.bias_correct_means</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_correct_means.BiasCorrectUpdate.html">sup3r.bias.bias_correct_means.BiasCorrectUpdate</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_correct_means.VortexMeanPrepper.html">sup3r.bias.bias_correct_means.VortexMeanPrepper</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_transforms.html">sup3r.bias.bias_transforms</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_transforms.get_spatial_bc_factors.html">sup3r.bias.bias_transforms.get_spatial_bc_factors</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_transforms.get_spatial_bc_quantiles.html">sup3r.bias.bias_transforms.get_spatial_bc_quantiles</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_transforms.global_linear_bc.html">sup3r.bias.bias_transforms.global_linear_bc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_transforms.local_linear_bc.html">sup3r.bias.bias_transforms.local_linear_bc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_transforms.local_qdm_bc.html">sup3r.bias.bias_transforms.local_qdm_bc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_transforms.monthly_local_linear_bc.html">sup3r.bias.bias_transforms.monthly_local_linear_bc</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.bias.mixins.html">sup3r.bias.mixins</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.mixins.FillAndSmoothMixin.html">sup3r.bias.mixins.FillAndSmoothMixin</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.bias.qdm.html">sup3r.bias.qdm</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.qdm.QuantileDeltaMappingCorrection.html">sup3r.bias.qdm.QuantileDeltaMappingCorrection</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.cli.html">sup3r.cli</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.models.html">sup3r.models</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.abstract.html">sup3r.models.abstract</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.abstract.AbstractInterface.html">sup3r.models.abstract.AbstractInterface</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.abstract.AbstractSingleModel.html">sup3r.models.abstract.AbstractSingleModel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.abstract.TensorboardMixIn.html">sup3r.models.abstract.TensorboardMixIn</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.base.html">sup3r.models.base</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.base.Sup3rGan.html">sup3r.models.base.Sup3rGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.conditional_moments.html">sup3r.models.conditional_moments</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.conditional_moments.Sup3rCondMom.html">sup3r.models.conditional_moments.Sup3rCondMom</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.data_centric.html">sup3r.models.data_centric</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.data_centric.Sup3rGanDC.html">sup3r.models.data_centric.Sup3rGanDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.data_centric.Sup3rGanSpatialDC.html">sup3r.models.data_centric.Sup3rGanSpatialDC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.linear.html">sup3r.models.linear</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.linear.LinearInterp.html">sup3r.models.linear.LinearInterp</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.multi_step.html">sup3r.models.multi_step</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.multi_step.MultiStepGan.html">sup3r.models.multi_step.MultiStepGan</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.multi_step.MultiStepSurfaceMetGan.html">sup3r.models.multi_step.MultiStepSurfaceMetGan</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.multi_step.SolarMultiStepGan.html">sup3r.models.multi_step.SolarMultiStepGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.solar_cc.html">sup3r.models.solar_cc</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.solar_cc.SolarCC.html">sup3r.models.solar_cc.SolarCC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.surface.html">sup3r.models.surface</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.surface.SurfaceSpatialMetModel.html">sup3r.models.surface.SurfaceSpatialMetModel</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.html">sup3r.pipeline</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass.html">sup3r.pipeline.forward_pass</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass.ForwardPass.html">sup3r.pipeline.forward_pass.ForwardPass</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass.ForwardPassSlicer.html">sup3r.pipeline.forward_pass.ForwardPassSlicer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass.ForwardPassStrategy.html">sup3r.pipeline.forward_pass.ForwardPassStrategy</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass_cli.html">sup3r.pipeline.forward_pass_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass_cli.kickoff_local_job.html">sup3r.pipeline.forward_pass_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass_cli.kickoff_slurm_job.html">sup3r.pipeline.forward_pass_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.pipeline_cli.html">sup3r.pipeline.pipeline_cli</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.html">sup3r.postprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.collection.html">sup3r.postprocessing.collection</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.collection.BaseCollector.html">sup3r.postprocessing.collection.BaseCollector</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.collection.CollectorH5.html">sup3r.postprocessing.collection.CollectorH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.collection.CollectorNC.html">sup3r.postprocessing.collection.CollectorNC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.data_collect_cli.html">sup3r.postprocessing.data_collect_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.data_collect_cli.kickoff_local_job.html">sup3r.postprocessing.data_collect_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.data_collect_cli.kickoff_slurm_job.html">sup3r.postprocessing.data_collect_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.html">sup3r.postprocessing.file_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.OutputHandler.html">sup3r.postprocessing.file_handling.OutputHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.OutputHandlerH5.html">sup3r.postprocessing.file_handling.OutputHandlerH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.OutputHandlerNC.html">sup3r.postprocessing.file_handling.OutputHandlerNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.OutputMixIn.html">sup3r.postprocessing.file_handling.OutputMixIn</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.RexOutputs.html">sup3r.postprocessing.file_handling.RexOutputs</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.html">sup3r.preprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.html">sup3r.preprocessing.batch_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.Batch.html">sup3r.preprocessing.batch_handling.Batch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.BatchHandler.html">sup3r.preprocessing.batch_handling.BatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.BatchHandlerCC.html">sup3r.preprocessing.batch_handling.BatchHandlerCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.BatchHandlerDC.html">sup3r.preprocessing.batch_handling.BatchHandlerDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.BatchHandlerSpatialDC.html">sup3r.preprocessing.batch_handling.BatchHandlerSpatialDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.SpatialBatchHandler.html">sup3r.preprocessing.batch_handling.SpatialBatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC.html">sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.ValidationData.html">sup3r.preprocessing.batch_handling.ValidationData</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.ValidationDataDC.html">sup3r.preprocessing.batch_handling.ValidationDataDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.ValidationDataSpatialDC.html">sup3r.preprocessing.batch_handling.ValidationDataSpatialDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.ValidationDataTemporalDC.html">sup3r.preprocessing.batch_handling.ValidationDataTemporalDC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.html">sup3r.preprocessing.conditional_moment_batch_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1SF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2Sep.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SepSF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SepSF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1SF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2Sep.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SepSF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SepSF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1SF.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SF.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2Sep.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SepSF.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SepSF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1SF.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SF.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2Sep.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SepSF.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SepSF</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_extract_cli.html">sup3r.preprocessing.data_extract_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_extract_cli.kickoff_local_job.html">sup3r.preprocessing.data_extract_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_extract_cli.kickoff_slurm_job.html">sup3r.preprocessing.data_extract_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.html">sup3r.preprocessing.data_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.base.html">sup3r.preprocessing.data_handling.base</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.dual_data_handling.html">sup3r.preprocessing.data_handling.dual_data_handling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.exo_extraction.html">sup3r.preprocessing.data_handling.exo_extraction</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.exogenous_data_handling.html">sup3r.preprocessing.data_handling.exogenous_data_handling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.h5_data_handling.html">sup3r.preprocessing.data_handling.h5_data_handling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.mixin.html">sup3r.preprocessing.data_handling.mixin</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.nc_data_handling.html">sup3r.preprocessing.data_handling.nc_data_handling</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.dual_batch_handling.html">sup3r.preprocessing.dual_batch_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.dual_batch_handling.DualBatchHandler.html">sup3r.preprocessing.dual_batch_handling.DualBatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.dual_batch_handling.DualValidationData.html">sup3r.preprocessing.dual_batch_handling.DualValidationData</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.dual_batch_handling.SpatialDualBatchHandler.html">sup3r.preprocessing.dual_batch_handling.SpatialDualBatchHandler</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.html">sup3r.preprocessing.feature_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.BVFreqMon.html">sup3r.preprocessing.feature_handling.BVFreqMon</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.BVFreqSquaredH5.html">sup3r.preprocessing.feature_handling.BVFreqSquaredH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.BVFreqSquaredNC.html">sup3r.preprocessing.feature_handling.BVFreqSquaredNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.ClearSkyRatioCC.html">sup3r.preprocessing.feature_handling.ClearSkyRatioCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.ClearSkyRatioH5.html">sup3r.preprocessing.feature_handling.ClearSkyRatioH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.CloudMaskH5.html">sup3r.preprocessing.feature_handling.CloudMaskH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.DerivedFeature.html">sup3r.preprocessing.feature_handling.DerivedFeature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Feature.html">sup3r.preprocessing.feature_handling.Feature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.FeatureHandler.html">sup3r.preprocessing.feature_handling.FeatureHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.InverseMonNC.html">sup3r.preprocessing.feature_handling.InverseMonNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.LatLonH5.html">sup3r.preprocessing.feature_handling.LatLonH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.LatLonNC.html">sup3r.preprocessing.feature_handling.LatLonNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.PotentialTempNC.html">sup3r.preprocessing.feature_handling.PotentialTempNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.PressureNC.html">sup3r.preprocessing.feature_handling.PressureNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Rews.html">sup3r.preprocessing.feature_handling.Rews</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Shear.html">sup3r.preprocessing.feature_handling.Shear</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Tas.html">sup3r.preprocessing.feature_handling.Tas</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.TasMax.html">sup3r.preprocessing.feature_handling.TasMax</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.TasMin.html">sup3r.preprocessing.feature_handling.TasMin</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.TempNC.html">sup3r.preprocessing.feature_handling.TempNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.TempNCforCC.html">sup3r.preprocessing.feature_handling.TempNCforCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.TopoH5.html">sup3r.preprocessing.feature_handling.TopoH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.UWind.html">sup3r.preprocessing.feature_handling.UWind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.UWindPowerLaw.html">sup3r.preprocessing.feature_handling.UWindPowerLaw</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.VWind.html">sup3r.preprocessing.feature_handling.VWind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.VWindPowerLaw.html">sup3r.preprocessing.feature_handling.VWindPowerLaw</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Veer.html">sup3r.preprocessing.feature_handling.Veer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Vorticity.html">sup3r.preprocessing.feature_handling.Vorticity</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.WinddirectionNC.html">sup3r.preprocessing.feature_handling.WinddirectionNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.WindspeedNC.html">sup3r.preprocessing.feature_handling.WindspeedNC</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.qa.html">sup3r.qa</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.qa.qa.html">sup3r.qa.qa</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.qa.Sup3rQa.html">sup3r.qa.qa.Sup3rQa</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.qa.qa_cli.html">sup3r.qa.qa_cli</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.qa.stats.html">sup3r.qa.stats</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.stats.Sup3rStatsBase.html">sup3r.qa.stats.Sup3rStatsBase</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.stats.Sup3rStatsCompute.html">sup3r.qa.stats.Sup3rStatsCompute</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.stats.Sup3rStatsMulti.html">sup3r.qa.stats.Sup3rStatsMulti</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.stats.Sup3rStatsSingle.html">sup3r.qa.stats.Sup3rStatsSingle</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.qa.stats_cli.html">sup3r.qa.stats_cli</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.html">sup3r.qa.utilities</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.continuous_dist.html">sup3r.qa.utilities.continuous_dist</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.direct_dist.html">sup3r.qa.utilities.direct_dist</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.frequency_spectrum.html">sup3r.qa.utilities.frequency_spectrum</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.gradient_dist.html">sup3r.qa.utilities.gradient_dist</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.time_derivative_dist.html">sup3r.qa.utilities.time_derivative_dist</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.tke_frequency_spectrum.html">sup3r.qa.utilities.tke_frequency_spectrum</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.tke_wavenumber_spectrum.html">sup3r.qa.utilities.tke_wavenumber_spectrum</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.wavenumber_spectrum.html">sup3r.qa.utilities.wavenumber_spectrum</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.qa.visual_qa.html">sup3r.qa.visual_qa</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.visual_qa.Sup3rVisualQa.html">sup3r.qa.visual_qa.Sup3rVisualQa</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.qa.visual_qa_cli.html">sup3r.qa.visual_qa_cli</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.solar.html">sup3r.solar</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.solar.solar.html">sup3r.solar.solar</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.solar.solar.Solar.html">sup3r.solar.solar.Solar</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.solar.solar_cli.html">sup3r.solar.solar_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.solar.solar_cli.kickoff_local_job.html">sup3r.solar.solar_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.solar.solar_cli.kickoff_slurm_job.html">sup3r.solar.solar_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.html">sup3r.utilities</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.ModuleName.html">sup3r.utilities.ModuleName</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.ModuleName.html#sup3r.utilities.ModuleName"><code class="docutils literal notranslate"><span class="pre">ModuleName</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.cli.html">sup3r.utilities.cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.cli.BaseCLI.html">sup3r.utilities.cli.BaseCLI</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.cli.SlurmManager.html">sup3r.utilities.cli.SlurmManager</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.era_downloader.html">sup3r.utilities.era_downloader</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.era_downloader.EraDownloader.html">sup3r.utilities.era_downloader.EraDownloader</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.execution.html">sup3r.utilities.execution</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.execution.DistributedProcess.html">sup3r.utilities.execution.DistributedProcess</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.interpolate_log_profile.html">sup3r.utilities.interpolate_log_profile</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.interpolate_log_profile.LogLinInterpolator.html">sup3r.utilities.interpolate_log_profile.LogLinInterpolator</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.interpolation.html">sup3r.utilities.interpolation</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.interpolation.Interpolator.html">sup3r.utilities.interpolation.Interpolator</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.html">sup3r.utilities.loss_metrics</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.gaussian_kernel.html">sup3r.utilities.loss_metrics.gaussian_kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.CoarseMseLoss.html">sup3r.utilities.loss_metrics.CoarseMseLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.ExpLoss.html">sup3r.utilities.loss_metrics.ExpLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.LowResLoss.html">sup3r.utilities.loss_metrics.LowResLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.MaterialDerivativeLoss.html">sup3r.utilities.loss_metrics.MaterialDerivativeLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.MmdLoss.html">sup3r.utilities.loss_metrics.MmdLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.MmdMseLoss.html">sup3r.utilities.loss_metrics.MmdMseLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.MseExpLoss.html">sup3r.utilities.loss_metrics.MseExpLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.SpatialExtremesLoss.html">sup3r.utilities.loss_metrics.SpatialExtremesLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.SpatialExtremesOnlyLoss.html">sup3r.utilities.loss_metrics.SpatialExtremesOnlyLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.SpatialFftOnlyLoss.html">sup3r.utilities.loss_metrics.SpatialFftOnlyLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.SpatiotemporalExtremesLoss.html">sup3r.utilities.loss_metrics.SpatiotemporalExtremesLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.SpatiotemporalFftOnlyLoss.html">sup3r.utilities.loss_metrics.SpatiotemporalFftOnlyLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.StExtremesFftLoss.html">sup3r.utilities.loss_metrics.StExtremesFftLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.TemporalExtremesLoss.html">sup3r.utilities.loss_metrics.TemporalExtremesLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.TemporalExtremesOnlyLoss.html">sup3r.utilities.loss_metrics.TemporalExtremesOnlyLoss</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.html">sup3r.utilities.plotting</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.ax_plot_legend.html">sup3r.utilities.plotting.ax_plot_legend</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.ax_pretty_labels.html">sup3r.utilities.plotting.ax_pretty_labels</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.make_movie.html">sup3r.utilities.plotting.make_movie</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.plot_legend.html">sup3r.utilities.plotting.plot_legend</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.plot_multi_contour.html">sup3r.utilities.plotting.plot_multi_contour</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.plot_single_contour.html">sup3r.utilities.plotting.plot_single_contour</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.pretty_labels.html">sup3r.utilities.plotting.pretty_labels</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.pytest.html">sup3r.utilities.pytest</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.pytest.make_fake_cs_ratio_files.html">sup3r.utilities.pytest.make_fake_cs_ratio_files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.pytest.make_fake_era_files.html">sup3r.utilities.pytest.make_fake_era_files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.pytest.make_fake_h5_chunks.html">sup3r.utilities.pytest.make_fake_h5_chunks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.pytest.make_fake_multi_time_nc_files.html">sup3r.utilities.pytest.make_fake_multi_time_nc_files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.pytest.make_fake_nc_files.html">sup3r.utilities.pytest.make_fake_nc_files</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.regridder.html">sup3r.utilities.regridder</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.regridder.RegridOutput.html">sup3r.utilities.regridder.RegridOutput</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.regridder.Regridder.html">sup3r.utilities.regridder.Regridder</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.regridder.WindRegridder.html">sup3r.utilities.regridder.WindRegridder</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.regridder_cli.html">sup3r.utilities.regridder_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.regridder_cli.kickoff_local_job.html">sup3r.utilities.regridder_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.regridder_cli.kickoff_slurm_job.html">sup3r.utilities.regridder_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.html">sup3r.utilities.stitching</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.blend_domains.html">sup3r.utilities.stitching.blend_domains</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.forward_avg.html">sup3r.utilities.stitching.forward_avg</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.get_domain_region.html">sup3r.utilities.stitching.get_domain_region</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.get_files.html">sup3r.utilities.stitching.get_files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.get_handles.html">sup3r.utilities.stitching.get_handles</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.impute_domain.html">sup3r.utilities.stitching.impute_domain</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.prune_levels.html">sup3r.utilities.stitching.prune_levels</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.regrid_main_domain.html">sup3r.utilities.stitching.regrid_main_domain</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.stitch_and_save.html">sup3r.utilities.stitching.stitch_and_save</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.stitch_domains.html">sup3r.utilities.stitching.stitch_domains</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.unstagger_vars.html">sup3r.utilities.stitching.unstagger_vars</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.Regridder.html">sup3r.utilities.stitching.Regridder</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.html">sup3r.utilities.utilities</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.bvf_squared.html">sup3r.utilities.utilities.bvf_squared</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.correct_path.html">sup3r.utilities.utilities.correct_path</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.daily_temporal_coarsening.html">sup3r.utilities.utilities.daily_temporal_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.daily_time_sampler.html">sup3r.utilities.utilities.daily_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.estimate_max_workers.html">sup3r.utilities.utilities.estimate_max_workers</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.expand_paths.html">sup3r.utilities.utilities.expand_paths</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.forward_average.html">sup3r.utilities.utilities.forward_average</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.generate_random_string.html">sup3r.utilities.utilities.generate_random_string</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_chunk_slices.html">sup3r.utilities.utilities.get_chunk_slices</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_input_handler_class.html">sup3r.utilities.utilities.get_input_handler_class</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_raster_shape.html">sup3r.utilities.utilities.get_raster_shape</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_source_type.html">sup3r.utilities.utilities.get_source_type</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_time_dim_name.html">sup3r.utilities.utilities.get_time_dim_name</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_wrf_date_range.html">sup3r.utilities.utilities.get_wrf_date_range</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.gradient_richardson_number.html">sup3r.utilities.utilities.gradient_richardson_number</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.ignore_case_path_fetch.html">sup3r.utilities.utilities.ignore_case_path_fetch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.inverse_mo_length.html">sup3r.utilities.utilities.inverse_mo_length</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.invert_pot_temp.html">sup3r.utilities.utilities.invert_pot_temp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.invert_uv.html">sup3r.utilities.utilities.invert_uv</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.lat_lon_coarsening.html">sup3r.utilities.utilities.lat_lon_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.nn_fill_array.html">sup3r.utilities.utilities.nn_fill_array</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.np_to_pd_times.html">sup3r.utilities.utilities.np_to_pd_times</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.nsrdb_reduce_daily_data.html">sup3r.utilities.utilities.nsrdb_reduce_daily_data</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.nsrdb_sub_daily_sampler.html">sup3r.utilities.utilities.nsrdb_sub_daily_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.pd_date_range.html">sup3r.utilities.utilities.pd_date_range</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.potential_temperature.html">sup3r.utilities.utilities.potential_temperature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.potential_temperature_average.html">sup3r.utilities.utilities.potential_temperature_average</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.potential_temperature_difference.html">sup3r.utilities.utilities.potential_temperature_difference</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.rotor_area.html">sup3r.utilities.utilities.rotor_area</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.rotor_equiv_ws.html">sup3r.utilities.utilities.rotor_equiv_ws</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.round_array.html">sup3r.utilities.utilities.round_array</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.smooth_data.html">sup3r.utilities.utilities.smooth_data</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.spatial_coarsening.html">sup3r.utilities.utilities.spatial_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.spatial_simple_enhancing.html">sup3r.utilities.utilities.spatial_simple_enhancing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.st_interp.html">sup3r.utilities.utilities.st_interp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.temporal_coarsening.html">sup3r.utilities.utilities.temporal_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.temporal_simple_enhancing.html">sup3r.utilities.utilities.temporal_simple_enhancing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.transform_rotate_wind.html">sup3r.utilities.utilities.transform_rotate_wind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.uniform_box_sampler.html">sup3r.utilities.utilities.uniform_box_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.uniform_time_sampler.html">sup3r.utilities.utilities.uniform_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.vorticity_calc.html">sup3r.utilities.utilities.vorticity_calc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.weighted_box_sampler.html">sup3r.utilities.utilities.weighted_box_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.weighted_time_sampler.html">sup3r.utilities.utilities.weighted_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.windspeed_log_law.html">sup3r.utilities.utilities.windspeed_log_law</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.Timer.html">sup3r.utilities.utilities.Timer</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../_cli/cli.html">CLI reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../_cli/sup3r.html">sup3r</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-batch">batch</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-bias-calc">bias-calc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-data-collect">data-collect</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-data-extract">data-extract</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-forward-pass">forward-pass</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-pipeline">pipeline</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-qa">qa</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-regrid">regrid</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-solar">solar</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-stats">stats</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-visual-qa">visual-qa</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">sup3r</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+          <li class="breadcrumb-item"><a href="../utilities.html">sup3r.utilities</a></li>
+      <li class="breadcrumb-item active">sup3r.utilities.interpolation</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for sup3r.utilities.interpolation</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Interpolator class with methods for pressure and height interpolation&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">warnings</span> <span class="kn">import</span> <span class="n">warn</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">scipy.interpolate</span> <span class="kn">import</span> <span class="n">interp1d</span>
+
+<span class="kn">from</span> <span class="nn">sup3r.preprocessing.feature_handling</span> <span class="kn">import</span> <span class="n">Feature</span>
+<span class="kn">from</span> <span class="nn">sup3r.utilities.utilities</span> <span class="kn">import</span> <span class="n">forward_average</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="Interpolator">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.utilities.interpolation.Interpolator.html#sup3r.utilities.interpolation.Interpolator">[docs]</a>
+<span class="k">class</span> <span class="nc">Interpolator</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Class for handling pressure and height interpolation&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="Interpolator.calc_height">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.utilities.interpolation.Interpolator.html#sup3r.utilities.interpolation.Interpolator.calc_height">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">calc_height</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">raster_index</span><span class="p">,</span> <span class="n">time_slice</span><span class="o">=</span><span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">)):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate height from the ground</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data : xarray</span>
+<span class="sd">            netcdf data object</span>
+<span class="sd">        raster_index : list</span>
+<span class="sd">            List of slices for raster index of spatial domain</span>
+<span class="sd">        time_slice : slice</span>
+<span class="sd">            slice of time to extract</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        height_arr : ndarray</span>
+<span class="sd">            (temporal, vertical_level, spatial_1, spatial_2)</span>
+<span class="sd">            4D array of heights above ground. In meters.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="n">field</span> <span class="ow">in</span> <span class="n">data</span> <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;PHB&#39;</span><span class="p">,</span> <span class="s1">&#39;PH&#39;</span><span class="p">,</span> <span class="s1">&#39;HGT&#39;</span><span class="p">)):</span>
+            <span class="c1"># Base-state Geopotential(m^2/s^2)</span>
+            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="s1">&#39;stag&#39;</span> <span class="ow">in</span> <span class="n">d</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;PHB&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">dims</span><span class="p">):</span>
+                <span class="n">gp</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">unstagger_var</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="s1">&#39;PHB&#39;</span><span class="p">,</span> <span class="n">raster_index</span><span class="p">,</span> <span class="n">time_slice</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">gp</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">extract_multi_level_var</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="s1">&#39;PHB&#39;</span><span class="p">,</span> <span class="n">raster_index</span><span class="p">,</span>
+                                                 <span class="n">time_slice</span><span class="p">)</span>
+
+            <span class="c1"># Perturbation Geopotential (m^2/s^2)</span>
+            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="s1">&#39;stag&#39;</span> <span class="ow">in</span> <span class="n">d</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;PH&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">dims</span><span class="p">):</span>
+                <span class="n">gp</span> <span class="o">+=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">unstagger_var</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="s1">&#39;PH&#39;</span><span class="p">,</span> <span class="n">raster_index</span><span class="p">,</span> <span class="n">time_slice</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">gp</span> <span class="o">+=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">extract_multi_level_var</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="s1">&#39;PH&#39;</span><span class="p">,</span> <span class="n">raster_index</span><span class="p">,</span>
+                                                  <span class="n">time_slice</span><span class="p">)</span>
+
+            <span class="c1"># Terrain Height (m)</span>
+            <span class="n">hgt</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;HGT&#39;</span><span class="p">][(</span><span class="n">time_slice</span><span class="p">,</span> <span class="o">*</span><span class="nb">tuple</span><span class="p">(</span><span class="n">raster_index</span><span class="p">))]</span>
+            <span class="k">if</span> <span class="n">gp</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">hgt</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
+                <span class="n">hgt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">expand_dims</span><span class="p">(</span><span class="n">hgt</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span>
+                                <span class="n">gp</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">],</span>
+                                <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">hgt</span> <span class="o">=</span> <span class="n">gp</span> <span class="o">/</span> <span class="mf">9.81</span> <span class="o">-</span> <span class="n">hgt</span>
+            <span class="k">del</span> <span class="n">gp</span>
+
+        <span class="k">elif</span> <span class="nb">all</span><span class="p">(</span><span class="n">field</span> <span class="ow">in</span> <span class="n">data</span> <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;zg&#39;</span><span class="p">,</span> <span class="s1">&#39;orog&#39;</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;orog&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">dims</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+                <span class="n">hgt</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;orog&#39;</span><span class="p">][(</span><span class="mi">0</span><span class="p">,</span> <span class="o">*</span><span class="nb">tuple</span><span class="p">(</span><span class="n">raster_index</span><span class="p">))]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">hgt</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;orog&#39;</span><span class="p">][</span><span class="nb">tuple</span><span class="p">(</span><span class="n">raster_index</span><span class="p">)]</span>
+            <span class="n">gp</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;zg&#39;</span><span class="p">][(</span><span class="n">time_slice</span><span class="p">,</span> <span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">),</span> <span class="o">*</span><span class="nb">tuple</span><span class="p">(</span><span class="n">raster_index</span><span class="p">))]</span>
+            <span class="n">hgt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">expand_dims</span><span class="p">(</span><span class="n">hgt</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span> <span class="n">gp</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">hgt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">expand_dims</span><span class="p">(</span><span class="n">hgt</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span> <span class="n">gp</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">hgt</span> <span class="o">=</span> <span class="n">gp</span> <span class="o">-</span> <span class="n">hgt</span>
+            <span class="k">del</span> <span class="n">gp</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;Need either PHB/PH/HGT or zg/orog in data to perform &#39;</span>
+                   <span class="s1">&#39;height interpolation&#39;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Spatiotemporally averaged height levels: &#39;</span>
+                     <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nanmean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">hgt</span><span class="p">),</span><span class="w"> </span><span class="n">axis</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">)))</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">hgt</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Interpolator.extract_multi_level_var">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.utilities.interpolation.Interpolator.html#sup3r.utilities.interpolation.Interpolator.extract_multi_level_var">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">extract_multi_level_var</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span>
+                                <span class="n">data</span><span class="p">,</span>
+                                <span class="n">var</span><span class="p">,</span>
+                                <span class="n">raster_index</span><span class="p">,</span>
+                                <span class="n">time_slice</span><span class="o">=</span><span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">)):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Extract WRF variable values. This is meant to extract 4D arrays for</span>
+<span class="sd">        fields without staggered dimensions</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data : xarray</span>
+<span class="sd">            netcdf data object</span>
+<span class="sd">        var : str</span>
+<span class="sd">            Name of variable to be extracted</span>
+<span class="sd">        raster_index : list</span>
+<span class="sd">            List of slices for raster index of spatial domain</span>
+<span class="sd">        time_slice : slice</span>
+<span class="sd">            slice of time to extract</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ndarray</span>
+<span class="sd">            Extracted array of variable values.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">idx</span> <span class="o">=</span> <span class="p">[</span><span class="n">time_slice</span><span class="p">,</span> <span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">),</span> <span class="n">raster_index</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">raster_index</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+
+        <span class="k">assert</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="s1">&#39;stag&#39;</span> <span class="ow">in</span> <span class="n">d</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="p">[</span><span class="n">var</span><span class="p">]</span><span class="o">.</span><span class="n">dims</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">var</span><span class="p">][</span><span class="nb">tuple</span><span class="p">(</span><span class="n">idx</span><span class="p">)],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Interpolator.extract_single_level_var">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.utilities.interpolation.Interpolator.html#sup3r.utilities.interpolation.Interpolator.extract_single_level_var">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">extract_single_level_var</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span>
+                                 <span class="n">data</span><span class="p">,</span>
+                                 <span class="n">var</span><span class="p">,</span>
+                                 <span class="n">raster_index</span><span class="p">,</span>
+                                 <span class="n">time_slice</span><span class="o">=</span><span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">)):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Extract WRF variable values. This is meant to extract 3D arrays for</span>
+<span class="sd">        fields without staggered dimensions</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data : xarray</span>
+<span class="sd">            netcdf data object</span>
+<span class="sd">        var : str</span>
+<span class="sd">            Name of variable to be extracted</span>
+<span class="sd">        raster_index : list</span>
+<span class="sd">            List of slices for raster index of spatial domain</span>
+<span class="sd">        time_slice : slice</span>
+<span class="sd">            slice of time to extract</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ndarray</span>
+<span class="sd">            Extracted array of variable values.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">idx</span> <span class="o">=</span> <span class="p">[</span><span class="n">time_slice</span><span class="p">,</span> <span class="n">raster_index</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">raster_index</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+
+        <span class="k">assert</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="s1">&#39;stag&#39;</span> <span class="ow">in</span> <span class="n">d</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="p">[</span><span class="n">var</span><span class="p">]</span><span class="o">.</span><span class="n">dims</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">var</span><span class="p">][</span><span class="nb">tuple</span><span class="p">(</span><span class="n">idx</span><span class="p">)],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Interpolator.unstagger_var">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.utilities.interpolation.Interpolator.html#sup3r.utilities.interpolation.Interpolator.unstagger_var">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">unstagger_var</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">var</span><span class="p">,</span> <span class="n">raster_index</span><span class="p">,</span> <span class="n">time_slice</span><span class="o">=</span><span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">)):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Unstagger WRF variable values. Some variables use a staggered grid</span>
+<span class="sd">        with values associated with grid cell edges. We want to center these</span>
+<span class="sd">        values.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data : xarray</span>
+<span class="sd">            netcdf data object</span>
+<span class="sd">        var : str</span>
+<span class="sd">            Name of variable to be unstaggered</span>
+<span class="sd">        raster_index : list</span>
+<span class="sd">            List of slices for raster index of spatial domain</span>
+<span class="sd">        time_slice : slice</span>
+<span class="sd">            slice of time to extract</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ndarray</span>
+<span class="sd">            Unstaggered array of variable values.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">idx</span> <span class="o">=</span> <span class="p">[</span><span class="n">time_slice</span><span class="p">,</span> <span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">),</span> <span class="n">raster_index</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">raster_index</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+        <span class="k">assert</span> <span class="nb">any</span><span class="p">(</span><span class="s1">&#39;stag&#39;</span> <span class="ow">in</span> <span class="n">d</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="p">[</span><span class="n">var</span><span class="p">]</span><span class="o">.</span><span class="n">dims</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s1">&#39;stag&#39;</span> <span class="ow">in</span> <span class="n">data</span><span class="p">[</span><span class="n">var</span><span class="p">]</span><span class="o">.</span><span class="n">dims</span><span class="p">[</span><span class="mi">2</span><span class="p">]:</span>
+            <span class="n">idx</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="nb">slice</span><span class="p">(</span><span class="n">idx</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">start</span><span class="p">,</span> <span class="n">idx</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">stop</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s1">&#39;stag&#39;</span> <span class="ow">in</span> <span class="n">data</span><span class="p">[</span><span class="n">var</span><span class="p">]</span><span class="o">.</span><span class="n">dims</span><span class="p">[</span><span class="mi">3</span><span class="p">]:</span>
+            <span class="n">idx</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="nb">slice</span><span class="p">(</span><span class="n">idx</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="o">.</span><span class="n">start</span><span class="p">,</span> <span class="n">idx</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="o">.</span><span class="n">stop</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">array_in</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">var</span><span class="p">][</span><span class="nb">tuple</span><span class="p">(</span><span class="n">idx</span><span class="p">)],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">var</span><span class="p">]</span><span class="o">.</span><span class="n">dims</span><span class="p">):</span>
+            <span class="k">if</span> <span class="s1">&#39;stag&#39;</span> <span class="ow">in</span> <span class="n">d</span><span class="p">:</span>
+                <span class="n">array_in</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">apply_along_axis</span><span class="p">(</span><span class="n">forward_average</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">array_in</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">array_in</span></div>
+
+
+<div class="viewcode-block" id="Interpolator.calc_pressure">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.utilities.interpolation.Interpolator.html#sup3r.utilities.interpolation.Interpolator.calc_pressure">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">calc_pressure</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">var</span><span class="p">,</span> <span class="n">raster_index</span><span class="p">,</span> <span class="n">time_slice</span><span class="o">=</span><span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">)):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate pressure array</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data : xarray</span>
+<span class="sd">            netcdf data object</span>
+<span class="sd">        var : str</span>
+<span class="sd">            Feature to extract from data</span>
+<span class="sd">        raster_index : list</span>
+<span class="sd">            List of slices for raster index of spatial domain</span>
+<span class="sd">        time_slice : slice</span>
+<span class="sd">            slice of time to extract</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        height_arr : ndarray</span>
+<span class="sd">            (temporal, vertical_level, spatial_1, spatial_2)</span>
+<span class="sd">            4D array of pressure levels in pascals</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="p">(</span><span class="n">time_slice</span><span class="p">,</span> <span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">),</span> <span class="o">*</span><span class="nb">tuple</span><span class="p">(</span><span class="n">raster_index</span><span class="p">))</span>
+        <span class="n">p_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">var</span><span class="p">][</span><span class="n">idx</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">levels</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="s1">&#39;plev&#39;</span><span class="p">):</span>
+            <span class="n">levels</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">plev</span>
+        <span class="k">elif</span> <span class="s1">&#39;levels&#39;</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+            <span class="n">levels</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;levels&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;Cannot extract pressure data from given data.&#39;</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">OSError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">p_array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+            <span class="n">p_array</span><span class="p">[:,</span> <span class="n">i</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="n">levels</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Available pressure levels: </span><span class="si">{</span><span class="n">levels</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">p_array</span></div>
+
+
+<div class="viewcode-block" id="Interpolator.prep_level_interp">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.utilities.interpolation.Interpolator.html#sup3r.utilities.interpolation.Interpolator.prep_level_interp">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">prep_level_interp</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">var_array</span><span class="p">,</span> <span class="n">lev_array</span><span class="p">,</span> <span class="n">levels</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Prepare var_array interpolation. Check level ranges and add noise to</span>
+<span class="sd">        mask locations.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        var_array : ndarray</span>
+<span class="sd">            Array of variable data, for example u-wind in a 4D array of shape</span>
+<span class="sd">            (time, vertical, lat, lon)</span>
+<span class="sd">        lev_array : ndarray</span>
+<span class="sd">            Array of height or pressure values corresponding to the wrf source</span>
+<span class="sd">            data in the same shape as var_array. If this is height and the</span>
+<span class="sd">            requested levels are hub heights above surface, lev_array should be</span>
+<span class="sd">            the geopotential height corresponding to every var_array index</span>
+<span class="sd">            relative to the surface elevation (subtract the elevation at the</span>
+<span class="sd">            surface from the geopotential height)</span>
+<span class="sd">        levels : float | list</span>
+<span class="sd">            level or levels to interpolate to (e.g. final desired hub heights</span>
+<span class="sd">            above surface elevation)</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        lev_array : ndarray</span>
+<span class="sd">            Array of levels with noise added to mask locations.</span>
+<span class="sd">        levels : list</span>
+<span class="sd">            List of levels to interpolate to.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;Input arrays must be the same shape.&#39;</span>
+               <span class="sa">f</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">var_array: </span><span class="si">{</span><span class="n">var_array</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s1">&#39;</span>
+               <span class="sa">f</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">h_array: </span><span class="si">{</span><span class="n">lev_array</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">var_array</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">lev_array</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">msg</span>
+
+        <span class="n">levels</span> <span class="o">=</span> <span class="p">([</span><span class="n">levels</span><span class="p">]</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">levels</span><span class="p">,</span>
+                                         <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span> <span class="k">else</span> <span class="n">levels</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">lev_array</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;All pressure level height data is NaN!&#39;</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+        <span class="n">nans</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">lev_array</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Level array shape: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">lev_array</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
+
+        <span class="n">lowest_height</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">lev_array</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="o">...</span><span class="p">])</span>
+        <span class="n">highest_height</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">lev_array</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="o">...</span><span class="p">])</span>
+        <span class="n">bad_min</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">levels</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">lowest_height</span>
+        <span class="n">bad_max</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">levels</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">highest_height</span>
+
+        <span class="k">if</span> <span class="n">nans</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;Approximately </span><span class="si">{:.2f}% o</span><span class="s1">f the vertical level &#39;</span>
+                   <span class="s1">&#39;array is NaN. Data will be interpolated or extrapolated &#39;</span>
+                   <span class="s1">&#39;past these NaN values.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="mi">100</span> <span class="o">*</span> <span class="n">nans</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+                                                   <span class="o">/</span> <span class="n">nans</span><span class="o">.</span><span class="n">size</span><span class="p">))</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="n">warn</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+        <span class="c1"># This and the next if statement can return warnings in the case of</span>
+        <span class="c1"># pressure inversions, in which case the &quot;lowest&quot; or &quot;highest&quot; pressure</span>
+        <span class="c1"># does not correspond to the lowest or highest height. Interpolation</span>
+        <span class="c1"># can be performed without issue in this case.</span>
+        <span class="k">if</span> <span class="n">bad_min</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;Approximately </span><span class="si">{:.2f}% o</span><span class="s1">f the lowest vertical levels &#39;</span>
+                   <span class="s1">&#39;(maximum value of </span><span class="si">{:.3f}</span><span class="s1">, minimum value of </span><span class="si">{:.3f}</span><span class="s1">) &#39;</span>
+                   <span class="s1">&#39;were greater than the minimum requested level: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                       <span class="mi">100</span> <span class="o">*</span> <span class="n">bad_min</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">/</span> <span class="n">bad_min</span><span class="o">.</span><span class="n">size</span><span class="p">,</span>
+                       <span class="n">lev_array</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span> <span class="n">lev_array</span><span class="p">[:,</span>
+                                                              <span class="mi">0</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span>
+                       <span class="nb">min</span><span class="p">(</span><span class="n">levels</span><span class="p">),</span>
+                   <span class="p">))</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="n">warn</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">bad_max</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;Approximately </span><span class="si">{:.2f}% o</span><span class="s1">f the highest vertical levels &#39;</span>
+                   <span class="s1">&#39;(minimum value of </span><span class="si">{:.3f}</span><span class="s1">, maximum value of </span><span class="si">{:.3f}</span><span class="s1">) &#39;</span>
+                   <span class="s1">&#39;were lower than the maximum requested level: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                       <span class="mi">100</span> <span class="o">*</span> <span class="n">bad_max</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">/</span> <span class="n">bad_max</span><span class="o">.</span><span class="n">size</span><span class="p">,</span>
+                       <span class="n">lev_array</span><span class="p">[:,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">lev_array</span><span class="p">[:,</span>
+                                                               <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span>
+                       <span class="nb">max</span><span class="p">(</span><span class="n">levels</span><span class="p">),</span>
+                   <span class="p">))</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="n">warn</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+        <span class="c1"># if multiple vertical levels have identical heights at the desired</span>
+        <span class="c1"># interpolation level, interpolation to that value will fail because</span>
+        <span class="c1"># linear slope will be NaN. This is most common if you have multiple</span>
+        <span class="c1"># pressure levels at zero height at the surface in the case that the</span>
+        <span class="c1"># data didnt provide underground data.</span>
+        <span class="k">for</span> <span class="n">level</span> <span class="ow">in</span> <span class="n">levels</span><span class="p">:</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="n">lev_array</span> <span class="o">==</span> <span class="n">level</span>
+            <span class="n">lev_array</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">-</span><span class="mf">1e-5</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">mask</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+
+        <span class="k">return</span> <span class="n">lev_array</span><span class="p">,</span> <span class="n">levels</span></div>
+
+
+<div class="viewcode-block" id="Interpolator.interp_to_level">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.utilities.interpolation.Interpolator.html#sup3r.utilities.interpolation.Interpolator.interp_to_level">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">interp_to_level</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">var_array</span><span class="p">,</span> <span class="n">lev_array</span><span class="p">,</span> <span class="n">levels</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Interpolate var_array to given level(s) based on lev_array.</span>
+<span class="sd">        Interpolation is linear and done for every &#39;z&#39; column of [var, h] data.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        var_array : ndarray</span>
+<span class="sd">            Array of variable data, for example u-wind in a 4D array of shape</span>
+<span class="sd">            (time, vertical, lat, lon)</span>
+<span class="sd">        lev_array : ndarray</span>
+<span class="sd">            Array of height or pressure values corresponding to the wrf source</span>
+<span class="sd">            data in the same shape as var_array. If this is height and the</span>
+<span class="sd">            requested levels are hub heights above surface, lev_array should be</span>
+<span class="sd">            the geopotential height corresponding to every var_array index</span>
+<span class="sd">            relative to the surface elevation (subtract the elevation at the</span>
+<span class="sd">            surface from the geopotential height)</span>
+<span class="sd">        levels : float | list</span>
+<span class="sd">            level or levels to interpolate to (e.g. final desired hub heights</span>
+<span class="sd">            above surface elevation)</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        out_array : ndarray</span>
+<span class="sd">            Array of interpolated values.</span>
+<span class="sd">            (temporal, spatial_1, spatial_2)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">lev_array</span><span class="p">,</span> <span class="n">levels</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">prep_level_interp</span><span class="p">(</span><span class="n">var_array</span><span class="p">,</span> <span class="n">lev_array</span><span class="p">,</span> <span class="n">levels</span><span class="p">)</span>
+        <span class="n">array_shape</span> <span class="o">=</span> <span class="n">var_array</span><span class="o">.</span><span class="n">shape</span>
+
+        <span class="c1"># Flatten h_array and var_array along lat, long axis</span>
+        <span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">levels</span><span class="p">),</span> <span class="n">array_shape</span><span class="p">[</span><span class="o">-</span><span class="mi">4</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">array_shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:]))</span>
+        <span class="n">out_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+
+        <span class="c1"># iterate through time indices</span>
+        <span class="k">for</span> <span class="n">idt</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">array_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">array_shape</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">array_shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:]))</span>
+            <span class="n">h_tmp</span> <span class="o">=</span> <span class="n">lev_array</span><span class="p">[</span><span class="n">idt</span><span class="p">]</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+            <span class="n">var_tmp</span> <span class="o">=</span> <span class="n">var_array</span><span class="p">[</span><span class="n">idt</span><span class="p">]</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+            <span class="n">not_nan</span> <span class="o">=</span> <span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">h_tmp</span><span class="p">)</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">var_tmp</span><span class="p">)</span>
+
+            <span class="c1"># Interp each vertical column of height and var to requested levels</span>
+            <span class="n">zip_iter</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="n">h_tmp</span><span class="p">,</span> <span class="n">var_tmp</span><span class="p">,</span> <span class="n">not_nan</span><span class="p">)</span>
+            <span class="n">vals</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">interp1d</span><span class="p">(</span><span class="n">h</span><span class="p">[</span><span class="n">mask</span><span class="p">],</span> <span class="n">var</span><span class="p">[</span><span class="n">mask</span><span class="p">],</span> <span class="n">fill_value</span><span class="o">=</span><span class="s1">&#39;extrapolate&#39;</span><span class="p">)(</span><span class="n">levels</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">h</span><span class="p">,</span> <span class="n">var</span><span class="p">,</span> <span class="n">mask</span> <span class="ow">in</span> <span class="n">zip_iter</span>
+            <span class="p">]</span>
+            <span class="n">out_array</span><span class="p">[:,</span> <span class="n">idt</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">vals</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+        <span class="c1"># Reshape out_array</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">levels</span><span class="p">,</span> <span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="nb">int</span><span class="p">)):</span>
+            <span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">array_shape</span><span class="p">[</span><span class="o">-</span><span class="mi">4</span><span class="p">],</span> <span class="n">array_shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">],</span> <span class="n">array_shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">out_array</span> <span class="o">=</span> <span class="n">out_array</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">levels</span><span class="p">),</span> <span class="n">array_shape</span><span class="p">[</span><span class="o">-</span><span class="mi">4</span><span class="p">],</span> <span class="n">array_shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">],</span>
+                     <span class="n">array_shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">out_array</span> <span class="o">=</span> <span class="n">out_array</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">out_array</span></div>
+
+
+<div class="viewcode-block" id="Interpolator.get_single_level_vars">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.utilities.interpolation.Interpolator.html#sup3r.utilities.interpolation.Interpolator.get_single_level_vars">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">get_single_level_vars</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">var</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get feature values at fixed levels. e.g. U_40m</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data: xarray.Dataset</span>
+<span class="sd">            netcdf data object</span>
+<span class="sd">        var : str</span>
+<span class="sd">            Raw feature name e.g. U_100m</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        list</span>
+<span class="sd">            List of single level feature names</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">handle_features</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">basename</span> <span class="o">=</span> <span class="n">Feature</span><span class="o">.</span><span class="n">get_basename</span><span class="p">(</span><span class="n">var</span><span class="p">)</span>
+
+        <span class="n">level_features</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">v</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">handle_features</span> <span class="k">if</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">basename</span><span class="si">}</span><span class="s1">_&#39;</span> <span class="ow">in</span> <span class="n">v</span>
+            <span class="ow">or</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">basename</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="si">}</span><span class="s1">_&#39;</span> <span class="ow">in</span> <span class="n">v</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">level_features</span></div>
+
+
+<div class="viewcode-block" id="Interpolator.get_single_level_data">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.utilities.interpolation.Interpolator.html#sup3r.utilities.interpolation.Interpolator.get_single_level_data">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">get_single_level_data</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span>
+                              <span class="n">data</span><span class="p">,</span>
+                              <span class="n">var</span><span class="p">,</span>
+                              <span class="n">raster_index</span><span class="p">,</span>
+                              <span class="n">time_slice</span><span class="o">=</span><span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">)):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get all available single level data for the given variable.</span>
+<span class="sd">        e.g. If var=U_40m get data for U_10m, U_40m, U_80m, etc</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data : xarray</span>
+<span class="sd">            netcdf data object</span>
+<span class="sd">        var : str</span>
+<span class="sd">            Name of variable to get other single level data for</span>
+<span class="sd">        raster_index : list</span>
+<span class="sd">            List of slices for raster index of spatial domain</span>
+<span class="sd">        time_slice : slice</span>
+<span class="sd">            slice of time to extract</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        arr : ndarray</span>
+<span class="sd">            Array of single level data.</span>
+<span class="sd">            (temporal, level, spatial_1, spatial_2)</span>
+<span class="sd">        hgt : ndarray</span>
+<span class="sd">            Height array corresponding to single level data.</span>
+<span class="sd">            (temporal, level, spatial_1, spatial_2)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">hvar_arr</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">hvar_hgt</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">hvars</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">get_single_level_vars</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">var</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">hvars</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">hvar_arr</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="bp">cls</span><span class="o">.</span><span class="n">extract_single_level_var</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">hvar</span><span class="p">,</span> <span class="n">raster_index</span><span class="p">,</span>
+                                             <span class="n">time_slice</span><span class="p">)[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">hvar</span> <span class="ow">in</span> <span class="n">hvars</span>
+            <span class="p">]</span>
+            <span class="n">hvar_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">hvar_arr</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">hvar_hgt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">hvar_arr</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">h</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">([</span><span class="n">Feature</span><span class="o">.</span><span class="n">get_height</span><span class="p">(</span><span class="n">hvar</span><span class="p">)</span>
+                                   <span class="k">for</span> <span class="n">hvar</span> <span class="ow">in</span> <span class="n">hvars</span><span class="p">]):</span>
+                <span class="n">hvar_hgt</span><span class="p">[:,</span> <span class="n">i</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="n">h</span>
+        <span class="k">return</span> <span class="n">hvar_arr</span><span class="p">,</span> <span class="n">hvar_hgt</span></div>
+
+
+<div class="viewcode-block" id="Interpolator.get_multi_level_data">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.utilities.interpolation.Interpolator.html#sup3r.utilities.interpolation.Interpolator.get_multi_level_data">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">get_multi_level_data</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span>
+                             <span class="n">data</span><span class="p">,</span>
+                             <span class="n">var</span><span class="p">,</span>
+                             <span class="n">raster_index</span><span class="p">,</span>
+                             <span class="n">time_slice</span><span class="o">=</span><span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">)):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get multilevel data for the given variable</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data : xarray</span>
+<span class="sd">            netcdf data object</span>
+<span class="sd">        var : str</span>
+<span class="sd">            Name of variable to get data for</span>
+<span class="sd">        raster_index : list</span>
+<span class="sd">            List of slices for raster index of spatial domain</span>
+<span class="sd">        time_slice : slice</span>
+<span class="sd">            slice of time to extract</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        arr : ndarray</span>
+<span class="sd">            Array of multilevel data.</span>
+<span class="sd">            (temporal, level, spatial_1, spatial_2)</span>
+<span class="sd">        hgt : ndarray</span>
+<span class="sd">            Height array corresponding to multilevel data.</span>
+<span class="sd">            (temporal, level, spatial_1, spatial_2)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">arr</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">hgt</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">basename</span> <span class="o">=</span> <span class="n">Feature</span><span class="o">.</span><span class="n">get_basename</span><span class="p">(</span><span class="n">var</span><span class="p">)</span>
+        <span class="n">var</span> <span class="o">=</span> <span class="n">basename</span> <span class="k">if</span> <span class="n">basename</span> <span class="ow">in</span> <span class="n">data</span> <span class="k">else</span> <span class="n">basename</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">var</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">var</span><span class="p">]</span><span class="o">.</span><span class="n">dims</span><span class="p">)</span> <span class="o">==</span> <span class="mi">5</span><span class="p">:</span>
+                <span class="n">raster_index</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="o">*</span><span class="n">raster_index</span><span class="p">]</span>
+            <span class="n">hgt</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">calc_height</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">raster_index</span><span class="p">,</span> <span class="n">time_slice</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s1">&#39;Computed height array with min/max: </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">nanmin</span><span class="p">(</span><span class="n">hgt</span><span class="p">)</span><span class="si">}</span><span class="s1"> / &#39;</span>
+                <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">nanmax</span><span class="p">(</span><span class="n">hgt</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">data</span><span class="p">[</span><span class="n">var</span><span class="p">]</span><span class="o">.</span><span class="n">dims</span> <span class="ow">in</span> <span class="p">((</span><span class="s1">&#39;plev&#39;</span><span class="p">,</span> <span class="p">),</span> <span class="p">(</span><span class="s1">&#39;level&#39;</span><span class="p">,</span> <span class="p">)):</span>
+                <span class="n">arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">var</span><span class="p">])</span>
+                <span class="n">arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">expand_dims</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+                <span class="n">arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="n">hgt</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                <span class="n">arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="n">hgt</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+                <span class="n">arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="n">hgt</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="nb">all</span><span class="p">(</span><span class="s1">&#39;stag&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">d</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="p">[</span><span class="n">var</span><span class="p">]</span><span class="o">.</span><span class="n">dims</span><span class="p">):</span>
+                <span class="n">arr</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">extract_multi_level_var</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">var</span><span class="p">,</span> <span class="n">raster_index</span><span class="p">,</span>
+                                                  <span class="n">time_slice</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">arr</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">unstagger_var</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">var</span><span class="p">,</span> <span class="n">raster_index</span><span class="p">,</span> <span class="n">time_slice</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">arr</span><span class="p">,</span> <span class="n">hgt</span></div>
+
+
+<div class="viewcode-block" id="Interpolator.interp_var_to_height">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.utilities.interpolation.Interpolator.html#sup3r.utilities.interpolation.Interpolator.interp_var_to_height">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">interp_var_to_height</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span>
+                             <span class="n">data</span><span class="p">,</span>
+                             <span class="n">var</span><span class="p">,</span>
+                             <span class="n">raster_index</span><span class="p">,</span>
+                             <span class="n">heights</span><span class="p">,</span>
+                             <span class="n">time_slice</span><span class="o">=</span><span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">)):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Interpolate var_array to given level(s) based on h_array.</span>
+<span class="sd">        Interpolation is linear and done for every &#39;z&#39; column of [var, h] data.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data : xarray</span>
+<span class="sd">            netcdf data object</span>
+<span class="sd">        var : str</span>
+<span class="sd">            Name of variable to be interpolated</span>
+<span class="sd">        raster_index : list</span>
+<span class="sd">            List of slices for raster index of spatial domain</span>
+<span class="sd">        heights : float | list</span>
+<span class="sd">            level or levels to interpolate to (e.g. final desired hub heights)</span>
+<span class="sd">        time_slice : slice</span>
+<span class="sd">            slice of time to extract</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        out_array : ndarray</span>
+<span class="sd">            Array of interpolated values.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">arr</span><span class="p">,</span> <span class="n">hgt</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">get_multi_level_data</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">Feature</span><span class="o">.</span><span class="n">get_basename</span><span class="p">(</span><span class="n">var</span><span class="p">),</span>
+                                            <span class="n">raster_index</span><span class="p">,</span> <span class="n">time_slice</span><span class="p">)</span>
+        <span class="n">hvar_arr</span><span class="p">,</span> <span class="n">hvar_hgt</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">get_single_level_data</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">var</span><span class="p">,</span> <span class="n">raster_index</span><span class="p">,</span>
+                                                       <span class="n">time_slice</span><span class="p">)</span>
+        <span class="n">has_multi_levels</span> <span class="o">=</span> <span class="p">(</span><span class="n">hgt</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">arr</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">has_single_levels</span> <span class="o">=</span> <span class="p">(</span><span class="n">hvar_hgt</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">hvar_arr</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">has_single_levels</span> <span class="ow">and</span> <span class="n">has_multi_levels</span><span class="p">:</span>
+            <span class="n">hgt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">hgt</span><span class="p">,</span> <span class="n">hvar_hgt</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">arr</span><span class="p">,</span> <span class="n">hvar_arr</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">has_single_levels</span><span class="p">:</span>
+            <span class="n">hgt</span> <span class="o">=</span> <span class="n">hvar_hgt</span>
+            <span class="n">arr</span> <span class="o">=</span> <span class="n">hvar_arr</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;Something went wrong with data extraction. Found neither &#39;</span>
+                   <span class="sa">f</span><span class="s1">&#39;multi level data or single level data for feature=</span><span class="si">{</span><span class="n">var</span><span class="si">}</span><span class="s1">.&#39;</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="n">has_multi_levels</span><span class="p">,</span> <span class="n">msg</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">interp_to_level</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="n">hgt</span><span class="p">,</span> <span class="n">heights</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="Interpolator.interp_var_to_pressure">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.utilities.interpolation.Interpolator.html#sup3r.utilities.interpolation.Interpolator.interp_var_to_pressure">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">interp_var_to_pressure</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span>
+                               <span class="n">data</span><span class="p">,</span>
+                               <span class="n">var</span><span class="p">,</span>
+                               <span class="n">raster_index</span><span class="p">,</span>
+                               <span class="n">pressures</span><span class="p">,</span>
+                               <span class="n">time_slice</span><span class="o">=</span><span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">)):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Interpolate var_array to given level(s) based on h_array.</span>
+<span class="sd">        Interpolation is linear and done for every &#39;z&#39; column of [var, h] data.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data : xarray</span>
+<span class="sd">            netcdf data object</span>
+<span class="sd">        var : str</span>
+<span class="sd">            Name of variable to be interpolated</span>
+<span class="sd">        raster_index : list</span>
+<span class="sd">            List of slices for raster index of spatial domain</span>
+<span class="sd">        pressures : float | list</span>
+<span class="sd">            level or levels to interpolate to (e.g. final desired hub heights)</span>
+<span class="sd">        time_slice : slice</span>
+<span class="sd">            slice of time to extract</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        out_array : ndarray</span>
+<span class="sd">            Array of interpolated values.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Interpolating </span><span class="si">{</span><span class="n">var</span><span class="si">}</span><span class="s1"> to pressures (Pa): </span><span class="si">{</span><span class="n">pressures</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">var</span><span class="p">]</span><span class="o">.</span><span class="n">dims</span><span class="p">)</span> <span class="o">==</span> <span class="mi">5</span><span class="p">:</span>
+            <span class="n">raster_index</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="o">*</span><span class="n">raster_index</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="s1">&#39;stag&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">d</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="p">[</span><span class="n">var</span><span class="p">]</span><span class="o">.</span><span class="n">dims</span><span class="p">):</span>
+            <span class="n">arr</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">extract_multi_level_var</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">var</span><span class="p">,</span> <span class="n">raster_index</span><span class="p">,</span>
+                                              <span class="n">time_slice</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">arr</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">unstagger_var</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">var</span><span class="p">,</span> <span class="n">raster_index</span><span class="p">,</span> <span class="n">time_slice</span><span class="p">)</span>
+
+        <span class="n">p_levels</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">calc_pressure</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">var</span><span class="p">,</span> <span class="n">raster_index</span><span class="p">,</span> <span class="n">time_slice</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">interp_to_level</span><span class="p">(</span><span class="n">arr</span><span class="p">[:,</span> <span class="p">::</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">p_levels</span><span class="p">[:,</span> <span class="p">::</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+                                   <span class="n">pressures</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Alliance for Sustainable Energy, LLC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

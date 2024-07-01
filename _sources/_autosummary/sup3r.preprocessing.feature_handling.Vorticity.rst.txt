@@ -1,0 +1,25 @@
+sup3r.preprocessing.feature\_handling.Vorticity
+===============================================
+
+.. currentmodule:: sup3r.preprocessing.feature_handling
+
+.. autoclass:: Vorticity
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~Vorticity.compute
+      ~Vorticity.inputs
+   
+   
+
+   
+   
+   

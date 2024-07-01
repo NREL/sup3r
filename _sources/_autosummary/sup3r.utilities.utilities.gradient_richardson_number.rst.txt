@@ -1,0 +1,6 @@
+sup3r.utilities.utilities.gradient\_richardson\_number
+======================================================
+
+.. currentmodule:: sup3r.utilities.utilities
+
+.. autofunction:: gradient_richardson_number

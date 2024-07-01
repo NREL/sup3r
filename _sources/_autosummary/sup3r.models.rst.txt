@@ -1,0 +1,37 @@
+sup3r.models
+============
+
+.. automodule:: sup3r.models
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+
+.. autosummary::
+   :toctree:
+   :template: custom-module-template.rst
+   :recursive:
+
+   sup3r.models.abstract
+   sup3r.models.base
+   sup3r.models.conditional_moments
+   sup3r.models.data_centric
+   sup3r.models.linear
+   sup3r.models.multi_step
+   sup3r.models.solar_cc
+   sup3r.models.surface
+

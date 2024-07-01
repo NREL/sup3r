@@ -1,0 +1,34 @@
+sup3r.qa.stats
+==============
+
+.. automodule:: sup3r.qa.stats
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+      :template: custom-class-template.rst
+   
+      Sup3rStatsBase
+      Sup3rStatsCompute
+      Sup3rStatsMulti
+      Sup3rStatsSingle
+   
+   
+
+   
+   
+   
+
+
+

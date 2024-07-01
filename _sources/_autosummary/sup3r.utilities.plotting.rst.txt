@@ -1,0 +1,36 @@
+sup3r.utilities.plotting
+========================
+
+.. automodule:: sup3r.utilities.plotting
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      ax_plot_legend
+      ax_pretty_labels
+      make_movie
+      plot_legend
+      plot_multi_contour
+      plot_single_contour
+      pretty_labels
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

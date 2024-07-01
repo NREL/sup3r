@@ -1,0 +1,6 @@
+sup3r.utilities.plotting.pretty\_labels
+=======================================
+
+.. currentmodule:: sup3r.utilities.plotting
+
+.. autofunction:: pretty_labels

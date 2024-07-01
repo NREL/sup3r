@@ -1,0 +1,60 @@
+sup3r.preprocessing.feature\_handling
+=====================================
+
+.. automodule:: sup3r.preprocessing.feature_handling
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+      :template: custom-class-template.rst
+   
+      BVFreqMon
+      BVFreqSquaredH5
+      BVFreqSquaredNC
+      ClearSkyRatioCC
+      ClearSkyRatioH5
+      CloudMaskH5
+      DerivedFeature
+      Feature
+      FeatureHandler
+      InverseMonNC
+      LatLonH5
+      LatLonNC
+      PotentialTempNC
+      PressureNC
+      Rews
+      Shear
+      Tas
+      TasMax
+      TasMin
+      TempNC
+      TempNCforCC
+      TopoH5
+      UWind
+      UWindPowerLaw
+      VWind
+      VWindPowerLaw
+      Veer
+      Vorticity
+      WinddirectionNC
+      WindspeedNC
+   
+   
+
+   
+   
+   
+
+
+

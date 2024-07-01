@@ -1,0 +1,33 @@
+sup3r.postprocessing.collection
+===============================
+
+.. automodule:: sup3r.postprocessing.collection
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+      :template: custom-class-template.rst
+   
+      BaseCollector
+      CollectorH5
+      CollectorNC
+   
+   
+
+   
+   
+   
+
+
+

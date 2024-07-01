@@ -1,0 +1,6 @@
+sup3r.utilities.utilities.nsrdb\_reduce\_daily\_data
+====================================================
+
+.. currentmodule:: sup3r.utilities.utilities
+
+.. autofunction:: nsrdb_reduce_daily_data

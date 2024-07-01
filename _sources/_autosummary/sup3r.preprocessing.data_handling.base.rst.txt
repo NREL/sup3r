@@ -1,0 +1,32 @@
+sup3r.preprocessing.data\_handling.base
+=======================================
+
+.. automodule:: sup3r.preprocessing.data_handling.base
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+      :template: custom-class-template.rst
+   
+      DataHandler
+      DataHandlerDC
+   
+   
+
+   
+   
+   
+
+
+

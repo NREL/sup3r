@@ -1,0 +1,54 @@
+sup3r.qa.stats.Sup3rStatsSingle
+===============================
+
+.. currentmodule:: sup3r.qa.stats
+
+.. autoclass:: Sup3rStatsSingle
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~Sup3rStatsSingle.check_return_cache
+      ~Sup3rStatsSingle.close
+      ~Sup3rStatsSingle.coarsen_data
+      ~Sup3rStatsSingle.export
+      ~Sup3rStatsSingle.get_feature_data
+      ~Sup3rStatsSingle.get_feature_stats
+      ~Sup3rStatsSingle.get_fluctuation
+      ~Sup3rStatsSingle.get_node_cmd
+      ~Sup3rStatsSingle.get_source_data
+      ~Sup3rStatsSingle.get_stats
+      ~Sup3rStatsSingle.interpolate_data
+      ~Sup3rStatsSingle.load_cache
+      ~Sup3rStatsSingle.run
+      ~Sup3rStatsSingle.save_cache
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~Sup3rStatsSingle.compute_features
+      ~Sup3rStatsSingle.f_range
+      ~Sup3rStatsSingle.features
+      ~Sup3rStatsSingle.input_features
+      ~Sup3rStatsSingle.k_range
+      ~Sup3rStatsSingle.lat_lon
+      ~Sup3rStatsSingle.meta
+      ~Sup3rStatsSingle.shape
+      ~Sup3rStatsSingle.source_handler
+      ~Sup3rStatsSingle.source_handler_class
+      ~Sup3rStatsSingle.source_type
+      ~Sup3rStatsSingle.time_index
+   
+   

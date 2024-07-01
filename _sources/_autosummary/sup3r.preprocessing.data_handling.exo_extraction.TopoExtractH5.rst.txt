@@ -1,0 +1,44 @@
+sup3r.preprocessing.data\_handling.exo\_extraction.TopoExtractH5
+================================================================
+
+.. currentmodule:: sup3r.preprocessing.data_handling.exo_extraction
+
+.. autoclass:: TopoExtractH5
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~TopoExtractH5.get_cache_file
+      ~TopoExtractH5.get_data
+      ~TopoExtractH5.get_exo_raster
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~TopoExtractH5.data
+      ~TopoExtractH5.distance_upper_bound
+      ~TopoExtractH5.hr_lat_lon
+      ~TopoExtractH5.hr_shape
+      ~TopoExtractH5.hr_time_index
+      ~TopoExtractH5.lr_lat_lon
+      ~TopoExtractH5.lr_shape
+      ~TopoExtractH5.nn
+      ~TopoExtractH5.source_data
+      ~TopoExtractH5.source_lat_lon
+      ~TopoExtractH5.source_temporal_slice
+      ~TopoExtractH5.source_time_index
+      ~TopoExtractH5.tree
+   
+   

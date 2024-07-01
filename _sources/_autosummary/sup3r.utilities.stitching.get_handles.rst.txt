@@ -1,0 +1,6 @@
+sup3r.utilities.stitching.get\_handles
+======================================
+
+.. currentmodule:: sup3r.utilities.stitching
+
+.. autofunction:: get_handles

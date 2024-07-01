@@ -1,0 +1,1795 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>sup3r.preprocessing.conditional_moment_batch_handling &mdash; sup3r 0.1.3.dev147+gee6ab7b4 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/copybutton.css?v=76b2166b" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/tabs.css?v=a5c4661c" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=b68f4368"></script>
+        <script src="../../../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="../../../_static/clipboard.min.js?v=a7894cd8"></script>
+        <script src="../../../_static/copybutton.js?v=f281be69"></script>
+        <script src="../../../_static/tabs.js?v=3030b3cb"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            sup3r
+          </a>
+              <div class="version">
+                0.1.3.dev147+gee6ab7b4
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">Home page</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../misc/installation_usage.html">Installation and Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../misc/installation.html">Installation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../misc/installation.html#option-1-install-from-pip-recommended-for-analysts">Option 1: Install from PIP (recommended for analysts):</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../misc/installation.html#option-2-clone-repo-recommended-for-developers">Option 2: Clone repo (recommended for developers)</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/examples.html">Examples</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples/sup3rcc.html">Sup3rCC Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#sup3rcc-data-access">Sup3rCC Data Access</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#directory-structure">Directory Structure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#example-sup3rcc-data-usage">Example Sup3rCC Data Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#running-sup3rcc-models">Running Sup3rCC Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#nuances-of-sup3rcc">Nuances of Sup3rCC</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#sup3rcc-versions">Sup3rCC Versions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#recommended-citation">Recommended Citation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#acknowledgements">Acknowledgements</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples/sup3rwind.html">Sup3rWind Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rwind.html#sup3rwind-data-access">Sup3rWind Data Access</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rwind.html#example-sup3rwind-data-usage">Example Sup3rWind Data Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rwind.html#running-sup3rwind-models">Running Sup3rWind Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rwind.html#sup3rwind-versions">Sup3rWind Versions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rwind.html#recommended-citation">Recommended Citation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rwind.html#acknowledgements">Acknowledgements</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../_autosummary/sup3r.html">API reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.batch.html">sup3r.batch</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.batch.batch_cli.html">sup3r.batch.batch_cli</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.bias.html">sup3r.bias</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc.html">sup3r.bias.bias_calc</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc.DataRetrievalBase.html">sup3r.bias.bias_calc.DataRetrievalBase</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc.LinearCorrection.html">sup3r.bias.bias_calc.LinearCorrection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc.MonthlyLinearCorrection.html">sup3r.bias.bias_calc.MonthlyLinearCorrection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc.MonthlyScalarCorrection.html">sup3r.bias.bias_calc.MonthlyScalarCorrection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc.SkillAssessment.html">sup3r.bias.bias_calc.SkillAssessment</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc_cli.html">sup3r.bias.bias_calc_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc_cli.kickoff_local_job.html">sup3r.bias.bias_calc_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc_cli.kickoff_slurm_job.html">sup3r.bias.bias_calc_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_correct_means.html">sup3r.bias.bias_correct_means</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_correct_means.BiasCorrectUpdate.html">sup3r.bias.bias_correct_means.BiasCorrectUpdate</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_correct_means.VortexMeanPrepper.html">sup3r.bias.bias_correct_means.VortexMeanPrepper</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_transforms.html">sup3r.bias.bias_transforms</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_transforms.get_spatial_bc_factors.html">sup3r.bias.bias_transforms.get_spatial_bc_factors</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_transforms.get_spatial_bc_quantiles.html">sup3r.bias.bias_transforms.get_spatial_bc_quantiles</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_transforms.global_linear_bc.html">sup3r.bias.bias_transforms.global_linear_bc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_transforms.local_linear_bc.html">sup3r.bias.bias_transforms.local_linear_bc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_transforms.local_qdm_bc.html">sup3r.bias.bias_transforms.local_qdm_bc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_transforms.monthly_local_linear_bc.html">sup3r.bias.bias_transforms.monthly_local_linear_bc</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.bias.mixins.html">sup3r.bias.mixins</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.mixins.FillAndSmoothMixin.html">sup3r.bias.mixins.FillAndSmoothMixin</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.bias.qdm.html">sup3r.bias.qdm</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.qdm.QuantileDeltaMappingCorrection.html">sup3r.bias.qdm.QuantileDeltaMappingCorrection</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.cli.html">sup3r.cli</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.models.html">sup3r.models</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.abstract.html">sup3r.models.abstract</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.abstract.AbstractInterface.html">sup3r.models.abstract.AbstractInterface</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.abstract.AbstractSingleModel.html">sup3r.models.abstract.AbstractSingleModel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.abstract.TensorboardMixIn.html">sup3r.models.abstract.TensorboardMixIn</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.base.html">sup3r.models.base</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.base.Sup3rGan.html">sup3r.models.base.Sup3rGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.conditional_moments.html">sup3r.models.conditional_moments</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.conditional_moments.Sup3rCondMom.html">sup3r.models.conditional_moments.Sup3rCondMom</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.data_centric.html">sup3r.models.data_centric</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.data_centric.Sup3rGanDC.html">sup3r.models.data_centric.Sup3rGanDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.data_centric.Sup3rGanSpatialDC.html">sup3r.models.data_centric.Sup3rGanSpatialDC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.linear.html">sup3r.models.linear</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.linear.LinearInterp.html">sup3r.models.linear.LinearInterp</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.multi_step.html">sup3r.models.multi_step</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.multi_step.MultiStepGan.html">sup3r.models.multi_step.MultiStepGan</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.multi_step.MultiStepSurfaceMetGan.html">sup3r.models.multi_step.MultiStepSurfaceMetGan</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.multi_step.SolarMultiStepGan.html">sup3r.models.multi_step.SolarMultiStepGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.solar_cc.html">sup3r.models.solar_cc</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.solar_cc.SolarCC.html">sup3r.models.solar_cc.SolarCC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.surface.html">sup3r.models.surface</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.surface.SurfaceSpatialMetModel.html">sup3r.models.surface.SurfaceSpatialMetModel</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.html">sup3r.pipeline</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass.html">sup3r.pipeline.forward_pass</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass.ForwardPass.html">sup3r.pipeline.forward_pass.ForwardPass</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass.ForwardPassSlicer.html">sup3r.pipeline.forward_pass.ForwardPassSlicer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass.ForwardPassStrategy.html">sup3r.pipeline.forward_pass.ForwardPassStrategy</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass_cli.html">sup3r.pipeline.forward_pass_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass_cli.kickoff_local_job.html">sup3r.pipeline.forward_pass_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass_cli.kickoff_slurm_job.html">sup3r.pipeline.forward_pass_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.pipeline_cli.html">sup3r.pipeline.pipeline_cli</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.html">sup3r.postprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.collection.html">sup3r.postprocessing.collection</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.collection.BaseCollector.html">sup3r.postprocessing.collection.BaseCollector</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.collection.CollectorH5.html">sup3r.postprocessing.collection.CollectorH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.collection.CollectorNC.html">sup3r.postprocessing.collection.CollectorNC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.data_collect_cli.html">sup3r.postprocessing.data_collect_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.data_collect_cli.kickoff_local_job.html">sup3r.postprocessing.data_collect_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.data_collect_cli.kickoff_slurm_job.html">sup3r.postprocessing.data_collect_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.html">sup3r.postprocessing.file_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.OutputHandler.html">sup3r.postprocessing.file_handling.OutputHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.OutputHandlerH5.html">sup3r.postprocessing.file_handling.OutputHandlerH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.OutputHandlerNC.html">sup3r.postprocessing.file_handling.OutputHandlerNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.OutputMixIn.html">sup3r.postprocessing.file_handling.OutputMixIn</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.RexOutputs.html">sup3r.postprocessing.file_handling.RexOutputs</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.html">sup3r.preprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.html">sup3r.preprocessing.batch_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.Batch.html">sup3r.preprocessing.batch_handling.Batch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.BatchHandler.html">sup3r.preprocessing.batch_handling.BatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.BatchHandlerCC.html">sup3r.preprocessing.batch_handling.BatchHandlerCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.BatchHandlerDC.html">sup3r.preprocessing.batch_handling.BatchHandlerDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.BatchHandlerSpatialDC.html">sup3r.preprocessing.batch_handling.BatchHandlerSpatialDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.SpatialBatchHandler.html">sup3r.preprocessing.batch_handling.SpatialBatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC.html">sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.ValidationData.html">sup3r.preprocessing.batch_handling.ValidationData</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.ValidationDataDC.html">sup3r.preprocessing.batch_handling.ValidationDataDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.ValidationDataSpatialDC.html">sup3r.preprocessing.batch_handling.ValidationDataSpatialDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.ValidationDataTemporalDC.html">sup3r.preprocessing.batch_handling.ValidationDataTemporalDC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.html">sup3r.preprocessing.conditional_moment_batch_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1SF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2Sep.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SepSF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SepSF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1SF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2Sep.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SepSF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SepSF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1SF.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SF.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2Sep.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SepSF.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SepSF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1SF.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SF.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2Sep.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SepSF.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SepSF</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_extract_cli.html">sup3r.preprocessing.data_extract_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_extract_cli.kickoff_local_job.html">sup3r.preprocessing.data_extract_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_extract_cli.kickoff_slurm_job.html">sup3r.preprocessing.data_extract_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.html">sup3r.preprocessing.data_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.base.html">sup3r.preprocessing.data_handling.base</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.dual_data_handling.html">sup3r.preprocessing.data_handling.dual_data_handling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.exo_extraction.html">sup3r.preprocessing.data_handling.exo_extraction</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.exogenous_data_handling.html">sup3r.preprocessing.data_handling.exogenous_data_handling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.h5_data_handling.html">sup3r.preprocessing.data_handling.h5_data_handling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.mixin.html">sup3r.preprocessing.data_handling.mixin</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.nc_data_handling.html">sup3r.preprocessing.data_handling.nc_data_handling</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.dual_batch_handling.html">sup3r.preprocessing.dual_batch_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.dual_batch_handling.DualBatchHandler.html">sup3r.preprocessing.dual_batch_handling.DualBatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.dual_batch_handling.DualValidationData.html">sup3r.preprocessing.dual_batch_handling.DualValidationData</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.dual_batch_handling.SpatialDualBatchHandler.html">sup3r.preprocessing.dual_batch_handling.SpatialDualBatchHandler</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.html">sup3r.preprocessing.feature_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.BVFreqMon.html">sup3r.preprocessing.feature_handling.BVFreqMon</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.BVFreqSquaredH5.html">sup3r.preprocessing.feature_handling.BVFreqSquaredH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.BVFreqSquaredNC.html">sup3r.preprocessing.feature_handling.BVFreqSquaredNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.ClearSkyRatioCC.html">sup3r.preprocessing.feature_handling.ClearSkyRatioCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.ClearSkyRatioH5.html">sup3r.preprocessing.feature_handling.ClearSkyRatioH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.CloudMaskH5.html">sup3r.preprocessing.feature_handling.CloudMaskH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.DerivedFeature.html">sup3r.preprocessing.feature_handling.DerivedFeature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Feature.html">sup3r.preprocessing.feature_handling.Feature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.FeatureHandler.html">sup3r.preprocessing.feature_handling.FeatureHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.InverseMonNC.html">sup3r.preprocessing.feature_handling.InverseMonNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.LatLonH5.html">sup3r.preprocessing.feature_handling.LatLonH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.LatLonNC.html">sup3r.preprocessing.feature_handling.LatLonNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.PotentialTempNC.html">sup3r.preprocessing.feature_handling.PotentialTempNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.PressureNC.html">sup3r.preprocessing.feature_handling.PressureNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Rews.html">sup3r.preprocessing.feature_handling.Rews</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Shear.html">sup3r.preprocessing.feature_handling.Shear</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Tas.html">sup3r.preprocessing.feature_handling.Tas</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.TasMax.html">sup3r.preprocessing.feature_handling.TasMax</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.TasMin.html">sup3r.preprocessing.feature_handling.TasMin</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.TempNC.html">sup3r.preprocessing.feature_handling.TempNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.TempNCforCC.html">sup3r.preprocessing.feature_handling.TempNCforCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.TopoH5.html">sup3r.preprocessing.feature_handling.TopoH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.UWind.html">sup3r.preprocessing.feature_handling.UWind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.UWindPowerLaw.html">sup3r.preprocessing.feature_handling.UWindPowerLaw</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.VWind.html">sup3r.preprocessing.feature_handling.VWind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.VWindPowerLaw.html">sup3r.preprocessing.feature_handling.VWindPowerLaw</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Veer.html">sup3r.preprocessing.feature_handling.Veer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Vorticity.html">sup3r.preprocessing.feature_handling.Vorticity</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.WinddirectionNC.html">sup3r.preprocessing.feature_handling.WinddirectionNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.WindspeedNC.html">sup3r.preprocessing.feature_handling.WindspeedNC</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.qa.html">sup3r.qa</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.qa.qa.html">sup3r.qa.qa</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.qa.Sup3rQa.html">sup3r.qa.qa.Sup3rQa</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.qa.qa_cli.html">sup3r.qa.qa_cli</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.qa.stats.html">sup3r.qa.stats</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.stats.Sup3rStatsBase.html">sup3r.qa.stats.Sup3rStatsBase</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.stats.Sup3rStatsCompute.html">sup3r.qa.stats.Sup3rStatsCompute</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.stats.Sup3rStatsMulti.html">sup3r.qa.stats.Sup3rStatsMulti</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.stats.Sup3rStatsSingle.html">sup3r.qa.stats.Sup3rStatsSingle</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.qa.stats_cli.html">sup3r.qa.stats_cli</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.html">sup3r.qa.utilities</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.continuous_dist.html">sup3r.qa.utilities.continuous_dist</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.direct_dist.html">sup3r.qa.utilities.direct_dist</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.frequency_spectrum.html">sup3r.qa.utilities.frequency_spectrum</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.gradient_dist.html">sup3r.qa.utilities.gradient_dist</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.time_derivative_dist.html">sup3r.qa.utilities.time_derivative_dist</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.tke_frequency_spectrum.html">sup3r.qa.utilities.tke_frequency_spectrum</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.tke_wavenumber_spectrum.html">sup3r.qa.utilities.tke_wavenumber_spectrum</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.wavenumber_spectrum.html">sup3r.qa.utilities.wavenumber_spectrum</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.qa.visual_qa.html">sup3r.qa.visual_qa</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.visual_qa.Sup3rVisualQa.html">sup3r.qa.visual_qa.Sup3rVisualQa</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.qa.visual_qa_cli.html">sup3r.qa.visual_qa_cli</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.solar.html">sup3r.solar</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.solar.solar.html">sup3r.solar.solar</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.solar.solar.Solar.html">sup3r.solar.solar.Solar</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.solar.solar_cli.html">sup3r.solar.solar_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.solar.solar_cli.kickoff_local_job.html">sup3r.solar.solar_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.solar.solar_cli.kickoff_slurm_job.html">sup3r.solar.solar_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.html">sup3r.utilities</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.ModuleName.html">sup3r.utilities.ModuleName</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.ModuleName.html#sup3r.utilities.ModuleName"><code class="docutils literal notranslate"><span class="pre">ModuleName</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.cli.html">sup3r.utilities.cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.cli.BaseCLI.html">sup3r.utilities.cli.BaseCLI</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.cli.SlurmManager.html">sup3r.utilities.cli.SlurmManager</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.era_downloader.html">sup3r.utilities.era_downloader</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.era_downloader.EraDownloader.html">sup3r.utilities.era_downloader.EraDownloader</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.execution.html">sup3r.utilities.execution</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.execution.DistributedProcess.html">sup3r.utilities.execution.DistributedProcess</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.interpolate_log_profile.html">sup3r.utilities.interpolate_log_profile</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.interpolate_log_profile.LogLinInterpolator.html">sup3r.utilities.interpolate_log_profile.LogLinInterpolator</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.interpolation.html">sup3r.utilities.interpolation</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.interpolation.Interpolator.html">sup3r.utilities.interpolation.Interpolator</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.html">sup3r.utilities.loss_metrics</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.gaussian_kernel.html">sup3r.utilities.loss_metrics.gaussian_kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.CoarseMseLoss.html">sup3r.utilities.loss_metrics.CoarseMseLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.ExpLoss.html">sup3r.utilities.loss_metrics.ExpLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.LowResLoss.html">sup3r.utilities.loss_metrics.LowResLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.MaterialDerivativeLoss.html">sup3r.utilities.loss_metrics.MaterialDerivativeLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.MmdLoss.html">sup3r.utilities.loss_metrics.MmdLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.MmdMseLoss.html">sup3r.utilities.loss_metrics.MmdMseLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.MseExpLoss.html">sup3r.utilities.loss_metrics.MseExpLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.SpatialExtremesLoss.html">sup3r.utilities.loss_metrics.SpatialExtremesLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.SpatialExtremesOnlyLoss.html">sup3r.utilities.loss_metrics.SpatialExtremesOnlyLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.SpatialFftOnlyLoss.html">sup3r.utilities.loss_metrics.SpatialFftOnlyLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.SpatiotemporalExtremesLoss.html">sup3r.utilities.loss_metrics.SpatiotemporalExtremesLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.SpatiotemporalFftOnlyLoss.html">sup3r.utilities.loss_metrics.SpatiotemporalFftOnlyLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.StExtremesFftLoss.html">sup3r.utilities.loss_metrics.StExtremesFftLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.TemporalExtremesLoss.html">sup3r.utilities.loss_metrics.TemporalExtremesLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.TemporalExtremesOnlyLoss.html">sup3r.utilities.loss_metrics.TemporalExtremesOnlyLoss</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.html">sup3r.utilities.plotting</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.ax_plot_legend.html">sup3r.utilities.plotting.ax_plot_legend</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.ax_pretty_labels.html">sup3r.utilities.plotting.ax_pretty_labels</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.make_movie.html">sup3r.utilities.plotting.make_movie</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.plot_legend.html">sup3r.utilities.plotting.plot_legend</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.plot_multi_contour.html">sup3r.utilities.plotting.plot_multi_contour</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.plot_single_contour.html">sup3r.utilities.plotting.plot_single_contour</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.pretty_labels.html">sup3r.utilities.plotting.pretty_labels</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.pytest.html">sup3r.utilities.pytest</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.pytest.make_fake_cs_ratio_files.html">sup3r.utilities.pytest.make_fake_cs_ratio_files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.pytest.make_fake_era_files.html">sup3r.utilities.pytest.make_fake_era_files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.pytest.make_fake_h5_chunks.html">sup3r.utilities.pytest.make_fake_h5_chunks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.pytest.make_fake_multi_time_nc_files.html">sup3r.utilities.pytest.make_fake_multi_time_nc_files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.pytest.make_fake_nc_files.html">sup3r.utilities.pytest.make_fake_nc_files</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.regridder.html">sup3r.utilities.regridder</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.regridder.RegridOutput.html">sup3r.utilities.regridder.RegridOutput</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.regridder.Regridder.html">sup3r.utilities.regridder.Regridder</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.regridder.WindRegridder.html">sup3r.utilities.regridder.WindRegridder</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.regridder_cli.html">sup3r.utilities.regridder_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.regridder_cli.kickoff_local_job.html">sup3r.utilities.regridder_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.regridder_cli.kickoff_slurm_job.html">sup3r.utilities.regridder_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.html">sup3r.utilities.stitching</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.blend_domains.html">sup3r.utilities.stitching.blend_domains</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.forward_avg.html">sup3r.utilities.stitching.forward_avg</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.get_domain_region.html">sup3r.utilities.stitching.get_domain_region</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.get_files.html">sup3r.utilities.stitching.get_files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.get_handles.html">sup3r.utilities.stitching.get_handles</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.impute_domain.html">sup3r.utilities.stitching.impute_domain</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.prune_levels.html">sup3r.utilities.stitching.prune_levels</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.regrid_main_domain.html">sup3r.utilities.stitching.regrid_main_domain</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.stitch_and_save.html">sup3r.utilities.stitching.stitch_and_save</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.stitch_domains.html">sup3r.utilities.stitching.stitch_domains</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.unstagger_vars.html">sup3r.utilities.stitching.unstagger_vars</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.Regridder.html">sup3r.utilities.stitching.Regridder</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.html">sup3r.utilities.utilities</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.bvf_squared.html">sup3r.utilities.utilities.bvf_squared</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.correct_path.html">sup3r.utilities.utilities.correct_path</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.daily_temporal_coarsening.html">sup3r.utilities.utilities.daily_temporal_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.daily_time_sampler.html">sup3r.utilities.utilities.daily_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.estimate_max_workers.html">sup3r.utilities.utilities.estimate_max_workers</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.expand_paths.html">sup3r.utilities.utilities.expand_paths</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.forward_average.html">sup3r.utilities.utilities.forward_average</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.generate_random_string.html">sup3r.utilities.utilities.generate_random_string</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_chunk_slices.html">sup3r.utilities.utilities.get_chunk_slices</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_input_handler_class.html">sup3r.utilities.utilities.get_input_handler_class</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_raster_shape.html">sup3r.utilities.utilities.get_raster_shape</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_source_type.html">sup3r.utilities.utilities.get_source_type</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_time_dim_name.html">sup3r.utilities.utilities.get_time_dim_name</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_wrf_date_range.html">sup3r.utilities.utilities.get_wrf_date_range</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.gradient_richardson_number.html">sup3r.utilities.utilities.gradient_richardson_number</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.ignore_case_path_fetch.html">sup3r.utilities.utilities.ignore_case_path_fetch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.inverse_mo_length.html">sup3r.utilities.utilities.inverse_mo_length</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.invert_pot_temp.html">sup3r.utilities.utilities.invert_pot_temp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.invert_uv.html">sup3r.utilities.utilities.invert_uv</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.lat_lon_coarsening.html">sup3r.utilities.utilities.lat_lon_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.nn_fill_array.html">sup3r.utilities.utilities.nn_fill_array</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.np_to_pd_times.html">sup3r.utilities.utilities.np_to_pd_times</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.nsrdb_reduce_daily_data.html">sup3r.utilities.utilities.nsrdb_reduce_daily_data</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.nsrdb_sub_daily_sampler.html">sup3r.utilities.utilities.nsrdb_sub_daily_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.pd_date_range.html">sup3r.utilities.utilities.pd_date_range</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.potential_temperature.html">sup3r.utilities.utilities.potential_temperature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.potential_temperature_average.html">sup3r.utilities.utilities.potential_temperature_average</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.potential_temperature_difference.html">sup3r.utilities.utilities.potential_temperature_difference</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.rotor_area.html">sup3r.utilities.utilities.rotor_area</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.rotor_equiv_ws.html">sup3r.utilities.utilities.rotor_equiv_ws</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.round_array.html">sup3r.utilities.utilities.round_array</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.smooth_data.html">sup3r.utilities.utilities.smooth_data</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.spatial_coarsening.html">sup3r.utilities.utilities.spatial_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.spatial_simple_enhancing.html">sup3r.utilities.utilities.spatial_simple_enhancing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.st_interp.html">sup3r.utilities.utilities.st_interp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.temporal_coarsening.html">sup3r.utilities.utilities.temporal_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.temporal_simple_enhancing.html">sup3r.utilities.utilities.temporal_simple_enhancing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.transform_rotate_wind.html">sup3r.utilities.utilities.transform_rotate_wind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.uniform_box_sampler.html">sup3r.utilities.utilities.uniform_box_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.uniform_time_sampler.html">sup3r.utilities.utilities.uniform_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.vorticity_calc.html">sup3r.utilities.utilities.vorticity_calc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.weighted_box_sampler.html">sup3r.utilities.utilities.weighted_box_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.weighted_time_sampler.html">sup3r.utilities.utilities.weighted_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.windspeed_log_law.html">sup3r.utilities.utilities.windspeed_log_law</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.Timer.html">sup3r.utilities.utilities.Timer</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../_cli/cli.html">CLI reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../_cli/sup3r.html">sup3r</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-batch">batch</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-bias-calc">bias-calc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-data-collect">data-collect</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-data-extract">data-extract</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-forward-pass">forward-pass</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-pipeline">pipeline</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-qa">qa</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-regrid">regrid</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-solar">solar</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-stats">stats</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-visual-qa">visual-qa</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">sup3r</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">sup3r.preprocessing.conditional_moment_batch_handling</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for sup3r.preprocessing.conditional_moment_batch_handling</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Sup3r conditional moment batch_handling module.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span> <span class="k">as</span> <span class="n">dt</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">rex.utilities</span> <span class="kn">import</span> <span class="n">log_mem</span>
+
+<span class="kn">from</span> <span class="nn">sup3r.preprocessing.batch_handling</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Batch</span><span class="p">,</span>
+    <span class="n">BatchHandler</span><span class="p">,</span>
+    <span class="n">ValidationData</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">sup3r.utilities.utilities</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">smooth_data</span><span class="p">,</span>
+    <span class="n">spatial_coarsening</span><span class="p">,</span>
+    <span class="n">spatial_simple_enhancing</span><span class="p">,</span>
+    <span class="n">temporal_coarsening</span><span class="p">,</span>
+    <span class="n">temporal_simple_enhancing</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">42</span><span class="p">)</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="BatchMom1">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1.html#sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1">[docs]</a>
+<span class="k">class</span> <span class="nc">BatchMom1</span><span class="p">(</span><span class="n">Batch</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Batch of low_res, high_res and output data&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">low_res</span><span class="p">,</span> <span class="n">high_res</span><span class="p">,</span> <span class="n">output</span><span class="p">,</span> <span class="n">mask</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Stores low, high res, output and mask data</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        low_res : np.ndarray</span>
+<span class="sd">            4D | 5D array</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, features)</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, temporal, features)</span>
+<span class="sd">        high_res : np.ndarray</span>
+<span class="sd">            4D | 5D array</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, features)</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, temporal, features)</span>
+<span class="sd">        output : np.ndarray</span>
+<span class="sd">            4D | 5D array</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, features)</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, temporal, features)</span>
+<span class="sd">        mask : np.ndarray</span>
+<span class="sd">            4D | 5D array</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, features)</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, temporal, features)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_low_res</span> <span class="o">=</span> <span class="n">low_res</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_high_res</span> <span class="o">=</span> <span class="n">high_res</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_output</span> <span class="o">=</span> <span class="n">output</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mask</span> <span class="o">=</span> <span class="n">mask</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">output</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the output for the batch.</span>
+<span class="sd">        Output predicted by the neural net can be different</span>
+<span class="sd">        than the high_res when doing moment estimation.</span>
+<span class="sd">        For ex: output may be (high_res)**2</span>
+<span class="sd">        We distinguish output from high_res since it may not be</span>
+<span class="sd">        possible to recover high_res from output.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_output</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">mask</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the mask for the batch.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mask</span>
+
+    <span class="c1"># pylint: disable=W0613</span>
+<div class="viewcode-block" id="BatchMom1.make_output">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1.html#sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1.make_output">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">make_output</span><span class="p">(</span>
+        <span class="n">low_res</span><span class="p">,</span>
+        <span class="n">high_res</span><span class="p">,</span>
+        <span class="n">s_enhance</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">t_enhance</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">model_mom1</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">hr_features_ind</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">t_enhance_mode</span><span class="o">=</span><span class="s1">&#39;constant&#39;</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Make custom batch output</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        low_res : np.ndarray</span>
+<span class="sd">            4D | 5D array</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, features)</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, temporal, features)</span>
+<span class="sd">        high_res : np.ndarray</span>
+<span class="sd">            4D | 5D array</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, features)</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, temporal, features)</span>
+<span class="sd">        s_enhance : int | None</span>
+<span class="sd">            Spatial enhancement factor</span>
+<span class="sd">        t_enhance : int | None</span>
+<span class="sd">            Temporal enhancement factor</span>
+<span class="sd">        model_mom1 : Sup3rCondMom | None</span>
+<span class="sd">            Model used to modify the make the batch output</span>
+<span class="sd">        hr_features_ind : list | np.ndarray | None</span>
+<span class="sd">            List/array of feature channel indices that are used for generative</span>
+<span class="sd">            output, without any feature indices used only for training.</span>
+<span class="sd">        t_enhance_mode : str</span>
+<span class="sd">            Enhancing mode for temporal subfilter.</span>
+<span class="sd">            Can be either constant or linear</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        HR: np.ndarray</span>
+<span class="sd">            4D | 5D array</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, features)</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, temporal, features)</span>
+<span class="sd">            HR is high-res and LR is low-res</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">high_res</span></div>
+
+
+    <span class="c1"># pylint: disable=E1130</span>
+<div class="viewcode-block" id="BatchMom1.make_mask">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1.html#sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1.make_mask">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">make_mask</span><span class="p">(</span>
+        <span class="n">high_res</span><span class="p">,</span>
+        <span class="n">s_padding</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">t_padding</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">end_t_padding</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">t_enhance</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Make mask for output.</span>
+<span class="sd">        The mask is used to ensure consistency when training conditional</span>
+<span class="sd">        moments.</span>
+<span class="sd">        Consider the case of learning E(HR|LR) where HR is the high_res and</span>
+<span class="sd">        LR is the low_res.</span>
+<span class="sd">        In theory, the conditional moment estimation works if</span>
+<span class="sd">        the full LR is passed as input and predicts the full HR.</span>
+<span class="sd">        In practice, only the LR data that overlaps and surrounds the HR data</span>
+<span class="sd">        is useful, ie E(HR|LR) = E(HR|LR_nei) where LR_nei is the LR data</span>
+<span class="sd">        that surrounds the HR data. Physically, this is equivalent to saying</span>
+<span class="sd">        that data far away from a region of interest does not matter.</span>
+<span class="sd">        This allows learning the conditional moments on spatial and</span>
+<span class="sd">        temporal chunks only if one restricts the high_res output as being</span>
+<span class="sd">        overlapped and surrounded by the input low_res.</span>
+<span class="sd">        The role of the mask is to ensure that the input low_res always</span>
+<span class="sd">        surrounds the output high_res.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        high_res : np.ndarray</span>
+<span class="sd">            4D | 5D array</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, features)</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, temporal, features)</span>
+<span class="sd">        s_padding : int | None</span>
+<span class="sd">            Spatial padding size. If None or 0, no padding is applied.</span>
+<span class="sd">            None by default</span>
+<span class="sd">        t_padding : int | None</span>
+<span class="sd">            Temporal padding size. If None or 0, no padding is applied.</span>
+<span class="sd">            None by default</span>
+<span class="sd">        end_t_padding : bool | False</span>
+<span class="sd">            Zero pad the end of temporal space.</span>
+<span class="sd">            Ensures that loss is calculated only if snapshot is surrounded</span>
+<span class="sd">            by temporal landmarks.</span>
+<span class="sd">            False by default</span>
+<span class="sd">        t_enhance : int | None</span>
+<span class="sd">            Temporal enhancement factor to define end padding.</span>
+<span class="sd">            None by default</span>
+<span class="sd">        model_mom1 : Sup3rCondMom | None</span>
+<span class="sd">            Model used to modify the make the batch output</span>
+<span class="sd">        hr_features_ind : list | np.ndarray | None</span>
+<span class="sd">            List/array of feature channel indices that are used for generative</span>
+<span class="sd">            output, without any feature indices used only for training.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        mask: np.ndarray</span>
+<span class="sd">            4D | 5D array</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, features)</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, temporal, features)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">high_res</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">s_min</span> <span class="o">=</span> <span class="n">s_padding</span> <span class="k">if</span> <span class="n">s_padding</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="n">t_min</span> <span class="o">=</span> <span class="n">t_padding</span> <span class="k">if</span> <span class="n">t_padding</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="n">s_max</span> <span class="o">=</span> <span class="o">-</span><span class="n">s_padding</span> <span class="k">if</span> <span class="n">s_min</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="n">t_max</span> <span class="o">=</span> <span class="o">-</span><span class="n">t_padding</span> <span class="k">if</span> <span class="n">t_min</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">end_t_padding</span> <span class="ow">and</span> <span class="n">t_enhance</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">t_max</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">t_max</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="n">t_enhance</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">t_max</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="n">t_enhance</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-</span> <span class="n">t_padding</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">high_res</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
+            <span class="n">mask</span><span class="p">[:,</span> <span class="n">s_min</span><span class="p">:</span><span class="n">s_max</span><span class="p">,</span> <span class="n">s_min</span><span class="p">:</span><span class="n">s_max</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="mf">1.0</span>
+        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">high_res</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">5</span><span class="p">:</span>
+            <span class="n">mask</span><span class="p">[:,</span> <span class="n">s_min</span><span class="p">:</span><span class="n">s_max</span><span class="p">,</span> <span class="n">s_min</span><span class="p">:</span><span class="n">s_max</span><span class="p">,</span> <span class="n">t_min</span><span class="p">:</span><span class="n">t_max</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="mf">1.0</span>
+
+        <span class="k">return</span> <span class="n">mask</span></div>
+
+
+    <span class="c1"># pylint: disable=W0613</span>
+<div class="viewcode-block" id="BatchMom1.get_coarse_batch">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1.html#sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1.get_coarse_batch">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">get_coarse_batch</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">high_res</span><span class="p">,</span>
+        <span class="n">s_enhance</span><span class="p">,</span>
+        <span class="n">t_enhance</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">temporal_coarsening_method</span><span class="o">=</span><span class="s1">&#39;subsample&#39;</span><span class="p">,</span>
+        <span class="n">temporal_enhancing_method</span><span class="o">=</span><span class="s1">&#39;constant&#39;</span><span class="p">,</span>
+        <span class="n">hr_features_ind</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">features</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">smoothing</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">smoothing_ignore</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">model_mom1</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">s_padding</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">t_padding</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">end_t_padding</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Coarsen high res data and return Batch with high res and</span>
+<span class="sd">        low res data</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        high_res : np.ndarray</span>
+<span class="sd">            4D | 5D array</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, features)</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, temporal, features)</span>
+<span class="sd">        s_enhance : int</span>
+<span class="sd">            Factor by which to coarsen spatial dimensions of the high</span>
+<span class="sd">            resolution data</span>
+<span class="sd">        t_enhance : int</span>
+<span class="sd">            Factor by which to coarsen temporal dimension of the high</span>
+<span class="sd">            resolution data</span>
+<span class="sd">        temporal_coarsening_method : str</span>
+<span class="sd">            Method to use for temporal coarsening. Can be subsample, average,</span>
+<span class="sd">            or total</span>
+<span class="sd">        temporal_enhancing_method : str</span>
+<span class="sd">            [constant, linear]</span>
+<span class="sd">            Method to enhance temporally when constructing subfilter.</span>
+<span class="sd">            At every temporal location, a low-res temporal data is substracted</span>
+<span class="sd">            from the high-res temporal data predicted.</span>
+<span class="sd">            constant will assume that the low-res temporal data is constant</span>
+<span class="sd">            between landmarks.</span>
+<span class="sd">            linear will linearly interpolate between landmarks to generate the</span>
+<span class="sd">            low-res data to remove from the high-res.</span>
+<span class="sd">        hr_features_ind : list | np.ndarray | None</span>
+<span class="sd">            List/array of feature channel indices that are used for generative</span>
+<span class="sd">            output, without any feature indices used only for training.</span>
+<span class="sd">        features : list | None</span>
+<span class="sd">            Ordered list of low-resolution training features input to the</span>
+<span class="sd">            generative model</span>
+<span class="sd">        smoothing : float | None</span>
+<span class="sd">            Standard deviation to use for gaussian filtering of the coarse</span>
+<span class="sd">            data. This can be tuned by matching the kinetic energy of a low</span>
+<span class="sd">            resolution simulation with the kinetic energy of a coarsened and</span>
+<span class="sd">            smoothed high resolution simulation. If None no smoothing is</span>
+<span class="sd">            performed.</span>
+<span class="sd">        smoothing_ignore : list | None</span>
+<span class="sd">            List of features to ignore for the smoothing filter. None will</span>
+<span class="sd">            smooth all features if smoothing kwarg is not None</span>
+<span class="sd">        model_mom1 : Sup3rCondMom | None</span>
+<span class="sd">            Model used to modify the make the batch output</span>
+<span class="sd">        s_padding : int | None</span>
+<span class="sd">            Width of spatial padding to predict only middle part. If None,</span>
+<span class="sd">            no padding is used</span>
+<span class="sd">        t_padding : int | None</span>
+<span class="sd">            Width of temporal padding to predict only middle part. If None,</span>
+<span class="sd">            no padding is used</span>
+<span class="sd">        end_t_padding : bool | False</span>
+<span class="sd">            Zero pad the end of temporal space.</span>
+<span class="sd">            Ensures that loss is calculated only if snapshot is surrounded</span>
+<span class="sd">            by temporal landmarks.</span>
+<span class="sd">            False by default</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Batch</span>
+<span class="sd">            Batch instance with low and high res data</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">low_res</span> <span class="o">=</span> <span class="n">spatial_coarsening</span><span class="p">(</span><span class="n">high_res</span><span class="p">,</span> <span class="n">s_enhance</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">features</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">features</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">low_res</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">hr_features_ind</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">hr_features_ind</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">high_res</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="n">smoothing_ignore</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">smoothing_ignore</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">if</span> <span class="n">t_enhance</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">low_res</span> <span class="o">=</span> <span class="n">temporal_coarsening</span><span class="p">(</span>
+                <span class="n">low_res</span><span class="p">,</span> <span class="n">t_enhance</span><span class="p">,</span> <span class="n">temporal_coarsening_method</span>
+            <span class="p">)</span>
+
+        <span class="n">low_res</span> <span class="o">=</span> <span class="n">smooth_data</span><span class="p">(</span>
+            <span class="n">low_res</span><span class="p">,</span> <span class="n">features</span><span class="p">,</span> <span class="n">smoothing_ignore</span><span class="p">,</span> <span class="n">smoothing</span>
+        <span class="p">)</span>
+        <span class="n">high_res</span> <span class="o">=</span> <span class="n">high_res</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">hr_features_ind</span><span class="p">]</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">make_output</span><span class="p">(</span>
+            <span class="n">low_res</span><span class="p">,</span>
+            <span class="n">high_res</span><span class="p">,</span>
+            <span class="n">s_enhance</span><span class="p">,</span>
+            <span class="n">t_enhance</span><span class="p">,</span>
+            <span class="n">model_mom1</span><span class="p">,</span>
+            <span class="n">hr_features_ind</span><span class="p">,</span>
+            <span class="n">temporal_enhancing_method</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">make_mask</span><span class="p">(</span>
+            <span class="n">high_res</span><span class="p">,</span> <span class="n">s_padding</span><span class="p">,</span> <span class="n">t_padding</span><span class="p">,</span> <span class="n">end_t_padding</span><span class="p">,</span> <span class="n">t_enhance</span>
+        <span class="p">)</span>
+        <span class="n">batch</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">low_res</span><span class="p">,</span> <span class="n">high_res</span><span class="p">,</span> <span class="n">output</span><span class="p">,</span> <span class="n">mask</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">batch</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="BatchMom1SF">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1SF.html#sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1SF">[docs]</a>
+<span class="k">class</span> <span class="nc">BatchMom1SF</span><span class="p">(</span><span class="n">BatchMom1</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Batch of low_res, high_res and output data when learning first moment</span>
+<span class="sd">    of subfilter vel&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="BatchMom1SF.make_output">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1SF.html#sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1SF.make_output">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">make_output</span><span class="p">(</span>
+        <span class="n">low_res</span><span class="p">,</span>
+        <span class="n">high_res</span><span class="p">,</span>
+        <span class="n">s_enhance</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">t_enhance</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">model_mom1</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">hr_features_ind</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">t_enhance_mode</span><span class="o">=</span><span class="s1">&#39;constant&#39;</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Make custom batch output</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        low_res : np.ndarray</span>
+<span class="sd">            4D | 5D array</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, features)</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, temporal, features)</span>
+<span class="sd">        high_res : np.ndarray</span>
+<span class="sd">            4D | 5D array</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, features)</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, temporal, features)</span>
+<span class="sd">        s_enhance : int | None</span>
+<span class="sd">            Spatial enhancement factor</span>
+<span class="sd">        t_enhance : int | None</span>
+<span class="sd">            Temporal enhancement factor</span>
+<span class="sd">        model_mom1 : Sup3rCondMom | None</span>
+<span class="sd">            Model used to modify the make the batch output</span>
+<span class="sd">        hr_features_ind : list | np.ndarray | None</span>
+<span class="sd">            List/array of feature channel indices that are used for generative</span>
+<span class="sd">            output, without any feature indices used only for training.</span>
+<span class="sd">        t_enhance_mode : str</span>
+<span class="sd">            Enhancing mode for temporal subfilter.</span>
+<span class="sd">            Can be either constant or linear</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        SF: np.ndarray</span>
+<span class="sd">            4D | 5D array</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, features)</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, temporal, features)</span>
+<span class="sd">            SF is subfilter, HR is high-res and LR is low-res</span>
+<span class="sd">            SF = HR - LR</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Remove LR from HR</span>
+        <span class="n">enhanced_lr</span> <span class="o">=</span> <span class="n">spatial_simple_enhancing</span><span class="p">(</span><span class="n">low_res</span><span class="p">,</span> <span class="n">s_enhance</span><span class="o">=</span><span class="n">s_enhance</span><span class="p">)</span>
+        <span class="n">enhanced_lr</span> <span class="o">=</span> <span class="n">temporal_simple_enhancing</span><span class="p">(</span>
+            <span class="n">enhanced_lr</span><span class="p">,</span> <span class="n">t_enhance</span><span class="o">=</span><span class="n">t_enhance</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">t_enhance_mode</span>
+        <span class="p">)</span>
+        <span class="n">enhanced_lr</span> <span class="o">=</span> <span class="n">enhanced_lr</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">hr_features_ind</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">high_res</span> <span class="o">-</span> <span class="n">enhanced_lr</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="BatchMom2">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2.html#sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2">[docs]</a>
+<span class="k">class</span> <span class="nc">BatchMom2</span><span class="p">(</span><span class="n">BatchMom1</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Batch of low_res, high_res and output data when learning second</span>
+<span class="sd">    moment&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="BatchMom2.make_output">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2.html#sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2.make_output">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">make_output</span><span class="p">(</span>
+        <span class="n">low_res</span><span class="p">,</span>
+        <span class="n">high_res</span><span class="p">,</span>
+        <span class="n">s_enhance</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">t_enhance</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">model_mom1</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">hr_features_ind</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">t_enhance_mode</span><span class="o">=</span><span class="s1">&#39;constant&#39;</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Make custom batch output</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        low_res : np.ndarray</span>
+<span class="sd">            4D | 5D array</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, features)</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, temporal, features)</span>
+<span class="sd">        high_res : np.ndarray</span>
+<span class="sd">            4D | 5D array</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, features)</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, temporal, features)</span>
+<span class="sd">        s_enhance : int | None</span>
+<span class="sd">            Spatial enhancement factor</span>
+<span class="sd">        t_enhance : int | None</span>
+<span class="sd">            Temporal enhancement factor</span>
+<span class="sd">        model_mom1 : Sup3rCondMom | None</span>
+<span class="sd">            Model used to modify the make the batch output</span>
+<span class="sd">        hr_features_ind : list | np.ndarray | None</span>
+<span class="sd">            List/array of feature channel indices that are used for generative</span>
+<span class="sd">            output, without any feature indices used only for training.</span>
+<span class="sd">        t_enhance_mode : str</span>
+<span class="sd">            Enhancing mode for temporal subfilter.</span>
+<span class="sd">            Can be either constant or linear</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        (HR - &lt;HR|LR&gt;)**2: np.ndarray</span>
+<span class="sd">            4D | 5D array</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, features)</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, temporal, features)</span>
+<span class="sd">            HR is high-res and LR is low-res</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Remove first moment from HR and square it</span>
+        <span class="n">exo_data</span> <span class="o">=</span> <span class="n">model_mom1</span><span class="o">.</span><span class="n">get_high_res_exo_input</span><span class="p">(</span><span class="n">high_res</span><span class="p">)</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">model_mom1</span><span class="o">.</span><span class="n">_tf_generate</span><span class="p">(</span><span class="n">low_res</span><span class="p">,</span> <span class="n">exo_data</span><span class="p">)</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">model_mom1</span><span class="o">.</span><span class="n">_combine_loss_input</span><span class="p">(</span><span class="n">high_res</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">high_res</span> <span class="o">-</span> <span class="n">out</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="BatchMom2Sep">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2Sep.html#sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2Sep">[docs]</a>
+<span class="k">class</span> <span class="nc">BatchMom2Sep</span><span class="p">(</span><span class="n">BatchMom1</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Batch of low_res, high_res and output data when learning second moment</span>
+<span class="sd">    separate from first moment&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="BatchMom2Sep.make_output">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2Sep.html#sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2Sep.make_output">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">make_output</span><span class="p">(</span>
+        <span class="n">low_res</span><span class="p">,</span>
+        <span class="n">high_res</span><span class="p">,</span>
+        <span class="n">s_enhance</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">t_enhance</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">model_mom1</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">hr_features_ind</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">t_enhance_mode</span><span class="o">=</span><span class="s1">&#39;constant&#39;</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Make custom batch output</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        low_res : np.ndarray</span>
+<span class="sd">            4D | 5D array</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, features)</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, temporal, features)</span>
+<span class="sd">        high_res : np.ndarray</span>
+<span class="sd">            4D | 5D array</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, features)</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, temporal, features)</span>
+<span class="sd">        s_enhance : int | None</span>
+<span class="sd">            Spatial enhancement factor</span>
+<span class="sd">        t_enhance : int | None</span>
+<span class="sd">            Temporal enhancement factor</span>
+<span class="sd">        model_mom1 : Sup3rCondMom | None</span>
+<span class="sd">            Model used to modify the make the batch output</span>
+<span class="sd">        hr_features_ind : list | np.ndarray | None</span>
+<span class="sd">            List/array of feature channel indices that are used for generative</span>
+<span class="sd">            output, without any feature indices used only for training.</span>
+<span class="sd">        t_enhance_mode : str</span>
+<span class="sd">            Enhancing mode for temporal subfilter.</span>
+<span class="sd">            Can be either constant or linear</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        HR**2: np.ndarray</span>
+<span class="sd">            4D | 5D array</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, features)</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, temporal, features)</span>
+<span class="sd">            HR is high-res</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="nb">super</span><span class="p">(</span><span class="n">BatchMom2Sep</span><span class="p">,</span> <span class="n">BatchMom2Sep</span><span class="p">)</span><span class="o">.</span><span class="n">make_output</span><span class="p">(</span>
+                <span class="n">low_res</span><span class="p">,</span>
+                <span class="n">high_res</span><span class="p">,</span>
+                <span class="n">s_enhance</span><span class="p">,</span>
+                <span class="n">t_enhance</span><span class="p">,</span>
+                <span class="n">model_mom1</span><span class="p">,</span>
+                <span class="n">hr_features_ind</span><span class="p">,</span>
+                <span class="n">t_enhance_mode</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="o">**</span> <span class="mi">2</span>
+        <span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="BatchMom2SF">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SF.html#sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SF">[docs]</a>
+<span class="k">class</span> <span class="nc">BatchMom2SF</span><span class="p">(</span><span class="n">BatchMom1</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Batch of low_res, high_res and output data when learning second moment</span>
+<span class="sd">    of subfilter vel&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="BatchMom2SF.make_output">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SF.html#sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SF.make_output">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">make_output</span><span class="p">(</span>
+        <span class="n">low_res</span><span class="p">,</span>
+        <span class="n">high_res</span><span class="p">,</span>
+        <span class="n">s_enhance</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">t_enhance</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">model_mom1</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">hr_features_ind</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">t_enhance_mode</span><span class="o">=</span><span class="s1">&#39;constant&#39;</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Make custom batch output</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        low_res : np.ndarray</span>
+<span class="sd">            4D | 5D array</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, features)</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, temporal, features)</span>
+<span class="sd">        high_res : np.ndarray</span>
+<span class="sd">            4D | 5D array</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, features)</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, temporal, features)</span>
+<span class="sd">        s_enhance : int | None</span>
+<span class="sd">            Spatial enhancement factor</span>
+<span class="sd">        t_enhance : int | None</span>
+<span class="sd">            Temporal enhancement factor</span>
+<span class="sd">        model_mom1 : Sup3rCondMom | None</span>
+<span class="sd">            Model used to modify the make the batch output</span>
+<span class="sd">        hr_features_ind : list | np.ndarray | None</span>
+<span class="sd">            List/array of feature channel indices that are used for generative</span>
+<span class="sd">            output, without any feature indices used only for training.</span>
+<span class="sd">        t_enhance_mode : str</span>
+<span class="sd">            Enhancing mode for temporal subfilter.</span>
+<span class="sd">            Can be either &#39;constant&#39; or &#39;linear&#39;</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        (SF - &lt;SF|LR&gt;)**2: np.ndarray</span>
+<span class="sd">            4D | 5D array</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, features)</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, temporal, features)</span>
+<span class="sd">            SF is subfilter, HR is high-res and LR is low-res</span>
+<span class="sd">            SF = HR - LR</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Remove LR and first moment from HR and square it</span>
+        <span class="n">exo_data</span> <span class="o">=</span> <span class="n">model_mom1</span><span class="o">.</span><span class="n">get_high_res_exo_input</span><span class="p">(</span><span class="n">high_res</span><span class="p">)</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">model_mom1</span><span class="o">.</span><span class="n">_tf_generate</span><span class="p">(</span><span class="n">low_res</span><span class="p">,</span> <span class="n">exo_data</span><span class="p">)</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">model_mom1</span><span class="o">.</span><span class="n">_combine_loss_input</span><span class="p">(</span><span class="n">high_res</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span>
+        <span class="n">enhanced_lr</span> <span class="o">=</span> <span class="n">spatial_simple_enhancing</span><span class="p">(</span><span class="n">low_res</span><span class="p">,</span> <span class="n">s_enhance</span><span class="o">=</span><span class="n">s_enhance</span><span class="p">)</span>
+        <span class="n">enhanced_lr</span> <span class="o">=</span> <span class="n">temporal_simple_enhancing</span><span class="p">(</span>
+            <span class="n">enhanced_lr</span><span class="p">,</span> <span class="n">t_enhance</span><span class="o">=</span><span class="n">t_enhance</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">t_enhance_mode</span>
+        <span class="p">)</span>
+        <span class="n">enhanced_lr</span> <span class="o">=</span> <span class="n">enhanced_lr</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">hr_features_ind</span><span class="p">]</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">high_res</span> <span class="o">-</span> <span class="n">enhanced_lr</span> <span class="o">-</span> <span class="n">out</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="BatchMom2SepSF">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SepSF.html#sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SepSF">[docs]</a>
+<span class="k">class</span> <span class="nc">BatchMom2SepSF</span><span class="p">(</span><span class="n">BatchMom1SF</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Batch of low_res, high_res and output data when learning second moment</span>
+<span class="sd">    of subfilter vel separate from first moment&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="BatchMom2SepSF.make_output">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SepSF.html#sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SepSF.make_output">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">make_output</span><span class="p">(</span>
+        <span class="n">low_res</span><span class="p">,</span>
+        <span class="n">high_res</span><span class="p">,</span>
+        <span class="n">s_enhance</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">t_enhance</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">model_mom1</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">hr_features_ind</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">t_enhance_mode</span><span class="o">=</span><span class="s1">&#39;constant&#39;</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Make custom batch output</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        low_res : np.ndarray</span>
+<span class="sd">            4D | 5D array</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, features)</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, temporal, features)</span>
+<span class="sd">        high_res : np.ndarray</span>
+<span class="sd">            4D | 5D array</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, features)</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, temporal, features)</span>
+<span class="sd">        s_enhance : int | None</span>
+<span class="sd">            Spatial enhancement factor</span>
+<span class="sd">        t_enhance : int | None</span>
+<span class="sd">            Temporal enhancement factor</span>
+<span class="sd">        model_mom1 : Sup3rCondMom | None</span>
+<span class="sd">            Model used to modify the make the batch output</span>
+<span class="sd">        hr_features_ind : list | np.ndarray | None</span>
+<span class="sd">            List/array of feature channel indices that are used for generative</span>
+<span class="sd">            output, without any feature indices used only for training.</span>
+<span class="sd">        t_enhance_mode : str</span>
+<span class="sd">            Enhancing mode for temporal subfilter.</span>
+<span class="sd">            Can be either constant or linear</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        SF**2: np.ndarray</span>
+<span class="sd">            4D | 5D array</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, features)</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, temporal, features)</span>
+<span class="sd">            SF is subfilter, HR is high-res and LR is low-res</span>
+<span class="sd">            SF = HR - LR</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Remove LR from HR and square it</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="nb">super</span><span class="p">(</span><span class="n">BatchMom2SepSF</span><span class="p">,</span> <span class="n">BatchMom2SepSF</span><span class="p">)</span><span class="o">.</span><span class="n">make_output</span><span class="p">(</span>
+                <span class="n">low_res</span><span class="p">,</span>
+                <span class="n">high_res</span><span class="p">,</span>
+                <span class="n">s_enhance</span><span class="p">,</span>
+                <span class="n">t_enhance</span><span class="p">,</span>
+                <span class="n">model_mom1</span><span class="p">,</span>
+                <span class="n">hr_features_ind</span><span class="p">,</span>
+                <span class="n">t_enhance_mode</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="o">**</span> <span class="mi">2</span>
+        <span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="ValidationDataMom1">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1.html#sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1">[docs]</a>
+<span class="k">class</span> <span class="nc">ValidationDataMom1</span><span class="p">(</span><span class="n">ValidationData</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Iterator for validation data&quot;&quot;&quot;</span>
+
+    <span class="c1"># Classes to use for handling an individual batch obj.</span>
+    <span class="n">BATCH_CLASS</span> <span class="o">=</span> <span class="n">BatchMom1</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">data_handlers</span><span class="p">,</span>
+        <span class="n">batch_size</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
+        <span class="n">s_enhance</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+        <span class="n">t_enhance</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">temporal_coarsening_method</span><span class="o">=</span><span class="s1">&#39;subsample&#39;</span><span class="p">,</span>
+        <span class="n">temporal_enhancing_method</span><span class="o">=</span><span class="s1">&#39;constant&#39;</span><span class="p">,</span>
+        <span class="n">hr_features_ind</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">smoothing</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">smoothing_ignore</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">model_mom1</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">s_padding</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">t_padding</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">end_t_padding</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data_handlers : list[DataHandler]</span>
+<span class="sd">            List of DataHandler instances</span>
+<span class="sd">        batch_size : int</span>
+<span class="sd">            Size of validation data batches</span>
+<span class="sd">        s_enhance : int</span>
+<span class="sd">            Factor by which to coarsen spatial dimensions of the high</span>
+<span class="sd">            resolution data</span>
+<span class="sd">        t_enhance : int</span>
+<span class="sd">            Factor by which to coarsen temporal dimension of the high</span>
+<span class="sd">            resolution data</span>
+<span class="sd">        temporal_coarsening_method : str</span>
+<span class="sd">            [subsample, average, total]</span>
+<span class="sd">            Subsample will take every t_enhance-th time step, average will</span>
+<span class="sd">            average over t_enhance time steps, total will sum over t_enhance</span>
+<span class="sd">            time steps</span>
+<span class="sd">        temporal_enhancing_method : str</span>
+<span class="sd">            [constant, linear]</span>
+<span class="sd">            Method to enhance temporally when constructing subfilter.</span>
+<span class="sd">            At every temporal location, a low-res temporal data is substracted</span>
+<span class="sd">            from the high-res temporal data predicted.</span>
+<span class="sd">            constant will assume that the low-res temporal data is constant</span>
+<span class="sd">            between landmarks.</span>
+<span class="sd">            linear will linearly interpolate between landmarks to generate the</span>
+<span class="sd">            low-res data to remove from the high-res.</span>
+<span class="sd">        hr_features_ind : list | np.ndarray | None</span>
+<span class="sd">            List/array of feature channel indices that are used for generative</span>
+<span class="sd">            output, without any feature indices used only for training.</span>
+<span class="sd">        smoothing : float | None</span>
+<span class="sd">            Standard deviation to use for gaussian filtering of the coarse</span>
+<span class="sd">            data. This can be tuned by matching the kinetic energy of a low</span>
+<span class="sd">            resolution simulation with the kinetic energy of a coarsened and</span>
+<span class="sd">            smoothed high resolution simulation. If None no smoothing is</span>
+<span class="sd">            performed.</span>
+<span class="sd">        smoothing_ignore : list | None</span>
+<span class="sd">            List of features to ignore for the smoothing filter. None will</span>
+<span class="sd">            smooth all features if smoothing kwarg is not None</span>
+<span class="sd">        model_mom1 : Sup3rCondMom | None</span>
+<span class="sd">            model that predicts the first conditional moments.</span>
+<span class="sd">            Useful to prepare data for learning second conditional moment.</span>
+<span class="sd">        s_padding : int | None</span>
+<span class="sd">            Width of spatial padding to predict only middle part. If None,</span>
+<span class="sd">            no padding is used</span>
+<span class="sd">        t_padding : int | None</span>
+<span class="sd">            Width of temporal padding to predict only middle part. If None,</span>
+<span class="sd">            no padding is used</span>
+<span class="sd">        end_t_padding : bool | False</span>
+<span class="sd">            Zero pad the end of temporal space.</span>
+<span class="sd">            Ensures that loss is calculated only if snapshot is surrounded</span>
+<span class="sd">            by temporal landmarks.</span>
+<span class="sd">            False by default</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">handler_shapes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">d</span><span class="o">.</span><span class="n">sample_shape</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data_handlers</span><span class="p">])</span>
+        <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">handler_shapes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">handler_shapes</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_handlers</span> <span class="o">=</span> <span class="n">data_handlers</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span> <span class="o">=</span> <span class="n">batch_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sample_shape</span> <span class="o">=</span> <span class="n">handler_shapes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">val_indices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_val_indices</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">val_indices</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">batch_size</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">s_enhance</span> <span class="o">=</span> <span class="n">s_enhance</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">t_enhance</span> <span class="o">=</span> <span class="n">t_enhance</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">s_padding</span> <span class="o">=</span> <span class="n">s_padding</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">t_padding</span> <span class="o">=</span> <span class="n">t_padding</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">end_t_padding</span> <span class="o">=</span> <span class="n">end_t_padding</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_remaining_observations</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">val_indices</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">temporal_coarsening_method</span> <span class="o">=</span> <span class="n">temporal_coarsening_method</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">temporal_enhancing_method</span> <span class="o">=</span> <span class="n">temporal_enhancing_method</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_i</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hr_features_ind</span> <span class="o">=</span> <span class="n">hr_features_ind</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">smoothing</span> <span class="o">=</span> <span class="n">smoothing</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">smoothing_ignore</span> <span class="o">=</span> <span class="n">smoothing_ignore</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model_mom1</span> <span class="o">=</span> <span class="n">model_mom1</span>
+
+<div class="viewcode-block" id="ValidationDataMom1.batch_next">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1.html#sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1.batch_next">[docs]</a>
+    <span class="k">def</span> <span class="nf">batch_next</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">high_res</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Assemble the next batch</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        high_res : np.ndarray</span>
+<span class="sd">            4D | 5D array</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, features)</span>
+<span class="sd">            (batch_size, spatial_1, spatial_2, temporal, features)</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        batch : Batch</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">BATCH_CLASS</span><span class="o">.</span><span class="n">get_coarse_batch</span><span class="p">(</span>
+            <span class="n">high_res</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">s_enhance</span><span class="p">,</span>
+            <span class="n">t_enhance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">t_enhance</span><span class="p">,</span>
+            <span class="n">temporal_coarsening_method</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">temporal_coarsening_method</span><span class="p">,</span>
+            <span class="n">temporal_enhancing_method</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">temporal_enhancing_method</span><span class="p">,</span>
+            <span class="n">hr_features_ind</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hr_features_ind</span><span class="p">,</span>
+            <span class="n">smoothing</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">smoothing</span><span class="p">,</span>
+            <span class="n">smoothing_ignore</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">smoothing_ignore</span><span class="p">,</span>
+            <span class="n">model_mom1</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">model_mom1</span><span class="p">,</span>
+            <span class="n">s_padding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">s_padding</span><span class="p">,</span>
+            <span class="n">t_padding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">t_padding</span><span class="p">,</span>
+            <span class="n">end_t_padding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">end_t_padding</span><span class="p">,</span>
+        <span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="BatchHandlerMom1">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1.html#sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1">[docs]</a>
+<span class="k">class</span> <span class="nc">BatchHandlerMom1</span><span class="p">(</span><span class="n">BatchHandler</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Sup3r base batch handling class&quot;&quot;&quot;</span>
+
+    <span class="c1"># Classes to use for handling an individual batch obj.</span>
+    <span class="n">VAL_CLASS</span> <span class="o">=</span> <span class="n">ValidationDataMom1</span>
+    <span class="n">BATCH_CLASS</span> <span class="o">=</span> <span class="n">BatchMom1</span>
+    <span class="n">DATA_HANDLER_CLASS</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">data_handlers</span><span class="p">,</span>
+        <span class="n">batch_size</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
+        <span class="n">s_enhance</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+        <span class="n">t_enhance</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">means</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">stds</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">norm</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">n_batches</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+        <span class="n">temporal_coarsening_method</span><span class="o">=</span><span class="s1">&#39;subsample&#39;</span><span class="p">,</span>
+        <span class="n">temporal_enhancing_method</span><span class="o">=</span><span class="s1">&#39;constant&#39;</span><span class="p">,</span>
+        <span class="n">stdevs_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">means_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">overwrite_stats</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">smoothing</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">smoothing_ignore</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">stats_workers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">norm_workers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">load_workers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">max_workers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">model_mom1</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">s_padding</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">t_padding</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">end_t_padding</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data_handlers : list[DataHandler]</span>
+<span class="sd">            List of DataHandler instances</span>
+<span class="sd">        batch_size : int</span>
+<span class="sd">            Number of observations in a batch</span>
+<span class="sd">        s_enhance : int</span>
+<span class="sd">            Factor by which to coarsen spatial dimensions of the high</span>
+<span class="sd">            resolution data to generate low res data</span>
+<span class="sd">        t_enhance : int</span>
+<span class="sd">            Factor by which to coarsen temporal dimension of the high</span>
+<span class="sd">            resolution data to generate low res data</span>
+<span class="sd">        means : np.ndarray</span>
+<span class="sd">            dimensions (features)</span>
+<span class="sd">            array of means for all features with same ordering as data</span>
+<span class="sd">            features. If not None and norm is True these will be used for</span>
+<span class="sd">            normalization</span>
+<span class="sd">        stds : np.ndarray</span>
+<span class="sd">            dimensions (features)</span>
+<span class="sd">            array of means for all features with same ordering as data</span>
+<span class="sd">            features.  If not None and norm is True these will be used form</span>
+<span class="sd">            normalization</span>
+<span class="sd">        norm : bool</span>
+<span class="sd">            Whether to normalize the data or not</span>
+<span class="sd">        n_batches : int</span>
+<span class="sd">            Number of batches in an epoch, this sets the iteration limit for</span>
+<span class="sd">            this object.</span>
+<span class="sd">        temporal_coarsening_method : str</span>
+<span class="sd">            [subsample, average, total]</span>
+<span class="sd">            Subsample will take every t_enhance-th time step, average will</span>
+<span class="sd">            average over t_enhance time steps, total will sum over t_enhance</span>
+<span class="sd">            time steps</span>
+<span class="sd">        temporal_enhancing_method : str</span>
+<span class="sd">            [constant, linear]</span>
+<span class="sd">            Method to enhance temporally when constructing subfilter.</span>
+<span class="sd">            At every temporal location, a low-res temporal data is substracted</span>
+<span class="sd">            from the high-res temporal data predicted.</span>
+<span class="sd">            constant will assume that the low-res temporal data is constant</span>
+<span class="sd">            between landmarks.</span>
+<span class="sd">            linear will linearly interpolate between landmarks to generate the</span>
+<span class="sd">            low-res data to remove from the high-res.</span>
+<span class="sd">        stdevs_file : str | None</span>
+<span class="sd">            Path to stdevs data or where to save data after calling get_stats</span>
+<span class="sd">        means_file : str | None</span>
+<span class="sd">            Path to means data or where to save data after calling get_stats</span>
+<span class="sd">        overwrite_stats : bool</span>
+<span class="sd">            Whether to overwrite stats cache files.</span>
+<span class="sd">        smoothing : float | None</span>
+<span class="sd">            Standard deviation to use for gaussian filtering of the coarse</span>
+<span class="sd">            data. This can be tuned by matching the kinetic energy of a low</span>
+<span class="sd">            resolution simulation with the kinetic energy of a coarsened and</span>
+<span class="sd">            smoothed high resolution simulation. If None no smoothing is</span>
+<span class="sd">            performed.</span>
+<span class="sd">        smoothing_ignore : list | None</span>
+<span class="sd">            List of features to ignore for the smoothing filter. None will</span>
+<span class="sd">            smooth all features if smoothing kwarg is not None</span>
+<span class="sd">        max_workers : int | None</span>
+<span class="sd">            Providing a value for max workers will be used to set the value of</span>
+<span class="sd">            norm_workers, stats_workers, and load_workers.</span>
+<span class="sd">            If max_workers == 1 then all processes will be serialized. If None</span>
+<span class="sd">            stats_workers, load_workers, and norm_workers will use their own</span>
+<span class="sd">            provided values.</span>
+<span class="sd">        load_workers : int | None</span>
+<span class="sd">            max number of workers to use for loading data handlers.</span>
+<span class="sd">        norm_workers : int | None</span>
+<span class="sd">            max number of workers to use for normalizing data handlers.</span>
+<span class="sd">        stats_workers : int | None</span>
+<span class="sd">            max number of workers to use for computing stats across data</span>
+<span class="sd">            handlers.</span>
+<span class="sd">        model_mom1 : Sup3rCondMom | None</span>
+<span class="sd">            model that predicts the first conditional moments.</span>
+<span class="sd">            Useful to prepare data for learning second conditional moment.</span>
+<span class="sd">        s_padding : int | None</span>
+<span class="sd">            Width of spatial padding to predict only middle part. If None,</span>
+<span class="sd">            no padding is used</span>
+<span class="sd">        t_padding : int | None</span>
+<span class="sd">            Width of temporal padding to predict only middle part. If None,</span>
+<span class="sd">            no padding is used</span>
+<span class="sd">        end_t_padding : bool | False</span>
+<span class="sd">            Zero pad the end of temporal space.</span>
+<span class="sd">            Ensures that loss is calculated only if snapshot is surrounded</span>
+<span class="sd">            by temporal landmarks.</span>
+<span class="sd">            False by default</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">max_workers</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">norm_workers</span> <span class="o">=</span> <span class="n">stats_workers</span> <span class="o">=</span> <span class="n">load_workers</span> <span class="o">=</span> <span class="n">max_workers</span>
+
+        <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;All data handlers must have the same sample_shape&#39;</span>
+        <span class="n">handler_shapes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">d</span><span class="o">.</span><span class="n">sample_shape</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data_handlers</span><span class="p">])</span>
+        <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">handler_shapes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">handler_shapes</span><span class="p">),</span> <span class="n">msg</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_handlers</span> <span class="o">=</span> <span class="n">data_handlers</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_i</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">low_res</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">high_res</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">output</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span> <span class="o">=</span> <span class="n">batch_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_val_data</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">s_enhance</span> <span class="o">=</span> <span class="n">s_enhance</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">t_enhance</span> <span class="o">=</span> <span class="n">t_enhance</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">s_padding</span> <span class="o">=</span> <span class="n">s_padding</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">t_padding</span> <span class="o">=</span> <span class="n">t_padding</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">end_t_padding</span> <span class="o">=</span> <span class="n">end_t_padding</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sample_shape</span> <span class="o">=</span> <span class="n">handler_shapes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">means</span> <span class="o">=</span> <span class="n">means</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stds</span> <span class="o">=</span> <span class="n">stds</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_batches</span> <span class="o">=</span> <span class="n">n_batches</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">temporal_coarsening_method</span> <span class="o">=</span> <span class="n">temporal_coarsening_method</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">temporal_enhancing_method</span> <span class="o">=</span> <span class="n">temporal_enhancing_method</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_batch_indices</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_handler_index</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stdevs_file</span> <span class="o">=</span> <span class="n">stdevs_file</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">means_file</span> <span class="o">=</span> <span class="n">means_file</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">overwrite_stats</span> <span class="o">=</span> <span class="n">overwrite_stats</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">smoothing</span> <span class="o">=</span> <span class="n">smoothing</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">smoothing_ignore</span> <span class="o">=</span> <span class="n">smoothing_ignore</span> <span class="ow">or</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">smoothed_features</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">f</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">lr_features</span> <span class="k">if</span> <span class="n">f</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">smoothing_ignore</span>
+        <span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stats_workers</span> <span class="o">=</span> <span class="n">stats_workers</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_norm_workers</span> <span class="o">=</span> <span class="n">norm_workers</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_load_workers</span> <span class="o">=</span> <span class="n">load_workers</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model_mom1</span> <span class="o">=</span> <span class="n">model_mom1</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s1">&#39;Initializing BatchHandler with smoothing=</span><span class="si">{</span><span class="n">smoothing</span><span class="si">}</span><span class="s1">. &#39;</span>
+            <span class="sa">f</span><span class="s1">&#39;Using stats_workers=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">stats_workers</span><span class="si">}</span><span class="s1">, &#39;</span>
+            <span class="sa">f</span><span class="s1">&#39;norm_workers=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">norm_workers</span><span class="si">}</span><span class="s1">, &#39;</span>
+            <span class="sa">f</span><span class="s1">&#39;load_workers=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">load_workers</span><span class="si">}</span><span class="s1">.&#39;</span>
+        <span class="p">)</span>
+
+        <span class="n">now</span> <span class="o">=</span> <span class="n">dt</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">load_handler_data</span><span class="p">()</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s1">&#39;Finished loading data of shape </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s1"> &#39;</span>
+            <span class="sa">f</span><span class="s1">&#39;for BatchHandler in </span><span class="si">{</span><span class="n">dt</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">now</span><span class="si">}</span><span class="s1">.&#39;</span>
+        <span class="p">)</span>
+        <span class="n">log_mem</span><span class="p">(</span><span class="n">logger</span><span class="p">,</span> <span class="n">log_level</span><span class="o">=</span><span class="s1">&#39;INFO&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">norm</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">means</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">stds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_cached_stats</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">means</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">stds</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Getting validation data for BatchHandler.&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">val_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">VAL_CLASS</span><span class="p">(</span>
+            <span class="n">data_handlers</span><span class="p">,</span>
+            <span class="n">batch_size</span><span class="o">=</span><span class="n">batch_size</span><span class="p">,</span>
+            <span class="n">s_enhance</span><span class="o">=</span><span class="n">s_enhance</span><span class="p">,</span>
+            <span class="n">t_enhance</span><span class="o">=</span><span class="n">t_enhance</span><span class="p">,</span>
+            <span class="n">temporal_coarsening_method</span><span class="o">=</span><span class="n">temporal_coarsening_method</span><span class="p">,</span>
+            <span class="n">temporal_enhancing_method</span><span class="o">=</span><span class="n">temporal_enhancing_method</span><span class="p">,</span>
+            <span class="n">hr_features_ind</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hr_features_ind</span><span class="p">,</span>
+            <span class="n">smoothing</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">smoothing</span><span class="p">,</span>
+            <span class="n">smoothing_ignore</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">smoothing_ignore</span><span class="p">,</span>
+            <span class="n">model_mom1</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">model_mom1</span><span class="p">,</span>
+            <span class="n">s_padding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">s_padding</span><span class="p">,</span>
+            <span class="n">t_padding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">t_padding</span><span class="p">,</span>
+            <span class="n">end_t_padding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">end_t_padding</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Finished initializing BatchHandler.&#39;</span><span class="p">)</span>
+        <span class="n">log_mem</span><span class="p">(</span><span class="n">logger</span><span class="p">,</span> <span class="n">log_level</span><span class="o">=</span><span class="s1">&#39;INFO&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__next__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the next iterator output.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        batch : Batch</span>
+<span class="sd">            Batch object with batch.low_res, batch.high_res</span>
+<span class="sd">            and batch.output attributes with the appropriate coarsening.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_batch_indices</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_i</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_batches</span><span class="p">:</span>
+            <span class="n">handler_index</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data_handlers</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">current_handler_index</span> <span class="o">=</span> <span class="n">handler_index</span>
+            <span class="n">handler</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_handlers</span><span class="p">[</span><span class="n">handler_index</span><span class="p">]</span>
+            <span class="n">high_res</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
+                <span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">sample_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">sample_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">sample_shape</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+                <span class="p">),</span>
+                <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span>
+            <span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span><span class="p">):</span>
+                <span class="n">high_res</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="n">handler</span><span class="o">.</span><span class="n">get_next</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">current_batch_indices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">handler</span><span class="o">.</span><span class="n">current_obs_index</span><span class="p">)</span>
+
+            <span class="n">batch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">BATCH_CLASS</span><span class="o">.</span><span class="n">get_coarse_batch</span><span class="p">(</span>
+                <span class="n">high_res</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">s_enhance</span><span class="p">,</span>
+                <span class="n">t_enhance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">t_enhance</span><span class="p">,</span>
+                <span class="n">temporal_coarsening_method</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">temporal_coarsening_method</span><span class="p">,</span>
+                <span class="n">temporal_enhancing_method</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">temporal_enhancing_method</span><span class="p">,</span>
+                <span class="n">hr_features_ind</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hr_features_ind</span><span class="p">,</span>
+                <span class="n">features</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">features</span><span class="p">,</span>
+                <span class="n">smoothing</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">smoothing</span><span class="p">,</span>
+                <span class="n">smoothing_ignore</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">smoothing_ignore</span><span class="p">,</span>
+                <span class="n">model_mom1</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">model_mom1</span><span class="p">,</span>
+                <span class="n">s_padding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">s_padding</span><span class="p">,</span>
+                <span class="n">t_padding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">t_padding</span><span class="p">,</span>
+                <span class="n">end_t_padding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">end_t_padding</span><span class="p">,</span>
+            <span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_i</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">return</span> <span class="n">batch</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">StopIteration</span></div>
+
+
+
+<div class="viewcode-block" id="SpatialBatchHandlerMom1">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1.html#sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1">[docs]</a>
+<span class="k">class</span> <span class="nc">SpatialBatchHandlerMom1</span><span class="p">(</span><span class="n">BatchHandlerMom1</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Sup3r spatial batch handling class&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__next__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_i</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_batches</span><span class="p">:</span>
+            <span class="n">handler_index</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data_handlers</span><span class="p">))</span>
+            <span class="n">handler</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_handlers</span><span class="p">[</span><span class="n">handler_index</span><span class="p">]</span>
+            <span class="n">high_res</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
+                <span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">sample_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">sample_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+                <span class="p">),</span>
+                <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span><span class="p">):</span>
+                <span class="n">high_res</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="n">handler</span><span class="o">.</span><span class="n">get_next</span><span class="p">()[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">:]</span>
+
+            <span class="n">batch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">BATCH_CLASS</span><span class="o">.</span><span class="n">get_coarse_batch</span><span class="p">(</span>
+                <span class="n">high_res</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">s_enhance</span><span class="p">,</span>
+                <span class="n">hr_features_ind</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hr_features_ind</span><span class="p">,</span>
+                <span class="n">features</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">features</span><span class="p">,</span>
+                <span class="n">smoothing</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">smoothing</span><span class="p">,</span>
+                <span class="n">smoothing_ignore</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">smoothing_ignore</span><span class="p">,</span>
+                <span class="n">model_mom1</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">model_mom1</span><span class="p">,</span>
+                <span class="n">s_padding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">s_padding</span><span class="p">,</span>
+                <span class="n">t_padding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">t_padding</span><span class="p">,</span>
+                <span class="n">end_t_padding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">end_t_padding</span><span class="p">,</span>
+            <span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_i</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">return</span> <span class="n">batch</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">StopIteration</span></div>
+
+
+
+<div class="viewcode-block" id="ValidationDataMom1SF">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1SF.html#sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1SF">[docs]</a>
+<span class="k">class</span> <span class="nc">ValidationDataMom1SF</span><span class="p">(</span><span class="n">ValidationDataMom1</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Iterator for validation data for first conditional moment of subfilter</span>
+<span class="sd">    velocity&quot;&quot;&quot;</span>
+
+    <span class="n">BATCH_CLASS</span> <span class="o">=</span> <span class="n">BatchMom1SF</span></div>
+
+
+
+<div class="viewcode-block" id="ValidationDataMom2">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2.html#sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2">[docs]</a>
+<span class="k">class</span> <span class="nc">ValidationDataMom2</span><span class="p">(</span><span class="n">ValidationDataMom1</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Iterator for subfilter validation data for second conditional moment&quot;&quot;&quot;</span>
+
+    <span class="n">BATCH_CLASS</span> <span class="o">=</span> <span class="n">BatchMom2</span></div>
+
+
+
+<div class="viewcode-block" id="ValidationDataMom2Sep">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2Sep.html#sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2Sep">[docs]</a>
+<span class="k">class</span> <span class="nc">ValidationDataMom2Sep</span><span class="p">(</span><span class="n">ValidationDataMom1</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Iterator for subfilter validation data for second conditional moment</span>
+<span class="sd">    separate from first moment&quot;&quot;&quot;</span>
+
+    <span class="n">BATCH_CLASS</span> <span class="o">=</span> <span class="n">BatchMom2Sep</span></div>
+
+
+
+<div class="viewcode-block" id="ValidationDataMom2SF">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SF.html#sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SF">[docs]</a>
+<span class="k">class</span> <span class="nc">ValidationDataMom2SF</span><span class="p">(</span><span class="n">ValidationDataMom1</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Iterator for validation data for second conditional moment of subfilter</span>
+<span class="sd">    velocity&quot;&quot;&quot;</span>
+
+    <span class="n">BATCH_CLASS</span> <span class="o">=</span> <span class="n">BatchMom2SF</span></div>
+
+
+
+<div class="viewcode-block" id="ValidationDataMom2SepSF">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SepSF.html#sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SepSF">[docs]</a>
+<span class="k">class</span> <span class="nc">ValidationDataMom2SepSF</span><span class="p">(</span><span class="n">ValidationDataMom1</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Iterator for validation data for second conditional moment of subfilter</span>
+<span class="sd">    velocity separate from first moment&quot;&quot;&quot;</span>
+
+    <span class="n">BATCH_CLASS</span> <span class="o">=</span> <span class="n">BatchMom2SepSF</span></div>
+
+
+
+<div class="viewcode-block" id="BatchHandlerMom1SF">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1SF.html#sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1SF">[docs]</a>
+<span class="k">class</span> <span class="nc">BatchHandlerMom1SF</span><span class="p">(</span><span class="n">BatchHandlerMom1</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Sup3r batch handling class for first conditional moment of subfilter</span>
+<span class="sd">    velocity&quot;&quot;&quot;</span>
+
+    <span class="n">VAL_CLASS</span> <span class="o">=</span> <span class="n">ValidationDataMom1SF</span>
+    <span class="n">BATCH_CLASS</span> <span class="o">=</span> <span class="n">VAL_CLASS</span><span class="o">.</span><span class="n">BATCH_CLASS</span></div>
+
+
+
+<div class="viewcode-block" id="SpatialBatchHandlerMom1SF">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1SF.html#sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1SF">[docs]</a>
+<span class="k">class</span> <span class="nc">SpatialBatchHandlerMom1SF</span><span class="p">(</span><span class="n">SpatialBatchHandlerMom1</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Sup3r spatial batch handling class for first conditional moment of</span>
+<span class="sd">    subfilter velocity&quot;&quot;&quot;</span>
+
+    <span class="n">VAL_CLASS</span> <span class="o">=</span> <span class="n">ValidationDataMom1SF</span>
+    <span class="n">BATCH_CLASS</span> <span class="o">=</span> <span class="n">VAL_CLASS</span><span class="o">.</span><span class="n">BATCH_CLASS</span></div>
+
+
+
+<div class="viewcode-block" id="BatchHandlerMom2">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2.html#sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2">[docs]</a>
+<span class="k">class</span> <span class="nc">BatchHandlerMom2</span><span class="p">(</span><span class="n">BatchHandlerMom1</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Sup3r batch handling class for second conditional moment&quot;&quot;&quot;</span>
+
+    <span class="n">VAL_CLASS</span> <span class="o">=</span> <span class="n">ValidationDataMom2</span>
+    <span class="n">BATCH_CLASS</span> <span class="o">=</span> <span class="n">VAL_CLASS</span><span class="o">.</span><span class="n">BATCH_CLASS</span></div>
+
+
+
+<div class="viewcode-block" id="BatchHandlerMom2Sep">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2Sep.html#sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2Sep">[docs]</a>
+<span class="k">class</span> <span class="nc">BatchHandlerMom2Sep</span><span class="p">(</span><span class="n">BatchHandlerMom1</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Sup3r batch handling class for second conditional moment separate from</span>
+<span class="sd">    first moment&quot;&quot;&quot;</span>
+
+    <span class="n">VAL_CLASS</span> <span class="o">=</span> <span class="n">ValidationDataMom2Sep</span>
+    <span class="n">BATCH_CLASS</span> <span class="o">=</span> <span class="n">VAL_CLASS</span><span class="o">.</span><span class="n">BATCH_CLASS</span></div>
+
+
+
+<div class="viewcode-block" id="SpatialBatchHandlerMom2">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2.html#sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2">[docs]</a>
+<span class="k">class</span> <span class="nc">SpatialBatchHandlerMom2</span><span class="p">(</span><span class="n">SpatialBatchHandlerMom1</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Sup3r spatial batch handling class for second conditional moment&quot;&quot;&quot;</span>
+
+    <span class="n">VAL_CLASS</span> <span class="o">=</span> <span class="n">ValidationDataMom2</span>
+    <span class="n">BATCH_CLASS</span> <span class="o">=</span> <span class="n">VAL_CLASS</span><span class="o">.</span><span class="n">BATCH_CLASS</span></div>
+
+
+
+<div class="viewcode-block" id="SpatialBatchHandlerMom2Sep">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2Sep.html#sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2Sep">[docs]</a>
+<span class="k">class</span> <span class="nc">SpatialBatchHandlerMom2Sep</span><span class="p">(</span><span class="n">SpatialBatchHandlerMom1</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Sup3r spatial batch handling class for second conditional moment</span>
+<span class="sd">    separate from first moment&quot;&quot;&quot;</span>
+
+    <span class="n">VAL_CLASS</span> <span class="o">=</span> <span class="n">ValidationDataMom2Sep</span>
+    <span class="n">BATCH_CLASS</span> <span class="o">=</span> <span class="n">VAL_CLASS</span><span class="o">.</span><span class="n">BATCH_CLASS</span></div>
+
+
+
+<div class="viewcode-block" id="BatchHandlerMom2SF">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SF.html#sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SF">[docs]</a>
+<span class="k">class</span> <span class="nc">BatchHandlerMom2SF</span><span class="p">(</span><span class="n">BatchHandlerMom1</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Sup3r batch handling class for second conditional moment of subfilter</span>
+<span class="sd">    velocity&quot;&quot;&quot;</span>
+
+    <span class="n">VAL_CLASS</span> <span class="o">=</span> <span class="n">ValidationDataMom2SF</span>
+    <span class="n">BATCH_CLASS</span> <span class="o">=</span> <span class="n">VAL_CLASS</span><span class="o">.</span><span class="n">BATCH_CLASS</span></div>
+
+
+
+<div class="viewcode-block" id="BatchHandlerMom2SepSF">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SepSF.html#sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SepSF">[docs]</a>
+<span class="k">class</span> <span class="nc">BatchHandlerMom2SepSF</span><span class="p">(</span><span class="n">BatchHandlerMom1</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Sup3r batch handling class for second conditional moment of subfilter</span>
+<span class="sd">    velocity separate from first moment&quot;&quot;&quot;</span>
+
+    <span class="n">VAL_CLASS</span> <span class="o">=</span> <span class="n">ValidationDataMom2SepSF</span>
+    <span class="n">BATCH_CLASS</span> <span class="o">=</span> <span class="n">VAL_CLASS</span><span class="o">.</span><span class="n">BATCH_CLASS</span></div>
+
+
+
+<div class="viewcode-block" id="SpatialBatchHandlerMom2SF">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SF.html#sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SF">[docs]</a>
+<span class="k">class</span> <span class="nc">SpatialBatchHandlerMom2SF</span><span class="p">(</span><span class="n">SpatialBatchHandlerMom1</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Sup3r spatial batch handling class for second conditional moment of</span>
+<span class="sd">    subfilter velocity&quot;&quot;&quot;</span>
+
+    <span class="n">VAL_CLASS</span> <span class="o">=</span> <span class="n">ValidationDataMom2SF</span>
+    <span class="n">BATCH_CLASS</span> <span class="o">=</span> <span class="n">VAL_CLASS</span><span class="o">.</span><span class="n">BATCH_CLASS</span></div>
+
+
+
+<div class="viewcode-block" id="SpatialBatchHandlerMom2SepSF">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SepSF.html#sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SepSF">[docs]</a>
+<span class="k">class</span> <span class="nc">SpatialBatchHandlerMom2SepSF</span><span class="p">(</span><span class="n">SpatialBatchHandlerMom1</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Sup3r spatial batch handling class for second conditional moment of</span>
+<span class="sd">    subfilter velocity separate from first moment&quot;&quot;&quot;</span>
+
+    <span class="n">VAL_CLASS</span> <span class="o">=</span> <span class="n">ValidationDataMom2SepSF</span>
+    <span class="n">BATCH_CLASS</span> <span class="o">=</span> <span class="n">VAL_CLASS</span><span class="o">.</span><span class="n">BATCH_CLASS</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Alliance for Sustainable Energy, LLC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

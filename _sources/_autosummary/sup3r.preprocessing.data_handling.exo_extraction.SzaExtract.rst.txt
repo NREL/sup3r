@@ -1,0 +1,44 @@
+sup3r.preprocessing.data\_handling.exo\_extraction.SzaExtract
+=============================================================
+
+.. currentmodule:: sup3r.preprocessing.data_handling.exo_extraction
+
+.. autoclass:: SzaExtract
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~SzaExtract.get_cache_file
+      ~SzaExtract.get_data
+      ~SzaExtract.get_exo_raster
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~SzaExtract.data
+      ~SzaExtract.distance_upper_bound
+      ~SzaExtract.hr_lat_lon
+      ~SzaExtract.hr_shape
+      ~SzaExtract.hr_time_index
+      ~SzaExtract.lr_lat_lon
+      ~SzaExtract.lr_shape
+      ~SzaExtract.nn
+      ~SzaExtract.source_data
+      ~SzaExtract.source_lat_lon
+      ~SzaExtract.source_temporal_slice
+      ~SzaExtract.source_time_index
+      ~SzaExtract.tree
+   
+   

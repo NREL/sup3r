@@ -1,0 +1,38 @@
+sup3r.preprocessing.data\_handling.exogenous\_data\_handling.ExoData
+====================================================================
+
+.. currentmodule:: sup3r.preprocessing.data_handling.exogenous_data_handling
+
+.. autoclass:: ExoData
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~ExoData.append
+      ~ExoData.clear
+      ~ExoData.copy
+      ~ExoData.fromkeys
+      ~ExoData.get
+      ~ExoData.get_combine_type_data
+      ~ExoData.get_model_step_exo
+      ~ExoData.items
+      ~ExoData.keys
+      ~ExoData.pop
+      ~ExoData.popitem
+      ~ExoData.setdefault
+      ~ExoData.split_exo_dict
+      ~ExoData.update
+      ~ExoData.values
+   
+   
+
+   
+   
+   

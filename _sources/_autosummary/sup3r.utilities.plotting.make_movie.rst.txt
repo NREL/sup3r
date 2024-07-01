@@ -1,0 +1,6 @@
+sup3r.utilities.plotting.make\_movie
+====================================
+
+.. currentmodule:: sup3r.utilities.plotting
+
+.. autofunction:: make_movie

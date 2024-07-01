@@ -1,0 +1,6 @@
+sup3r.utilities.utilities.potential\_temperature\_average
+=========================================================
+
+.. currentmodule:: sup3r.utilities.utilities
+
+.. autofunction:: potential_temperature_average

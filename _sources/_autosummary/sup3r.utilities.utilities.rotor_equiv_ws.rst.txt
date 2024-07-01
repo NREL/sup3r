@@ -1,0 +1,6 @@
+sup3r.utilities.utilities.rotor\_equiv\_ws
+==========================================
+
+.. currentmodule:: sup3r.utilities.utilities
+
+.. autofunction:: rotor_equiv_ws

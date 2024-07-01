@@ -1,0 +1,67 @@
+sup3r.pipeline.forward\_pass.ForwardPass
+========================================
+
+.. currentmodule:: sup3r.pipeline.forward_pass
+
+.. autoclass:: ForwardPass
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~ForwardPass.bias_correct_source_data
+      ~ForwardPass.get_node_cmd
+      ~ForwardPass.load_exo_data
+      ~ForwardPass.pad_source_data
+      ~ForwardPass.run
+      ~ForwardPass.run_chunk
+      ~ForwardPass.update_input_handler_kwargs
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~ForwardPass.OUTPUT_HANDLER_CLASS
+      ~ForwardPass.cache_pattern
+      ~ForwardPass.chunk_shape
+      ~ForwardPass.chunk_specific_meta
+      ~ForwardPass.chunks
+      ~ForwardPass.file_paths
+      ~ForwardPass.gids
+      ~ForwardPass.hr_crop_slice
+      ~ForwardPass.hr_lat_lon
+      ~ForwardPass.hr_slice
+      ~ForwardPass.hr_times
+      ~ForwardPass.lr_crop_slice
+      ~ForwardPass.lr_lat_lon
+      ~ForwardPass.lr_pad_slice
+      ~ForwardPass.lr_padded_slice
+      ~ForwardPass.lr_slice
+      ~ForwardPass.lr_times
+      ~ForwardPass.meta
+      ~ForwardPass.out_file
+      ~ForwardPass.pad_width
+      ~ForwardPass.raster_file
+      ~ForwardPass.s_enhance
+      ~ForwardPass.shape
+      ~ForwardPass.single_ts_files
+      ~ForwardPass.spatial_chunk_index
+      ~ForwardPass.t_enhance
+      ~ForwardPass.target
+      ~ForwardPass.temporal_chunk_index
+      ~ForwardPass.temporal_pad_slice
+      ~ForwardPass.ti_crop_slice
+      ~ForwardPass.ti_pad_slice
+      ~ForwardPass.ti_slice
+   
+   

@@ -1,0 +1,25 @@
+sup3r.preprocessing.feature\_handling.CloudMaskH5
+=================================================
+
+.. currentmodule:: sup3r.preprocessing.feature_handling
+
+.. autoclass:: CloudMaskH5
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~CloudMaskH5.compute
+      ~CloudMaskH5.inputs
+   
+   
+
+   
+   
+   

@@ -1,0 +1,39 @@
+﻿sup3r
+=====
+
+.. automodule:: sup3r
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+
+.. autosummary::
+   :toctree:
+   :template: custom-module-template.rst
+   :recursive:
+
+   sup3r.batch
+   sup3r.bias
+   sup3r.cli
+   sup3r.models
+   sup3r.pipeline
+   sup3r.postprocessing
+   sup3r.preprocessing
+   sup3r.qa
+   sup3r.solar
+   sup3r.utilities
+

@@ -1,0 +1,35 @@
+sup3r.preprocessing.data\_handling.nc\_data\_handling
+=====================================================
+
+.. automodule:: sup3r.preprocessing.data_handling.nc_data_handling
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+      :toctree:
+      :template: custom-class-template.rst
+   
+      DataHandlerDCforNC
+      DataHandlerNC
+      DataHandlerNCforCC
+      DataHandlerNCforCCwithPowerLaw
+      DataHandlerNCforERA
+   
+   
+
+   
+   
+   
+
+
+

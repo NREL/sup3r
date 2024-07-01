@@ -1,0 +1,32 @@
+sup3r.preprocessing.data\_handling.mixin.TrainingPrepMixIn
+==========================================================
+
+.. currentmodule:: sup3r.preprocessing.data_handling.mixin
+
+.. autoclass:: TrainingPrepMixIn
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~TrainingPrepMixIn.normalize
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~TrainingPrepMixIn.means
+      ~TrainingPrepMixIn.norm_workers
+      ~TrainingPrepMixIn.stds
+   
+   

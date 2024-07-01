@@ -1,0 +1,6 @@
+sup3r.utilities.utilities.get\_time\_dim\_name
+==============================================
+
+.. currentmodule:: sup3r.utilities.utilities
+
+.. autofunction:: get_time_dim_name

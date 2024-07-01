@@ -1,0 +1,31 @@
+sup3r.utilities.stitching.Regridder
+===================================
+
+.. currentmodule:: sup3r.utilities.stitching
+
+.. autoclass:: Regridder
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~Regridder.check_dependencies
+      ~Regridder.regrid_data
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~Regridder.DEPENDENCIES
+   
+   

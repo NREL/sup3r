@@ -1,0 +1,6 @@
+sup3r.utilities.stitching.forward\_avg
+======================================
+
+.. currentmodule:: sup3r.utilities.stitching
+
+.. autofunction:: forward_avg
