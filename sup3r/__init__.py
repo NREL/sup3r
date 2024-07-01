@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# isort: skip_file
 """Super Resolving Renewable Energy Resource Data (SUP3R)"""
 import os
 

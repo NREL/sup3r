@@ -59,6 +59,7 @@ doc = [
 ]
 test = [
   "pytest>=5.2",
+  "pytest-env"
 ]
 
 [project.urls]
@@ -291,3 +292,7 @@ pytest = ">=5.2"
 build = ">=0.6"
 twine = ">=5.0"
 ruff = ">=0.4"
+
+[tool.pytest_env]
+CUDA_VISIBLE_DEVICES = "-1"
+TF_ENABLE_ONEDNN_OPTS = "0"

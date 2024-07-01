@@ -1,0 +1,239 @@
+"""Abstract sampler objects. These are containers which also can sample from
+the underlying data. These interface with Batchers so they also have additional
+information about how different features are used by models."""
+
+import logging
+from fnmatch import fnmatch
+from typing import Dict, Optional, Tuple, Union
+
+import numpy as np
+
+from sup3r.preprocessing.base import Container
+from sup3r.preprocessing.samplers.utilities import (
+    uniform_box_sampler,
+    uniform_time_sampler,
+)
+from sup3r.preprocessing.utilities import lowered
+from sup3r.typing import T_Array, T_Dataset
+
+logger = logging.getLogger(__name__)
+
+
+class Sampler(Container):
+    """Sampler class for iterating through samples of contained data."""
+
+    def __init__(
+        self,
+        data: T_Dataset,
+        sample_shape,
+        feature_sets: Optional[Dict] = None,
+    ):
+        """
+        Parameters
+        ----------
+        data : T_Dataset
+            Object with data that will be sampled from. Can be the `.data`
+            attribute of various :class:`Container` objects.  i.e.
+            :class:`Loader`, :class:`Extracter`, :class:`Deriver`, as long as
+            the spatial dimensions are not flattened.
+        sample_shape : tuple
+            Size of arrays to sample from the contained data.
+        feature_sets : Optional[dict]
+            Optional dictionary describing how the full set of features is
+            split between `lr_only_features` and `hr_exo_features`.
+
+            features : list | tuple
+                List of full set of features to use for sampling. If no entry
+                is provided then all data_vars from data will be used.
+            lr_only_features : list | tuple
+                List of feature names or patt*erns that should only be
+                included in the low-res training set and not the high-res
+                observations.
+            hr_exo_features : list | tuple
+                List of feature names or patt*erns that should be included
+                in the high-resolution observation but not expected to be
+                output from the generative model. An example is high-res
+                topography that is to be injected mid-network.
+        """
+        super().__init__(data=data)
+        feature_sets = feature_sets or {}
+        self.features = feature_sets.get('features', list(self.data.data_vars))
+        self._lr_only_features = feature_sets.get('lr_only_features', [])
+        self._hr_exo_features = feature_sets.get('hr_exo_features', [])
+        self._counter = 0
+        self.sample_shape = sample_shape
+        self.lr_features = self.features
+        self.preflight()
+
+    def get_sample_index(self):
+        """Randomly gets spatial sample and time sample
+
+        Returns
+        -------
+        sample_index : tuple
+            Tuple of latitude slice, longitude slice, time slice, and features.
+            Used to get single observation like self.data[sample_index]
+        """
+        spatial_slice = uniform_box_sampler(self.shape, self.sample_shape[:2])
+        time_slice = uniform_time_sampler(self.shape, self.sample_shape[2])
+        return (*spatial_slice, time_slice, self.features)
+
+    def preflight(self):
+        """Check if the sample_shape is larger than the requested raster
+        size"""
+        good_shape = (
+            self.sample_shape[0] <= self.data.shape[0]
+            and self.sample_shape[1] <= self.data.shape[1]
+        )
+        msg = (
+            f'spatial_sample_shape {self.sample_shape[:2]} is '
+            f'larger than the raster size {self.data.shape[:2]}'
+        )
+        assert good_shape, msg
+
+        msg = (
+            f'sample_shape[2] ({self.sample_shape[2]}) cannot be larger '
+            'than the number of time steps in the raw data '
+            f'({self.data.shape[2]}).'
+        )
+
+        assert self.data.shape[2] >= self.sample_shape[2], msg
+
+    @property
+    def sample_shape(self) -> Tuple:
+        """Shape of the data sample to select when `__next__()` is called."""
+        return self._sample_shape
+
+    @sample_shape.setter
+    def sample_shape(self, sample_shape):
+        """Set the shape of the data sample to select when `__next__()` is
+        called."""
+        self._sample_shape = sample_shape
+        if len(self._sample_shape) == 2:
+            logger.info(
+                'Found 2D sample shape of {}. Adding temporal dim of 1'.format(
+                    self._sample_shape
+                )
+            )
+            self._sample_shape = (*self._sample_shape, 1)
+
+    @property
+    def hr_sample_shape(self) -> Tuple:
+        """Shape of the data sample to select when `__next__()` is called. Same
+        as sample_shape"""
+        return self._sample_shape
+
+    @hr_sample_shape.setter
+    def hr_sample_shape(self, hr_sample_shape):
+        """Set the sample shape to select when `__next__()` is called. Same
+        as sample_shape"""
+        self._sample_shape = hr_sample_shape
+
+    def __next__(self) -> Union[T_Array, Tuple[T_Array, T_Array]]:
+        """Get next sample. This retrieves a sample of size = sample_shape
+        from the `.data` (a xr.Dataset or Sup3rDataset) through the Sup3rX
+        accessor."""
+        return self.data[self.get_sample_index()]
+
+    def __iter__(self):
+        self._counter = 0
+        return self
+
+    def __len__(self):
+        return self._size
+
+    def _parse_features(self, unparsed_feats):
+        """Return a list of parsed feature names without wildcards."""
+        if isinstance(unparsed_feats, str):
+            parsed_feats = [unparsed_feats]
+        elif isinstance(unparsed_feats, tuple):
+            parsed_feats = list(unparsed_feats)
+        elif unparsed_feats is None:
+            parsed_feats = []
+        else:
+            parsed_feats = unparsed_feats
+
+        if any('*' in fn for fn in parsed_feats):
+            out = []
+            for feature in self.features:
+                match = any(
+                    fnmatch(feature.lower(), pattern.lower())
+                    for pattern in parsed_feats
+                )
+                if match:
+                    out.append(feature)
+            parsed_feats = out
+        return lowered(parsed_feats)
+
+    @property
+    def lr_only_features(self):
+        """List of feature names or patt*erns that should only be included in
+        the low-res training set and not the high-res observations."""
+        return self._parse_features(self._lr_only_features)
+
+    @property
+    def hr_exo_features(self):
+        """Get a list of exogenous high-resolution features that are only used
+        for training e.g., mid-network high-res topo injection. These must come
+        at the end of the high-res feature set. These can also be input to the
+        model as low-res features."""
+        self._hr_exo_features = self._parse_features(self._hr_exo_features)
+
+        if len(self._hr_exo_features) > 0:
+            msg = (
+                f'High-res train-only features "{self._hr_exo_features}" '
+                f'do not come at the end of the full high-res feature set: '
+                f'{self.features}'
+            )
+            last_feat = self.features[-len(self._hr_exo_features) :]
+            assert list(self._hr_exo_features) == list(last_feat), msg
+
+        return self._hr_exo_features
+
+    @property
+    def hr_out_features(self):
+        """Get a list of high-resolution features that are intended to be
+        output by the GAN. Does not include high-resolution exogenous
+        features"""
+
+        out = []
+        for feature in self.features:
+            lr_only = any(
+                fnmatch(feature.lower(), pattern.lower())
+                for pattern in self.lr_only_features
+            )
+            ignore = lr_only or feature in self.hr_exo_features
+            if not ignore:
+                out.append(feature)
+
+        if len(out) == 0:
+            msg = (
+                f'It appears that all handler features "{self.features}" '
+                'were specified as `hr_exo_features` or `lr_only_features` '
+                'and therefore there are no output features!'
+            )
+            logger.error(msg)
+            raise RuntimeError(msg)
+
+        return lowered(out)
+
+    @property
+    def hr_features_ind(self):
+        """Get the high-resolution feature channel indices that should be
+        included for training. Any high-resolution features that are only
+        included in the data handler to be coarsened for the low-res input are
+        removed"""
+        hr_features = list(self.hr_out_features) + list(self.hr_exo_features)
+        if list(self.features) == hr_features:
+            return np.arange(len(self.features))
+        return [
+            i
+            for i, feature in enumerate(self.features)
+            if feature in hr_features
+        ]
+
+    @property
+    def hr_features(self):
+        """Get the high-resolution features corresponding to
+        `hr_features_ind`"""
+        return [self.features[ind].lower() for ind in self.hr_features_ind]

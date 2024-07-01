@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Special models for surface meteorological data."""
 import logging
 from fnmatch import fnmatch
@@ -9,9 +8,12 @@ from PIL import Image
 from sklearn import linear_model
 
 from sup3r.models.linear import LinearInterp
+from sup3r.preprocessing.utilities import _compute_if_dask
 from sup3r.utilities.utilities import spatial_coarsening
 
 logger = logging.getLogger(__name__)
+
+np.random.seed(42)
 
 
 class SurfaceSpatialMetModel(LinearInterp):
@@ -558,17 +560,20 @@ class SurfaceSpatialMetModel(LinearInterp):
             channel can include temperature_*m, relativehumidity_*m, and/or
             pressure_*m
         """
+        low_res = _compute_if_dask(low_res)
         lr_topo, hr_topo = self._get_topo_from_exo(exogenous_data)
+        lr_topo = _compute_if_dask(lr_topo)
+        hr_topo = _compute_if_dask(hr_topo)
         logger.debug('SurfaceSpatialMetModel received low/high res topo '
                      'shapes of {} and {}'
                      .format(lr_topo.shape, hr_topo.shape))
 
-        msg = ('topo_lr has a bad shape {} that doesnt match the low res '
-               'data shape {}'.format(lr_topo.shape, low_res.shape))
-        assert isinstance(lr_topo, np.ndarray), msg
-        assert isinstance(hr_topo, np.ndarray), msg
+        msg = f'topo_lr needs to be 2d but has shape {lr_topo.shape}'
         assert len(lr_topo.shape) == 2, msg
+        msg = f'topo_hr needs to be 2d but has shape {hr_topo.shape}'
         assert len(hr_topo.shape) == 2, msg
+        msg = ('lr_topo.shape needs to match lr_res.shape[:2] but received '
+               f'{lr_topo.shape} and {low_res.shape}')
         assert lr_topo.shape[0] == low_res.shape[1], msg
         assert lr_topo.shape[1] == low_res.shape[2], msg
         s_enhance = self._get_s_enhance(lr_topo, hr_topo)

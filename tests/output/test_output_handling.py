@@ -6,13 +6,16 @@ import tempfile
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from rex import ResourceX, init_logger
+from rex import ResourceX
 
 from sup3r import __version__
+from sup3r.postprocessing import OutputHandlerH5, OutputHandlerNC
 from sup3r.postprocessing.collection import CollectorH5
-from sup3r.postprocessing.file_handling import OutputHandlerH5, OutputHandlerNC
-from sup3r.utilities.pytest import make_fake_h5_chunks
-from sup3r.utilities.utilities import invert_uv, transform_rotate_wind
+from sup3r.preprocessing.derivers.utilities import (
+    invert_uv,
+    transform_rotate_wind,
+)
+from sup3r.utilities.pytest.helpers import make_fake_h5_chunks
 
 
 def test_get_lat_lon():
@@ -100,7 +103,7 @@ def test_invert_uv_inplace():
     data = np.concatenate(
         [np.expand_dims(u, axis=-1), np.expand_dims(v, axis=-1)], axis=-1
     )
-    OutputHandlerH5.invert_uv_features(data, ['U_100m', 'V_100m'], lat_lon)
+    OutputHandlerH5.invert_uv_features(data, ['u_100m', 'v_100m'], lat_lon)
 
     ws, wd = invert_uv(u, v, lat_lon)
 
@@ -111,7 +114,7 @@ def test_invert_uv_inplace():
     data = np.concatenate(
         [np.expand_dims(u, axis=-1), np.expand_dims(v, axis=-1)], axis=-1
     )
-    OutputHandlerH5.invert_uv_features(data, ['U_100m', 'V_100m'], lat_lon)
+    OutputHandlerH5.invert_uv_features(data, ['u_100m', 'v_100m'], lat_lon)
 
     ws, wd = invert_uv(u, v, lat_lon)
 
@@ -193,11 +196,8 @@ def test_h5_out_and_collect():
             assert gan_meta == 'bar'
 
 
-def test_h5_collect_mask(log=False):
+def test_h5_collect_mask():
     """Test h5 file collection with mask meta"""
-
-    if log:
-        init_logger('sup3r', log_level='DEBUG')
 
     with tempfile.TemporaryDirectory() as td:
         fp_out = os.path.join(td, 'out_combined.h5')
@@ -210,9 +210,7 @@ def test_h5_collect_mask(log=False):
         CollectorH5.collect(out_files, fp_out, features=features)
         indices = np.arange(np.prod(data.shape[:2]))
         indices = indices[slice(-len(indices) // 2, None)]
-        removed = []
-        for _ in range(10):
-            removed.append(np.random.choice(indices))
+        removed = [np.random.choice(indices) for _ in range(10)]
         mask_slice = [i for i in indices if i not in removed]
         with ResourceX(fp_out) as fh:
             mask_meta = fh.meta

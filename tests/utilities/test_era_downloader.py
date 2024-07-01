@@ -1,0 +1,102 @@
+"""pytests for general utilities"""
+
+import os
+
+import numpy as np
+import xarray as xr
+
+from sup3r.utilities.era_downloader import EraDownloader
+from sup3r.utilities.pytest.helpers import make_fake_dset
+
+
+class EraDownloaderTester(EraDownloader):
+    """Testing version of era downloader with download_file method overridden
+    since we wont include a cdsapi key in tests."""
+
+    # pylint: disable=unused-argument
+    @classmethod
+    def download_file(
+        cls,
+        variables,
+        out_file,
+        level_type,
+        levels=None,
+        **kwargs
+    ):
+        """Download either single-level or pressure-level file"""
+        shape = (10, 10, 100)
+        if levels is not None:
+            shape = (*shape, len(levels))
+
+        features = []
+
+        name_map = {
+            '10m_u_component_of_wind': 'u10',
+            '10m_v_component_of_wind': 'v10',
+            '100m_u_component_of_wind': 'u100',
+            '100m_v_component_of_wind': 'v100',
+            'u_component_of_wind': 'u',
+            'v_component_of_wind': 'v'}
+
+        if 'geopotential' in variables:
+            features.append('z')
+        features.extend([v for f, v in name_map.items() if f in variables])
+
+        nc = make_fake_dset(
+            shape=shape,
+            features=features
+        )
+        if 'z' in nc:
+            if level_type == 'single':
+                nc['z'] = (nc['z'].dims, np.zeros(nc['z'].shape))
+            else:
+                arr = np.zeros(nc['z'].shape)
+                for i in range(nc['z'].shape[1]):
+                    arr[:, i, ...] = i * 100
+                nc['z'] = (nc['z'].dims, arr)
+        nc.to_netcdf(out_file)
+
+
+def test_era_dl(tmpdir_factory):
+    """Test basic post proc for era downloader."""
+
+    variables = ['zg', 'orog', 'u', 'v', 'pressure']
+    combined_out_pattern = os.path.join(
+        tmpdir_factory.mktemp('tmp'), 'era5_{year}_{month}_{var}.nc'
+    )
+    year = 2000
+    month = 1
+    area = [50, -130, 23, -65]
+    levels = [1000, 900, 800]
+    EraDownloaderTester.run_month(
+        year=year,
+        month=month,
+        area=area,
+        levels=levels,
+        combined_out_pattern=combined_out_pattern,
+        variables=variables,
+    )
+    for v in variables:
+        tmp = xr.open_dataset(
+            combined_out_pattern.format(year=2000, month='01', var=v)
+        )
+        assert v in tmp
+
+
+def test_era_dl_year(tmpdir_factory):
+    """Test post proc for era downloader, including log interpolation, for full
+    year."""
+
+    combined_out_pattern = os.path.join(
+        tmpdir_factory.mktemp('tmp'), 'era5_{year}_{month}_{var}.nc'
+    )
+    yearly_file = os.path.join(tmpdir_factory.mktemp('tmp'), 'era5_final.nc')
+    EraDownloaderTester.run_year(
+        year=2000,
+        area=[50, -130, 23, -65],
+        levels=[1000, 900, 800],
+        variables=['zg', 'orog', 'u', 'v', 'pressure'],
+        combined_out_pattern=combined_out_pattern,
+        combined_yearly_file=yearly_file,
+        max_workers=1,
+    )

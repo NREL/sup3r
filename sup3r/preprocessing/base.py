@@ -1,0 +1,384 @@
+"""Base container classes - object that contains data. All objects that
+interact with data are containers. e.g. loaders, extracters, data handlers,
+samplers, batch queues, batch handlers.
+"""
+
+import logging
+import pprint
+from abc import ABCMeta
+from collections import namedtuple
+from typing import ClassVar, Dict, Optional, Tuple, Union
+from warnings import warn
+
+import numpy as np
+import xarray as xr
+
+import sup3r.preprocessing.accessor  # noqa: F401 # pylint: disable=W0611
+from sup3r.preprocessing.accessor import Sup3rX
+from sup3r.preprocessing.utilities import (
+    _log_args,
+    get_composite_signature,
+    get_source_type,
+)
+from sup3r.typing import T_Dataset
+
+logger = logging.getLogger(__name__)
+
+
+class Sup3rDataset:
+    """Interface for interacting with one or two `xr.Dataset` instances
+    This is either a simple passthrough for a `xr.Dataset` instance or a
+    wrapper around two of them so they work well with Dual objects like
+    DualSampler, DualExtracter, DualBatchHandler, etc...)
+
+    Note
+    ----
+    (1) This may seem similar to :class:`Collection`, which also can
+    contain multiple data members, but members of :class:`Collection` objects
+    are completely independent while here there are at most two members which
+    are related as low / high res versions of the same underlying data.
+
+    (2) Here we make an important choice to use high_res members to compute
+    means / stds. It would be reasonable to instead use the average of high_res
+    and low_res means / stds for aggregate stats but we want to preserve the
+    relationship between coarsened variables after normalization (e.g.
+    temperature_2m, temperature_max_2m, temperature_min_2m). This means all
+    these variables should have the same means and stds, which ultimately come
+    from the high_res non coarsened variable.
+    """
+
+    def __init__(
+        self,
+        data: Optional[Union[tuple, T_Dataset]] = None,
+        **dsets: Union[xr.Dataset, Sup3rX],
+    ):
+        if data is not None:
+            data = data if isinstance(data, tuple) else (data,)
+            if len(data) == 1:
+                msg = (
+                    f'{self.__class__.__name__} received a single data member '
+                    'without an explicit name. Interpreting this as '
+                    '(high_res,). To be explicit provide keyword arguments '
+                    'like Sup3rDataset(high_res=data[0])'
+                )
+                logger.warning(msg)
+                warn(msg)
+                dsets = {'high_res': data[0]}
+            elif len(data) == 2:
+                msg = (
+                    f'{self.__class__.__name__} received a data tuple. '
+                    'Interpreting this as (low_res, high_res). To be explicit '
+                    'provide keyword arguments like '
+                    'Sup3rDataset(low_res=data[0], high_res=data[1])'
+                )
+                logger.warning(msg)
+                warn(msg)
+                dsets = {'low_res': data[0], 'high_res': data[1]}
+            else:
+                msg = (
+                    f'{self.__class__.__name__} received tuple of length '
+                    f'{len(data)}. Can only handle 1 / 2 - tuples.'
+                )
+                logger.error(msg)
+                raise ValueError(msg)
+
+        dsets = {
+            k: Sup3rX(v) if isinstance(v, xr.Dataset) else v
+            for k, v in dsets.items()
+        }
+        self._ds = namedtuple('Dataset', list(dsets))(**dsets)
+
+    def __iter__(self):
+        yield from self._ds
+
+    @property
+    def dtype(self):
+        """Get datatype of first member. Assumed to be constant for all
+        members."""
+        return self._ds[0].dtype
+
+    def __len__(self):
+        return len(self._ds)
+
+    def __getattr__(self, attr):
+        """Get attribute through accessor if available. Otherwise use standard
+        xarray interface."""
+        if hasattr(self._ds, attr):
+            return getattr(self._ds, attr)
+        out = [self._getattr(ds, attr) for ds in self._ds]
+        if len(self._ds) == 1:
+            out = out[0]
+        return out
+
+    def _getattr(self, dset, attr):
+        """Get attribute from single data member."""
+        return (
+            getattr(dset.sx, attr)
+            if hasattr(dset.sx, attr)
+            else getattr(dset, attr)
+        )
+
+    def _getitem(self, dset, item):
+        """Get item from single data member."""
+        return dset.sx[item] if hasattr(dset, 'sx') else dset[item]
+
+    def get_dual_item(self, keys):
+        """Method for getting items from self._ds when it consists of two
+        datasets. If keys is a `List[Tuple]` or `List[List]` this is
+        interpreted as a request for `self._ds[i][keys[i]] for i in
+        range(len(keys)).` Otherwise we will get keys from each member of
+        self.dset.
+
+        Note
+        ----
+        This casts back to `type(self)` before final return if result of get
+        item from each member of `self._ds` is a tuple of `Sup3rX` instances
+        """
+        if isinstance(keys, (tuple, list)) and all(
+            isinstance(k, (tuple, list)) for k in keys
+        ):
+            out = tuple(
+                self._getitem(d, key) for d, key in zip(self._ds, keys)
+            )
+        else:
+            out = tuple(self._getitem(d, keys) for d in self._ds)
+        return (
+            type(self)(**dict(zip(self._ds._fields, out)))
+            if all(isinstance(o, Sup3rX) for o in out)
+            else out
+        )
+
+    def rewrap(self, data):
+        """Rewrap data as Sup3rDataset after calling parent method."""
+        if isinstance(data, type(self)):
+            return data
+        return (
+            type(self)(low_res=data[0], high_res=data[1])
+            if len(data) > 1
+            else type(self)(high_res=data[0])
+        )
+
+    def isel(self, *args, **kwargs):
+        """Return new Sup3rDataset with isel applied to each member."""
+        return self.rewrap(tuple(d.isel(*args, **kwargs) for d in self))
+
+    def sel(self, *args, **kwargs):
+        """Return new Sup3rDataset with sel applied to each member."""
+        return self.rewrap(tuple(d.sel(*args, **kwargs) for d in self))
+
+    def __getitem__(self, keys):
+        """If keys is an int this is interpreted as a request for that member
+        of self._ds. If self._ds consists of two members we call
+        :meth:`get_dual_item`. Otherwise we get the item from the single member
+        of self._ds."""
+        if isinstance(keys, int):
+            return self._ds[keys]
+        if len(self._ds) == 1:
+            return self._ds[-1][keys]
+        return self.get_dual_item(keys)
+
+    @property
+    def shape(self):
+        """We use the shape of the largest data member. These are assumed to be
+        ordered as (low-res, high-res) if there are two members."""
+        return self._ds[-1].shape
+
+    @property
+    def data_vars(self):
+        """The data_vars are determined by the set of data_vars from all data
+        members.
+
+        Note
+        ----
+        We use features to refer to our own selections and data_vars to refer
+        to variables contained in datasets independent of our use of them. e.g.
+        a dset might contain ['u', 'v', 'potential_temp'] = data_vars, while
+        the features we use might just be ['u','v']
+        """
+        data_vars = list(self._ds[0].data_vars)
+        _ = [
+            data_vars.append(f)
+            for f in list(self._ds[-1].data_vars)
+            if f not in data_vars
+        ]
+        return data_vars
+
+    @property
+    def size(self):
+        """Return number of elements in the largest data member."""
+        return np.prod(self.shape)
+
+    def __contains__(self, vals):
+        """Check for vals in all of the dset members."""
+        return any(d.sx.__contains__(vals) for d in self._ds)
+
+    def __setitem__(self, variable, data):
+        """Set dset member values. Check if values is a tuple / list and if
+        so interpret this as sending a tuple / list element to each dset
+        member. e.g. `vals[0] -> dsets[0]`, `vals[1] -> dsets[1]`, etc"""
+        for i, self_i in enumerate(self):
+            dat = data[i] if isinstance(data, (tuple, list)) else data
+            self_i.__setitem__(variable, dat)
+
+    def mean(self, **kwargs):
+        """Use the high_res members to compute the means. These are used for
+        normalization during training."""
+        kwargs['skipna'] = kwargs.get('skipna', True)
+        return self._ds[-1].mean(**kwargs)
+
+    def std(self, **kwargs):
+        """Use the high_res members to compute the stds. These are used for
+        normalization during training."""
+        kwargs['skipna'] = kwargs.get('skipna', True)
+        return self._ds[-1].std(**kwargs)
+
+    def compute(self, **kwargs):
+        """Load data into memory for each data member."""
+        _ = [data.compute(**kwargs) for data in self._ds]
+
+    @property
+    def loaded(self):
+        """Check if all data members have been loaded into memory."""
+        return all(d.loaded for d in self._ds)
+
+
+class Container:
+    """Basic fundamental object used to build preprocessing objects. Contains
+    a xr.Dataset or wrapped tuple of xr.Dataset objects (:class:`Sup3rDataset`)
+    """
+
+    __slots__ = [
+        '_data',
+    ]
+
+    def __init__(
+        self,
+        data: Optional[Union[Tuple[T_Dataset, ...], T_Dataset]] = None,
+    ):
+        """
+        Parameters
+        ----------
+        data : T_Dataset
+            Either a single xr.Dataset or a tuple of datasets. Tuple used for
+            dual / paired containers like :class:`DualSamplers`.
+        """
+        self.data = data
+
+    @property
+    def data(self):
+        """Return a wrapped 1-tuple or 2-tuple xr.Dataset."""
+        return self._data
+
+    @data.setter
+    def data(self, data):
+        """Set data value. Cast to Sup3rDataset if not already. This just
+        wraps the data in a namedtuple, simplifying interactions in the case
+        of dual datasets."""
+        self._data = self.wrap(data)
+
+    @staticmethod
+    def wrap(data):
+        """Wrap data as :class:`Sup3rDataset` if not already."""
+        if isinstance(data, Sup3rDataset):
+            return data
+        if isinstance(data, tuple) and all(
+            isinstance(d, Sup3rDataset) for d in data
+        ):
+            return data
+        return (
+            Sup3rDataset(low_res=data[0], high_res=data[1])
+            if isinstance(data, tuple) and len(data) == 2
+            else Sup3rDataset(high_res=data)
+            if data is not None and not isinstance(data, Sup3rDataset)
+            else data
+        )
+
+    def __new__(cls, *args, **kwargs):
+        """Include arg logging in construction."""
+        instance = super().__new__(cls)
+        _log_args(cls, cls.__init__, *args, **kwargs)
+        return instance
+
+    def post_init_log(self, args_dict=None):
+        """Log additional arguments after initialization."""
+        if args_dict is not None:
+            logger.info(
+                f'Finished initializing {self.__class__.__name__} with:\n'
+                f'{pprint.pformat(args_dict, indent=2)}'
+            )
+
+    @property
+    def shape(self):
+        """Get shape of underlying data."""
+        return self.data.shape
+
+    def __contains__(self, vals):
+        return vals in self.data
+
+    def __getitem__(self, keys):
+        """Get item from underlying data."""
+        return self.data[keys]
+
+    def __getattr__(self, attr):
+        """Check if attribute is available from `.data`"""
+        try:
+            data = self.__getattribute__('_data')
+            return getattr(data, attr)
+        except Exception as e:
+            msg = f'{self.__class__.__name__} object has no attribute "{attr}"'
+            raise AttributeError(msg) from e
+
+
+class FactoryMeta(ABCMeta, type):
+    """Meta class to define __name__ and __signature__ of factory built
+    classes."""
+
+    def __new__(mcs, name, bases, namespace, **kwargs):  # noqa: N804
+        """Define __name__ and __signature__"""
+        name = namespace.get('__name__', name)
+        type_spec_classes = namespace.get('TypeSpecificClasses', {})
+        _legos = namespace.get('_legos', ())
+        _legos += tuple(type_spec_classes.values())
+        namespace['_legos'] = _legos
+        sig = namespace.get('__signature__', None)
+        namespace['__signature__'] = (
+            sig if sig is not None else get_composite_signature(_legos)
+        )
+        return super().__new__(mcs, name, bases, namespace, **kwargs)
+
+    def __subclasscheck__(cls, subclass):
+        """Check if factory built class shares base classes."""
+        if super().__subclasscheck__(subclass):
+            return True
+        if hasattr(subclass, '_legos'):
+            return cls._legos == subclass._legos
+        return False
+
+    def __repr__(cls):
+        return f"<class '{cls.__module__}.{cls.__name__}'>"
+
+
+class TypeAgnosticClass(metaclass=FactoryMeta):
+    """Factory pattern for returning type specific classes based on input file
+    type."""
+
+    TypeSpecificClasses: ClassVar[Dict] = {}
+
+    def __new__(cls, file_paths, *args, **kwargs):
+        """Return a new object based on input file type."""
+        SpecificClass = cls.get_specific_class(file_paths)
+        return SpecificClass(file_paths, *args, **kwargs)
+
+    @classmethod
+    def get_specific_class(cls, file_arg):
+        """Get type specific class based on file type of `file_arg`."""
+        source_type = get_source_type(file_arg)
+        SpecificClass = cls.TypeSpecificClasses.get(source_type, None)
+        if SpecificClass is None:
+            msg = (
+                f'Can only handle H5 or NETCDF files. Received '
+                f'"{source_type}" for files: {file_arg}'
+            )
+            logger.error(msg)
+            raise ValueError(msg)
+        return SpecificClass

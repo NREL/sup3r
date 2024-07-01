@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """H5/NETCDF file collection."""
 import glob
 import logging
@@ -17,14 +16,14 @@ from rex.utilities.fun_utils import get_fun_call_str
 from rex.utilities.loggers import init_logger
 from scipy.spatial import KDTree
 
-from sup3r.postprocessing.file_handling import OutputMixIn, RexOutputs
+from sup3r.postprocessing import OutputMixin, RexOutputs
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
 
 logger = logging.getLogger(__name__)
 
 
-class BaseCollector(OutputMixIn, ABC):
+class BaseCollector(OutputMixin, ABC):
     """Base collector class for H5/NETCDF collection"""
 
     def __init__(self, file_paths):
@@ -304,7 +303,7 @@ class CollectorH5(BaseCollector):
 
         Returns
         -------
-        f_data : np.ndarray
+        f_data : T_Array
             Data array from the fpath cast as input dtype.
         row_slice : slice
             final_time_index[row_slice] = new_time_index
@@ -424,7 +423,7 @@ class CollectorH5(BaseCollector):
         if max_workers == 1:
             for i, fn in enumerate(file_paths):
                 meta[i], time_index[i] = self._get_file_attrs(fn)
-                logger.debug(f'{i+1} / {len(file_paths)} files finished')
+                logger.debug(f'{i + 1} / {len(file_paths)} files finished')
         else:
             futures = {}
             with ThreadPoolExecutor(max_workers=max_workers) as exe:

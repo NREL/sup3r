@@ -1,9 +1,10 @@
-# -*- coding: utf-8 -*-
 """Test the simple linear interpolation model."""
 import numpy as np
 from scipy.interpolate import interp1d
 
 from sup3r.models import LinearInterp
+
+np.random.seed(42)
 
 
 def test_linear_spatial():

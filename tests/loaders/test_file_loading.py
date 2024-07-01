@@ -1,0 +1,248 @@
+"""pytests for :class:`Loader` objects"""
+
+import os
+from tempfile import TemporaryDirectory
+
+import numpy as np
+import pandas as pd
+import pytest
+
+from sup3r.preprocessing import Loader, LoaderH5, LoaderNC
+from sup3r.preprocessing.utilities import Dimension
+from sup3r.utilities.pytest.helpers import (
+    make_fake_dset,
+    make_fake_nc_file,
+)
+
+features = ['windspeed_100m', 'winddirection_100m']
+
+
+def test_time_independent_loading():
+    """Make sure loaders work with time independent files."""
+    with TemporaryDirectory() as td:
+        out_file = os.path.join(td, 'topo.nc')
+        nc = make_fake_dset((20, 20, 1), features=['topography'])
+        nc = nc.isel(time=0)
+        nc = nc.drop(Dimension.TIME)
+        assert Dimension.TIME not in nc.dims
+        assert Dimension.TIME not in nc.coords
+        nc.to_netcdf(out_file)
+        loader = LoaderNC(out_file)
+        assert tuple(loader.dims) == (
+            Dimension.SOUTH_NORTH,
+            Dimension.WEST_EAST,
+        )
+
+
+def test_time_independent_loading_h5():
+    """Make sure loaders work with time independent files."""
+    loader = LoaderH5(pytest.FP_WTK, features=['topography'])
+    assert len(loader['topography'].shape) == 1
+
+
+def test_dim_ordering():
+    """Make sure standard reordering works with dimensions not in the standard
+    list."""
+    loader = LoaderNC(pytest.FPS_GCM)
+    assert tuple(loader.dims) == (
+        Dimension.SOUTH_NORTH,
+        Dimension.WEST_EAST,
+        Dimension.TIME,
+        Dimension.PRESSURE_LEVEL,
+        'nbnd',
+    )
+
+
+def test_lat_inversion():
+    """Write temp file with ascending lats and load. Needs to be corrected to
+    descending lats."""
+    with TemporaryDirectory() as td:
+        nc = make_fake_dset((20, 20, 100, 5), features=['u', 'v'])
+        nc[Dimension.LATITUDE] = (
+            nc[Dimension.LATITUDE].dims,
+            nc[Dimension.LATITUDE].data[::-1],
+        )
+        nc['u'] = (nc['u'].dims, nc['u'].data[:, :, ::-1, :])
+        out_file = os.path.join(td, 'inverted.nc')
+        nc.to_netcdf(out_file)
+        loader = LoaderNC(out_file)
+        assert nc[Dimension.LATITUDE][0, 0] < nc[Dimension.LATITUDE][-1, 0]
+        assert loader.lat_lon[-1, 0, 0] < loader.lat_lon[0, 0, 0]
+
+        assert np.array_equal(
+            nc['u']
+            .transpose(
+                Dimension.SOUTH_NORTH,
+                Dimension.WEST_EAST,
+                Dimension.TIME,
+                Dimension.PRESSURE_LEVEL,
+            )
+            .data[::-1],
+            loader['u'],
+        )
+
+
+def test_lon_range():
+    """Write temp file with lons 0 - 360 and load. Needs to be corrected to
+    -180 - 180."""
+    with TemporaryDirectory() as td:
+        nc = make_fake_dset((20, 20, 100, 5), features=['u', 'v'])
+        nc[Dimension.LONGITUDE] = (
+            nc[Dimension.LONGITUDE].dims,
+            (nc[Dimension.LONGITUDE].data + 360) % 360.0,
+        )
+        out_file = os.path.join(td, 'bad_lons.nc')
+        nc.to_netcdf(out_file)
+        loader = LoaderNC(out_file)
+        assert (nc[Dimension.LONGITUDE] > 180).any()
+        assert (loader[Dimension.LONGITUDE] <= 180).all()
+        assert (loader[Dimension.LONGITUDE] >= -180).all()
+
+
+def test_level_inversion():
+    """Write temp file with descending pressure levels and load. Needs to be
+    corrected so surface pressure is first."""
+    with TemporaryDirectory() as td:
+        nc = make_fake_dset((20, 20, 100, 5), features=['u', 'v'])
+        nc[Dimension.PRESSURE_LEVEL] = (
+            nc[Dimension.PRESSURE_LEVEL].dims,
+            nc[Dimension.PRESSURE_LEVEL].data[::-1],
+        )
+        nc['u'] = (nc['u'].dims, nc['u'].data[:, ::-1, :, :])
+        out_file = os.path.join(td, 'inverted.nc')
+        nc.to_netcdf(out_file)
+        loader = LoaderNC(out_file)
+        assert (
+            nc[Dimension.PRESSURE_LEVEL][0] < nc[Dimension.PRESSURE_LEVEL][-1]
+        )
+
+        assert np.array_equal(
+            nc['u']
+            .transpose(
+                Dimension.SOUTH_NORTH,
+                Dimension.WEST_EAST,
+                Dimension.TIME,
+                Dimension.PRESSURE_LEVEL,
+            )
+            .data[..., ::-1],
+            loader['u'],
+        )
+
+
+def test_load_cc():
+    """Test simple era5 file loading."""
+    chunks = (5, 5, 5)
+    loader = LoaderNC(pytest.FP_UAS, chunks=chunks)
+    assert all(
+        loader[f].data.chunksize == chunks
+        for f in loader.features
+        if len(loader[f].data.shape) == 3
+    )
+    assert isinstance(loader.time_index, pd.DatetimeIndex)
+    assert loader.dims[:3] == (
+        Dimension.SOUTH_NORTH,
+        Dimension.WEST_EAST,
+        Dimension.TIME,
+    )
+
+
+def test_load_era5():
+    """Test simple era5 file loading. Make sure general loader matches the type
+    specific loader"""
+    chunks = (10, 10, 1000)
+    loader = LoaderNC(pytest.FP_ERA, chunks=chunks)
+    assert all(
+        loader[f].data.chunksize == chunks
+        for f in loader.features
+        if len(loader[f].data.shape) == 3
+    )
+    assert isinstance(loader.time_index, pd.DatetimeIndex)
+    assert loader.dims[:3] == (
+        Dimension.SOUTH_NORTH,
+        Dimension.WEST_EAST,
+        Dimension.TIME,
+    )
+
+
+def test_load_nc():
+    """Test simple netcdf file loading. Make sure general loader matches nc
+    specific loader"""
+    with TemporaryDirectory() as td:
+        temp_file = os.path.join(td, 'test.nc')
+        make_fake_nc_file(
+            temp_file, shape=(10, 10, 20), features=['u_100m', 'v_100m']
+        )
+        chunks = (5, 5, 5)
+        loader = LoaderNC(temp_file, chunks=chunks)
+        assert loader.shape == (10, 10, 20, 2)
+        assert all(loader[f].data.chunksize == chunks for f in loader.features)
+
+        gen_loader = Loader(temp_file, chunks=chunks)
+
+        assert np.array_equal(loader.as_array(), gen_loader.as_array())
+
+
+def test_load_h5():
+    """Test simple h5 file loading. Also checks renaming elevation ->
+    topography. Also makes sure that general loader matches type specific
+    loader"""
+
+    chunks = (200, 200)
+    loader = LoaderH5(pytest.FP_WTK, chunks=chunks)
+    feats = [
+        'pressure_100m',
+        'temperature_100m',
+        'winddirection_100m',
+        'winddirection_80m',
+        'windspeed_100m',
+        'windspeed_80m',
+        'topography',
+    ]
+    assert loader.data.shape == (400, 8784, len(feats))
+    assert sorted(loader.features) == sorted(feats)
+    assert all(loader[f].data.chunksize == chunks for f in feats[:-1])
+    gen_loader = Loader(pytest.FP_WTK, chunks=chunks)
+    assert np.array_equal(loader.as_array(), gen_loader.as_array())
+
+
+def test_multi_file_load_nc():
+    """Test multi file loading with all features the same shape."""
+    with TemporaryDirectory() as td:
+        wind_file = os.path.join(td, 'wind.nc')
+        make_fake_nc_file(
+            wind_file, shape=(10, 10, 20), features=['u_100m', 'v_100m']
+        )
+        press_file = os.path.join(td, 'press.nc')
+        make_fake_nc_file(
+            press_file,
+            shape=(10, 10, 20),
+            features=['pressure_0m', 'pressure_100m'],
+        )
+        loader = LoaderNC([wind_file, press_file])
+        assert loader.shape == (10, 10, 20, 4)
+
+
+def test_5d_load_nc():
+    """Test loading netcdf data with some multi level features. This also
+    check renaming of orog -> topography"""
+    with TemporaryDirectory() as td:
+        wind_file = os.path.join(td, 'wind.nc')
+        make_fake_nc_file(
+            wind_file,
+            shape=(10, 10, 20),
+            features=['orog', 'u_100m', 'v_100m'],
+        )
+        level_file = os.path.join(td, 'wind_levs.nc')
+        make_fake_nc_file(
+            level_file, shape=(10, 10, 20, 3), features=['zg', 'u']
+        )
+        loader = LoaderNC([wind_file, level_file])
+
+        assert loader.shape == (10, 10, 20, 3, 5)
+        assert sorted(loader.features) == sorted(
+            ['topography', 'u_100m', 'v_100m', 'zg', 'u']
+        )
+        assert loader['u_100m'].shape == (10, 10, 20)
+        assert loader['u'].shape == (10, 10, 20, 3)
+        assert loader[['u', 'topography']].shape == (10, 10, 20, 3, 2)
+        assert loader.data.dtype == np.float32
