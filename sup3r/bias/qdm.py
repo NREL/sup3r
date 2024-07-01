@@ -247,7 +247,8 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                                          base_handler,
                                          daily_reduction=daily_reduction,
                                          decimals=decimals,
-                                         base_dh_inst=base_dh_inst)
+                                         base_dh_inst=base_dh_inst,
+                                         )
 
         out = cls.get_qdm_params(bias_data,
                                  bias_fut_data,
@@ -256,7 +257,9 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                                  base_dset,
                                  sampling,
                                  n_samples,
-                                 log_base)
+                                 log_base,
+                                 )
+
         return out
 
     @staticmethod
@@ -267,7 +270,8 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                        base_dset,
                        sampling,
                        n_samples,
-                       log_base):
+                       log_base,
+                       ):
         """Get quantiles' cut point for given datasets
 
         Estimate the quantiles' cut points for each of the three given
@@ -323,7 +327,8 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
             quantiles = sample_q_invlog(n_samples, log_base)
         else:
             msg = ('sampling option must be linear, log, or invlog, but '
-                   'received: {}'.format(sampling))
+                   'received: {}'.format(sampling)
+                   )
             logger.error(msg)
             raise KeyError(msg)
 
@@ -331,7 +336,8 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
             f'bias_{bias_feature}_params': np.quantile(bias_data, quantiles),
             f'bias_fut_{bias_feature}_params': np.quantile(bias_fut_data,
                                                            quantiles),
-            f'base_{base_dset}_params': np.quantile(base_data, quantiles)}
+            f'base_{base_dset}_params': np.quantile(base_data, quantiles),
+        }
 
         return out
 
