@@ -315,8 +315,6 @@ def qa(ctx, verbose):
               'pipeline "log_file" to capture logs.')
 @click.option('-v', '--verbose', is_flag=True,
               help='Flag to turn on debug logging.')
-@click.option('-v', '--verbose', is_flag=True,
-              help='Flag to turn on debug logging.')
 @click.pass_context
 def pipeline(ctx, cancel, monitor, background, verbose):
     """Execute multiple steps in a Sup3r pipeline.
