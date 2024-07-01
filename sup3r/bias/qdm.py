@@ -713,8 +713,8 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         # Let's save the means for mh and mf instead of the `x` ratio. It
         # seems that we should be able to simplify the mh component from
         # the `K` coefficient.
-        # For now it is monthly but later it will be modified for a generic
-        # time window.
+        # TODO: For now it is monthly but later it will be modified to a
+        # generic time window.
         mh = np.full(12, np.nan, np.float32)
         mf = np.full(12, np.nan, np.float32)
         for m in range(12):
