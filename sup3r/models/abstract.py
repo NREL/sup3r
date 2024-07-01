@@ -1490,7 +1490,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             hi_res_exo = self.timer(self.get_high_res_exo_input)(hi_res_true)
             hi_res_gen = self.timer(self._tf_generate)(low_res, hi_res_exo)
             loss_out = self.timer(self.calc_loss)(hi_res_true, hi_res_gen,
-                                  **calc_loss_kwargs)
+                                                  **calc_loss_kwargs)
             loss, loss_details = loss_out
             grad = self.timer(tape.gradient)(loss, training_weights)
         return grad, loss_details

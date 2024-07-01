@@ -220,9 +220,11 @@ class DualExtracter(Container):
                 warn(msg)
 
         if any(fill_feats):
-            msg = ('Doing nearest neighbor nan fill on low_res data for '
-                   f'features = {fill_feats}')
+            msg = (
+                'Doing nearest neighbor nan fill on low_res data for '
+                f'features = {fill_feats}'
+            )
             logger.info(msg)
             self.lr_data = self.lr_data.interpolate_na(
-                    features=fill_feats, method='nearest'
-                )
+                features=fill_feats, method='nearest'
+            )
