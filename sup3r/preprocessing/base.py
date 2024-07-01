@@ -378,7 +378,7 @@ class TypeAgnosticClass(metaclass=FactoryMeta):
             msg = (
                 f'Can only handle H5 or NETCDF files. Received '
                 f'"{source_type}" for files: {file_arg}'
-        )
+            )
             logger.error(msg)
             raise ValueError(msg)
         return SpecificClass
