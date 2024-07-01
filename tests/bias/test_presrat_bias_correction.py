@@ -416,7 +416,8 @@ def test_presrat_zero_rate(fp_fut_cc, threshold):
 
     Use thresholds that gives 0%, 100%, and something between.
 
-    Notes:
+    Notes
+    -----
     - Rate should be zero if threshold is zero for this dataset.
     """
     calc = PresRat(
