@@ -158,18 +158,19 @@ def get_spatial_bc_quantiles(lat_lon: np.array,
     >>> lat_lon = np.array([
     ...              [39.649033, -105.46875 ],
     ...              [39.649033, -104.765625]])
-    >>> params = get_spatial_bc_quantiles(
-    ...            lat_lon, "ghi", "rsds", "./dist_params.hdf")
+    >>> params, cfg = get_spatial_bc_quantiles(
+    ...                 lat_lon, "ghi", "rsds", "./dist_params.hdf")
     """
     ds = {'base': f'base_{base_dset}_params',
           'bias': f'bias_{feature_name}_params',
-          'bias_fut': f'bias_fut_{feature_name}_params'}
-    out = _get_factors(lat_lon, ds, bias_fp, threshold)
+          'bias_fut': f'bias_fut_{feature_name}_params',
+          }
+    params = _get_factors(lat_lon, ds, bias_fp, threshold)
 
     with Resource(bias_fp) as res:
         cfg = res.global_attrs
 
-    return out["base"], out["bias"], out["bias_fut"], cfg
+    return params, cfg
 
 
 def global_linear_bc(input, scalar, adder, out_range=None):
@@ -488,11 +489,15 @@ def local_qdm_bc(data: np.array,
     >>> unbiased = local_qdm_bc(biased_array, lat_lon_array, "ghi", "rsds",
     ...                         "./dist_params.hdf")
     """
-    base, bias, bias_fut, cfg = get_spatial_bc_quantiles(lat_lon,
-                                                         base_dset,
-                                                         feature_name,
-                                                         bias_fp,
-                                                         threshold)
+    params, cfg = get_spatial_bc_quantiles(lat_lon,
+                                           base_dset,
+                                           feature_name,
+                                           bias_fp,
+                                           threshold)
+    base = params["base"]
+    bias = params["bias"]
+    bias_fut = params["bias_fut"]
+
     if lr_padded_slice is not None:
         spatial_slice = (lr_padded_slice[0], lr_padded_slice[1])
         base = base[spatial_slice]
@@ -520,3 +525,244 @@ def local_qdm_bc(data: np.array,
     tmp = QDM(tmp)
     # Reorgnize array back from  (time, space) to (spatial, spatial, temporal)
     return tmp.T.reshape(data.shape)
+
+
+def apply_zero_precipitation_rate(arr: np.ndarray, rate):
+    """Enforce the zero precipitation rate
+    Replace lowest values by zero to satisfy the given rate of zero
+    precipitation.
+
+    Parameters
+    ----------
+    arr : np.array
+        An array of values to be analyzed. Usually precipitation but it
+    rate : float or np.array
+        Rate of zero, or negligible, days of precipitation.
+
+    Returns
+    -------
+    corrected : np.array
+        A copy of given array that satisfies the rate of zero precipitation
+        days, i.e. the lowest values of precipitation are changed to zero
+        to satisfy that rate.
+
+    Examples
+    --------
+    >>> data = np.array([5, 0.1, np.nan, 0.2, 1])
+    >>> apply_zero_precipitation_rate(data, 0.30)
+    array([5. , 0. , nan, 0.2, 1. ])
+    """
+    assert arr.ndim == 3
+    assert rate.ndim >= 2
+    assert arr.shape[:2] == rate.shape[:2]
+
+    for i in range(rate.shape[0]):
+        for j in range(rate.shape[1]):
+            r = rate[i, j, 0]
+            if np.isfinite(r):
+                a = arr[i, j]
+                valid = np.isfinite(a)
+                idx = np.argsort(a)[valid][:round(r * valid.astype('i').sum())]
+                a[idx] = 0
+                arr[i, j] = a
+
+    return arr
+
+
+def get_spatial_bc_presrat(lat_lon: np.array,
+                           base_dset: str,
+                           feature_name: str,
+                           bias_fp: str,
+                           threshold: float = 0.1):
+    """Statistical distributions previously estimated for given lat/lon points
+
+    Recover the parameters that describe the statistical distribution
+    previously estimated with
+    :class:`~sup3r.bias.bias_calc.QuantileDeltaMappingCorrection` for three
+    datasets: ``base`` (historical reference), ``bias`` (historical biased
+    reference), and ``bias_fut`` (the future biased dataset, usually the data
+    to correct).
+
+    Parameters
+    ----------
+    lat_lon : ndarray
+        Array of latitudes and longitudes for the domain to bias correct
+        (n_lats, n_lons, 2)
+    base_dset : str
+        Name of feature used as historical reference. A Dataset with name
+        "base_{base_dset}_params" will be retrieved from ``bias_fp``.
+    feature_name : str
+        Name of the feature that is being corrected. Datasets with names
+        "bias_{feature_name}_params" and "bias_fut_{feature_name}_params" will
+        be retrieved from ``bias_fp``.
+    bias_fp : str
+        Filepath to bias correction file from the bias calc module. Must have
+        datasets "base_{base_dset}_params", "bias_{feature_name}_params", and
+        "bias_fut_{feature_name}_params" that define the statistical
+        distributions.
+    threshold : float
+        Nearest neighbor euclidean distance threshold. If the coordinates are
+        more than this value away from the bias correction lat/lon, an error
+        is raised.
+
+    Returns
+    -------
+    base : np.array
+        Parameters used to define the statistical distribution estimated for
+        the ``base_dset``. It has a shape of (I, J, P), where (I, J) are the
+        same first two dimensions of the given `lat_lon` and P is the number
+        of parameters and depends on the type of distribution. See
+        :class:`~sup3r.bias.bias_calc.QuantileDeltaMappingCorrection` for more
+        details.
+    bias : np.array
+        Parameters used to define the statistical distribution estimated for
+        (historical) ``feature_name``. It has a shape of (I, J, P), where
+        (I, J) are the same first two dimensions of the given `lat_lon` and P
+        is the number of parameters and depends on the type of distribution.
+        See :class:`~sup3r.bias.bias_calc.QuantileDeltaMappingCorrection` for
+        more details.
+    bias_fut : np.array
+        Parameters used to define the statistical distribution estimated for
+        (future) ``feature_name``. It has a shape of (I, J, P), where (I, J)
+        are the same first two dimensions of the given `lat_lon` and P is the
+        number of parameters used and depends on the type of distribution. See
+        :class:`~sup3r.bias.bias_calc.QuantileDeltaMappingCorrection` for more
+        details.
+    cfg : dict
+        Metadata used to guide how to use of the previous parameters on
+        reconstructing the statistical distributions. For instance,
+        `cfg['dist']` defines the type of distribution. See
+        :class:`~sup3r.bias.bias_calc.QuantileDeltaMappingCorrection` for more
+        details, including which metadata is saved.
+
+    Warnings
+    --------
+    Be careful selecting which `bias_fp` to use. In particular, if
+    "bias_fut_{feature_name}_params" is representative for the desired target
+    period.
+
+    See Also
+    --------
+    sup3r.bias.bias_calc.QuantileDeltaMappingCorrection
+        Estimate the statistical distributions loaded here.
+
+    Examples
+    --------
+    >>> lat_lon = np.array([
+    ...              [39.649033, -105.46875 ],
+    ...              [39.649033, -104.765625]])
+    >>> params, cfg = get_spatial_bc_quantiles(
+    ...                 lat_lon, "ghi", "rsds", "./dist_params.hdf")
+    """
+    ds = {'base': f'base_{base_dset}_params',
+          'base_zero_rate': f'{base_dset}_zero_rate',
+          'bias': f'bias_{feature_name}_params',
+          'bias_fut': f'bias_fut_{feature_name}_params',
+          'bias_mean_mh': f'{feature_name}_mean_mh',
+          'bias_mean_mf': f'{feature_name}_mean_mf',
+          }
+    params = _get_factors(lat_lon, ds, bias_fp, threshold)
+
+    with Resource(bias_fp) as res:
+        cfg = res.global_attrs
+
+    return params, cfg
+
+
+def local_presrat_bc(data: np.ndarray,
+                     time: np.ndarray,
+                     lat_lon: np.array,
+                     base_dset: str,
+                     feature_name: str,
+                     bias_fp,
+                     lr_padded_slice=None,
+                     threshold=0.1,
+                     relative=True,
+                     no_trend=False):
+    """Bias correction using PresRat
+
+    Parameters
+    ----------
+    data : np.ndarray
+        Sup3r input data to be bias corrected, assumed to be 3D with shape
+        (spatial, spatial, temporal) for a single feature.
+    lat_lon : ndarray
+        Array of latitudes and longitudes for the domain to bias correct
+        (n_lats, n_lons, 2)
+    base_dset :
+        Name of feature that is used as (historical) reference. Dataset with
+        names "base_{base_dset}_params" will be retrieved.
+    feature_name : str
+        Name of feature that is being corrected. Datasets with names
+        "bias_{feature_name}_params" and "bias_fut_{feature_name}_params" will
+        be retrieved.
+    bias_fp : str
+        Filepath to statistical distributions file from the bias calc module.
+        Must have datasets "bias_{feature_name}_params",
+        "bias_fut_{feature_name}_params", and "base_{base_dset}_params" that
+        are the parameters to define the statistical distributions to be used
+        to correct the given `data`.
+    lr_padded_slice : tuple | None
+        Tuple of length four that slices (spatial_1, spatial_2, temporal,
+        features) where each tuple entry is a slice object for that axes.
+        Note that if this method is called as part of a sup3r forward pass, the
+        lr_padded_slice will be included automatically in the kwargs for the
+        active chunk. If this is None, no slicing will be done and the full
+        bias correction source shape will be used.
+    no_trend: bool, default=False
+        An option to ignore the trend component of the correction, thus
+        resulting in an ordinary Quantile Mapping, i.e. corrects the bias by
+        comparing the distributions of the biased dataset with a reference
+        datasets. See
+        ``params_mf`` of :class:`rex.utilities.bc_utils.QuantileDeltaMapping`.
+        Note that this assumes that params_mh is the data distribution
+        representative for the target data.
+    """
+
+    params, cfg = get_spatial_bc_presrat(lat_lon,
+                                         base_dset,
+                                         feature_name,
+                                         bias_fp,
+                                         threshold)
+    base = params["base"]
+    bias = params["bias"]
+    bias_fut = params["bias_fut"]
+
+    if lr_padded_slice is not None:
+        spatial_slice = (lr_padded_slice[0], lr_padded_slice[1])
+        base = base[spatial_slice]
+        bias = bias[spatial_slice]
+        bias_fut = bias_fut[spatial_slice]
+
+    if no_trend:
+        mf = None
+    else:
+        mf = bias_fut.reshape(-1, bias_fut.shape[-1])
+    # The distributions are 3D (space, space, N-params)
+    # Collapse 3D (space, space, N) into 2D (space**2, N)
+    QDM = QuantileDeltaMapping(base.reshape(-1, base.shape[-1]),
+                               bias.reshape(-1, bias.shape[-1]),
+                               mf,
+                               dist=cfg['dist'],
+                               relative=relative,
+                               sampling=cfg["sampling"],
+                               log_base=cfg["log_base"])
+
+    # input 3D shape (spatial, spatial, temporal)
+    # QDM expects input arr with shape (time, space)
+    tmp = data.reshape(-1, data.shape[-1]).T
+    # Apply QDM correction
+    tmp = QDM(tmp)
+    # Reorgnize array back from  (time, space) to (spatial, spatial, temporal)
+    tmp = tmp.T.reshape(data.shape)
+
+    tmp = apply_zero_precipitation_rate(tmp, params["base_zero_rate"])
+
+    month = time.month
+    for m in range(12):
+        idx = month == m + 1
+        x_hat = tmp[:, :, idx].mean(axis=-1)
+        k = params["bias_mean_mf"][:, :, m] / x_hat
+        tmp[:, :, idx] *= k[:, :, np.newaxis]
+
+    return tmp

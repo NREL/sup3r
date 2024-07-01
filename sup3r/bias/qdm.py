@@ -17,11 +17,13 @@ from rex.utilities.bc_utils import (
     sample_q_linear,
     sample_q_log,
 )
+from typing import Optional
+import xarray as xr
 
 from sup3r.preprocessing.data_handling.base import DataHandler
 from sup3r.utilities.utilities import expand_paths
 from .bias_calc import DataRetrievalBase
-from .mixins import FillAndSmoothMixin
+from .mixins import FillAndSmoothMixin, ZeroRateMixin
 
 logger = logging.getLogger(__name__)
 
@@ -61,9 +63,10 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                  decimals=None,
                  match_zero_rate=False,
                  n_quantiles=101,
-                 dist="empirical",
-                 sampling="linear",
-                 log_base=10):
+                 dist='empirical',
+                 sampling='linear',
+                 log_base=10,
+                 ):
         """
         Parameters
         ----------
@@ -189,7 +192,8 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                          base_handler_kwargs=base_handler_kwargs,
                          bias_handler_kwargs=bias_handler_kwargs,
                          decimals=decimals,
-                         match_zero_rate=match_zero_rate)
+                         match_zero_rate=match_zero_rate,
+                         )
 
         self.bias_fut_fps = bias_fut_fps
 
@@ -200,7 +204,8 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                                              target=self.target,
                                              shape=self.shape,
                                              val_split=0.0,
-                                             **self.bias_handler_kwargs)
+                                             **self.bias_handler_kwargs,
+                                             )
 
     def _init_out(self):
         """Initialize output arrays `self.out`
@@ -242,7 +247,8 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                                          base_handler,
                                          daily_reduction=daily_reduction,
                                          decimals=decimals,
-                                         base_dh_inst=base_dh_inst)
+                                         base_dh_inst=base_dh_inst,
+                                         )
 
         out = cls.get_qdm_params(bias_data,
                                  bias_fut_data,
@@ -251,7 +257,9 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                                  base_dset,
                                  sampling,
                                  n_samples,
-                                 log_base)
+                                 log_base,
+                                 )
+
         return out
 
     @staticmethod
@@ -262,7 +270,8 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                        base_dset,
                        sampling,
                        n_samples,
-                       log_base):
+                       log_base,
+                       ):
         """Get quantiles' cut point for given datasets
 
         Estimate the quantiles' cut points for each of the three given
@@ -318,7 +327,8 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
             quantiles = sample_q_invlog(n_samples, log_base)
         else:
             msg = ('sampling option must be linear, log, or invlog, but '
-                   'received: {}'.format(sampling))
+                   'received: {}'.format(sampling)
+                   )
             logger.error(msg)
             raise KeyError(msg)
 
@@ -326,7 +336,8 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
             f'bias_{bias_feature}_params': np.quantile(bias_data, quantiles),
             f'bias_fut_{bias_feature}_params': np.quantile(bias_fut_data,
                                                            quantiles),
-            f'base_{base_dset}_params': np.quantile(base_data, quantiles)}
+            f'base_{base_dset}_params': np.quantile(base_data, quantiles),
+        }
 
         return out
 
@@ -359,14 +370,13 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
 
                 for k, v in self.meta.items():
                     f.attrs[k] = json.dumps(v)
-                f.attrs["dist"] = self.dist
-                f.attrs["sampling"] = self.sampling
-                f.attrs["log_base"] = self.log_base
-                f.attrs["base_fps"] = self.base_fps
-                f.attrs["bias_fps"] = self.bias_fps
-                f.attrs["bias_fut_fps"] = self.bias_fut_fps
-                logger.info(
-                    'Wrote quantiles to file: {}'.format(fp_out))
+                f.attrs['dist'] = self.dist
+                f.attrs['sampling'] = self.sampling
+                f.attrs['log_base'] = self.log_base
+                f.attrs['base_fps'] = self.base_fps
+                f.attrs['bias_fps'] = self.bias_fps
+                f.attrs['bias_fut_fps'] = self.bias_fut_fps
+                logger.info('Wrote quantiles to file: {}'.format(fp_out))
 
     def run(self,
             fp_out=None,
@@ -374,7 +384,8 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
             daily_reduction='avg',
             fill_extend=True,
             smooth_extend=0,
-            smooth_interior=0):
+            smooth_interior=0,
+            ):
         """Estimate the statistical distributions for each location
 
         Parameters
@@ -495,3 +506,351 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
         self.write_outputs(fp_out, self.out)
 
         return copy.deepcopy(self.out)
+
+
+class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
+    """PresRat bias correction method (precipitation)
+
+    The PresRat correction [Pierce2015]_ is defined as the combination of
+    three steps:
+    * Use the model-predicted change ratio (with the CDFs);
+    * The treatment of zero-precipitation days (with the fraction of dry days);
+    * The final correction factor (K) to preserve the mean (ratio between both
+      estimated means);
+
+    References
+    ----------
+    .. [Pierce2015] Pierce, D. W., Cayan, D. R., Maurer, E. P., Abatzoglou, J.
+       T., & Hegewisch, K. C. (2015). Improved bias correction techniques for
+       hydrological simulations of climate change. Journal of Hydrometeorology,
+       16(6), 2421-2442.
+    # Todo:
+    #   - Identify Z_gf. (0.01 mm) Also have to save on output params
+    #   - Estimate K = <x> / <hat{x}>
+    """
+
+    def _init_out(self):
+        super()._init_out()
+
+        shape = (*self.bias_gid_raster.shape, 1)
+        self.out[f'{self.base_dset}_zero_rate'] = np.full(shape,
+                                                          np.nan,
+                                                          np.float32)
+        shape = (*self.bias_gid_raster.shape, 12)
+        self.out[f'{self.bias_feature}_mean_mh'] = np.full(shape,
+                                                           np.nan,
+                                                           np.float32)
+        self.out[f'{self.bias_feature}_mean_mf'] = np.full(shape,
+                                                           np.nan,
+                                                           np.float32)
+
+    # pylint: disable=W0613
+    @classmethod
+    def _run_single(
+        cls,
+        bias_data,
+        bias_fut_data,
+        base_fps,
+        bias_feature,
+        base_dset,
+        base_gid,
+        base_handler,
+        daily_reduction,
+        decimals,
+        sampling,
+        n_samples,
+        log_base,
+        *,
+        bias_ti,
+        bias_fut_ti,
+        zero_rate_threshold,
+        base_dh_inst=None,
+
+    ):
+        """Estimate probability distributions at a single site
+
+        ATTENTION: This should be refactored. There is too much redundancy in
+        the code. Let's make it work first, and optimize later.
+        """
+        base_data, base_ti = cls.get_base_data(
+            base_fps,
+            base_dset,
+            base_gid,
+            base_handler,
+            daily_reduction=daily_reduction,
+            decimals=decimals,
+            base_dh_inst=base_dh_inst,
+        )
+
+        out = cls.get_qdm_params(
+            bias_data,
+            bias_fut_data,
+            base_data,
+            bias_feature,
+            base_dset,
+            sampling,
+            n_samples,
+            log_base,
+        )
+
+        out[f'{base_dset}_zero_rate'] = cls.zero_precipitation_rate(
+            base_data,
+            zero_rate_threshold,
+        )
+
+        # Let's save the means for mh and mf instead of the `x` ratio. It
+        # seems that we should be able to simplify the mh component from
+        # the `K` coefficient.
+        # TODO: For now it is monthly but later it will be modified to a
+        # generic time window.
+        mh = np.full(12, np.nan, np.float32)
+        mf = np.full(12, np.nan, np.float32)
+        for m in range(12):
+            mh[m] = bias_data[bias_ti.month == (m + 1)].mean()
+            mf[m] = bias_fut_data[bias_fut_ti.month == (m + 1)].mean()
+        out[f'{bias_feature}_mean_mh'] = mh
+        out[f'{bias_feature}_mean_mf'] = mf
+
+        return out
+
+    def run(
+        self,
+        fp_out=None,
+        max_workers=None,
+        daily_reduction='avg',
+        fill_extend=True,
+        smooth_extend=0,
+        smooth_interior=0,
+        zero_rate_threshold=0.01,
+    ):
+        """Estimate the required information for PresRat correction
+
+        Parameters
+        ----------
+        fp_out : str | None
+            Optional .h5 output file to write scalar and adder arrays.
+        max_workers : int, optional
+            Number of workers to run in parallel. 1 is serial and None is all
+            available.
+        daily_reduction : None | str
+            Option to do a reduction of the hourly+ source base data to daily
+            data. Can be None (no reduction, keep source time frequency), "avg"
+            (daily average), "max" (daily max), "min" (daily min),
+            "sum" (daily sum/total)
+
+        Returns
+        -------
+        out : dict
+            Dictionary with parameters defining the statistical distributions
+            for each of the three given datasets. Each value has dimensions
+            (lat, lon, n-parameters).
+        """
+        logger.debug('Calculate CDF parameters for QDM')
+
+        logger.info(
+            'Initialized params with shape: {}'.format(
+                self.bias_gid_raster.shape
+            )
+        )
+        self.bad_bias_gids = []
+
+        # sup3r DataHandler opening base files will load all data in parallel
+        # during the init and should not be passed in parallel to workers
+        if isinstance(self.base_dh, DataHandler):
+            max_workers = 1
+
+        if max_workers == 1:
+            logger.debug('Running serial calculation.')
+            for i, bias_gid in enumerate(self.bias_meta.index):
+                raster_loc = np.where(self.bias_gid_raster == bias_gid)
+                _, base_gid = self.get_base_gid(bias_gid)
+
+                if not base_gid.any():
+                    self.bad_bias_gids.append(bias_gid)
+                    logger.debug(
+                        f'No base data for bias_gid: {bias_gid}. '
+                        'Adding it to bad_bias_gids'
+                    )
+                else:
+                    bias_data = self.get_bias_data(bias_gid)
+                    bias_fut_data = self.get_bias_data(
+                        bias_gid, self.bias_fut_dh
+                    )
+                    single_out = self._run_single(
+                        bias_data,
+                        bias_fut_data,
+                        self.base_fps,
+                        self.bias_feature,
+                        self.base_dset,
+                        base_gid,
+                        self.base_handler,
+                        daily_reduction,
+                        self.decimals,
+                        sampling=self.sampling,
+                        n_samples=self.n_quantiles,
+                        log_base=self.log_base,
+                        base_dh_inst=self.base_dh,
+                        zero_rate_threshold=zero_rate_threshold,
+                        bias_ti=self.bias_fut_dh.time_index,
+                        bias_fut_ti=self.bias_fut_dh.time_index,
+                    )
+                    for key, arr in single_out.items():
+                        self.out[key][raster_loc] = arr
+
+                logger.info(
+                    'Completed bias calculations for {} out of {} '
+                    'sites'.format(i + 1, len(self.bias_meta))
+                )
+
+        else:
+            logger.debug(
+                'Running parallel calculation with {} workers.'.format(
+                    max_workers
+                )
+            )
+            with ProcessPoolExecutor(max_workers=max_workers) as exe:
+                futures = {}
+                for bias_gid in self.bias_meta.index:
+                    raster_loc = np.where(self.bias_gid_raster == bias_gid)
+                    _, base_gid = self.get_base_gid(bias_gid)
+
+                    if not base_gid.any():
+                        self.bad_bias_gids.append(bias_gid)
+                    else:
+                        bias_data = self.get_bias_data(bias_gid)
+                        bias_fut_data = self.get_bias_data(
+                            bias_gid, self.bias_fut_dh
+                        )
+                        future = exe.submit(
+                            self._run_single,
+                            bias_data,
+                            bias_fut_data,
+                            self.base_fps,
+                            self.bias_feature,
+                            self.base_dset,
+                            base_gid,
+                            self.base_handler,
+                            daily_reduction,
+                            self.decimals,
+                            sampling=self.sampling,
+                            n_samples=self.n_quantiles,
+                            log_base=self.log_base,
+                            zero_rate_threshold=zero_rate_threshold,
+                            bias_ti=self.bias_fut_dh.time_index,
+                            bias_fut_ti=self.bias_fut_dh.time_index,
+                        )
+                        futures[future] = raster_loc
+
+                logger.debug('Finished launching futures.')
+                for i, future in enumerate(as_completed(futures)):
+                    raster_loc = futures[future]
+                    single_out = future.result()
+                    for key, arr in single_out.items():
+                        self.out[key][raster_loc] = arr
+
+                    logger.info(
+                        'Completed bias calculations for {} out of {} '
+                        'sites'.format(i + 1, len(futures))
+                    )
+
+        logger.info('Finished calculating bias correction factors.')
+
+        self.out = self.fill_and_smooth(
+            self.out, fill_extend, smooth_extend, smooth_interior
+        )
+
+        self.zero_rate_threshold = zero_rate_threshold
+        extra_attrs = {'zero_rate_threshold': zero_rate_threshold}
+        self.write_outputs(fp_out,
+                           self.out,
+                           extra_attrs=extra_attrs,
+                           )
+
+        return copy.deepcopy(self.out)
+
+    @staticmethod
+    def _window_mask(d, d0, window_size=31):
+        d_start = d0 - window_size
+        d_end = d0 + window_size
+        if d_start < 0:
+            idx = (d >= 365 + d_start) | (d <= d_end)
+        elif d_end > 365:
+            idx = (d >= d_start) | (d <= 365 - d_end)
+        else:
+            idx = (d >= d_start) & (d <= d_end)
+        return idx
+
+    @staticmethod
+    def _single_quantile(da, d0, window_size, quantiles):
+        idx = self._window_mask(
+            da.time.dt.dayofyear, d0, window_size=window_size
+        )
+        q = (
+            da.where(idx, drop=True)
+            .chunk(dict(time=-1))
+            .quantile(quantiles, dim=['time'])
+        )
+        return q.expand_dims({'day_of_year': [d0]})
+
+    @staticmethod
+    def windowed_quantiles(
+        da: xr.DataArray, day_of_year, quantiles, window_size=90
+    ):
+        q = (
+            _single_quantile(
+                da, d0, window_size=window_size, quantiles=quantiles
+            )
+            for d0 in day_of_year
+        )
+        return xr.merge(q)
+
+
+    def write_outputs(self, fp_out: str,
+                      out: dict = None,
+                      extra_attrs: Optional[dict] = None):
+        """Write outputs to an .h5 file.
+
+        Parameters
+        ----------
+        fp_out : str | None
+            An HDF5 filename to write the estimated statistical distributions.
+        out : dict, optional
+            A dictionary with the three statistical distribution parameters.
+            If not given, it uses :attr:`.out`.
+        extra_attrs: dict, optional
+            Extra attributes to be exported together with the dataset.
+
+        Examples
+        --------
+        >>> mycalc = PresRat(...)
+        >>> mycalc.write_outputs(fp_out="myfile.h5", out=mydictdataset,
+        ...   extra_attrs={'zero_rate_threshold': 80})
+        """
+
+        out = out or self.out
+
+        if fp_out is not None:
+            if not os.path.exists(os.path.dirname(fp_out)):
+                os.makedirs(os.path.dirname(fp_out), exist_ok=True)
+
+            with h5py.File(fp_out, 'w') as f:
+                # pylint: disable=E1136
+                lat = self.bias_dh.lat_lon[..., 0]
+                lon = self.bias_dh.lat_lon[..., 1]
+                f.create_dataset('latitude', data=lat)
+                f.create_dataset('longitude', data=lon)
+                for dset, data in out.items():
+                    f.create_dataset(dset, data=data)
+
+                for k, v in self.meta.items():
+                    f.attrs[k] = json.dumps(v)
+                f.attrs['dist'] = self.dist
+                f.attrs['sampling'] = self.sampling
+                f.attrs['log_base'] = self.log_base
+                f.attrs['base_fps'] = self.base_fps
+                f.attrs['bias_fps'] = self.bias_fps
+                f.attrs['bias_fut_fps'] = self.bias_fut_fps
+                if extra_attrs is not None:
+                    for a, v in extra_attrs.items():
+                        f.attrs[a] = v
+                logger.info('Wrote quantiles to file: {}'.format(fp_out))
