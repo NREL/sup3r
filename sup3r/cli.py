@@ -1,4 +1,5 @@
 """Sup3r command line interface (CLI)."""
+
 import logging
 
 import click
@@ -19,11 +20,19 @@ logger = logging.getLogger(__name__)
 
 @click.group()
 @click.version_option(version=__version__)
-@click.option('--config_file', '-c',
-              required=True, type=click.Path(exists=True),
-              help='sup3r configuration file json for a single module.')
-@click.option('-v', '--verbose', is_flag=True,
-              help='Flag to turn on debug logging. Default is not verbose.')
+@click.option(
+    '--config_file',
+    '-c',
+    required=False,
+    type=click.Path(exists=True),
+    help='sup3r configuration file json for a single module.',
+)
+@click.option(
+    '-v',
+    '--verbose',
+    is_flag=True,
+    help='Flag to turn on debug logging. Default is not verbose.',
+)
 @click.pass_context
 def main(ctx, config_file, verbose):
     """Sup3r command line interface.
@@ -59,8 +68,9 @@ def main(ctx, config_file, verbose):
 
 
 @main.command()
-@click.option('-v', '--verbose', is_flag=True,
-              help='Flag to turn on debug logging.')
+@click.option(
+    '-v', '--verbose', is_flag=True, help='Flag to turn on debug logging.'
+)
 @click.pass_context
 def forward_pass(ctx, verbose):
     """Sup3r forward pass to super-resolve data.
@@ -84,6 +94,7 @@ def forward_pass(ctx, verbose):
     also has several optional arguments: ``log_pattern``, ``log_level``, and
     ``execution_control``. Here's a small example forward pass config::
 
+        \b
         {
             "file_paths": "./source_files*.nc",
             "model_kwargs": {
@@ -109,15 +120,16 @@ def forward_pass(ctx, verbose):
     Note that the ``execution_control`` block contains kwargs that would
     be required to distribute the job on multiple nodes on the NREL HPC.
     To run the job locally, use ``execution_control: {"option": "local"}``.
-    """
+    """  # noqa : D301
     config_file = ctx.obj['CONFIG_FILE']
     verbose = any([verbose, ctx.obj['VERBOSE']])
     ctx.invoke(fwp_cli, config_file=config_file, verbose=verbose)
 
 
 @main.command()
-@click.option('-v', '--verbose', is_flag=True,
-              help='Flag to turn on debug logging.')
+@click.option(
+    '-v', '--verbose', is_flag=True, help='Flag to turn on debug logging.'
+)
 @click.pass_context
 def solar(ctx, verbose):
     """Sup3r solar module to convert GAN output clearsky ratio to irradiance
@@ -142,6 +154,7 @@ def solar(ctx, verbose):
     also has several optional arguments: ``log_pattern``, ``log_level``, and
     ``execution_control``. Here's a small example solar config::
 
+        \b
         {
             "fp_pattern": "./chunks/sup3r*.h5",
             "nsrdb_fp": "/datasets/NSRDB/current/nsrdb_2015.h5",
@@ -155,15 +168,16 @@ def solar(ctx, verbose):
     Note that the ``execution_control`` block contains kwargs that would
     be required to distribute the job on multiple nodes on the NREL HPC.
     To run the job locally, use ``execution_control: {"option": "local"}``.
-    """
+    """  # noqa : D301
     config_file = ctx.obj['CONFIG_FILE']
     verbose = any([verbose, ctx.obj['VERBOSE']])
     ctx.invoke(solar_cli, config_file=config_file, verbose=verbose)
 
 
 @main.command()
-@click.option('-v', '--verbose', is_flag=True,
-              help='Flag to turn on debug logging.')
+@click.option(
+    '-v', '--verbose', is_flag=True, help='Flag to turn on debug logging.'
+)
 @click.pass_context
 def bias_calc(ctx, verbose):
     """Sup3r bias correction calculation module to create bias correction
@@ -194,6 +208,7 @@ def bias_calc(ctx, verbose):
     several optional arguments: ``log_pattern``, ``log_level``, and
     ``execution_control``. Here's a small example bias calc config::
 
+        \b
         {
             "bias_calc_class": "LinearCorrection",
             "jobs": [
@@ -216,15 +231,16 @@ def bias_calc(ctx, verbose):
     Note that the ``execution_control`` block contains kwargs that would
     be required to distribute the job on multiple nodes on the NREL HPC.
     To run the job locally, use ``execution_control: {"option": "local"}``.
-    """
+    """  # noqa : D301
     config_file = ctx.obj['CONFIG_FILE']
     verbose = any([verbose, ctx.obj['VERBOSE']])
     ctx.invoke(bias_calc_cli, config_file=config_file, verbose=verbose)
 
 
 @main.command()
-@click.option('-v', '--verbose', is_flag=True,
-              help='Flag to turn on debug logging.')
+@click.option(
+    '-v', '--verbose', is_flag=True, help='Flag to turn on debug logging.'
+)
 @click.pass_context
 def data_collect(ctx, verbose):
     """Sup3r data collection following forward pass.
@@ -244,6 +260,7 @@ def data_collect(ctx, verbose):
     config also has several optional arguments: ``log_file``, ``log_level``,
     and ``execution_control``. Here's a small example data-collect config::
 
+        \b
         {
             "file_paths": "./outputs/*.h5",
             "out_file": "./outputs/output_file.h5",
@@ -255,15 +272,16 @@ def data_collect(ctx, verbose):
 
     Note that the ``execution_control`` has the same options as forward-pass
     and you can set ``"option": "kestrel"`` to run on the NREL HPC.
-    """
+    """  # noqa : D301
     config_file = ctx.obj['CONFIG_FILE']
     verbose = any([verbose, ctx.obj['VERBOSE']])
     ctx.invoke(dc_cli, config_file=config_file, verbose=verbose)
 
 
 @main.command()
-@click.option('-v', '--verbose', is_flag=True,
-              help='Flag to turn on debug logging.')
+@click.option(
+    '-v', '--verbose', is_flag=True, help='Flag to turn on debug logging.'
+)
 @click.pass_context
 def qa(ctx, verbose):
     """Sup3r QA module following forward pass and collection.
@@ -283,6 +301,7 @@ def qa(ctx, verbose):
     ``log_level``, and ``execution_control``. Here's a small example
     QA config::
 
+        \b
         {
             "source_file_paths": "./source_files*.nc",
             "out_file_path": "./outputs/collected_output_file.h5",
@@ -296,25 +315,35 @@ def qa(ctx, verbose):
 
     Note that the ``execution_control`` has the same options as forward-pass
     and you can set ``"option": "kestrel"`` to run on the NREL HPC.
-    """
+    """  # noqa : D301
     config_file = ctx.obj['CONFIG_FILE']
     verbose = any([verbose, ctx.obj['VERBOSE']])
     ctx.invoke(qa_cli, config_file=config_file, verbose=verbose)
 
 
 @main.group(invoke_without_command=True)
-@click.option('--cancel', is_flag=True,
-              help='Flag to cancel all jobs associated with a given pipeline.')
-@click.option('--monitor', is_flag=True,
-              help='Flag to monitor pipeline jobs continuously. '
-              'Default is not to monitor (kick off jobs and exit).')
-@click.option('--background', is_flag=True,
-              help='Flag to monitor pipeline jobs continuously '
-              'in the background using the nohup command. Note that the '
-              'stdout/stderr will not be captured, but you can set a '
-              'pipeline "log_file" to capture logs.')
-@click.option('-v', '--verbose', is_flag=True,
-              help='Flag to turn on debug logging.')
+@click.option(
+    '--cancel',
+    is_flag=True,
+    help='Flag to cancel all jobs associated with a given pipeline.',
+)
+@click.option(
+    '--monitor',
+    is_flag=True,
+    help='Flag to monitor pipeline jobs continuously. '
+    'Default is not to monitor (kick off jobs and exit).',
+)
+@click.option(
+    '--background',
+    is_flag=True,
+    help='Flag to monitor pipeline jobs continuously '
+    'in the background using the nohup command. Note that the '
+    'stdout/stderr will not be captured, but you can set a '
+    'pipeline "log_file" to capture logs.',
+)
+@click.option(
+    '-v', '--verbose', is_flag=True, help='Flag to turn on debug logging.'
+)
 @click.pass_context
 def pipeline(ctx, cancel, monitor, background, verbose):
     """Execute multiple steps in a Sup3r pipeline.
@@ -330,6 +359,7 @@ def pipeline(ctx, cancel, monitor, background, verbose):
 
     A typical sup3r pipeline config.json file might look like this::
 
+        \b
         {
             "logging": {"log_level": "DEBUG"},
             "pipeline": [
@@ -340,29 +370,48 @@ def pipeline(ctx, cancel, monitor, background, verbose):
 
     See the other CLI help pages for what the respective module configs
     require.
-    """
+    """  # noqa: D301
     if ctx.invoked_subcommand is None:
         config_file = ctx.obj['CONFIG_FILE']
         verbose = any([verbose, ctx.obj['VERBOSE']])
-        ctx.invoke(pipe_cli, config_file=config_file, cancel=cancel,
-                   monitor=monitor, background=background, verbose=verbose)
+        ctx.invoke(
+            pipe_cli,
+            config_file=config_file,
+            cancel=cancel,
+            monitor=monitor,
+            background=background,
+            verbose=verbose,
+        )
 
 
 @main.group(invoke_without_command=True)
-@click.option('--dry-run', is_flag=True,
-              help='Flag to do a dry run (make batch dirs without running).')
-@click.option('--cancel', is_flag=True,
-              help='Flag to cancel all jobs associated with a given batch.')
-@click.option('--delete', is_flag=True,
-              help='Flag to delete all batch job sub directories associated '
-              'with the batch_jobs.csv in the current batch config directory.')
-@click.option('--monitor-background', is_flag=True,
-              help='Flag to monitor all batch pipelines continuously '
-              'in the background using the nohup command. Note that the '
-              'stdout/stderr will not be captured, but you can set a '
-              'pipeline "log_file" to capture logs.')
-@click.option('-v', '--verbose', is_flag=True,
-              help='Flag to turn on debug logging.')
+@click.option(
+    '--dry-run',
+    is_flag=True,
+    help='Flag to do a dry run (make batch dirs without running).',
+)
+@click.option(
+    '--cancel',
+    is_flag=True,
+    help='Flag to cancel all jobs associated with a given batch.',
+)
+@click.option(
+    '--delete',
+    is_flag=True,
+    help='Flag to delete all batch job sub directories associated '
+    'with the batch_jobs.csv in the current batch config directory.',
+)
+@click.option(
+    '--monitor-background',
+    is_flag=True,
+    help='Flag to monitor all batch pipelines continuously '
+    'in the background using the nohup command. Note that the '
+    'stdout/stderr will not be captured, but you can set a '
+    'pipeline "log_file" to capture logs.',
+)
+@click.option(
+    '-v', '--verbose', is_flag=True, help='Flag to turn on debug logging.'
+)
 @click.pass_context
 def batch(ctx, dry_run, cancel, delete, monitor_background, verbose):
     """Create and run multiple sup3r project directories based on batch
@@ -376,6 +425,7 @@ def batch(ctx, dry_run, cancel, delete, monitor_background, verbose):
     config below, four sup3r pipelines will be created where arg1 and arg2 are
     set to [0, "a"], [0, "b"], [1, "a"], [1, "b"] in config_fwp.json::
 
+        \b
         {
             "pipeline_config": "./config_pipeline.json",
             "sets": [
@@ -390,14 +440,19 @@ def batch(ctx, dry_run, cancel, delete, monitor_background, verbose):
         }
 
     Note that you can use multiple "sets" to isolate parameter permutations.
-    """
+    """  # noqa : D301
     if ctx.invoked_subcommand is None:
         config_file = ctx.obj['CONFIG_FILE']
         verbose = any([verbose, ctx.obj['VERBOSE']])
-        ctx.invoke(batch_cli, config_file=config_file,
-                   dry_run=dry_run, cancel=cancel, delete=delete,
-                   monitor_background=monitor_background,
-                   verbose=verbose)
+        ctx.invoke(
+            batch_cli,
+            config_file=config_file,
+            dry_run=dry_run,
+            cancel=cancel,
+            delete=delete,
+            monitor_background=monitor_background,
+            verbose=verbose,
+        )
 
 
 Pipeline.COMMANDS[ModuleName.FORWARD_PASS] = fwp_cli
