@@ -94,7 +94,7 @@ class FillAndSmoothMixin:
         return out
 
 
-class ZeroRateMixin():
+class ZeroRateMixin:
     """Estimate zero rate
 
 
