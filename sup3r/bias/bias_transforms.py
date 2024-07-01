@@ -593,9 +593,8 @@ def apply_zero_precipitation_rate(arr: np.ndarray, rate):
     assert rate.ndim >= 2
     assert arr.shape[:2] == rate.shape[:2]
 
-    I, J = rate.shape[:2]
-    for i in range(I):
-        for j in range(J):
+    for i in range(rate.shape[0]):
+        for j in range(rate.shape[1]):
             r = rate[i, j, 0]
             if np.isfinite(r):
                 a = arr[i, j]
