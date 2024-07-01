@@ -717,6 +717,45 @@ def local_presrat_bc(data: np.ndarray,
                      threshold=0.1,
                      relative=True,
                      no_trend=False):
+    """Bias correction using PresRat
+
+    Parameters
+    ----------
+    data : np.ndarray
+        Sup3r input data to be bias corrected, assumed to be 3D with shape
+        (spatial, spatial, temporal) for a single feature.
+    lat_lon : ndarray
+        Array of latitudes and longitudes for the domain to bias correct
+        (n_lats, n_lons, 2)
+    base_dset :
+        Name of feature that is used as (historical) reference. Dataset with
+        names "base_{base_dset}_params" will be retrieved.
+    feature_name : str
+        Name of feature that is being corrected. Datasets with names
+        "bias_{feature_name}_params" and "bias_fut_{feature_name}_params" will
+        be retrieved.
+    bias_fp : str
+        Filepath to statistical distributions file from the bias calc module.
+        Must have datasets "bias_{feature_name}_params",
+        "bias_fut_{feature_name}_params", and "base_{base_dset}_params" that
+        are the parameters to define the statistical distributions to be used
+        to correct the given `data`.
+    lr_padded_slice : tuple | None
+        Tuple of length four that slices (spatial_1, spatial_2, temporal,
+        features) where each tuple entry is a slice object for that axes.
+        Note that if this method is called as part of a sup3r forward pass, the
+        lr_padded_slice will be included automatically in the kwargs for the
+        active chunk. If this is None, no slicing will be done and the full
+        bias correction source shape will be used.
+    no_trend: bool, default=False
+        An option to ignore the trend component of the correction, thus
+        resulting in an ordinary Quantile Mapping, i.e. corrects the bias by
+        comparing the distributions of the biased dataset with a reference
+        datasets. See
+        ``params_mf`` of :class:`rex.utilities.bc_utils.QuantileDeltaMapping`.
+        Note that this assumes that params_mh is the data distribution
+        representative for the target data.
+    """
 
     params, cfg = get_spatial_bc_presrat(lat_lon,
                                          base_dset,
