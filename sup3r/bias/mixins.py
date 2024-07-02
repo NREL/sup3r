@@ -118,7 +118,7 @@ class ZeroRateMixin:
 
         Parameters
         ----------
-        arr : np.array
+        arr : np.ndarray
             An array of values to be analyzed. Usually precipitation but it
             could be applied to other quantities.
         threshold : float
