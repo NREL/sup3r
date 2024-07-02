@@ -707,8 +707,8 @@ def get_spatial_bc_presrat(lat_lon: np.array,
 
 
 def local_presrat_bc(data: np.ndarray,
-                     time: np.ndarray,
-                     lat_lon: np.array,
+                     time_index: np.ndarray,
+                     lat_lon: np.ndarray,
                      base_dset: str,
                      feature_name: str,
                      bias_fp,
@@ -795,7 +795,7 @@ def local_presrat_bc(data: np.ndarray,
 
     tmp = apply_zero_precipitation_rate(tmp, params["base_zero_rate"])
 
-    month = time.month
+    month = time_index.month
     for m in range(12):
         idx = month == m + 1
         x_hat = tmp[:, :, idx].mean(axis=-1)
