@@ -78,6 +78,7 @@ exclude = [
 
 [tool.ruff.lint]
 fixable = [
+  "E303", # too-many-blank-lines
   "UP039", # unnecessary-class-parentheses
   ]
 # preview = true
