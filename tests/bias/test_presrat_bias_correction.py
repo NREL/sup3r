@@ -27,7 +27,9 @@ import pandas as pd
 import pytest
 import xarray as xr
 
-from sup3r import TEST_DATA_DIR
+from sup3r import CONFIG_DIR, TEST_DATA_DIR
+from sup3r.models import Sup3rGan
+from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.bias import (
     apply_zero_precipitation_rate,
     local_presrat_bc,
@@ -605,3 +607,85 @@ def test_presrat_transform_nozerochanges(presrat_nozeros_params, fut_cc):
     assert not (
         (data != 0) & (corrected == 0)
     ).any(), 'Unexpected value corrected (zero_rate) to zero (dry day)'
+
+
+def precip_sample(tmpdir_factory):
+    t_start = np.datetime64('2015-01-01')
+    t_end = np.datetime64('2015-01-20')
+    nt = 20
+
+    lat = np.linspace(13.66, 31.57, 20)
+    long = np.linspace(125.0, 148.75, 20)
+    t0 = np.datetime64('2015-01-01')
+    time = t0 + np.linspace(0, 19, 20, dtype='timedelta64[D]')
+
+    ds = xr.Dataset()
+
+
+def test_fwp_integration(tmp_path, fp_fut_cc, presrat_params):
+    """Integration of the PresRat correction method into the forward pass
+
+    Validate two aspects:
+    - We should be able to run a forward pass with unbiased data.
+    - The bias trend should be observed in the predicted output.
+    """
+    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
+    features = ['rsds']
+    target = (39.0, -104.5)
+    # shape = (8, 8)
+    shape = (2, 2)
+    temporal_slice = slice(None, None, 1)
+    fwp_chunk_shape = (4, 4, 150)
+    input_files = [fp_fut_cc]
+
+    Sup3rGan.seed()
+    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+    _ = model.generate(np.ones((4, 10, 10, 6, len(features))))
+    model.meta['lr_features'] = features
+    model.meta['hr_out_features'] = features
+    model.meta['s_enhance'] = 3
+    model.meta['t_enhance'] = 4
+
+    out_dir = os.path.join(tmp_path, 'st_gan')
+    model.save(out_dir)
+
+    bias_correct_kwargs = {
+                           'rsds': {'feature_name': 'rsds',
+                                      'base_dset': 'ghi',
+                                      'bias_fp': presrat_params}}
+
+    strat = ForwardPassStrategy(
+        input_files,
+        model_kwargs={'model_dir': out_dir},
+        fwp_chunk_shape=fwp_chunk_shape,
+        spatial_pad=0, temporal_pad=0,
+        input_handler_kwargs=dict(target=target, shape=shape,
+                                  temporal_slice=temporal_slice,
+                                  worker_kwargs=dict(max_workers=1)),
+        out_pattern=os.path.join(tmp_path, 'out_{file_id}.nc'),
+        worker_kwargs=dict(max_workers=1),
+        input_handler='DataHandlerNCforCC',
+    )
+    bc_strat = ForwardPassStrategy(
+        input_files,
+        model_kwargs={'model_dir': out_dir},
+        fwp_chunk_shape=fwp_chunk_shape,
+        spatial_pad=0, temporal_pad=0,
+        input_handler_kwargs=dict(target=target, shape=shape,
+                                  temporal_slice=temporal_slice,
+                                  worker_kwargs=dict(max_workers=1)),
+        out_pattern=os.path.join(tmp_path, 'out_{file_id}.nc'),
+        worker_kwargs=dict(max_workers=1),
+        input_handler='DataHandlerNCforCC',
+        bias_correct_method='local_presrat_bc',
+        bias_correct_kwargs=bias_correct_kwargs,
+    )
+
+    for ichunk in range(strat.chunks):
+        fwp = ForwardPass(strat, chunk_index=ichunk)
+        bc_fwp = ForwardPass(bc_strat, chunk_index=ichunk)
+
+        delta = bc_fwp.input_data - fwp.input_data
+
+        delta = bc_fwp.run_chunk() - fwp.run_chunk()
