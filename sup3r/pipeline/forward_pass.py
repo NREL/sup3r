@@ -1578,7 +1578,7 @@ class ForwardPass:
                                  feature, idf, method, feature_kwargs))
 
                 data[..., idf] = method(data[..., idf],
-                                        lat_lon,
+                                        lat_lon=lat_lon,
                                         **feature_kwargs)
 
         return data
