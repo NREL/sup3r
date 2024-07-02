@@ -497,8 +497,8 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
 
                 if not base_gid.any():
                     self.bad_bias_gids.append(bias_gid)
-                    logger.debug(f"No base data for bias_gid: {bias_gid}. "
-                                 "Adding it to bad_bias_gids")
+                    logger.debug(f'No base data for bias_gid: {bias_gid}. '
+                                 'Adding it to bad_bias_gids')
                 else:
                     bias_data = self.get_bias_data(bias_gid)
                     bias_fut_data = self.get_bias_data(bias_gid,
