@@ -340,15 +340,15 @@ def test_zero_precipitation_rate_nan():
 
 
 @pytest.mark.parametrize('threshold', [0, 50, 1e6])
-def test_parallel(fp_fut_cc, threshold):
+def test_parallel(fp_precip, fp_precip_fut, threshold):
     """Running in parallel must not alter results
 
     Check with different thresholds, which will result in different zero rates.
     """
     s = PresRat(
         FP_NSRDB,
-        FP_CC,
-        fp_fut_cc,
+        fp_precip,
+        fp_precip_fut,
         'ghi',
         'rsds',
         target=TARGET,
@@ -360,8 +360,8 @@ def test_parallel(fp_fut_cc, threshold):
 
     p = PresRat(
         FP_NSRDB,
-        FP_CC,
-        fp_fut_cc,
+        fp_precip,
+        fp_precip_fut,
         'ghi',
         'rsds',
         target=TARGET,
