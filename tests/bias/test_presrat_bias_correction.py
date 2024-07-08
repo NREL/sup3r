@@ -36,7 +36,7 @@ from sup3r.bias import (
     PresRat,
 )
 from sup3r.bias.mixins import ZeroRateMixin
-from sup3r.preprocessing.data_handling import DataHandlerNC
+from sup3r.preprocessing.data_handling import DataHandlerNC, DataHandlerNCforCC
 
 FP_NSRDB = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')
 FP_CC = os.path.join(TEST_DATA_DIR, 'rsds_test.nc')
@@ -51,6 +51,80 @@ with xr.open_dataset(FP_CC) as fh:
     TARGET = (float(MIN_LAT), float(MIN_LON))
     SHAPE = (len(fh.lat.values), len(fh.lon.values))
 
+VAR_MIN = 0
+# Fix this max
+VAR_MAX = 1300
+
+@pytest.fixture(scope='module')
+def precip():
+    # lat = np.linspace(13.66, 31.57, 20)
+    # lat = np.linspace(38.245528, 40.350785, 20)
+    lat = np.array([38.2455282337738, 38.9472804370071, 39.649032596592, 40.3507847105177])
+    # lon = np.linspace(254.53125, 256.640625, 20)
+    lon = np.array([254.53125, 255.234375, 255.9375, 256.640625])
+    t0 = np.datetime64('2015-01-01T12:00:00')
+    time = t0 + np.linspace(0, 364, 365, dtype='timedelta64[D]')
+    bnds = (-np.timedelta64(12,'h'), np.timedelta64(12, 'h'))
+    time_bnds = time[:,np.newaxis] + bnds
+    rng = np.random.default_rng()
+    # pr = rng.lognormal(3., 1., (time.size, lat.size, lon.size))
+    # pr = rng.uniform(0, 1., (time.size, lat.size, lon.size))
+    # Transitioning
+    pr = rng.normal(210, 87., (time.size, lat.size, lon.size))
+    pr = np.where(pr>0, pr, 0)
+
+    ds = xr.Dataset(
+        data_vars={
+            "rsds": (["time", "lat", "lon"], pr)
+        },
+        coords={
+            "time": ("time", time),
+            "time_bnds": (["time", "bnds"], time_bnds),
+            "lat": ("lat", lat),
+            "lon": ("lon", lon),
+        })
+
+    return ds
+
+# FP_CC
+@pytest.fixture(scope='module')
+def fp_precip(tmpdir_factory, precip):
+    """Precipitation sample filename
+
+    DataHandlerNCforCC requires a string
+    """
+    fn = tmpdir_factory.mktemp('data').join('precip_mh.nc')
+    precip.to_netcdf(fn)
+    fn = str(fn)
+    return fn
+
+# fut_cc
+@pytest.fixture(scope='module')
+def precip_fut(tmpdir_factory, precip):
+    ds = precip.copy(deep=True)
+
+    time = ds['time'] + np.timedelta64(18263,'D')
+    time.attrs = ds['time'].attrs
+    ds['time'] = time
+    # Adding an offset
+    # ds['pr'] += 1
+    ds['rsds'] += 75
+    # adding a small noise
+    # ds['pr'] += 1e-6 * np.random.randn(*ds['pr'].shape)
+    ds['rsds'] += 1e-4 * np.random.randn(*ds['rsds'].shape)
+
+    return ds['rsds']
+
+@pytest.fixture(scope='module')
+def fp_precip_fut(tmpdir_factory, precip_fut):
+    """Future precipitation sample filename
+
+    DataHandlerNCforCC requires a string
+    """
+    fn = tmpdir_factory.mktemp('data').join('precip_mf.nc')
+    precip_fut.to_netcdf(fn)
+    fn = str(fn)
+    return fn
 
 @pytest.fixture(scope='module')
 def fp_fut_cc(tmpdir_factory):
