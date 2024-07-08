@@ -117,13 +117,13 @@ def fut_cc(fp_fut_cc):
 
 
 @pytest.fixture(scope='module')
-def fp_fut_cc_notrend(tmpdir_factory):
+def fp_fut_cc_notrend(tmpdir_factory, fp_precip):
     """Sample future CC dataset identical to historical CC
 
     This is currently a copy of FP_CC, thus no trend on time.
     """
     fn = tmpdir_factory.mktemp('data').join('test_mf_notrend.nc')
-    shutil.copyfile(FP_CC, fn)
+    shutil.copyfile(fp_precip, fn)
     # DataHandlerNCforCC requires a string
     fn = str(fn)
     return fn
@@ -171,7 +171,7 @@ def fut_cc_notrend(fp_fut_cc_notrend):
 
 
 @pytest.fixture(scope='module')
-def presrat_params(tmpdir_factory, fp_fut_cc):
+def presrat_params(tmpdir_factory, fp_precip, fp_precip_fut):
     """PresRat parameters for standard datasets
 
     Use the standard datasets to estimate the distributions and save
@@ -179,8 +179,8 @@ def presrat_params(tmpdir_factory, fp_fut_cc):
     """
     calc = PresRat(
         FP_NSRDB,
-        FP_CC,
-        fp_fut_cc,
+        fp_precip,
+        fp_precip_fut,
         'ghi',
         'rsds',
         target=TARGET,
@@ -200,7 +200,7 @@ def presrat_params(tmpdir_factory, fp_fut_cc):
 
 
 @pytest.fixture(scope='module')
-def presrat_notrend_params(tmpdir_factory, fp_fut_cc_notrend):
+def presrat_notrend_params(tmpdir_factory, fp_precip, fp_fut_cc_notrend):
     """No change in time
 
     The bias_fut distribution is equal to bias (mod_his), so no change in
@@ -212,7 +212,7 @@ def presrat_notrend_params(tmpdir_factory, fp_fut_cc_notrend):
     """
     calc = PresRat(
         FP_NSRDB,
-        FP_CC,
+        fp_precip,
         fp_fut_cc_notrend,
         'ghi',
         'rsds',
