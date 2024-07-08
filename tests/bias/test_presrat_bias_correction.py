@@ -378,7 +378,7 @@ def test_parallel(fp_precip, fp_precip_fut, threshold):
         ), f'Different results for {k}'
 
 
-def test_presrat_calc(fp_fut_cc):
+def test_presrat_calc(fp_precip, fp_precip_fut):
     """Standard PresRat (pre) calculation
 
     Estimate the required parameters with a standard setup.
@@ -387,8 +387,8 @@ def test_presrat_calc(fp_fut_cc):
     """
     calc = PresRat(
         FP_NSRDB,
-        FP_CC,
-        fp_fut_cc,
+        fp_precip,
+        fp_precip_fut,
         'ghi',
         'rsds',
         target=TARGET,
@@ -535,7 +535,8 @@ def test_presrat_transform(presrat_params, fut_cc):
         data, time, latlon, 'ghi', 'rsds', presrat_params
     )
 
-    assert not np.isnan(corrected).all(), "Can't compare if only NaN"
+    assert np.isfinite(corrected).any(), "Can't compare if only NaN"
+    # Confirm that there were changes, but at this point stop there.
     assert not np.allclose(data, corrected, equal_nan=False)
 
 
