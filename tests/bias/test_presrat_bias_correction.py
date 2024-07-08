@@ -27,6 +27,8 @@ import pandas as pd
 import pytest
 import xarray as xr
 
+from rex import Outputs, Resource
+
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.models import Sup3rGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
@@ -54,6 +56,52 @@ with xr.open_dataset(FP_CC) as fh:
 VAR_MIN = 0
 # Fix this max
 VAR_MAX = 1300
+
+
+@pytest.fixture(scope='module')
+def fp_resource(tmpdir_factory):
+    fn = tmpdir_factory.mktemp('data').join('precip_oh.h5')
+
+    time = pd.date_range('2018-01-01 00:00:00+0000', '2018-03-26 23:30:00+0000', freq='30m')
+    time = pd.DatetimeIndex(np.arange(np.datetime64('2018-01-01 00:00:00+00:00'), np.datetime64('2018-03-26 23:31:00+00:00'), np.timedelta64(30, 'm')))
+    lat = np.array([39.01, 39.05, 39.09, 39.13, 39.17, 39.21, 39.25, 39.29, 39.33, 39.37, 39.41, 39.45, 39.49, 39.53, 39.57, 39.61, 39.65, 39.69, 39.73, 39.77])
+    lon = np.array([-105.14, -105.1, -105.06, -105.02, -104.98, -104.94, -104.9, -104.86, -104.82, -104.78, -104.74, -104.7, -104.66, -104.62, -104.58, -104.54, -104.5, -104.46, -104.42, -104.38])
+    rng = np.random.default_rng()
+    ghi = rng.normal(210, 87., (time.size, lat.size, lon.size))
+
+    ds = xr.Dataset(
+        data_vars={
+            "ghi": (["time", "lat", "lon"], ghi)
+        },
+        coords={
+            "time": ("time", time),
+            #"time_bnds": (["time", "bnds"], time_bnds),
+            "lat": ("lat", lat),
+            "lon": ("lon", lon),
+        })
+
+
+    ds = ds.sortby('lat', ascending=False)
+    lat_2d, lon_2d = xr.broadcast(ds['lat'], ds['lon'])
+    meta = pd.DataFrame({'latitude': lat_2d.values.flatten(),
+                         'longitude': lon_2d.values.flatten(),
+                         })
+
+    shapes = {"ghi": (len(ds.ghi.time), np.prod(ds.ghi.isel(time=0).shape))}
+    attrs = {"ghi": None}
+    chunks = {"ghi": None}
+    dtypes = {"ghi": "float32"}
+
+    Outputs.init_h5(fn, ["ghi"], shapes, attrs, chunks, dtypes,
+                        meta=meta,
+                        time_index=pd.DatetimeIndex(ds.time))
+    with Outputs(fn, 'a') as out:
+        out["ghi"] = ds.stack(flat=("lat", "lon"))["ghi"]
+
+    # DataHandlerNCforCC requires a string
+    fn = str(fn)
+    return fn
+
 
 @pytest.fixture(scope='module')
 def precip():
