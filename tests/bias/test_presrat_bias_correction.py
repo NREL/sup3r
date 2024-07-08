@@ -482,7 +482,7 @@ def test_apply_zero_precipitation_rate_2D():
     )
 
 
-def test_presrat(fp_fut_cc):
+def test_presrat(fp_precip, fp_precip_fut):
     """Test PresRat correction procedure
 
     Basic standard run. Using only required arguments. If this fails,
@@ -490,8 +490,8 @@ def test_presrat(fp_fut_cc):
     """
     calc = PresRat(
         FP_NSRDB,
-        FP_CC,
-        fp_fut_cc,
+        fp_precip,
+        fp_precip_fut,
         'ghi',
         'rsds',
         target=TARGET,
@@ -509,8 +509,8 @@ def test_presrat(fp_fut_cc):
 
     # Check possible range
     for v in out:
-        assert np.nanmin(out[v]) > 0, f'{v} should be all greater than zero.'
-        assert np.nanmax(out[v]) < 1300, f'{v} should be all less than 1300.'
+        assert np.nanmin(out[v]) >= VAR_MIN, f'{v} should be all greater than zero.'
+        assert np.nanmax(out[v]) < VAR_MAX, f'{v} should be all less than 1300.'
 
     # Each location can be all finite or all NaN, but not both
     for v in (v for v in out if len(out[v].shape) > 2):
