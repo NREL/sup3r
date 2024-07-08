@@ -413,7 +413,7 @@ def test_presrat_calc(fp_precip, fp_precip_fut):
 
 
 @pytest.mark.parametrize('threshold', [0, 50, 1e6])
-def test_presrat_zero_rate(fp_fut_cc, threshold):
+def test_presrat_zero_rate(fp_precip, fp_precip_fut, threshold):
     """Estimate zero_rate within PresRat.run()
 
     Use thresholds that gives 0%, 100%, and something between.
@@ -424,8 +424,8 @@ def test_presrat_zero_rate(fp_fut_cc, threshold):
     """
     calc = PresRat(
         FP_NSRDB,
-        FP_CC,
-        fp_fut_cc,
+        fp_precip,
+        fp_precip_fut,
         'ghi',
         'rsds',
         target=TARGET,
