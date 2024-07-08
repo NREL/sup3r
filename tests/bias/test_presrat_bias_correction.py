@@ -293,14 +293,14 @@ def fut_cc_notrend(fp_fut_cc_notrend):
 
 
 @pytest.fixture(scope='module')
-def presrat_params(tmpdir_factory, fp_precip, fp_precip_fut):
+def presrat_params(tmpdir_factory, fp_resource, fp_precip, fp_precip_fut):
     """PresRat parameters for standard datasets
 
     Use the standard datasets to estimate the distributions and save
     in a temporary place to be re-used
     """
     calc = PresRat(
-        FP_NSRDB,
+        fp_resource,
         fp_precip,
         fp_precip_fut,
         'ghi',
@@ -322,7 +322,7 @@ def presrat_params(tmpdir_factory, fp_precip, fp_precip_fut):
 
 
 @pytest.fixture(scope='module')
-def presrat_notrend_params(tmpdir_factory, fp_precip, fp_fut_cc_notrend):
+def presrat_notrend_params(tmpdir_factory, fp_resource, fp_precip, fp_fut_cc_notrend):
     """No change in time
 
     The bias_fut distribution is equal to bias (mod_his), so no change in
@@ -333,7 +333,7 @@ def presrat_notrend_params(tmpdir_factory, fp_precip, fp_fut_cc_notrend):
     in errors.
     """
     calc = PresRat(
-        FP_NSRDB,
+        fp_resource,
         fp_precip,
         fp_fut_cc_notrend,
         'ghi',
@@ -462,13 +462,13 @@ def test_zero_precipitation_rate_nan():
 
 
 @pytest.mark.parametrize('threshold', [0, 50, 1e6])
-def test_parallel(fp_precip, fp_precip_fut, threshold):
+def test_parallel(fp_resource, fp_precip, fp_precip_fut, threshold):
     """Running in parallel must not alter results
 
     Check with different thresholds, which will result in different zero rates.
     """
     s = PresRat(
-        FP_NSRDB,
+        fp_resource,
         fp_precip,
         fp_precip_fut,
         'ghi',
@@ -481,7 +481,7 @@ def test_parallel(fp_precip, fp_precip_fut, threshold):
     out_s = s.run(max_workers=1, zero_rate_threshold=threshold)
 
     p = PresRat(
-        FP_NSRDB,
+        fp_resource,
         fp_precip,
         fp_precip_fut,
         'ghi',
@@ -500,7 +500,7 @@ def test_parallel(fp_precip, fp_precip_fut, threshold):
         ), f'Different results for {k}'
 
 
-def test_presrat_calc(fp_precip, fp_precip_fut):
+def test_presrat_calc(fp_resource, fp_precip, fp_precip_fut):
     """Standard PresRat (pre) calculation
 
     Estimate the required parameters with a standard setup.
@@ -508,7 +508,7 @@ def test_presrat_calc(fp_precip, fp_precip_fut):
     WIP: Just confirm it runs, but not checking much yet.
     """
     calc = PresRat(
-        FP_NSRDB,
+        fp_resource,
         fp_precip,
         fp_precip_fut,
         'ghi',
@@ -535,7 +535,7 @@ def test_presrat_calc(fp_precip, fp_precip_fut):
 
 
 @pytest.mark.parametrize('threshold', [0, 50, 1e6])
-def test_presrat_zero_rate(fp_precip, fp_precip_fut, threshold):
+def test_presrat_zero_rate(fp_resource, fp_precip, fp_precip_fut, threshold):
     """Estimate zero_rate within PresRat.run()
 
     Use thresholds that gives 0%, 100%, and something between.
@@ -545,7 +545,7 @@ def test_presrat_zero_rate(fp_precip, fp_precip_fut, threshold):
     - Rate should be zero if threshold is zero for this dataset.
     """
     calc = PresRat(
-        FP_NSRDB,
+        fp_resource,
         fp_precip,
         fp_precip_fut,
         'ghi',
@@ -604,14 +604,14 @@ def test_apply_zero_precipitation_rate_2D():
     )
 
 
-def test_presrat(fp_precip, fp_precip_fut):
+def test_presrat(fp_resource, fp_precip, fp_precip_fut):
     """Test PresRat correction procedure
 
     Basic standard run. Using only required arguments. If this fails,
     something fundamental is wrong.
     """
     calc = PresRat(
-        FP_NSRDB,
+        fp_resource,
         fp_precip,
         fp_precip_fut,
         'ghi',
