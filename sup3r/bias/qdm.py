@@ -18,7 +18,6 @@ from rex.utilities.bc_utils import (
     sample_q_log,
 )
 from typing import Optional
-import xarray as xr
 
 from sup3r.preprocessing.data_handling.base import DataHandler
 from sup3r.utilities.utilities import expand_paths
@@ -882,43 +881,6 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
                            )
 
         return copy.deepcopy(self.out)
-
-    @staticmethod
-    def _window_mask(d, d0, window_size=31):
-        d_start = d0 - window_size
-        d_end = d0 + window_size
-        if d_start < 0:
-            idx = (d >= 365 + d_start) | (d <= d_end)
-        elif d_end > 365:
-            idx = (d >= d_start) | (d <= 365 - d_end)
-        else:
-            idx = (d >= d_start) & (d <= d_end)
-        return idx
-
-    @staticmethod
-    def _single_quantile(da, d0, window_size, quantiles):
-        idx = self._window_mask(
-            da.time.dt.dayofyear, d0, window_size=window_size
-        )
-        q = (
-            da.where(idx, drop=True)
-            .chunk(dict(time=-1))
-            .quantile(quantiles, dim=['time'])
-        )
-        return q.expand_dims({'day_of_year': [d0]})
-
-    @staticmethod
-    def windowed_quantiles(
-        da: xr.DataArray, day_of_year, quantiles, window_size=90
-    ):
-        q = (
-            _single_quantile(
-                da, d0, window_size=window_size, quantiles=quantiles
-            )
-            for d0 in day_of_year
-        )
-        return xr.merge(q)
-
 
     def write_outputs(self, fp_out: str,
                       out: dict = None,
