@@ -788,6 +788,7 @@ def test_fwp_integration(tmp_path, presrat_params, fp_precip_fut):
     model.meta['s_enhance'] = 3
     model.meta['t_enhance'] = 4
 
+    bias_fp = os.path.join(tmp_path, 'bc.h5')
     out_dir = os.path.join(tmp_path, 'st_gan')
     model.save(out_dir)
 
