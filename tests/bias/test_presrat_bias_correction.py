@@ -805,21 +805,8 @@ def test_presrat_transform_nozerochanges(presrat_nozeros_params, fut_cc):
     ).any(), 'Unexpected value corrected (zero_rate) to zero (dry day)'
 
 
-def precip_sample(tmpdir_factory):
-    t_start = np.datetime64('2015-01-01')
-    t_end = np.datetime64('2015-01-20')
-    nt = 20
-
-    lat = np.linspace(13.66, 31.57, 20)
-    long = np.linspace(125.0, 148.75, 20)
-    t0 = np.datetime64('2015-01-01')
-    time = t0 + np.linspace(0, 19, 20, dtype='timedelta64[D]')
-
-    ds = xr.Dataset()
-
-
-def test_fwp_integration(tmp_path, fp_fut_cc, presrat_params):
-    """Integration of the PresRat correction method into the forward pass
+def test_fwp_integration(tmp_path, presrat_params, fp_precip_fut):
+    """Integration of the bias correction method into the forward pass
 
     Validate two aspects:
     - We should be able to run a forward pass with unbiased data.
