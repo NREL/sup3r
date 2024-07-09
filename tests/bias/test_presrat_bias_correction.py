@@ -62,41 +62,104 @@ VAR_MAX = 1300
 def fp_resource(tmpdir_factory):
     fn = tmpdir_factory.mktemp('data').join('precip_oh.h5')
 
-    time = pd.date_range('2018-01-01 00:00:00+0000', '2018-03-26 23:30:00+0000', freq='30m')
-    time = pd.DatetimeIndex(np.arange(np.datetime64('2018-01-01 00:00:00+00:00'), np.datetime64('2018-03-26 23:31:00+00:00'), np.timedelta64(30, 'm')))
-    lat = np.array([39.01, 39.05, 39.09, 39.13, 39.17, 39.21, 39.25, 39.29, 39.33, 39.37, 39.41, 39.45, 39.49, 39.53, 39.57, 39.61, 39.65, 39.69, 39.73, 39.77])
-    lon = np.array([-105.14, -105.1, -105.06, -105.02, -104.98, -104.94, -104.9, -104.86, -104.82, -104.78, -104.74, -104.7, -104.66, -104.62, -104.58, -104.54, -104.5, -104.46, -104.42, -104.38])
+    # Reproducing FP_NSRDB before I can change it.
+    time = pd.date_range(
+        '2018-01-01 00:00:00+0000', '2018-03-26 23:30:00+0000', freq='30m'
+    )
+    time = pd.DatetimeIndex(
+        np.arange(
+            np.datetime64('2018-01-01 00:00:00+00:00'),
+            np.datetime64('2018-03-26 23:31:00+00:00'),
+            np.timedelta64(30, 'm'),
+        )
+    )
+    lat = np.array(
+        [
+            39.01,
+            39.05,
+            39.09,
+            39.13,
+            39.17,
+            39.21,
+            39.25,
+            39.29,
+            39.33,
+            39.37,
+            39.41,
+            39.45,
+            39.49,
+            39.53,
+            39.57,
+            39.61,
+            39.65,
+            39.69,
+            39.73,
+            39.77,
+        ]
+    )
+    lon = np.array(
+        [
+            -105.14,
+            -105.1,
+            -105.06,
+            -105.02,
+            -104.98,
+            -104.94,
+            -104.9,
+            -104.86,
+            -104.82,
+            -104.78,
+            -104.74,
+            -104.7,
+            -104.66,
+            -104.62,
+            -104.58,
+            -104.54,
+            -104.5,
+            -104.46,
+            -104.42,
+            -104.38,
+        ]
+    )
     rng = np.random.default_rng()
-    ghi = rng.normal(210, 87., (time.size, lat.size, lon.size))
+    ghi = rng.normal(210, 87.0, (time.size, lat.size, lon.size))
 
     ds = xr.Dataset(
-        data_vars={
-            "ghi": (["time", "lat", "lon"], ghi)
-        },
+        data_vars={'ghi': (['time', 'lat', 'lon'], ghi)},
         coords={
-            "time": ("time", time),
-            #"time_bnds": (["time", "bnds"], time_bnds),
-            "lat": ("lat", lat),
-            "lon": ("lon", lon),
-        })
-
+            'time': ('time', time),
+            # "time_bnds": (["time", "bnds"], time_bnds),
+            'lat': ('lat', lat),
+            'lon': ('lon', lon),
+        },
+    )
 
     ds = ds.sortby('lat', ascending=False)
     lat_2d, lon_2d = xr.broadcast(ds['lat'], ds['lon'])
-    meta = pd.DataFrame({'latitude': lat_2d.values.flatten(),
-                         'longitude': lon_2d.values.flatten(),
-                         })
+    meta = pd.DataFrame(
+        {
+            'latitude': lat_2d.values.flatten(),
+            'longitude': lon_2d.values.flatten(),
+        }
+    )
 
-    shapes = {"ghi": (len(ds.ghi.time), np.prod(ds.ghi.isel(time=0).shape))}
-    attrs = {"ghi": None}
-    chunks = {"ghi": None}
-    dtypes = {"ghi": "float32"}
+    shapes = {'ghi': (len(ds.ghi.time), np.prod(ds.ghi.isel(time=0).shape))}
+    attrs = {'ghi': None}
+    chunks = {'ghi': None}
+    dtypes = {'ghi': 'float32'}
 
-    Outputs.init_h5(fn, ["ghi"], shapes, attrs, chunks, dtypes,
-                        meta=meta,
-                        time_index=pd.DatetimeIndex(ds.time))
+    Outputs.init_h5(
+        fn,
+        ['ghi'],
+        shapes,
+        attrs,
+        chunks,
+        dtypes,
+        meta=meta,
+        time_index=pd.DatetimeIndex(ds.time),
+    )
     with Outputs(fn, 'a') as out:
-        out["ghi"] = ds.stack(flat=("lat", "lon"))["ghi"]
+        out['ghi'] = ds.stack(flat=('lat', 'lon'))['ghi']
 
     # DataHandlerNCforCC requires a string
     fn = str(fn)
@@ -107,32 +170,34 @@ def fp_resource(tmpdir_factory):
 def precip():
     # lat = np.linspace(13.66, 31.57, 20)
     # lat = np.linspace(38.245528, 40.350785, 20)
-    lat = np.array([38.2455282337738, 38.9472804370071, 39.649032596592, 40.3507847105177])
+    lat = np.array(
+        [38.2455282337738, 38.9472804370071, 39.649032596592, 40.3507847105177]
+    )
     # lon = np.linspace(254.53125, 256.640625, 20)
     lon = np.array([254.53125, 255.234375, 255.9375, 256.640625])
     t0 = np.datetime64('2015-01-01T12:00:00')
     time = t0 + np.linspace(0, 364, 365, dtype='timedelta64[D]')
-    bnds = (-np.timedelta64(12,'h'), np.timedelta64(12, 'h'))
-    time_bnds = time[:,np.newaxis] + bnds
+    bnds = (-np.timedelta64(12, 'h'), np.timedelta64(12, 'h'))
+    time_bnds = time[:, np.newaxis] + bnds
     rng = np.random.default_rng()
     # pr = rng.lognormal(3., 1., (time.size, lat.size, lon.size))
     # pr = rng.uniform(0, 1., (time.size, lat.size, lon.size))
     # Transitioning
-    pr = rng.normal(210, 87., (time.size, lat.size, lon.size))
-    pr = np.where(pr>0, pr, 0)
+    pr = rng.normal(210, 87.0, (time.size, lat.size, lon.size))
+    pr = np.where(pr > 0, pr, 0)
 
     ds = xr.Dataset(
-        data_vars={
-            "rsds": (["time", "lat", "lon"], pr)
-        },
+        data_vars={'rsds': (['time', 'lat', 'lon'], pr)},
         coords={
-            "time": ("time", time),
-            "time_bnds": (["time", "bnds"], time_bnds),
-            "lat": ("lat", lat),
-            "lon": ("lon", lon),
-        })
+            'time': ('time', time),
+            'time_bnds': (['time', 'bnds'], time_bnds),
+            'lat': ('lat', lat),
+            'lon': ('lon', lon),
+        },
+    )
 
     return ds
+
 
 # FP_CC
 @pytest.fixture(scope='module')
@@ -146,12 +211,13 @@ def fp_precip(tmpdir_factory, precip):
     fn = str(fn)
     return fn
 
+
 # fut_cc
 @pytest.fixture(scope='module')
 def precip_fut(tmpdir_factory, precip):
     ds = precip.copy(deep=True)
 
-    time = ds['time'] + np.timedelta64(18263,'D')
+    time = ds['time'] + np.timedelta64(18263, 'D')
     time.attrs = ds['time'].attrs
     ds['time'] = time
     # Adding an offset
@@ -163,6 +229,7 @@ def precip_fut(tmpdir_factory, precip):
 
     return ds['rsds']
 
+
 @pytest.fixture(scope='module')
 def fp_precip_fut(tmpdir_factory, precip_fut):
     """Future precipitation sample filename
@@ -173,6 +240,7 @@ def fp_precip_fut(tmpdir_factory, precip_fut):
     precip_fut.to_netcdf(fn)
     fn = str(fn)
     return fn
+
 
 @pytest.fixture(scope='module')
 def fp_fut_cc(tmpdir_factory):
@@ -218,9 +286,7 @@ def fut_cc(fp_fut_cc):
     # silently return wrong values otherwise.
     da = da.sortby('lat', ascending=False)
 
-    latlon = np.stack(
-        xr.broadcast(da['lat'], da['lon'] - 360), axis=-1
-    )
+    latlon = np.stack(xr.broadcast(da['lat'], da['lon'] - 360), axis=-1)
     # Confirm that dataset order is consistent
     # Somewhere in pipeline latlon are downgraded to f32
     assert np.allclose(latlon.astype('float32'), FP_CC_LAT_LON)
@@ -229,9 +295,7 @@ def fut_cc(fp_fut_cc):
     for ii in range(ds.lat.size):
         for jj in range(ds.lon.size):
             assert np.allclose(
-                da.sel(lat=latlon[ii, jj, 0]).sel(
-                    lon=latlon[ii, jj, 1] + 360
-                ),
+                da.sel(lat=latlon[ii, jj, 0]).sel(lon=latlon[ii, jj, 1] + 360),
                 da.data[ii, jj],
             )
 
@@ -274,9 +338,7 @@ def fut_cc_notrend(fp_fut_cc_notrend):
     # silently return wrong values otherwise.
     da = da.sortby('lat', ascending=False)
 
-    latlon = np.stack(
-        xr.broadcast(da['lat'], da['lon']), axis=-1
-    )
+    latlon = np.stack(xr.broadcast(da['lat'], da['lon']), axis=-1)
     # Confirm that dataset order is consistent
     # Somewhere in pipeline latlon are downgraded to f32
     assert np.allclose(latlon.astype('float32'), FP_CC_LAT_LON)
@@ -322,7 +384,9 @@ def presrat_params(tmpdir_factory, fp_resource, fp_precip, fp_precip_fut):
 
 
 @pytest.fixture(scope='module')
-def presrat_notrend_params(tmpdir_factory, fp_resource, fp_precip, fp_fut_cc_notrend):
+def presrat_notrend_params(
+    tmpdir_factory, fp_resource, fp_precip, fp_fut_cc_notrend
+):
     """No change in time
 
     The bias_fut distribution is equal to bias (mod_his), so no change in
@@ -520,15 +584,20 @@ def test_presrat_calc(fp_resource, fp_precip, fp_precip_fut):
 
     out = calc.run(zero_rate_threshold=ZR_THRESHOLD)
 
-    expected_vars = ['bias_rsds_params', 'bias_fut_rsds_params',
-                     'base_ghi_params', 'ghi_zero_rate', 'rsds_mean_mh',
-                     'rsds_mean_mf']
+    expected_vars = [
+        'bias_rsds_params',
+        'bias_fut_rsds_params',
+        'base_ghi_params',
+        'ghi_zero_rate',
+        'rsds_mean_mh',
+        'rsds_mean_mf',
+    ]
     sref = FP_CC_LAT_LON.shape[:2]
     for v in expected_vars:
-        assert v in out, f"Missing {v} in the calculated output"
+        assert v in out, f'Missing {v} in the calculated output'
         assert out[v].shape[:2] == sref, "Doesn't match expected spatial shape"
         # This is only true because fill and extend are applied by default.
-        assert np.all(np.isfinite(out[v])), f"Unexpected NaN for {v}"
+        assert np.all(np.isfinite(out[v])), f'Unexpected NaN for {v}'
 
     zero_rate = out['ghi_zero_rate']
     assert np.all((zero_rate >= 0) & (zero_rate <= 1)), 'Out of range [0, 1]'
@@ -631,8 +700,12 @@ def test_presrat(fp_resource, fp_precip, fp_precip_fut):
 
     # Check possible range
     for v in out:
-        assert np.nanmin(out[v]) >= VAR_MIN, f'{v} should be all greater than zero.'
-        assert np.nanmax(out[v]) < VAR_MAX, f'{v} should be all less than 1300.'
+        assert (
+            np.nanmin(out[v]) >= VAR_MIN
+        ), f'{v} should be all greater than zero.'
+        assert (
+            np.nanmax(out[v]) < VAR_MAX
+        ), f'{v} should be all less than 1300.'
 
     # Each location can be all finite or all NaN, but not both
     for v in (v for v in out if len(out[v].shape) > 2):
