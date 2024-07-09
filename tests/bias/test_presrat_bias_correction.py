@@ -60,6 +60,7 @@ VAR_MAX = 1300
 
 @pytest.fixture(scope='module')
 def fp_resource(tmpdir_factory):
+    """Synthetic data, observed historical dataset"""
     fn = tmpdir_factory.mktemp('data').join('precip_oh.h5')
 
     # Reproducing FP_NSRDB before I can change it.
@@ -168,6 +169,7 @@ def fp_resource(tmpdir_factory):
 
 @pytest.fixture(scope='module')
 def precip():
+    """Synthetic historical modeled dataset"""
     # lat = np.linspace(13.66, 31.57, 20)
     # lat = np.linspace(38.245528, 40.350785, 20)
     lat = np.array(
@@ -215,6 +217,7 @@ def fp_precip(tmpdir_factory, precip):
 # fut_cc
 @pytest.fixture(scope='module')
 def precip_fut(tmpdir_factory, precip):
+    """Synthetic data, modeled future dataset"""
     ds = precip.copy(deep=True)
 
     time = ds['time'] + np.timedelta64(18263, 'D')
@@ -474,7 +477,7 @@ def presrat_nozeros_params(tmpdir_factory, presrat_params):
 
 
 def test_zero_precipitation_rate():
-    """Zero rate estimate with extremme thresholds"""
+    """Zero rate estimate using median"""
     f = ZeroRateMixin().zero_precipitation_rate
     arr = np.random.randn(100)
 
