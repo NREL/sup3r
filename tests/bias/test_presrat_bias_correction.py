@@ -678,7 +678,7 @@ def test_presrat(fp_resource, fp_precip, fp_precip_fut):
         ), f'For each location of {v} it should be all finite or nonte'
 
 
-def test_presrat_transform(presrat_params, fut_cc):
+def test_presrat_transform(presrat_params, precip_fut):
     """A standard run with local_presrat_bc
 
     WIP: Confirm it runs only.
@@ -687,7 +687,7 @@ def test_presrat_transform(presrat_params, fut_cc):
     data = precip_fut.transpose("lat", "lon", "time").values
     time = pd.to_datetime(precip_fut.time)
     latlon = np.stack(
-        xr.broadcast(fut_cc['lat'], fut_cc['lon'] - 360), axis=-1
+        xr.broadcast(precip_fut['lat'], precip_fut['lon'] - 360), axis=-1
     ).astype('float32')
 
     corrected = local_presrat_bc(
