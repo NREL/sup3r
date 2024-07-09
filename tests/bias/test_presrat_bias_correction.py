@@ -838,6 +838,5 @@ def test_fwp_integration(tmp_path, presrat_params, fp_precip_fut):
         fwp = ForwardPass(strat, chunk_index=ichunk)
         bc_fwp = ForwardPass(bc_strat, chunk_index=ichunk)
 
-        delta = bc_fwp.input_data - fwp.input_data
-
-        delta = bc_fwp.run_chunk() - fwp.run_chunk()
+        _delta = bc_fwp.input_data - fwp.input_data
+        _delta = bc_fwp.run_chunk() - fwp.run_chunk()
