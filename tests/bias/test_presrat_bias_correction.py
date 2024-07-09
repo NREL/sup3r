@@ -27,7 +27,7 @@ import pandas as pd
 import pytest
 import xarray as xr
 
-from rex import Outputs, Resource
+from rex import Outputs
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.models import Sup3rGan
@@ -38,7 +38,7 @@ from sup3r.bias import (
     PresRat,
 )
 from sup3r.bias.mixins import ZeroRateMixin
-from sup3r.preprocessing.data_handling import DataHandlerNC, DataHandlerNCforCC
+from sup3r.preprocessing.data_handling import DataHandlerNC
 
 FP_NSRDB = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')
 FP_CC = os.path.join(TEST_DATA_DIR, 'rsds_test.nc')
