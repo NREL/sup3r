@@ -60,7 +60,13 @@ VAR_MAX = 1300
 
 @pytest.fixture(scope='module')
 def fp_resource(tmpdir_factory):
-    """Synthetic data, observed historical dataset"""
+    """Synthetic data, observed historical dataset
+
+    Note
+    ----
+    Latitude MUST be descending, otherwise `bias_transforms._get_factors()`
+    does the wrong thing.
+    """
     fn = tmpdir_factory.mktemp('data').join('precip_oh.h5')
 
     # Reproducing FP_NSRDB before I can change it.
@@ -74,13 +80,7 @@ def fp_resource(tmpdir_factory):
             np.timedelta64(30, 'm'),
         )
     )
-    lat = np.array(
-        [
-            39.01, 39.05, 39.09, 39.13, 39.17, 39.21, 39.25, 39.29, 39.33,
-            39.37, 39.41, 39.45, 39.49, 39.53, 39.57, 39.61, 39.65, 39.69,
-            39.73, 39.77,
-        ]
-    )
+    lat = np.arange(39.77, 39.00, -0.04)
     lon = np.array(
         [
             -105.14, -105.1, -105.06, -105.02, -104.98, -104.94, -104.9,
