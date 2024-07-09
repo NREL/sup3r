@@ -683,8 +683,9 @@ def test_presrat_transform(presrat_params, fut_cc):
 
     WIP: Confirm it runs only.
     """
-    data = fut_cc.values
-    time = pd.to_datetime(fut_cc.time)
+    # local_presrat_bc expects time in the last dimension.
+    data = precip_fut.transpose("lat", "lon", "time").values
+    time = pd.to_datetime(precip_fut.time)
     latlon = np.stack(
         xr.broadcast(fut_cc['lat'], fut_cc['lon'] - 360), axis=-1
     ).astype('float32')
