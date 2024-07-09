@@ -40,19 +40,13 @@ from sup3r.bias import (
 from sup3r.bias.mixins import ZeroRateMixin
 from sup3r.preprocessing.data_handling import DataHandlerNC
 
-FP_NSRDB = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')
 FP_CC = os.path.join(TEST_DATA_DIR, 'rsds_test.nc')
 FP_CC_LAT_LON = DataHandlerNC(FP_CC, 'rsds').lat_lon
 # A reference zero rate threshold that might not make sense physically but for
 # testing purposes only. This might change in the future to force edge cases.
 ZR_THRESHOLD = 80
-
-with xr.open_dataset(FP_CC) as fh:
-    MIN_LAT = np.min(fh.lat.values.astype(np.float32))
-    MIN_LON = np.min(fh.lon.values.astype(np.float32)) - 360
-    TARGET = (float(MIN_LAT), float(MIN_LON))
-    SHAPE = (len(fh.lat.values), len(fh.lon.values))
-
+TARGET = (38.24552917480469, -105.46875)
+SHAPE = (4, 4)
 VAR_MIN = 0
 # Fix this max
 VAR_MAX = 1300
