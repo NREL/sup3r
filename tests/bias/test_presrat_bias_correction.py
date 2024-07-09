@@ -170,7 +170,7 @@ def fp_precip(tmpdir_factory, precip):
 
 # fut_cc
 @pytest.fixture(scope='module')
-def precip_fut(tmpdir_factory, precip):
+def precip_fut(precip):
     """Synthetic data, modeled future dataset"""
     ds = precip.copy(deep=True)
 
