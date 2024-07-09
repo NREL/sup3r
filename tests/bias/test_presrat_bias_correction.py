@@ -81,12 +81,7 @@ def fp_resource(tmpdir_factory):
         )
     )
     lat = np.arange(39.77, 39.00, -0.04)
-    lon = np.array(
-        [
-            -105.14, -105.1, -105.06, -105.02, -104.98, -104.94, -104.9,
-            -104.86, -104.82, -104.78, -104.74, -104.7, -104.66, -104.62,
-            -104.58, -104.54, -104.5, -104.46, -104.42, -104.38, ]
-    )
+    lon = np.arange(-105.14, -104.37, 0.04)
     rng = np.random.default_rng()
     ghi = rng.normal(210, 87.0, (time.size, lat.size, lon.size))
 
