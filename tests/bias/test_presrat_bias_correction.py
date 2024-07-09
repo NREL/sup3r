@@ -778,7 +778,7 @@ def test_fwp_integration(tmp_path, presrat_params, fp_precip_fut):
     shape = (2, 2)
     temporal_slice = slice(None, None, 1)
     fwp_chunk_shape = (4, 4, 150)
-    input_files = [fp_fut_cc]
+    input_files = [fp_precip_fut ]
 
     Sup3rGan.seed()
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
