@@ -793,18 +793,25 @@ def test_fwp_integration(tmp_path, presrat_params, fp_precip_fut):
     model.save(out_dir)
 
     bias_correct_kwargs = {
-                           'rsds': {'feature_name': 'rsds',
-                                      'base_dset': 'ghi',
-                                      'bias_fp': presrat_params}}
+        'rsds': {
+            'feature_name': 'rsds',
+            'base_dset': 'ghi',
+            'bias_fp': presrat_params,
+        }
+    }
 
     strat = ForwardPassStrategy(
         input_files,
         model_kwargs={'model_dir': out_dir},
         fwp_chunk_shape=fwp_chunk_shape,
-        spatial_pad=0, temporal_pad=0,
-        input_handler_kwargs=dict(target=target, shape=shape,
-                                  temporal_slice=temporal_slice,
-                                  worker_kwargs=dict(max_workers=1)),
+        spatial_pad=0,
+        temporal_pad=0,
+        input_handler_kwargs=dict(
+            target=target,
+            shape=shape,
+            temporal_slice=temporal_slice,
+            worker_kwargs=dict(max_workers=1),
+        ),
         out_pattern=os.path.join(tmp_path, 'out_{file_id}.nc'),
         worker_kwargs=dict(max_workers=1),
         input_handler='DataHandlerNCforCC',
@@ -813,10 +820,14 @@ def test_fwp_integration(tmp_path, presrat_params, fp_precip_fut):
         input_files,
         model_kwargs={'model_dir': out_dir},
         fwp_chunk_shape=fwp_chunk_shape,
-        spatial_pad=0, temporal_pad=0,
-        input_handler_kwargs=dict(target=target, shape=shape,
-                                  temporal_slice=temporal_slice,
-                                  worker_kwargs=dict(max_workers=1)),
+        spatial_pad=0,
+        temporal_pad=0,
+        input_handler_kwargs=dict(
+            target=target,
+            shape=shape,
+            temporal_slice=temporal_slice,
+            worker_kwargs=dict(max_workers=1),
+        ),
         out_pattern=os.path.join(tmp_path, 'out_{file_id}.nc'),
         worker_kwargs=dict(max_workers=1),
         input_handler='DataHandlerNCforCC',
