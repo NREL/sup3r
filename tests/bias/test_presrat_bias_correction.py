@@ -338,7 +338,7 @@ def presrat_params(tmpdir_factory, fp_resource, fp_precip, fp_precip_fut):
     fn = tmpdir_factory.mktemp('params').join('presrat.h5')
     # Physically non-sense threshold choosed to result in gridpoints with and
     # without zero rate correction for the given testing dataset.
-    _ = calc.run(max_workers=1, zero_rate_threshold=ZR_THRESHOLD, fp_out=fn)
+    _ = calc.run(zero_rate_threshold=ZR_THRESHOLD, fp_out=fn)
 
     # DataHandlerNCforCC requires a string
     fn = str(fn)
