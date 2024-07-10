@@ -686,7 +686,7 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         ATTENTION: This should be refactored. There is too much redundancy in
         the code. Let's make it work first, and optimize later.
         """
-        base_data, base_ti = cls.get_base_data(
+        base_data, _ = cls.get_base_data(
             base_fps,
             base_dset,
             base_gid,
