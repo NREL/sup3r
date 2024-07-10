@@ -202,7 +202,9 @@ def bias_correct_feature(
         feature_kwargs = bc_kwargs[source_feature]
 
         if 'time_index' in signature(bc_method).parameters:
-            feature_kwargs['time_index'] = input_handler.time_index[time_slice]
+            feature_kwargs['time_index'] = input_handler.time_index[
+                time_slice
+            ].values.tolist()
         if (
             'lr_padded_slice' in signature(bc_method).parameters
             and 'lr_padded_slice' not in feature_kwargs

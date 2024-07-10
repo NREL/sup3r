@@ -377,7 +377,7 @@ def monthly_local_linear_bc(
         datasets "{feature_name}_scalar" and "{feature_name}_adder" that are
         the full low-resolution shape of the forward pass input that will be
         sliced using lr_padded_slice for the current chunk.
-    time_index : pd.DatetimeIndex
+    time_index : pd.DatetimeIndex | ndarray
         DatetimeIndex object associated with the input data temporal axis
         (assumed 3rd axis e.g. axis=2). Note that if this method is called as
         part of a sup3r resolution forward pass, the time_index will be
@@ -407,6 +407,11 @@ def monthly_local_linear_bc(
     out : np.ndarray
         out = data * scalar + adder
     """
+    time_index = (
+        time_index
+        if isinstance(time_index, pd.DatetimeIndex)
+        else pd.to_datetime(time_index)
+    )
     scalar, adder = get_spatial_bc_factors(lat_lon, feature_name, bias_fp)
 
     assert len(scalar.shape) == 3, 'Monthly bias correct needs 3D scalars'

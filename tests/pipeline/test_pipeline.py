@@ -95,12 +95,16 @@ def test_fwp_pipeline_with_bc(input_files):
             'u_100m': {
                 'feature_name': 'u_100m',
                 'bias_fp': bias_fp,
+                'smoothing': 0,
                 'temporal_avg': False,
+                'out_range': [-100, 100]
             },
             'v_100m': {
                 'feature_name': 'v_100m',
+                'smoothing': 0,
                 'bias_fp': bias_fp,
                 'temporal_avg': False,
+                'out_range': [-100, 100]
             },
         }
 
@@ -113,9 +117,9 @@ def test_fwp_pipeline_with_bc(input_files):
             'input_handler_kwargs': input_handler_kwargs.copy(),
             'spatial_pad': 1,
             'temporal_pad': 1,
-            'bias_correct_kwargs': bias_correct_kwargs,
+            'bias_correct_kwargs': bias_correct_kwargs.copy(),
             'bias_correct_method': 'monthly_local_linear_bc',
-            'execution_control': {'nodes': 1, 'option': 'local'},
+            'execution_control': {'option': 'local'},
             'max_nodes': 1,
         }
 

@@ -42,7 +42,7 @@ class OutputHandlerNC(OutputHandler):
             Dictionary of meta data from model
         """
         coords = {
-            Dimension.TIME: [str(t).encode('utf-8') for t in times],
+            Dimension.TIME: times,
             Dimension.LATITUDE: (
                 Dimension.spatial_2d(),
                 lat_lon[:, :, 0].astype(np.float32),

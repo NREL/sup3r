@@ -16,6 +16,7 @@ from sup3r.postprocessing import (
     OutputHandlerH5,
     OutputHandlerNC,
 )
+from sup3r.preprocessing.utilities import lowered
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
 
@@ -366,7 +367,6 @@ class ForwardPass:
         import_str += 'import time;\n'
         import_str += 'from gaps import Status;\n'
         import_str += 'from rex import init_logger;\n'
-        import_str += 'from pandas import DatetimeIndex;\n'
         import_str += (
             'from sup3r.pipeline.forward_pass '
             f'import ForwardPassStrategy, {cls.__name__};\n'
@@ -667,7 +667,7 @@ class ForwardPass:
             logger.info(f'Saving forward pass output to {chunk.out_file}.')
             output_handler_class._write_output(
                 data=output_data,
-                features=model.hr_out_features,
+                features=lowered(model.hr_out_features),
                 lat_lon=chunk.hr_lat_lon,
                 times=chunk.hr_times,
                 out_file=chunk.out_file,

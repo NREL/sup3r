@@ -295,9 +295,11 @@ class ForwardPassStrategy:
 
     def get_hr_lat_lon(self):
         """Get high resolution lat lons"""
-        logger.info('Getting high-resolution grid for full output domain.')
         lr_lat_lon = self.input_handler.lat_lon
         shape = tuple(d * self.s_enhance for d in lr_lat_lon.shape[:-1])
+        logger.info(
+            f'Getting high-resolution grid for full output domain: {shape}'
+        )
         return OutputHandler.get_lat_lon(lr_lat_lon, shape)
 
     def get_out_files(self, out_files):

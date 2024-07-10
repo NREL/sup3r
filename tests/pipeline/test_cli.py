@@ -6,6 +6,7 @@ import os
 import tempfile
 import traceback
 
+import h5py
 import numpy as np
 import pytest
 import xarray as xr
@@ -30,7 +31,7 @@ from sup3r.utilities.utilities import pd_date_range
 
 FEATURES = ['u_100m', 'v_100m', 'pressure_0m']
 fwp_chunk_shape = (4, 4, 6)
-data_shape = (100, 100, 8)
+data_shape = (100, 100, 30)
 shape = (8, 8)
 
 FP_CS = os.path.join(TEST_DATA_DIR, 'test_nsrdb_clearsky_2018.h5')
@@ -239,6 +240,102 @@ def test_data_collection_cli(runner):
             assert np.allclose(wd_true, fh['winddirection_100m'], atol=0.1)
 
 
+def test_fwd_pass_with_bc_cli(runner, input_files):
+    """Test cli call to run forward pass with bias correction"""
+
+    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
+
+    Sup3rGan.seed()
+    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+    _ = model.generate(np.ones((4, 8, 8, 4, len(FEATURES))))
+    model.meta['lr_features'] = FEATURES
+    model.meta['hr_out_features'] = FEATURES[:2]
+    assert model.s_enhance == 3
+    assert model.t_enhance == 4
+
+    with tempfile.TemporaryDirectory() as td:
+        out_dir = os.path.join(td, 'st_gan')
+        model.save(out_dir)
+        t_chunks = data_shape[2] // fwp_chunk_shape[2] + 1
+        n_chunks = t_chunks * shape[0] // fwp_chunk_shape[0]
+        n_chunks = n_chunks * shape[1] // fwp_chunk_shape[1]
+        out_files = os.path.join(td, 'out_{file_id}.nc')
+        cache_pattern = os.path.join(td, 'cache_{feature}.nc')
+        log_pattern = os.path.join(td, 'logs', 'log_{node_index}.log')
+
+        input_handler_kwargs = {
+            'target': (19.3, -123.5),
+            'shape': shape,
+            'cache_kwargs': {'cache_pattern': cache_pattern},
+        }
+
+        lat_lon = DataHandlerNC(
+            file_paths=input_files, features=[], **input_handler_kwargs
+        ).lat_lon
+
+        bias_fp = os.path.join(td, 'bc.h5')
+
+        scalar = np.random.uniform(0.5, 1, (8, 8, 12))
+        adder = np.random.uniform(0, 1, (8, 8, 12))
+
+        with h5py.File(bias_fp, 'w') as f:
+            f.create_dataset('u_100m_scalar', data=scalar)
+            f.create_dataset('u_100m_adder', data=adder)
+            f.create_dataset('v_100m_scalar', data=scalar)
+            f.create_dataset('v_100m_adder', data=adder)
+            f.create_dataset('latitude', data=lat_lon[..., 0])
+            f.create_dataset('longitude', data=lat_lon[..., 1])
+
+        bias_correct_kwargs = {
+            'u_100m': {
+                'feature_name': 'u_100m',
+                'bias_fp': bias_fp,
+                'smoothing': 0,
+                'temporal_avg': False,
+                'out_range': [-100, 100],
+            },
+            'v_100m': {
+                'feature_name': 'v_100m',
+                'smoothing': 0,
+                'bias_fp': bias_fp,
+                'temporal_avg': False,
+                'out_range': [-100, 100],
+            },
+        }
+
+        config = {
+            'file_paths': input_files,
+            'model_kwargs': {'model_dir': out_dir},
+            'out_pattern': out_files,
+            'log_pattern': log_pattern,
+            'fwp_chunk_shape': fwp_chunk_shape,
+            'input_handler_name': 'DataHandlerNC',
+            'input_handler_kwargs': input_handler_kwargs.copy(),
+            'spatial_pad': 1,
+            'temporal_pad': 1,
+            'bias_correct_kwargs': bias_correct_kwargs.copy(),
+            'bias_correct_method': 'monthly_local_linear_bc',
+            'execution_control': {'option': 'local'},
+            'max_nodes': 1,
+        }
+
+        config_path = os.path.join(td, 'config.json')
+        with open(config_path, 'w') as fh:
+            json.dump(config, fh)
+
+        result = runner.invoke(fwp_main, ['-c', config_path, '-v'])
+
+        assert result.exit_code == 0, traceback.print_exception(
+            *result.exc_info
+        )
+
+        # include time index cache file
+        assert len(glob.glob(f'{td}/cache*')) == len(FEATURES)
+        assert len(glob.glob(f'{td}/logs/*.log')) == t_chunks
+        assert len(glob.glob(f'{td}/out*')) == n_chunks
+
+
 def test_fwd_pass_cli(runner, input_files):
     """Test cli call to run forward pass"""
 
@@ -261,7 +358,7 @@ def test_fwd_pass_cli(runner, input_files):
         n_chunks = n_chunks * shape[1] // fwp_chunk_shape[1]
         out_files = os.path.join(td, 'out_{file_id}.nc')
         cache_pattern = os.path.join(td, 'cache_{feature}.nc')
-        log_prefix = os.path.join(td, 'log.log')
+        log_pattern = os.path.join(td, 'logs', 'log_{node_index}.log')
         input_handler_kwargs = {
             'target': (19.3, -123.5),
             'shape': shape,
@@ -271,7 +368,7 @@ def test_fwd_pass_cli(runner, input_files):
             'file_paths': input_files,
             'model_kwargs': {'model_dir': out_dir},
             'out_pattern': out_files,
-            'log_pattern': log_prefix,
+            'log_pattern': log_pattern,
             'input_handler_kwargs': input_handler_kwargs,
             'input_handler_name': 'DataHandlerNC',
             'fwp_chunk_shape': fwp_chunk_shape,

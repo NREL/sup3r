@@ -467,13 +467,16 @@ class OutputHandler(OutputMixin):
         logger.debug('Getting high resolution lat / lon grid')
 
         # ensure lons are between -180 and 180
+        logger.debug('Ensuring correct longitude range.')
         low_res_lat_lon[..., 1] = (low_res_lat_lon[..., 1] + 180) % 360 - 180
 
         # check if lons go through the 180 -> -180 boundary.
         if not cls.is_increasing_lons(low_res_lat_lon):
+            logger.debug('Ensuring increasing longitudes.')
             low_res_lat_lon[..., 1] = (low_res_lat_lon[..., 1] + 360) % 360
 
         # pad lat lon grid
+        logger.debug('Padding low-res lat / lon grid.')
         padded_grid = cls.pad_lat_lon(low_res_lat_lon)
         lats = padded_grid[..., 0].flatten()
         lons = padded_grid[..., 1].flatten()
@@ -493,10 +496,13 @@ class OutputHandler(OutputMixin):
         new_y = np.arange(0, 10, 10 / hr_y) + 5 / hr_y
         new_x = np.arange(0, 10, 10 / hr_x) + 5 / hr_x
 
+        logger.debug('Running meshgrid.')
         X, Y = np.meshgrid(x, y)
         old = np.array([Y.flatten(), X.flatten()]).T
         X, Y = np.meshgrid(new_x, new_y)
         new = np.array([Y.flatten(), X.flatten()]).T
+
+        logger.debug('Running griddata.')
         lons = griddata(old, lons, new)
         lats = griddata(old, lats, new)
 
