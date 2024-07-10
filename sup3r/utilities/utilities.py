@@ -1,5 +1,6 @@
 """Miscellaneous utilities shared across multiple modules"""
 
+import json
 import logging
 import random
 import string
@@ -13,6 +14,15 @@ from scipy import ndimage as nd
 np.random.seed(42)
 
 logger = logging.getLogger(__name__)
+
+
+def safe_serialize(obj):
+    """json.dumps with non-serializable object handling."""
+    def _default(o):
+        if isinstance(o, np.float32):
+            return np.float64(o)
+        return f"<<non-serializable: {type(o).__qualname__}>>"
+    return json.dumps(obj, default=_default)
 
 
 class Timer:

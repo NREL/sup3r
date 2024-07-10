@@ -1,5 +1,4 @@
 """Sup3r base CLI class."""
-import json
 import logging
 import os
 
@@ -11,6 +10,7 @@ from rex.utilities.hpc import SLURM
 from rex.utilities.loggers import init_mult
 
 from sup3r.utilities import ModuleName
+from sup3r.utilities.utilities import safe_serialize
 
 logger = logging.getLogger(__name__)
 AVAILABLE_HARDWARE_OPTIONS = ('kestrel', 'eagle', 'slurm')
@@ -359,7 +359,7 @@ class BaseCLI:
             status_file_arg_str += 'attrs=job_attrs'
 
             cmd += 'job_attrs = {};\n'.format(
-                json.dumps(config)
+                safe_serialize(config)
                 .replace("null", "None")
                 .replace("false", "False")
                 .replace("true", "True")

@@ -227,12 +227,12 @@ def get_spatial_bc_quantiles(
     return params, cfg
 
 
-def global_linear_bc(input, scalar, adder, out_range=None):
+def global_linear_bc(data, scalar, adder, out_range=None):
     """Bias correct data using a simple global *scalar +adder method.
 
     Parameters
     ----------
-    input : np.ndarray
+    data : np.ndarray
         Sup3r input data to be bias corrected, assumed to be 3D with shape
         (spatial, spatial, temporal) for a single feature.
     scalar : float
@@ -245,9 +245,9 @@ def global_linear_bc(input, scalar, adder, out_range=None):
     Returns
     -------
     out : np.ndarray
-        out = input * scalar + adder
+        out = data * scalar + adder
     """
-    out = input * scalar + adder
+    out = data * scalar + adder
     if out_range is not None:
         out = np.maximum(out, np.min(out_range))
         out = np.minimum(out, np.max(out_range))
@@ -255,7 +255,7 @@ def global_linear_bc(input, scalar, adder, out_range=None):
 
 
 def local_linear_bc(
-    input,
+    data,
     lat_lon,
     feature_name,
     bias_fp,
@@ -268,7 +268,7 @@ def local_linear_bc(
 
     Parameters
     ----------
-    input : np.ndarray
+    data : np.ndarray
         Sup3r input data to be bias corrected, assumed to be 3D with shape
         (spatial, spatial, temporal) for a single feature.
     lat_lon : ndarray
@@ -301,7 +301,7 @@ def local_linear_bc(
     Returns
     -------
     out : np.ndarray
-        out = input * scalar + adder
+        out = data * scalar + adder
     """
 
     scalar, adder = get_spatial_bc_factors(lat_lon, feature_name, bias_fp)
@@ -326,8 +326,8 @@ def local_linear_bc(
     scalar = np.expand_dims(scalar, axis=-1)
     adder = np.expand_dims(adder, axis=-1)
 
-    scalar = np.repeat(scalar, input.shape[-1], axis=-1)
-    adder = np.repeat(adder, input.shape[-1], axis=-1)
+    scalar = np.repeat(scalar, data.shape[-1], axis=-1)
+    adder = np.repeat(adder, data.shape[-1], axis=-1)
 
     if smoothing > 0:
         for idt in range(scalar.shape[-1]):
@@ -338,7 +338,7 @@ def local_linear_bc(
                 adder[..., idt], smoothing, mode='nearest'
             )
 
-    out = input * scalar + adder
+    out = data * scalar + adder
     if out_range is not None:
         out = np.maximum(out, np.min(out_range))
         out = np.minimum(out, np.max(out_range))
@@ -347,7 +347,7 @@ def local_linear_bc(
 
 
 def monthly_local_linear_bc(
-    input,
+    data,
     lat_lon,
     feature_name,
     bias_fp,
@@ -362,7 +362,7 @@ def monthly_local_linear_bc(
 
     Parameters
     ----------
-    input : np.ndarray
+    data : np.ndarray
         Sup3r input data to be bias corrected, assumed to be 3D with shape
         (spatial, spatial, temporal) for a single feature.
     lat_lon : ndarray
@@ -405,7 +405,7 @@ def monthly_local_linear_bc(
     Returns
     -------
     out : np.ndarray
-        out = input * scalar + adder
+        out = data * scalar + adder
     """
     scalar, adder = get_spatial_bc_factors(lat_lon, feature_name, bias_fp)
 
@@ -426,8 +426,8 @@ def monthly_local_linear_bc(
         adder = adder.mean(axis=-1)
         scalar = np.expand_dims(scalar, axis=-1)
         adder = np.expand_dims(adder, axis=-1)
-        scalar = np.repeat(scalar, input.shape[-1], axis=-1)
-        adder = np.repeat(adder, input.shape[-1], axis=-1)
+        scalar = np.repeat(scalar, data.shape[-1], axis=-1)
+        adder = np.repeat(adder, data.shape[-1], axis=-1)
         if len(time_index.month.unique()) > 2:
             msg = (
                 'Bias correction method "monthly_local_linear_bc" was used '
@@ -453,7 +453,7 @@ def monthly_local_linear_bc(
                 adder[..., idt], smoothing, mode='nearest'
             )
 
-    out = input * scalar + adder
+    out = data * scalar + adder
     if out_range is not None:
         out = np.maximum(out, np.min(out_range))
         out = np.minimum(out, np.max(out_range))

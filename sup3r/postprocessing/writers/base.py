@@ -1,4 +1,5 @@
 """Output handling"""
+
 import json
 import logging
 import os
@@ -18,71 +19,94 @@ from sup3r.utilities.utilities import pd_date_range
 
 logger = logging.getLogger(__name__)
 
-H5_ATTRS = {'windspeed': {'scale_factor': 100.0,
-                          'units': 'm s-1',
-                          'dtype': 'uint16',
-                          'chunks': (2000, 500),
-                          'min': 0,
-                          'max': 120},
-            'winddirection': {'scale_factor': 100.0,
-                              'units': 'degree',
-                              'dtype': 'uint16',
-                              'chunks': (2000, 500),
-                              'min': 0,
-                              'max': 360},
-            'clearsky_ratio': {'scale_factor': 10000.0,
-                               'units': 'ratio',
-                               'dtype': 'uint16',
-                               'chunks': (2000, 500),
-                               'min': 0,
-                               'max': 1},
-            'dhi': {'scale_factor': 1.0,
-                    'units': 'W/m2',
-                    'dtype': 'uint16',
-                    'chunks': (2000, 500),
-                    'min': 0,
-                    'max': 1350},
-            'dni': {'scale_factor': 1.0,
-                    'units': 'W/m2',
-                    'dtype': 'uint16',
-                    'chunks': (2000, 500),
-                    'min': 0,
-                    'max': 1350},
-            'ghi': {'scale_factor': 1.0,
-                    'units': 'W/m2',
-                    'dtype': 'uint16',
-                    'chunks': (2000, 500),
-                    'min': 0,
-                    'max': 1350},
-            'temperature': {'scale_factor': 100.0,
-                            'units': 'C',
-                            'dtype': 'int16',
-                            'chunks': (2000, 500),
-                            'min': -200,
-                            'max': 100},
-            'relativehumidity': {'scale_factor': 100.0,
-                                 'units': 'percent',
-                                 'dtype': 'uint16',
-                                 'chunks': (2000, 500),
-                                 'max': 100,
-                                 'min': 0},
-            'pressure': {'scale_factor': 0.1,
-                         'units': 'Pa',
-                         'dtype': 'uint16',
-                         'chunks': (2000, 500),
-                         'min': 0,
-                         'max': 150000},
-            'pr': {'scale_factor': 1,
-                   'units': 'kg m-2 s-1',
-                   'dtype': 'float32',
-                   'min': 0,
-                   'chunks': (2000, 250)},
-            'srl': {'scale_factor': 1,
-                    'units': 'm',
-                    'dtype': 'float32',
-                    'min': 0,
-                    'chunks': (2000, 250)}
-            }
+H5_ATTRS = {
+    'windspeed': {
+        'scale_factor': 100.0,
+        'units': 'm s-1',
+        'dtype': 'uint16',
+        'chunks': (2000, 500),
+        'min': 0,
+        'max': 120,
+    },
+    'winddirection': {
+        'scale_factor': 100.0,
+        'units': 'degree',
+        'dtype': 'uint16',
+        'chunks': (2000, 500),
+        'min': 0,
+        'max': 360,
+    },
+    'clearsky_ratio': {
+        'scale_factor': 10000.0,
+        'units': 'ratio',
+        'dtype': 'uint16',
+        'chunks': (2000, 500),
+        'min': 0,
+        'max': 1,
+    },
+    'dhi': {
+        'scale_factor': 1.0,
+        'units': 'W/m2',
+        'dtype': 'uint16',
+        'chunks': (2000, 500),
+        'min': 0,
+        'max': 1350,
+    },
+    'dni': {
+        'scale_factor': 1.0,
+        'units': 'W/m2',
+        'dtype': 'uint16',
+        'chunks': (2000, 500),
+        'min': 0,
+        'max': 1350,
+    },
+    'ghi': {
+        'scale_factor': 1.0,
+        'units': 'W/m2',
+        'dtype': 'uint16',
+        'chunks': (2000, 500),
+        'min': 0,
+        'max': 1350,
+    },
+    'temperature': {
+        'scale_factor': 100.0,
+        'units': 'C',
+        'dtype': 'int16',
+        'chunks': (2000, 500),
+        'min': -200,
+        'max': 100,
+    },
+    'relativehumidity': {
+        'scale_factor': 100.0,
+        'units': 'percent',
+        'dtype': 'uint16',
+        'chunks': (2000, 500),
+        'max': 100,
+        'min': 0,
+    },
+    'pressure': {
+        'scale_factor': 0.1,
+        'units': 'Pa',
+        'dtype': 'uint16',
+        'chunks': (2000, 500),
+        'min': 0,
+        'max': 150000,
+    },
+    'pr': {
+        'scale_factor': 1,
+        'units': 'kg m-2 s-1',
+        'dtype': 'float32',
+        'min': 0,
+        'chunks': (2000, 250),
+    },
+    'srl': {
+        'scale_factor': 1,
+        'units': 'm',
+        'dtype': 'float32',
+        'min': 0,
+        'chunks': (2000, 250),
+    },
+}
 
 
 class OutputMixin:
@@ -133,9 +157,11 @@ class OutputMixin:
         else:
             attrs = {}
             dtype = 'float32'
-            msg = ('Could not find feature "{}" with base name "{}" in '
-                   'H5_ATTRS global variable. Writing with float32 and no '
-                   'chunking.'.format(feature, feat_base_name))
+            msg = (
+                'Could not find feature "{}" with base name "{}" in '
+                'H5_ATTRS global variable. Writing with float32 and no '
+                'chunking.'.format(feature, feat_base_name)
+            )
             logger.warning(msg)
             warn(msg)
 
@@ -158,11 +184,11 @@ class OutputMixin:
         """
 
         with RexOutputs(out_file, mode='w-') as f:
-            logger.info('Initializing output file: {}'
-                        .format(out_file))
-            logger.info('Initializing output file with shape {} '
-                        'and meta data:\n{}'
-                        .format((len(time_index), len(meta)), meta))
+            logger.info('Initializing output file: {}'.format(out_file))
+            logger.info(
+                'Initializing output file with shape {} '
+                'and meta data:\n{}'.format((len(time_index), len(meta)), meta)
+            )
             f.time_index = time_index
             f.meta = meta
             f.run_attrs = global_attrs
@@ -184,15 +210,23 @@ class OutputMixin:
         with RexOutputs(out_file, mode='a') as f:
             if dset not in f.dsets:
                 attrs, dtype = cls.get_dset_attrs(dset)
-                logger.info('Initializing dataset "{}" with shape {} and '
-                            'dtype {}'.format(dset, f.shape, dtype))
-                f._create_dset(dset, f.shape, dtype,
-                               attrs=attrs, data=data,
-                               chunks=attrs.get('chunks', None))
+                logger.info(
+                    'Initializing dataset "{}" with shape {} and '
+                    'dtype {}'.format(dset, f.shape, dtype)
+                )
+                f._create_dset(
+                    dset,
+                    f.shape,
+                    dtype,
+                    attrs=attrs,
+                    data=data,
+                    chunks=attrs.get('chunks', None),
+                )
 
     @classmethod
-    def write_data(cls, out_file, dsets, time_index, data_list, meta,
-                   global_attrs=None):
+    def write_data(
+        cls, out_file, dsets, time_index, data_list, meta, global_attrs=None
+    ):
         """Write list of datasets to out_file.
 
         Parameters
@@ -217,18 +251,28 @@ class OutputMixin:
 
             for dset, data in zip(dsets, data_list):
                 attrs, dtype = cls.get_dset_attrs(dset)
-                fh.add_dataset(tmp_file, dset, data, dtype=dtype,
-                               attrs=attrs, chunks=attrs['chunks'])
+                fh.add_dataset(
+                    tmp_file,
+                    dset,
+                    data,
+                    dtype=dtype,
+                    attrs=attrs,
+                    chunks=attrs['chunks'],
+                )
                 logger.info(f'Added {dset} to output file {out_file}.')
 
             if global_attrs is not None:
-                attrs = {k: v if isinstance(v, str) else json.dumps(v)
-                         for k, v in global_attrs.items()}
+                attrs = {
+                    k: v if isinstance(v, str) else json.dumps(v)
+                    for k, v in global_attrs.items()
+                }
                 fh.run_attrs = attrs
 
         os.replace(tmp_file, out_file)
-        msg = ('Saved output of size '
-               f'{(len(data_list), *data_list[0].shape)} to: {out_file}')
+        msg = (
+            'Saved output of size '
+            f'{(len(data_list), *data_list[0].shape)} to: {out_file}'
+        )
         logger.info(msg)
 
 
@@ -252,7 +296,8 @@ class RexOutputs(BaseRexOutputs):
         """Set the version attribute to the h5 file."""
         self.h5.attrs['version'] = __version__
         self.h5.attrs['full_version_record'] = json.dumps(
-            self.full_version_record)
+            self.full_version_record
+        )
         self.h5.attrs['package'] = 'sup3r'
 
 
@@ -287,22 +332,24 @@ class OutputHandler(OutputMixin):
                 logger.error(msg)
                 raise KeyError(msg)
 
-            max = H5_ATTRS[dset_name].get('max', np.inf)
-            min = H5_ATTRS[dset_name].get('min', -np.inf)
-            logger.debug(f'Enforcing range of ({min}, {max} for "{fn}")')
+            max_val = H5_ATTRS[dset_name].get('max', np.inf)
+            min_val = H5_ATTRS[dset_name].get('min', -np.inf)
+            logger.debug(
+                f'Enforcing range of ({min_val}, {max_val} for "{fn}")'
+            )
 
             f_max = data[..., fidx].max()
             f_min = data[..., fidx].min()
-            msg = f'{fn} has a max of {f_max} > {max}'
-            if f_max > max:
+            msg = f'{fn} has a max of {f_max} > {max_val}'
+            if f_max > max_val:
                 logger.warning(msg)
                 warn(msg)
-            msg = f'{fn} has a min of {f_min} > {min}'
-            if f_min < min:
+            msg = f'{fn} has a min of {f_min} > {min_val}'
+            if f_min < min_val:
                 logger.warning(msg)
                 warn(msg)
-            maxes.append(max)
-            mins.append(min)
+            maxes.append(max_val)
+            mins.append(min_val)
 
         data = np.maximum(data, mins)
         return np.minimum(data, maxes)
@@ -330,8 +377,7 @@ class OutputHandler(OutputMixin):
         """
 
         # add row and column to boundaries
-        padded_grid = np.zeros((2 + lat_lon.shape[0],
-                                2 + lat_lon.shape[1], 2))
+        padded_grid = np.zeros((2 + lat_lon.shape[0], 2 + lat_lon.shape[1], 2))
 
         # fill in interior values
         padded_grid[1:-1, 1:-1, :] = lat_lon
@@ -478,8 +524,9 @@ class OutputHandler(OutputMixin):
             Array of times for high res output file.
         """
         logger.debug('Getting high resolution time indices')
-        logger.debug(f'Low res times: {low_res_times[0]} to '
-                     f'{low_res_times[-1]}')
+        logger.debug(
+            f'Low res times: {low_res_times[0]} to ' f'{low_res_times[-1]}'
+        )
         t_enhance = int(shape / len(low_res_times))
         if len(low_res_times) > 1:
             offset = low_res_times[1] - low_res_times[0]
@@ -488,8 +535,10 @@ class OutputHandler(OutputMixin):
 
         freq = offset / np.timedelta64(1, 's')
         freq = int(60 * np.round(freq / 60) / t_enhance)
-        times = [low_res_times[0] + i * np.timedelta64(freq, 's')
-                 for i in range(shape)]
+        times = [
+            low_res_times[0] + i * np.timedelta64(freq, 's')
+            for i in range(shape)
+        ]
         freq = pd.tseries.offsets.DateOffset(seconds=freq)
         times = pd_date_range(times[0], times[-1], freq=freq)
         logger.debug(f'High res times: {times[0]} to {times[-1]}')
@@ -497,13 +546,31 @@ class OutputHandler(OutputMixin):
 
     @classmethod
     @abstractmethod
-    def _write_output(cls, data, features, lat_lon, times, out_file, meta_data,
-                      max_workers=None, gids=None):
+    def _write_output(
+        cls,
+        data,
+        features,
+        lat_lon,
+        times,
+        out_file,
+        meta_data,
+        max_workers=None,
+        gids=None,
+    ):
         """Write output to file with specified times and lats/lons"""
 
     @classmethod
-    def write_output(cls, data, features, low_res_lat_lon, low_res_times,
-                     out_file, meta_data=None, max_workers=None, gids=None):
+    def write_output(
+        cls,
+        data,
+        features,
+        low_res_lat_lon,
+        low_res_times,
+        out_file,
+        meta_data=None,
+        max_workers=None,
+        gids=None,
+    ):
         """Write forward pass output to file
 
         Parameters
@@ -531,6 +598,13 @@ class OutputHandler(OutputMixin):
         """
         lat_lon = cls.get_lat_lon(low_res_lat_lon, data.shape[:2])
         times = cls.get_times(low_res_times, data.shape[-2])
-        cls._write_output(data, features, lat_lon, times, out_file,
-                          meta_data=meta_data, max_workers=max_workers,
-                          gids=gids)
+        cls._write_output(
+            data,
+            features,
+            lat_lon,
+            times,
+            out_file,
+            meta_data=meta_data,
+            max_workers=max_workers,
+            gids=gids,
+        )

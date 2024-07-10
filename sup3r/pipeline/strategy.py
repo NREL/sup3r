@@ -213,8 +213,9 @@ class ForwardPassStrategy:
         self.input_handler = InputHandler(**input_handler_kwargs)
         self.exo_data = self.load_exo_data(model)
         self.hr_lat_lon = self.get_hr_lat_lon()
-        self.gids = np.arange(np.prod(self.hr_lat_lon.shape[:-1]))
-        self.gids = self.gids.reshape(self.hr_lat_lon.shape[:-1])
+        self.gids = np.arange(np.prod(self.hr_lat_lon.shape[:-1])).reshape(
+            self.hr_lat_lon.shape[:-1]
+        )
 
         self.fwp_slicer = ForwardPassSlicer(
             coarse_shape=self.input_handler.lat_lon.shape[:-1],

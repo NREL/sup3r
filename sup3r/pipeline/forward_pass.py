@@ -366,6 +366,7 @@ class ForwardPass:
         import_str += 'import time;\n'
         import_str += 'from gaps import Status;\n'
         import_str += 'from rex import init_logger;\n'
+        import_str += 'from pandas import DatetimeIndex;\n'
         import_str += (
             'from sup3r.pipeline.forward_pass '
             f'import ForwardPassStrategy, {cls.__name__};\n'

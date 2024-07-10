@@ -50,6 +50,11 @@ class Dimension(str, Enum):
         """Return ordered tuple for 2d spatial coordinates."""
         return (cls.SOUTH_NORTH, cls.WEST_EAST)
 
+    @classmethod
+    def dims_3d(cls):
+        """Return ordered tuple for 2d spatial coordinates."""
+        return (cls.TIME, cls.SOUTH_NORTH, cls.WEST_EAST)
+
 
 def _compute_chunks_if_dask(arr):
     return (

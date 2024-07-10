@@ -10,6 +10,8 @@ from datetime import datetime as dt
 import numpy as np
 import xarray as xr
 
+from sup3r.preprocessing.utilities import Dimension
+
 from .base import OutputHandler
 
 logger = logging.getLogger(__name__)
@@ -40,15 +42,21 @@ class OutputHandlerNC(OutputHandler):
             Dictionary of meta data from model
         """
         coords = {
-            'Time': [str(t).encode('utf-8') for t in times],
-            'south_north': lat_lon[:, 0, 0].astype(np.float32),
-            'west_east': lat_lon[0, :, 1].astype(np.float32),
+            Dimension.TIME: [str(t).encode('utf-8') for t in times],
+            Dimension.LATITUDE: (
+                Dimension.spatial_2d(),
+                lat_lon[:, :, 0].astype(np.float32),
+            ),
+            Dimension.LONGITUDE: (
+                Dimension.spatial_2d(),
+                lat_lon[:, :, 1].astype(np.float32),
+            ),
         }
 
         data_vars = {}
         for i, f in enumerate(features):
             data_vars[f] = (
-                ['Time', 'south_north', 'west_east'],
+                Dimension.dims_3d(),
                 np.transpose(data[..., i], (2, 0, 1)),
             )
 

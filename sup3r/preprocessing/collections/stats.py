@@ -1,11 +1,12 @@
 """Collection object with methods to compute and save stats."""
 
-import json
 import logging
 import os
 
 import numpy as np
 from rex import safe_json_load
+
+from sup3r.utilities.utilities import safe_serialize
 
 from .base import Collection
 
@@ -91,19 +92,11 @@ class StatsCollection(Collection):
         """Save stats to json files."""
         if isinstance(stds, str) and not os.path.exists(stds):
             with open(stds, 'w') as f:
-                f.write(
-                    json.dumps(
-                        {k: np.float64(v) for k, v in self.stds.items()}
-                    )
-                )
+                f.write(safe_serialize(self.stds))
                 logger.info(
                     f'Saved standard deviations {self.stds} to {stds}.'
                 )
         if isinstance(means, str) and not os.path.exists(means):
             with open(means, 'w') as f:
-                f.write(
-                    json.dumps(
-                        {k: np.float64(v) for k, v in self.means.items()}
-                    )
-                )
+                f.write(safe_serialize(self.means))
                 logger.info(f'Saved means {self.means} to {means}.')
