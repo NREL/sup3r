@@ -773,9 +773,8 @@ def test_fwp_integration(tmp_path, presrat_params, fp_precip_fut):
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
     features = ['rsds']
-    target = (39.0, -104.5)
-    # shape = (8, 8)
-    shape = (2, 2)
+    target = TARGET
+    shape = SHAPE
     temporal_slice = slice(None, None, 1)
     fwp_chunk_shape = (4, 4, 150)
     input_files = [fp_precip_fut]
