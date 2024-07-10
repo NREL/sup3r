@@ -10,6 +10,7 @@ from rex import Resource
 
 import sup3r.bias.bias_transforms
 from sup3r.bias.bias_transforms import get_spatial_bc_factors, local_qdm_bc
+from sup3r.preprocessing.utilities import get_date_range_kwargs
 
 logger = logging.getLogger(__name__)
 
@@ -201,10 +202,9 @@ def bias_correct_feature(
         logger.info(f'Running bias correction with: {bc_method}.')
         feature_kwargs = bc_kwargs[source_feature]
 
-        if 'time_index' in signature(bc_method).parameters:
-            feature_kwargs['time_index'] = input_handler.time_index[
-                time_slice
-            ].values.tolist()
+        if 'date_range_kwargs' in signature(bc_method).parameters:
+            ti = input_handler.time_index[time_slice]
+            feature_kwargs['date_range_kwargs'] = get_date_range_kwargs(ti)
         if (
             'lr_padded_slice' in signature(bc_method).parameters
             and 'lr_padded_slice' not in feature_kwargs
@@ -225,12 +225,11 @@ def bias_correct_feature(
             logger.warning(msg)
             warn(msg)
 
-        logger.debug(
-            'Bias correcting source_feature "{}" using '
-            'function: {} with kwargs: {}'.format(
-                source_feature, bc_method, feature_kwargs
-            )
+        msg = (
+            f'Bias correcting source_feature "{source_feature}" using '
+            f'function: {bc_method} with kwargs: {feature_kwargs}'
         )
+        logger.debug(msg)
 
         data = bc_method(data, input_handler.lat_lon, **feature_kwargs)
     return data

@@ -11,6 +11,7 @@ from typing import ClassVar, Optional, Tuple, Union
 from warnings import warn
 
 import numpy as np
+import pandas as pd
 import xarray as xr
 
 import sup3r.preprocessing
@@ -54,6 +55,17 @@ class Dimension(str, Enum):
     def dims_3d(cls):
         """Return ordered tuple for 2d spatial coordinates."""
         return (cls.TIME, cls.SOUTH_NORTH, cls.WEST_EAST)
+
+
+def get_date_range_kwargs(time_index):
+    """Get kwargs for pd.date_range from a DatetimeIndex. This is used to
+    provide a concise time_index representation which can be passed through
+    the cli and avoid logging lengthly time indices."""
+    return {
+        'start': time_index[0],
+        'end': time_index[-1],
+        'freq': pd.infer_freq(time_index),
+    }
 
 
 def _compute_chunks_if_dask(arr):

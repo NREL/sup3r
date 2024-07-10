@@ -21,6 +21,7 @@ from sup3r.bias.bias_transforms import local_linear_bc, monthly_local_linear_bc
 from sup3r.models import Sup3rGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.preprocessing import DataHandlerNCforCC
+from sup3r.preprocessing.utilities import get_date_range_kwargs
 from sup3r.qa.qa import Sup3rQa
 
 with xr.open_dataset(pytest.FP_RSDS) as fh:
@@ -384,7 +385,7 @@ def test_monthly_linear_transform():
                 'rsds',
                 fp_out,
                 lr_padded_slice=None,
-                time_index=base_ti,
+                date_range_kwargs=get_date_range_kwargs(base_ti),
                 temporal_avg=True,
                 out_range=None,
             )
@@ -400,7 +401,7 @@ def test_monthly_linear_transform():
             'rsds',
             fp_out,
             lr_padded_slice=None,
-            time_index=base_ti,
+            date_range_kwargs=get_date_range_kwargs(base_ti),
             temporal_avg=False,
             out_range=None,
         )
