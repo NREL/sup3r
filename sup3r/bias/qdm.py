@@ -96,7 +96,7 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
             with the baseline data.
         base_dset : str
             A single dataset from the base_fps to retrieve. In the case of wind
-            components, this can be U_100m or V_100m which will retrieve
+            components, this can be u_100m or v_100m which will retrieve
             windspeed and winddirection and derive the U/V component.
         bias_feature : str
             This is the biased feature from bias_fps to retrieve. This should
@@ -356,7 +356,7 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
             be a single feature name corresponding to base_dset.
         base_dset : str
             A single dataset from the base_fps to retrieve. In the case of wind
-            components, this can be U_100m or V_100m which will retrieve
+            components, this can be u_100m or v_100m which will retrieve
             windspeed and winddirection and derive the U/V component.
         sampling : str
             Defines how the quantiles are sampled. For instance, 'linear' will

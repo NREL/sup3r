@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 def parse_feature(feature):
     """Parse feature name to get the "basename" (i.e. U for u_100m), the height
-    (100 for u_100m), and pressure if available (1000 for U_1000pa)."""
+    (100 for u_100m), and pressure if available (1000 for u_1000pa)."""
 
     class FeatureStruct:
         """Feature structure storing `basename`, `height`, and `pressure`."""

@@ -67,7 +67,7 @@ class OutputHandlerH5(OutputHandler):
             (spatial_1, spatial_2, temporal, features)
         features : list
             List of output features. If this doesn't contain any names matching
-            U_*m, this method will do nothing.
+            u_*m, this method will do nothing.
         lat_lon : ndarray
             High res lat/lon array
             (spatial_1, spatial_2, 2)

@@ -427,7 +427,7 @@ class SolarMultiStepGan(MultiStepGan):
 
     This model takes in two parallel models for wind-only and solar-only
     spatial super resolutions, then combines them into a 3-channel
-    high-spatial-resolution input (clearsky_ratio, U_200m, V_200m) for a solar
+    high-spatial-resolution input (clearsky_ratio, u_200m, v_200m) for a solar
     temporal super resolution model.
     """
 
@@ -450,7 +450,7 @@ class SolarMultiStepGan(MultiStepGan):
             A loaded MultiStepGan object representing the one or more spatial
             super resolution steps in this composite MultiStepGan
             model that inputs and outputs wind u/v features and must include
-            U_200m + V_200m as output features.
+            u_200m + v_200m as output features.
         temporal_solar_models : MultiStepGan
             A loaded MultiStepGan object representing the one or more
             (spatio)temporal super resolution steps in this composite
@@ -607,7 +607,7 @@ class SolarMultiStepGan(MultiStepGan):
     def idf_wind_out(self):
         """Get an array of spatial_wind_models output feature indices that are
         required for input to the temporal_solar_models. Typically this is the
-        indices of U_200m + V_200m from the output features of
+        indices of u_200m + v_200m from the output features of
         spatial_wind_models"""
         temporal_solar_features = self.temporal_solar_models.lr_features
         return np.array(

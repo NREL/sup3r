@@ -57,7 +57,7 @@ class DataRetrievalBase:
             several years of GCM .nc files.
         base_dset : str
             A single dataset from the base_fps to retrieve. In the case of wind
-            components, this can be U_100m or V_100m which will retrieve
+            components, this can be u_100m or v_100m which will retrieve
             windspeed and winddirection and derive the U/V component.
         bias_feature : str
             This is the biased feature from bias_fps to retrieve. This should
@@ -641,7 +641,7 @@ class DataRetrievalBase:
             base_ws = res[dset_ws, :, base_gid]
             base_wd = res[dset_wd, :, base_gid]
 
-            if base_dset.startswith('U_'):
+            if base_dset.startswith('u_'):
                 base_data = -base_ws * np.sin(np.radians(base_wd))
             else:
                 base_data = -base_ws * np.cos(np.radians(base_wd))

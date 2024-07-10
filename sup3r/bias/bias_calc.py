@@ -62,7 +62,7 @@ class LinearCorrection(FillAndSmoothMixin, DataRetrievalBase):
             be a single feature name corresponding to base_dset
         base_dset : str
             A single dataset from the base_fps to retrieve. In the case of wind
-            components, this can be U_100m or V_100m which will retrieve
+            components, this can be u_100m or v_100m which will retrieve
             windspeed and winddirection and derive the U/V component.
 
         Returns
@@ -394,7 +394,7 @@ class MonthlyScalarCorrection(MonthlyLinearCorrection):
             be a single feature name corresponding to base_dset
         base_dset : str
             A single dataset from the base_fps to retrieve. In the case of wind
-            components, this can be U_100m or V_100m which will retrieve
+            components, this can be u_100m or v_100m which will retrieve
             windspeed and winddirection and derive the U/V component.
 
         Returns
