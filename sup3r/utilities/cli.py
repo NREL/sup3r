@@ -366,6 +366,6 @@ class BaseCLI:
             cmd += f"Status.make_single_job_file({status_file_arg_str})"
 
         cmd_log = '\n\t'.join(cmd.split('\n'))
-        logger.debug(f'Running command:\n\t{cmd_log[:2048] + " ..."}')
+        logger.debug(f'Running command:\n\t{cmd_log}')
 
         return cmd

@@ -62,8 +62,8 @@ def get_date_range_kwargs(time_index):
     provide a concise time_index representation which can be passed through
     the cli and avoid logging lengthly time indices."""
     return {
-        'start': time_index[0],
-        'end': time_index[-1],
+        'start': time_index[0].strftime('%Y-%m-%d %H:%M:%S'),
+        'end': time_index[-1].strftime('%Y-%m-%d %H:%M:%S'),
         'freq': pd.infer_freq(time_index),
     }
 
