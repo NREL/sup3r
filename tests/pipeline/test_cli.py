@@ -31,7 +31,7 @@ from sup3r.utilities.utilities import pd_date_range
 
 FEATURES = ['u_100m', 'v_100m', 'pressure_0m']
 fwp_chunk_shape = (4, 4, 6)
-data_shape = (100, 100, 30)
+data_shape = (100, 100, 10)
 shape = (8, 8)
 
 FP_CS = os.path.join(TEST_DATA_DIR, 'test_nsrdb_clearsky_2018.h5')
@@ -257,9 +257,12 @@ def test_fwd_pass_with_bc_cli(runner, input_files):
     with tempfile.TemporaryDirectory() as td:
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
-        t_chunks = data_shape[2] // fwp_chunk_shape[2] + 1
-        n_chunks = t_chunks * shape[0] // fwp_chunk_shape[0]
-        n_chunks = n_chunks * shape[1] // fwp_chunk_shape[1]
+        n_chunks = np.prod(
+            [
+                int(np.ceil(ds / fs))
+                for ds, fs in zip([*shape, data_shape[2]], fwp_chunk_shape)
+            ]
+        )
         out_files = os.path.join(td, 'out_{file_id}.nc')
         cache_pattern = os.path.join(td, 'cache_{feature}.nc')
         log_pattern = os.path.join(td, 'logs', 'log_{node_index}.log')
@@ -317,7 +320,7 @@ def test_fwd_pass_with_bc_cli(runner, input_files):
             'bias_correct_kwargs': bias_correct_kwargs.copy(),
             'bias_correct_method': 'monthly_local_linear_bc',
             'execution_control': {'option': 'local'},
-            'max_nodes': 1,
+            'max_nodes': 2,
         }
 
         config_path = os.path.join(td, 'config.json')
@@ -330,9 +333,8 @@ def test_fwd_pass_with_bc_cli(runner, input_files):
             *result.exc_info
         )
 
-        # include time index cache file
         assert len(glob.glob(f'{td}/cache*')) == len(FEATURES)
-        assert len(glob.glob(f'{td}/logs/*.log')) == t_chunks
+        assert len(glob.glob(f'{td}/logs/log_*.log')) == config['max_nodes']
         assert len(glob.glob(f'{td}/out*')) == n_chunks
 
 
@@ -353,9 +355,12 @@ def test_fwd_pass_cli(runner, input_files):
     with tempfile.TemporaryDirectory() as td:
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
-        t_chunks = data_shape[2] // fwp_chunk_shape[2] + 1
-        n_chunks = t_chunks * shape[0] // fwp_chunk_shape[0]
-        n_chunks = n_chunks * shape[1] // fwp_chunk_shape[1]
+        n_chunks = np.prod(
+            [
+                int(np.ceil(ds / fs))
+                for ds, fs in zip([*shape, data_shape[2]], fwp_chunk_shape)
+            ]
+        )
         out_files = os.path.join(td, 'out_{file_id}.nc')
         cache_pattern = os.path.join(td, 'cache_{feature}.nc')
         log_pattern = os.path.join(td, 'logs', 'log_{node_index}.log')
@@ -376,6 +381,7 @@ def test_fwd_pass_cli(runner, input_files):
             'spatial_pad': 1,
             'temporal_pad': 1,
             'execution_control': {'option': 'local'},
+            'max_nodes': 5,
         }
 
         config_path = os.path.join(td, 'config.json')
@@ -390,9 +396,8 @@ def test_fwd_pass_cli(runner, input_files):
             )
             raise RuntimeError(msg)
 
-        # include time index cache file
         assert len(glob.glob(f'{td}/cache*')) == len(FEATURES)
-        assert len(glob.glob(f'{td}/*.log')) == t_chunks
+        assert len(glob.glob(f'{td}/logs/log_*.log')) == config['max_nodes']
         assert len(glob.glob(f'{td}/out*')) == n_chunks
 
 
