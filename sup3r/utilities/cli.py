@@ -72,9 +72,6 @@ class BaseCLI:
 
         cmd = module_class.get_node_cmd(config)
 
-        cmd_log = '\n\t'.join(cmd.split('\n'))
-        logger.debug(f'Running command:\n\t{cmd_log}')
-
         if hardware_option.lower() in AVAILABLE_HARDWARE_OPTIONS:
             cls.kickoff_slurm_job(module_name, ctx, pipeline_step, cmd,
                                   **exec_kwargs)
@@ -367,5 +364,8 @@ class BaseCLI:
             cmd += 'job_attrs.update({"job_status": "successful"});\n'
             cmd += 'job_attrs.update({"time": t_elap});\n'
             cmd += f"Status.make_single_job_file({status_file_arg_str})"
+
+        cmd_log = '\n\t'.join(cmd.split('\n'))
+        logger.debug(f'Running command:\n\t{cmd_log[:2048] + " ..."}')
 
         return cmd

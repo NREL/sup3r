@@ -258,7 +258,7 @@ class DataRetrievalBase:
         import_str = 'import time;\n'
         import_str += 'from gaps import Status;\n'
         import_str += 'from rex import init_logger;\n'
-        import_str += f'from sup3r.bias.bias_calc import {cls.__name__};\n'
+        import_str += f'from sup3r.bias.bias_calc import {cls.__name__}'
 
         if not hasattr(cls, 'run'):
             msg = (
@@ -281,7 +281,7 @@ class DataRetrievalBase:
             log_arg_str += f', log_file="{log_file}"'
 
         cmd = (
-            f"python -c '{import_str}\n"
+            f"python -c '{import_str};\n"
             't0 = time.time();\n'
             f'logger = init_logger({log_arg_str});\n'
             f'bc = {init_str};\n'

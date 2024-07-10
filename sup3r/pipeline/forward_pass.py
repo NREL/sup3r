@@ -369,7 +369,7 @@ class ForwardPass:
         import_str += 'from rex import init_logger;\n'
         import_str += (
             'from sup3r.pipeline.forward_pass '
-            f'import ForwardPassStrategy, {cls.__name__};\n'
+            f'import ForwardPassStrategy, {cls.__name__}'
         )
 
         fwps_init_str = get_fun_call_str(ForwardPassStrategy, config)
@@ -382,7 +382,7 @@ class ForwardPass:
             log_arg_str += f', log_file="{log_file}"'
 
         cmd = (
-            f"python -c '{import_str}\n"
+            f"python -c '{import_str};\n"
             't0 = time.time();\n'
             f'logger = init_logger({log_arg_str});\n'
             f'strategy = {fwps_init_str};\n'

@@ -61,7 +61,7 @@ class BaseCollector(OutputMixin, ABC):
             f'import {cls.__name__};\n'
             'from rex import init_logger;\n'
             'import time;\n'
-            'from gaps import Status;\n'
+            'from gaps import Status'
         )
 
         dc_fun_str = get_fun_call_str(cls.collect, config)
@@ -73,7 +73,7 @@ class BaseCollector(OutputMixin, ABC):
             log_arg_str += f', log_file="{log_file}"'
 
         cmd = (
-            f"python -c \'{import_str}\n"
+            f"python -c '{import_str};\n"
             "t0 = time.time();\n"
             f"logger = init_logger({log_arg_str});\n"
             f"{dc_fun_str};\n"
@@ -82,7 +82,7 @@ class BaseCollector(OutputMixin, ABC):
 
         pipeline_step = config.get('pipeline_step') or ModuleName.DATA_COLLECT
         cmd = BaseCLI.add_status_cmd(config, pipeline_step, cmd)
-        cmd += ";\'\n"
+        cmd += ";'\n"
 
         return cmd.replace('\\', '/')
 

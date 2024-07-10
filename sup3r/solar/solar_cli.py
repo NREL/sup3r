@@ -58,9 +58,6 @@ def from_config(ctx, config_file, verbose=False, pipeline_step=None):
         node_config['temporal_id'] = temporal_id
         cmd = Solar.get_node_cmd(node_config)
 
-        cmd_log = '\n\t'.join(cmd.split('\n'))
-        logger.debug(f'Running command:\n\t{cmd_log}')
-
         if hardware_option.lower() in AVAILABLE_HARDWARE_OPTIONS:
             kickoff_slurm_job(ctx, cmd, pipeline_step, **exec_kwargs)
         else:

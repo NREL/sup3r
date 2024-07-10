@@ -67,9 +67,6 @@ def from_config(ctx, config_file, verbose=False, pipeline_step=None):
         config['pipeline_step'] = pipeline_step
         cmd = Collector.get_node_cmd(config)
 
-        cmd_log = '\n\t'.join(cmd.split('\n'))
-        logger.debug(f'Running command:\n\t{cmd_log}')
-
         if hardware_option.lower() in AVAILABLE_HARDWARE_OPTIONS:
             kickoff_slurm_job(ctx, cmd, pipeline_step, **exec_kwargs)
         else:
