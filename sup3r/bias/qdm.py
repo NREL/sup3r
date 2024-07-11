@@ -68,6 +68,7 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                  match_zero_rate=False,
                  n_quantiles=101,
                  dist='empirical',
+                 relative=None,
                  sampling='linear',
                  log_base=10,
                  ):
@@ -192,6 +193,7 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
 
         self.n_quantiles = n_quantiles
         self.dist = dist
+        self.relative = relative
         self.sampling = sampling
         self.log_base = log_base
 
@@ -284,6 +286,8 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                     bias_ti,
                     bias_fut_ti,
                     decimals,
+                    dist,
+                    relative,
                     sampling,
                     n_samples,
                     log_base,
@@ -514,6 +518,8 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                         bias_ti=self.bias_fut_dh.time_index,
                         bias_fut_ti=self.bias_fut_dh.time_index,
                         decimals=self.decimals,
+                        dist=self.dist,
+                        relative=self.relative,
                         sampling=self.sampling,
                         n_samples=self.n_quantiles,
                         log_base=self.log_base,
@@ -554,6 +560,8 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                             bias_ti=self.bias_fut_dh.time_index,
                             bias_fut_ti=self.bias_fut_dh.time_index,
                             decimals=self.decimals,
+                            dist=self.dist,
+                            relative=self.relative,
                             sampling=self.sampling,
                             n_samples=self.n_quantiles,
                             log_base=self.log_base,
@@ -671,6 +679,8 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         base_handler,
         daily_reduction,
         decimals,
+        dist,
+        relative,
         sampling,
         n_samples,
         log_base,
@@ -800,6 +810,8 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
                         self.base_handler,
                         daily_reduction,
                         self.decimals,
+                        dist=self.dist,
+                        relative=self.relative,
                         sampling=self.sampling,
                         n_samples=self.n_quantiles,
                         log_base=self.log_base,
@@ -846,6 +858,8 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
                             self.base_handler,
                             daily_reduction,
                             self.decimals,
+                            dist=self.dist,
+                            relative=self.relative,
                             sampling=self.sampling,
                             n_samples=self.n_quantiles,
                             log_base=self.log_base,
