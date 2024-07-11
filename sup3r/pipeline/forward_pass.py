@@ -16,7 +16,10 @@ from sup3r.postprocessing import (
     OutputHandlerH5,
     OutputHandlerNC,
 )
-from sup3r.preprocessing.utilities import lowered
+from sup3r.preprocessing.utilities import (
+    get_source_type,
+    lowered,
+)
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
 
@@ -51,16 +54,16 @@ class ForwardPass:
         """
         self.strategy = strategy
         self.model = get_model(strategy.model_class, strategy.model_kwargs)
+        self.s_enhancements = [model.s_enhance for model in self.model]
+        self.t_enhancements = [model.t_enhance for model in self.model]
         self.node_index = node_index
         self.chunk_index = None
         self.output_handler_class = None
-
-        msg = f'Received bad output type {strategy.output_type}'
-        if strategy.output_type is not None:
-            assert strategy.output_type in list(self.OUTPUT_HANDLER_CLASS), msg
-            self.output_handler_class = self.OUTPUT_HANDLER_CLASS[
-                strategy.output_type
-            ]
+        output_type = get_source_type(strategy.out_pattern)
+        msg = f'Received bad output type {output_type}'
+        if output_type is not None:
+            assert output_type in list(self.OUTPUT_HANDLER_CLASS), msg
+            self.output_handler_class = self.OUTPUT_HANDLER_CLASS[output_type]
 
     def get_input_chunk(self, chunk_index=0, mode='reflect'):
         """Get :class:`FowardPassChunk` instance for the given chunk index."""
@@ -124,12 +127,12 @@ class ForwardPass:
                 s_enhance = 1
                 t_enhance = 1
             else:
-                s_enhance = np.prod(self.strategy.s_enhancements[:model_step])
-                t_enhance = np.prod(self.strategy.t_enhancements[:model_step])
+                s_enhance = np.prod(self.s_enhancements[:model_step])
+                t_enhance = np.prod(self.t_enhancements[:model_step])
 
         else:
-            s_enhance = np.prod(self.strategy.s_enhancements[: model_step + 1])
-            t_enhance = np.prod(self.strategy.t_enhancements[: model_step + 1])
+            s_enhance = np.prod(self.s_enhancements[: model_step + 1])
+            t_enhance = np.prod(self.t_enhancements[: model_step + 1])
         return s_enhance, t_enhance
 
     def pad_source_data(self, input_data, pad_width, exo_data, mode='reflect'):

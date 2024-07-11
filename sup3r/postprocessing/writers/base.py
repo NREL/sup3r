@@ -334,17 +334,17 @@ class OutputHandler(OutputMixin):
 
             max_val = H5_ATTRS[dset_name].get('max', np.inf)
             min_val = H5_ATTRS[dset_name].get('min', -np.inf)
-            logger.debug(
+            enforcing_msg = (
                 f'Enforcing range of ({min_val}, {max_val} for "{fn}")'
             )
 
             f_max = data[..., fidx].max()
             f_min = data[..., fidx].min()
-            msg = f'{fn} has a max of {f_max} > {max_val}'
+            msg = f'{fn} has a max of {f_max} > {max_val}. {enforcing_msg}'
             if f_max > max_val:
                 logger.warning(msg)
                 warn(msg)
-            msg = f'{fn} has a min of {f_min} > {min_val}'
+            msg = f'{fn} has a min of {f_min} > {min_val}. {enforcing_msg}'
             if f_min < min_val:
                 logger.warning(msg)
                 warn(msg)

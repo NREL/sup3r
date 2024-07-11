@@ -157,7 +157,9 @@ class CollectorNC(BaseCollector):
             out = xr.open_mfdataset(collector.flist, **res_kwargs)
             features = [feat for feat in out if feat in features
                         or feat.lower() in features]
-            out[features].to_netcdf(out_file)
+            for feat in features:
+                out[feat].to_netcdf(out_file, mode='a')
+                logger.info(f'Finished writing {feat} to {out_file}.')
 
         if write_status and job_name is not None:
             status = {

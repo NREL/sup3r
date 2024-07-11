@@ -22,7 +22,6 @@ from sup3r.preprocessing.utilities import (
     expand_paths,
     get_class_kwargs,
     get_input_handler_class,
-    get_source_type,
     log_args,
 )
 from sup3r.typing import T_Array
@@ -182,28 +181,25 @@ class ForwardPassStrategy:
 
     @log_args
     def __post_init__(self):
-        """TODO: Clean this up. Too much going on here."""
+
         self.file_paths = expand_paths(self.file_paths)
         self.exo_kwargs = self.exo_kwargs or {}
         self.input_handler_kwargs = self.input_handler_kwargs or {}
         self.bias_correct_kwargs = self.bias_correct_kwargs or {}
-        self.output_type = get_source_type(self.out_pattern)
+
         model = get_model(self.model_class, self.model_kwargs)
         models = getattr(model, 'models', [model])
-        self.s_enhancements = [model.s_enhance for model in models]
-        self.t_enhancements = [model.t_enhance for model in models]
-        self.s_enhance = np.prod(self.s_enhancements)
-        self.t_enhance = np.prod(self.t_enhancements)
+        self.s_enhance = np.prod([model.s_enhance for model in models])
+        self.t_enhance = np.prod([model.t_enhance for model in models])
         self.input_features = model.lr_features
         self.output_features = model.hr_out_features
-        assert len(self.input_features) > 0, 'No input features!'
-        assert len(self.output_features) > 0, 'No output features!'
         self.exo_features = (
             [] if not self.exo_kwargs else list(self.exo_kwargs)
         )
         self.features = [
             f for f in self.input_features if f not in self.exo_features
         ]
+
         self.input_handler_kwargs.update(
             {'file_paths': self.file_paths, 'features': self.features}
         )
@@ -222,8 +218,8 @@ class ForwardPassStrategy:
             time_steps=len(self.input_handler.time_index),
             time_slice=self.time_slice,
             chunk_shape=self.fwp_chunk_shape,
-            s_enhancements=self.s_enhancements,
-            t_enhancements=self.t_enhancements,
+            s_enhance=self.s_enhance,
+            t_enhance=self.t_enhance,
             spatial_pad=self.spatial_pad,
             temporal_pad=self.temporal_pad,
         )

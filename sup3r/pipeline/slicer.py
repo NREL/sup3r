@@ -38,14 +38,10 @@ class ForwardPassSlicer:
         to the generator can be bigger than this shape. If running in
         serial set this equal to the shape of the full spatiotemporal data
         volume for best performance.
-    s_enhancements : list
-        List of factors by which the Sup3rGan model will enhance the
-        spatial dimensions of low resolution data. If there are two 5x
-        spatial enhancements, this should be [5, 5] where the total
-        enhancement is the product of these factors.
-    t_enhancements : list
-        List of factor by which the Sup3rGan model will enhance temporal
-        dimension of low resolution data
+    s_enhance : int
+        Spatial enhancement factor
+    t_enhance : int
+        Temporal enhancement factor
     spatial_pad : int
         Size of spatial overlap between coarse chunks passed to forward
         passes for subsequent spatial stitching. This overlap will pad both
@@ -60,8 +56,8 @@ class ForwardPassSlicer:
 
     coarse_shape: Union[tuple, list]
     time_steps: int
-    s_enhancements: list
-    t_enhancements: list
+    s_enhance: int
+    t_enhance: int
     time_slice: slice
     temporal_pad: int
     spatial_pad: int
@@ -69,8 +65,6 @@ class ForwardPassSlicer:
 
     @log_args
     def __post_init__(self):
-        self.s_enhance = np.prod(self.s_enhancements)
-        self.t_enhance = np.prod(self.t_enhancements)
         self.dummy_time_index = np.arange(self.time_steps)
         self.time_slice = _parse_time_slice(self.time_slice)
 
