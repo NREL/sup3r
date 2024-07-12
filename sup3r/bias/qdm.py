@@ -495,3 +495,26 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
         self.write_outputs(fp_out, self.out)
 
         return copy.deepcopy(self.out)
+
+
+class WindowedQuantileDeltaMappingCorrection(QuantileDeltaMappingCorrection):
+    """QDM applied in moving windows"""
+    NT = 12
+
+    def _init_out(self):
+        """Initialize output arrays `self.out`
+
+        Three datasets are saved here with information to reconstruct the
+        probability distributions for the three datasets (see class
+        documentation).
+        """
+        t = (np.linspace(1, 366, self.NT + 1) + 366 / (2 * self.NT))[:-1]
+
+        keys = [f'bias_{self.bias_feature}_params',
+                f'bias_fut_{self.bias_feature}_params',
+                f'base_{self.base_dset}_params',
+                ]
+        shape = (*self.bias_gid_raster.shape, self.n_quantiles)
+        arr = np.full(shape, np.nan, np.float32)
+        self.out = {k: arr.copy() for k in keys}
+        self.out["time_window_center"] = t
