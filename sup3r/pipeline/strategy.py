@@ -114,7 +114,7 @@ class ForwardPassStrategy:
         extracter or handler class in `sup3r.preprocessing`
     input_handler_kwargs : dict | None
         Any kwargs for initializing the `input_handler_name` class.
-    exo_kwargs : dict | None
+    exo_handler_kwargs : dict | None
         Dictionary of args to pass to :class:`ExoDataHandler` for extracting
         exogenous features for multistep foward pass. This should be a nested
         dictionary with keys for each exogenous feature. The dictionaries
@@ -170,7 +170,7 @@ class ForwardPassStrategy:
     out_pattern: Optional[str] = None
     input_handler_name: Optional[str] = None
     input_handler_kwargs: Optional[dict] = None
-    exo_kwargs: Optional[dict] = None
+    exo_handler_kwargs: Optional[dict] = None
     bias_correct_method: Optional[str] = None
     bias_correct_kwargs: Optional[dict] = None
     allowed_const: Optional[Union[list, bool]] = None
@@ -183,19 +183,16 @@ class ForwardPassStrategy:
     def __post_init__(self):
 
         self.file_paths = expand_paths(self.file_paths)
-        self.exo_kwargs = self.exo_kwargs or {}
+        self.exo_handler_kwargs = self.exo_handler_kwargs or {}
         self.input_handler_kwargs = self.input_handler_kwargs or {}
         self.bias_correct_kwargs = self.bias_correct_kwargs or {}
 
         model = get_model(self.model_class, self.model_kwargs)
-        models = getattr(model, 'models', [model])
-        self.s_enhance = np.prod([model.s_enhance for model in models])
-        self.t_enhance = np.prod([model.t_enhance for model in models])
+        self.s_enhance = model.s_enhance
+        self.t_enhance = model.t_enhance
         self.input_features = model.lr_features
         self.output_features = model.hr_out_features
-        self.exo_features = (
-            [] if not self.exo_kwargs else list(self.exo_kwargs)
-        )
+        self.exo_features = list(self.exo_handler_kwargs)
         self.features = [
             f for f in self.input_features if f not in self.exo_features
         ]
@@ -453,9 +450,9 @@ class ForwardPassStrategy:
         """
         data = {}
         exo_data = None
-        if self.exo_kwargs:
+        if self.exo_handler_kwargs:
             for feature in self.exo_features:
-                exo_kwargs = copy.deepcopy(self.exo_kwargs[feature])
+                exo_kwargs = copy.deepcopy(self.exo_handler_kwargs[feature])
                 exo_kwargs['feature'] = feature
                 exo_kwargs['models'] = getattr(model, 'models', [model])
                 input_handler_kwargs = exo_kwargs.get(

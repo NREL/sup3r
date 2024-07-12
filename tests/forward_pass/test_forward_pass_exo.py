@@ -155,7 +155,7 @@ def test_fwp_multi_step_model_topo_exoskip(input_files):
         s_enhance = 12
         t_enhance = 4
 
-        exo_kwargs = {
+        exo_handler_kwargs = {
             'topography': {
                 'file_paths': input_files,
                 'source_file': pytest.FP_WTK,
@@ -186,7 +186,7 @@ def test_fwp_multi_step_model_topo_exoskip(input_files):
             spatial_pad=0,
             temporal_pad=0,
             out_pattern=out_files,
-            exo_kwargs=exo_kwargs,
+            exo_handler_kwargs=exo_handler_kwargs,
             max_nodes=1,
             pass_workers=2,
         )
@@ -254,7 +254,7 @@ def test_fwp_multi_step_spatial_model_topo_noskip(input_files):
         s_enhancements = [2, 2, 1]
         s_enhance = np.prod(s_enhancements)
 
-        exo_kwargs = {
+        exo_handler_kwargs = {
             'topography': {
                 'file_paths': input_files,
                 'source_file': pytest.FP_WTK,
@@ -285,7 +285,7 @@ def test_fwp_multi_step_spatial_model_topo_noskip(input_files):
             temporal_pad=1,
             input_handler_kwargs=input_handler_kwargs,
             out_pattern=out_files,
-            exo_kwargs=exo_kwargs,
+            exo_handler_kwargs=exo_handler_kwargs,
             max_nodes=1,
         )
 
@@ -371,7 +371,7 @@ def test_fwp_multi_step_model_topo_noskip(input_files):
         s_enhance = np.prod(s_enhancements)
         t_enhance = 4
 
-        exo_kwargs = {
+        exo_handler_kwargs = {
             'topography': {
                 'file_paths': input_files,
                 'source_file': pytest.FP_WTK,
@@ -403,7 +403,7 @@ def test_fwp_multi_step_model_topo_noskip(input_files):
             temporal_pad=1,
             input_handler_kwargs=input_handler_kwargs,
             out_pattern=out_files,
-            exo_kwargs=exo_kwargs,
+            exo_handler_kwargs=exo_handler_kwargs,
             max_nodes=1,
         )
 
@@ -450,7 +450,7 @@ def test_fwp_single_step_sfc_model(input_files, plot=False):
         sfc_out_dir = os.path.join(td, 'sfc')
         model.save(sfc_out_dir)
 
-        exo_kwargs = {
+        exo_handler_kwargs = {
             'topography': {
                 'file_paths': input_files,
                 'source_file': pytest.FP_WTK,
@@ -480,7 +480,7 @@ def test_fwp_single_step_sfc_model(input_files, plot=False):
             temporal_pad=3,
             input_handler_kwargs=input_handler_kwargs,
             out_pattern=out_files,
-            exo_kwargs=exo_kwargs,
+            exo_handler_kwargs=exo_handler_kwargs,
             pass_workers=2,
             max_nodes=1,
         )
@@ -575,7 +575,7 @@ def test_fwp_single_step_wind_hi_res_topo(input_files, plot=False):
         st_out_dir = os.path.join(td, 'st_gan')
         model.save(st_out_dir)
 
-        exo_kwargs = {
+        exo_handler_kwargs = {
             'topography': {
                 'file_paths': input_files,
                 'source_file': pytest.FP_WTK,
@@ -606,7 +606,7 @@ def test_fwp_single_step_wind_hi_res_topo(input_files, plot=False):
             temporal_pad=2,
             input_handler_kwargs=input_handler_kwargs,
             out_pattern=out_files,
-            exo_kwargs=exo_kwargs,
+            exo_handler_kwargs=exo_handler_kwargs,
             max_nodes=1,
         )
         forward_pass = ForwardPass(handler)
@@ -692,7 +692,7 @@ def test_fwp_multi_step_wind_hi_res_topo(input_files):
         s1_model.save(s1_out_dir)
         s2_model.save(s2_out_dir)
 
-        exo_kwargs = {
+        exo_handler_kwargs = {
             'topography': {
                 'file_paths': input_files,
                 'source_file': pytest.FP_WTK,
@@ -719,7 +719,7 @@ def test_fwp_multi_step_wind_hi_res_topo(input_files):
                 {'model': 1, 'combine_type': 'input'},
                 {'model': 1, 'combine_type': 'layer'},
             ]
-            exo_kwargs['topography']['steps'] = steps
+            exo_handler_kwargs['topography']['steps'] = steps
             handler = ForwardPassStrategy(
                 input_files,
                 model_kwargs=model_kwargs,
@@ -729,7 +729,7 @@ def test_fwp_multi_step_wind_hi_res_topo(input_files):
                 temporal_pad=1,
                 input_handler_kwargs=input_handler_kwargs,
                 out_pattern=out_files,
-                exo_kwargs=exo_kwargs,
+                exo_handler_kwargs=exo_handler_kwargs,
                 max_nodes=1,
             )
             forward_pass = ForwardPass(handler)
@@ -742,7 +742,7 @@ def test_fwp_multi_step_wind_hi_res_topo(input_files):
             {'model': 1, 'combine_type': 'layer'},
             {'model': 2, 'combine_type': 'input'},
         ]
-        exo_kwargs['topography']['steps'] = steps
+        exo_handler_kwargs['topography']['steps'] = steps
         handler = ForwardPassStrategy(
             input_files,
             model_kwargs=model_kwargs,
@@ -752,7 +752,7 @@ def test_fwp_multi_step_wind_hi_res_topo(input_files):
             temporal_pad=1,
             input_handler_kwargs=input_handler_kwargs,
             out_pattern=out_files,
-            exo_kwargs=exo_kwargs,
+            exo_handler_kwargs=exo_handler_kwargs,
             max_nodes=1,
         )
         forward_pass = ForwardPass(handler)
@@ -849,7 +849,7 @@ def test_fwp_wind_hi_res_topo_plus_linear(input_files):
         s_model.save(s_out_dir)
         t_model.save(t_out_dir)
 
-        exo_kwargs = {
+        exo_handler_kwargs = {
             'topography': {
                 'file_paths': input_files,
                 'source_file': pytest.FP_WTK,
@@ -880,7 +880,7 @@ def test_fwp_wind_hi_res_topo_plus_linear(input_files):
             temporal_pad=1,
             input_handler_kwargs=input_handler_kwargs,
             out_pattern=out_files,
-            exo_kwargs=exo_kwargs,
+            exo_handler_kwargs=exo_handler_kwargs,
             max_nodes=1,
         )
         forward_pass = ForwardPass(handler)
@@ -944,7 +944,7 @@ def test_fwp_multi_step_model_multi_exo(input_files):
         s_enhance = np.prod(s_enhancements)
         t_enhance = 4
 
-        exo_kwargs = {
+        exo_handler_kwargs = {
             'topography': {
                 'file_paths': input_files,
                 'source_file': pytest.FP_WTK,
@@ -982,7 +982,7 @@ def test_fwp_multi_step_model_multi_exo(input_files):
             temporal_pad=1,
             input_handler_kwargs=input_handler_kwargs,
             out_pattern=out_files,
-            exo_kwargs=exo_kwargs,
+            exo_handler_kwargs=exo_handler_kwargs,
             max_nodes=1,
         )
 
@@ -1194,7 +1194,7 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza(input_files):
         s1_model.save(s1_out_dir)
         s2_model.save(s2_out_dir)
 
-        exo_kwargs = {
+        exo_handler_kwargs = {
             'topography': {
                 'file_paths': input_files,
                 'source_file': pytest.FP_WTK,
@@ -1241,7 +1241,7 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza(input_files):
             temporal_pad=1,
             input_handler_kwargs=input_handler_kwargs,
             out_pattern=out_files,
-            exo_kwargs=exo_kwargs,
+            exo_handler_kwargs=exo_handler_kwargs,
             max_nodes=1,
         )
         forward_pass = ForwardPass(handler)

@@ -54,8 +54,9 @@ class ForwardPass:
         """
         self.strategy = strategy
         self.model = get_model(strategy.model_class, strategy.model_kwargs)
-        self.s_enhancements = [model.s_enhance for model in self.model]
-        self.t_enhancements = [model.t_enhance for model in self.model]
+        models = getattr(self.model, 'models', [self.model])
+        self.s_enhancements = [model.s_enhance for model in models]
+        self.t_enhancements = [model.t_enhance for model in models]
         self.node_index = node_index
         self.chunk_index = None
         self.output_handler_class = None
@@ -148,7 +149,7 @@ class ForwardPass:
             dimensions. Each tuple includes the start and end of padding for
             that dimension. Ordering is spatial_1, spatial_2, temporal.
         exo_data: dict
-            Full exo_kwargs dictionary with all feature entries. See
+            Full exo_handler_kwargs dictionary with all feature entries. See
             :meth:`ForwardPass.run_generator` for more information.
         mode : str
             Mode to use for padding. e.g. 'reflect'.
@@ -305,7 +306,7 @@ class ForwardPass:
             Low resolution data for a single spatiotemporal chunk that is going
             to be passed to the model generate function.
         exo_data : dict | None
-            Full exo_kwargs dictionary with all feature entries. See
+            Full exo_handler_kwargs dictionary with all feature entries. See
             :meth:`ForwardPass.run_generator` for more information.
 
         Returns
