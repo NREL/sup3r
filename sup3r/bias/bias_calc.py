@@ -1,6 +1,10 @@
 """Utilities to calculate the bias correction factors for biased data that is
 going to be fed into the sup3r downscaling models. This is typically used to
-bias correct GCM data vs. some historical record like the WTK or NSRDB."""
+bias correct GCM data vs. some historical record like the WTK or NSRDB.
+
+TODO: Generalize the ``with ProcessPoolExecutor() as exe: ...`` so we don't
+need to duplicate this wherever we kickoff a process or thread pool
+"""
 
 import copy
 import json
