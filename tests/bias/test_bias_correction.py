@@ -526,7 +526,7 @@ def test_fwp_integration():
         fwp = ForwardPass(strat)
         bc_fwp = ForwardPass(bc_strat)
 
-        for ichunk in range(strat.chunks):
+        for ichunk in range(len(strat.node_chunks)):
             bc_chunk = bc_fwp.get_input_chunk(ichunk)
             chunk = fwp.get_input_chunk(ichunk)
             i_scalar = np.expand_dims(scalar, axis=-1)

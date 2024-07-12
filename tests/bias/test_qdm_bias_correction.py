@@ -561,7 +561,7 @@ def test_fwp_integration(tmp_path):
     fwp = ForwardPass(strat)
     bc_fwp = ForwardPass(bc_strat)
 
-    for ichunk in range(strat.chunks):
+    for ichunk in range(len(strat.node_chunks)):
         bc_chunk = bc_fwp.get_input_chunk(ichunk)
         chunk = fwp.get_input_chunk(ichunk)
         delta = bc_chunk.input_data - chunk.input_data

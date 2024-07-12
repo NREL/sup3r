@@ -156,6 +156,13 @@ class ForwardPassStrategy:
     max_nodes : int | None
         Maximum number of nodes to distribute spatiotemporal chunks across. If
         None then a node will be used for each temporal chunk.
+    head_node : bool
+        Whether initialization is taking place on the head node of a multi node
+        job launch. When this is true :class:`ForwardPassStrategy` is only
+        partially initialized to provide the head node enough information for
+        how to distribute jobs across nodes. Preflight tasks like bias
+        correction will be skipped because they will be performed on the nodes
+        jobs are distributed to by the head node.
     """
 
     file_paths: Union[str, list, pathlib.Path]
@@ -175,6 +182,7 @@ class ForwardPassStrategy:
     output_workers: int = 1
     pass_workers: int = 1
     max_nodes: Optional[int] = None
+    head_node: bool = False
 
     @log_args
     def __post_init__(self):
@@ -197,7 +205,6 @@ class ForwardPassStrategy:
         input_handler_kwargs = copy.deepcopy(self.input_handler_kwargs)
         self.time_slice = input_handler_kwargs.pop('time_slice', slice(None))
         self.input_handler = InputHandler(**input_handler_kwargs)
-        self.exo_data = self.load_exo_data(model)
 
         self.hr_lat_lon = self.get_hr_lat_lon()
         grid_shape = self.input_handler.grid_shape
@@ -221,11 +228,15 @@ class ForwardPassStrategy:
             temporal_pad=self.temporal_pad,
         )
 
-        self.chunks = self.fwp_slicer.n_chunks
-        n_chunks = min(self.max_nodes or np.inf, self.chunks)
-        self.node_chunks = np.array_split(np.arange(self.chunks), n_chunks)
+        n_chunks = min(self.max_nodes or np.inf, self.fwp_slicer.n_chunks)
+        self.node_chunks = np.array_split(
+            np.arange(self.fwp_slicer.n_chunks), n_chunks
+        )
         self.out_files = self.get_out_files(out_files=self.out_pattern)
-        self.preflight()
+
+        if not self.head_node:
+            self.exo_data = self.load_exo_data(model)
+            self.preflight()
 
     @property
     def meta(self):
@@ -252,7 +263,7 @@ class ForwardPassStrategy:
             'n_nodes': len(self.node_chunks),
             'n_spatial_chunks': self.fwp_slicer.n_spatial_chunks,
             'n_time_chunks': self.fwp_slicer.n_time_chunks,
-            'n_total_chunks': self.chunks,
+            'n_total_chunks': self.fwp_slicer.n_chunks,
         }
         logger.info(
             f'Chunk strategy description:\n'
@@ -396,7 +407,7 @@ class ForwardPassStrategy:
             'chunk': chunk_index,
             'temporal_chunk': t_chunk_idx,
             'spatial_chunk': s_chunk_idx,
-            'n_node_chunks': self.chunks,
+            'n_node_chunks': self.fwp_slicer.n_chunks,
             'fwp_chunk_shape': self.fwp_chunk_shape,
             'temporal_pad': self.temporal_pad,
             'spatial_pad': self.spatial_pad,
@@ -408,9 +419,9 @@ class ForwardPassStrategy:
 
         msg = (
             f'Requested forward pass on chunk_index={chunk_index} > '
-            f'n_chunks={self.chunks}'
+            f'n_chunks={self.fwp_slicer.n_chunks}'
         )
-        assert chunk_index <= self.chunks, msg
+        assert chunk_index <= self.fwp_slicer.n_chunks, msg
 
         hr_slice = self.hr_slices[s_chunk_idx]
         ti_slice = self.ti_slices[t_chunk_idx]

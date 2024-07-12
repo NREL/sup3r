@@ -363,7 +363,7 @@ def test_fwp_chunking(input_files, plot=False):
             hr_crop
         ]
         fwp = ForwardPass(strat)
-        for i in range(strat.chunks):
+        for i in range(len(strat.node_chunks)):
             _, out = fwp.run_chunk(
                 fwp.get_input_chunk(i, mode='constant'),
                 model_kwargs=strat.model_kwargs,
@@ -608,7 +608,7 @@ def test_slicing_no_pad(input_files):
         )
 
         fwp = ForwardPass(strategy)
-        for i in range(strategy.chunks):
+        for i in range(len(strategy.node_chunks)):
             chunk = fwp.get_input_chunk(i)
             s_idx, t_idx = strategy.get_chunk_indices(i)
             s_slices = strategy.lr_pad_slices[s_idx]
@@ -680,7 +680,7 @@ def test_slicing_pad(input_files):
         assert chunk_lookup[0, 1, 1] == n_s1 * n_s2 + 1
 
         fwp = ForwardPass(strategy)
-        for i in range(strategy.chunks):
+        for i in range(len(strategy.node_chunks)):
             chunk = fwp.get_input_chunk(i, mode='constant')
             s_idx, t_idx = strategy.get_chunk_indices(i)
             s_slices = strategy.lr_pad_slices[s_idx]

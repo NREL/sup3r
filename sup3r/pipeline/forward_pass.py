@@ -17,7 +17,6 @@ from sup3r.postprocessing import (
     OutputHandlerNC,
 )
 from sup3r.preprocessing.utilities import (
-    _compute_if_dask,
     get_source_type,
     lowered,
 )
@@ -121,9 +120,7 @@ class ForwardPass:
     def _pad_input_data(self, input_data, pad_width, mode='reflect'):
         """Pad the edges of the non-exo input data from the data handler."""
 
-        out = _compute_if_dask(
-            np.pad(input_data, (*pad_width, (0, 0)), mode=mode)
-        )
+        out = np.pad(input_data, (*pad_width, (0, 0)), mode=mode)
         msg = (
             f'Using mode="reflect" requires pad_width {pad_width} to be less '
             f'than half the width of the input_data {input_data.shape}. Use a '
@@ -185,12 +182,9 @@ class ForwardPass:
                         (0, 0),
                     )
                     new_exo = np.pad(step['data'], exo_pad_width, mode=mode)
-                    exo_data[feature]['steps'][i]['data'] = _compute_if_dask(
-                        new_exo
-                    )
+                    exo_data[feature]['steps'][i]['data'] = new_exo
                     logger.info(
-                        f'Got exo data for feature {feature} and model '
-                        f'step {i}'
+                        f'Got exo data for feature: {feature}, model step: {i}'
                     )
         return out, exo_data
 
