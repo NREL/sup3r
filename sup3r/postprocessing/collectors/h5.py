@@ -12,7 +12,7 @@ from gaps import Status
 from rex.utilities.loggers import init_logger
 from scipy.spatial import KDTree
 
-from sup3r.postprocessing import RexOutputs
+from sup3r.postprocessing.writers.base import RexOutputs
 
 from .base import BaseCollector
 

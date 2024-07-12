@@ -16,7 +16,7 @@ from rex.utilities.fun_utils import get_fun_call_str
 from rex.utilities.loggers import init_logger
 from scipy.spatial import KDTree
 
-from sup3r.postprocessing import OutputMixin, RexOutputs
+from sup3r.postprocessing.writers.base import OutputMixin, RexOutputs
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
 
@@ -57,7 +57,7 @@ class BaseCollector(OutputMixin, ABC):
             run data collection.
         """
         import_str = (
-            'from sup3r.postprocessing.collection '
+            'from sup3r.postprocessing.collectors '
             f'import {cls.__name__};\n'
             'from rex import init_logger;\n'
             'import time;\n'

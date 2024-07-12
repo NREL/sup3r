@@ -256,7 +256,7 @@ def data_collect(ctx, verbose):
 
     A sup3r data-collect config.json file can contain any arguments or keyword
     arguments required to run the
-    :meth:`sup3r.postprocessing.collection.Collector.collect` method. The
+    :meth:`sup3r.postprocessing.collectors.Collector.collect` method. The
     config also has several optional arguments: ``log_file``, ``log_level``,
     and ``execution_control``. Here's a small example data-collect config::
 
