@@ -46,19 +46,21 @@ class ForwardPass:
         strategy : ForwardPassStrategy
             ForwardPassStrategy instance with information on data chunks to run
             forward passes on.
-        chunk_index : int
-            Index used to select spatiotemporal chunk on which to run
-            forward pass.
         node_index : int
             Index of node used to run forward pass
         """
         self.strategy = strategy
-        self.model = get_model(strategy.model_class, strategy.model_kwargs)
+        self.allowed_const = strategy.allowed_const
+        self.output_workers = strategy.output_workers
+        self.model_class = strategy.model_class
+        self.model_kwargs = strategy.model_kwargs
+        self.model = get_model(self.model_class, self.model_kwargs)
+        self.node_index = node_index
+
         models = getattr(self.model, 'models', [self.model])
         self.s_enhancements = [model.s_enhance for model in models]
         self.t_enhancements = [model.t_enhance for model in models]
-        self.node_index = node_index
-        self.chunk_index = None
+
         output_type = get_source_type(strategy.out_pattern)
         msg = f'Received bad output type {output_type}'
         assert output_type is None or output_type in list(

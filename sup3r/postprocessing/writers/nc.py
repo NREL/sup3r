@@ -57,17 +57,11 @@ class OutputHandlerNC(OutputHandler):
         """
         coords = {
             Dimension.TIME: times,
-            Dimension.LATITUDE: (
-                Dimension.spatial_2d(),
-                lat_lon[:, :, 0].astype(np.float32),
-            ),
-            Dimension.LONGITUDE: (
-                Dimension.spatial_2d(),
-                lat_lon[:, :, 1].astype(np.float32),
-            ),
+            Dimension.LATITUDE: (Dimension.spatial_2d(), lat_lon[:, :, 0]),
+            Dimension.LONGITUDE: (Dimension.spatial_2d(), lat_lon[:, :, 1]),
         }
 
-        data_vars = {}
+        data_vars = {'gids': (Dimension.spatial_2d(), gids)}
         for i, f in enumerate(features):
             data_vars[f] = (
                 Dimension.dims_3d(),
@@ -84,7 +78,6 @@ class OutputHandlerNC(OutputHandler):
         attrs['date_modified'] = dt.utcnow().isoformat()
         if 'date_created' not in attrs:
             attrs['date_created'] = attrs['date_modified']
-            attrs['gids'] = gids
 
         return xr.Dataset(data_vars=data_vars, coords=coords, attrs=attrs)
 
@@ -135,19 +128,3 @@ class OutputHandlerNC(OutputHandler):
             gids=gids,
         ).to_netcdf(out_file)
         logger.info(f'Saved output of size {data.shape} to: {out_file}')
-
-    @classmethod
-    def combine_file(cls, files, outfile):
-        """Combine all chunked output files from ForwardPass into a single file
-
-        Parameters
-        ----------
-        files : list
-            List of chunked output files from ForwardPass runs
-        outfile : str
-            Output file name for combined file
-        """
-        time_key = cls.get_time_dim_name(files[0])
-        ds = xr.open_mfdataset(files, combine='nested', concat_dim=time_key)
-        ds.to_netcdf(outfile)
-        logger.info(f'Saved combined file: {outfile}')
