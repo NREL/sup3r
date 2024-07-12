@@ -285,7 +285,6 @@ def test_fwp_handler(input_files):
             fwp.model_kwargs,
             fwp.model_class,
             fwp.allowed_const,
-            fwp.output_handler_class,
             fwp.meta,
             fwp.output_workers,
         )
@@ -370,7 +369,6 @@ def test_fwp_chunking(input_files, plot=False):
                 fwp.model_kwargs,
                 fwp.model_class,
                 fwp.allowed_const,
-                fwp.output_handler_class,
                 fwp.meta,
                 fwp.output_workers,
             )
@@ -464,7 +462,6 @@ def test_fwp_nochunking(input_files):
             fwp.model_kwargs,
             fwp.model_class,
             fwp.allowed_const,
-            fwp.output_handler_class,
             fwp.meta,
             fwp.output_workers,
         )
@@ -542,7 +539,6 @@ def test_fwp_multi_step_model(input_files):
             fwp.model_kwargs,
             fwp.model_class,
             fwp.allowed_const,
-            fwp.output_handler_class,
             fwp.meta,
             fwp.output_workers,
         )

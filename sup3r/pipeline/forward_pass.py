@@ -59,12 +59,11 @@ class ForwardPass:
         self.t_enhancements = [model.t_enhance for model in models]
         self.node_index = node_index
         self.chunk_index = None
-        self.output_handler_class = None
         output_type = get_source_type(strategy.out_pattern)
         msg = f'Received bad output type {output_type}'
-        if output_type is not None:
-            assert output_type in list(self.OUTPUT_HANDLER_CLASS), msg
-            self.output_handler_class = self.OUTPUT_HANDLER_CLASS[output_type]
+        assert output_type is None or output_type in list(
+            self.OUTPUT_HANDLER_CLASS
+        ), msg
 
     def get_input_chunk(self, chunk_index=0, mode='reflect'):
         """Get :class:`FowardPassChunk` instance for the given chunk index."""
@@ -82,27 +81,11 @@ class ForwardPass:
         meta_data = {
             'node_index': self.node_index,
             'creation_date': dt.now().strftime('%d/%m/%Y %H:%M:%S'),
-            'fwp_chunk_shape': self.strategy.fwp_chunk_shape,
-            'spatial_pad': self.strategy.spatial_pad,
-            'temporal_pad': self.strategy.temporal_pad,
             'gan_meta': self.model.meta,
             'gan_params': self.model.model_params,
-            'model_kwargs': self.model_kwargs,
-            'model_class': self.model_class,
-            'spatial_enhance': int(self.s_enhance),
-            'temporal_enhance': int(self.t_enhance),
-            'input_files': self.file_paths,
-            'input_features': self.features,
-            'output_features': self.output_features,
+            **self.strategy.meta,
         }
         return meta_data
-
-    def __getattr__(self, attr):
-        """Get attributes from :class:`ForwardPassStrategy` instance if not
-        available in self."""
-        if attr in dir(self):
-            return self.__getattribute__(attr)
-        return getattr(self.strategy, attr)
 
     def _get_step_enhance(self, step):
         """Get enhancement factors for a given step and combine type.
@@ -487,9 +470,8 @@ class ForwardPass:
                     model_kwargs=fwp.model_kwargs,
                     model_class=fwp.model_class,
                     allowed_const=fwp.allowed_const,
-                    output_handler_class=fwp.output_handler_class,
-                    meta=fwp.meta,
                     output_workers=fwp.output_workers,
+                    meta=fwp.meta,
                 )
                 mem = psutil.virtual_memory()
                 logger.info(
@@ -554,9 +536,8 @@ class ForwardPass:
                         model_kwargs=fwp.model_kwargs,
                         model_class=fwp.model_class,
                         allowed_const=fwp.allowed_const,
-                        output_handler_class=fwp.output_handler_class,
-                        meta=fwp.meta,
                         output_workers=fwp.output_workers,
+                        meta=fwp.meta,
                     )
                     futures[fut] = {
                         'chunk_index': chunk_index,
@@ -609,7 +590,6 @@ class ForwardPass:
         model_kwargs,
         model_class,
         allowed_const,
-        output_handler_class,
         meta=None,
         output_workers=None,
     ):
@@ -634,8 +614,6 @@ class ForwardPass:
             True to allow any constant output or a list of allowed possible
             constant outputs. See :class:`ForwardPassStrategy` for more
             information on this argument.
-        output_handler_class : str
-            Name of class to use for writing output
         meta : dict | None
             Meta data to write to forward pass output file.
         output_workers : int | None
@@ -669,7 +647,8 @@ class ForwardPass:
 
         if chunk.out_file is not None and not failed:
             logger.info(f'Saving forward pass output to {chunk.out_file}.')
-            output_handler_class._write_output(
+            output_type = get_source_type(chunk.out_file)
+            cls.OUTPUT_HANDLER_CLASS[output_type]._write_output(
                 data=output_data,
                 features=lowered(model.hr_out_features),
                 lat_lon=chunk.hr_lat_lon,

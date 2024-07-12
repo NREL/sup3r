@@ -577,7 +577,6 @@ def test_fwp_integration(tmp_path):
             fwp.model_kwargs,
             fwp.model_class,
             fwp.allowed_const,
-            fwp.output_handler_class,
             fwp.meta,
             fwp.output_workers,
         )
@@ -586,7 +585,6 @@ def test_fwp_integration(tmp_path):
             bc_fwp.model_kwargs,
             bc_fwp.model_class,
             bc_fwp.allowed_const,
-            bc_fwp.output_handler_class,
             bc_fwp.meta,
             bc_fwp.output_workers,
         )

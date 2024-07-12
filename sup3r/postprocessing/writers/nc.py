@@ -22,7 +22,16 @@ class OutputHandlerNC(OutputHandler):
 
     # pylint: disable=W0613
     @classmethod
-    def _get_xr_dset(cls, data, features, lat_lon, times, meta_data=None):
+    def _get_xr_dset(
+        cls,
+        data,
+        features,
+        lat_lon,
+        times,
+        meta_data=None,
+        max_workers=None,  # noqa: ARG003
+        gids=None,
+    ):
         """Convert data to xarray Dataset() object.
 
         Parameters
@@ -40,6 +49,11 @@ class OutputHandlerNC(OutputHandler):
             List of times for high res output data
         meta_data : dict | None
             Dictionary of meta data from model
+        max_workers: None | int
+            Has no effect. Compliance with parent signature.
+        gids : list
+            List of coordinate indices used to label each lat lon pair and to
+            help with spatial chunk data collection
         """
         coords = {
             Dimension.TIME: times,
@@ -70,10 +84,10 @@ class OutputHandlerNC(OutputHandler):
         attrs['date_modified'] = dt.utcnow().isoformat()
         if 'date_created' not in attrs:
             attrs['date_created'] = attrs['date_modified']
+            attrs['gids'] = gids
 
         return xr.Dataset(data_vars=data_vars, coords=coords, attrs=attrs)
 
-    # pylint: disable=W0613
     @classmethod
     def _write_output(
         cls,
@@ -117,6 +131,8 @@ class OutputHandlerNC(OutputHandler):
             features=features,
             times=times,
             meta_data=meta_data,
+            max_workers=max_workers,
+            gids=gids,
         ).to_netcdf(out_file)
         logger.info(f'Saved output of size {data.shape} to: {out_file}')
 

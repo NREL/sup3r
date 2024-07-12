@@ -232,6 +232,24 @@ class ForwardPassStrategy:
         self.out_files = self.get_out_files(out_files=self.out_pattern)
         self.preflight()
 
+    @property
+    def meta(self):
+        """Meta data dictionary for the strategy. Used to add info to forward
+        pass output meta."""
+        meta_data = {
+            'fwp_chunk_shape': self.fwp_chunk_shape,
+            'spatial_pad': self.spatial_pad,
+            'temporal_pad': self.temporal_pad,
+            'model_kwargs': self.model_kwargs,
+            'model_class': self.model_class,
+            'spatial_enhance': int(self.s_enhance),
+            'temporal_enhance': int(self.t_enhance),
+            'input_files': self.file_paths,
+            'input_features': self.features,
+            'output_features': self.output_features,
+        }
+        return meta_data
+
     def preflight(self):
         """Prelight logging and sanity checks"""
 
