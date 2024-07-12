@@ -574,19 +574,19 @@ def test_fwp_integration(tmp_path):
 
         _, data = fwp.run_chunk(
             fwp.get_input_chunk(chunk_index=ichunk),
-            fwp.model_kwargs,
-            fwp.model_class,
-            fwp.allowed_const,
-            fwp.meta,
-            fwp.output_workers,
+            model_kwargs=strat.model_kwargs,
+            model_class=strat.model_class,
+            allowed_const=strat.allowed_const,
+            output_workers=strat.output_workers,
+            meta=fwp.meta,
         )
         _, bc_data = bc_fwp.run_chunk(
             bc_fwp.get_input_chunk(chunk_index=ichunk),
-            bc_fwp.model_kwargs,
-            bc_fwp.model_class,
-            bc_fwp.allowed_const,
-            bc_fwp.meta,
-            bc_fwp.output_workers,
+            model_kwargs=strat.model_kwargs,
+            model_class=strat.model_class,
+            allowed_const=strat.allowed_const,
+            output_workers=strat.output_workers,
+            meta=bc_fwp.meta,
         )
         delta = bc_data - data
         assert delta[..., 0].mean() < 0, 'Predicted U should trend <0'

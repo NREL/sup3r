@@ -151,9 +151,9 @@ class Sup3rQa:
     def __enter__(self):
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, exc_type, exc_value, traceback):
         self.close()
-        if type is not None:
+        if exc_type is not None:
             raise
 
     def close(self):
@@ -170,7 +170,7 @@ class Sup3rQa:
         list
         """
         # all lower case
-        ignore = ('meta', 'time_index')
+        ignore = ('meta', 'time_index', 'gids')
 
         if self._features is None or self._features == [None]:
             if self.output_type == 'nc':

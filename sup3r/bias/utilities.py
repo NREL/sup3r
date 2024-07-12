@@ -175,7 +175,7 @@ def bias_correct_feature(
 
     Parameters
     ----------
-    source_feature : str | list
+    source_feature : str
         The source feature name corresponding to the output feature name
     input_handler : DataHandler
         DataHandler storing raw input data previously used as input for
@@ -233,3 +233,29 @@ def bias_correct_feature(
 
         data = bc_method(data, input_handler.lat_lon, **feature_kwargs)
     return data
+
+
+def bias_correct_features(
+    features,
+    input_handler,
+    bc_method,
+    bc_kwargs,
+    time_slice=None,
+):
+    """Bias correct all feature data using a method defined by the
+    bias_correct_method input to :class:`ForwardPassStrategy`
+
+    See Also
+    --------
+    :func:`bias_correct_feature`
+    """
+
+    for feat in features:
+        input_handler.data[feat, ..., time_slice] = bias_correct_feature(
+            source_feature=feat,
+            input_handler=input_handler,
+            time_slice=time_slice,
+            bc_method=bc_method,
+            bc_kwargs=bc_kwargs,
+        )
+    return input_handler

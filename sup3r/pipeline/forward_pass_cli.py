@@ -71,7 +71,7 @@ def from_config(ctx, config_file, verbose=False, pipeline_step=None):
             [node_index] if not isinstance(node_index, list) else node_index
         )
     else:
-        nodes = range(strategy.nodes)
+        nodes = range(len(strategy.node_chunks))
     for i_node in nodes:
         node_config = copy.deepcopy(config)
         node_config['node_index'] = i_node

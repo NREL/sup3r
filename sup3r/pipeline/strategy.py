@@ -13,7 +13,7 @@ from typing import Dict, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 
-from sup3r.bias.utilities import bias_correct_feature
+from sup3r.bias.utilities import bias_correct_features
 from sup3r.pipeline.slicer import ForwardPassSlicer
 from sup3r.pipeline.utilities import get_model
 from sup3r.postprocessing import OutputHandler
@@ -47,9 +47,6 @@ class ForwardPassChunk:
 
     def __post_init__(self):
         self.shape = self.input_data.shape
-        self.file_exists = self.out_file is not None and os.path.exists(
-            self.out_file
-        )
 
 
 @dataclass
@@ -163,9 +160,9 @@ class ForwardPassStrategy:
 
     file_paths: Union[str, list, pathlib.Path]
     model_kwargs: dict
-    fwp_chunk_shape: tuple
-    spatial_pad: int
-    temporal_pad: int
+    fwp_chunk_shape: tuple = (None, None, None)
+    spatial_pad: int = 0
+    temporal_pad: int = 0
     model_class: str = 'Sup3rGan'
     out_pattern: Optional[str] = None
     input_handler_name: Optional[str] = None
@@ -181,37 +178,40 @@ class ForwardPassStrategy:
 
     @log_args
     def __post_init__(self):
-
         self.file_paths = expand_paths(self.file_paths)
         self.exo_handler_kwargs = self.exo_handler_kwargs or {}
         self.input_handler_kwargs = self.input_handler_kwargs or {}
         self.bias_correct_kwargs = self.bias_correct_kwargs or {}
 
         model = get_model(self.model_class, self.model_kwargs)
-        self.s_enhance = model.s_enhance
-        self.t_enhance = model.t_enhance
+        self.s_enhance, self.t_enhance = model.s_enhance, model.t_enhance
         self.input_features = model.lr_features
         self.output_features = model.hr_out_features
         self.exo_features = list(self.exo_handler_kwargs)
-        self.features = [
-            f for f in self.input_features if f not in self.exo_features
-        ]
+        features = [f for f in model.lr_features if f not in self.exo_features]
+        self.features = features
 
-        self.input_handler_kwargs.update(
-            {'file_paths': self.file_paths, 'features': self.features}
-        )
+        InputHandler = get_input_handler_class(self.input_handler_name)
+        self.input_handler_kwargs['file_paths'] = self.file_paths
+        self.input_handler_kwargs['features'] = self.features
         input_handler_kwargs = copy.deepcopy(self.input_handler_kwargs)
         self.time_slice = input_handler_kwargs.pop('time_slice', slice(None))
-        InputHandler = get_input_handler_class(self.input_handler_name)
         self.input_handler = InputHandler(**input_handler_kwargs)
         self.exo_data = self.load_exo_data(model)
-        self.hr_lat_lon = self.get_hr_lat_lon()
-        self.gids = np.arange(np.prod(self.hr_lat_lon.shape[:-1])).reshape(
-            self.hr_lat_lon.shape[:-1]
-        )
 
+        self.hr_lat_lon = self.get_hr_lat_lon()
+        grid_shape = self.input_handler.grid_shape
+        hr_grid_shape = self.hr_lat_lon.shape[:-1]
+        self.gids = np.arange(np.prod(hr_grid_shape)).reshape(hr_grid_shape)
+        full_fwp_shape = (
+            *grid_shape,
+            len(self.input_handler.time_index[self.time_slice]),
+        )
+        self.fwp_chunk_shape = tuple(
+            fs or ffs for fs, ffs in zip(self.fwp_chunk_shape, full_fwp_shape)
+        )
         self.fwp_slicer = ForwardPassSlicer(
-            coarse_shape=self.input_handler.lat_lon.shape[:-1],
+            coarse_shape=grid_shape,
             time_steps=len(self.input_handler.time_index),
             time_slice=self.time_slice,
             chunk_shape=self.fwp_chunk_shape,
@@ -222,13 +222,8 @@ class ForwardPassStrategy:
         )
 
         self.chunks = self.fwp_slicer.n_chunks
-        n_chunks = (
-            self.chunks
-            if self.max_nodes is None
-            else min(self.max_nodes, self.chunks)
-        )
+        n_chunks = min(self.max_nodes or np.inf, self.chunks)
         self.node_chunks = np.array_split(np.arange(self.chunks), n_chunks)
-        self.nodes = len(self.node_chunks)
         self.out_files = self.get_out_files(out_files=self.out_pattern)
         self.preflight()
 
@@ -254,7 +249,7 @@ class ForwardPassStrategy:
         """Prelight logging and sanity checks"""
 
         log_dict = {
-            'n_nodes': self.nodes,
+            'n_nodes': len(self.node_chunks),
             'n_spatial_chunks': self.fwp_slicer.n_spatial_chunks,
             'n_time_chunks': self.fwp_slicer.n_time_chunks,
             'n_total_chunks': self.chunks,
@@ -267,16 +262,14 @@ class ForwardPassStrategy:
         out = self.fwp_slicer.get_time_slices()
         self.ti_slices, self.ti_pad_slices = out
 
+        fwp_tsteps = self.fwp_chunk_shape[2] + 2 * self.temporal_pad
+        tsteps = len(self.input_handler.time_index[self.time_slice])
         msg = (
-            'Using a padded chunk size '
-            f'({self.fwp_chunk_shape[2] + 2 * self.temporal_pad}) '
-            'larger than the full temporal domain '
-            f'({len(self.input_handler.time_index)}). '
-            'Should just run without temporal chunking. '
+            f'Using a padded chunk size ({fwp_tsteps}) larger than the full '
+            f'temporal domain ({tsteps}). Should just run without temporal '
+            'chunking. '
         )
-        if self.fwp_chunk_shape[2] + 2 * self.temporal_pad >= len(
-            self.input_handler.time_index
-        ):
+        if fwp_tsteps > tsteps:
             logger.warning(msg)
             warnings.warn(msg)
         out = self.fwp_slicer.get_spatial_slices()
@@ -286,16 +279,13 @@ class ForwardPassStrategy:
             padded_tslice = slice(
                 self.ti_pad_slices[0].start, self.ti_pad_slices[-1].stop
             )
-            for feat in self.bias_correct_kwargs:
-                self.input_handler.data[feat, ..., padded_tslice] = (
-                    bias_correct_feature(
-                        feat,
-                        input_handler=self.input_handler,
-                        time_slice=padded_tslice,
-                        bc_method=self.bias_correct_method,
-                        bc_kwargs=self.bias_correct_kwargs,
-                    )
-                )
+            self.input_handler = bias_correct_features(
+                features=list(self.bias_correct_kwargs),
+                input_handler=self.input_handler,
+                time_slice=padded_tslice,
+                bc_method=self.bias_correct_method,
+                bc_kwargs=self.bias_correct_kwargs,
+            )
 
     def get_chunk_indices(self, chunk_index):
         """Get (spatial, temporal) indices for the given chunk index"""
@@ -476,12 +466,8 @@ class ForwardPassStrategy:
                 input_handler_kwargs = exo_kwargs.get(
                     'input_handler_kwargs', {}
                 )
-                input_handler_kwargs.update(
-                    {
-                        'target': self.input_handler.target,
-                        'shape': self.input_handler.grid_shape,
-                    }
-                )
+                input_handler_kwargs['target'] = self.input_handler.target
+                input_handler_kwargs['shape'] = self.input_handler.grid_shape
                 exo_kwargs['input_handler_kwargs'] = input_handler_kwargs
                 data.update(
                     ExoDataHandler(
@@ -500,10 +486,10 @@ class ForwardPassStrategy:
             Index of node to check for completed processes
         """
         return all(
-            self._chunk_finished(i) for i in self.node_chunks[node_index]
+            self.chunk_finished(i) for i in self.node_chunks[node_index]
         )
 
-    def _chunk_finished(self, chunk_index):
+    def chunk_finished(self, chunk_index):
         """Check if process for given chunk_index has already been run.
 
         Parameters
@@ -514,10 +500,10 @@ class ForwardPassStrategy:
             False.
         """
         out_file = self.out_files[chunk_index]
-        if os.path.exists(out_file) and self.incremental:
+        check = os.path.exists(out_file) and self.incremental
+        if check:
             logger.info(
-                f'Not running chunk index {chunk_index}, output file exists: '
-                f'{out_file}'
+                f'{out_file} already exists and incremental = True. '
+                f'Skipping forward pass for chunk index {chunk_index}.'
             )
-            return True
-        return False
+        return check

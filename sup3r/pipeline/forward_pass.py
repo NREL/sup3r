@@ -50,11 +50,7 @@ class ForwardPass:
             Index of node used to run forward pass
         """
         self.strategy = strategy
-        self.allowed_const = strategy.allowed_const
-        self.output_workers = strategy.output_workers
-        self.model_class = strategy.model_class
-        self.model_kwargs = strategy.model_kwargs
-        self.model = get_model(self.model_class, self.model_kwargs)
+        self.model = get_model(strategy.model_class, strategy.model_kwargs)
         self.node_index = node_index
 
         models = getattr(self.model, 'models', [self.model])
@@ -455,24 +451,19 @@ class ForwardPass:
 
         start = dt.now()
         logger.debug(
-            f'Running forward passes on node {node_index} in ' 'serial.'
+            f'Running forward passes on node {node_index} in serial.'
         )
         fwp = cls(strategy, node_index=node_index)
         for i, chunk_index in enumerate(strategy.node_chunks[node_index]):
             now = dt.now()
-            chunk = fwp.get_input_chunk(chunk_index=chunk_index)
-            if strategy.incremental and chunk.file_exists:
-                logger.info(
-                    f'{chunk.out_file} already exists and '
-                    'incremental = True. Skipping this forward pass.'
-                )
-            else:
+            if not strategy.chunk_finished(chunk_index):
+                chunk = fwp.get_input_chunk(chunk_index=chunk_index)
                 failed, _ = cls.run_chunk(
                     chunk=chunk,
-                    model_kwargs=fwp.model_kwargs,
-                    model_class=fwp.model_class,
-                    allowed_const=fwp.allowed_const,
-                    output_workers=fwp.output_workers,
+                    model_kwargs=strategy.model_kwargs,
+                    model_class=strategy.model_class,
+                    allowed_const=strategy.allowed_const,
+                    output_workers=strategy.output_workers,
                     meta=fwp.meta,
                 )
                 mem = psutil.virtual_memory()
@@ -524,21 +515,15 @@ class ForwardPass:
         with SpawnProcessPool(**pool_kws) as exe:
             now = dt.now()
             for _i, chunk_index in enumerate(strategy.node_chunks[node_index]):
-                chunk = fwp.get_input_chunk(chunk_index=chunk_index)
-                if strategy.incremental and chunk.file_exists:
-                    logger.info(
-                        f'{chunk.out_file} already exists and '
-                        'incremental = True. Skipping this forward '
-                        'pass.'
-                    )
-                else:
+                if not strategy.chunk_finished(chunk_index):
+                    chunk = fwp.get_input_chunk(chunk_index=chunk_index)
                     fut = exe.submit(
                         fwp.run_chunk,
                         chunk=chunk,
-                        model_kwargs=fwp.model_kwargs,
-                        model_class=fwp.model_class,
-                        allowed_const=fwp.allowed_const,
-                        output_workers=fwp.output_workers,
+                        model_kwargs=strategy.model_kwargs,
+                        model_class=strategy.model_class,
+                        allowed_const=strategy.allowed_const,
+                        output_workers=strategy.output_workers,
                         meta=fwp.meta,
                     )
                     futures[fut] = {

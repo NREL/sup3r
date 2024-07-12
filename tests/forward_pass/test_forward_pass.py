@@ -39,7 +39,8 @@ def input_files(tmpdir_factory):
 
 
 def test_fwp_nc_cc():
-    """Test forward pass handler output for netcdf write with cc data."""
+    """Test forward pass handler output for netcdf write with cc data. Also
+    tests default fwp_chunk_shape"""
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
@@ -62,10 +63,9 @@ def test_fwp_nc_cc():
         # 1st forward pass
         strat = ForwardPassStrategy(
             pytest.FPS_GCM,
-            model_kwargs={'model_dir': out_dir},
-            fwp_chunk_shape=fwp_chunk_shape,
+            fwp_chunk_shape=(*fwp_chunk_shape[:-1], None),
             spatial_pad=1,
-            temporal_pad=1,
+            model_kwargs={'model_dir': out_dir},
             input_handler_kwargs={
                 'target': target,
                 'shape': shape,
@@ -125,8 +125,8 @@ def test_fwp_spatial_only(input_files):
             output_workers=1,
         )
         forward_pass = ForwardPass(strat)
-        assert forward_pass.output_workers == 1
-        assert forward_pass.pass_workers == 1
+        assert strat.output_workers == 1
+        assert strat.pass_workers == 1
         forward_pass.run(strat, node_index=0)
 
         with xr.open_dataset(strat.out_files[0]) as fh:
@@ -281,12 +281,12 @@ def test_fwp_handler(input_files):
         fwp = ForwardPass(strat)
 
         _, data = fwp.run_chunk(
-            fwp.get_input_chunk(chunk_index=0),
-            fwp.model_kwargs,
-            fwp.model_class,
-            fwp.allowed_const,
-            fwp.meta,
-            fwp.output_workers,
+            chunk=fwp.get_input_chunk(chunk_index=0),
+            model_kwargs=strat.model_kwargs,
+            model_class=strat.model_class,
+            allowed_const=strat.allowed_const,
+            output_workers=strat.output_workers,
+            meta=fwp.meta,
         )
 
         raw_tsteps = len(xr.open_dataset(input_files)[Dimension.TIME])
@@ -366,11 +366,11 @@ def test_fwp_chunking(input_files, plot=False):
         for i in range(strat.chunks):
             _, out = fwp.run_chunk(
                 fwp.get_input_chunk(i, mode='constant'),
-                fwp.model_kwargs,
-                fwp.model_class,
-                fwp.allowed_const,
-                fwp.meta,
-                fwp.output_workers,
+                model_kwargs=strat.model_kwargs,
+                model_class=strat.model_class,
+                allowed_const=strat.allowed_const,
+                output_workers=strat.output_workers,
+                meta=fwp.meta,
             )
             s_chunk_idx, t_chunk_idx = fwp.strategy.get_chunk_indices(i)
             ti_slice = fwp.strategy.ti_slices[t_chunk_idx]
@@ -459,11 +459,11 @@ def test_fwp_nochunking(input_files):
         fwp = ForwardPass(strat)
         _, data_chunked = fwp.run_chunk(
             fwp.get_input_chunk(chunk_index=0),
-            fwp.model_kwargs,
-            fwp.model_class,
-            fwp.allowed_const,
-            fwp.meta,
-            fwp.output_workers,
+            model_kwargs=strat.model_kwargs,
+            model_class=strat.model_class,
+            allowed_const=strat.allowed_const,
+            output_workers=strat.output_workers,
+            meta=fwp.meta,
         )
 
         handlerNC = DataHandlerNC(
@@ -536,11 +536,11 @@ def test_fwp_multi_step_model(input_files):
 
         _, _ = fwp.run_chunk(
             fwp.get_input_chunk(chunk_index=0),
-            fwp.model_kwargs,
-            fwp.model_class,
-            fwp.allowed_const,
-            fwp.meta,
-            fwp.output_workers,
+            model_kwargs=strat.model_kwargs,
+            model_class=strat.model_class,
+            allowed_const=strat.allowed_const,
+            output_workers=strat.output_workers,
+            meta=fwp.meta,
         )
 
         with ResourceX(strat.out_files[0]) as fh:
