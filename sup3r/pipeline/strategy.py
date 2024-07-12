@@ -397,9 +397,12 @@ class ForwardPassStrategy:
             'temporal_chunk': t_chunk_idx,
             'spatial_chunk': s_chunk_idx,
             'n_node_chunks': self.chunks,
+            'fwp_chunk_shape': self.fwp_chunk_shape,
+            'temporal_pad': self.temporal_pad,
+            'spatial_pad': self.spatial_pad,
         }
         logger.info(
-            'Initializing ForwardPass with: '
+            'Initializing ForwardPassChunk with: '
             f'{pprint.pformat(args_dict, indent=2)}'
         )
 

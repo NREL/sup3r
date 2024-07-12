@@ -17,6 +17,7 @@ from sup3r.postprocessing import (
     OutputHandlerNC,
 )
 from sup3r.preprocessing.utilities import (
+    _compute_if_dask,
     get_source_type,
     lowered,
 )
@@ -117,6 +118,29 @@ class ForwardPass:
             t_enhance = np.prod(self.t_enhancements[: model_step + 1])
         return s_enhance, t_enhance
 
+    def _pad_input_data(self, input_data, pad_width, mode='reflect'):
+        """Pad the edges of the non-exo input data from the data handler."""
+
+        out = _compute_if_dask(
+            np.pad(input_data, (*pad_width, (0, 0)), mode=mode)
+        )
+        msg = (
+            f'Using mode="reflect" requires pad_width {pad_width} to be less '
+            f'than half the width of the input_data {input_data.shape}. Use a '
+            'larger chunk size or a different padding mode.'
+        )
+        if mode == 'reflect':
+            assert all(
+                dw / 2 > pw[0] and dw / 2 > pw[1]
+                for dw, pw in zip(input_data.shape[:-1], pad_width)
+            ), msg
+
+        logger.info(
+            f'Padded input data shape from {input_data.shape} to {out.shape} '
+            f'using mode "{mode}" with padding argument: {pad_width}'
+        )
+        return out
+
     def pad_source_data(self, input_data, pad_width, exo_data, mode='reflect'):
         """Pad the edges of the source data from the data handler.
 
@@ -145,24 +169,7 @@ class ForwardPass:
             step entry for all features
 
         """
-        out = np.pad(input_data, (*pad_width, (0, 0)), mode=mode)
-        msg = (
-            f'Using mode="reflect" requires pad_width {pad_width} to be less '
-            f'than half the width of the input_data {input_data.shape}. Use a '
-            'larger chunk size or a different padding mode.'
-        )
-        if mode == 'reflect':
-            assert all(
-                dw / 2 > pw[0] and dw / 2 > pw[1]
-                for dw, pw in zip(input_data.shape[:-1], pad_width)
-            ), msg
-
-        logger.info(
-            'Padded input data shape from {} to {} using mode "{}" '
-            'with padding argument: {}'.format(
-                input_data.shape, out.shape, mode, pad_width
-            )
-        )
+        out = self._pad_input_data(input_data, pad_width, mode=mode)
 
         if exo_data is not None:
             for feature in exo_data:
@@ -178,7 +185,13 @@ class ForwardPass:
                         (0, 0),
                     )
                     new_exo = np.pad(step['data'], exo_pad_width, mode=mode)
-                    exo_data[feature]['steps'][i]['data'] = new_exo
+                    exo_data[feature]['steps'][i]['data'] = _compute_if_dask(
+                        new_exo
+                    )
+                    logger.info(
+                        f'Got exo data for feature {feature} and model '
+                        f'step {i}'
+                    )
         return out, exo_data
 
     @classmethod
@@ -450,9 +463,7 @@ class ForwardPass:
         """
 
         start = dt.now()
-        logger.debug(
-            f'Running forward passes on node {node_index} in serial.'
-        )
+        logger.debug(f'Running forward passes on node {node_index} in serial.')
         fwp = cls(strategy, node_index=node_index)
         for i, chunk_index in enumerate(strategy.node_chunks[node_index]):
             now = dt.now()

@@ -4,6 +4,7 @@ import logging
 
 import click
 from gaps import Pipeline
+from rex import init_logger
 
 from sup3r import __version__
 from sup3r.batch.batch_cli import from_config as batch_cli
@@ -62,6 +63,7 @@ def main(ctx, config_file, verbose):
     See the help pages of the module CLIs for more details on the config files
     for each CLI.
     """
+    init_logger('gaps', log_level=('DEBUG' if verbose else 'INFO'))
     ctx.ensure_object(dict)
     ctx.obj['CONFIG_FILE'] = config_file
     ctx.obj['VERBOSE'] = verbose
