@@ -663,6 +663,10 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
                                                           np.nan,
                                                           np.float32)
         shape = (*self.bias_gid_raster.shape, 12)
+        self.out[f'{self.bias_feature}_K_factor'] = np.full(
+            shape, np.nan, np.float32)
+        self.out[f'{self.bias_feature}_mean_change_rate'] = np.full(
+            shape, np.nan, np.float32)
         self.out[f'{self.bias_feature}_mean_mh'] = np.full(shape,
                                                            np.nan,
                                                            np.float32)
@@ -700,7 +704,7 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         ATTENTION: This should be refactored. There is too much redundancy in
         the code. Let's make it work first, and optimize later.
         """
-        base_data, _ = cls.get_base_data(
+        base_data, base_ti = cls.get_base_data(
             base_fps,
             base_dset,
             base_gid,
@@ -731,6 +735,7 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
             log_base=log_base
         )
         corrected_fut_data = QDM(bias_fut_data[:, np.newaxis]).flatten()
+
         # -----------------------------------------------------------
         # Dirty implementation of zero-rate
         # Just a proof of concept. Let's leave to refactor it after
@@ -799,11 +804,29 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
             zero_rate_threshold,
         )
 
-        # Let's save the means for mh and mf instead of the `x` ratio. It
+
+
+        # ---- Dirty implementation of K factor. Proof of concept ----
+        # Let's save the means for mhmf = np.full(12, np.nan, np.float32) and mf instead of the `x` ratio. It
         # seems that we should be able to simplify the mh component from
         # the `K` coefficient.
         # TODO: For now it is monthly but later it will be modified to a
         # generic time window.
+
+
+        k = np.full(12, np.nan, np.float32)
+        for m in range(1,13):
+            oh = base_data[base_ti.month == m].mean()
+            mh = bias_data[bias_ti.month == m].mean()
+            mf = bias_fut_data[bias_fut_ti.month == m].mean()
+            mf_unbiased = corrected_fut_data[bias_fut_ti.month == m].mean()
+
+            x = mf / mh
+            x_hat = mf_unbiased / oh
+            k[m-1] = x / x_hat
+
+        out[f'{bias_feature}_K_factor'] = k
+
         mh = np.full(12, np.nan, np.float32)
         mf = np.full(12, np.nan, np.float32)
         for m in range(12):
