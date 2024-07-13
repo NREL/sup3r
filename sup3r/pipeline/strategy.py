@@ -53,9 +53,6 @@ class ForwardPassChunk:
 class ForwardPassStrategy:
     """Class to prepare data for forward passes through generator.
 
-    TODO: (1) Seems like this could be cleaned up further. Lots of attrs in the
-    init.
-
     A full file list of contiguous times is provided. The corresponding data is
     split into spatiotemporal chunks which can overlap in time and space. These
     chunks are distributed across nodes according to the max nodes input or
@@ -181,44 +178,24 @@ class ForwardPassStrategy:
     incremental: bool = True
     output_workers: int = 1
     pass_workers: int = 1
-    max_nodes: Optional[int] = None
+    max_nodes: int = 1
     head_node: bool = False
 
     @log_args
     def __post_init__(self):
         self.file_paths = expand_paths(self.file_paths)
-        self.exo_handler_kwargs = self.exo_handler_kwargs or {}
-        self.input_handler_kwargs = self.input_handler_kwargs or {}
         self.bias_correct_kwargs = self.bias_correct_kwargs or {}
 
         model = get_model(self.model_class, self.model_kwargs)
         self.s_enhance, self.t_enhance = model.s_enhance, model.t_enhance
         self.input_features = model.lr_features
         self.output_features = model.hr_out_features
-        self.exo_features = list(self.exo_handler_kwargs)
-        features = [f for f in model.lr_features if f not in self.exo_features]
-        self.features = features
+        self.features, self.exo_features = self._init_features(model)
+        self.input_handler, self.time_slice = self.init_input_handler()
+        self.fwp_chunk_shape = self._get_fwp_chunk_shape()
 
-        InputHandler = get_input_handler_class(self.input_handler_name)
-        self.input_handler_kwargs['file_paths'] = self.file_paths
-        self.input_handler_kwargs['features'] = self.features
-        input_handler_kwargs = copy.deepcopy(self.input_handler_kwargs)
-        self.time_slice = input_handler_kwargs.pop('time_slice', slice(None))
-        self.input_handler = InputHandler(**input_handler_kwargs)
-
-        self.hr_lat_lon = self.get_hr_lat_lon()
-        grid_shape = self.input_handler.grid_shape
-        hr_grid_shape = self.hr_lat_lon.shape[:-1]
-        self.gids = np.arange(np.prod(hr_grid_shape)).reshape(hr_grid_shape)
-        full_fwp_shape = (
-            *grid_shape,
-            len(self.input_handler.time_index[self.time_slice]),
-        )
-        self.fwp_chunk_shape = tuple(
-            fs or ffs for fs, ffs in zip(self.fwp_chunk_shape, full_fwp_shape)
-        )
         self.fwp_slicer = ForwardPassSlicer(
-            coarse_shape=grid_shape,
+            coarse_shape=self.input_handler.grid_shape,
             time_steps=len(self.input_handler.time_index),
             time_slice=self.time_slice,
             chunk_shape=self.fwp_chunk_shape,
@@ -227,14 +204,13 @@ class ForwardPassStrategy:
             spatial_pad=self.spatial_pad,
             temporal_pad=self.temporal_pad,
         )
-
-        n_chunks = min(self.max_nodes or np.inf, self.fwp_slicer.n_chunks)
-        self.node_chunks = np.array_split(
-            np.arange(self.fwp_slicer.n_chunks), n_chunks
-        )
-        self.out_files = self.get_out_files(out_files=self.out_pattern)
+        self.node_chunks = self._get_node_chunks()
 
         if not self.head_node:
+            self.out_files = self.get_out_files(out_files=self.out_pattern)
+            self.hr_lat_lon = self.get_hr_lat_lon()
+            hr_shape = self.hr_lat_lon.shape[:-1]
+            self.gids = np.arange(np.prod(hr_shape)).reshape(hr_shape)
             self.exo_data = self.load_exo_data(model)
             self.preflight()
 
@@ -255,6 +231,48 @@ class ForwardPassStrategy:
             'output_features': self.output_features,
         }
         return meta_data
+
+    def init_input_handler(self):
+        """Get input handler instance for given input kwargs. If self.head_node
+        is False we get all requested features. Otherwise this is part of
+        initialization on a head node and just used to get the shape of the
+        input domain, so we don't need to get any features yet."""
+        self.input_handler_kwargs = self.input_handler_kwargs or {}
+        self.input_handler_kwargs['file_paths'] = self.file_paths
+        self.input_handler_kwargs['features'] = self.features
+        time_slice = self.input_handler_kwargs.get('time_slice', slice(None))
+
+        InputHandler = get_input_handler_class(self.input_handler_name)
+        input_handler_kwargs = copy.deepcopy(self.input_handler_kwargs)
+        input_handler_kwargs['file_paths'] = self.file_paths
+        features = [] if self.head_node else self.features
+        input_handler_kwargs['features'] = features
+        input_handler_kwargs['time_slice'] = slice(None)
+
+        return InputHandler(**input_handler_kwargs), time_slice
+
+    def _init_features(self, model):
+        """Initialize feature attributes."""
+        self.exo_handler_kwargs = self.exo_handler_kwargs or {}
+        exo_features = list(self.exo_handler_kwargs)
+        features = [f for f in model.lr_features if f not in exo_features]
+        return features, exo_features
+
+    def _get_node_chunks(self):
+        """Get array of lists such that node_chunks[i] is a list of
+        indices for the ith node indexing the chunks that will be sent through
+        the generator on the ith node."""
+        n_fwp_chunks = self.fwp_slicer.n_chunks
+        node_chunks = min(self.max_nodes or np.inf, n_fwp_chunks)
+        return np.array_split(np.arange(n_fwp_chunks), node_chunks)
+
+    def _get_fwp_chunk_shape(self):
+        """Get fwp_chunk_shape with default shape equal to the input handler
+        shape"""
+        grid_shape = self.input_handler.grid_shape
+        tsteps = len(self.input_handler.time_index[self.time_slice])
+        shape_iter = zip(self.fwp_chunk_shape, (*grid_shape, tsteps))
+        return tuple(fs or ffs for fs, ffs in shape_iter)
 
     def preflight(self):
         """Prelight logging and sanity checks"""
@@ -483,41 +501,25 @@ class ForwardPassStrategy:
                 input_handler_kwargs['target'] = self.input_handler.target
                 input_handler_kwargs['shape'] = self.input_handler.grid_shape
                 exo_kwargs['input_handler_kwargs'] = input_handler_kwargs
-                data.update(
-                    ExoDataHandler(
-                        **get_class_kwargs(ExoDataHandler, exo_kwargs)
-                    ).data
-                )
+                exo_kwargs = get_class_kwargs(ExoDataHandler, exo_kwargs)
+                data.update(ExoDataHandler(**exo_kwargs).data)
             exo_data = ExoData(data)
         return exo_data
 
-    def node_finished(self, node_index):
-        """Check if all out files for a given node have been saved
+    def node_finished(self, node_idx):
+        """Check if all out files for a given node have been saved"""
+        return all(self.chunk_finished(i) for i in self.node_chunks[node_idx])
 
-        Parameters
-        ----------
-        node_index : int
-            Index of node to check for completed processes
-        """
-        return all(
-            self.chunk_finished(i) for i in self.node_chunks[node_index]
-        )
-
-    def chunk_finished(self, chunk_index):
+    def chunk_finished(self, chunk_idx):
         """Check if process for given chunk_index has already been run.
+        Considered finished if there is already an output file and incremental
+        is False."""
 
-        Parameters
-        ----------
-        chunk_index : int
-            Index of the process chunk to check for completion. Considered
-            finished if there is already an output file and incremental is
-            False.
-        """
-        out_file = self.out_files[chunk_index]
+        out_file = self.out_files[chunk_idx]
         check = os.path.exists(out_file) and self.incremental
         if check:
             logger.info(
                 f'{out_file} already exists and incremental = True. '
-                f'Skipping forward pass for chunk index {chunk_index}.'
+                f'Skipping forward pass for chunk index {chunk_idx}.'
             )
         return check

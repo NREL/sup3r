@@ -17,6 +17,7 @@ from sup3r.postprocessing import (
     OutputHandlerNC,
 )
 from sup3r.preprocessing.utilities import (
+    _compute_if_dask,
     get_source_type,
     lowered,
 )
@@ -233,7 +234,6 @@ class ForwardPass:
         """
         temp = cls._reshape_data_chunk(model, data_chunk, exo_data)
         data_chunk, exo_data, i_lr_t, i_lr_s = temp
-
         try:
             hi_res = model.generate(data_chunk, exogenous_data=exo_data)
         except Exception as e:
@@ -326,7 +326,9 @@ class ForwardPass:
                         out = np.transpose(entry['data'], axes=(2, 0, 1, 3))
                     else:
                         out = np.expand_dims(entry['data'], axis=0)
-                    exo_data[feature]['steps'][i]['data'] = out
+                    exo_data[feature]['steps'][i]['data'] = _compute_if_dask(
+                        out
+                    )
 
         if model.is_4d:
             i_lr_t = 0
@@ -337,7 +339,7 @@ class ForwardPass:
             i_lr_s = 1
             data_chunk = np.expand_dims(data_chunk, axis=0)
 
-        return data_chunk, exo_data, i_lr_t, i_lr_s
+        return _compute_if_dask(data_chunk), exo_data, i_lr_t, i_lr_s
 
     @classmethod
     def get_node_cmd(cls, config):
