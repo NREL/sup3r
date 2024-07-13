@@ -244,7 +244,6 @@ class ForwardPassStrategy:
 
         InputHandler = get_input_handler_class(self.input_handler_name)
         input_handler_kwargs = copy.deepcopy(self.input_handler_kwargs)
-        input_handler_kwargs['file_paths'] = self.file_paths
         features = [] if self.head_node else self.features
         input_handler_kwargs['features'] = features
         input_handler_kwargs['time_slice'] = slice(None)

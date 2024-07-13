@@ -53,7 +53,9 @@ class BaseDeriver(Container):
         for f in new_features:
             self.data[f] = self.derive(f)
         self.data = (
-            self.data[[Dimension.LATITUDE, Dimension.LONGITUDE]]
+            self.data[
+                [Dimension.LATITUDE, Dimension.LONGITUDE, Dimension.TIME]
+            ]
             if not features
             else self.data
             if features == 'all'
