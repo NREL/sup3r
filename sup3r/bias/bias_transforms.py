@@ -414,6 +414,8 @@ def local_qdm_bc(data: np.ndarray,
     statistical distributions were previously estimated and saved in
     ``bias_fp``.
 
+    Assume CDF for the nearest day of year (doy) is representative.
+
     Parameters
     ----------
     data : np.ndarray
