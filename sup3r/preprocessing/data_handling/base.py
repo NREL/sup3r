@@ -1382,10 +1382,11 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
                 logger.info('Bias correcting "{}" with QDM '
                             'correction from "{}"'.format(
                                 feature, os.path.basename(fp)))
-                self.data[..., idf] = local_qdm_bc(self.data[..., idf],
-                                                   self.lat_lon,
-                                                   reference_feature,
-                                                   feature,
+                self.data[..., idf] = local_qdm_bc(data=self.data[..., idf],
+                                                   time=self.time_index,
+                                                   lat_lon=self.lat_lon,
+                                                   base_dset=reference_feature,
+                                                   feature_name=feature,
                                                    bias_fp=fp,
                                                    threshold=threshold,
                                                    relative=relative,
