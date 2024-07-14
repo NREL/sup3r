@@ -558,15 +558,43 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
 
 
     @staticmethod
-    def window_mask(d, d0, window_size):
+    def window_mask(doy, d0, window_size):
+        """An index of elements within a given time window
+
+        Create an index of days of the year within the target time window. It
+        only considers the day of the year (doy), hence, it is limited to time
+        scales smaller than annual.
+
+        Parameters
+        ----------
+        doy : np.ndarray
+            An unordered array of days of year, i.e. January 1st is 1.
+        d0 : int
+            Center point of the target window
+        window_size : float
+            Total size of the target window, i.e. the window covers
+            half this value on each side of d0.
+
+        Returns
+        -------
+        np.array
+            An boolean array with the same shape of the given `doy`, where
+            True means that position is within the target window.
+
+        Notes
+        -----
+        Leap years have the day 366 included in the output index, but a
+        precise shift is not calculated, resulting in a negligible error
+        in large datasets.
+        """
         d_start = math.floor(d0 - window_size / 2)
         d_end = math.ceil(d0 + window_size / 2)
 
         if d_start < 0:
-            idx = (d >= 365 + d_start) | (d <= d_end)
+            idx = (doy >= 365 + d_start) | (doy <= d_end)
         elif d_end > 365:
-            idx = (d >= d_start) | (d <= 365 - d_end)
+            idx = (doy >= d_start) | (doy <= 365 - d_end)
         else:
-            idx = (d >= d_start) & (d <= d_end)
+            idx = (doy >= d_start) & (doy <= d_end)
 
         return idx
