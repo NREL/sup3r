@@ -245,7 +245,8 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
         Returns
         -------
         np.ndarray :
-            Sequence of center points dividing a standard year in `ntimes` intervals.
+            Sequence of center points dividing a standard year in `ntimes`
+            intervals.
         """
         assert ntimes > 0, "Requires a positive number of intervals"
 
