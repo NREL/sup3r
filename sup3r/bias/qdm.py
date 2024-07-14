@@ -46,6 +46,9 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
     a dataset.
     """
 
+    NT = 12
+    WINDOW_SIZE = None
+
     def __init__(self,
                  base_fps,
                  bias_fps,
@@ -214,7 +217,7 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                 f'bias_fut_{self.bias_feature}_params',
                 f'base_{self.base_dset}_params',
                 ]
-        shape = (*self.bias_gid_raster.shape, self.n_quantiles)
+        shape = (*self.bias_gid_raster.shape, self.NT, self.n_quantiles)
         arr = np.full(shape, np.nan, np.float32)
         self.out = {k: arr.copy() for k in keys}
 
@@ -240,22 +243,38 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                     ):
         """Estimate probability distributions at a single site"""
 
-        base_data, _ = cls.get_base_data(base_fps,
-                                         base_dset,
-                                         base_gid,
-                                         base_handler,
-                                         daily_reduction=daily_reduction,
-                                         decimals=decimals,
-                                         base_dh_inst=base_dh_inst)
+        base_data, base_ti = cls.get_base_data(base_fps,
+                                               base_dset,
+                                               base_gid,
+                                               base_handler,
+                                               daily_reduction=daily_reduction,
+                                               decimals=decimals,
+                                               base_dh_inst=base_dh_inst)
 
-        out = cls.get_qdm_params(bias_data,
-                                 bias_fut_data,
-                                 base_data,
-                                 bias_feature,
-                                 base_dset,
-                                 sampling,
-                                 n_samples,
-                                 log_base)
+        window_size = cls.WINDOW_SIZE or 365/cls.NT
+        window_center = (np.linspace(1, 366, cls.NT + 1) + 366 / (2 * cls.NT))[:-1]
+
+        template = np.full((cls.NT, n_samples), np.nan, np.float32)
+        out = {}
+        for nt, t in enumerate(window_center):
+            base_idx = cls.window_mask(base_ti.day_of_year, t, window_size)
+            bias_idx = cls.window_mask(bias_ti.day_of_year, t, window_size)
+            bias_fut_idx = cls.window_mask(bias_fut_ti.day_of_year, t, window_size)
+
+            if any(base_idx) and any(bias_idx) and any(bias_fut_idx):
+                tmp = cls.get_qdm_params(bias_data[bias_idx],
+                                         bias_fut_data[bias_fut_idx],
+                                         base_data[base_idx],
+                                         bias_feature,
+                                         base_dset,
+                                         sampling,
+                                         n_samples,
+                                         log_base)
+                for k, v in tmp.items():
+                    if k not in out:
+                        out[k] = template.copy()
+                    out[k][(nt), :] = v
+
         return out
 
     @staticmethod
