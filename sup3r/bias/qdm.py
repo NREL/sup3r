@@ -283,7 +283,7 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                                                decimals=decimals,
                                                base_dh_inst=base_dh_inst)
 
-        window_size = cls.WINDOW_SIZE or 365/cls.NT
+        window_size = cls.WINDOW_SIZE or 365 / cls.NT
         window_center = cls._window_center(cls.NT)
 
         template = np.full((cls.NT, n_samples), np.nan, np.float32)
@@ -291,7 +291,9 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
         for nt, t in enumerate(window_center):
             base_idx = cls.window_mask(base_ti.day_of_year, t, window_size)
             bias_idx = cls.window_mask(bias_ti.day_of_year, t, window_size)
-            bias_fut_idx = cls.window_mask(bias_fut_ti.day_of_year, t, window_size)
+            bias_fut_idx = cls.window_mask(bias_fut_ti.day_of_year,
+                                           t,
+                                           window_size)
 
             if any(base_idx) and any(bias_idx) and any(bias_fut_idx):
                 tmp = cls.get_qdm_params(bias_data[bias_idx],
@@ -308,7 +310,6 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                     out[k][(nt), :] = v
 
         return out
-
 
     @staticmethod
     def get_qdm_params(bias_data,
@@ -556,7 +557,6 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
         self.write_outputs(fp_out, self.out)
 
         return copy.deepcopy(self.out)
-
 
     @staticmethod
     def window_mask(doy, d0, window_size):
