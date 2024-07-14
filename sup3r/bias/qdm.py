@@ -7,6 +7,7 @@ as PresRat.
 import copy
 import json
 import logging
+import math
 import os
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
@@ -518,3 +519,18 @@ class WindowedQuantileDeltaMappingCorrection(QuantileDeltaMappingCorrection):
         arr = np.full(shape, np.nan, np.float32)
         self.out = {k: arr.copy() for k in keys}
         self.out["time_window_center"] = t
+
+
+    @staticmethod
+    def window_mask(d, d0, window_size):
+        d_start = math.floor(d0 - window_size / 2)
+        d_end = math.ceil(d0 + window_size / 2)
+
+        if d_start < 0:
+            idx = (d >= 365 + d_start) | (d <= d_end)
+        elif d_end > 365:
+            idx = (d >= d_start) | (d <= 365 - d_end)
+        else:
+            idx = (d >= d_start) & (d <= d_end)
+
+        return idx
