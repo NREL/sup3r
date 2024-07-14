@@ -221,6 +221,37 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
         arr = np.full(shape, np.nan, np.float32)
         self.out = {k: arr.copy() for k in keys}
 
+        self.time_window_center = self._window_center(self.NT)
+
+    @staticmethod
+    def _window_center(ntimes: int):
+        """A sequence of equally spaced `ntimes` day of year along a year
+
+        This is used to identify the center of moving windows to apply filters
+        and masks. For instance, if ntimes equal to 12, it would return
+        approximately the months' center time.
+
+        This is conveniently shifted one half time interval so that December
+        31st would be closest to the last interval of the year instead of the
+        first.
+
+        Leap years are neglected here.
+
+        Parameters
+        ----------
+        ntimes : int
+            Number of intervals in one year.
+
+        Returns
+        -------
+        np.ndarray :
+            Sequence of center points dividing a standard year in `ntimes` intervals.
+        """
+        assert ntimes > 0, "Requires a positive number of intervals"
+
+        dt = 365 / ntimes
+        return np.arange(dt / 2, 366, dt)
+
     # pylint: disable=W0613
     @classmethod
     def _run_single(cls,
@@ -252,7 +283,7 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                                                base_dh_inst=base_dh_inst)
 
         window_size = cls.WINDOW_SIZE or 365/cls.NT
-        window_center = (np.linspace(1, 366, cls.NT + 1) + 366 / (2 * cls.NT))[:-1]
+        window_center = cls._window_center(cls.NT)
 
         template = np.full((cls.NT, n_samples), np.nan, np.float32)
         out = {}
@@ -276,6 +307,7 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                     out[k][(nt), :] = v
 
         return out
+
 
     @staticmethod
     def get_qdm_params(bias_data,
@@ -388,6 +420,7 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                 f.attrs["base_fps"] = self.base_fps
                 f.attrs["bias_fps"] = self.bias_fps
                 f.attrs["bias_fut_fps"] = self.bias_fut_fps
+                f.attrs["time_window_center"] = self.time_window_center
                 logger.info(
                     'Wrote quantiles to file: {}'.format(fp_out))
 
