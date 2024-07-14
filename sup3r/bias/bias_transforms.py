@@ -398,8 +398,9 @@ def monthly_local_linear_bc(input,
     return out
 
 
-def local_qdm_bc(data: np.array,
-                 lat_lon: np.array,
+def local_qdm_bc(data: np.ndarray,
+                 time: np.ndarray,
+                 lat_lon: np.ndarray,
                  base_dset: str,
                  feature_name: str,
                  bias_fp,
@@ -418,7 +419,8 @@ def local_qdm_bc(data: np.array,
     data : np.ndarray
         Sup3r input data to be bias corrected, assumed to be 3D with shape
         (spatial, spatial, temporal) for a single feature.
-    lat_lon : ndarray
+    time : np.ndarray
+    lat_lon : np.ndarray
         Array of latitudes and longitudes for the domain to bias correct
         (n_lats, n_lons, 2)
     base_dset :
@@ -488,35 +490,54 @@ def local_qdm_bc(data: np.array,
     >>> unbiased = local_qdm_bc(biased_array, lat_lon_array, "ghi", "rsds",
     ...                         "./dist_params.hdf")
     """
+    # Confirm that the given time matches the expected data size
+    assert data.shape[2] == time.size, "Time should align with data 3rd dimension"
+
     base, bias, bias_fut, cfg = get_spatial_bc_quantiles(lat_lon,
                                                          base_dset,
                                                          feature_name,
                                                          bias_fp,
                                                          threshold)
+
     if lr_padded_slice is not None:
         spatial_slice = (lr_padded_slice[0], lr_padded_slice[1])
         base = base[spatial_slice]
         bias = bias[spatial_slice]
         bias_fut = bias_fut[spatial_slice]
 
-    if no_trend:
-        mf = None
-    else:
-        mf = bias_fut.reshape(-1, bias_fut.shape[-1])
-    # The distributions are 3D (space, space, N-params)
-    # Collapse 3D (space, space, N) into 2D (space**2, N)
-    QDM = QuantileDeltaMapping(base.reshape(-1, base.shape[-1]),
-                               bias.reshape(-1, bias.shape[-1]),
-                               mf,
-                               dist=cfg['dist'],
-                               relative=relative,
-                               sampling=cfg["sampling"],
-                               log_base=cfg["log_base"])
+    output = np.full_like(data, np.nan)
+    idx = [np.argmin(d-cfg['time_window_center']) for d in time.day_of_year]
+    for i in set(idx):
+        # Naming following the paper: observed historical
+        oh = base[:,:,i]
+        # Modeled historical
+        mh = bias[:,:,i]
+        # Modeled future
+        mf = bias_fut[:,:,i]
 
-    # input 3D shape (spatial, spatial, temporal)
-    # QDM expects input arr with shape (time, space)
-    tmp = data.reshape(-1, data.shape[-1]).T
-    # Apply QDM correction
-    tmp = QDM(tmp)
-    # Reorgnize array back from  (time, space) to (spatial, spatial, temporal)
-    return tmp.T.reshape(data.shape)
+        # This satisfies the rex's QDM design
+        if no_trend:
+            mf = None
+        else:
+            mf = mf.reshape(-1, mf.shape[-1])
+        # The distributions are 3D (space, space, N-params)
+        # Collapse 3D (space, space, N) into 2D (space**2, N)
+        QDM = QuantileDeltaMapping(oh.reshape(-1, oh.shape[-1]),
+                                   mh.reshape(-1, mh.shape[-1]),
+                                   mf,
+                                   dist=cfg['dist'],
+                                   relative=relative,
+                                   sampling=cfg["sampling"],
+                                   log_base=cfg["log_base"])
+
+        # input 3D shape (spatial, spatial, temporal)
+        # QDM expects input arr with shape (time, space)
+        tmp = data.reshape(-1, data.shape[-1]).T
+        # Apply QDM correction
+        tmp = QDM(tmp)
+        # Reorgnize array back from  (time, space) to (spatial, spatial, temporal)
+        tmp = tmp.T.reshape(data.shape)
+        # Position output respecting original time axis sequence
+        output[:,:,idx==i] = tmp
+
+    return output
