@@ -83,12 +83,16 @@ class Sup3rX:
         if not self.loaded:
             logger.debug(f'Loading dataset into memory: {self._ds}')
             mem = psutil.virtual_memory()
-            logger.debug(f'Pre-loading memory usage is {mem.used / 1e9:.3f} '
-                         f'GB out of {mem.total / 1e9:.3f} ')
+            logger.debug(
+                f'Pre-loading memory usage is {mem.used / 1e9:.3f} '
+                f'GB out of {mem.total / 1e9:.3f} '
+            )
             self._ds = self._ds.compute(**kwargs)
             mem = psutil.virtual_memory()
-            logger.debug(f'Post-loading memory usage is {mem.used / 1e9:.3f} '
-                         f'GB out of {mem.total / 1e9:.3f} ')
+            logger.debug(
+                f'Post-loading memory usage is {mem.used / 1e9:.3f} '
+                f'GB out of {mem.total / 1e9:.3f} '
+            )
 
     @property
     def loaded(self):
@@ -199,6 +203,26 @@ class Sup3rX:
         if isinstance(out, xr.Dataset):
             out = type(self)(out)
         return out
+
+    def __mul__(self, other):
+        """Multiply Sup3rX object by other. Used to compute weighted means and
+        stdevs."""
+        try:
+            return type(self)(other * self._ds)
+        except Exception as e:
+            raise NotImplementedError(
+                f'Multiplication not supported for type {type(other)}.'
+            ) from e
+
+    def __pow__(self, other):
+        """Raise Sup3rX object to an integer power. Used to compute weighted
+        standard deviations."""
+        try:
+            return type(self)(self._ds ** other)
+        except Exception as e:
+            raise NotImplementedError(
+                f'Exponentiation not supported for type {type(other)}.'
+            ) from e
 
     @property
     def name(self):
@@ -527,7 +551,8 @@ class Sup3rX:
         return float(
             mode(
                 (self.time_index[1:] - self.time_index[:-1]).total_seconds(),
-                keepdims=False).mode
+                keepdims=False,
+            ).mode
         )
 
     @property

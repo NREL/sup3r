@@ -6,13 +6,7 @@ import tempfile
 import numpy as np
 import pytest
 
-from sup3r.preprocessing import (
-    Cacher,
-    ExtracterH5,
-    ExtracterNC,
-    LoaderH5,
-    LoaderNC,
-)
+from sup3r.preprocessing import Cacher, Extracter, Loader
 
 target = (39.01, -105.15)
 shape = (20, 20)
@@ -25,30 +19,20 @@ def test_raster_index_caching():
     # saving raster file
     with tempfile.TemporaryDirectory() as td:
         raster_file = os.path.join(td, 'raster.txt')
-        extracter = ExtracterH5(
+        extracter = Extracter(
             pytest.FP_WTK, raster_file=raster_file, target=target, shape=shape
         )
         # loading raster file
-        extracter = ExtracterH5(pytest.FP_WTK, raster_file=raster_file)
+        extracter = Extracter(pytest.FP_WTK, raster_file=raster_file)
     assert np.allclose(extracter.target, target, atol=1)
     assert extracter.shape[:3] == (shape[0], shape[1], extracter.shape[2])
 
 
 @pytest.mark.parametrize(
-    [
-        'input_files',
-        'Loader',
-        'Extracter',
-        'ext',
-        'shape',
-        'target',
-        'features',
-    ],
+    ['input_files', 'ext', 'shape', 'target', 'features'],
     [
         (
             pytest.FP_WTK,
-            LoaderH5,
-            ExtracterH5,
             'h5',
             (20, 20),
             (39.01, -105.15),
@@ -56,8 +40,6 @@ def test_raster_index_caching():
         ),
         (
             pytest.FP_ERA,
-            LoaderNC,
-            ExtracterNC,
             'nc',
             (10, 10),
             (37.25, -107),
@@ -65,9 +47,7 @@ def test_raster_index_caching():
         ),
     ],
 )
-def test_data_caching(
-    input_files, Loader, Extracter, ext, shape, target, features
-):
+def test_data_caching(input_files, ext, shape, target, features):
     """Test data extraction with caching/loading"""
 
     with tempfile.TemporaryDirectory() as td:
@@ -80,6 +60,12 @@ def test_data_caching(
         assert extracter.shape[:3] == (shape[0], shape[1], extracter.shape[2])
         assert extracter.data.dtype == np.dtype(np.float32)
         loader = Loader(cacher.out_files)
+        assert np.array_equal(
+            loader[features, ...].compute(), extracter[features, ...].compute()
+        )
+
+        # make sure full domain can be loaded with extracters
+        extracter = Extracter(cacher.out_files)
         assert np.array_equal(
             loader[features, ...].compute(), extracter[features, ...].compute()
         )

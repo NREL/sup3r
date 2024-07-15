@@ -4,6 +4,7 @@ import logging
 import os
 
 import numpy as np
+import xarray as xr
 from rex import safe_json_load
 
 from sup3r.utilities.utilities import safe_serialize
@@ -42,21 +43,25 @@ class StatsCollection(Collection):
         self.stds = self.get_stds(stds)
         self.save_stats(stds=stds, means=means)
 
-    @staticmethod
-    def container_mean(container, feature):
-        """Method for computing means on containers, accounting for possible
-        multi-dataset containers."""
-        if feature in container.data.high_res:
-            return container.data.high_res[feature].mean(skipna=True)
-        return container.data.low_res[feature].mean(skipna=True)
-
-    @staticmethod
-    def container_std(container, feature):
-        """Method for computing stds on containers, accounting for possible
-        multi-dataset containers."""
-        if feature in container.data.high_res:
-            return container.data.high_res[feature].std(skipna=True)
-        return container.data.low_res[feature].std(skipna=True)
+    def _get_stat(self, stat_type):
+        """Get either mean or std for all features and all containers."""
+        all_feats = self.containers[0].data_vars
+        hr_feats = self.containers[0].data.high_res.data_vars
+        lr_feats = [f for f in all_feats if f not in hr_feats]
+        cstats = [
+            getattr(c.data.high_res[hr_feats], stat_type)(skipna=True)
+            for c in self.containers
+        ]
+        if any(lr_feats):
+            cstats_lr = [
+                getattr(c.data.low_res[lr_feats], stat_type)(skipna=True)
+                for c in self.containers
+            ]
+            cstats = [
+                xr.merge([c._ds, c_lr._ds])
+                for c, c_lr in zip(cstats, cstats_lr)
+            ]
+        return cstats
 
     def get_means(self, means):
         """Dictionary of means for each feature, computed across all data
@@ -64,13 +69,18 @@ class StatsCollection(Collection):
         if means is None or (
             isinstance(means, str) and not os.path.exists(means)
         ):
-            means = {}
-            for f in self.containers[0].data_vars:
-                cmeans = [
-                    w * self.container_mean(c, f)
-                    for c, w in zip(self.containers, self.container_weights)
-                ]
-                means[f] = np.float32(np.sum(cmeans))
+            all_feats = self.containers[0].data_vars
+            means = dict.fromkeys(all_feats, 0)
+            logger.info(f'Computing means for {all_feats}.')
+            cmeans = [
+                cm * w
+                for cm, w in zip(
+                    self._get_stat('mean'), self.container_weights
+                )
+            ]
+            for f in all_feats:
+                logger.info(f'Computing mean for {f}.')
+                means[f] = np.float32(np.sum(cm[f] for cm in cmeans))
         elif isinstance(means, str):
             means = safe_json_load(means)
         return means
@@ -81,13 +91,16 @@ class StatsCollection(Collection):
         if stds is None or (
             isinstance(stds, str) and not os.path.exists(stds)
         ):
-            stds = {}
-            for f in self.containers[0].data_vars:
-                cstds = [
-                    w * self.container_std(c, f) ** 2
-                    for c, w in zip(self.containers, self.container_weights)
-                ]
-                stds[f] = np.float32(np.sqrt(np.sum(cstds)))
+            all_feats = self.containers[0].data_vars
+            stds = dict.fromkeys(all_feats, 0)
+            logger.info(f'Computing stds for {all_feats}.')
+            cstds = [
+                w * cm ** 2
+                for cm, w in zip(self._get_stat('std'), self.container_weights)
+            ]
+            for f in all_feats:
+                logger.info(f'Computing std for {f}.')
+                stds[f] = np.float32(np.sqrt(np.sum(cs[f] for cs in cstds)))
         elif isinstance(stds, str):
             stds = safe_json_load(stds)
         return stds
