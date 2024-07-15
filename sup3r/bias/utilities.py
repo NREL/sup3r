@@ -10,7 +10,10 @@ from rex import Resource
 
 import sup3r.bias.bias_transforms
 from sup3r.bias.bias_transforms import get_spatial_bc_factors, local_qdm_bc
-from sup3r.preprocessing.utilities import get_date_range_kwargs
+from sup3r.preprocessing.utilities import (
+    _parse_time_slice,
+    get_date_range_kwargs,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -195,7 +198,7 @@ def bias_correct_feature(
         Data corrected by the bias_correct_method ready for input to the
         forward pass through the generative model.
     """
-    time_slice = slice(None) if time_slice is None else time_slice
+    time_slice = _parse_time_slice(time_slice)
     data = input_handler[source_feature, ..., time_slice]
     if bc_method is not None:
         bc_method = getattr(sup3r.bias.bias_transforms, bc_method)
@@ -250,6 +253,7 @@ def bias_correct_features(
     :func:`bias_correct_feature`
     """
 
+    time_slice = _parse_time_slice(time_slice)
     for feat in features:
         input_handler.data[feat, ..., time_slice] = bias_correct_feature(
             source_feature=feat,
