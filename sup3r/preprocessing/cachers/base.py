@@ -66,19 +66,22 @@ class Cacher(Container):
         msg = 'cache_pattern must have {feature} format key.'
         assert '{feature}' in cache_pattern, msg
         _, ext = os.path.splitext(cache_pattern)
-        write_features = [
-            f for f in self.features if len(self.data[f].dims) == 3
-        ]
-        out_files = [cache_pattern.format(feature=f) for f in write_features]
-        for feature, out_file in zip(write_features, out_files):
-            if not os.path.exists(out_file):
+        out_files = [cache_pattern.format(feature=f) for f in self.features]
+        for feature, out_file in zip(self.features, out_files):
+            if os.path.exists(out_file):
+                logger.info(f'{out_file} already exists. Delete if you want '
+                            'to overwrite.')
+            else:
                 os.makedirs(os.path.dirname(out_file), exist_ok=True)
                 logger.info(f'Writing {feature} to {out_file}.')
+                data = self[feature, ...]
                 if ext == '.h5':
+                    if len(data.shape) == 3:
+                        data = np.transpose(data, axes=(2, 0, 1))
                     self.write_h5(
                         out_file,
                         feature,
-                        np.transpose(self[feature, ...], axes=(2, 0, 1)),
+                        data,
                         self.coords,
                         chunks,
                     )
@@ -86,7 +89,7 @@ class Cacher(Container):
                     self.write_netcdf(
                         out_file,
                         feature,
-                        self[feature, ...],
+                        data,
                         self.coords,
                     )
                 else:

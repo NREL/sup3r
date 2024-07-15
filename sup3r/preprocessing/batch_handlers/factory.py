@@ -133,7 +133,6 @@ def BatchHandlerFactory(
                 self.SAMPLER(data=c.data, **sampler_kwargs)
                 for c in train_containers
             ]
-
             val_samplers = (
                 []
                 if val_containers is None

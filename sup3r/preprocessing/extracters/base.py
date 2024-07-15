@@ -19,9 +19,10 @@ class BaseExtracter(Container):
 
     Note
     ----
-    This `Extracter` base class is for 3D rasterized data. This is usually
-    comes from NETCDF files but can also be cached H5 files cached from
-    previously rasterized data."""
+    This `Extracter` base class is for 3D rasterized data. This usually
+    comes from NETCDF files but can also be cached H5 files saved from
+    previously rasterized data. For 3D, whether H5 or NETCDF, the full domain
+    will be extracted automatically if no target / shape are provided."""
 
     def __init__(
         self,

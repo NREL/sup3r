@@ -46,13 +46,17 @@ class StatsCollection(Collection):
     def container_mean(container, feature):
         """Method for computing means on containers, accounting for possible
         multi-dataset containers."""
-        return container.data.high_res[feature].mean(skipna=True)
+        if feature in container.data.high_res:
+            return container.data.high_res[feature].mean(skipna=True)
+        return container.data.low_res[feature].mean(skipna=True)
 
     @staticmethod
     def container_std(container, feature):
         """Method for computing stds on containers, accounting for possible
         multi-dataset containers."""
-        return container.data.high_res[feature].std(skipna=True)
+        if feature in container.data.high_res:
+            return container.data.high_res[feature].std(skipna=True)
+        return container.data.low_res[feature].std(skipna=True)
 
     def get_means(self, means):
         """Dictionary of means for each feature, computed across all data

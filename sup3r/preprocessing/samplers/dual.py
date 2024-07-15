@@ -1,7 +1,6 @@
 """Sampler objects. These take in data objects / containers and can them sample
 from them. These samples can be used to build batches."""
 
-import copy
 import logging
 from typing import Dict, Optional
 
@@ -62,20 +61,17 @@ class DualSampler(Sampler):
         assert data.low_res == data[0] and data.high_res == data[1], msg
         super().__init__(data=data, sample_shape=sample_shape)
         self.lr_data, self.hr_data = self.data.low_res, self.data.high_res
-        feature_sets = feature_sets or {}
         self.hr_sample_shape = self.sample_shape
         self.lr_sample_shape = (
             self.sample_shape[0] // s_enhance,
             self.sample_shape[1] // s_enhance,
             self.sample_shape[2] // t_enhance,
         )
+        feature_sets = feature_sets or {}
         self._lr_only_features = feature_sets.get('lr_only_features', [])
         self._hr_exo_features = feature_sets.get('hr_exo_features', [])
-        features = copy.deepcopy(list(self.lr_data.data_vars))
-        features += [
-            fn for fn in list(self.hr_data.data_vars) if fn not in features
-        ]
-        self.features = features
+        self.lr_features = list(self.lr_data.data_vars)
+        self.features = self.get_features(feature_sets)
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
         self.check_for_consistent_shapes()
@@ -86,6 +82,15 @@ class DualSampler(Sampler):
             'hr_features': self.hr_features,
         }
         self.post_init_log(post_init_args)
+
+    def get_features(self, feature_sets):
+        """Return default set of features composed from data vars in low res
+        and high res data objects or the value provided through the
+        feature_sets dictionary."""
+        features = set(self.lr_data.features + self.hr_data.features)
+        features = [f for f in features if f not in self._hr_exo_features]
+        features += self._hr_exo_features
+        return feature_sets.get('features', features)
 
     def check_for_consistent_shapes(self):
         """Make sure container shapes are compatible with enhancement

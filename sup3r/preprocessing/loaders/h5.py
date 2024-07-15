@@ -60,12 +60,14 @@ class LoaderH5(BaseLoader):
             coords[Dimension.TIME] = self.res['time_index']
 
         if len(self._meta_shape()) == 1:
-            data_vars['elevation'] = (
-                (Dimension.FLATTENED_SPATIAL),
-                da.asarray(
-                    self.res.meta['elevation'].values, dtype=np.float32
-                ),
+            elev = da.asarray(
+                self.res.meta['elevation'].values, dtype=np.float32
             )
+            if not self._time_independent:
+                elev = da.repeat(
+                    elev[None, ...], len(self.res['time_index']), axis=0
+                )
+            data_vars['elevation'] = (dims, elev)
         data_vars = {
             **data_vars,
             **{
@@ -83,11 +85,11 @@ class LoaderH5(BaseLoader):
         coords.update(
             {
                 Dimension.LATITUDE: (
-                    dims[-len(self._meta_shape()):],
+                    dims[-len(self._meta_shape()) :],
                     da.from_array(self.res.h5['meta']['latitude']),
                 ),
                 Dimension.LONGITUDE: (
-                    dims[-len(self._meta_shape()):],
+                    dims[-len(self._meta_shape()) :],
                     da.from_array(self.res.h5['meta']['longitude']),
                 ),
             }
