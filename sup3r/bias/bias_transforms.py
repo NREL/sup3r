@@ -506,11 +506,14 @@ def local_qdm_bc(data: np.ndarray,
         data.shape[2] == time_index.size
     ), 'Time should align with data 3rd dimension'
 
-    base, bias, bias_fut, cfg = get_spatial_bc_quantiles(lat_lon,
-                                                         base_dset,
-                                                         feature_name,
-                                                         bias_fp,
-                                                         threshold)
+    params, cfg = get_spatial_bc_quantiles(lat_lon,
+                                           base_dset,
+                                           feature_name,
+                                           bias_fp,
+                                           threshold)
+    base = params['base']
+    bias = params['bias']
+    bias_fut = params['bias_fut']
 
     if lr_padded_slice is not None:
         spatial_slice = (lr_padded_slice[0], lr_padded_slice[1])
