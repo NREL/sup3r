@@ -204,6 +204,7 @@ class ForwardPassStrategy:
             spatial_pad=self.spatial_pad,
             temporal_pad=self.temporal_pad,
         )
+        self.n_chunks = self.fwp_slicer.n_chunks
         self.node_chunks = self._get_node_chunks()
 
         if not self.head_node:
@@ -261,9 +262,8 @@ class ForwardPassStrategy:
         """Get array of lists such that node_chunks[i] is a list of
         indices for the ith node indexing the chunks that will be sent through
         the generator on the ith node."""
-        n_fwp_chunks = self.fwp_slicer.n_chunks
-        node_chunks = min(self.max_nodes or np.inf, n_fwp_chunks)
-        return np.array_split(np.arange(n_fwp_chunks), node_chunks)
+        node_chunks = min(self.max_nodes or np.inf, self.n_chunks)
+        return np.array_split(np.arange(self.n_chunks), node_chunks)
 
     def _get_fwp_chunk_shape(self):
         """Get fwp_chunk_shape with default shape equal to the input handler

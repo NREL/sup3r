@@ -98,6 +98,7 @@ class ExtendedExtracter(BaseExtracter):
 
     def save_raster_index(self):
         """Save raster index to cache file."""
+        os.makedirs(os.path.dirname(self.raster_file), exist_ok=True)
         np.savetxt(self.raster_file, self.raster_index)
         logger.info(f'Saved raster_index to {self.raster_file}')
 

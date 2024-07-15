@@ -320,7 +320,7 @@ def test_fwp_chunking(input_files, plot=False):
         spatial_pad = 12
         temporal_pad = 12
         raw_tsteps = len(xr.open_dataset(input_files)[Dimension.TIME])
-        fwp_shape = (4, 4, raw_tsteps // 2)
+        fwp_shape = (5, 5, raw_tsteps // 2)
         strat = ForwardPassStrategy(
             input_files,
             model_kwargs={'model_dir': out_dir},
@@ -363,7 +363,7 @@ def test_fwp_chunking(input_files, plot=False):
             hr_crop
         ]
         fwp = ForwardPass(strat)
-        for i in range(len(strat.node_chunks)):
+        for i in range(strat.n_chunks):
             _, out = fwp.run_chunk(
                 fwp.get_input_chunk(i, mode='constant'),
                 model_kwargs=strat.model_kwargs,

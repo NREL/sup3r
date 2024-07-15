@@ -72,6 +72,7 @@ class Cacher(Container):
         out_files = [cache_pattern.format(feature=f) for f in write_features]
         for feature, out_file in zip(write_features, out_files):
             if not os.path.exists(out_file):
+                os.makedirs(os.path.dirname(out_file), exist_ok=True)
                 logger.info(f'Writing {feature} to {out_file}.')
                 if ext == '.h5':
                     self.write_h5(

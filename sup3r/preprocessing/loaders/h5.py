@@ -77,7 +77,7 @@ class LoaderH5(BaseLoader):
                     / self.scale_factor(f),
                 )
                 for f in self.res.h5.datasets
-                if f not in ('meta', 'time_index')
+                if f not in ('meta', 'time_index', 'coordinates')
             },
         }
         coords.update(
