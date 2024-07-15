@@ -631,6 +631,7 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
 
         return idx
 
+
 class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
     """PresRat bias correction method (precipitation)
 
@@ -660,8 +661,8 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
                                                           np.nan,
                                                           np.float32)
         self.out[f'{self.bias_feature}_tau_fut'] = np.full(shape,
-                                                          np.nan,
-                                                          np.float32)
+                                                           np.nan,
+                                                           np.float32)
         shape = (*self.bias_gid_raster.shape, 12)
         self.out[f'{self.bias_feature}_K_factor'] = np.full(
             shape, np.nan, np.float32)
@@ -748,11 +749,12 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         obs_zero_rate = cls.zero_precipitation_rate(
             base_data, zero_rate_threshold)
 
-        # Step 2: Find tau for each grid point that would lead mh to match observed dry days.
-        # Remember that zero_rate can be zero. In that case, if there are zero precip in the
-        # historical modeled, we do not want to transform zero in some value.
-        # Find tau that leads to zero_rate found in observations
-        # Pierce2015 requires tau >= 0.01 mm day^-1
+        # Step 2: Find tau for each grid point that would lead mh to match
+        # observed dry days.
+        # Remember that zero_rate can be zero. In that case, if there are zero
+        # precip in the historical modeled, we do not want to transform zero
+        # in some value. Find tau that leads to zero_rate found in
+        # observations Pierce2015 requires tau >= 0.01 mm day^-1
         # ATTENTION, we might have to assume units of mm / day
 
         # Remove handling of NaN. Implement assert if all finite()
@@ -760,7 +762,7 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         assert bias_data.ndim == 1, "Assumed bias_data to be 1D"
         n_threshold = round(obs_zero_rate * bias_data.size)
         # Confirm which side is the threshold, i.e. inclusive or not.
-        n_threshold = min(n_threshold, bias_data.size-1)
+        n_threshold = min(n_threshold, bias_data.size - 1)
         tau = np.sort(bias_data)[n_threshold]
         # Confirm units!!!!
         tau = max(tau, 0.01)
@@ -781,41 +783,38 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         assert tau_fut >= corrected_fut_data.min()
         out[f'{bias_feature}_tau_fut'] = tau_fut
 
-
         # Step 5: Reinforce Z_gf fraction on the corrected future modeled.
         # I.e., the lowest Z_gf values are replaced by zero so the zero rate
         # can't be smaller than the historical (but can be larger if the model
         # says so).
 
-        # Step 5a: Once we apply the full correction, we have no guarantee to have
-        # access anymore to a sufficiently long timeseries. For instance, it can
-        # operate in chunks of weeks or even smaller. Thus apply such rate (Z_fg)
-        # could lead to errors. Instead of the original paper procedure, we here
-        # identify the absolute precipitation that matches Z_gf, so that it can
-        # be applied in small chunks. Let's call this new threshold tau_fut
+        # Step 5a: Once we apply the full correction, we have no guarantee to
+        # have access anymore to a sufficiently long timeseries. For instance,
+        # it can operate in chunks of weeks or even smaller. Thus apply such
+        # rate (Z_fg) could lead to errors. Instead of the original paper
+        # procedure, we here identify the absolute precipitation that matches
+        # Z_gf, so that it can be applied in small chunks. Let's call this new
+        # threshold tau_fut
 
-        #tau_fut = .....
+        # tau_fut = .....
 
         # -----------------------------------------------------------
-
 
         out[f'{base_dset}_zero_rate'] = cls.zero_precipitation_rate(
             base_data,
             zero_rate_threshold,
         )
 
-
-
         # ---- Dirty implementation of K factor. Proof of concept ----
-        # Let's save the means for mhmf = np.full(12, np.nan, np.float32) and mf instead of the `x` ratio. It
-        # seems that we should be able to simplify the mh component from
+        # Let's save the means for mhmf = np.full(12, np.nan, np.float32) and
+        # mf instead of the `x` ratio. It seems that we should be able to
+        # simplify the mh component from
         # the `K` coefficient.
         # TODO: For now it is monthly but later it will be modified to a
         # generic time window.
 
-
         k = np.full(12, np.nan, np.float32)
-        for m in range(1,13):
+        for m in range(1, 13):
             oh = base_data[base_ti.month == m].mean()
             mh = bias_data[bias_ti.month == m].mean()
             mf = bias_fut_data[bias_fut_ti.month == m].mean()
@@ -823,9 +822,9 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
 
             x = mf / mh
             x_hat = mf_unbiased / oh
-            k[m-1] = x / x_hat
+            k[m - 1] = x / x_hat
 
-        out[f'{bias_feature}_K_factor'] = k
+        out[f'{bias_feature}_k_factor'] = k
 
         mh = np.full(12, np.nan, np.float32)
         mf = np.full(12, np.nan, np.float32)
