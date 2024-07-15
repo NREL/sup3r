@@ -685,15 +685,15 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         base_gid,
         base_handler,
         daily_reduction,
+        *,
+        bias_ti,
+        bias_fut_ti,
         decimals,
         dist,
         relative,
         sampling,
         n_samples,
         log_base,
-        *,
-        bias_ti,
-        bias_fut_ti,
         zero_rate_threshold,
         base_dh_inst=None,
 
@@ -906,7 +906,9 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
                         base_gid,
                         self.base_handler,
                         daily_reduction,
-                        self.decimals,
+                        bias_ti=self.bias_fut_dh.time_index,
+                        bias_fut_ti=self.bias_fut_dh.time_index,
+                        decimals=self.decimals,
                         dist=self.dist,
                         relative=self.relative,
                         sampling=self.sampling,
@@ -914,8 +916,6 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
                         log_base=self.log_base,
                         base_dh_inst=self.base_dh,
                         zero_rate_threshold=zero_rate_threshold,
-                        bias_ti=self.bias_fut_dh.time_index,
-                        bias_fut_ti=self.bias_fut_dh.time_index,
                     )
                     for key, arr in single_out.items():
                         self.out[key][raster_loc] = arr
@@ -954,15 +954,15 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
                             base_gid,
                             self.base_handler,
                             daily_reduction,
-                            self.decimals,
+                            bias_ti=self.bias_fut_dh.time_index,
+                            bias_fut_ti=self.bias_fut_dh.time_index,
+                            decimals=self.decimals,
                             dist=self.dist,
                             relative=self.relative,
                             sampling=self.sampling,
                             n_samples=self.n_quantiles,
                             log_base=self.log_base,
                             zero_rate_threshold=zero_rate_threshold,
-                            bias_ti=self.bias_fut_dh.time_index,
-                            bias_fut_ti=self.bias_fut_dh.time_index,
                         )
                         futures[future] = raster_loc
 
