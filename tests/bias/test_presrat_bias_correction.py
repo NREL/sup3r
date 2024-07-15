@@ -439,7 +439,6 @@ def test_zero_precipitation_rate():
     assert rate == 0.5
 
 
-@pytest.mark.skip()
 def test_zero_precipitation_rate_extremes():
     """Zero rate estimate with extremme thresholds"""
     f = ZeroRateMixin().zero_precipitation_rate
@@ -455,7 +454,7 @@ def test_zero_precipitation_rate_extremes():
     rate = f(arr, threshold=9)
     assert rate == 0.9
 
-    rate = f(arr, threshold=100)
+    rate = f(arr, threshold=arr.max() + 1)
     assert rate == 1
 
 

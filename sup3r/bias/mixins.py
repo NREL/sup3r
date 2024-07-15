@@ -108,13 +108,13 @@ class ZeroRateMixin:
        16(6), 2421-2442.
     """
     @staticmethod
-    def zero_precipitation_rate(arr: np.ndarray, threshold: float = 0.01):
+    def zero_precipitation_rate(arr: np.ndarray, threshold: float = 0.0):
         """Rate of (nearly) zero precipitation days
 
         Estimate the rate of values less than a given ``threshold``. In concept
         the threshold would be zero (thus the name zero precipitation rate)
         but it is often used a small threshold to truncate negligible values.
-        For instance, [Pierce2015]_ uses 0.01 (mm/day) for PresRat correction.
+        For instance, [Pierce2015]_ uses 0.01 mm/day for PresRat correction.
 
         Parameters
         ----------
@@ -149,7 +149,5 @@ class ZeroRateMixin:
         0.25
         """
         idx = np.isfinite(arr)
-        if not idx.any():
-            return np.nan
 
-        return np.nanmean((arr[idx] < threshold).astype('i'))
+        return np.mean((arr[idx] < threshold).astype('i'))
