@@ -664,9 +664,7 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
                                                            np.nan,
                                                            np.float32)
         shape = (*self.bias_gid_raster.shape, 12)
-        self.out[f'{self.bias_feature}_K_factor'] = np.full(
-            shape, np.nan, np.float32)
-        self.out[f'{self.bias_feature}_mean_change_rate'] = np.full(
+        self.out[f'{self.bias_feature}_k_factor'] = np.full(
             shape, np.nan, np.float32)
         self.out[f'{self.bias_feature}_mean_mh'] = np.full(shape,
                                                            np.nan,
