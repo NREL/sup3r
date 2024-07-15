@@ -510,7 +510,9 @@ def local_qdm_bc(data: np.ndarray,
         bias_fut = bias_fut[spatial_slice]
 
     output = np.full_like(data, np.nan)
-    idx = [np.argmin(d - cfg['time_window_center']) for d in time.day_of_year]
+    idx = [
+        np.argmin(abs(d - cfg['time_window_center'])) for d in time.day_of_year
+    ]
     for i in set(idx):
         # Naming following the paper: observed historical
         oh = base[:, :, i]
@@ -531,18 +533,21 @@ def local_qdm_bc(data: np.ndarray,
                                    mf,
                                    dist=cfg['dist'],
                                    relative=relative,
-                                   sampling=cfg["sampling"],
-                                   log_base=cfg["log_base"])
+                                   sampling=cfg['sampling'],
+                                   log_base=cfg['log_base'],
+                                   )
 
+        subset_idx = idx == i
+        subset = data[:, :, subset_idx]
         # input 3D shape (spatial, spatial, temporal)
         # QDM expects input arr with shape (time, space)
-        tmp = data.reshape(-1, data.shape[-1]).T
+        tmp = subset.reshape(-1, subset.shape[-1]).T
         # Apply QDM correction
         tmp = QDM(tmp)
         # Reorgnize array back from  (time, space)
         # to (spatial, spatial, temporal)
-        tmp = tmp.T.reshape(data.shape)
+        tmp = tmp.T.reshape(subset.shape)
         # Position output respecting original time axis sequence
-        output[:, :, idx == i] = tmp
+        output[:, :, subset_idx] = tmp
 
     return output
