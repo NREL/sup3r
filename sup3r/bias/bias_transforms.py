@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Bias correction transformation functions."""
+
 import logging
 import os
 from warnings import warn
@@ -13,7 +14,6 @@ logger = logging.getLogger(__name__)
 
 
 def _get_factors(lat_lon, ds, bias_fp, threshold=0.1):
-
     with Resource(bias_fp) as res:
         lat = np.expand_dims(res['latitude'], axis=-1)
         lon = np.expand_dims(res['longitude'], axis=-1)
@@ -73,7 +73,7 @@ def get_spatial_bc_factors(lat_lon, feature_name, bias_fp, threshold=0.1):
           'adder': f'{feature_name}_adder'}
     out = _get_factors(lat_lon, ds, bias_fp, threshold)
 
-    return out["scalar"], out["adder"]
+    return out['scalar'], out['adder']
 
 
 def get_spatial_bc_quantiles(lat_lon: np.array,
@@ -169,7 +169,7 @@ def get_spatial_bc_quantiles(lat_lon: np.array,
     with Resource(bias_fp) as res:
         cfg = res.global_attrs
 
-    return out["base"], out["bias"], out["bias_fut"], cfg
+    return out['base'], out['bias'], out['bias_fut'], cfg
 
 
 def global_linear_bc(input, scalar, adder, out_range=None):
@@ -493,7 +493,9 @@ def local_qdm_bc(data: np.ndarray,
     ...                         "./dist_params.hdf")
     """
     # Confirm that the given time matches the expected data size
-    assert data.shape[2] == time.size, "Time should align with data 3rd dimension"
+    assert (
+        data.shape[2] == time.size
+    ), 'Time should align with data 3rd dimension'
 
     base, bias, bias_fut, cfg = get_spatial_bc_quantiles(lat_lon,
                                                          base_dset,
@@ -508,14 +510,14 @@ def local_qdm_bc(data: np.ndarray,
         bias_fut = bias_fut[spatial_slice]
 
     output = np.full_like(data, np.nan)
-    idx = [np.argmin(d-cfg['time_window_center']) for d in time.day_of_year]
+    idx = [np.argmin(d - cfg['time_window_center']) for d in time.day_of_year]
     for i in set(idx):
         # Naming following the paper: observed historical
-        oh = base[:,:,i]
+        oh = base[:, :, i]
         # Modeled historical
-        mh = bias[:,:,i]
+        mh = bias[:, :, i]
         # Modeled future
-        mf = bias_fut[:,:,i]
+        mf = bias_fut[:, :, i]
 
         # This satisfies the rex's QDM design
         if no_trend:
@@ -537,9 +539,10 @@ def local_qdm_bc(data: np.ndarray,
         tmp = data.reshape(-1, data.shape[-1]).T
         # Apply QDM correction
         tmp = QDM(tmp)
-        # Reorgnize array back from  (time, space) to (spatial, spatial, temporal)
+        # Reorgnize array back from  (time, space)
+        # to (spatial, spatial, temporal)
         tmp = tmp.T.reshape(data.shape)
         # Position output respecting original time axis sequence
-        output[:,:,idx==i] = tmp
+        output[:, :, idx == i] = tmp
 
     return output
