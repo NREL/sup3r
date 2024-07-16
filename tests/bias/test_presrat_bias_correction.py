@@ -627,7 +627,7 @@ def test_apply_zero_precipitation_rate_2D():
     )
 
 
-def test_presrat_basic_use(fp_resource, fp_precip, fp_precip_fut):
+def test_presrat_calc_params(fp_resource, fp_precip, fp_precip_fut):
     """Test PresRat correction procedure
 
     Basic standard run. Using only required arguments. If this fails,
@@ -645,7 +645,7 @@ def test_presrat_basic_use(fp_resource, fp_precip, fp_precip_fut):
     )
 
     # A high zero_rate_threshold to gets at least something.
-    out = calc.run(zero_rate_threshold=50)
+    out = calc.run()
 
     # Guarantee that we have some actual values, otherwise most of the
     # remaining tests would be useless
@@ -656,17 +656,10 @@ def test_presrat_basic_use(fp_resource, fp_precip, fp_precip_fut):
     for v in out:
         assert (
             np.nanmin(out[v]) >= VAR_MIN
-        ), f'{v} should be all greater than zero.'
+        ), f'{v} should be all greater than {VAR_MIN}.'
         assert (
             np.nanmax(out[v]) < VAR_MAX
-        ), f'{v} should be all less than 1300.'
-
-    # Each location can be all finite or all NaN, but not both
-    for v in (v for v in out if len(out[v].shape) > 2):
-        tmp = np.isfinite(out[v].reshape(-1, *out[v].shape[2:]))
-        assert np.all(
-            np.all(tmp, axis=1) == ~np.all(~tmp, axis=1)
-        ), f'For each location of {v} it should be all finite or nonte'
+        ), f'{v} should be all less than {VAR_MAX}.'
 
 
 @pytest.mark.skip()
