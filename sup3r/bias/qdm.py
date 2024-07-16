@@ -757,6 +757,8 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         # Confirm zero_rate_thr default is now 0.0
         obs_zero_rate = cls.zero_precipitation_rate(
             base_data, zero_rate_threshold)
+        # Shall we save this rate for any reference later?
+        out[f'{base_dset}_zero_rate'] = obs_zero_rate
 
         # Step 2: Find tau for each grid point that would lead mh to match
         # observed dry days.
@@ -808,11 +810,6 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         # tau_fut = .....
 
         # -----------------------------------------------------------
-
-        out[f'{base_dset}_zero_rate'] = cls.zero_precipitation_rate(
-            base_data,
-            zero_rate_threshold,
-        )
 
         # ---- Dirty implementation of K factor. Proof of concept ----
         # Let's save the means for mhmf = np.full(12, np.nan, np.float32) and
