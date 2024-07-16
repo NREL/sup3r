@@ -200,19 +200,15 @@ def fp_precip_fut(tmpdir_factory, precip_fut):
 
 
 @pytest.fixture(scope='module')
-def fp_fut_cc(tmpdir_factory):
+def fp_fut_cc(tmpdir_factory, precip_fut):
     """Sample future CC dataset
+
+    One example would be a future modeled precipitation.
 
     The same CC but with an offset (75.0) and negligible noise.
     """
     fn = tmpdir_factory.mktemp('data').join('test_mf.nc')
-    ds = xr.open_dataset(FP_CC)
-    # Adding an offset
-    ds['rsds'] += 75.0
-    # adding a small noise
-    ds['rsds'] += 1e-4 * np.random.randn(*ds['rsds'].shape)
-    ds.to_netcdf(fn)
-    # DataHandlerNCforCC requires a string
+    precip_fut.to_netcdf(fn)
     fn = str(fn)
     return fn
 
