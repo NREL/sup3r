@@ -47,6 +47,7 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
     a dataset.
     """
 
+    # Default to ~monthly scale centered on every ~15 days
     NT = 24
     """Number of times to calculate QDM parameters in a year"""
     WINDOW_SIZE = 30
