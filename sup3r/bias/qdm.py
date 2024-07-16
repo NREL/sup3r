@@ -713,27 +713,44 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
             base_dh_inst=base_dh_inst,
         )
 
-        out = cls.get_qdm_params(
-            bias_data,
-            bias_fut_data,
-            base_data,
-            bias_feature,
-            base_dset,
-            sampling,
-            n_samples,
-            log_base,
-        )
+        window_size = cls.WINDOW_SIZE or 365 / cls.NT
+        window_center = cls._window_center(cls.NT)
 
-        QDM = QuantileDeltaMapping(
-            out[f'base_{base_dset}_params'][np.newaxis, :],
-            out[f'bias_{bias_feature}_params'][np.newaxis, :],
-            out[f'bias_fut_{bias_feature}_params'][np.newaxis, :],
-            dist=dist,
-            relative=relative,
-            sampling=sampling,
-            log_base=log_base
-        )
-        corrected_fut_data = QDM(bias_fut_data[:, np.newaxis]).flatten()
+        template = np.full((cls.NT, n_samples), np.nan, np.float32)
+        out = {}
+        corrected_fut_data = np.full_like(bias_fut_data, np.nan)
+        for nt, t in enumerate(window_center):
+            base_idx = cls.window_mask(base_ti.day_of_year, t, window_size)
+            bias_idx = cls.window_mask(bias_ti.day_of_year, t, window_size)
+            bias_fut_idx = cls.window_mask(bias_fut_ti.day_of_year,
+                                           t,
+                                           window_size)
+
+            if any(base_idx) and any(bias_idx) and any(bias_fut_idx):
+                tmp = cls.get_qdm_params(bias_data[bias_idx],
+                                         bias_fut_data[bias_fut_idx],
+                                         base_data[base_idx],
+                                         bias_feature,
+                                         base_dset,
+                                         sampling,
+                                         n_samples,
+                                         log_base)
+                for k, v in tmp.items():
+                    if k not in out:
+                        out[k] = template.copy()
+                    out[k][(nt), :] = v
+
+            QDM = QuantileDeltaMapping(
+                out[f'base_{base_dset}_params'][nt],
+                out[f'bias_{bias_feature}_params'][nt],
+                out[f'bias_fut_{bias_feature}_params'][nt],
+                dist=dist,
+                relative=relative,
+                sampling=sampling,
+                log_base=log_base
+            )
+            subset = bias_fut_data[bias_fut_idx]
+            corrected_fut_data[bias_fut_idx] = QDM(subset).squeeze()
 
         # -----------------------------------------------------------
         # Dirty implementation of zero-rate
