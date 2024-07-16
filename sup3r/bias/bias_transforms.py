@@ -693,11 +693,10 @@ def get_spatial_bc_presrat(lat_lon: np.array,
     ...                 lat_lon, "ghi", "rsds", "./dist_params.hdf")
     """
     ds = {'base': f'base_{base_dset}_params',
-          'base_zero_rate': f'{base_dset}_zero_rate',
           'bias': f'bias_{feature_name}_params',
           'bias_fut': f'bias_fut_{feature_name}_params',
-          'bias_mean_mh': f'{feature_name}_mean_mh',
-          'bias_mean_mf': f'{feature_name}_mean_mf',
+          'bias_tau_fut': f'{feature_name}_tau_fut',
+          'k_factor': f'{feature_name}_k_factor',
           }
     params = _get_factors(lat_lon, ds, bias_fp, threshold)
 
@@ -765,9 +764,11 @@ def local_presrat_bc(data: np.ndarray,
                                          feature_name,
                                          bias_fp,
                                          threshold)
+    time_window_center = cfg['time_window_center']
     base = params["base"]
     bias = params["bias"]
     bias_fut = params["bias_fut"]
+    bias_tau_fut = params['bias_tau_fut']
 
     if lr_padded_slice is not None:
         spatial_slice = (lr_padded_slice[0], lr_padded_slice[1])
@@ -775,35 +776,45 @@ def local_presrat_bc(data: np.ndarray,
         bias = bias[spatial_slice]
         bias_fut = bias_fut[spatial_slice]
 
-    if no_trend:
-        mf = None
-    else:
-        mf = bias_fut.reshape(-1, bias_fut.shape[-1])
-    # The distributions are 3D (space, space, N-params)
-    # Collapse 3D (space, space, N) into 2D (space**2, N)
-    QDM = QuantileDeltaMapping(base.reshape(-1, base.shape[-1]),
-                               bias.reshape(-1, bias.shape[-1]),
-                               mf,
-                               dist=cfg['dist'],
-                               relative=relative,
-                               sampling=cfg["sampling"],
-                               log_base=cfg["log_base"])
+    data_unbiased = np.full_like(data, np.nan)
+    closest_time_idx = abs(
+        time_window_center[:, np.newaxis] - np.array(time_index.day_of_year)
+    ).argmin(axis=0)
+    for nt, t in enumerate(time_window_center):
+        subset_idx = closest_time_idx == nt
+        subset = data[:, :, subset_idx]
+        oh = base[:, :, nt]
+        mh = bias[:, :, nt]
+        mf = bias_fut[:, :, nt]
 
-    # input 3D shape (spatial, spatial, temporal)
-    # QDM expects input arr with shape (time, space)
-    tmp = data.reshape(-1, data.shape[-1]).T
-    # Apply QDM correction
-    tmp = QDM(tmp)
-    # Reorgnize array back from  (time, space) to (spatial, spatial, temporal)
-    tmp = tmp.T.reshape(data.shape)
+        if no_trend:
+            mf = None
+        else:
+            mf = mf.reshape(-1, mf.shape[-1])
+        # The distributions are 3D (space, space, N-params)
+        # Collapse 3D (space, space, N) into 2D (space**2, N)
+        QDM = QuantileDeltaMapping(oh.reshape(-1, oh.shape[-1]),
+                                   mh.reshape(-1, mh.shape[-1]),
+                                   mf,
+                                   dist=cfg['dist'],
+                                   relative=relative,
+                                   sampling=cfg["sampling"],
+                                   log_base=cfg["log_base"])
 
-    tmp = apply_zero_precipitation_rate(tmp, params["base_zero_rate"])
+        # input 3D shape (spatial, spatial, temporal)
+        # QDM expects input arr with shape (time, space)
+        tmp = subset.reshape(-1, subset.shape[-1]).T
+        # Apply QDM correction
+        tmp = QDM(tmp)
+        # Reorgnize array back from  (time, space)
+        # to (spatial, spatial, temporal)
+        subset = tmp.T.reshape(subset.shape)
 
-    month = time_index.month
-    for m in range(12):
-        idx = month == m + 1
-        x_hat = tmp[:, :, idx].mean(axis=-1)
-        k = params["bias_mean_mf"][:, :, m] / x_hat
-        tmp[:, :, idx] *= k[:, :, np.newaxis]
+        subset = np.where(subset < bias_tau_fut, subset, 0)
 
-    return tmp
+        k_factor = params['k_factor'][:, :, nt]
+        subset = (subset * k_factor[:, :, np.newaxis])
+
+        data_unbiased[:, :, subset_idx] = subset
+
+    return data_unbiased
