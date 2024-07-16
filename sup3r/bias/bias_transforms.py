@@ -18,6 +18,12 @@ def _get_factors(lat_lon, ds, bias_fp, threshold=0.1):
     with Resource(bias_fp) as res:
         lat = np.expand_dims(res['latitude'], axis=-1)
         lon = np.expand_dims(res['longitude'], axis=-1)
+        assert (
+            np.diff(lat[:, :, 0], axis=0) <= 0
+        ).all(), 'Require latitude in decreasing order'
+        assert (
+            np.diff(lon[:, :, 0], axis=1) >= 0
+        ).all(), 'Require longitude in increasing order'
         lat_lon_bc = np.dstack((lat, lon))
         diff = lat_lon_bc - lat_lon[:1, :1]
         diff = np.hypot(diff[..., 0], diff[..., 1])
