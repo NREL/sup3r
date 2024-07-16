@@ -984,7 +984,10 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         )
 
         self.zero_rate_threshold = zero_rate_threshold
-        extra_attrs = {'zero_rate_threshold': zero_rate_threshold}
+        extra_attrs = {
+            'zero_rate_threshold': zero_rate_threshold,
+            'time_window_center': self.time_window_center,
+        }
         self.write_outputs(fp_out,
                            self.out,
                            extra_attrs=extra_attrs,
