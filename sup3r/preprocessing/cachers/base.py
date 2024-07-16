@@ -121,7 +121,8 @@ class Cacher(Container):
             100, 10)}
         """
         chunks = chunks or {}
-        with h5py.File(out_file, 'w') as f:
+        tmp_file = out_file + '.tmp'
+        with h5py.File(tmp_file, 'w') as f:
             lats = coords[Dimension.LATITUDE].data
             lons = coords[Dimension.LONGITUDE].data
             times = coords[Dimension.TIME].astype(int)
@@ -146,7 +147,9 @@ class Cacher(Container):
                     chunks=chunks.get(dset, None),
                 )
                 da.store(vals, d)
-                logger.debug(f'Added {dset} to {out_file}.')
+                logger.debug(f'Added {dset} to {tmp_file}.')
+        os.replace(tmp_file, out_file)
+        logger.info(f'Moved {tmp_file} to {out_file}.')
 
     @classmethod
     def write_netcdf(cls, out_file, feature, data, coords, attrs=None):

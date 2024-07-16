@@ -439,7 +439,7 @@ class Sup3rX:
                 new_vals[k] = (ordered_dims(v.dims), data)
             elif k in self._ds.data_vars:
                 new_vals[k] = (self._ds[k].dims, v)
-            else:
+            elif len(v.shape) > 1:
                 val = dims_array_tuple(v)
                 msg = (
                     f'Setting data for variable "{k}" without explicitly '
@@ -448,6 +448,8 @@ class Sup3rX:
                 logger.warning(msg)
                 warn(msg)
                 new_vals[k] = val
+            else:
+                new_vals[k] = v
         return new_vals
 
     def assign_coords(self, vals: Dict[str, Union[T_Array, tuple]]):

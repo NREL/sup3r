@@ -291,7 +291,8 @@ class Deriver(BaseDeriver):
                 {
                     Dimension.SOUTH_NORTH: hr_spatial_coarsen,
                     Dimension.WEST_EAST: hr_spatial_coarsen,
-                }
+                },
+                boundary='trim',
             ).mean()
 
         if nan_method_kwargs is not None:
