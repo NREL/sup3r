@@ -285,6 +285,7 @@ doc = { features = ["doc"], solve-group = "default" }
 test = { features = ["test"], solve-group = "default" }
 
 [tool.pixi.tasks]
+test = "pytest --pdb --durations=10 tests"
 
 [tool.pixi.feature.doc.dependencies]
 sphinx = ">=7.0"
