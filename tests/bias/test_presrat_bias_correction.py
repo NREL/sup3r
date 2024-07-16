@@ -406,7 +406,6 @@ def presrat_nochanges_params(tmpdir_factory, presrat_params):
         f['bias_fut_rsds_params'][:] = f['bias_rsds_params'][:]
         f['base_ghi_params'][:] = f['bias_rsds_params'][:]
         f['ghi_zero_rate'][:] *= 0
-        f['rsds_mean_mf'][:] = f['rsds_mean_mh'][:]
         f.flush()
 
     return str(fn)
@@ -546,8 +545,6 @@ def test_presrat_calc(fp_resource, fp_precip, fp_precip_fut):
         'bias_fut_rsds_params',
         'base_ghi_params',
         'ghi_zero_rate',
-        'rsds_mean_mh',
-        'rsds_mean_mf',
     ]
     sref = FP_CC_LAT_LON.shape[:2]
     for v in expected_vars:
@@ -630,7 +627,6 @@ def test_apply_zero_precipitation_rate_2D():
     )
 
 
-@pytest.mark.skip()
 def test_presrat_basic_use(fp_resource, fp_precip, fp_precip_fut):
     """Test PresRat correction procedure
 
