@@ -663,7 +663,7 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         self.out[f'{self.bias_feature}_tau_fut'] = np.full(shape,
                                                            np.nan,
                                                            np.float32)
-        shape = (*self.bias_gid_raster.shape, 12)
+        shape = (*self.bias_gid_raster.shape, self.NT)
         self.out[f'{self.bias_feature}_k_factor'] = np.full(
             shape, np.nan, np.float32)
 
@@ -809,26 +809,24 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
 
         # tau_fut = .....
 
-        # -----------------------------------------------------------
-
         # ---- Dirty implementation of K factor. Proof of concept ----
-        # Let's save the means for mhmf = np.full(12, np.nan, np.float32) and
-        # mf instead of the `x` ratio. It seems that we should be able to
-        # simplify the mh component from
-        # the `K` coefficient.
-        # TODO: For now it is monthly but later it will be modified to a
-        # generic time window.
 
-        k = np.full(12, np.nan, np.float32)
-        for m in range(1, 13):
-            oh = base_data[base_ti.month == m].mean()
-            mh = bias_data[bias_ti.month == m].mean()
-            mf = bias_fut_data[bias_fut_ti.month == m].mean()
-            mf_unbiased = corrected_fut_data[bias_fut_ti.month == m].mean()
+        k = np.full(cls.NT, np.nan, np.float32)
+        for nt, t in enumerate(window_center):
+            base_idx = cls.window_mask(base_ti.day_of_year, t, window_size)
+            bias_idx = cls.window_mask(bias_ti.day_of_year, t, window_size)
+            bias_fut_idx = cls.window_mask(bias_fut_ti.day_of_year,
+                                           t,
+                                           window_size)
+
+            oh = base_data[base_idx].mean()
+            mh = bias_data[bias_idx].mean()
+            mf = bias_fut_data[bias_fut_idx].mean()
+            mf_unbiased = corrected_fut_data[bias_fut_idx].mean()
 
             x = mf / mh
             x_hat = mf_unbiased / oh
-            k[m - 1] = x / x_hat
+            k[nt] = x / x_hat
 
         out[f'{bias_feature}_k_factor'] = k
 
