@@ -12,6 +12,7 @@ from warnings import warn
 
 import numpy as np
 import pandas as pd
+import psutil
 import xarray as xr
 
 import sup3r.preprocessing
@@ -66,6 +67,13 @@ def get_date_range_kwargs(time_index):
         'end': time_index[-1].strftime('%Y-%m-%d %H:%M:%S'),
         'freq': pd.infer_freq(time_index),
     }
+
+
+def _mem_check():
+    mem = psutil.virtual_memory()
+    return (
+        f'Memory usage is {mem.used / 1e9:.3f} GB out of {mem.total / 1e9:.3f}'
+    )
 
 
 def _compute_chunks_if_dask(arr):

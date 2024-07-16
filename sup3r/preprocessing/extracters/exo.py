@@ -288,7 +288,11 @@ class TopoExtracterH5(ExoExtracter):
         """Get the 1D array of elevation data from the source_file_h5"""
         if self._source_data is None:
             with LoaderH5(self.source_file) as res:
-                self._source_data = res['topography', ..., None]
+                self._source_data = (
+                    res['topography', ..., None]
+                    if 'time' not in res['topography'].dims
+                    else res['topography', ..., slice(0, 1)]
+                )
         return self._source_data
 
     def get_data(self):

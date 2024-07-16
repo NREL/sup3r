@@ -7,7 +7,6 @@ from warnings import warn
 import dask.array as da
 import numpy as np
 import pandas as pd
-import psutil
 import xarray as xr
 from scipy.stats import mode
 from typing_extensions import Self
@@ -20,6 +19,7 @@ from sup3r.preprocessing.utilities import (
     _is_ints,
     _is_strings,
     _lowered,
+    _mem_check,
     dims_array_tuple,
     ordered_array,
     ordered_dims,
@@ -82,17 +82,12 @@ class Sup3rX:
         it has not been loaded already."""
         if not self.loaded:
             logger.debug(f'Loading dataset into memory: {self._ds}')
-            mem = psutil.virtual_memory()
-            logger.debug(
-                f'Pre-loading memory usage is {mem.used / 1e9:.3f} '
-                f'GB out of {mem.total / 1e9:.3f} '
-            )
-            self._ds = self._ds.compute(**kwargs)
-            mem = psutil.virtual_memory()
-            logger.debug(
-                f'Post-loading memory usage is {mem.used / 1e9:.3f} '
-                f'GB out of {mem.total / 1e9:.3f} '
-            )
+            logger.debug(f'Pre-loading: {_mem_check()}')
+
+            for f in self._ds.data_vars:
+                self._ds[f] = self._ds[f].compute(**kwargs)
+                logger.debug(f'Loaded {f} into memory. {_mem_check()}')
+            logger.debug(f'Post-loading: {_mem_check()}')
 
     @property
     def loaded(self):
@@ -221,7 +216,7 @@ class Sup3rX:
         """Raise Sup3rX object to an integer power. Used to compute weighted
         standard deviations."""
         try:
-            return type(self)(self._ds ** other)
+            return type(self)(self._ds**other)
         except Exception as e:
             raise NotImplementedError(
                 f'Exponentiation not supported for type {type(other)}.'

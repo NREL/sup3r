@@ -5,6 +5,7 @@ import logging
 from typing import Dict, Optional
 
 from sup3r.preprocessing.base import Sup3rDataset
+from sup3r.preprocessing.utilities import lowered
 
 from .base import Sampler
 from .utilities import uniform_box_sampler, uniform_time_sampler
@@ -88,8 +89,10 @@ class DualSampler(Sampler):
         and high res data objects or the value provided through the
         feature_sets dictionary."""
         features = set(self.lr_data.features + self.hr_data.features)
-        features = [f for f in features if f not in self._hr_exo_features]
-        features += self._hr_exo_features
+        features = [
+            f for f in features if f not in lowered(self._hr_exo_features)
+        ]
+        features += lowered(self._hr_exo_features)
         return feature_sets.get('features', features)
 
     def check_for_consistent_shapes(self):

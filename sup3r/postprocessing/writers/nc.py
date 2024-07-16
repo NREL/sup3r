@@ -57,6 +57,8 @@ class OutputHandlerNC(OutputHandler):
         """
         coords = {
             Dimension.TIME: times,
+            Dimension.SOUTH_NORTH: lat_lon[:, 0, 0],
+            Dimension.WEST_EAST: lat_lon[0, :, 1],
             Dimension.LATITUDE: (Dimension.spatial_2d(), lat_lon[:, :, 0]),
             Dimension.LONGITUDE: (Dimension.spatial_2d(), lat_lon[:, :, 1]),
         }
