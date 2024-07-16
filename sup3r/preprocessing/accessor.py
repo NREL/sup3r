@@ -214,6 +214,9 @@ class Sup3rX:
                 f'Multiplication not supported for type {type(other)}.'
             ) from e
 
+    def __rmul__(self, other):
+        return self.__mul__(other)
+
     def __pow__(self, other):
         """Raise Sup3rX object to an integer power. Used to compute weighted
         standard deviations."""

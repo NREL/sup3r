@@ -115,7 +115,6 @@ def BatchHandlerFactory(
                     thread_name='validation',
                     **get_class_kwargs(self.VAL_QUEUE, kwargs),
                 )
-
             super().__init__(
                 samplers=train_samplers,
                 batch_size=batch_size,
