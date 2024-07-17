@@ -14,6 +14,7 @@ from sup3r.preprocessing import (
     DataHandlerH5WindCC,
 )
 from sup3r.preprocessing.utilities import lowered
+from sup3r.utilities.utilities import RANDOM_GENERATOR
 
 SHAPE = (20, 20)
 FEATURES_W = ['temperature_100m', 'u_100m', 'v_100m', 'topography']

@@ -10,6 +10,7 @@ import pytest
 from sup3r.models import Sup3rGanDC
 from sup3r.preprocessing import DataHandlerH5
 from sup3r.utilities.pytest.helpers import BatchHandlerTesterDC
+from sup3r.utilities.utilities import RANDOM_GENERATOR
 
 SHAPE = (20, 20)
 FEATURES_W = ['temperature_100m', 'u_100m', 'v_100m', 'topography']

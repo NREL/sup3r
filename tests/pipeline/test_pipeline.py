@@ -18,6 +18,7 @@ from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.models.base import Sup3rGan
 from sup3r.preprocessing import DataHandlerNC
 from sup3r.utilities.pytest.helpers import make_fake_nc_file
+from sup3r.utilities.utilities import RANDOM_GENERATOR
 
 FEATURES = ['u_100m', 'v_100m', 'pressure_0m']
 

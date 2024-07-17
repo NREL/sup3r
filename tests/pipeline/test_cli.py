@@ -27,7 +27,7 @@ from sup3r.utilities.pytest.helpers import (
     make_fake_h5_chunks,
     make_fake_nc_file,
 )
-from sup3r.utilities.utilities import pd_date_range
+from sup3r.utilities.utilities import RANDOM_GENERATOR, pd_date_range
 
 FEATURES = ['u_100m', 'v_100m', 'pressure_0m']
 fwp_chunk_shape = (4, 4, 6)

@@ -249,6 +249,7 @@ class Sup3rX:
         """Set name of dataset."""
         self._ds.attrs['name'] = value
 
+    '''
     def sel(self, *args, **kwargs):
         """Override xr.Dataset.sel to enable feature selection."""
         features = kwargs.pop('features', None)
@@ -267,6 +268,7 @@ class Sup3rX:
         else:
             out = self._ds.isel(*args, **kwargs)
         return type(self)(out)
+    '''
 
     @property
     def dims(self):

@@ -11,6 +11,7 @@ from sup3r.preprocessing.utilities import Dimension
 from sup3r.utilities.pytest.helpers import (
     make_fake_dset,
 )
+from sup3r.utilities.utilities import RANDOM_GENERATOR
 
 
 @pytest.mark.parametrize(

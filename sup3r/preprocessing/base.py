@@ -170,6 +170,7 @@ class Sup3rDataset:
             return tuple(d.sample(idx[i]) for i, d in enumerate(self))
         return next(self).sample(idx)
 
+    '''
     def isel(self, *args, **kwargs):
         """Return new Sup3rDataset with isel applied to each member."""
         return self.rewrap(tuple(d.isel(*args, **kwargs) for d in self))
@@ -177,7 +178,7 @@ class Sup3rDataset:
     def sel(self, *args, **kwargs):
         """Return new Sup3rDataset with sel applied to each member."""
         return self.rewrap(tuple(d.sel(*args, **kwargs) for d in self))
-
+    '''
     def __getitem__(self, keys):
         """If keys is an int this is interpreted as a request for that member
         of self._ds. If self._ds consists of two members we call

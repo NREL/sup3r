@@ -12,6 +12,7 @@ from tensorflow.keras.losses import MeanAbsoluteError
 from sup3r import CONFIG_DIR
 from sup3r.models import SolarCC, Sup3rGan
 from sup3r.preprocessing import BatchHandlerCC, DataHandlerH5SolarCC
+from sup3r.utilities.utilities import RANDOM_GENERATOR
 
 SHAPE = (20, 20)
 FEATURES_S = ['clearsky_ratio', 'ghi', 'clearsky_ghi']
@@ -203,15 +204,23 @@ def test_solar_custom_loss():
         # hi res true and gen shapes need to match
         with pytest.raises(RuntimeError):
             loss1, _ = model.calc_loss(
-                RANDOM_GENERATOR.uniform(0, 1, (1, 5, 5, 24, 1)).astype(np.float32),
-                RANDOM_GENERATOR.uniform(0, 1, (1, 10, 10, 24, 1)).astype(np.float32),
+                RANDOM_GENERATOR.uniform(0, 1, (1, 5, 5, 24, 1)).astype(
+                    np.float32
+                ),
+                RANDOM_GENERATOR.uniform(0, 1, (1, 10, 10, 24, 1)).astype(
+                    np.float32
+                ),
             )
 
         # time steps need to be multiple of 24
         with pytest.raises(AssertionError):
             loss1, _ = model.calc_loss(
-                RANDOM_GENERATOR.uniform(0, 1, (1, 5, 5, 20, 1)).astype(np.float32),
-                RANDOM_GENERATOR.uniform(0, 1, (1, 5, 5, 20, 1)).astype(np.float32),
+                RANDOM_GENERATOR.uniform(0, 1, (1, 5, 5, 20, 1)).astype(
+                    np.float32
+                ),
+                RANDOM_GENERATOR.uniform(0, 1, (1, 5, 5, 20, 1)).astype(
+                    np.float32
+                ),
             )
 
         loss1, _ = model.calc_loss(

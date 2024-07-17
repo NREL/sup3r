@@ -13,6 +13,7 @@ from sup3r.preprocessing import (
     BatchHandler,
     DataHandlerH5,
 )
+from sup3r.utilities.utilities import RANDOM_GENERATOR
 
 SHAPE = (20, 20)
 FEATURES_W = ['temperature_100m', 'u_100m', 'v_100m', 'topography']

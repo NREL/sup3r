@@ -1,6 +1,5 @@
 """pytests for general utilities"""
 
-
 import dask.array as da
 import matplotlib.pyplot as plt
 import numpy as np
@@ -21,6 +20,7 @@ from sup3r.preprocessing.samplers.utilities import (
 from sup3r.utilities.interpolation import Interpolator
 from sup3r.utilities.regridder import Regridder
 from sup3r.utilities.utilities import (
+    RANDOM_GENERATOR,
     spatial_coarsening,
     temporal_coarsening,
 )
@@ -76,7 +76,9 @@ def test_regridding():
         )
 
         new_shuffled_meta = shuffled_meta.copy()
-        rand = RANDOM_GENERATOR.uniform(0, 1e-12, size=(2 * len(shuffled_meta)))
+        rand = RANDOM_GENERATOR.uniform(
+            0, 1e-12, size=(2 * len(shuffled_meta))
+        )
         rand = rand.reshape((len(shuffled_meta), 2))
         new_shuffled_meta['latitude'] += rand[:, 0]
         new_shuffled_meta['longitude'] += rand[:, 1]
