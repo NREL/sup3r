@@ -653,6 +653,7 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
     #   - Identify Z_gf. (0.01 mm) Also have to save on output params
     #   - Estimate K = <x> / <hat{x}>
     """
+    zero_rate_threshold = None
 
     def _init_out(self):
         super()._init_out()
