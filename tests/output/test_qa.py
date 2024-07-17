@@ -23,6 +23,7 @@ from sup3r.qa.utilities import (
     wavenumber_spectrum,
 )
 from sup3r.utilities.pytest.helpers import make_fake_nc_file
+from sup3r.utilities.utilities import RANDOM_GENERATOR
 
 TRAIN_FEATURES = ['u_100m', 'v_100m', 'pressure_0m']
 MODEL_OUT_FEATURES = ['u_100m', 'v_100m']
@@ -162,7 +163,7 @@ def test_continuous_dist():
 def test_dist_smoke(func):
     """Test QA dist functions for basic operations."""
 
-    a = np.random.rand(10, 10)
+    a = RANDOM_GENERATOR.random((10, 10))
     _ = func(a)
 
 
@@ -172,8 +173,8 @@ def test_dist_smoke(func):
 def test_uv_spectrum_smoke(func):
     """Test QA uv spectrum functions for basic operations."""
 
-    u = np.random.rand(10, 10)
-    v = np.random.rand(10, 10)
+    u = RANDOM_GENERATOR.random((10, 10))
+    v = RANDOM_GENERATOR.random((10, 10))
     _ = func(u, v)
 
 
@@ -183,5 +184,5 @@ def test_uv_spectrum_smoke(func):
 def test_spectrum_smoke(func):
     """Test QA spectrum functions for basic operations."""
 
-    ke = np.random.rand(10, 10)
+    ke = RANDOM_GENERATOR.random((10, 10))
     _ = func(ke)

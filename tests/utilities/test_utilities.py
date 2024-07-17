@@ -30,8 +30,8 @@ def test_log_interp():
     """Make sure log interp generates reasonable output (e.g. between input
     levels)"""
     shape = (3, 3, 5)
-    lower = np.random.uniform(-10, 10, shape)
-    upper = np.random.uniform(-10, 10, shape)
+    lower = RANDOM_GENERATOR.uniform(-10, 10, shape)
+    upper = RANDOM_GENERATOR.uniform(-10, 10, shape)
 
     hgt_array = da.stack(
         [np.full(shape, 10), np.full(shape, 100)],
@@ -76,7 +76,7 @@ def test_regridding():
         )
 
         new_shuffled_meta = shuffled_meta.copy()
-        rand = np.random.uniform(0, 1e-12, size=(2 * len(shuffled_meta)))
+        rand = RANDOM_GENERATOR.uniform(0, 1e-12, size=(2 * len(shuffled_meta)))
         rand = rand.reshape((len(shuffled_meta), 2))
         new_shuffled_meta['latitude'] += rand[:, 0]
         new_shuffled_meta['longitude'] += rand[:, 1]
@@ -509,7 +509,7 @@ def test_st_interpolation(plot=False):
     assert err < 0.01
 
     # spatial test
-    s_vals = np.random.uniform(0, 100, 3)
+    s_vals = RANDOM_GENERATOR.uniform(0, 100, 3)
     lr = np.transpose(np.array([[s_vals, s_vals]]), axes=(1, 2, 0))
     lr = np.repeat(lr, 2, axis=-1)
     hr = st_interp(lr, s_enhance=2, t_enhance=1)
@@ -521,7 +521,7 @@ def test_st_interpolation(plot=False):
     assert np.allclose(hr[0, :, 0], truth)
 
     # temporal test
-    t_vals = np.random.uniform(0, 100, 3)
+    t_vals = RANDOM_GENERATOR.uniform(0, 100, 3)
     lr = np.ones((2, 2, 3)) * t_vals
     hr = st_interp(lr, s_enhance=1, t_enhance=3, t_centered=True)
     x = np.linspace(-(1 / 3), 2 + (1 / 3), 9)

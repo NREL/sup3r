@@ -87,6 +87,7 @@ class Sup3rX:
             for f in self._ds.data_vars:
                 self._ds[f] = self._ds[f].compute(**kwargs)
                 logger.debug(f'Loaded {f} into memory. {_mem_check()}')
+            logger.debug(f'Loaded dataset into memory: {self._ds}')
             logger.debug(f'Post-loading: {_mem_check()}')
 
     @property
@@ -228,6 +229,20 @@ class Sup3rX:
         :class:`Data` objects. e.g. for low / high res pairs or daily / hourly
         data."""
         return self._ds.attrs.get('name', None)
+
+    def sample(self, idx):
+        """Get sample from self._ds. The idx should be a tuple of slices for
+        the dimensions (south_north, west_east, time) and a list of feature
+        names."""
+        isel_kwargs = dict(zip(Dimension.dims_3d(), idx[:-1]))
+        features = _lowered(idx[-1])
+        chunk = self._ds.isel(**isel_kwargs)
+        arrs = [chunk[f].data for f in features]
+        return (
+            da.stack(arrs, axis=-1)
+            if not self.loaded
+            else np.stack(arrs, axis=-1)
+        )
 
     @name.setter
     def name(self, value):

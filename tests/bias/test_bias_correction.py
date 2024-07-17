@@ -23,6 +23,7 @@ from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.preprocessing import DataHandlerNCforCC
 from sup3r.preprocessing.utilities import get_date_range_kwargs
 from sup3r.qa.qa import Sup3rQa
+from sup3r.utilities.utilities import RANDOM_GENERATOR
 
 with xr.open_dataset(pytest.FP_RSDS) as fh:
     MIN_LAT = np.min(fh.lat.values.astype(np.float32))
@@ -476,8 +477,8 @@ def test_fwp_integration():
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
 
-        scalar = np.random.uniform(0.5, 1, (8, 8, 1))
-        adder = np.random.uniform(0, 1, (8, 8, 1))
+        scalar = RANDOM_GENERATOR.uniform(0.5, 1, (8, 8, 1))
+        adder = RANDOM_GENERATOR.uniform(0, 1, (8, 8, 1))
 
         with h5py.File(bias_fp, 'w') as f:
             f.create_dataset('u_100m_scalar', data=scalar)
@@ -548,10 +549,10 @@ def test_qa_integration():
 
         out_file_path = os.path.join(td, 'sup3r_out.h5')
         with h5py.File(out_file_path, 'w') as f:
-            f.create_dataset('meta', data=np.random.uniform(0, 1, 10))
+            f.create_dataset('meta', data=RANDOM_GENERATOR.uniform(0, 1, 10))
 
-        scalar = np.random.uniform(0.5, 1, (20, 20, 1))
-        adder = np.random.uniform(0, 1, (20, 20, 1))
+        scalar = RANDOM_GENERATOR.uniform(0.5, 1, (20, 20, 1))
+        adder = RANDOM_GENERATOR.uniform(0, 1, (20, 20, 1))
 
         with h5py.File(bias_fp, 'w') as f:
             f.create_dataset('u_100m_scalar', data=scalar)
@@ -703,8 +704,8 @@ def test_match_zero_rate():
     """Test feature to match the rate of zeros in the bias data based on the
     zero rate in the base data. Useful for precip where GCMs have a low-precip
     "drizzle" problem."""
-    bias_data = np.random.uniform(0, 1, 1000)
-    base_data = np.random.uniform(0, 1, 1000)
+    bias_data = RANDOM_GENERATOR.uniform(0, 1, 1000)
+    base_data = RANDOM_GENERATOR.uniform(0, 1, 1000)
     base_data[base_data < 0.1] = 0
 
     skill = SkillAssessment._run_skill_eval(bias_data, base_data, 'f1', 'f1')

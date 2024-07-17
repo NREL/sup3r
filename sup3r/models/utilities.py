@@ -5,8 +5,6 @@ import logging
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 
-np.random.seed(42)
-
 logger = logging.getLogger(__name__)
 
 

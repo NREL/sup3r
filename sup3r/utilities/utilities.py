@@ -11,9 +11,9 @@ import pandas as pd
 from packaging import version
 from scipy import ndimage as nd
 
-np.random.seed(42)
-
 logger = logging.getLogger(__name__)
+
+RANDOM_GENERATOR = np.random.default_rng(seed=42)
 
 
 def safe_serialize(obj):

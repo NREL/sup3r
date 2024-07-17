@@ -114,11 +114,11 @@ def test_change_values():
     data = make_fake_dset((20, 20, 100, 3), features=['u', 'v'])
     data = Sup3rDataset(high_res=data)
 
-    rand_u = np.random.uniform(0, 20, data['u', ...].shape)
+    rand_u = RANDOM_GENERATOR.uniform(0, 20, data['u', ...].shape)
     data['u'] = rand_u
     assert np.array_equal(rand_u, data['u', ...].compute())
 
-    rand_v = np.random.uniform(0, 10, data['v', ...].shape)
+    rand_v = RANDOM_GENERATOR.uniform(0, 10, data['v', ...].shape)
     data['v'] = rand_v
     assert np.array_equal(rand_v, data['v', ...])
 

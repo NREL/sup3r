@@ -54,8 +54,8 @@ class Dimension(str, Enum):
 
     @classmethod
     def dims_3d(cls):
-        """Return ordered tuple for 2d spatial coordinates."""
-        return (cls.TIME, cls.SOUTH_NORTH, cls.WEST_EAST)
+        """Return ordered tuple for 3d spatial coordinates."""
+        return (cls.SOUTH_NORTH, cls.WEST_EAST, cls.TIME)
 
 
 def get_date_range_kwargs(time_index):

@@ -13,7 +13,7 @@ from sup3r.preprocessing.base import Container, Sup3rDataset
 from sup3r.preprocessing.batch_handlers import BatchHandlerCC, BatchHandlerDC
 from sup3r.preprocessing.samplers import DualSamplerCC, Sampler, SamplerDC
 from sup3r.preprocessing.utilities import Dimension
-from sup3r.utilities.utilities import pd_date_range
+from sup3r.utilities.utilities import RANDOM_GENERATOR, pd_date_range
 
 
 def make_fake_tif(shape, outfile):
@@ -23,7 +23,10 @@ def make_fake_tif(shape, outfile):
     x = np.linspace(-150, 150, shape[1])
     coords = {'band': [1], 'x': x, 'y': y}
     data_vars = {
-        'band_data': (('band', 'y', 'x'), np.random.uniform(0, 1, (1, *shape)))
+        'band_data': (
+            ('band', 'y', 'x'),
+            RANDOM_GENERATOR.uniform(0, 1, (1, *shape)),
+        )
     }
     nc = xr.Dataset(coords=coords, data_vars=data_vars)
     nc.to_netcdf(outfile)
@@ -231,7 +234,7 @@ def BatchHandlerTesterFactory(BatchHandlerClass, SamplerClass):
                 self.batch_size,
                 drop_remainder=True,
                 deterministic=True,
-                num_parallel_calls=1
+                num_parallel_calls=1,
             )
             return batches.as_numpy_iterator()
 
@@ -279,8 +282,8 @@ def make_fake_h5_chunks(td):
     features = ['windspeed_100m', 'winddirection_100m']
     model_meta_data = {'foo': 'bar'}
     shape = (50, 50, 96, 1)
-    ws_true = np.random.uniform(0, 20, shape)
-    wd_true = np.random.uniform(0, 360, shape)
+    ws_true = RANDOM_GENERATOR.uniform(0, 20, shape)
+    wd_true = RANDOM_GENERATOR.uniform(0, 360, shape)
     data = np.concatenate((ws_true, wd_true), axis=3)
     lat = np.linspace(90, 0, 10)
     lon = np.linspace(-180, 0, 10)
@@ -371,7 +374,7 @@ def make_fake_cs_ratio_files(td, low_res_times, low_res_lat_lon, gan_meta):
         out_file = os.path.join(chunk_dir, fn)
         fps.append(out_file)
 
-        cs_ratio = np.random.uniform(0, 1, (20, 20, 1, 1))
+        cs_ratio = RANDOM_GENERATOR.uniform(0, 1, (20, 20, 1, 1))
         cs_ratio = np.repeat(cs_ratio, 24, axis=2)
 
         OutputHandlerH5.write_output(

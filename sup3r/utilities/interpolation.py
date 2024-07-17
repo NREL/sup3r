@@ -11,10 +11,9 @@ from sup3r.preprocessing.utilities import (
     _compute_if_dask,
 )
 from sup3r.typing import T_Array
+from sup3r.utilities.utilities import RANDOM_GENERATOR
 
 logger = logging.getLogger(__name__)
-
-np.random.seed(42)
 
 
 class Interpolator:
@@ -279,7 +278,7 @@ class Interpolator:
         # data didnt provide underground data.
         for level in levels:
             mask = lev_array == level
-            random = np.random.uniform(-1e-5, 0, size=mask.sum())
+            random = RANDOM_GENERATOR.uniform(-1e-5, 0, size=mask.sum())
             lev_array = da.ma.masked_array(lev_array, mask)
             lev_array = da.ma.filled(lev_array, random)
 

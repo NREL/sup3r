@@ -11,8 +11,6 @@ from sup3r.preprocessing.samplers.utilities import nsrdb_reduce_daily_data
 from sup3r.preprocessing.utilities import Dimension, _compute_if_dask
 from sup3r.utilities.utilities import nn_fill_array
 
-np.random.seed(42)
-
 logger = logging.getLogger(__name__)
 
 

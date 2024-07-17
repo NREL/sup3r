@@ -19,6 +19,7 @@ from sup3r.preprocessing import (
 )
 from sup3r.preprocessing.data_handlers.base import ExoData
 from sup3r.preprocessing.utilities import Dimension
+from sup3r.utilities.utilities import RANDOM_GENERATOR
 
 TARGET = (13.67, 125.0)
 SHAPE = (8, 8)
@@ -170,7 +171,9 @@ def test_topo_extraction_h5(s_enhance, plot=False):
         hr_wtk_ind = np.arange(len(lat)).reshape(te.hr_shape[:-1])
         assert te.nn.max() == len(hr_wtk_meta)
 
-        for gid in np.random.choice(len(hr_wtk_meta), 50, replace=False):
+        for gid in RANDOM_GENERATOR.choice(
+            len(hr_wtk_meta), 50, replace=False
+        ):
             idy, idx = np.where(hr_wtk_ind == gid)
             iloc = np.where(te.nn == gid)[0]
             exo_coords = te.source_lat_lon[iloc]

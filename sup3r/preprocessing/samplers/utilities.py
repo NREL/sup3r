@@ -10,8 +10,7 @@ from sup3r.preprocessing.utilities import (
     _compute_chunks_if_dask,
     _compute_if_dask,
 )
-
-np.random.seed(42)
+from sup3r.utilities.utilities import RANDOM_GENERATOR
 
 logger = logging.getLogger(__name__)
 
@@ -39,8 +38,12 @@ def uniform_box_sampler(data_shape, sample_shape):
         data_shape[1] if data_shape[1] < sample_shape[1] else sample_shape[1]
     )
     shape = (shape_1, shape_2)
-    start_row = np.random.randint(0, data_shape[0] - sample_shape[0] + 1)
-    start_col = np.random.randint(0, data_shape[1] - sample_shape[1] + 1)
+    start_row = RANDOM_GENERATOR.integers(
+        0, data_shape[0] - sample_shape[0] + 1
+    )
+    start_col = RANDOM_GENERATOR.integers(
+        0, data_shape[1] - sample_shape[1] + 1
+    )
     stop_row = start_row + shape[0]
     stop_col = start_col + shape[1]
 
@@ -87,7 +90,7 @@ def weighted_box_sampler(data_shape, sample_shape, weights):
         'or equal to the number of spatial weights.'
     )
     assert len(indices) >= len(weight_list), msg
-    start = np.random.choice(indices, p=weight_list)
+    start = RANDOM_GENERATOR.choice(indices, p=weight_list)
     row = start // max_cols
     col = start % max_cols
     stop_1 = row + np.min([sample_shape[0], data_shape[0]])
@@ -135,7 +138,7 @@ def weighted_time_sampler(data_shape, sample_shape, weights):
         weight_list += [w] * len(t_chunks[i])
     weight_list /= np.sum(weight_list)
 
-    start = np.random.choice(t_indices, p=weight_list)
+    start = RANDOM_GENERATOR.choice(t_indices, p=weight_list)
     stop = start + shape
 
     return slice(start, stop)
@@ -161,7 +164,9 @@ def uniform_time_sampler(data_shape, sample_shape, crop_slice=slice(None)):
     """
     shape = data_shape[2] if data_shape[2] < sample_shape else sample_shape
     indices = np.arange(data_shape[2] + 1)[crop_slice]
-    start = np.random.randint(indices[0], indices[-1] - sample_shape + 1)
+    start = RANDOM_GENERATOR.integers(
+        indices[0], indices[-1] - sample_shape + 1
+    )
     stop = start + shape
     return slice(start, stop)
 
@@ -205,7 +210,7 @@ def daily_time_sampler(data, shape, time_index):
         logger.error(msg)
         raise RuntimeError(msg)
 
-    start = np.random.randint(0, len(midnight_ilocs))
+    start = RANDOM_GENERATOR.integers(0, len(midnight_ilocs))
     start = midnight_ilocs[start]
     stop = start + shape
 

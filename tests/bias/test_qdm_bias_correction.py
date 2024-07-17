@@ -15,6 +15,7 @@ from sup3r.bias.utilities import qdm_bc
 from sup3r.models import Sup3rGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.preprocessing import DataHandlerNC, DataHandlerNCforCC
+from sup3r.utilities.utilities import RANDOM_GENERATOR
 
 CC_LAT_LON = DataHandlerNC(pytest.FP_RSDS, 'rsds').lat_lon
 
@@ -36,7 +37,7 @@ def fp_fut_cc(tmpdir_factory):
     # Adding an offset
     ds['rsds'] += 75.0
     # adding a noise
-    ds['rsds'] += np.random.randn(*ds['rsds'].shape)
+    ds['rsds'] += RANDOM_GENERATOR.random(ds['rsds'].shape)
     ds.to_netcdf(fn)
     # DataHandlerNCforCC requires a string
     fn = str(fn)

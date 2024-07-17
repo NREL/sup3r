@@ -15,6 +15,7 @@ from sup3r.preprocessing.derivers.utilities import (
     transform_rotate_wind,
 )
 from sup3r.utilities.pytest.helpers import make_fake_h5_chunks
+from sup3r.utilities.utilities import RANDOM_GENERATOR
 
 
 def test_get_lat_lon():
@@ -60,8 +61,8 @@ def test_invert_uv():
     lat_lon = np.concatenate(
         [np.expand_dims(lats, axis=-1), np.expand_dims(lons, axis=-1)], axis=-1
     )
-    windspeed = np.random.rand(lat_lon.shape[0], lat_lon.shape[1], 5)
-    winddirection = 360 * np.random.rand(lat_lon.shape[0], lat_lon.shape[1], 5)
+    windspeed = RANDOM_GENERATOR.random((*lat_lon.shape[:2], 5))
+    winddirection = 360 * RANDOM_GENERATOR.random((*lat_lon.shape[:2], 5))
 
     u, v = transform_rotate_wind(
         np.array(windspeed, dtype=np.float32),
@@ -96,8 +97,8 @@ def test_invert_uv_inplace():
     lat_lon = np.concatenate(
         [np.expand_dims(lats, axis=-1), np.expand_dims(lons, axis=-1)], axis=-1
     )
-    u = np.random.rand(lat_lon.shape[0], lat_lon.shape[1], 5)
-    v = np.random.rand(lat_lon.shape[0], lat_lon.shape[1], 5)
+    u = RANDOM_GENERATOR.random((*lat_lon.shape[:2], 5))
+    v = RANDOM_GENERATOR.random((*lat_lon.shape[:2], 5))
 
     data = np.concatenate(
         [np.expand_dims(u, axis=-1), np.expand_dims(v, axis=-1)], axis=-1
@@ -209,7 +210,7 @@ def test_h5_collect_mask():
         CollectorH5.collect(out_files, fp_out, features=features)
         indices = np.arange(np.prod(data.shape[:2]))
         indices = indices[slice(-len(indices) // 2, None)]
-        removed = [np.random.choice(indices) for _ in range(10)]
+        removed = [RANDOM_GENERATOR.choice(indices) for _ in range(10)]
         mask_slice = [i for i in indices if i not in removed]
         with ResourceX(fp_out) as fh:
             mask_meta = fh.meta

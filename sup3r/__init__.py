@@ -1,6 +1,7 @@
 # isort: skip_file
 """Super Resolving Renewable Energy Resource Data (SUP3R)"""
 import os
+import numpy as np
 
 from ._version import __version__
 # Next import sets up CLI commands

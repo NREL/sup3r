@@ -66,7 +66,7 @@ class OutputHandlerNC(OutputHandler):
         data_vars = {'gids': (Dimension.spatial_2d(), gids)}
         for i, f in enumerate(features):
             data_vars[f] = (
-                Dimension.dims_3d(),
+                list(coords.keys())[:2],
                 np.transpose(data[..., i], (2, 0, 1)),
             )
 

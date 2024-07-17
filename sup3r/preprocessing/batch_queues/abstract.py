@@ -9,6 +9,7 @@ import threading
 from abc import ABC, abstractmethod
 from collections import namedtuple
 from typing import Dict, List, Optional, Tuple, Union
+from warnings import warn
 
 import numpy as np
 import tensorflow as tf
@@ -17,7 +18,7 @@ from rex import safe_json_load
 from sup3r.preprocessing.collections.base import Collection
 from sup3r.preprocessing.samplers import DualSampler, Sampler
 from sup3r.typing import T_Array
-from sup3r.utilities.utilities import Timer
+from sup3r.utilities.utilities import RANDOM_GENERATOR, Timer
 
 logger = logging.getLogger(__name__)
 
@@ -98,8 +99,9 @@ class AbstractBatchQueue(Collection, ABC):
         self._batch_counter = 0
         self._queue_thread = None
         self._default_device = default_device
-        self._running_queue = threading.Event()
+        self._training_flag = threading.Event()
         self._thread_name = thread_name
+        self.mode = mode
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
         self.batch_size = batch_size
@@ -117,7 +119,7 @@ class AbstractBatchQueue(Collection, ABC):
             'smoothing': None,
         }
         self.timer = Timer()
-        self.preflight(mode=mode)
+        self.preflight()
 
     @property
     @abstractmethod
@@ -141,23 +143,25 @@ class AbstractBatchQueue(Collection, ABC):
             shapes=self.queue_shape,
         )
 
-    def preflight(self, mode='lazy'):
+    def preflight(self):
         """Get data generator and run checks before kicking off the queue."""
         gpu_list = tf.config.list_physical_devices('GPU')
         self._default_device = self._default_device or (
             '/cpu:0' if len(gpu_list) == 0 else '/gpu:0'
         )
-        msg = ('Queue cap needs to be at least 1 but received queue_cap = '
-               f'{self.queue_cap}. Batching without a queue is not currently '
-               'supported.')
-        assert self.queue_cap > 0, msg
-        self.check_stats()
-        self.check_features()
-        self.check_enhancement_factors()
+        msg = (
+            'Queue cap needs to be at least 1 when batching in "lazy" mode, '
+            f'but received queue_cap = {self.queue_cap}.'
+        )
+        assert self.mode == 'eager' or (
+            self.queue_cap > 0 and self.mode == 'lazy'
+        ), msg
+        self.timer(self.check_features, log=True)()
+        self.timer(self.check_enhancement_factors, log=True)()
         _ = self.check_shared_attr('sample_shape')
-        if mode == 'eager':
+        if self.mode == 'eager':
             logger.info('Received mode = "eager".')
-            self.compute()
+            _ = [c.compute() for c in self.containers]
 
     @property
     def queue_thread(self):
@@ -174,19 +178,6 @@ class AbstractBatchQueue(Collection, ABC):
         features = [list(c.data.data_vars) for c in self.containers]
         msg = 'Received samplers with different sets of features.'
         assert all(feats == features[0] for feats in features), msg
-
-    def check_stats(self):
-        """Make sure the provided stats cover the contained features."""
-        msg = (
-            f'Received means = {self.means} with self.features = '
-            f'{self.features}.'
-        )
-        assert len(self.means) == len(self.features), msg
-        msg = (
-            f'Received stds = {self.stds} with self.features = '
-            f'{self.features}.'
-        )
-        assert len(self.stds) == len(self.features), msg
 
     def check_enhancement_factors(self):
         """Make sure the enhancement factors evenly divide the sample_shape."""
@@ -216,14 +207,15 @@ class AbstractBatchQueue(Collection, ABC):
             data = tf.data.Dataset.from_generator(
                 self.generator, output_signature=self.output_signature
             )
-            data = self._parallel_map(data)
-            data = data.prefetch(tf.data.AUTOTUNE)
+            # data = self._parallel_map(data)
+            # data = data.prefetch(tf.data.AUTOTUNE)
             batches = data.batch(
                 self.batch_size,
                 drop_remainder=True,
                 deterministic=False,
-                num_parallel_calls=tf.data.AUTOTUNE,
+                # num_parallel_calls=tf.data.AUTOTUNE,
             )
+
         return batches.as_numpy_iterator()
 
     def generator(self):
@@ -240,7 +232,7 @@ class AbstractBatchQueue(Collection, ABC):
             with :class:`DualSampler` samplers.) These arrays are queued in a
             background thread and then dequeued during training.
         """
-        while self._running_queue.is_set():
+        while self._training_flag.is_set():
             yield self.get_samples()
 
     @abstractmethod
@@ -255,7 +247,7 @@ class AbstractBatchQueue(Collection, ABC):
         high res samples. For a dual dataset queue this will just include
         smoothing."""
 
-    def post_dequeue(self, samples) -> Batch:
+    def _post_proc(self, samples) -> Batch:
         """Performs some post proc on dequeued samples before sending out for
         training. Post processing can include normalization, coarsening on
         high-res data (if :class:`Collection` consists of :class:`Sampler`
@@ -272,16 +264,16 @@ class AbstractBatchQueue(Collection, ABC):
 
     def start(self) -> None:
         """Start thread to keep sample queue full for batches."""
-        if not self.queue_thread.is_alive():
+        self._training_flag.set()
+        if not self.queue_thread.is_alive() and self.mode == 'lazy':
             logger.info(f'Starting {self._thread_name} queue.')
-            self._running_queue.set()
             self.queue_thread.start()
 
     def stop(self) -> None:
         """Stop loading batches."""
+        self._training_flag.clear()
         if self.queue_thread.is_alive():
             logger.info(f'Stopping {self._thread_name} queue.')
-            self._running_queue.clear()
             self.queue_thread.join()
 
     def __len__(self):
@@ -289,27 +281,32 @@ class AbstractBatchQueue(Collection, ABC):
 
     def __iter__(self):
         self._batch_counter = 0
-        self.start()
+        self.timer(self.start)()
         return self
 
-    def _enqueue_batches(self) -> None:
+    def _enqueue_batch(self) -> None:
         batch = next(self.batches, None)
         if batch is not None:
-            self.queue.enqueue(batch)
+            self.timer(self.queue.enqueue, log=True)(batch)
             msg = (
                 f'{self._thread_name.title()} queue length: '
-                f'{self.queue.size().numpy()}'
+                f'{self.queue.size().numpy()} / {self.queue_cap}'
             )
             logger.debug(msg)
+
+    def _get_batch(self) -> Batch:
+        if self.queue.size().numpy() == 0 or self.mode == 'eager':
+            return next(self.batches)
+        return self.timer(self.queue.dequeue, log=True)()
 
     def enqueue_batches(self) -> None:
         """Callback function for queue thread. While training, the queue is
         checked for empty spots and filled. In the training thread, batches are
         removed from the queue."""
         try:
-            while self._running_queue.is_set():
+            while self._training_flag.is_set():
                 if self.queue.size().numpy() < self.queue_cap:
-                    self._enqueue_batches()
+                    self._enqueue_batch()
         except KeyboardInterrupt:
             logger.info(f'Stopping {self._thread_name.title()} queue.')
             self.stop()
@@ -325,13 +322,13 @@ class AbstractBatchQueue(Collection, ABC):
             Batch object with batch.low_res and batch.high_res attributes
         """
         if self._batch_counter < self.n_batches:
-            samples = self.timer(self.queue.dequeue, log=True)()
+            samples = self.timer(self._get_batch, log=True)()
             if self.sample_shape[2] == 1:
                 if isinstance(samples, (list, tuple)):
                     samples = tuple(s[..., 0, :] for s in samples)
                 else:
                     samples = samples[..., 0, :]
-            batch = self.timer(self.post_dequeue, log=True)(samples)
+            batch = self.timer(self._post_proc, log=True)(samples)
             self._batch_counter += 1
         else:
             raise StopIteration
@@ -348,11 +345,23 @@ class AbstractBatchQueue(Collection, ABC):
         low-res / high-res stats."""
         means = means if isinstance(means, dict) else safe_json_load(means)
         stds = stds if isinstance(stds, dict) else safe_json_load(stds)
-        msg = f'Received means = {means} with self.features = {self.features}.'
+        msg = (
+            f'Received means = {means} with self.features = '
+            f'{self.features}. Make sure the means are valid, since they '
+            'clearly come from a different training run.'
+        )
 
-        assert len(means) == len(self.features), msg
-        msg = f'Received stds = {stds} with self.features = {self.features}.'
-        assert len(stds) == len(self.features), msg
+        if len(means) != len(self.features):
+            logger.warning(msg)
+            warn(msg)
+        msg = (
+            f'Received stds = {stds} with self.features = '
+            f'{self.features}. Make sure the stds are valid, since they '
+            'clearly come from a different training run.'
+        )
+        if len(stds) != len(self.features):
+            logger.warning(msg)
+            warn(msg)
 
         lr_means, lr_stds = self._get_stats(means, stds, self.lr_features)
         hr_means, hr_stds = self._get_stats(means, stds, self.hr_features)
@@ -374,7 +383,7 @@ class AbstractBatchQueue(Collection, ABC):
     def get_container_index(self):
         """Get random container index based on weights"""
         indices = np.arange(0, len(self.containers))
-        return np.random.choice(indices, p=self.container_weights)
+        return RANDOM_GENERATOR.choice(indices, p=self.container_weights)
 
     def get_random_container(self):
         """Get random container based on container weights

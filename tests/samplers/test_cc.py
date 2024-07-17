@@ -176,12 +176,12 @@ def test_solar_handler_w_wind():
         with Outputs(res_fp, mode='a') as res:
             res.write_dataset(
                 'windspeed_200m',
-                np.random.uniform(0, 20, res.shape),
+                RANDOM_GENERATOR.uniform(0, 20, res.shape),
                 np.float32,
             )
             res.write_dataset(
                 'winddirection_200m',
-                np.random.uniform(0, 359.9, res.shape),
+                RANDOM_GENERATOR.uniform(0, 359.9, res.shape),
                 np.float32,
             )
 

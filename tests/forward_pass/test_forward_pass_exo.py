@@ -22,6 +22,7 @@ from sup3r.models import (
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.preprocessing.utilities import Dimension
 from sup3r.utilities.pytest.helpers import make_fake_nc_file
+from sup3r.utilities.utilities import RANDOM_GENERATOR
 
 target = (19.3, -123.5)
 shape = (8, 8)
@@ -564,12 +565,14 @@ def test_fwp_single_step_wind_hi_res_topo(input_files, plot=False):
                 {
                     'model': 0,
                     'combine_type': 'layer',
-                    'data': np.random.rand(4, 20, 20, 12, 1),
+                    'data': RANDOM_GENERATOR.random((4, 20, 20, 12, 1)),
                 }
             ]
         }
     }
-    _ = model.generate(np.random.rand(4, 10, 10, 6, 3), exogenous_data=exo_tmp)
+    _ = model.generate(
+        RANDOM_GENERATOR.random((4, 10, 10, 6, 3)), exogenous_data=exo_tmp
+    )
 
     with tempfile.TemporaryDirectory() as td:
         st_out_dir = os.path.join(td, 'st_gan')
@@ -653,7 +656,7 @@ def test_fwp_multi_step_wind_hi_res_topo(input_files):
                 {
                     'model': 0,
                     'combine_type': 'layer',
-                    'data': np.random.rand(4, 20, 20, 1),
+                    'data': RANDOM_GENERATOR.random((4, 20, 20, 1)),
                 }
             ]
         }
@@ -1275,7 +1278,7 @@ def test_solar_multistep_exo():
                 {
                     'model': 0,
                     'combine_type': 'layer',
-                    'data': np.random.rand(4, 20, 20, 1),
+                    'data': RANDOM_GENERATOR.random((4, 20, 20, 1)),
                 }
             ]
         }
@@ -1330,12 +1333,12 @@ def test_solar_multistep_exo():
                     {
                         'model': 1,
                         'combine_type': 'input',
-                        'data': np.random.rand(3, 10, 10, 1),
+                        'data': RANDOM_GENERATOR.random((3, 10, 10, 1)),
                     },
                     {
                         'model': 1,
                         'combine_type': 'layer',
-                        'data': np.random.rand(3, 20, 20, 1),
+                        'data': RANDOM_GENERATOR.random((3, 20, 20, 1)),
                     },
                 ]
             }

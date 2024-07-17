@@ -6,8 +6,6 @@ import numpy as np
 from scipy.interpolate import interp1d
 from scipy.ndimage import gaussian_filter, zoom
 
-np.random.seed(42)
-
 logger = logging.getLogger(__name__)
 
 

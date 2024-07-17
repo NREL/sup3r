@@ -85,7 +85,7 @@ def test_solar_cc_model():
         assert model.meta['class'] == 'SolarCC'
         assert loaded.meta['class'] == 'SolarCC'
 
-    x = np.random.uniform(0, 1, (1, 30, 30, 3, 1))
+    x = RANDOM_GENERATOR.uniform(0, 1, (1, 30, 30, 3, 1))
     y = model.generate(x)
     assert y.shape[0] == x.shape[0]
     assert y.shape[1] == x.shape[1]
@@ -146,7 +146,7 @@ def test_solar_cc_model_spatial():
         assert model.meta['hr_out_features'] == ['clearsky_ratio']
         assert model.meta['class'] == 'Sup3rGan'
 
-    x = np.random.uniform(0, 1, (4, 10, 10, 1))
+    x = RANDOM_GENERATOR.uniform(0, 1, (4, 10, 10, 1))
     y = model.generate(x)
     assert y.shape[0] == x.shape[0]
     assert y.shape[1] == x.shape[1] * 5
@@ -197,21 +197,21 @@ def test_solar_custom_loss():
         )
 
         shape = (1, 4, 4, 72, 1)
-        hi_res_gen = np.random.uniform(0, 1, shape).astype(np.float32)
-        hi_res_true = np.random.uniform(0, 1, shape).astype(np.float32)
+        hi_res_gen = RANDOM_GENERATOR.uniform(0, 1, shape).astype(np.float32)
+        hi_res_true = RANDOM_GENERATOR.uniform(0, 1, shape).astype(np.float32)
 
         # hi res true and gen shapes need to match
         with pytest.raises(RuntimeError):
             loss1, _ = model.calc_loss(
-                np.random.uniform(0, 1, (1, 5, 5, 24, 1)).astype(np.float32),
-                np.random.uniform(0, 1, (1, 10, 10, 24, 1)).astype(np.float32),
+                RANDOM_GENERATOR.uniform(0, 1, (1, 5, 5, 24, 1)).astype(np.float32),
+                RANDOM_GENERATOR.uniform(0, 1, (1, 10, 10, 24, 1)).astype(np.float32),
             )
 
         # time steps need to be multiple of 24
         with pytest.raises(AssertionError):
             loss1, _ = model.calc_loss(
-                np.random.uniform(0, 1, (1, 5, 5, 20, 1)).astype(np.float32),
-                np.random.uniform(0, 1, (1, 5, 5, 20, 1)).astype(np.float32),
+                RANDOM_GENERATOR.uniform(0, 1, (1, 5, 5, 20, 1)).astype(np.float32),
+                RANDOM_GENERATOR.uniform(0, 1, (1, 5, 5, 20, 1)).astype(np.float32),
             )
 
         loss1, _ = model.calc_loss(

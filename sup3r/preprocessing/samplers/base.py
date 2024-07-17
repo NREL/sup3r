@@ -133,7 +133,7 @@ class Sampler(Container):
         """Get next sample. This retrieves a sample of size = sample_shape
         from the `.data` (a xr.Dataset or Sup3rDataset) through the Sup3rX
         accessor."""
-        return self.data[self.get_sample_index()]
+        return self.data.sample(self.get_sample_index())
 
     def __iter__(self):
         self._counter = 0

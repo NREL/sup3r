@@ -3,15 +3,14 @@ import numpy as np
 from scipy.interpolate import interp1d
 
 from sup3r.models import LinearInterp
-
-np.random.seed(42)
+from sup3r.utilities.utilities import RANDOM_GENERATOR
 
 
 def test_linear_spatial():
     """Test the linear interp model on the spatial axis"""
     model = LinearInterp(['feature'], s_enhance=2, t_enhance=1,
                          t_centered=False)
-    s_vals = np.random.uniform(0, 100, 3)
+    s_vals = RANDOM_GENERATOR.uniform(0, 100, 3)
     lr = np.transpose(np.array([[s_vals, s_vals]]), axes=(1, 2, 0))
     lr = np.repeat(lr, 6, axis=-1)
     lr = np.expand_dims(lr, (0, 4))
@@ -33,7 +32,7 @@ def test_linear_temporal():
     """Test the linear interp model on the temporal axis"""
     model = LinearInterp(['feature'], s_enhance=1, t_enhance=3,
                          t_centered=True)
-    t_vals = np.random.uniform(0, 100, 3)
+    t_vals = RANDOM_GENERATOR.uniform(0, 100, 3)
     lr = np.ones((2, 2, 3)) * t_vals
     lr = np.expand_dims(lr, (0, 4))
     hr = model.generate(lr)

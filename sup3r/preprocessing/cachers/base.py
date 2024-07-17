@@ -2,6 +2,7 @@
 
 import logging
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, Optional
 
 import dask.array as da
@@ -35,10 +36,10 @@ class Cacher(Container):
             have a {feature} format key and either a h5 or nc file extension,
             based on desired output type.
 
-            Can also include a 'chunks' key, value with a dictionary of tuples
-            for each feature. e.g. {'cache_pattern': ..., 'chunks':
-            {'windspeed_100m': (20, 100, 100)}} where the chunks ordering is
-            (time, lats, lons)
+            Can also include a 'max_workers' key and a 'chunks' key, value with
+            a dictionary of tuples for each feature. e.g. {'cache_pattern':
+            ..., 'chunks': {'windspeed_100m': (20, 100, 100)}} where the chunks
+            ordering is (time, lats, lons)
 
             Note: This is only for saving cached data. If you want to reload
             the cached files load them with a Loader object.
@@ -50,6 +51,42 @@ class Cacher(Container):
         ):
             self.out_files = self.cache_data(cache_kwargs)
 
+    def _write_single(self, feature, out_file, chunks):
+        """Write single NETCDF or H5 cache file."""
+        if os.path.exists(out_file):
+            logger.info(
+                f'{out_file} already exists. Delete if you want to overwrite.'
+            )
+        else:
+            _, ext = os.path.splitext(out_file)
+            os.makedirs(os.path.dirname(out_file), exist_ok=True)
+            logger.info(f'Writing {feature} to {out_file}.')
+            data = self[feature, ...]
+            if ext == '.h5':
+                if len(data.shape) == 3:
+                    data = np.transpose(data, axes=(2, 0, 1))
+                self.write_h5(
+                    out_file,
+                    feature,
+                    data,
+                    self.coords,
+                    chunks,
+                )
+            elif ext == '.nc':
+                self.write_netcdf(
+                    out_file,
+                    feature,
+                    data,
+                    self.coords,
+                )
+            else:
+                msg = (
+                    'cache_pattern must have either h5 or nc '
+                    f'extension. Recived {ext}.'
+                )
+                logger.error(msg)
+                raise ValueError(msg)
+
     def cache_data(self, kwargs):
         """Cache data to file with file type based on user provided
         cache_pattern.
@@ -57,48 +94,41 @@ class Cacher(Container):
         Parameters
         ----------
         cache_kwargs : dict
-            Can include 'cache_pattern' and 'chunks'. 'chunks' is a dictionary
-            of tuples (time, lats, lons) for each feature specifying the chunks
-            for h5 writes. 'cache_pattern' must have a {feature} format key.
+            Can include 'cache_pattern', 'chunks', and 'max_workers'. 'chunks'
+            is a dictionary of tuples (time, lats, lons) for each feature
+            specifying the chunks for h5 writes. 'cache_pattern' must have a
+            {feature} format key.
         """
         cache_pattern = kwargs.get('cache_pattern', None)
+        max_workers = kwargs.get('max_workers', 1)
         chunks = kwargs.get('chunks', None)
         msg = 'cache_pattern must have {feature} format key.'
         assert '{feature}' in cache_pattern, msg
-        _, ext = os.path.splitext(cache_pattern)
         out_files = [cache_pattern.format(feature=f) for f in self.features]
-        for feature, out_file in zip(self.features, out_files):
-            if os.path.exists(out_file):
-                logger.info(f'{out_file} already exists. Delete if you want '
-                            'to overwrite.')
-            else:
-                os.makedirs(os.path.dirname(out_file), exist_ok=True)
-                logger.info(f'Writing {feature} to {out_file}.')
-                data = self[feature, ...]
-                if ext == '.h5':
-                    if len(data.shape) == 3:
-                        data = np.transpose(data, axes=(2, 0, 1))
-                    self.write_h5(
-                        out_file,
-                        feature,
-                        data,
-                        self.coords,
-                        chunks,
+
+        if max_workers == 1:
+            for feature, out_file in zip(self.features, out_files):
+                self._write_single(
+                    feature=feature, out_file=out_file, chunks=chunks
+                )
+        else:
+            futures = {}
+            with ThreadPoolExecutor(max_workers=max_workers) as exe:
+                for feature, out_file in zip(self.features, out_files):
+                    future = exe.submit(
+                        self._write_single,
+                        feature=feature,
+                        out_file=out_file,
+                        chunks=chunks,
                     )
-                elif ext == '.nc':
-                    self.write_netcdf(
-                        out_file,
-                        feature,
-                        data,
-                        self.coords,
-                    )
-                else:
-                    msg = (
-                        'cache_pattern must have either h5 or nc '
-                        f'extension. Recived {ext}.'
-                    )
-                    logger.error(msg)
-                    raise ValueError(msg)
+                    futures[future] = (feature, out_file)
+                logger.info(f'Submitted cacher futures for {self.features}.')
+            for i, future in enumerate(as_completed(futures)):
+                _ = future.result()
+                feature, out_file = futures[future]
+                logger.info(
+                    f'Finished writing {i + 1} / {len(futures)} files.'
+                )
         logger.info(f'Finished writing {out_files}.')
         return out_files
 

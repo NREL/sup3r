@@ -1,4 +1,5 @@
 """Special models for surface meteorological data."""
+
 import logging
 from fnmatch import fnmatch
 from warnings import warn
@@ -9,11 +10,9 @@ from sklearn import linear_model
 
 from sup3r.models.linear import LinearInterp
 from sup3r.preprocessing.utilities import _compute_if_dask
-from sup3r.utilities.utilities import spatial_coarsening
+from sup3r.utilities.utilities import RANDOM_GENERATOR, spatial_coarsening
 
 logger = logging.getLogger(__name__)
-
-np.random.seed(42)
 
 
 class SurfaceSpatialMetModel(LinearInterp):
@@ -44,10 +43,20 @@ class SurfaceSpatialMetModel(LinearInterp):
     """Weight for the delta-topography feature for the relative humidity linear
     regression model."""
 
-    def __init__(self, lr_features, s_enhance, noise_adders=None,
-                 temp_lapse=None, w_delta_temp=None, w_delta_topo=None,
-                 pres_div=None, pres_exp=None, interp_method='LANCZOS',
-                 input_resolution=None, fix_bias=True):
+    def __init__(
+        self,
+        lr_features,
+        s_enhance,
+        noise_adders=None,
+        temp_lapse=None,
+        w_delta_temp=None,
+        w_delta_topo=None,
+        pres_div=None,
+        pres_exp=None,
+        interp_method='LANCZOS',
+        input_resolution=None,
+        fix_bias=True,
+    ):
         """
         Parameters
         ----------
@@ -157,32 +166,47 @@ class SurfaceSpatialMetModel(LinearInterp):
     @property
     def feature_inds_temp(self):
         """Get the feature index values for the temperature features."""
-        inds = [i for i, name in enumerate(self._lr_features)
-                if fnmatch(name, 'temperature_*')]
+        inds = [
+            i
+            for i, name in enumerate(self._lr_features)
+            if fnmatch(name, 'temperature_*')
+        ]
         return inds
 
     @property
     def feature_inds_pres(self):
         """Get the feature index values for the pressure features."""
-        inds = [i for i, name in enumerate(self._lr_features)
-                if fnmatch(name, 'pressure_*')]
+        inds = [
+            i
+            for i, name in enumerate(self._lr_features)
+            if fnmatch(name, 'pressure_*')
+        ]
         return inds
 
     @property
     def feature_inds_rh(self):
         """Get the feature index values for the relative humidity features."""
-        inds = [i for i, name in enumerate(self._lr_features)
-                if fnmatch(name, 'relativehumidity_*')]
+        inds = [
+            i
+            for i, name in enumerate(self._lr_features)
+            if fnmatch(name, 'relativehumidity_*')
+        ]
         return inds
 
     @property
     def feature_inds_other(self):
         """Get the feature index values for the features that are not
         temperature, pressure, or relativehumidity."""
-        finds_tprh = (self.feature_inds_temp + self.feature_inds_pres
-                      + self.feature_inds_rh)
-        inds = [i for i, name in enumerate(self._lr_features)
-                if i not in finds_tprh]
+        finds_tprh = (
+            self.feature_inds_temp
+            + self.feature_inds_pres
+            + self.feature_inds_rh
+        )
+        inds = [
+            i
+            for i, name in enumerate(self._lr_features)
+            if i not in finds_tprh
+        ]
         return inds
 
     def _get_temp_rh_ind(self, idf_rh):
@@ -214,17 +238,19 @@ class SurfaceSpatialMetModel(LinearInterp):
                 break
 
         if idf_temp is None:
-            msg = ('Could not find temperature feature corresponding to '
-                   '"{}" in feature list: {}'
-                   .format(name_rh, self._lr_features))
+            msg = (
+                'Could not find temperature feature corresponding to '
+                '"{}" in feature list: {}'.format(name_rh, self._lr_features)
+            )
             logger.error(msg)
             raise KeyError(msg)
 
         return idf_temp
 
     @classmethod
-    def fix_downscaled_bias(cls, single_lr, single_hr,
-                            method=Image.Resampling.LANCZOS):
+    def fix_downscaled_bias(
+        cls, single_lr, single_hr, method=Image.Resampling.LANCZOS
+    ):
         """Fix any bias introduced by the spatial downscaling with lapse rate.
 
         Parameters
@@ -247,17 +273,20 @@ class SurfaceSpatialMetModel(LinearInterp):
         """
 
         s_enhance = len(single_hr) // len(single_lr)
-        re_coarse = spatial_coarsening(np.expand_dims(single_hr, axis=-1),
-                                       s_enhance=s_enhance,
-                                       obs_axis=False)[..., 0]
+        re_coarse = spatial_coarsening(
+            np.expand_dims(single_hr, axis=-1),
+            s_enhance=s_enhance,
+            obs_axis=False,
+        )[..., 0]
         bias = re_coarse - single_lr
         bc = cls.downscale_arr(bias, s_enhance=s_enhance, method=method)
         single_hr -= bc
         return single_hr
 
     @classmethod
-    def downscale_arr(cls, arr, s_enhance, method=Image.Resampling.LANCZOS,
-                      fix_bias=False):
+    def downscale_arr(
+        cls, arr, s_enhance, method=Image.Resampling.LANCZOS, fix_bias=False
+    ):
         """Downscale a 2D array of data Image.resize() method
 
         Parameters
@@ -277,8 +306,10 @@ class SurfaceSpatialMetModel(LinearInterp):
             low-resolution deviation from the input data
         """
         im = Image.fromarray(arr)
-        im = im.resize((arr.shape[1] * s_enhance, arr.shape[0] * s_enhance),
-                       resample=method)
+        im = im.resize(
+            (arr.shape[1] * s_enhance, arr.shape[0] * s_enhance),
+            resample=method,
+        )
         out = np.array(im)
 
         if fix_bias:
@@ -321,19 +352,21 @@ class SurfaceSpatialMetModel(LinearInterp):
         assert len(topo_hr.shape) == 2, 'Bad shape for topo_hr'
 
         lower_data = single_lr_temp.copy() + topo_lr * self._temp_lapse
-        hi_res_temp = self.downscale_arr(lower_data, self._s_enhance,
-                                         method=self._interp_method)
+        hi_res_temp = self.downscale_arr(
+            lower_data, self._s_enhance, method=self._interp_method
+        )
         hi_res_temp -= topo_hr * self._temp_lapse
 
         if self._fix_bias:
-            hi_res_temp = self.fix_downscaled_bias(single_lr_temp,
-                                                   hi_res_temp,
-                                                   method=self._interp_method)
+            hi_res_temp = self.fix_downscaled_bias(
+                single_lr_temp, hi_res_temp, method=self._interp_method
+            )
 
         return hi_res_temp
 
-    def downscale_rh(self, single_lr_rh, single_lr_temp, single_hr_temp,
-                     topo_lr, topo_hr):
+    def downscale_rh(
+        self, single_lr_rh, single_lr_temp, single_hr_temp, topo_lr, topo_hr
+    ):
         """Downscale relative humidity raster data at a single observation.
 
         Here's a description of the humidity scaling model:
@@ -379,23 +412,29 @@ class SurfaceSpatialMetModel(LinearInterp):
         assert len(topo_lr.shape) == 2, 'Bad shape for topo_lr'
         assert len(topo_hr.shape) == 2, 'Bad shape for topo_hr'
 
-        interp_rh = self.downscale_arr(single_lr_rh, self._s_enhance,
-                                       method=self._interp_method)
-        interp_temp = self.downscale_arr(single_lr_temp, self._s_enhance,
-                                         method=self._interp_method)
-        interp_topo = self.downscale_arr(topo_lr, self._s_enhance,
-                                         method=self._interp_method)
+        interp_rh = self.downscale_arr(
+            single_lr_rh, self._s_enhance, method=self._interp_method
+        )
+        interp_temp = self.downscale_arr(
+            single_lr_temp, self._s_enhance, method=self._interp_method
+        )
+        interp_topo = self.downscale_arr(
+            topo_lr, self._s_enhance, method=self._interp_method
+        )
 
         delta_temp = single_hr_temp - interp_temp
         delta_topo = topo_hr - interp_topo
 
-        hi_res_rh = (interp_rh
-                     + self._w_delta_temp * delta_temp
-                     + self._w_delta_topo * delta_topo)
+        hi_res_rh = (
+            interp_rh
+            + self._w_delta_temp * delta_temp
+            + self._w_delta_topo * delta_topo
+        )
 
         if self._fix_bias:
-            hi_res_rh = self.fix_downscaled_bias(single_lr_rh, hi_res_rh,
-                                                 method=self._interp_method)
+            hi_res_rh = self.fix_downscaled_bias(
+                single_lr_rh, hi_res_rh, method=self._interp_method
+            )
 
         return hi_res_rh
 
@@ -430,41 +469,50 @@ class SurfaceSpatialMetModel(LinearInterp):
         """
 
         if np.max(single_lr_pres) < 10000:
-            msg = ('Pressure data appears to not be in Pa with min/mean/max: '
-                   '{:.1f}/{:.1f}/{:.1f}'
-                   .format(single_lr_pres.min(), single_lr_pres.mean(),
-                           single_lr_pres.max()))
+            msg = (
+                'Pressure data appears to not be in Pa with min/mean/max: '
+                '{:.1f}/{:.1f}/{:.1f}'.format(
+                    single_lr_pres.min(),
+                    single_lr_pres.mean(),
+                    single_lr_pres.max(),
+                )
+            )
             logger.warning(msg)
             warn(msg)
 
-        const = 101325 * (1 - (1 - topo_lr / self._pres_div)**self._pres_exp)
+        const = 101325 * (1 - (1 - topo_lr / self._pres_div) ** self._pres_exp)
         lr_pres_adj = single_lr_pres.copy() + const
 
         if np.min(lr_pres_adj) < 0.0:
-            msg = ('Spatial interpolation of surface pressure '
-                   'resulted in negative values. Incorrectly '
-                   'scaled/unscaled values or incorrect units are '
-                   'the most likely causes. All pressure data should be '
-                   'in Pascals.')
+            msg = (
+                'Spatial interpolation of surface pressure '
+                'resulted in negative values. Incorrectly '
+                'scaled/unscaled values or incorrect units are '
+                'the most likely causes. All pressure data should be '
+                'in Pascals.'
+            )
             logger.error(msg)
             raise ValueError(msg)
 
-        hi_res_pres = self.downscale_arr(lr_pres_adj, self._s_enhance,
-                                         method=self._interp_method)
+        hi_res_pres = self.downscale_arr(
+            lr_pres_adj, self._s_enhance, method=self._interp_method
+        )
 
-        const = 101325 * (1 - (1 - topo_hr / self._pres_div)**self._pres_exp)
+        const = 101325 * (1 - (1 - topo_hr / self._pres_div) ** self._pres_exp)
         hi_res_pres -= const
 
         if self._fix_bias:
-            hi_res_pres = self.fix_downscaled_bias(single_lr_pres,
-                                                   hi_res_pres,
-                                                   method=self._interp_method)
+            hi_res_pres = self.fix_downscaled_bias(
+                single_lr_pres, hi_res_pres, method=self._interp_method
+            )
 
         if np.min(hi_res_pres) < 0.0:
-            msg = ('Spatial interpolation of surface pressure '
-                   'resulted in negative values. Incorrectly '
-                   'scaled/unscaled values or incorrect units are '
-                   'the most likely causes.')
+            msg = (
+                'Spatial interpolation of surface pressure '
+                'resulted in negative values. Incorrectly '
+                'scaled/unscaled values or incorrect units are '
+                'the most likely causes.'
+            )
             logger.error(msg)
             raise ValueError(msg)
 
@@ -504,13 +552,12 @@ class SurfaceSpatialMetModel(LinearInterp):
         hr_topo : ndarray
             (lat, lon)
         """
-        exo_data = [step['data']
-                    for step in exogenous_data['topography']['steps']]
-        msg = ('exogenous_data is of a bad type {}!'
-               .format(type(exo_data)))
+        exo_data = [
+            step['data'] for step in exogenous_data['topography']['steps']
+        ]
+        msg = 'exogenous_data is of a bad type {}!'.format(type(exo_data))
         assert isinstance(exo_data, (list, tuple)), msg
-        msg = ('exogenous_data is of a bad length {}!'
-               .format(len(exo_data)))
+        msg = 'exogenous_data is of a bad length {}!'.format(len(exo_data))
         assert len(exo_data) == 2, msg
 
         lr_topo = exo_data[0]
@@ -524,8 +571,9 @@ class SurfaceSpatialMetModel(LinearInterp):
         return lr_topo, hr_topo
 
     # pylint: disable=unused-argument
-    def generate(self, low_res, norm_in=False, un_norm_out=False,
-                 exogenous_data=None):
+    def generate(
+        self, low_res, norm_in=False, un_norm_out=False, exogenous_data=None
+    ):
         """Use the generator model to generate high res data from low res
         input. This is the public generate function.
 
@@ -564,71 +612,94 @@ class SurfaceSpatialMetModel(LinearInterp):
         lr_topo, hr_topo = self._get_topo_from_exo(exogenous_data)
         lr_topo = _compute_if_dask(lr_topo)
         hr_topo = _compute_if_dask(hr_topo)
-        logger.debug('SurfaceSpatialMetModel received low/high res topo '
-                     'shapes of {} and {}'
-                     .format(lr_topo.shape, hr_topo.shape))
+        logger.debug(
+            'SurfaceSpatialMetModel received low/high res topo '
+            'shapes of {} and {}'.format(lr_topo.shape, hr_topo.shape)
+        )
 
         msg = f'topo_lr needs to be 2d but has shape {lr_topo.shape}'
         assert len(lr_topo.shape) == 2, msg
         msg = f'topo_hr needs to be 2d but has shape {hr_topo.shape}'
         assert len(hr_topo.shape) == 2, msg
-        msg = ('lr_topo.shape needs to match lr_res.shape[:2] but received '
-               f'{lr_topo.shape} and {low_res.shape}')
+        msg = (
+            'lr_topo.shape needs to match lr_res.shape[:2] but received '
+            f'{lr_topo.shape} and {low_res.shape}'
+        )
         assert lr_topo.shape[0] == low_res.shape[1], msg
         assert lr_topo.shape[1] == low_res.shape[2], msg
         s_enhance = self._get_s_enhance(lr_topo, hr_topo)
-        msg = ('Topo shapes of {} and {} did not match desired spatial '
-               'enhancement of {}'
-               .format(lr_topo.shape, hr_topo.shape, self._s_enhance))
+        msg = (
+            'Topo shapes of {} and {} did not match desired spatial '
+            'enhancement of {}'.format(
+                lr_topo.shape, hr_topo.shape, self._s_enhance
+            )
+        )
         assert self._s_enhance == s_enhance, msg
 
-        hr_shape = (len(low_res),
-                    int(low_res.shape[1] * self._s_enhance),
-                    int(low_res.shape[2] * self._s_enhance),
-                    len(self.hr_out_features))
-        logger.debug('SurfaceSpatialMetModel with s_enhance of {} '
-                     'downscaling low-res shape {} to high-res shape {}'
-                     .format(self._s_enhance, low_res.shape, hr_shape))
+        hr_shape = (
+            len(low_res),
+            int(low_res.shape[1] * self._s_enhance),
+            int(low_res.shape[2] * self._s_enhance),
+            len(self.hr_out_features),
+        )
+        logger.debug(
+            'SurfaceSpatialMetModel with s_enhance of {} '
+            'downscaling low-res shape {} to high-res shape {}'.format(
+                self._s_enhance, low_res.shape, hr_shape
+            )
+        )
 
         hi_res = np.zeros(hr_shape, dtype=np.float32)
         for iobs in range(len(low_res)):
             for idf_temp in self.feature_inds_temp:
-                _tmp = self.downscale_temp(low_res[iobs, :, :, idf_temp],
-                                           lr_topo, hr_topo)
+                _tmp = self.downscale_temp(
+                    low_res[iobs, :, :, idf_temp], lr_topo, hr_topo
+                )
                 hi_res[iobs, :, :, idf_temp] = _tmp
 
             for idf_pres in self.feature_inds_pres:
-                _tmp = self.downscale_pres(low_res[iobs, :, :, idf_pres],
-                                           lr_topo, hr_topo)
+                _tmp = self.downscale_pres(
+                    low_res[iobs, :, :, idf_pres], lr_topo, hr_topo
+                )
                 hi_res[iobs, :, :, idf_pres] = _tmp
 
             for idf_rh in self.feature_inds_rh:
                 idf_temp = self._get_temp_rh_ind(idf_rh)
-                _tmp = self.downscale_rh(low_res[iobs, :, :, idf_rh],
-                                         low_res[iobs, :, :, idf_temp],
-                                         hi_res[iobs, :, :, idf_temp],
-                                         lr_topo, hr_topo)
+                _tmp = self.downscale_rh(
+                    low_res[iobs, :, :, idf_rh],
+                    low_res[iobs, :, :, idf_temp],
+                    hi_res[iobs, :, :, idf_temp],
+                    lr_topo,
+                    hr_topo,
+                )
                 hi_res[iobs, :, :, idf_rh] = _tmp
 
             for idf_rh in self.feature_inds_rh:
                 idf_temp = self._get_temp_rh_ind(idf_rh)
-                _tmp = self.downscale_rh(low_res[iobs, :, :, idf_rh],
-                                         low_res[iobs, :, :, idf_temp],
-                                         hi_res[iobs, :, :, idf_temp],
-                                         lr_topo, hr_topo)
+                _tmp = self.downscale_rh(
+                    low_res[iobs, :, :, idf_rh],
+                    low_res[iobs, :, :, idf_temp],
+                    hi_res[iobs, :, :, idf_temp],
+                    lr_topo,
+                    hr_topo,
+                )
                 hi_res[iobs, :, :, idf_rh] = _tmp
 
             for idf_other in self.feature_inds_other:
-                _arr = self.downscale_arr(low_res[iobs, :, :, idf_other],
-                                          self._s_enhance,
-                                          method=self._interp_method,
-                                          fix_bias=self._fix_bias)
+                _arr = self.downscale_arr(
+                    low_res[iobs, :, :, idf_other],
+                    self._s_enhance,
+                    method=self._interp_method,
+                    fix_bias=self._fix_bias,
+                )
                 hi_res[iobs, :, :, idf_other] = _arr
 
         if self._noise_adders is not None:
             for idf, stdev in enumerate(self._noise_adders):
                 if stdev is not None:
-                    noise = np.random.normal(0, stdev, hi_res.shape[:-1])
+                    noise = RANDOM_GENERATOR.uniform(
+                        0, stdev, hi_res.shape[:-1]
+                    )
                     hi_res[..., idf] += noise
 
         return hi_res
@@ -636,21 +707,22 @@ class SurfaceSpatialMetModel(LinearInterp):
     @property
     def meta(self):
         """Get meta data dictionary that defines the model params"""
-        return {'temp_lapse_rate': self._temp_lapse,
-                's_enhance': self._s_enhance,
-                't_enhance': 1,
-                'noise_adders': self._noise_adders,
-                'input_resolution': self._input_resolution,
-                'weight_for_delta_temp': self._w_delta_temp,
-                'weight_for_delta_topo': self._w_delta_topo,
-                'pressure_divisor': self._pres_div,
-                'pressure_exponent': self._pres_exp,
-                'lr_features': self.lr_features,
-                'hr_out_features': self.hr_out_features,
-                'interp_method': self._interp_name,
-                'fix_bias': self._fix_bias,
-                'class': self.__class__.__name__,
-                }
+        return {
+            'temp_lapse_rate': self._temp_lapse,
+            's_enhance': self._s_enhance,
+            't_enhance': 1,
+            'noise_adders': self._noise_adders,
+            'input_resolution': self._input_resolution,
+            'weight_for_delta_temp': self._w_delta_temp,
+            'weight_for_delta_topo': self._w_delta_topo,
+            'pressure_divisor': self._pres_div,
+            'pressure_exponent': self._pres_exp,
+            'lr_features': self.lr_features,
+            'hr_out_features': self.hr_out_features,
+            'interp_method': self._interp_name,
+            'fix_bias': self._fix_bias,
+            'class': self.__class__.__name__,
+        }
 
     def train(self, true_hr_temp, true_hr_rh, true_hr_topo, input_resolution):
         """Trains the relative humidity linear model. The temperature and
@@ -689,27 +761,30 @@ class SurfaceSpatialMetModel(LinearInterp):
         true_hr_topo = np.expand_dims(true_hr_topo, axis=-1)
         true_hr_topo = np.repeat(true_hr_topo, true_hr_temp.shape[-1], axis=-1)
 
-        true_lr_temp = spatial_coarsening(true_hr_temp,
-                                          s_enhance=self._s_enhance,
-                                          obs_axis=False)
-        true_lr_rh = spatial_coarsening(true_hr_rh,
-                                        s_enhance=self._s_enhance,
-                                        obs_axis=False)
-        true_lr_topo = spatial_coarsening(true_hr_topo,
-                                          s_enhance=self._s_enhance,
-                                          obs_axis=False)
+        true_lr_temp = spatial_coarsening(
+            true_hr_temp, s_enhance=self._s_enhance, obs_axis=False
+        )
+        true_lr_rh = spatial_coarsening(
+            true_hr_rh, s_enhance=self._s_enhance, obs_axis=False
+        )
+        true_lr_topo = spatial_coarsening(
+            true_hr_topo, s_enhance=self._s_enhance, obs_axis=False
+        )
 
         interp_hr_temp = np.full(true_hr_temp.shape, np.nan, dtype=np.float32)
         interp_hr_rh = np.full(true_hr_rh.shape, np.nan, dtype=np.float32)
         interp_hr_topo = np.full(true_hr_topo.shape, np.nan, dtype=np.float32)
 
         for i in range(interp_hr_temp.shape[-1]):
-            interp_hr_temp[..., i] = self.downscale_arr(true_lr_temp[..., i],
-                                                        self._s_enhance)
-            interp_hr_rh[..., i] = self.downscale_arr(true_lr_rh[..., i],
-                                                      self._s_enhance)
-            interp_hr_topo[..., i] = self.downscale_arr(true_lr_topo[..., i],
-                                                        self._s_enhance)
+            interp_hr_temp[..., i] = self.downscale_arr(
+                true_lr_temp[..., i], self._s_enhance
+            )
+            interp_hr_rh[..., i] = self.downscale_arr(
+                true_lr_rh[..., i], self._s_enhance
+            )
+            interp_hr_topo[..., i] = self.downscale_arr(
+                true_lr_topo[..., i], self._s_enhance
+            )
 
         x1 = true_hr_temp - interp_hr_temp
         x2 = true_hr_topo - interp_hr_topo
@@ -719,9 +794,12 @@ class SurfaceSpatialMetModel(LinearInterp):
         regr = linear_model.LinearRegression()
         regr.fit(x, y)
         if np.abs(regr.intercept_) > 1e-6:
-            msg = ('Relative humidity linear model should have an intercept '
-                   'of zero but the model fit an intercept of {}'
-                   .format(regr.intercept_))
+            msg = (
+                'Relative humidity linear model should have an intercept '
+                'of zero but the model fit an intercept of {}'.format(
+                    regr.intercept_
+                )
+            )
             logger.warning(msg)
             warn(msg)
 

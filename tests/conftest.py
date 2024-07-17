@@ -2,7 +2,6 @@
 
 import os
 
-import numpy as np
 import pytest
 from rex import init_logger
 
@@ -13,7 +12,7 @@ from sup3r import CONFIG_DIR, TEST_DATA_DIR
 def pytest_configure(config):  # pylint: disable=unused-argument # noqa: ARG001
     """Global pytest config."""
     init_logger('sup3r', log_level='DEBUG')
-    np.random.seed(42)
+
     pytest.FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
     pytest.FP_NSRDB = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')
     pytest.FPS_WTK = [

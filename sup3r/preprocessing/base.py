@@ -83,7 +83,11 @@ class Sup3rDataset:
                 raise ValueError(msg)
 
         dsets = {
-            k: Sup3rX(v) if isinstance(v, xr.Dataset) else v
+            k: Sup3rX(v)
+            if isinstance(v, xr.Dataset)
+            else v._ds[0]
+            if isinstance(v, type(self))
+            else v
             for k, v in dsets.items()
         }
         self._ds = namedtuple('Dataset', list(dsets))(**dsets)
@@ -157,6 +161,14 @@ class Sup3rDataset:
             if len(data) > 1
             else type(self)(high_res=data[0])
         )
+
+    def sample(self, idx):
+        """Get samples from self._ds members. idx should be either a tuple of
+        slices for the dimensions (south_north, west_east, time) and a list of
+        feature names or a 2-tuple of the same, for dual datasets."""
+        if isinstance(idx, tuple):
+            return tuple(d.sample(idx[i]) for i, d in enumerate(self))
+        return next(self).sample(idx)
 
     def isel(self, *args, **kwargs):
         """Return new Sup3rDataset with isel applied to each member."""

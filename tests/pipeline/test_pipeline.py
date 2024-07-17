@@ -80,8 +80,8 @@ def test_fwp_pipeline_with_bc(input_files):
 
         bias_fp = os.path.join(td, 'bc.h5')
 
-        scalar = np.random.uniform(0.5, 1, (8, 8, 12))
-        adder = np.random.uniform(0, 1, (8, 8, 12))
+        scalar = RANDOM_GENERATOR.uniform(0.5, 1, (8, 8, 12))
+        adder = RANDOM_GENERATOR.uniform(0, 1, (8, 8, 12))
 
         with h5py.File(bias_fp, 'w') as f:
             f.create_dataset('u_100m_scalar', data=scalar)

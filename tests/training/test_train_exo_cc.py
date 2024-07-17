@@ -136,8 +136,8 @@ def test_wind_hi_res_topo(CustomLayer, features, lr_only_features):
         assert 'topography' in batcher.hr_exo_features
         assert 'topography' not in model.hr_out_features
 
-    x = np.random.uniform(0, 1, (4, 30, 30, len(features)))
-    hi_res_topo = np.random.uniform(0, 1, (4, 60, 60, 1))
+    x = RANDOM_GENERATOR.uniform(0, 1, (4, 30, 30, len(features)))
+    hi_res_topo = RANDOM_GENERATOR.uniform(0, 1, (4, 60, 60, 1))
 
     with pytest.raises(RuntimeError):
         y = model.generate(x, exogenous_data=None)
