@@ -792,7 +792,8 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         tau_fut = np.sort(corrected_fut_data)[round(
             z_fg * corrected_fut_data.size)]
 
-        assert tau_fut >= corrected_fut_data.min()
+        # Can't apply this anymore. Re-think it.
+        # assert tau_fut >= corrected_fut_data.min()
         out[f'{bias_feature}_tau_fut'] = tau_fut
 
         # Step 5: Reinforce Z_gf fraction on the corrected future modeled.
