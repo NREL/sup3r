@@ -510,16 +510,16 @@ def local_qdm_bc(data: np.ndarray,
         bias_fut = bias_fut[spatial_slice]
 
     output = np.full_like(data, np.nan)
-    idx = [
+    nearest_window_idx = [
         np.argmin(abs(d - cfg['time_window_center'])) for d in time.day_of_year
     ]
-    for i in set(idx):
+    for window_idx in set(nearest_window_idx):
         # Naming following the paper: observed historical
-        oh = base[:, :, i]
+        oh = base[:, :, window_idx]
         # Modeled historical
-        mh = bias[:, :, i]
+        mh = bias[:, :, window_idx]
         # Modeled future
-        mf = bias_fut[:, :, i]
+        mf = bias_fut[:, :, window_idx]
 
         # This satisfies the rex's QDM design
         if no_trend:
@@ -537,7 +537,7 @@ def local_qdm_bc(data: np.ndarray,
                                    log_base=cfg['log_base'],
                                    )
 
-        subset_idx = idx == i
+        subset_idx = nearest_window_idx == window_idx
         subset = data[:, :, subset_idx]
         # input 3D shape (spatial, spatial, temporal)
         # QDM expects input arr with shape (time, space)
