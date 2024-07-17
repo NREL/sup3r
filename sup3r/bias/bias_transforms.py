@@ -786,7 +786,7 @@ def local_presrat_bc(data: np.ndarray,
     closest_time_idx = abs(
         time_window_center[:, np.newaxis] - np.array(time_index.day_of_year)
     ).argmin(axis=0)
-    for nt, t in enumerate(time_window_center):
+    for nt in set(closest_time_idx):
         subset_idx = closest_time_idx == nt
         subset = data[:, :, subset_idx]
         oh = base[:, :, nt]
