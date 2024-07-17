@@ -288,11 +288,12 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
 
         template = np.full((cls.NT, n_samples), np.nan, np.float32)
         out = {}
-        for nt, t in enumerate(window_center):
-            base_idx = cls.window_mask(base_ti.day_of_year, t, window_size)
-            bias_idx = cls.window_mask(bias_ti.day_of_year, t, window_size)
+
+        for nt, idt in enumerate(window_center):
+            base_idx = cls.window_mask(base_ti.day_of_year, idt, window_size)
+            bias_idx = cls.window_mask(bias_ti.day_of_year, idt, window_size)
             bias_fut_idx = cls.window_mask(bias_fut_ti.day_of_year,
-                                           t,
+                                           idt,
                                            window_size)
 
             if any(base_idx) and any(bias_idx) and any(bias_fut_idx):
