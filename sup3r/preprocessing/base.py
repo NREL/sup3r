@@ -166,19 +166,14 @@ class Sup3rDataset:
         """Get samples from self._ds members. idx should be either a tuple of
         slices for the dimensions (south_north, west_east, time) and a list of
         feature names or a 2-tuple of the same, for dual datasets."""
-        if isinstance(idx, tuple):
+        if len(idx) == 2:
             return tuple(d.sample(idx[i]) for i, d in enumerate(self))
-        return next(self).sample(idx)
+        return self._ds[-1].sample(idx)
 
-    '''
     def isel(self, *args, **kwargs):
         """Return new Sup3rDataset with isel applied to each member."""
         return self.rewrap(tuple(d.isel(*args, **kwargs) for d in self))
 
-    def sel(self, *args, **kwargs):
-        """Return new Sup3rDataset with sel applied to each member."""
-        return self.rewrap(tuple(d.sel(*args, **kwargs) for d in self))
-    '''
     def __getitem__(self, keys):
         """If keys is an int this is interpreted as a request for that member
         of self._ds. If self._ds consists of two members we call

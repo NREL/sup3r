@@ -84,6 +84,10 @@ def _compute_chunks_if_dask(arr):
     )
 
 
+def _numpy_if_tensor(arr):
+    return arr.numpy() if hasattr(arr, 'numpy') else arr
+
+
 def _compute_if_dask(arr):
     if isinstance(arr, slice):
         return slice(

@@ -41,7 +41,7 @@ class LoaderNC(BaseLoader):
                 if Dimension.SOUTH_NORTH in dset[var].dims:
                     dset[var] = (
                         dset[var].dims,
-                        dset[var].sel(south_north=slice(None, None, -1)).data,
+                        dset[var].isel(south_north=slice(None, None, -1)).data,
                     )
         return dset
 
@@ -64,7 +64,7 @@ class LoaderNC(BaseLoader):
                 if Dimension.PRESSURE_LEVEL in dset[var].dims:
                     dset[var] = (
                         dset[var].dims,
-                        dset[var].sel(level=slice(None, None, -1)).data,
+                        dset[var].isel(level=slice(None, None, -1)).data,
                     )
         return dset
 

@@ -15,7 +15,11 @@ from sup3r.utilities.pytest.helpers import (
     DummyData,
     SamplerTester,
 )
-from sup3r.utilities.utilities import spatial_coarsening, temporal_coarsening
+from sup3r.utilities.utilities import (
+    RANDOM_GENERATOR,
+    spatial_coarsening,
+    temporal_coarsening,
+)
 
 FEATURES = ['windspeed', 'winddirection']
 means = dict.fromkeys(FEATURES, 0)
@@ -64,10 +68,10 @@ def test_eager_vs_lazy():
         lazy_batcher.data[0].as_array().compute(),
     )
 
-    np.random.seed(42)
+    state = RANDOM_GENERATOR.bit_generator.state
     eager_batches = list(eager_batcher)
     eager_batcher.stop()
-    np.random.seed(42)
+    RANDOM_GENERATOR.bit_generator.state = state
     lazy_batches = list(lazy_batcher)
     lazy_batcher.stop()
 

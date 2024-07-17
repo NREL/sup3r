@@ -207,13 +207,13 @@ class AbstractBatchQueue(Collection, ABC):
             data = tf.data.Dataset.from_generator(
                 self.generator, output_signature=self.output_signature
             )
-            # data = self._parallel_map(data)
-            # data = data.prefetch(tf.data.AUTOTUNE)
+            data = self._parallel_map(data)
+            data = data.prefetch(tf.data.AUTOTUNE)
             batches = data.batch(
                 self.batch_size,
                 drop_remainder=True,
                 deterministic=False,
-                # num_parallel_calls=tf.data.AUTOTUNE,
+                num_parallel_calls=tf.data.AUTOTUNE,
             )
 
         return batches.as_numpy_iterator()
@@ -295,7 +295,7 @@ class AbstractBatchQueue(Collection, ABC):
             logger.debug(msg)
 
     def _get_batch(self) -> Batch:
-        if self.queue.size().numpy() == 0 or self.mode == 'eager':
+        if self.mode == 'eager':
             return next(self.batches)
         return self.timer(self.queue.dequeue, log=True)()
 

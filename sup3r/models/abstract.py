@@ -20,6 +20,7 @@ from tensorflow.keras import optimizers
 
 import sup3r.utilities.loss_metrics
 from sup3r.preprocessing.data_handlers.base import ExoData
+from sup3r.preprocessing.utilities import _numpy_if_tensor
 from sup3r.utilities import VERSION_RECORD
 from sup3r.utilities.utilities import Timer
 
@@ -1003,7 +1004,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
 
         for k, v in new_data.items():
             key = k if prefix is None else prefix + k
-            new_value = (v if not isinstance(v, tf.Tensor) else v.numpy())
+            new_value = _numpy_if_tensor(v)
 
             if key in loss_details:
                 saved_value = loss_details[key]

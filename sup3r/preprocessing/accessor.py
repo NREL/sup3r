@@ -249,26 +249,9 @@ class Sup3rX:
         """Set name of dataset."""
         self._ds.attrs['name'] = value
 
-    '''
-    def sel(self, *args, **kwargs):
-        """Override xr.Dataset.sel to enable feature selection."""
-        features = kwargs.pop('features', None)
-        if features is not None:
-            out = self._ds[features].sel(*args, **kwargs)
-        else:
-            out = self._ds.sel(*args, **kwargs)
-        return type(self)(out)
-
     def isel(self, *args, **kwargs):
-        """Override xr.Dataset.sel to enable feature selection."""
-        findices = kwargs.pop('features', None)
-        if findices is not None:
-            features = [list(self._ds.data_vars)[fidx] for fidx in findices]
-            out = self._ds[features].isel(*args, **kwargs)
-        else:
-            out = self._ds.isel(*args, **kwargs)
-        return type(self)(out)
-    '''
+        """Override xr.Dataset.sel to cast back to Sup3rX object."""
+        return type(self)(self._ds.isel(*args, **kwargs))
 
     @property
     def dims(self):

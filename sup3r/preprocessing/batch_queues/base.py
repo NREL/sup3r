@@ -5,6 +5,7 @@ import logging
 
 import tensorflow as tf
 
+from sup3r.preprocessing.utilities import _numpy_if_tensor
 from sup3r.utilities.utilities import spatial_coarsening, temporal_coarsening
 
 from .abstract import AbstractBatchQueue
@@ -93,7 +94,7 @@ class SingleBatchQueue(AbstractBatchQueue):
         low_res = smooth_data(
             low_res, self.features, smoothing_ignore, smoothing
         )
-        high_res = samples.numpy()[..., self.hr_features_ind]
+        high_res = _numpy_if_tensor(samples)[..., self.hr_features_ind]
         return low_res, high_res
 
     def _parallel_map(self, data: tf.data.Dataset):
