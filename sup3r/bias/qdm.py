@@ -571,10 +571,11 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
         doy : np.ndarray
             An unordered array of days of year, i.e. January 1st is 1.
         d0 : int
-            Center point of the target window
+            Center point of the target window [day of year].
         window_size : float
-            Total size of the target window, i.e. the window covers
-            half this value on each side of d0.
+            Total size of the target window, i.e. the window covers half this
+            value on each side of d0. Note that it has the same units of doy,
+            thus it is equal to the number of points only if doy is daily.
 
         Returns
         -------
