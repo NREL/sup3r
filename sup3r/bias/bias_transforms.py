@@ -458,7 +458,9 @@ def local_qdm_bc(data: np.ndarray,
     -------
     out : np.ndarray
         The input data corrected by QDM. Its shape is the same of the input
-        (spatial, spatial, temporal)
+        (spatial, spatial, time_window, temporal). The dimension time_window
+        aligns with the number of time windows defined in a year, while
+        temporal aligns with the time of the data.
 
     See Also
     --------
@@ -471,13 +473,13 @@ def local_qdm_bc(data: np.ndarray,
     be related to the dataset used to estimate
     "bias_fut_{feature_name}_params".
 
-    Keeping arguments consistent with `local_linear_bc()`, thus a 3D data
-    (spatial, spatial, temporal), and lat_lon (n_lats, n_lons, [lat, lon]).
-    But `QuantileDeltaMapping()`, from rex library, expects an array,
-    (time, space), thus we need to re-organize our input to match that,
-    and in the end bring it back to (spatial, spatial, temporal). This is
-    still better than maintaining the same functionality consistent in two
-    libraries.
+    Keeping arguments as consistent as possible with `local_linear_bc()`, thus
+    a 4D data (spatial, spatial, time_window, temporal), and lat_lon (n_lats,
+    n_lons, [lat, lon]). But `QuantileDeltaMapping()`, from rex library,
+    expects an array, (time, space), thus we need to re-organize our input to
+    match that, and in the end bring it back to (spatial, spatial, time_window,
+    temporal). This is still better than maintaining the same functionality
+    consistent in two libraries.
 
     Also, :class:`rex.utilities.bc_utils.QuantileDeltaMapping` expects params
     to be 2D (space, N-params).
@@ -526,7 +528,8 @@ def local_qdm_bc(data: np.ndarray,
             mf = None
         else:
             mf = mf.reshape(-1, mf.shape[-1])
-        # The distributions are 3D (space, space, N-params)
+        # The distributions at this point, after selected the respective
+        # time window with `window_idx`, are 3D (space, space, N-params)
         # Collapse 3D (space, space, N) into 2D (space**2, N)
         QDM = QuantileDeltaMapping(oh.reshape(-1, oh.shape[-1]),
                                    mh.reshape(-1, mh.shape[-1]),
