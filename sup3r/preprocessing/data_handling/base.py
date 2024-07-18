@@ -1383,11 +1383,11 @@ class DataHandler(FeatureHandler, InputMixIn, TrainingPrepMixIn):
                             'correction from "{}"'.format(
                                 feature, os.path.basename(fp)))
                 self.data[..., idf] = local_qdm_bc(data=self.data[..., idf],
-                                                   time=self.time_index,
                                                    lat_lon=self.lat_lon,
                                                    base_dset=reference_feature,
                                                    feature_name=feature,
                                                    bias_fp=fp,
+                                                   time_index=self.time_index,
                                                    threshold=threshold,
                                                    relative=relative,
                                                    no_trend=no_trend)

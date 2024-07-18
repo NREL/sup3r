@@ -235,7 +235,7 @@ def test_qdm_transform(dist_params):
         (np.datetime64('2018-01-01'), np.datetime64('2018-01-02'))
     )
     corrected = local_qdm_bc(
-        data, time, FP_CC_LAT_LON, 'ghi', 'rsds', dist_params
+        data, FP_CC_LAT_LON, 'ghi', 'rsds', dist_params, time,
     )
 
     assert not np.isnan(corrected).all(), "Can't compare if only NaN"
@@ -259,11 +259,11 @@ def test_qdm_transform_notrend(tmp_path, dist_params):
     # Run the standard pipeline with flag 'no_trend'
     corrected = local_qdm_bc(
         np.ones((*FP_CC_LAT_LON.shape[:-1], 2)),
-        time,
         FP_CC_LAT_LON,
         'ghi',
         'rsds',
         dist_params,
+        time,
         no_trend=True,
     )
 
@@ -276,11 +276,11 @@ def test_qdm_transform_notrend(tmp_path, dist_params):
 
     unbiased = local_qdm_bc(
         np.ones((*FP_CC_LAT_LON.shape[:-1], 2)),
-        time,
         FP_CC_LAT_LON,
         'ghi',
         'rsds',
         notrend_params,
+        time,
     )
 
     assert not np.isnan(corrected).all(), "Can't compare if only NaN"
@@ -497,7 +497,7 @@ def test_fwp_integration(tmp_path):
             'feature_name': 'U_100m',
             'base_dset': 'Uref_100m',
             'bias_fp': bias_fp,
-            'time': pd.DatetimeIndex(
+            'time_index': pd.DatetimeIndex(
                 [np.datetime64(t) for t in ds.time.values]
             ),
         },
@@ -505,7 +505,7 @@ def test_fwp_integration(tmp_path):
             'feature_name': 'V_100m',
             'base_dset': 'Vref_100m',
             'bias_fp': bias_fp,
-            'time': pd.DatetimeIndex(
+            'time_index': pd.DatetimeIndex(
                 [np.datetime64(t) for t in ds.time.values]
             ),
         },

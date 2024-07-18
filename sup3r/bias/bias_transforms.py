@@ -6,6 +6,7 @@ import os
 from warnings import warn
 
 import numpy as np
+import pandas as pd
 from rex import Resource
 from rex.utilities.bc_utils import QuantileDeltaMapping
 from scipy.ndimage import gaussian_filter
@@ -399,15 +400,16 @@ def monthly_local_linear_bc(input,
 
 
 def local_qdm_bc(data: np.ndarray,
-                 time: np.ndarray,
                  lat_lon: np.ndarray,
                  base_dset: str,
                  feature_name: str,
                  bias_fp,
+                 time_index: pd.DatetimeIndex,
                  lr_padded_slice=None,
                  threshold=0.1,
                  relative=True,
-                 no_trend=False):
+                 no_trend=False,
+                 ):
     """Bias correction using QDM
 
     Apply QDM to correct bias on the given data. It assumes that the required
@@ -421,7 +423,6 @@ def local_qdm_bc(data: np.ndarray,
     data : np.ndarray
         Sup3r input data to be bias corrected, assumed to be 3D with shape
         (spatial, spatial, temporal) for a single feature.
-    time : np.ndarray
     lat_lon : np.ndarray
         Array of latitudes and longitudes for the domain to bias correct
         (n_lats, n_lons, 2)
@@ -432,6 +433,11 @@ def local_qdm_bc(data: np.ndarray,
         Name of feature that is being corrected. Datasets with names
         "bias_{feature_name}_params" and "bias_fut_{feature_name}_params" will
         be retrieved.
+    time_index : pd.DatetimeIndex
+        DatetimeIndex object associated with the input data temporal axis
+        (assumed 3rd axis e.g. axis=2). Note that if this method is called as
+        part of a sup3r resolution forward pass, the time_index will be
+        included automatically for the current chunk.
     bias_fp : str
         Filepath to statistical distributions file from the bias calc module.
         Must have datasets "bias_{feature_name}_params",
@@ -496,7 +502,7 @@ def local_qdm_bc(data: np.ndarray,
     """
     # Confirm that the given time matches the expected data size
     assert (
-        data.shape[2] == time.size
+        data.shape[2] == time_index.size
     ), 'Time should align with data 3rd dimension'
 
     base, bias, bias_fut, cfg = get_spatial_bc_quantiles(lat_lon,
@@ -513,7 +519,8 @@ def local_qdm_bc(data: np.ndarray,
 
     output = np.full_like(data, np.nan)
     nearest_window_idx = [
-        np.argmin(abs(d - cfg['time_window_center'])) for d in time.day_of_year
+        np.argmin(abs(d - cfg['time_window_center']))
+        for d in time_index.day_of_year
     ]
     for window_idx in set(nearest_window_idx):
         # Naming following the paper: observed historical
