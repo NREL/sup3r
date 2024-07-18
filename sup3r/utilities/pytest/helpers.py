@@ -70,18 +70,21 @@ def make_fake_dset(shape, features, const=None):
     if len(shape) == 3:
         dims = ('time', *dims[2:])
         trans_axes = (2, 0, 1)
-    data_vars = {
-        f: (
+    data_vars = {}
+    for f in features:
+        if 'zg' in f:
+            data = da.random.uniform(10, 100, shape)
+        elif 'orog' in f:
+            data = da.random.uniform(0, 1, shape)
+        else:
+            data = da.random.uniform(-1, 1, shape)
+        data_vars[f] = (
             dims[: len(shape)],
             da.transpose(
-                np.full(shape, const)
-                if const is not None
-                else da.random.uniform(0, 1, shape),
+                np.full(shape, const) if const is not None else data,
                 axes=trans_axes,
             ),
         )
-        for f in features
-    }
     nc = xr.Dataset(coords=coords, data_vars=data_vars)
     return nc.astype(np.float32)
 

@@ -336,6 +336,12 @@ class AbstractBatchQueue(Collection, ABC):
 
     @staticmethod
     def _get_stats(means, stds, features):
+        msg = (f'Some of the features: {features} not found in the provided '
+               f'means: {means}')
+        assert all(f in means for f in features), msg
+        msg = (f'Some of the features: {features} not found in the provided '
+               f'stds: {stds}')
+        assert all(f in stds for f in features), msg
         f_means = np.array([means[k] for k in features]).astype(np.float32)
         f_stds = np.array([stds[k] for k in features]).astype(np.float32)
         return f_means, f_stds

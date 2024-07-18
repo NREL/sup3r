@@ -1,6 +1,6 @@
 name: Pytests
 
-on: 
+on:
   pull_request:
     types: [opened, edited]
   workflow_dispatch:

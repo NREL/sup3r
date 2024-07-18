@@ -20,16 +20,16 @@ class Interpolator:
     """Class for handling pressure and height interpolation"""
 
     @classmethod
-    def get_surrounding_levels(cls, lev_array, level):
-        """Get the levels in the lev_array which best surround the given level.
-        Will then be used to interpolate to level.
+    def get_level_masks(cls, lev_array, level):
+        """Get the masks used to select closest surrounding levels in the
+        lev_array to requested interpolation level.
 
         Parameters
         ----------
-        var_array : ndarray
+        var_array : T_Array
             Array of variable data, for example u-wind in a 4D array of shape
             (lat, lon, time, level)
-        lev_array : ndarray
+        lev_array : T_Array
             Height or pressure values for the corresponding entries in
             var_array, in the same shape as var_array. If this is height and
             the requested levels are hub heights above surface, lev_array
@@ -42,11 +42,11 @@ class Interpolator:
 
         Returns
         -------
-        mask1 : ndarray
+        mask1 : T_Array
             Array of bools selecting the entries with the closest levels to the
             one requested.
             (lat, lon, time, level)
-        mask2 : ndarray
+        mask2 : T_Array
             Array of bools selecting the entries with the second closest levels
             to the one requested.
             (lat, lon, time, level)
@@ -57,20 +57,28 @@ class Interpolator:
             if ~over_mask.sum() >= lev_array[..., 0].size
             else lev_array
         )
-        mask1 = (
-            da.abs(under_levs - level)
-            == da.min(da.abs(under_levs - level), axis=-1)[..., None]
+        diff1 = da.abs(under_levs - level)
+        lev_indices = da.broadcast_to(
+            da.arange(lev_array.shape[-1]), lev_array.shape
         )
+        mask1 = lev_indices == da.argmin(diff1, axis=-1, keepdims=True)
+
         over_levs = (
             da.ma.masked_array(lev_array, ~over_mask)
             if over_mask.sum() >= lev_array[..., 0].size
             else da.ma.masked_array(lev_array, mask1)
         )
-        mask2 = (
-            da.abs(over_levs - level)
-            == da.min(da.abs(over_levs - level), axis=-1)[..., None]
-        )
+        diff2 = da.abs(over_levs - level)
+        mask2 = lev_indices == da.argmin(diff2, axis=-1, keepdims=True)
         return mask1, mask2
+
+    @classmethod
+    def _lin_interp(cls, lev_samps, var_samps, level):
+        """Linearly interpolate between levels."""
+        diff = lev_samps[1] - lev_samps[0]
+        alpha = (level - lev_samps[0]) / diff
+        alpha = da.where(diff == 0, 0, alpha)
+        return var_samps[0] * (1 - alpha) + var_samps[1] * alpha
 
     @classmethod
     def _log_interp(cls, lev_samps, var_samps, level):
@@ -78,34 +86,19 @@ class Interpolator:
 
         Note
         ----
-        Here we fit the function a * log(height) + b to the two given levels
-        and variable values. So a and b are calculated using
-        `v1 = a * log(h1) + b` and `v2 = a * log(h2) + b`
+        Here we fit the function a * log(h - h0 + 1) + v0 to the two given
+        levels and variable values. So a is calculated with `v1 = a * log(h1 -
+        h0 + 1) + v0` where v1, v0 are var_samps[0], var_samps[1] and h1, h0
+        are lev_samps[1], lev_samps[0]
         """
-
-        lev_samp = da.stack(lev_samps, axis=-1)
-        var_samp = da.stack(var_samps, axis=-1)
-
-        log_diff = np.log(lev_samps[1]) - np.log(lev_samps[0])
-        a = (var_samps[1] - var_samps[0]) / log_diff
-        a = da.where(log_diff == 0, 0, a)
-        b = (
-            var_samps[0] * np.log(lev_samps[1])
-            - var_samps[1] * np.log(lev_samps[0])
-        ) / log_diff
-
-        out = a * np.log(level) + b
-        good_vals = not np.isnan(out).any() and not np.isinf(out).any()
-        if not good_vals:
-            msg = (
-                f'Log interp failed with (h, ws) = ({lev_samp}, {var_samp}). '
-            )
-            logger.warning(msg)
-            warn(msg)
-            diff = lev_samps[1] - lev_samps[0]
-            alpha = (level - lev_samps[0]) / diff
-            out = var_samps[0] * (1 - alpha) + var_samps[1] * alpha
-        return out
+        mask = lev_samps[0] < lev_samps[1]
+        h0 = da.where(mask, lev_samps[0], lev_samps[1])
+        h1 = da.where(mask, lev_samps[1], lev_samps[0])
+        v0 = da.where(mask, var_samps[0], var_samps[1])
+        v1 = da.where(mask, var_samps[1], var_samps[0])
+        coeff = da.where(h1 == h0, 0, (v1 - v0) / np.log(h1 - h0 + 1))
+        coeff = da.where(level < h0, -coeff, coeff)
+        return coeff * np.log(da.abs(level - h0) + 1) + v0
 
     @classmethod
     def interp_to_level(
@@ -135,20 +128,17 @@ class Interpolator:
 
         Returns
         -------
-        out : ndarray
+        out : T_Array
             Interpolated var_array
             (lat, lon, time)
         """
         cls._check_lev_array(lev_array, levels=[level])
         levs = da.ma.masked_array(lev_array, da.isnan(lev_array))
-        mask1, mask2 = cls.get_surrounding_levels(levs, level)
+        mask1, mask2 = cls.get_level_masks(levs, level)
         lev1 = _compute_chunks_if_dask(lev_array[mask1])
         lev1 = lev1.reshape(mask1.shape[:-1])
         lev2 = _compute_chunks_if_dask(lev_array[mask2])
         lev2 = lev2.reshape(mask2.shape[:-1])
-        diff = lev2 - lev1
-        alpha = (level - lev1) / diff
-        alpha = da.where(diff == 0, 0, alpha)
         var1 = _compute_chunks_if_dask(var_array[mask1])
         var1 = var1.reshape(mask1.shape[:-1])
         var2 = _compute_chunks_if_dask(var_array[mask2])
@@ -159,7 +149,9 @@ class Interpolator:
                 lev_samps=[lev1, lev2], var_samps=[var1, var2], level=level
             )
         else:
-            out = var1 * (1 - alpha) + var2 * alpha
+            out = cls._lin_interp(
+                lev_samps=[lev1, lev2], var_samps=[var1, var2], level=level
+            )
 
         return out
 
@@ -234,10 +226,10 @@ class Interpolator:
 
         Parameters
         ----------
-        var_array : ndarray
+        var_array : T_Array
             Array of variable data, for example u-wind in a 4D array of shape
             (time, vertical, lat, lon)
-        lev_array : ndarray
+        lev_array : T_Array
             Array of height or pressure values corresponding to the wrf source
             data in the same shape as var_array. If this is height and the
             requested levels are hub heights above surface, lev_array should be
@@ -250,7 +242,7 @@ class Interpolator:
 
         Returns
         -------
-        lev_array : ndarray
+        lev_array : T_Array
             Array of levels with noise added to mask locations.
         levels : list
             List of levels to interpolate to.

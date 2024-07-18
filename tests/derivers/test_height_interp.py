@@ -13,15 +13,18 @@ from sup3r.preprocessing import (
 from sup3r.utilities.interpolation import Interpolator
 from sup3r.utilities.pytest.helpers import make_fake_nc_file
 
-features = ['windspeed_100m', 'winddirection_100m']
-
 
 @pytest.mark.parametrize(
-    ['DirectExtracter', 'Deriver', 'shape', 'target'],
-    [(ExtracterNC, Deriver, (10, 10), (37.25, -107))],
+    ['DirectExtracter', 'Deriver', 'shape', 'target', 'height'],
+    [
+        (ExtracterNC, Deriver, (10, 10), (37.25, -107), 20),
+        (ExtracterNC, Deriver, (10, 10), (37.25, -107), 2),
+        (ExtracterNC, Deriver, (10, 10), (37.25, -107), 1000),
+    ],
 )
-def test_height_interp_nc(DirectExtracter, Deriver, shape, target):
-    """Test that variables can be interpolated with height correctly"""
+def test_height_interp_nc(DirectExtracter, Deriver, shape, target, height):
+    """Test that variables can be interpolated and extrapolated with height
+    correctly"""
 
     with TemporaryDirectory() as td:
         wind_file = os.path.join(td, 'wind.nc')
@@ -31,24 +34,26 @@ def test_height_interp_nc(DirectExtracter, Deriver, shape, target):
             level_file, shape=(10, 10, 20, 3), features=['zg', 'u']
         )
 
-        derive_features = ['U_100m']
+        derive_features = [f'U_{height}m']
         no_transform = DirectExtracter(
             [wind_file, level_file], target=target, shape=shape
         )
 
         # warning about upper case features
         with pytest.warns():
-            transform = Deriver(no_transform.data, derive_features)
+            transform = Deriver(
+                no_transform.data, derive_features, interp_method='linear'
+            )
 
         hgt_array = (
             no_transform['zg'].data
             - no_transform['topography'].data[..., None]
         )
         out = Interpolator.interp_to_level(
-            hgt_array, no_transform['u'].data, [100]
+            hgt_array, no_transform['u'].data, [height]
         )
 
-    assert np.array_equal(out, transform.data['u_100m'].data)
+    assert np.array_equal(out, transform.data[f'u_{height}m'].data)
 
 
 @pytest.mark.parametrize(
@@ -118,8 +123,7 @@ def test_log_interp(DirectExtracter, Deriver, shape, target):
         )
 
         transform = Deriver(
-            no_transform.data,
-            derive_features,
+            no_transform.data, derive_features, interp_method='log'
         )
 
     hgt_array = (

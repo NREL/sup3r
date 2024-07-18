@@ -26,7 +26,13 @@ class BaseDeriver(Container):
 
     FEATURE_REGISTRY = RegistryBase
 
-    def __init__(self, data: T_Dataset, features, FeatureRegistry=None):
+    def __init__(
+        self,
+        data: T_Dataset,
+        features,
+        FeatureRegistry=None,
+        interp_method='linear',
+    ):
         """
         Parameters
         ----------
@@ -43,11 +49,15 @@ class BaseDeriver(Container):
             lookups. When the :class:`Deriver` is asked to derive a feature
             that is not found in the :class:`Extracter` data it will look for a
             method to derive the feature in the registry.
+        interp_method : str
+            Interpolation method to use for height interpolation. e.g. Deriving
+            u_20m from u_10m and u_100m. Options are "linear" and "log"
         """
         if FeatureRegistry is not None:
             self.FEATURE_REGISTRY = FeatureRegistry
 
         super().__init__(data=data)
+        self.interp_method = interp_method
         features = parse_to_list(data=data, features=features)
         new_features = [f for f in features if f not in self.data]
         for f in new_features:
@@ -147,7 +157,9 @@ class BaseDeriver(Container):
 
             if fstruct.basename in self.data.data_vars:
                 logger.debug(f'Attempting level interpolation for {feature}.')
-                return self.do_level_interpolation(feature)
+                return self.do_level_interpolation(
+                    feature, interp_method=self.interp_method
+                )
 
             msg = (
                 f'Could not find {feature} in contained data or in the '
@@ -194,7 +206,9 @@ class BaseDeriver(Container):
             )
         return lev_array, var_array
 
-    def do_level_interpolation(self, feature) -> T_Array:
+    def do_level_interpolation(
+        self, feature, interp_method='linear'
+    ) -> T_Array:
         """Interpolate over height or pressure to derive the given feature."""
         fstruct = parse_feature(feature)
         var_array: T_Array = self.data[fstruct.basename, ...]
@@ -230,9 +244,6 @@ class BaseDeriver(Container):
         lev_array, var_array = self.add_single_level_data(
             feature, lev_array, var_array
         )
-        interp_method = 'linear'
-        if fstruct.basename in ('u', 'v') and fstruct.height < 100:
-            interp_method = 'log'
         out = Interpolator.interp_to_level(
             lev_array=lev_array,
             var_array=var_array,
@@ -254,6 +265,7 @@ class Deriver(BaseDeriver):
         hr_spatial_coarsen=1,
         nan_method_kwargs=None,
         FeatureRegistry=None,
+        interp_method='linear',
     ):
         """
         Parameters
@@ -273,10 +285,16 @@ class Deriver(BaseDeriver):
             will be passed to :meth:`Sup3rX.interpolate_na`.
         FeatureRegistry : dict
             Dictionary of :class:`DerivedFeature` objects used for derivations
+        interp_method : str
+            Interpolation method to use for height interpolation. e.g. Deriving
+            u_20m from u_10m and u_100m. Options are "linear" and "log"
         """
 
         super().__init__(
-            data=data, features=features, FeatureRegistry=FeatureRegistry
+            data=data,
+            features=features,
+            FeatureRegistry=FeatureRegistry,
+            interp_method=interp_method,
         )
 
         if time_roll != 0:
