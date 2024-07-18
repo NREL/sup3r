@@ -45,8 +45,10 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
     a dataset.
     """
 
-    NT = 12
-    WINDOW_SIZE = None
+    NT = 24
+    """Number of times to calculate QDM parameters in a year"""
+    WINDOW_SIZE = 30
+    """Window width in days"""
 
     def __init__(self,
                  base_fps,
@@ -144,6 +146,17 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
             and 'invlog'.
         log_base : int or float, default=10
             Log base value if sampling is "log" or "invlog".
+
+        Attributes
+        ----------
+        NT : int
+            Number of times to calculate QDM parameters equally distributed
+            along a year. For instance, `NT=1` results in a single set of
+            parameters while `NT=12` is approximately every month.
+        WINDOW_SIZE : int
+            Total time window period to be considered for each time QDM is
+            calculated. For instance, `WINDOW_SIZE=30` with `NT=12` would
+            result in approximately monthly estimates.
 
         See Also
         --------
