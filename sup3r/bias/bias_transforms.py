@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 """Bias correction transformation functions."""
+
 import logging
 import os
 from warnings import warn
 
 import numpy as np
+import pandas as pd
 from rex import Resource
 from rex.utilities.bc_utils import QuantileDeltaMapping
 from scipy.ndimage import gaussian_filter
@@ -13,7 +15,6 @@ logger = logging.getLogger(__name__)
 
 
 def _get_factors(lat_lon, ds, bias_fp, threshold=0.1):
-
     with Resource(bias_fp) as res:
         lat = np.expand_dims(res['latitude'], axis=-1)
         lon = np.expand_dims(res['longitude'], axis=-1)
@@ -73,7 +74,7 @@ def get_spatial_bc_factors(lat_lon, feature_name, bias_fp, threshold=0.1):
           'adder': f'{feature_name}_adder'}
     out = _get_factors(lat_lon, ds, bias_fp, threshold)
 
-    return out["scalar"], out["adder"]
+    return out['scalar'], out['adder']
 
 
 def get_spatial_bc_quantiles(lat_lon: np.array,
@@ -169,7 +170,7 @@ def get_spatial_bc_quantiles(lat_lon: np.array,
     with Resource(bias_fp) as res:
         cfg = res.global_attrs
 
-    return out["base"], out["bias"], out["bias_fut"], cfg
+    return out['base'], out['bias'], out['bias_fut'], cfg
 
 
 def global_linear_bc(input, scalar, adder, out_range=None):
@@ -398,27 +399,31 @@ def monthly_local_linear_bc(input,
     return out
 
 
-def local_qdm_bc(data: np.array,
-                 lat_lon: np.array,
+def local_qdm_bc(data: np.ndarray,
+                 lat_lon: np.ndarray,
                  base_dset: str,
                  feature_name: str,
                  bias_fp,
+                 time_index: pd.DatetimeIndex,
                  lr_padded_slice=None,
                  threshold=0.1,
                  relative=True,
-                 no_trend=False):
+                 no_trend=False,
+                 ):
     """Bias correction using QDM
 
     Apply QDM to correct bias on the given data. It assumes that the required
     statistical distributions were previously estimated and saved in
     ``bias_fp``.
 
+    Assume CDF for the nearest day of year (doy) is representative.
+
     Parameters
     ----------
     data : np.ndarray
         Sup3r input data to be bias corrected, assumed to be 3D with shape
         (spatial, spatial, temporal) for a single feature.
-    lat_lon : ndarray
+    lat_lon : np.ndarray
         Array of latitudes and longitudes for the domain to bias correct
         (n_lats, n_lons, 2)
     base_dset :
@@ -428,6 +433,11 @@ def local_qdm_bc(data: np.array,
         Name of feature that is being corrected. Datasets with names
         "bias_{feature_name}_params" and "bias_fut_{feature_name}_params" will
         be retrieved.
+    time_index : pd.DatetimeIndex
+        DatetimeIndex object associated with the input data temporal axis
+        (assumed 3rd axis e.g. axis=2). Note that if this method is called as
+        part of a sup3r resolution forward pass, the time_index will be
+        included automatically for the current chunk.
     bias_fp : str
         Filepath to statistical distributions file from the bias calc module.
         Must have datasets "bias_{feature_name}_params",
@@ -454,7 +464,9 @@ def local_qdm_bc(data: np.array,
     -------
     out : np.ndarray
         The input data corrected by QDM. Its shape is the same of the input
-        (spatial, spatial, temporal)
+        (spatial, spatial, time_window, temporal). The dimension time_window
+        aligns with the number of time windows defined in a year, while
+        temporal aligns with the time of the data.
 
     See Also
     --------
@@ -467,13 +479,13 @@ def local_qdm_bc(data: np.array,
     be related to the dataset used to estimate
     "bias_fut_{feature_name}_params".
 
-    Keeping arguments consistent with `local_linear_bc()`, thus a 3D data
-    (spatial, spatial, temporal), and lat_lon (n_lats, n_lons, [lat, lon]).
-    But `QuantileDeltaMapping()`, from rex library, expects an array,
-    (time, space), thus we need to re-organize our input to match that,
-    and in the end bring it back to (spatial, spatial, temporal). This is
-    still better than maintaining the same functionality consistent in two
-    libraries.
+    Keeping arguments as consistent as possible with `local_linear_bc()`, thus
+    a 4D data (spatial, spatial, time_window, temporal), and lat_lon (n_lats,
+    n_lons, [lat, lon]). But `QuantileDeltaMapping()`, from rex library,
+    expects an array, (time, space), thus we need to re-organize our input to
+    match that, and in the end bring it back to (spatial, spatial, time_window,
+    temporal). This is still better than maintaining the same functionality
+    consistent in two libraries.
 
     Also, :class:`rex.utilities.bc_utils.QuantileDeltaMapping` expects params
     to be 2D (space, N-params).
@@ -488,35 +500,64 @@ def local_qdm_bc(data: np.array,
     >>> unbiased = local_qdm_bc(biased_array, lat_lon_array, "ghi", "rsds",
     ...                         "./dist_params.hdf")
     """
+    # Confirm that the given time matches the expected data size
+    assert (
+        data.shape[2] == time_index.size
+    ), 'Time should align with data 3rd dimension'
+
     base, bias, bias_fut, cfg = get_spatial_bc_quantiles(lat_lon,
                                                          base_dset,
                                                          feature_name,
                                                          bias_fp,
                                                          threshold)
+
     if lr_padded_slice is not None:
         spatial_slice = (lr_padded_slice[0], lr_padded_slice[1])
         base = base[spatial_slice]
         bias = bias[spatial_slice]
         bias_fut = bias_fut[spatial_slice]
 
-    if no_trend:
-        mf = None
-    else:
-        mf = bias_fut.reshape(-1, bias_fut.shape[-1])
-    # The distributions are 3D (space, space, N-params)
-    # Collapse 3D (space, space, N) into 2D (space**2, N)
-    QDM = QuantileDeltaMapping(base.reshape(-1, base.shape[-1]),
-                               bias.reshape(-1, bias.shape[-1]),
-                               mf,
-                               dist=cfg['dist'],
-                               relative=relative,
-                               sampling=cfg["sampling"],
-                               log_base=cfg["log_base"])
+    output = np.full_like(data, np.nan)
+    nearest_window_idx = [
+        np.argmin(abs(d - cfg['time_window_center']))
+        for d in time_index.day_of_year
+    ]
+    for window_idx in set(nearest_window_idx):
+        # Naming following the paper: observed historical
+        oh = base[:, :, window_idx]
+        # Modeled historical
+        mh = bias[:, :, window_idx]
+        # Modeled future
+        mf = bias_fut[:, :, window_idx]
 
-    # input 3D shape (spatial, spatial, temporal)
-    # QDM expects input arr with shape (time, space)
-    tmp = data.reshape(-1, data.shape[-1]).T
-    # Apply QDM correction
-    tmp = QDM(tmp)
-    # Reorgnize array back from  (time, space) to (spatial, spatial, temporal)
-    return tmp.T.reshape(data.shape)
+        # This satisfies the rex's QDM design
+        if no_trend:
+            mf = None
+        else:
+            mf = mf.reshape(-1, mf.shape[-1])
+        # The distributions at this point, after selected the respective
+        # time window with `window_idx`, are 3D (space, space, N-params)
+        # Collapse 3D (space, space, N) into 2D (space**2, N)
+        QDM = QuantileDeltaMapping(oh.reshape(-1, oh.shape[-1]),
+                                   mh.reshape(-1, mh.shape[-1]),
+                                   mf,
+                                   dist=cfg['dist'],
+                                   relative=relative,
+                                   sampling=cfg['sampling'],
+                                   log_base=cfg['log_base'],
+                                   )
+
+        subset_idx = nearest_window_idx == window_idx
+        subset = data[:, :, subset_idx]
+        # input 3D shape (spatial, spatial, temporal)
+        # QDM expects input arr with shape (time, space)
+        tmp = subset.reshape(-1, subset.shape[-1]).T
+        # Apply QDM correction
+        tmp = QDM(tmp)
+        # Reorgnize array back from  (time, space)
+        # to (spatial, spatial, temporal)
+        tmp = tmp.T.reshape(subset.shape)
+        # Position output respecting original time axis sequence
+        output[:, :, subset_idx] = tmp
+
+    return output

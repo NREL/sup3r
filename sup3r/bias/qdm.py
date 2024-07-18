@@ -45,6 +45,11 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
     a dataset.
     """
 
+    NT = 24
+    """Number of times to calculate QDM parameters in a year"""
+    WINDOW_SIZE = 30
+    """Window width in days"""
+
     def __init__(self,
                  base_fps,
                  bias_fps,
@@ -142,6 +147,17 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
         log_base : int or float, default=10
             Log base value if sampling is "log" or "invlog".
 
+        Attributes
+        ----------
+        NT : int
+            Number of times to calculate QDM parameters equally distributed
+            along a year. For instance, `NT=1` results in a single set of
+            parameters while `NT=12` is approximately every month.
+        WINDOW_SIZE : int
+            Total time window period to be considered for each time QDM is
+            calculated. For instance, `WINDOW_SIZE=30` with `NT=12` would
+            result in approximately monthly estimates.
+
         See Also
         --------
         sup3r.bias.bias_transforms.local_qdm_bc :
@@ -213,9 +229,41 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                 f'bias_fut_{self.bias_feature}_params',
                 f'base_{self.base_dset}_params',
                 ]
-        shape = (*self.bias_gid_raster.shape, self.n_quantiles)
+        shape = (*self.bias_gid_raster.shape, self.NT, self.n_quantiles)
         arr = np.full(shape, np.nan, np.float32)
         self.out = {k: arr.copy() for k in keys}
+
+        self.time_window_center = self._window_center(self.NT)
+
+    @staticmethod
+    def _window_center(ntimes: int):
+        """A sequence of equally spaced `ntimes` day of year along a year
+
+        This is used to identify the center of moving windows to apply filters
+        and masks. For instance, if ntimes equal to 12, it would return
+        approximately the months' center time.
+
+        This is conveniently shifted one half time interval so that December
+        31st would be closest to the last interval of the year instead of the
+        first.
+
+        Leap years are neglected here.
+
+        Parameters
+        ----------
+        ntimes : int
+            Number of intervals in one year.
+
+        Returns
+        -------
+        np.ndarray :
+            Sequence of center points dividing a standard year in `ntimes`
+            intervals.
+        """
+        assert ntimes > 0, "Requires a positive number of intervals"
+
+        dt = 365 / ntimes
+        return np.arange(dt / 2, 366, dt)
 
     # pylint: disable=W0613
     @classmethod
@@ -228,6 +276,9 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                     base_gid,
                     base_handler,
                     daily_reduction,
+                    *,
+                    bias_ti,
+                    bias_fut_ti,
                     decimals,
                     sampling,
                     n_samples,
@@ -236,22 +287,41 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                     ):
         """Estimate probability distributions at a single site"""
 
-        base_data, _ = cls.get_base_data(base_fps,
-                                         base_dset,
-                                         base_gid,
-                                         base_handler,
-                                         daily_reduction=daily_reduction,
-                                         decimals=decimals,
-                                         base_dh_inst=base_dh_inst)
+        base_data, base_ti = cls.get_base_data(base_fps,
+                                               base_dset,
+                                               base_gid,
+                                               base_handler,
+                                               daily_reduction=daily_reduction,
+                                               decimals=decimals,
+                                               base_dh_inst=base_dh_inst)
 
-        out = cls.get_qdm_params(bias_data,
-                                 bias_fut_data,
-                                 base_data,
-                                 bias_feature,
-                                 base_dset,
-                                 sampling,
-                                 n_samples,
-                                 log_base)
+        window_size = cls.WINDOW_SIZE or 365 / cls.NT
+        window_center = cls._window_center(cls.NT)
+
+        template = np.full((cls.NT, n_samples), np.nan, np.float32)
+        out = {}
+
+        for nt, idt in enumerate(window_center):
+            base_idx = cls.window_mask(base_ti.day_of_year, idt, window_size)
+            bias_idx = cls.window_mask(bias_ti.day_of_year, idt, window_size)
+            bias_fut_idx = cls.window_mask(bias_fut_ti.day_of_year,
+                                           idt,
+                                           window_size)
+
+            if any(base_idx) and any(bias_idx) and any(bias_fut_idx):
+                tmp = cls.get_qdm_params(bias_data[bias_idx],
+                                         bias_fut_data[bias_fut_idx],
+                                         base_data[base_idx],
+                                         bias_feature,
+                                         base_dset,
+                                         sampling,
+                                         n_samples,
+                                         log_base)
+                for k, v in tmp.items():
+                    if k not in out:
+                        out[k] = template.copy()
+                    out[k][(nt), :] = v
+
         return out
 
     @staticmethod
@@ -365,6 +435,7 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                 f.attrs["base_fps"] = self.base_fps
                 f.attrs["bias_fps"] = self.bias_fps
                 f.attrs["bias_fut_fps"] = self.bias_fut_fps
+                f.attrs["time_window_center"] = self.time_window_center
                 logger.info(
                     'Wrote quantiles to file: {}'.format(fp_out))
 
@@ -432,7 +503,9 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                         base_gid,
                         self.base_handler,
                         daily_reduction,
-                        self.decimals,
+                        bias_ti=self.bias_fut_dh.time_index,
+                        bias_fut_ti=self.bias_fut_dh.time_index,
+                        decimals=self.decimals,
                         sampling=self.sampling,
                         n_samples=self.n_quantiles,
                         log_base=self.log_base,
@@ -470,7 +543,9 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                             base_gid,
                             self.base_handler,
                             daily_reduction,
-                            self.decimals,
+                            bias_ti=self.bias_fut_dh.time_index,
+                            bias_fut_ti=self.bias_fut_dh.time_index,
+                            decimals=self.decimals,
                             sampling=self.sampling,
                             n_samples=self.n_quantiles,
                             log_base=self.log_base,
@@ -495,3 +570,46 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
         self.write_outputs(fp_out, self.out)
 
         return copy.deepcopy(self.out)
+
+    @staticmethod
+    def window_mask(doy, d0, window_size):
+        """An index of elements within a given time window
+
+        Create an index of days of the year within the target time window. It
+        only considers the day of the year (doy), hence, it is limited to time
+        scales smaller than annual.
+
+        Parameters
+        ----------
+        doy : np.ndarray
+            An unordered array of days of year, i.e. January 1st is 1.
+        d0 : int
+            Center point of the target window [day of year].
+        window_size : float
+            Total size of the target window, i.e. the window covers half this
+            value on each side of d0. Note that it has the same units of doy,
+            thus it is equal to the number of points only if doy is daily.
+
+        Returns
+        -------
+        np.array
+            An boolean array with the same shape of the given `doy`, where
+            True means that position is within the target window.
+
+        Notes
+        -----
+        Leap years have the day 366 included in the output index, but a
+        precise shift is not calculated, resulting in a negligible error
+        in large datasets.
+        """
+        d_start = d0 - window_size / 2
+        d_end = d0 + window_size / 2
+
+        if d_start < 0:
+            idx = (doy > 365 + d_start) | (doy < d_end)
+        elif d_end > 365:
+            idx = (doy > d_start) | (doy < d_end - 365)
+        else:
+            idx = (doy > d_start) & (doy < d_end)
+
+        return idx
