@@ -57,6 +57,38 @@ def fp_fut_cc_notrend(tmpdir_factory):
     return fn
 
 
+def test_window_mask():
+    """A basic window mask check
+
+    This is a day and a half in each direction, thus one daily point
+    on each direction
+    """
+    d = np.arange(1, 366)
+    idx = QuantileDeltaMappingCorrection.window_mask(d, 60, 3)
+    assert np.allclose([59, 60, 61], d[idx])
+
+
+def test_window_mask_even_window_size():
+    """An even number rounds down if there isn't resolution in the input"""
+    d = np.arange(1, 366)
+    idx = QuantileDeltaMappingCorrection.window_mask(d, 60, 4)
+    assert np.allclose([59, 60, 61], d[idx])
+
+
+def test_window_mask_start_of_year():
+    """Early in the year, the window rolls over to the end"""
+    d = np.arange(1, 366)
+    idx = QuantileDeltaMappingCorrection.window_mask(d, 1, 3)
+    assert np.allclose([1, 2, 365], d[idx])
+
+
+def test_window_mask_end_of_year():
+    """Early in the year, the window rolls over to the end"""
+    d = np.arange(1, 366)
+    idx = QuantileDeltaMappingCorrection.window_mask(d, 365, 3)
+    assert np.allclose([1, 364, 365], d[idx])
+
+
 @pytest.fixture(scope='module')
 def dist_params(tmpdir_factory, fp_fut_cc):
     """Distribution parameters for standard datasets
