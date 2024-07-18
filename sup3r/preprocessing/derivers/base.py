@@ -247,7 +247,7 @@ class BaseDeriver(Container):
         out = Interpolator.interp_to_level(
             lev_array=lev_array,
             var_array=var_array,
-            level=level,
+            level=np.float32(level),
             interp_method=interp_method,
         )
         return out

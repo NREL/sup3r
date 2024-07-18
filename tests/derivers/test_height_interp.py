@@ -50,9 +50,9 @@ def test_height_interp_nc(DirectExtracter, Deriver, shape, target, height):
             - no_transform['topography'].data[..., None]
         )
         out = Interpolator.interp_to_level(
-            hgt_array, no_transform['u'].data, [height]
+            hgt_array, no_transform['u'].data, [np.float32(height)]
         )
-
+    assert transform.data[f'u_{height}m'].data.dtype == np.float32
     assert np.array_equal(out, transform.data[f'u_{height}m'].data)
 
 
@@ -92,8 +92,9 @@ def test_height_interp_with_single_lev_data_nc(
         [no_transform['u'].data, no_transform['u_10m'].data[..., None]],
         axis=-1,
     )
-    out = Interpolator.interp_to_level(hgt_array, u, [100])
+    out = Interpolator.interp_to_level(hgt_array, u, [np.float32(100)])
 
+    assert transform.data['u_100m'].data.dtype == np.float32
     assert np.array_equal(out, transform.data['u_100m'].data)
 
 
@@ -142,6 +143,8 @@ def test_log_interp(DirectExtracter, Deriver, shape, target):
         ],
         axis=-1,
     )
-    out = Interpolator.interp_to_level(hgt_array, u, [40], interp_method='log')
-
+    out = Interpolator.interp_to_level(
+        hgt_array, u, [np.float32(40)], interp_method='log'
+    )
+    assert transform.data['u_40m'].data.dtype == np.float32
     assert np.array_equal(out, transform.data['u_40m'].data)
