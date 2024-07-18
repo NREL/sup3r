@@ -7,7 +7,6 @@ as PresRat.
 import copy
 import json
 import logging
-import math
 import os
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
@@ -589,14 +588,14 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
         precise shift is not calculated, resulting in a negligible error
         in large datasets.
         """
-        d_start = math.floor(d0 - window_size / 2)
-        d_end = math.ceil(d0 + window_size / 2)
+        d_start = d0 - window_size / 2
+        d_end = d0 + window_size / 2
 
         if d_start < 0:
-            idx = (doy >= 365 + d_start) | (doy <= d_end)
+            idx = (doy > 365 + d_start) | (doy < d_end)
         elif d_end > 365:
-            idx = (doy >= d_start) | (doy <= 365 - d_end)
+            idx = (doy > d_start) | (doy < d_end - 365)
         else:
-            idx = (doy >= d_start) & (doy <= d_end)
+            idx = (doy > d_start) & (doy < d_end)
 
         return idx
