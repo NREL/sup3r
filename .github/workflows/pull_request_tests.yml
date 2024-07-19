@@ -2,7 +2,7 @@ name: Pytests
 
 on:
   pull_request:
-    types: [opened, edited]
+    types: [opened, edited, synchronize]
   workflow_dispatch:
 
 jobs:
