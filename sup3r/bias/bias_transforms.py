@@ -468,7 +468,7 @@ def local_qdm_bc(data: np.ndarray,
                  base_dset: str,
                  feature_name: str,
                  bias_fp,
-                 time_index: pd.DatetimeIndex,
+                 date_range_kwargs: dict,
                  lr_padded_slice=None,
                  threshold=0.1,
                  relative=True,
@@ -497,11 +497,12 @@ def local_qdm_bc(data: np.ndarray,
         Name of feature that is being corrected. Datasets with names
         "bias_{feature_name}_params" and "bias_fut_{feature_name}_params" will
         be retrieved.
-    time_index : pd.DatetimeIndex
-        DatetimeIndex object associated with the input data temporal axis
-        (assumed 3rd axis e.g. axis=2). Note that if this method is called as
-        part of a sup3r resolution forward pass, the time_index will be
-        included automatically for the current chunk.
+    date_range_kwargs : dict
+        Keyword args for pd.date_range to produce a DatetimeIndex object
+        associated with the input data temporal axis (assumed 3rd axis e.g.
+        axis=2). Note that if this method is called as part of a sup3r
+        resolution forward pass, the date_range_kwargs will be included
+        automatically for the current chunk.
     bias_fp : str
         Filepath to statistical distributions file from the bias calc module.
         Must have datasets "bias_{feature_name}_params",
@@ -565,6 +566,7 @@ def local_qdm_bc(data: np.ndarray,
     ...                         "./dist_params.hdf")
     """
     # Confirm that the given time matches the expected data size
+    time_index = pd.date_range(**date_range_kwargs)
     assert (
         data.shape[2] == time_index.size
     ), 'Time should align with data 3rd dimension'

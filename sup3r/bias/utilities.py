@@ -95,6 +95,7 @@ def qdm_bc(
     handler,
     bc_files,
     reference_feature,
+    date_range_kwargs=None,
     relative=True,
     threshold=0.1,
     no_trend=False,
@@ -124,6 +125,12 @@ def qdm_bc(
         Name of the feature used as (historical) reference. Dataset with
         name "base_{reference_feature}_params" will be retrieved from
         ``bc_files``.
+    date_range_kwargs : dict
+        Keyword args for pd.date_range to produce a DatetimeIndex object
+        associated with the input data temporal axis (assumed 3rd axis e.g.
+        axis=2). Note that if this method is called as part of a sup3r
+        resolution forward pass, the date_range_kwargs will be included
+        automatically for the current chunk.
     relative : bool, default=True
         Switcher to apply QDM as a relative (use True) or absolute (use
         False) correction value.
@@ -158,6 +165,7 @@ def qdm_bc(
                 handler.lat_lon,
                 reference_feature,
                 feature,
+                date_range_kwargs=date_range_kwargs,
                 bias_fp=fp,
                 threshold=threshold,
                 relative=relative,

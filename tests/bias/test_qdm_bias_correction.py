@@ -15,6 +15,7 @@ from sup3r.bias.utilities import qdm_bc
 from sup3r.models import Sup3rGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.preprocessing import DataHandlerNC, DataHandlerNCforCC
+from sup3r.preprocessing.utilities import get_date_range_kwargs
 from sup3r.utilities.utilities import RANDOM_GENERATOR
 
 CC_LAT_LON = DataHandlerNC(pytest.FP_RSDS, 'rsds').lat_lon
@@ -184,7 +185,7 @@ def test_parallel(fp_fut_cc):
     )
     out_p = p.run(max_workers=2)
 
-    for k in out_s.keys():
+    for k in out_s:
         assert k in out_p, f'Missing {k} in parallel run'
         assert np.allclose(
             out_s[k], out_p[k], equal_nan=True
@@ -256,8 +257,14 @@ def test_qdm_transform(dist_params):
     time = pd.DatetimeIndex(
         (np.datetime64('2018-01-01'), np.datetime64('2018-01-02'))
     )
+    date_range_kwargs = get_date_range_kwargs(time)
     corrected = local_qdm_bc(
-        data, CC_LAT_LON, 'ghi', 'rsds', dist_params, time,
+        data,
+        CC_LAT_LON,
+        'ghi',
+        'rsds',
+        dist_params,
+        date_range_kwargs=date_range_kwargs,
     )
 
     assert not np.isnan(corrected).all(), "Can't compare if only NaN"
@@ -280,6 +287,7 @@ def test_qdm_transform_notrend(tmp_path, dist_params):
     time = pd.DatetimeIndex(
         (np.datetime64('2018-01-01'), np.datetime64('2018-01-02'))
     )
+    date_range_kwargs = get_date_range_kwargs(time)
     # Run the standard pipeline with flag 'no_trend'
     corrected = local_qdm_bc(
         np.ones((*CC_LAT_LON.shape[:-1], 2)),
@@ -287,7 +295,7 @@ def test_qdm_transform_notrend(tmp_path, dist_params):
         'ghi',
         'rsds',
         dist_params,
-        time,
+        date_range_kwargs=date_range_kwargs,
         no_trend=True,
     )
 
@@ -304,7 +312,7 @@ def test_qdm_transform_notrend(tmp_path, dist_params):
         'ghi',
         'rsds',
         notrend_params,
-        time,
+        date_range_kwargs=date_range_kwargs,
     )
 
     assert not np.isnan(corrected).all(), "Can't compare if only NaN"
