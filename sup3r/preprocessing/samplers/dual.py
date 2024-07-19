@@ -88,9 +88,11 @@ class DualSampler(Sampler):
         """Return default set of features composed from data vars in low res
         and high res data objects or the value provided through the
         feature_sets dictionary."""
-        features = set(self.lr_data.features + self.hr_data.features)
-        features = [
-            f for f in features if f not in lowered(self._hr_exo_features)
+        features = []
+        _ = [
+            features.append(f)
+            for f in [*self.lr_data.features, *self.hr_data.features]
+            if f not in features and f not in lowered(self.hr_exo_features)
         ]
         features += lowered(self._hr_exo_features)
         return feature_sets.get('features', features)
