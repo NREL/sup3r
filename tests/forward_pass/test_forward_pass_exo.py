@@ -34,61 +34,6 @@ s_enhance = 3
 t_enhance = 4
 
 
-GEN_2X_2F_CONCAT = [
-    {
-        'class': 'FlexiblePadding',
-        'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
-        'mode': 'REFLECT',
-    },
-    {
-        'class': 'Conv2DTranspose',
-        'filters': 64,
-        'kernel_size': 3,
-        'strides': 1,
-    },
-    {'class': 'Cropping2D', 'cropping': 4},
-    {
-        'class': 'FlexiblePadding',
-        'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
-        'mode': 'REFLECT',
-    },
-    {
-        'class': 'Conv2DTranspose',
-        'filters': 64,
-        'kernel_size': 3,
-        'strides': 1,
-    },
-    {'class': 'Cropping2D', 'cropping': 4},
-    {
-        'class': 'FlexiblePadding',
-        'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
-        'mode': 'REFLECT',
-    },
-    {
-        'class': 'Conv2DTranspose',
-        'filters': 64,
-        'kernel_size': 3,
-        'strides': 1,
-    },
-    {'class': 'Cropping2D', 'cropping': 4},
-    {'class': 'SpatialExpansion', 'spatial_mult': 2},
-    {'alpha': 0.2, 'class': 'LeakyReLU'},
-    {'class': 'Sup3rConcat', 'name': 'topography'},
-    {
-        'class': 'FlexiblePadding',
-        'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
-        'mode': 'REFLECT',
-    },
-    {
-        'class': 'Conv2DTranspose',
-        'filters': 2,
-        'kernel_size': 3,
-        'strides': 1,
-    },
-    {'class': 'Cropping2D', 'cropping': 4},
-]
-
-
 @pytest.fixture(scope='module')
 def input_files(tmpdir_factory):
     """Dummy netcdf input files for :class:`ForwardPass`"""
@@ -635,12 +580,14 @@ def test_fwp_single_step_wind_hi_res_topo(input_files, plot=False):
             assert os.path.exists(fp)
 
 
-def test_fwp_multi_step_wind_hi_res_topo(input_files):
+def test_fwp_multi_step_wind_hi_res_topo(input_files, gen_config_with_topo):
     """Test the forward pass with multiple Sup3rGan models requiring
     high-resolution topograph input from the exogenous_data feature."""
     Sup3rGan.seed()
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
-    s1_model = Sup3rGan(GEN_2X_2F_CONCAT, fp_disc, learning_rate=1e-4)
+    s1_model = Sup3rGan(
+        gen_config_with_topo('Sup3rConcat'), fp_disc, learning_rate=1e-4
+    )
     s1_model.meta['lr_features'] = ['u_100m', 'v_100m', 'topography']
     s1_model.meta['hr_out_features'] = ['u_100m', 'v_100m']
     s1_model.meta['s_enhance'] = 2
@@ -663,7 +610,9 @@ def test_fwp_multi_step_wind_hi_res_topo(input_files):
     }
     _ = s1_model.generate(np.ones((4, 10, 10, 3)), exogenous_data=exo_tmp)
 
-    s2_model = Sup3rGan(GEN_2X_2F_CONCAT, fp_disc, learning_rate=1e-4)
+    s2_model = Sup3rGan(
+        gen_config_with_topo('Sup3rConcat'), fp_disc, learning_rate=1e-4
+    )
     s2_model.meta['lr_features'] = ['u_100m', 'v_100m', 'topography']
     s2_model.meta['hr_out_features'] = ['u_100m', 'v_100m']
     s2_model.meta['s_enhance'] = 2
@@ -765,68 +714,17 @@ def test_fwp_multi_step_wind_hi_res_topo(input_files):
             assert os.path.exists(fp)
 
 
-def test_fwp_wind_hi_res_topo_plus_linear(input_files):
+def test_fwp_wind_hi_res_topo_plus_linear(input_files, gen_config_with_topo):
     """Test the forward pass with a Sup3rGan model requiring high-res topo
     input from exo data for spatial enhancement and a linear interpolation
     model for temporal enhancement."""
 
     Sup3rGan.seed()
-    gen_model = [
-        {
-            'class': 'FlexiblePadding',
-            'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
-            'mode': 'REFLECT',
-        },
-        {
-            'class': 'Conv2DTranspose',
-            'filters': 64,
-            'kernel_size': 3,
-            'strides': 1,
-        },
-        {'class': 'Cropping2D', 'cropping': 4},
-        {
-            'class': 'FlexiblePadding',
-            'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
-            'mode': 'REFLECT',
-        },
-        {
-            'class': 'Conv2DTranspose',
-            'filters': 64,
-            'kernel_size': 3,
-            'strides': 1,
-        },
-        {'class': 'Cropping2D', 'cropping': 4},
-        {
-            'class': 'FlexiblePadding',
-            'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
-            'mode': 'REFLECT',
-        },
-        {
-            'class': 'Conv2DTranspose',
-            'filters': 64,
-            'kernel_size': 3,
-            'strides': 1,
-        },
-        {'class': 'Cropping2D', 'cropping': 4},
-        {'class': 'SpatialExpansion', 'spatial_mult': 2},
-        {'alpha': 0.2, 'class': 'LeakyReLU'},
-        {'class': 'Sup3rConcat', 'name': 'topography'},
-        {
-            'class': 'FlexiblePadding',
-            'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
-            'mode': 'REFLECT',
-        },
-        {
-            'class': 'Conv2DTranspose',
-            'filters': 2,
-            'kernel_size': 3,
-            'strides': 1,
-        },
-        {'class': 'Cropping2D', 'cropping': 4},
-    ]
 
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
-    s_model = Sup3rGan(gen_model, fp_disc, learning_rate=1e-4)
+    s_model = Sup3rGan(
+        gen_config_with_topo('Sup3rConcat'), fp_disc, learning_rate=1e-4
+    )
     s_model.meta['lr_features'] = ['u_100m', 'v_100m', 'topography']
     s_model.meta['hr_out_features'] = ['u_100m', 'v_100m']
     s_model.meta['s_enhance'] = 2
@@ -1019,69 +917,13 @@ def test_fwp_multi_step_model_multi_exo(input_files):
     shutil.rmtree('./exo_cache', ignore_errors=True)
 
 
-def test_fwp_multi_step_exo_hi_res_topo_and_sza(input_files):
+def test_fwp_multi_step_exo_hi_res_topo_and_sza(
+    input_files, gen_config_with_topo
+):
     """Test the forward pass with multiple ExoGan models requiring
     high-resolution topography and sza input from the exogenous_data
     feature."""
     Sup3rGan.seed()
-    gen_s_model = [
-        {
-            'class': 'FlexiblePadding',
-            'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
-            'mode': 'REFLECT',
-        },
-        {
-            'class': 'Conv2DTranspose',
-            'filters': 64,
-            'kernel_size': 3,
-            'strides': 1,
-            'activation': 'relu',
-        },
-        {'class': 'Cropping2D', 'cropping': 4},
-        {
-            'class': 'FlexiblePadding',
-            'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
-            'mode': 'REFLECT',
-        },
-        {
-            'class': 'Conv2DTranspose',
-            'filters': 64,
-            'kernel_size': 3,
-            'strides': 1,
-            'activation': 'relu',
-        },
-        {'class': 'Cropping2D', 'cropping': 4},
-        {
-            'class': 'FlexiblePadding',
-            'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
-            'mode': 'REFLECT',
-        },
-        {
-            'class': 'Conv2DTranspose',
-            'filters': 64,
-            'kernel_size': 3,
-            'strides': 1,
-            'activation': 'relu',
-        },
-        {'class': 'Cropping2D', 'cropping': 4},
-        {'class': 'SpatialExpansion', 'spatial_mult': 2},
-        {'class': 'Activation', 'activation': 'relu'},
-        {'class': 'Sup3rConcat', 'name': 'topography'},
-        {'class': 'Sup3rConcat', 'name': 'sza'},
-        {
-            'class': 'FlexiblePadding',
-            'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
-            'mode': 'REFLECT',
-        },
-        {
-            'class': 'Conv2DTranspose',
-            'filters': 2,
-            'kernel_size': 3,
-            'strides': 1,
-            'activation': 'relu',
-        },
-        {'class': 'Cropping2D', 'cropping': 4},
-    ]
 
     gen_t_model = [
         {
@@ -1124,7 +966,9 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza(input_files):
     ]
 
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
-    s1_model = Sup3rGan(gen_s_model, fp_disc, learning_rate=1e-4)
+    s1_model = Sup3rGan(
+        gen_config_with_topo('Sup3rConcat'), fp_disc, learning_rate=1e-4
+    )
     s1_model.meta['lr_features'] = ['u_100m', 'v_100m', 'topography', 'sza']
     s1_model.meta['hr_out_features'] = ['u_100m', 'v_100m']
     s1_model.meta['s_enhance'] = 2
@@ -1155,7 +999,8 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza(input_files):
     }
     _ = s1_model.generate(np.ones((4, 10, 10, 4)), exogenous_data=exo_tmp)
 
-    s2_model = Sup3rGan(gen_s_model, fp_disc, learning_rate=1e-4)
+    s2_model = Sup3rGan(
+        gen_config_with_topo('Sup3rConcat'), fp_disc, learning_rate=1e-4)
     s2_model.meta['lr_features'] = ['u_100m', 'v_100m', 'topography', 'sza']
     s2_model.meta['hr_out_features'] = ['u_100m', 'v_100m']
     s2_model.meta['s_enhance'] = 2
@@ -1256,7 +1101,7 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza(input_files):
     shutil.rmtree('./exo_cache', ignore_errors=True)
 
 
-def test_solar_multistep_exo():
+def test_solar_multistep_exo(gen_config_with_topo):
     """Test the special solar multistep model with exo features."""
     features1 = ['clearsky_ratio']
     fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_1f.json')
@@ -1270,7 +1115,7 @@ def test_solar_multistep_exo():
     features2 = ['U_200m', 'V_200m', 'topography']
 
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
-    model2 = Sup3rGan(GEN_2X_2F_CONCAT, fp_disc)
+    model2 = Sup3rGan(gen_config_with_topo('Sup3rConcat'), fp_disc)
 
     exo_tmp = {
         'topography': {

@@ -19,9 +19,9 @@ from rex.utilities.utilities import safe_json_load
 from tensorflow.keras import optimizers
 
 import sup3r.utilities.loss_metrics
+from sup3r import VERSION_RECORD
 from sup3r.preprocessing.data_handlers.base import ExoData
 from sup3r.preprocessing.utilities import _numpy_if_tensor
-from sup3r.utilities import VERSION_RECORD
 from sup3r.utilities.utilities import Timer
 
 logger = logging.getLogger(__name__)

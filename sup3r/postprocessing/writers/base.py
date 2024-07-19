@@ -12,9 +12,8 @@ import xarray as xr
 from rex.outputs import Outputs as BaseRexOutputs
 from scipy.interpolate import griddata
 
-from sup3r import __version__
+from sup3r import VERSION_RECORD, __version__
 from sup3r.preprocessing.derivers.utilities import parse_feature
-from sup3r.utilities import VERSION_RECORD
 from sup3r.utilities.utilities import pd_date_range
 
 logger = logging.getLogger(__name__)

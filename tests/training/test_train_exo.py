@@ -30,7 +30,9 @@ TARGET_W = (39.01, -105.15)
         ('Sup3rConcat', FEATURES_W[1:], [], 'eager'),
     ],
 )
-def test_wind_hi_res_topo(CustomLayer, features, lr_only_features, mode):
+def test_wind_hi_res_topo(
+    CustomLayer, features, lr_only_features, mode, gen_config_with_topo
+):
     """Test a special wind model for non cc with the custom Sup3rAdder or
     Sup3rConcat layer that adds/concatenates hi-res topography in the middle of
     the network."""
@@ -63,68 +65,12 @@ def test_wind_hi_res_topo(CustomLayer, features, lr_only_features, mode):
     if mode == 'eager':
         assert batcher.loaded
 
-    gen_model = [
-        {
-            'class': 'FlexiblePadding',
-            'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
-            'mode': 'REFLECT',
-        },
-        {
-            'class': 'Conv2DTranspose',
-            'filters': 64,
-            'kernel_size': 3,
-            'strides': 1,
-            'activation': 'relu',
-        },
-        {'class': 'Cropping2D', 'cropping': 4},
-        {
-            'class': 'FlexiblePadding',
-            'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
-            'mode': 'REFLECT',
-        },
-        {
-            'class': 'Conv2DTranspose',
-            'filters': 64,
-            'kernel_size': 3,
-            'strides': 1,
-            'activation': 'relu',
-        },
-        {'class': 'Cropping2D', 'cropping': 4},
-        {
-            'class': 'FlexiblePadding',
-            'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
-            'mode': 'REFLECT',
-        },
-        {
-            'class': 'Conv2DTranspose',
-            'filters': 64,
-            'kernel_size': 3,
-            'strides': 1,
-            'activation': 'relu',
-        },
-        {'class': 'Cropping2D', 'cropping': 4},
-        {'class': 'SpatialExpansion', 'spatial_mult': 2},
-        {'class': 'Activation', 'activation': 'relu'},
-        {'class': CustomLayer, 'name': 'topography'},
-        {
-            'class': 'FlexiblePadding',
-            'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
-            'mode': 'REFLECT',
-        },
-        {
-            'class': 'Conv2DTranspose',
-            'filters': 2,
-            'kernel_size': 3,
-            'strides': 1,
-            'activation': 'relu',
-        },
-        {'class': 'Cropping2D', 'cropping': 4},
-    ]
-
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
 
     Sup3rGan.seed()
-    model = Sup3rGan(gen_model, fp_disc, learning_rate=1e-4)
+    model = Sup3rGan(
+        gen_config_with_topo(CustomLayer), fp_disc, learning_rate=1e-4
+    )
 
     start = time.time()
     with tempfile.TemporaryDirectory() as td:

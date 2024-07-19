@@ -5,21 +5,19 @@ import logging
 import click
 from gaps import Pipeline
 
-from sup3r import __version__
-from sup3r.batch.batch_cli import from_config as batch_cli
-from sup3r.bias.bias_calc_cli import from_config as bias_calc_cli
-from sup3r.pipeline.forward_pass_cli import from_config as fwp_cli
-from sup3r.pipeline.pipeline_cli import from_config as pipe_cli
-from sup3r.postprocessing.data_collect_cli import from_config as dc_cli
-from sup3r.qa.qa_cli import from_config as qa_cli
-from sup3r.solar.solar_cli import from_config as solar_cli
-from sup3r.utilities import ModuleName
+from .batch.batch_cli import from_config as batch_cli
+from .bias.bias_calc_cli import from_config as bias_calc_cli
+from .pipeline.forward_pass_cli import from_config as fwp_cli
+from .pipeline.pipeline_cli import from_config as pipe_cli
+from .postprocessing.data_collect_cli import from_config as dc_cli
+from .qa.qa_cli import from_config as qa_cli
+from .solar.solar_cli import from_config as solar_cli
+from .utilities import ModuleName
 
 logger = logging.getLogger(__name__)
 
 
 @click.group()
-@click.version_option(version=__version__)
 @click.option(
     '--config_file',
     '-c',

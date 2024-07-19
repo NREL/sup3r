@@ -6,8 +6,8 @@ from inspect import signature
 
 import numpy as np
 
-from sup3r.models.abstract import AbstractInterface
-from sup3r.models.utilities import st_interp
+from .abstract import AbstractInterface
+from .utilities import st_interp
 
 logger = logging.getLogger(__name__)
 

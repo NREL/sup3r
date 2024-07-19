@@ -8,9 +8,10 @@ import numpy as np
 
 # pylint: disable=cyclic-import
 import sup3r.models
-from sup3r.models.abstract import AbstractInterface
-from sup3r.models.base import Sup3rGan
 from sup3r.preprocessing.data_handlers.base import ExoData
+
+from .abstract import AbstractInterface
+from .base import Sup3rGan
 
 logger = logging.getLogger(__name__)
 

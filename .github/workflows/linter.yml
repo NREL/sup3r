@@ -17,13 +17,14 @@ jobs:
         with:
           fetch-depth: 0
       - name: Lint Code Base
-        uses: super-linter/super-linter@v4
+        uses: super-linter/super-linter/slim@v6.2.0
         env:
           VALIDATE_ALL_CODEBASE: false
           VALIDATE_PYTHON_BLACK: false
           VALIDATE_PYTHON_ISORT: false
           VALIDATE_PYTHON_MYPY: false
           VALIDATE_DOCKERFILE_HADOLINT: false
+          VALIDATE_GITHUB_ACTIONS: false
           VALIDATE_JSCPD: false
           VALIDATE_JSON: false
           VALIDATE_MARKDOWN: false

@@ -4,7 +4,7 @@ import logging
 
 import numpy as np
 
-from sup3r.models.base import Sup3rGan
+from .base import Sup3rGan
 
 np.set_printoptions(precision=3)
 

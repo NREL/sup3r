@@ -15,9 +15,10 @@ from scipy import stats
 from scipy.spatial import KDTree
 
 import sup3r.preprocessing
+from sup3r import VERSION_RECORD
 from sup3r.preprocessing import DataHandlerNC as DataHandler
 from sup3r.preprocessing.utilities import _compute_if_dask, expand_paths
-from sup3r.utilities import VERSION_RECORD, ModuleName
+from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
 
 logger = logging.getLogger(__name__)

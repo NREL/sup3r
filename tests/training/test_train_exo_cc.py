@@ -21,12 +21,18 @@ FEATURES_W = ['temperature_100m', 'u_100m', 'v_100m', 'topography']
 TARGET_W = (39.01, -105.15)
 
 
-@pytest.mark.parametrize(('CustomLayer', 'features', 'lr_only_features'),
-                         [('Sup3rAdder', FEATURES_W, ['temperature_100m']),
-                         ('Sup3rConcat', FEATURES_W, ['temperature_100m']),
-                         ('Sup3rAdder', FEATURES_W[1:], []),
-                         ('Sup3rConcat', FEATURES_W[1:], [])])
-def test_wind_hi_res_topo(CustomLayer, features, lr_only_features):
+@pytest.mark.parametrize(
+    ('CustomLayer', 'features', 'lr_only_features'),
+    [
+        ('Sup3rAdder', FEATURES_W, ['temperature_100m']),
+        ('Sup3rConcat', FEATURES_W, ['temperature_100m']),
+        ('Sup3rAdder', FEATURES_W[1:], []),
+        ('Sup3rConcat', FEATURES_W[1:], []),
+    ],
+)
+def test_wind_hi_res_topo(
+    CustomLayer, features, lr_only_features, gen_config_with_topo
+):
     """Test a special wind cc model with the custom Sup3rAdder or Sup3rConcat
     layer that adds/concatenates hi-res topography in the middle of the
     network. The first two parameter sets include an lr only feature."""
@@ -50,71 +56,15 @@ def test_wind_hi_res_topo(CustomLayer, features, lr_only_features):
             'lr_only_features': lr_only_features,
             'hr_exo_features': ['topography'],
         },
-        mode='eager'
+        mode='eager',
     )
-
-    gen_model = [
-        {
-            'class': 'FlexiblePadding',
-            'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
-            'mode': 'REFLECT',
-        },
-        {
-            'class': 'Conv2DTranspose',
-            'filters': 64,
-            'kernel_size': 3,
-            'strides': 1,
-            'activation': 'relu',
-        },
-        {'class': 'Cropping2D', 'cropping': 4},
-        {
-            'class': 'FlexiblePadding',
-            'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
-            'mode': 'REFLECT',
-        },
-        {
-            'class': 'Conv2DTranspose',
-            'filters': 64,
-            'kernel_size': 3,
-            'strides': 1,
-            'activation': 'relu',
-        },
-        {'class': 'Cropping2D', 'cropping': 4},
-        {
-            'class': 'FlexiblePadding',
-            'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
-            'mode': 'REFLECT',
-        },
-        {
-            'class': 'Conv2DTranspose',
-            'filters': 64,
-            'kernel_size': 3,
-            'strides': 1,
-            'activation': 'relu',
-        },
-        {'class': 'Cropping2D', 'cropping': 4},
-        {'class': 'SpatialExpansion', 'spatial_mult': 2},
-        {'class': 'Activation', 'activation': 'relu'},
-        {'class': CustomLayer, 'name': 'topography'},
-        {
-            'class': 'FlexiblePadding',
-            'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
-            'mode': 'REFLECT',
-        },
-        {
-            'class': 'Conv2DTranspose',
-            'filters': 2,
-            'kernel_size': 3,
-            'strides': 1,
-            'activation': 'relu',
-        },
-        {'class': 'Cropping2D', 'cropping': 4},
-    ]
 
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
 
     Sup3rGan.seed()
-    model = Sup3rGan(gen_model, fp_disc, learning_rate=1e-4)
+    model = Sup3rGan(
+        gen_config_with_topo(CustomLayer), fp_disc, learning_rate=1e-4
+    )
 
     with tempfile.TemporaryDirectory() as td:
         model.train(

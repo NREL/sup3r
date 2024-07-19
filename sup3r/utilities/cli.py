@@ -9,8 +9,8 @@ from rex.utilities.execution import SubprocessManager
 from rex.utilities.hpc import SLURM
 from rex.utilities.loggers import init_mult
 
-from sup3r.utilities import ModuleName
-from sup3r.utilities.utilities import safe_serialize
+from . import ModuleName
+from .utilities import safe_serialize
 
 logger = logging.getLogger(__name__)
 AVAILABLE_HARDWARE_OPTIONS = ('kestrel', 'eagle', 'slurm')

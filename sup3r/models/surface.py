@@ -8,9 +8,10 @@ import numpy as np
 from PIL import Image
 from sklearn import linear_model
 
-from sup3r.models.linear import LinearInterp
 from sup3r.preprocessing.utilities import _compute_if_dask
 from sup3r.utilities.utilities import RANDOM_GENERATOR, spatial_coarsening
+
+from .linear import LinearInterp
 
 logger = logging.getLogger(__name__)
 

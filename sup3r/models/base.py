@@ -12,8 +12,9 @@ import pandas as pd
 import tensorflow as tf
 from tensorflow.keras import optimizers
 
-from sup3r.models.abstract import AbstractInterface, AbstractSingleModel
-from sup3r.utilities import VERSION_RECORD
+from sup3r import VERSION_RECORD
+
+from .abstract import AbstractInterface, AbstractSingleModel
 
 logger = logging.getLogger(__name__)
 
