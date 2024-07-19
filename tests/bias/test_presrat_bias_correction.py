@@ -658,14 +658,15 @@ def test_presrat_calc_params(fp_resource, fp_precip, fp_precip_fut):
         ), f'{v} should be all less than {VAR_MAX}.'
 
 
-@pytest.mark.skip()
 def test_presrat_transform(presrat_params, precip_fut):
     """A standard run with local_presrat_bc
 
-    WIP: Confirm it runs only.
+    Confirms that:
+    - unbiased values is different than input biases data
+    - unbiased zero rate is not smaller the input zero rate
     """
     # local_presrat_bc expects time in the last dimension.
-    data = precip_fut.transpose("lat", "lon", "time").values
+    data = precip_fut.transpose('lat', 'lon', 'time').values
     time = pd.to_datetime(precip_fut.time)
     latlon = np.stack(
         xr.broadcast(precip_fut['lat'], precip_fut['lon'] - 360), axis=-1
@@ -678,6 +679,10 @@ def test_presrat_transform(presrat_params, precip_fut):
     assert np.isfinite(corrected).any(), "Can't compare if only NaN"
     # Confirm that there were changes, but at this point stop there.
     assert not np.allclose(data, corrected, equal_nan=False)
+
+    n_zero = (data == 0).astype('i').sum()
+    unbiased_n_zero = (corrected == 0).astype('i').sum()
+    assert n_zero <= unbiased_n_zero
 
 
 @pytest.mark.skip()
