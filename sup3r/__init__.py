@@ -17,7 +17,7 @@ from ._version import __version__
 
 # Next import sets up CLI commands
 # This line could be "import sup3r.cli" but that breaks sphinx as of 12/11/2023
-from sup3r.cli import main
+from .cli import main
 
 __author__ = """Brandon Benton"""
 __email__ = 'brandon.benton@nrel.gov'

@@ -5,6 +5,7 @@ import logging
 import click
 from gaps import Pipeline
 
+from ._version import __version__
 from .batch.batch_cli import from_config as batch_cli
 from .bias.bias_calc_cli import from_config as bias_calc_cli
 from .pipeline.forward_pass_cli import from_config as fwp_cli
@@ -18,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 @click.group()
+@click.version_option(version=__version__)
 @click.option(
     '--config_file',
     '-c',
