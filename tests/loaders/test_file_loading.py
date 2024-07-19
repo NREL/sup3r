@@ -131,10 +131,10 @@ def test_level_inversion():
 
 def test_load_cc():
     """Test simple era5 file loading."""
-    chunks = (5, 5, 5)
+    chunks = {'south_north': 5, 'west_east': 5, 'time': 5}
     loader = LoaderNC(pytest.FP_UAS, chunks=chunks)
     assert all(
-        loader[f].data.chunksize == chunks
+        loader[f].data.chunksize == tuple(chunks.values())
         for f in loader.features
         if len(loader[f].data.shape) == 3
     )
@@ -149,10 +149,10 @@ def test_load_cc():
 def test_load_era5():
     """Test simple era5 file loading. Make sure general loader matches the type
     specific loader"""
-    chunks = (10, 10, 1000)
+    chunks = {'south_north': 10, 'west_east': 10, 'time': 1000}
     loader = LoaderNC(pytest.FP_ERA, chunks=chunks)
     assert all(
-        loader[f].data.chunksize == chunks
+        loader[f].data.chunksize == tuple(chunks.values())
         for f in loader.features
         if len(loader[f].data.shape) == 3
     )
@@ -172,10 +172,13 @@ def test_load_nc():
         make_fake_nc_file(
             temp_file, shape=(10, 10, 20), features=['u_100m', 'v_100m']
         )
-        chunks = (5, 5, 5)
+        chunks = {'time': 5, 'south_north': 5, 'west_east': 5}
         loader = LoaderNC(temp_file, chunks=chunks)
         assert loader.shape == (10, 10, 20, 2)
-        assert all(loader[f].data.chunksize == chunks for f in loader.features)
+        assert all(
+            loader[f].data.chunksize == tuple(chunks.values())
+            for f in loader.features
+        )
 
         gen_loader = Loader(temp_file, chunks=chunks)
 
@@ -187,7 +190,7 @@ def test_load_h5():
     topography. Also makes sure that general loader matches type specific
     loader"""
 
-    chunks = (200, 200)
+    chunks = {'space': 200, 'time': 200}
     loader = LoaderH5(pytest.FP_WTK, chunks=chunks)
     feats = [
         'pressure_100m',
@@ -200,7 +203,9 @@ def test_load_h5():
     ]
     assert loader.data.shape == (400, 8784, len(feats))
     assert sorted(loader.features) == sorted(feats)
-    assert all(loader[f].data.chunksize == chunks for f in feats[:-1])
+    assert all(
+        loader[f].data.chunksize == tuple(chunks.values()) for f in feats[:-1]
+    )
     gen_loader = Loader(pytest.FP_WTK, chunks=chunks)
     assert np.array_equal(loader.as_array(), gen_loader.as_array())
 

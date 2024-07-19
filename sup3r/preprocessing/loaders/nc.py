@@ -8,7 +8,7 @@ import dask.array as da
 import numpy as np
 import xarray as xr
 
-from sup3r.preprocessing.utilities import Dimension, ordered_dims
+from sup3r.preprocessing.utilities import Dimension
 
 from .base import BaseLoader
 
@@ -107,8 +107,7 @@ class LoaderNC(BaseLoader):
             coords[Dimension.TIME] = times
 
         out = res.assign_coords(coords)
-        if isinstance(self.chunks, tuple):
-            chunks = dict(zip(ordered_dims(out.dims), self.chunks))
-            out = out.chunk(chunks)
+        if isinstance(self.chunks, dict):
+            out = out.chunk(self.chunks)
         out = self.enforce_descending_lats(out)
         return self.enforce_descending_levels(out).astype(np.float32)

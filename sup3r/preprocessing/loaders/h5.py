@@ -59,22 +59,32 @@ class LoaderH5(BaseLoader):
             dims = (Dimension.TIME, *dims)
             coords[Dimension.TIME] = self.res['time_index']
 
+        chunks = (
+            tuple(self.chunks[d] for d in dims)
+            if isinstance(self.chunks, dict)
+            else self.chunks
+        )
+
         if len(self._meta_shape()) == 1:
-            elev = da.asarray(
-                self.res.meta['elevation'].values, dtype=np.float32
-            )
+            elev = self.res.meta['elevation'].values
             if not self._time_independent:
-                elev = da.repeat(
+                elev = np.repeat(
                     elev[None, ...], len(self.res['time_index']), axis=0
                 )
-            data_vars['elevation'] = (dims, elev)
+            logger.debug(f'Rechunking "topography" with chunks: {self.chunks}')
+            data_vars['elevation'] = (
+                dims,
+                da.asarray(elev, dtype=np.float32, chunks=chunks),
+            )
         data_vars = {
             **data_vars,
             **{
                 f: (
                     dims,
                     da.asarray(
-                        self.res.h5[f], dtype=np.float32, chunks=self.chunks
+                        self.res.h5[f],
+                        dtype=np.float32,
+                        chunks=chunks,
                     )
                     / self.scale_factor(f),
                 )

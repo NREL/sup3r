@@ -62,10 +62,10 @@ class BaseLoader(Container, ABC):
             features will be returned.
         res_kwargs : dict
             kwargs for `.res` object
-        chunks : tuple
-            Tuple of chunk sizes to use for call to dask.array.from_array().
-            Note: The ordering here corresponds to the default ordering given
-            by `.res`.
+        chunks : dict
+            Dictionary of chunk sizes to use for call to
+            `dask.array.from_array()` or xr.Dataset().chunk(). Will be
+            converted to a tuple when used in `from_array().`
         """
         super().__init__()
         self._res = None

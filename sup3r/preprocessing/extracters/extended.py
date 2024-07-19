@@ -79,19 +79,20 @@ class ExtendedExtracter(BaseExtracter):
             Dimension.TIME: self.time_index,
         }
         data_vars = {}
+        feats = list(self.loader.data_vars)
+        data = self.loader[feats].isel(
+            **{Dimension.FLATTENED_SPATIAL: self.raster_index.flatten()}
+        )
         for f in self.loader.data_vars:
-            dat = self.loader[f].isel(
-                **{Dimension.FLATTENED_SPATIAL: self.raster_index.flatten()}
-            )
             if Dimension.TIME in self.loader[f].dims:
-                dat = dat.isel({Dimension.TIME: self.time_slice}).data.reshape(
+                dat = data[f].isel({Dimension.TIME: self.time_slice})
+                dat = dat.data.reshape(
                     (*self.grid_shape, len(self.time_index))
                 )
                 data_vars[f] = ((*dims, Dimension.TIME), dat)
             else:
-                dat = dat.data.reshape(self.grid_shape)
+                dat = data[f].data.reshape(self.grid_shape)
                 data_vars[f] = (dims, dat)
-
         return xr.Dataset(
             coords=coords, data_vars=data_vars, attrs=self.loader.attrs
         )

@@ -127,7 +127,8 @@ class Cacher(Container):
                 _ = future.result()
                 feature, out_file = futures[future]
                 logger.info(
-                    f'Finished writing {i + 1} / {len(futures)} files.'
+                    f'Finished writing {out_file}. ({i + 1} of {len(futures)} '
+                    'files).'
                 )
         logger.info(f'Finished writing {out_files}.')
         return out_files
