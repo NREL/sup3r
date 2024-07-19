@@ -16,8 +16,8 @@ import xarray as xr
 from rex import Resource
 from scipy.interpolate import interp1d
 
-from sup3r import VERSION_RECORD
 from sup3r.postprocessing import OutputHandler, RexOutputs
+from sup3r.utilities import VERSION_RECORD
 
 logger = logging.getLogger(__name__)
 

@@ -1,7 +1,34 @@
 """Sup3r utilities"""
 
+import os
 import sys
 from enum import Enum
+
+import dask
+import h5netcdf
+import numpy as np
+import pandas as pd
+import phygnn
+import rex
+import sklearn
+import tensorflow as tf
+import xarray
+
+from .._version import __version__
+
+VERSION_RECORD = {
+    'sup3r': __version__,
+    'tensorflow': tf.__version__,
+    'sklearn': sklearn.__version__,
+    'pandas': pd.__version__,
+    'numpy': np.__version__,
+    'nrel-phygnn': phygnn.__version__,
+    'nrel-rex': rex.__version__,
+    'python': sys.version,
+    'xarray': xarray.__version__,
+    'h5netcdf': h5netcdf.__version__,
+    'dask': dask.__version__,
+}
 
 
 class ModuleName(str, Enum):

@@ -367,7 +367,7 @@ class Sup3rQa:
             log_arg_str += f', log_file="{log_file}"'
 
         cmd = (
-        f"python -c '{import_str};\n"
+            f"python -c '{import_str};\n"
             't0 = time.time();\n'
             f'logger = init_logger({log_arg_str});\n'
             f'qa = {qa_init_str};\n'

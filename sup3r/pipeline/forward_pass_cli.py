@@ -46,11 +46,7 @@ def main(ctx, verbose):
 )
 @click.pass_context
 def from_config(ctx, config_file, verbose=False, pipeline_step=None):
-    """Run sup3r forward pass from a config file.
-
-    TODO: Can we figure out how to remove the first ForwardPassStrategy
-    initialization here, so that its only initialized once for each node?
-    """
+    """Run sup3r forward pass from a config file."""
 
     config = BaseCLI.from_config_preflight(
         ModuleName.FORWARD_PASS, ctx, config_file, verbose

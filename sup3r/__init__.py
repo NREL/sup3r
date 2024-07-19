@@ -25,18 +25,3 @@ __email__ = 'brandon.benton@nrel.gov'
 SUP3R_DIR = os.path.dirname(os.path.realpath(__file__))
 CONFIG_DIR = os.path.join(SUP3R_DIR, 'configs')
 TEST_DATA_DIR = os.path.join(os.path.dirname(SUP3R_DIR), 'tests', 'data')
-
-
-VERSION_RECORD = {
-    'sup3r': __version__,
-    'tensorflow': tf.__version__,
-    'sklearn': sklearn.__version__,
-    'pandas': pd.__version__,
-    'numpy': np.__version__,
-    'nrel-phygnn': phygnn.__version__,
-    'nrel-rex': rex.__version__,
-    'python': sys.version,
-    'xarray': xarray.__version__,
-    'h5netcdf': h5netcdf.__version__,
-    'dask': dask.__version__,
-}

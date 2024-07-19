@@ -12,8 +12,8 @@ import xarray as xr
 from rex.outputs import Outputs as BaseRexOutputs
 from scipy.interpolate import griddata
 
-from sup3r import VERSION_RECORD, __version__
 from sup3r.preprocessing.derivers.utilities import parse_feature
+from sup3r.utilities import VERSION_RECORD
 from sup3r.utilities.utilities import pd_date_range
 
 logger = logging.getLogger(__name__)
@@ -293,7 +293,7 @@ class RexOutputs(BaseRexOutputs):
 
     def set_version_attr(self):
         """Set the version attribute to the h5 file."""
-        self.h5.attrs['version'] = __version__
+        self.h5.attrs['version'] = VERSION_RECORD['sup3r']
         self.h5.attrs['full_version_record'] = json.dumps(
             self.full_version_record
         )

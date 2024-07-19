@@ -61,11 +61,13 @@ def test_data_caching(input_files, ext, shape, target, features):
         assert extracter.data.dtype == np.dtype(np.float32)
         loader = Loader(cacher.out_files)
         assert np.array_equal(
-            loader[features, ...].compute(), extracter[features, ...].compute()
+            loader.data[features, ...].compute(),
+            extracter.data[features, ...].compute(),
         )
 
         # make sure full domain can be loaded with extracters
         extracter = Extracter(cacher.out_files)
         assert np.array_equal(
-            loader[features, ...].compute(), extracter[features, ...].compute()
+            loader.data[features, ...].compute(),
+            extracter.data[features, ...].compute(),
         )

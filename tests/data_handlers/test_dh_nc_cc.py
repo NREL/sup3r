@@ -33,8 +33,8 @@ def test_get_just_coords_nc():
     assert np.array_equal(
         handler.lat_lon[-1, 0, :],
         (
-            handler.extracter[Dimension.LATITUDE].min(),
-            handler.extracter[Dimension.LONGITUDE].min(),
+            handler.extracter.data[Dimension.LATITUDE].min(),
+            handler.extracter.data[Dimension.LONGITUDE].min(),
         ),
     )
     assert not handler.data_vars
