@@ -819,7 +819,7 @@ def local_presrat_bc(data: np.ndarray,
         subset = np.where(subset < bias_tau_fut, subset, 0)
 
         k_factor = params['k_factor'][:, :, nt]
-        subset = (subset * k_factor[:, :, np.newaxis])
+        subset = subset * k_factor[:, :, np.newaxis]
 
         data_unbiased[:, :, subset_idx] = subset
 
