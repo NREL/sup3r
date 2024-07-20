@@ -41,62 +41,65 @@ def pytest_configure(config):  # pylint: disable=unused-argument # noqa: ARG001
 
 
 @pytest.fixture(scope='package')
-def gen_config_with_topo(CustomLayer):
+def gen_config_with_topo():
     """Get generator config with custom topo layer."""
-    return [
-        {
-            'class': 'FlexiblePadding',
-            'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
-            'mode': 'REFLECT',
-        },
-        {
-            'class': 'Conv2DTranspose',
-            'filters': 64,
-            'kernel_size': 3,
-            'strides': 1,
-            'activation': 'relu',
-        },
-        {'class': 'Cropping2D', 'cropping': 4},
-        {
-            'class': 'FlexiblePadding',
-            'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
-            'mode': 'REFLECT',
-        },
-        {
-            'class': 'Conv2DTranspose',
-            'filters': 64,
-            'kernel_size': 3,
-            'strides': 1,
-            'activation': 'relu',
-        },
-        {'class': 'Cropping2D', 'cropping': 4},
-        {
-            'class': 'FlexiblePadding',
-            'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
-            'mode': 'REFLECT',
-        },
-        {
-            'class': 'Conv2DTranspose',
-            'filters': 64,
-            'kernel_size': 3,
-            'strides': 1,
-            'activation': 'relu',
-        },
-        {'class': 'Cropping2D', 'cropping': 4},
-        {'class': 'SpatialExpansion', 'spatial_mult': 2},
-        {'class': 'Activation', 'activation': 'relu'},
-        {'class': CustomLayer, 'name': 'topography'},
-        {
-            'class': 'FlexiblePadding',
-            'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
-            'mode': 'REFLECT',
-        },
-        {
-            'class': 'Conv2DTranspose',
-            'filters': 2,
-            'kernel_size': 3,
-            'strides': 1,
-            'activation': 'relu',
-        },
-        {'class': 'Cropping2D', 'cropping': 4},
-    ]
+
+    def func(CustomLayer):
+        return [
+            {
+                'class': 'FlexiblePadding',
+                'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
+                'mode': 'REFLECT',
+            },
+            {
+                'class': 'Conv2DTranspose',
+                'filters': 64,
+                'kernel_size': 3,
+                'strides': 1,
+                'activation': 'relu',
+            },
+            {'class': 'Cropping2D', 'cropping': 4},
+            {
+                'class': 'FlexiblePadding',
+                'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
+                'mode': 'REFLECT',
+            },
+            {
+                'class': 'Conv2DTranspose',
+                'filters': 64,
+                'kernel_size': 3,
+                'strides': 1,
+                'activation': 'relu',
+            },
+            {'class': 'Cropping2D', 'cropping': 4},
+            {
+                'class': 'FlexiblePadding',
+                'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
+                'mode': 'REFLECT',
+            },
+            {
+                'class': 'Conv2DTranspose',
+                'filters': 64,
+                'kernel_size': 3,
+                'strides': 1,
+                'activation': 'relu',
+            },
+            {'class': 'Cropping2D', 'cropping': 4},
+            {'class': 'SpatialExpansion', 'spatial_mult': 2},
+            {'class': 'Activation', 'activation': 'relu'},
+            {'class': CustomLayer, 'name': 'topography'},
+            {
+                'class': 'FlexiblePadding',
+                'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
+                'mode': 'REFLECT',
+            },
+            {
+                'class': 'Conv2DTranspose',
+                'filters': 2,
+                'kernel_size': 3,
+                'strides': 1,
+                'activation': 'relu',
+            },
+            {'class': 'Cropping2D', 'cropping': 4},
+        ]
+    return func
