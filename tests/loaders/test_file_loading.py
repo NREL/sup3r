@@ -35,9 +35,9 @@ def test_time_independent_loading():
 
 
 def test_time_independent_loading_h5():
-    """Make sure loaders work with time independent files."""
+    """Make sure loaders work with time independent features."""
     loader = LoaderH5(pytest.FP_WTK, features=['topography'])
-    assert len(loader['topography'].shape) == 1
+    assert len(loader['topography'].shape) == 2
 
 
 def test_dim_ordering():

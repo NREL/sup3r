@@ -188,7 +188,7 @@ class BaseDeriver(Container):
                     if pstruct.height is not None
                     else pstruct.pressure
                 )
-                lev_list.append(lev)
+                lev_list.append(np.float32(lev))
 
         if len(var_list) > 0:
             var_array = da.concatenate(

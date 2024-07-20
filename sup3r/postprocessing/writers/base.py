@@ -1,4 +1,7 @@
-"""Output handling"""
+"""Output handling
+
+TODO: OutputHandlers should be combined with Cacher objects.
+"""
 
 import json
 import logging

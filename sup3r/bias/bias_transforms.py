@@ -463,17 +463,18 @@ def monthly_local_linear_bc(
     return out
 
 
-def local_qdm_bc(data: np.ndarray,
-                 lat_lon: np.ndarray,
-                 base_dset: str,
-                 feature_name: str,
-                 bias_fp,
-                 date_range_kwargs: dict,
-                 lr_padded_slice=None,
-                 threshold=0.1,
-                 relative=True,
-                 no_trend=False,
-                 ):
+def local_qdm_bc(
+    data: np.ndarray,
+    lat_lon: np.ndarray,
+    base_dset: str,
+    feature_name: str,
+    bias_fp,
+    date_range_kwargs: dict,
+    lr_padded_slice=None,
+    threshold=0.1,
+    relative=True,
+    no_trend=False,
+):
     """Bias correction using QDM
 
     Apply QDM to correct bias on the given data. It assumes that the required
@@ -604,14 +605,15 @@ def local_qdm_bc(data: np.ndarray,
         # The distributions at this point, after selected the respective
         # time window with `window_idx`, are 3D (space, space, N-params)
         # Collapse 3D (space, space, N) into 2D (space**2, N)
-        QDM = QuantileDeltaMapping(oh.reshape(-1, oh.shape[-1]),
-                                   mh.reshape(-1, mh.shape[-1]),
-                                   mf,
-                                   dist=cfg['dist'],
-                                   relative=relative,
-                                   sampling=cfg['sampling'],
-                                   log_base=cfg['log_base'],
-                                   )
+        QDM = QuantileDeltaMapping(
+            oh.reshape(-1, oh.shape[-1]),
+            mh.reshape(-1, mh.shape[-1]),
+            mf,
+            dist=cfg['dist'],
+            relative=relative,
+            sampling=cfg['sampling'],
+            log_base=cfg['log_base'],
+        )
 
         subset_idx = nearest_window_idx == window_idx
         subset = data[:, :, subset_idx]

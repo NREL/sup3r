@@ -97,8 +97,8 @@ def dist_params(tmpdir_factory, fp_fut_cc):
     Use the standard datasets to estimate the distributions and save
     in a temporary place to be re-used
     """
-    calc = QuantileDeltaMappingCorrection(FP_NSRDB,
-                                          FP_CC,
+    calc = QuantileDeltaMappingCorrection(pytest.FP_NSRDB,
+                                          pytest.FP_CC,
                                           fp_fut_cc,
                                           'ghi',
                                           'rsds',
@@ -123,8 +123,8 @@ def test_qdm_bc(fp_fut_cc):
     something fundamental is wrong.
     """
 
-    calc = QuantileDeltaMappingCorrection(FP_NSRDB,
-                                          FP_CC,
+    calc = QuantileDeltaMappingCorrection(pytest.FP_NSRDB,
+                                          pytest.FP_CC,
                                           fp_fut_cc,
                                           'ghi',
                                           'rsds',
@@ -254,10 +254,11 @@ def test_qdm_transform(dist_params):
     WIP: Confirm it runs, but don't verify anything yet.
     """
     data = np.ones((*CC_LAT_LON.shape[:-1], 2))
-    time = pd.DatetimeIndex(
-        (np.datetime64('2018-01-01'), np.datetime64('2018-01-02'))
-    )
-    date_range_kwargs = get_date_range_kwargs(time)
+    date_range_kwargs = {
+        'start': '2018-01-01',
+        'end': '2018-01-02',
+        'freq': 'D',
+    }
     corrected = local_qdm_bc(
         data,
         CC_LAT_LON,
@@ -284,10 +285,11 @@ def test_qdm_transform_notrend(tmp_path, dist_params):
     so it is assumed that mo is the distribution to be representative of the
     target data.
     """
-    time = pd.DatetimeIndex(
-        (np.datetime64('2018-01-01'), np.datetime64('2018-01-02'))
-    )
-    date_range_kwargs = get_date_range_kwargs(time)
+    date_range_kwargs = {
+        'start': '2018-01-01',
+        'end': '2018-01-02',
+        'freq': 'D',
+    }
     # Run the standard pipeline with flag 'no_trend'
     corrected = local_qdm_bc(
         np.ones((*CC_LAT_LON.shape[:-1], 2)),
@@ -517,22 +519,21 @@ def test_fwp_integration(tmp_path):
         f.attrs['log_base'] = 10
         f.attrs['time_window_center'] = [182.5]
 
+    date_range_kwargs = get_date_range_kwargs(
+        pd.DatetimeIndex([np.datetime64(t) for t in ds.time.values])
+    )
     bias_correct_kwargs = {
         'u_100m': {
             'feature_name': 'u_100m',
             'base_dset': 'Uref_100m',
             'bias_fp': bias_fp,
-            'time_index': pd.DatetimeIndex(
-                [np.datetime64(t) for t in ds.time.values]
-            ),
+            'date_range_kwargs': date_range_kwargs,
         },
         'v_100m': {
             'feature_name': 'v_100m',
             'base_dset': 'Vref_100m',
             'bias_fp': bias_fp,
-            'time_index': pd.DatetimeIndex(
-                [np.datetime64(t) for t in ds.time.values]
-            ),
+            'date_range_kwargs': date_range_kwargs,
         },
     }
 

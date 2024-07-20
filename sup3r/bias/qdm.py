@@ -20,7 +20,7 @@ from rex.utilities.bc_utils import (
     sample_q_log,
 )
 
-from sup3r.preprocessing.data_handlers import DataHandlerNC as DataHandler
+from sup3r.preprocessing import DataHandler
 from sup3r.preprocessing.utilities import expand_paths
 
 from .base import DataRetrievalBase
@@ -96,7 +96,7 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
             with the baseline data.
         base_dset : str
             A single dataset from the base_fps to retrieve. In the case of wind
-            components, this can be u_100m or v_100m which will retrieve
+            components, this can be U_100m or V_100m which will retrieve
             windspeed and winddirection and derive the U/V component.
         bias_feature : str
             This is the biased feature from bias_fps to retrieve. This should
@@ -113,14 +113,14 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
             (rows, cols) grid size to retrieve from bias_fps. If None then the
             full domain shape will be used.
         base_handler : str
-            Name of rex resource handler or sup3r.preprocessing class to be
-            retrieved from the rex/sup3r library. If a sup3r.preprocessing
-            class is used, all data will be loaded in this class'
-            initialization and the subsequent bias calculation will be done in
-            serial
+            Name of rex resource handler or sup3r.preprocessing.data_handling
+            class to be retrieved from the rex/sup3r library. If a
+            sup3r.preprocessing.data_handling class is used, all data will be
+            loaded in this class' initialization and the subsequent bias
+            calculation will be done in serial
         bias_handler : str
             Name of the bias data handler class to be retrieved from the
-            sup3r.preprocessing library.
+            sup3r.preprocessing.data_handling library.
         base_handler_kwargs : dict | None
             Optional kwargs to send to the initialization of the base_handler
             class
@@ -168,7 +168,7 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
         --------
         sup3r.bias.bias_transforms.local_qdm_bc :
             Bias correction using QDM.
-        sup3r.preprocessing.DataHandler :
+        sup3r.preprocessing.data_handling.DataHandler :
             Bias correction using QDM directly from a derived handler.
         rex.utilities.bc_utils.QuantileDeltaMapping
             Quantile Delta Mapping method and support functions. Since
@@ -176,12 +176,12 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
             ``dist``, ``n_quantiles``, ``sampling``, and ``log_base``
             must be consitent with that package/module.
 
-        Note
-        ----
+        Notes
+        -----
         One way of using this class is by saving the distributions definitions
         obtained here with the method :meth:`.write_outputs` and then use that
         file with :func:`~sup3r.bias.bias_transforms.local_qdm_bc` or through
-        a derived :class:`~sup3r.preprocessing.DataHandler`.
+        a derived :class:`~sup3r.preprocessing.data_handling.base.DataHandler`.
         **ATTENTION**, be careful handling that file of parameters. There is
         no checking process and one could missuse the correction estimated for
         the wrong dataset.
@@ -219,13 +219,11 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
 
         self.bias_fut_fps = expand_paths(self.bias_fut_fps)
 
-        self.bias_fut_dh = self.bias_handler(
-            self.bias_fut_fps,
-            [self.bias_feature],
-            target=self.target,
-            shape=self.shape,
-            **self.bias_handler_kwargs,
-        )
+        self.bias_fut_dh = self.bias_handler(self.bias_fut_fps,
+                                             [self.bias_feature],
+                                             target=self.target,
+                                             shape=self.shape,
+                                             **self.bias_handler_kwargs)
 
     def _init_out(self):
         """Initialize output arrays `self.out`
@@ -234,12 +232,11 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
         probability distributions for the three datasets (see class
         documentation).
         """
-        keys = [
-            f'bias_{self.bias_feature}_params',
-            f'bias_fut_{self.bias_feature}_params',
-            f'base_{self.base_dset}_params',
-        ]
-        shape = (*self.bias_gid_raster.shape, self.n_quantiles)
+        keys = [f'bias_{self.bias_feature}_params',
+                f'bias_fut_{self.bias_feature}_params',
+                f'base_{self.base_dset}_params',
+                ]
+        shape = (*self.bias_gid_raster.shape, self.NT, self.n_quantiles)
         arr = np.full(shape, np.nan, np.float32)
         self.out = {k: arr.copy() for k in keys}
 
@@ -304,26 +301,41 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                     ):
         """Estimate probability distributions at a single site"""
 
-        base_data, _ = cls.get_base_data(
-            base_fps,
-            base_dset,
-            base_gid,
-            base_handler,
-            daily_reduction=daily_reduction,
-            decimals=decimals,
-            base_dh_inst=base_dh_inst,
-        )
+        base_data, base_ti = cls.get_base_data(base_fps,
+                                               base_dset,
+                                               base_gid,
+                                               base_handler,
+                                               daily_reduction=daily_reduction,
+                                               decimals=decimals,
+                                               base_dh_inst=base_dh_inst)
 
-        out = cls.get_qdm_params(
-            bias_data,
-            bias_fut_data,
-            base_data,
-            bias_feature,
-            base_dset,
-            sampling,
-            n_samples,
-            log_base,
-        )
+        window_size = cls.WINDOW_SIZE or 365 / cls.NT
+        window_center = cls._window_center(cls.NT)
+
+        template = np.full((cls.NT, n_samples), np.nan, np.float32)
+        out = {}
+
+        for nt, idt in enumerate(window_center):
+            base_idx = cls.window_mask(base_ti.day_of_year, idt, window_size)
+            bias_idx = cls.window_mask(bias_ti.day_of_year, idt, window_size)
+            bias_fut_idx = cls.window_mask(bias_fut_ti.day_of_year,
+                                           idt,
+                                           window_size)
+
+            if any(base_idx) and any(bias_idx) and any(bias_fut_idx):
+                tmp = cls.get_qdm_params(bias_data[bias_idx],
+                                         bias_fut_data[bias_fut_idx],
+                                         base_data[base_idx],
+                                         bias_feature,
+                                         base_dset,
+                                         sampling,
+                                         n_samples,
+                                         log_base)
+                for k, v in tmp.items():
+                    if k not in out:
+                        out[k] = template.copy()
+                    out[k][(nt), :] = v
+
         return out
 
     @staticmethod
@@ -356,7 +368,7 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
             be a single feature name corresponding to base_dset.
         base_dset : str
             A single dataset from the base_fps to retrieve. In the case of wind
-            components, this can be u_100m or v_100m which will retrieve
+            components, this can be U_100m or V_100m which will retrieve
             windspeed and winddirection and derive the U/V component.
         sampling : str
             Defines how the quantiles are sampled. For instance, 'linear' will
@@ -434,13 +446,15 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
 
                 for k, v in self.meta.items():
                     f.attrs[k] = json.dumps(v)
-                f.attrs['dist'] = self.dist
-                f.attrs['sampling'] = self.sampling
-                f.attrs['log_base'] = self.log_base
-                f.attrs['base_fps'] = self.base_fps
-                f.attrs['bias_fps'] = self.bias_fps
-                f.attrs['bias_fut_fps'] = self.bias_fut_fps
-                logger.info('Wrote quantiles to file: {}'.format(fp_out))
+                f.attrs["dist"] = self.dist
+                f.attrs["sampling"] = self.sampling
+                f.attrs["log_base"] = self.log_base
+                f.attrs["base_fps"] = self.base_fps
+                f.attrs["bias_fps"] = self.bias_fps
+                f.attrs["bias_fut_fps"] = self.bias_fut_fps
+                f.attrs["time_window_center"] = self.time_window_center
+                logger.info(
+                    'Wrote quantiles to file: {}'.format(fp_out))
 
     def run(self,
             fp_out=None,
@@ -475,11 +489,8 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
 
         logger.debug('Calculate CDF parameters for QDM')
 
-        logger.info(
-            'Initialized params with shape: {}'.format(
-                self.bias_gid_raster.shape
-            )
-        )
+        logger.info('Initialized params with shape: {}'
+                    .format(self.bias_gid_raster.shape))
         self.bad_bias_gids = []
 
         # sup3r DataHandler opening base files will load all data in parallel
@@ -499,9 +510,8 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                                  'Adding it to bad_bias_gids')
                 else:
                     bias_data = self.get_bias_data(bias_gid)
-                    bias_fut_data = self.get_bias_data(
-                        bias_gid, self.bias_fut_dh
-                    )
+                    bias_fut_data = self.get_bias_data(bias_gid,
+                                                       self.bias_fut_dh)
                     single_out = self._run_single(
                         bias_data,
                         bias_fut_data,
@@ -524,17 +534,13 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                     for key, arr in single_out.items():
                         self.out[key][raster_loc] = arr
 
-                logger.info(
-                    'Completed bias calculations for {} out of {} '
-                    'sites'.format(i + 1, len(self.bias_meta))
-                )
+                logger.info('Completed bias calculations for {} out of {} '
+                            'sites'.format(i + 1, len(self.bias_meta)))
 
         else:
             logger.debug(
                 'Running parallel calculation with {} workers.'.format(
-                    max_workers
-                )
-            )
+                    max_workers))
             with ProcessPoolExecutor(max_workers=max_workers) as exe:
                 futures = {}
                 for bias_gid in self.bias_meta.index:
@@ -545,9 +551,8 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                         self.bad_bias_gids.append(bias_gid)
                     else:
                         bias_data = self.get_bias_data(bias_gid)
-                        bias_fut_data = self.get_bias_data(
-                            bias_gid, self.bias_fut_dh
-                        )
+                        bias_fut_data = self.get_bias_data(bias_gid,
+                                                           self.bias_fut_dh)
                         future = exe.submit(
                             self._run_single,
                             bias_data,
@@ -576,16 +581,13 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                     for key, arr in single_out.items():
                         self.out[key][raster_loc] = arr
 
-                    logger.info(
-                        'Completed bias calculations for {} out of {} '
-                        'sites'.format(i + 1, len(futures))
-                    )
+                    logger.info('Completed bias calculations for {} out of {} '
+                                'sites'.format(i + 1, len(futures)))
 
         logger.info('Finished calculating bias correction factors.')
 
-        self.out = self.fill_and_smooth(
-            self.out, fill_extend, smooth_extend, smooth_interior
-        )
+        self.out = self.fill_and_smooth(self.out, fill_extend, smooth_extend,
+                                        smooth_interior)
 
         self.write_outputs(fp_out, self.out)
 

@@ -379,7 +379,11 @@ class Sup3rX:
     def __getitem__(self, keys) -> Union[T_Array, Self]:
         """Method for accessing variables or attributes. keys can optionally
         include a feature name as the last element of a keys tuple."""
-        if isinstance(keys, slice):
+        if keys == 'all':
+            out = self._ds
+        elif not keys:
+            out = self._ds[list(self.coords)]
+        elif isinstance(keys, slice):
             out = self._get_from_tuple((keys,))
         elif isinstance(keys, tuple):
             out = self._get_from_tuple(keys)
@@ -387,8 +391,6 @@ class Sup3rX:
             out = self.as_array()[keys]
         elif _is_ints(keys):
             out = self.as_array()[..., keys]
-        elif keys == 'all':
-            out = self._ds
         else:
             out = self._ds[_lowered(keys)]
         if isinstance(out, xr.Dataset):

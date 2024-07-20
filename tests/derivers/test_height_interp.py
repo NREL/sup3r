@@ -10,6 +10,7 @@ from sup3r.preprocessing import (
     Deriver,
     ExtracterNC,
 )
+from sup3r.preprocessing.utilities import _compute_if_dask
 from sup3r.utilities.interpolation import Interpolator
 from sup3r.utilities.pytest.helpers import make_fake_nc_file
 
@@ -85,7 +86,7 @@ def test_height_interp_with_single_lev_data_nc(
     hgt_array = (
         no_transform['zg'].data - no_transform['topography'].data[..., None]
     )
-    h10 = np.zeros(hgt_array.shape[:-1])[..., None]
+    h10 = np.zeros(hgt_array.shape[:-1], dtype=np.float32)[..., None]
     h10[:] = 10
     hgt_array = np.concatenate([hgt_array, h10], axis=-1)
     u = np.concatenate(
@@ -130,9 +131,9 @@ def test_log_interp(DirectExtracter, Deriver, shape, target):
     hgt_array = (
         no_transform['zg'].data - no_transform['topography'].data[..., None]
     )
-    h10 = np.zeros(hgt_array.shape[:-1])[..., None]
+    h10 = np.zeros(hgt_array.shape[:-1], dtype=np.float32)[..., None]
     h10[:] = 10
-    h100 = np.zeros(hgt_array.shape[:-1])[..., None]
+    h100 = np.zeros(hgt_array.shape[:-1], dtype=np.float32)[..., None]
     h100[:] = 100
     hgt_array = np.concatenate([hgt_array, h10, h100], axis=-1)
     u = np.concatenate(
@@ -147,4 +148,6 @@ def test_log_interp(DirectExtracter, Deriver, shape, target):
         hgt_array, u, [np.float32(40)], interp_method='log'
     )
     assert transform.data['u_40m'].data.dtype == np.float32
-    assert np.array_equal(out, transform.data['u_40m'].data)
+    assert np.array_equal(
+        _compute_if_dask(out), _compute_if_dask(transform.data['u_40m'].data)
+    )
