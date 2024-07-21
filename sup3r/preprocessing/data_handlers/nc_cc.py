@@ -199,16 +199,13 @@ class DataHandlerNCforCC(DataHandlerNC):
             np.arange(self.extracter.grid_shape[1]),
         )
         ind = pd.MultiIndex.from_product(
-            (lat_idx, lon_idx),
-            names=(Dimension.SOUTH_NORTH, Dimension.WEST_EAST),
+            (lat_idx, lon_idx), names=Dimension.dims_2d()
         )
         cs_ghi = cs_ghi.assign({Dimension.FLATTENED_SPATIAL: ind}).unstack(
             Dimension.FLATTENED_SPATIAL
         )
 
-        cs_ghi = cs_ghi.transpose(
-            Dimension.SOUTH_NORTH, Dimension.WEST_EAST, Dimension.TIME
-        )
+        cs_ghi = cs_ghi.transpose(*Dimension.dims_3d())
 
         cs_ghi = cs_ghi['clearsky_ghi'].data
         if cs_ghi.shape[-1] < len(self.extracter.time_index):

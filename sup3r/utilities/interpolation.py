@@ -57,19 +57,23 @@ class Interpolator:
             if ~over_mask.sum() >= lev_array[..., 0].size
             else lev_array
         )
-        diff1 = da.abs(under_levs - level)
+        argmin1 = _compute_if_dask(
+            da.argmin(da.abs(under_levs - level), axis=-1, keepdims=True)
+        )
         lev_indices = da.broadcast_to(
             da.arange(lev_array.shape[-1]), lev_array.shape
         )
-        mask1 = lev_indices == da.argmin(diff1, axis=-1, keepdims=True)
+        mask1 = lev_indices == argmin1
 
         over_levs = (
             da.ma.masked_array(lev_array, ~over_mask)
             if over_mask.sum() >= lev_array[..., 0].size
             else da.ma.masked_array(lev_array, mask1)
         )
-        diff2 = da.abs(over_levs - level)
-        mask2 = lev_indices == da.argmin(diff2, axis=-1, keepdims=True)
+        argmin2 = _compute_if_dask(
+            da.argmin(da.abs(over_levs - level), axis=-1, keepdims=True)
+        )
+        mask2 = lev_indices == argmin2
         return mask1, mask2
 
     @classmethod

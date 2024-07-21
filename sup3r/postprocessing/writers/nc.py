@@ -59,11 +59,11 @@ class OutputHandlerNC(OutputHandler):
             Dimension.TIME: times,
             Dimension.SOUTH_NORTH: lat_lon[:, 0, 0],
             Dimension.WEST_EAST: lat_lon[0, :, 1],
-            Dimension.LATITUDE: (Dimension.spatial_2d(), lat_lon[:, :, 0]),
-            Dimension.LONGITUDE: (Dimension.spatial_2d(), lat_lon[:, :, 1]),
+            Dimension.LATITUDE: (Dimension.dims_2d(), lat_lon[:, :, 0]),
+            Dimension.LONGITUDE: (Dimension.dims_2d(), lat_lon[:, :, 1]),
         }
 
-        data_vars = {'gids': (Dimension.spatial_2d(), gids)}
+        data_vars = {'gids': (Dimension.dims_2d(), gids)}
         for i, f in enumerate(features):
             data_vars[f] = (
                 list(coords.keys())[:3],

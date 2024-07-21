@@ -48,7 +48,12 @@ class Dimension(str, Enum):
         )
 
     @classmethod
-    def spatial_2d(cls):
+    def flat_2d(cls):
+        """Return ordered tuple for 2d flattened data."""
+        return (cls.FLATTENED_SPATIAL, cls.TIME)
+
+    @classmethod
+    def dims_2d(cls):
         """Return ordered tuple for 2d spatial coordinates."""
         return (cls.SOUTH_NORTH, cls.WEST_EAST)
 
@@ -56,6 +61,11 @@ class Dimension(str, Enum):
     def dims_3d(cls):
         """Return ordered tuple for 3d spatial coordinates."""
         return (cls.SOUTH_NORTH, cls.WEST_EAST, cls.TIME)
+
+    @classmethod
+    def dims_4d(cls):
+        """Return ordered tuple for 3d spatial coordinates."""
+        return (cls.SOUTH_NORTH, cls.WEST_EAST, cls.TIME, cls.PRESSURE_LEVEL)
 
 
 def get_date_range_kwargs(time_index):

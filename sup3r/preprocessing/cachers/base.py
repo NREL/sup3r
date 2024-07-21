@@ -200,14 +200,18 @@ class Cacher(Container):
             Optional attributes to write to file
         """
         if isinstance(coords, dict):
-            dims = (*coords[Dimension.LATITUDE][0], Dimension.TIME)
-        else:
-            dims = (*coords[Dimension.LATITUDE].dims, Dimension.TIME)
-        data_vars = {
-            feature: (
-                dims[: len(data.shape)],
-                data,
+            flattened = (
+                Dimension.FLATTENED_SPATIAL in coords[Dimension.LATITUDE][0]
             )
-        }
+        else:
+            flattened = (
+                Dimension.FLATTENED_SPATIAL in coords[Dimension.LATITUDE].dims
+            )
+        dims = (
+            Dimension.flat_2d()
+            if flattened
+            else Dimension.order()[1 : len(data.shape) + 1]
+        )
+        data_vars = {feature: (dims, data)}
         out = xr.Dataset(data_vars=data_vars, coords=coords, attrs=attrs)
         out.to_netcdf(out_file)
