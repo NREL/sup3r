@@ -713,15 +713,16 @@ def get_spatial_bc_presrat(lat_lon: np.array,
 
 
 def local_presrat_bc(data: np.ndarray,
-                     time_index: np.ndarray,
                      lat_lon: np.ndarray,
                      base_dset: str,
                      feature_name: str,
                      bias_fp,
+                     time_index: np.ndarray,
                      lr_padded_slice=None,
                      threshold=0.1,
                      relative=True,
-                     no_trend=False):
+                     no_trend=False,
+                     ):
     """Bias correction using PresRat
 
     Parameters

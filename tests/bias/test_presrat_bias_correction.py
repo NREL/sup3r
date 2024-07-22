@@ -721,11 +721,11 @@ def test_presrat_transform_nozerochanges(presrat_nozeros_params, fut_cc):
 
     corrected = local_presrat_bc(
         data,
-        time,
         latlon,
         'ghi',
         'rsds',
         presrat_nozeros_params,
+        time,
     )
 
     assert np.isfinite(data).any(), "Can't compare if only NaN"
