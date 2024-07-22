@@ -142,8 +142,8 @@ def precip():
     time = t0 + np.arange(
         0, SAMPLE_TIME_DURATION, SAMPLE_TIME_RESOLUTION, dtype='timedelta64[D]'
     )
-    bnds = (-np.timedelta64(12, 'h'), np.timedelta64(12, 'h'))
-    time_bnds = time[:, np.newaxis] + bnds
+    # bnds = (-np.timedelta64(12, 'h'), np.timedelta64(12, 'h'))
+    # time_bnds = time[:, np.newaxis] + bnds
     rng = np.random.default_rng()
     pr = rng.lognormal(0.0, 1.0, (time.size, lat.size, lon.size))
 
