@@ -408,6 +408,7 @@ def presrat_nozeros_params(tmpdir_factory, presrat_params):
 
     return str(fn)
 
+# ==== Zero rate estimate ====
 
 def test_zero_precipitation_rate():
     """Zero rate estimate using median"""
@@ -459,6 +460,42 @@ def test_zero_precipitation_rate_nan():
     r1 = f(arr, threshold=5)
     r2 = f(np.concatenate([5 * [np.nan], arr]), threshold=5)
     assert r1 == r2
+
+# ==== Test apply zero rate ====
+
+def test_apply_zero_precipitation_rate():
+    """Reinforce the zero precipitation rate, standard run"""
+    data = np.array([[[5, 0.1, 3, 0.2, 1]]])
+    out = apply_zero_precipitation_rate(data, np.array([[[0.25]]]))
+
+    assert np.allclose([5.0, 0.0, 3, 0.2, 1.0], out, equal_nan=True)
+
+
+def test_apply_zero_precipitation_rate_nan():
+    """Validate with NaN in the input"""
+    data = np.array([[[5, 0.1, np.nan, 0.2, 1]]])
+    out = apply_zero_precipitation_rate(data, np.array([[[0.25]]]))
+
+    assert np.allclose([5.0, 0.0, np.nan, 0.2, 1.0], out, equal_nan=True)
+
+
+def test_apply_zero_precipitation_rate_2D():
+    """Validate a 2D input"""
+    data = np.array(
+        [
+            [
+                [5, 0.1, np.nan, 0.2, 1],
+                [5, 0.1, 3, 0.2, 1],
+            ]
+        ]
+    )
+    out = apply_zero_precipitation_rate(data, np.array([[[0.25], [0.41]]]))
+
+    assert np.allclose(
+        [[5.0, 0.0, np.nan, 0.2, 1.0], [5.0, 0.0, 3, 0.0, 1.0]],
+        out,
+        equal_nan=True,
+    )
 
 
 @pytest.mark.parametrize('threshold', [0, 50, 1e6])
