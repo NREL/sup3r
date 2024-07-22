@@ -497,17 +497,57 @@ def test_apply_zero_precipitation_rate_2D():
         equal_nan=True,
     )
 
+# ==== PresRat parameters estimate ====
 
-@pytest.mark.parametrize('threshold', [0, 50, 1e6])
-def test_parallel(fp_resource, fp_precip, fp_precip_fut, threshold):
+def test_presrat_calc(fp_resource, fp_cc, fp_fut_cc):
+    """Standard PresRat (pre) calculation
+
+    Estimate the required parameters with a standard setup.
+    """
+    calc = PresRat(
+        fp_resource,
+        fp_cc,
+        fp_fut_cc,
+        'ghi',
+        'rsds',
+        target=TARGET,
+        shape=SHAPE,
+        bias_handler='DataHandlerNCforCC',
+    )
+
+    out = calc.run()
+
+    expected_vars = [
+        'bias_rsds_params',
+        'bias_fut_rsds_params',
+        'base_ghi_params',
+        'ghi_zero_rate',
+        'rsds_k_factor',
+        'rsds_tau_fut',
+    ]
+    for v in expected_vars:
+        assert v in out, f'Missing {v} in the calculated output'
+        assert out[v].shape[:2] == SHAPE, "Doesn't match expected spatial shape"
+        # This is only true because fill and extend are applied by default.
+        assert np.all(np.isfinite(out[v])), f'Invalid value for {v}'
+
+    for k, v in ((k,v) for k,v in out.items() if k.endswith('_zero_rate')):
+        assert np.all((v >= 0) & (v <= 1)), f'Out of range [0, 1]: {k}'
+
+    for k, v in ((k,v) for k,v in out.items() if k.endswith('_k_factor')):
+        assert np.all(v > 0), f'K factor must be positive: {k}'
+
+
+@pytest.mark.parametrize('threshold', [0, 1, 1e6])
+def test_parallel(fp_resource, fp_cc, fp_fut_cc, threshold):
     """Running in parallel must not alter results
 
     Check with different thresholds, which will result in different zero rates.
     """
     s = PresRat(
         fp_resource,
-        fp_precip,
-        fp_precip_fut,
+        fp_cc,
+        fp_fut_cc,
         'ghi',
         'rsds',
         target=TARGET,
@@ -519,8 +559,8 @@ def test_parallel(fp_resource, fp_precip, fp_precip_fut, threshold):
 
     p = PresRat(
         fp_resource,
-        fp_precip,
-        fp_precip_fut,
+        fp_cc,
+        fp_fut_cc,
         'ghi',
         'rsds',
         target=TARGET,
@@ -537,45 +577,8 @@ def test_parallel(fp_resource, fp_precip, fp_precip_fut, threshold):
         ), f'Different results for {k}'
 
 
-def test_presrat_calc(fp_resource, fp_precip, fp_precip_fut):
-    """Standard PresRat (pre) calculation
-
-    Estimate the required parameters with a standard setup.
-
-    WIP: Just confirm it runs, but not checking much yet.
-    """
-    calc = PresRat(
-        fp_resource,
-        fp_precip,
-        fp_precip_fut,
-        'ghi',
-        'rsds',
-        target=TARGET,
-        shape=SHAPE,
-        bias_handler='DataHandlerNCforCC',
-    )
-
-    out = calc.run(zero_rate_threshold=ZR_THRESHOLD)
-
-    expected_vars = [
-        'bias_rsds_params',
-        'bias_fut_rsds_params',
-        'base_ghi_params',
-        'ghi_zero_rate',
-    ]
-    sref = FP_CC_LAT_LON.shape[:2]
-    for v in expected_vars:
-        assert v in out, f'Missing {v} in the calculated output'
-        assert out[v].shape[:2] == sref, "Doesn't match expected spatial shape"
-        # This is only true because fill and extend are applied by default.
-        assert np.all(np.isfinite(out[v])), f'Unexpected NaN for {v}'
-
-    zero_rate = out['ghi_zero_rate']
-    assert np.all((zero_rate >= 0) & (zero_rate <= 1)), 'Out of range [0, 1]'
-
-
-@pytest.mark.parametrize('threshold', [0, 50, 1e6])
-def test_presrat_zero_rate(fp_resource, fp_precip, fp_precip_fut, threshold):
+@pytest.mark.parametrize('threshold', [0, 1, 1e6])
+def test_presrat_zero_rate(fp_resource, fp_cc, fp_fut_cc, threshold):
     """Estimate zero_rate within PresRat.run()
 
     Use thresholds that gives 0%, 100%, and something between.
@@ -586,8 +589,8 @@ def test_presrat_zero_rate(fp_resource, fp_precip, fp_precip_fut, threshold):
     """
     calc = PresRat(
         fp_resource,
-        fp_precip,
-        fp_precip_fut,
+        fp_cc,
+        fp_fut_cc,
         'ghi',
         'rsds',
         target=TARGET,
@@ -598,86 +601,16 @@ def test_presrat_zero_rate(fp_resource, fp_precip, fp_precip_fut, threshold):
     out = calc.run(zero_rate_threshold=threshold)
 
     assert 'ghi_zero_rate' in out, 'Missing ghi_zero_rate in calc output'
-    zero_rate = out['ghi_zero_rate']
-    # True for this dataset because fill and extend are applied by default.
-    assert np.all(np.isfinite(zero_rate)), 'Unexpected NaN for ghi_zero_rate'
-    assert np.all((zero_rate >= 0) & (zero_rate <= 1)), 'Out of range [0, 1]'
+    for k, v in ((k,v) for k,v in out.items() if k.endswith('_zero_rate')):
+        # This is only true because fill and extend are applied by default.
+        assert np.all(np.isfinite(v)), f'Invalid value for {v}'
 
-    if threshold <= 0:
-        assert np.all(zero_rate == 0), 'It should be rate 0 for threshold==0'
-    elif threshold >= 1e4:
-        assert np.all(zero_rate == 1), 'It should be rate 1 for threshold>=1e4'
+        assert np.all((v >= 0) & (v <= 1)), f'Out of range [0, 1]: {k}'
 
-
-def test_apply_zero_precipitation_rate():
-    """Reinforce the zero precipitation rate, standard run"""
-    data = np.array([[[5, 0.1, 3, 0.2, 1]]])
-    out = apply_zero_precipitation_rate(data, np.array([[[0.25]]]))
-
-    assert np.allclose([5.0, 0.0, 3, 0.2, 1.0], out, equal_nan=True)
-
-
-def test_apply_zero_precipitation_rate_nan():
-    """Validate with NaN in the input"""
-    data = np.array([[[5, 0.1, np.nan, 0.2, 1]]])
-    out = apply_zero_precipitation_rate(data, np.array([[[0.25]]]))
-
-    assert np.allclose([5.0, 0.0, np.nan, 0.2, 1.0], out, equal_nan=True)
-
-
-def test_apply_zero_precipitation_rate_2D():
-    """Validate a 2D input"""
-    data = np.array(
-        [
-            [
-                [5, 0.1, np.nan, 0.2, 1],
-                [5, 0.1, 3, 0.2, 1],
-            ]
-        ]
-    )
-    out = apply_zero_precipitation_rate(data, np.array([[[0.25], [0.41]]]))
-
-    assert np.allclose(
-        [[5.0, 0.0, np.nan, 0.2, 1.0], [5.0, 0.0, 3, 0.0, 1.0]],
-        out,
-        equal_nan=True,
-    )
-
-
-def test_presrat_calc_params(fp_resource, fp_precip, fp_precip_fut):
-    """Test PresRat correction procedure
-
-    Basic standard run. Using only required arguments. If this fails,
-    something fundamental is wrong.
-    """
-    calc = PresRat(
-        fp_resource,
-        fp_precip,
-        fp_precip_fut,
-        'ghi',
-        'rsds',
-        target=TARGET,
-        shape=SHAPE,
-        bias_handler='DataHandlerNCforCC',
-    )
-
-    # A high zero_rate_threshold to gets at least something.
-    out = calc.run()
-
-    # Guarantee that we have some actual values, otherwise most of the
-    # remaining tests would be useless
-    for v in out:
-        assert np.isfinite(out[v]).any(), 'Something wrong, all CDFs are NaN.'
-
-    # Check possible range
-    for v in out:
-        assert (
-            np.nanmin(out[v]) >= VAR_MIN
-        ), f'{v} should be all greater than {VAR_MIN}.'
-        assert (
-            np.nanmax(out[v]) < VAR_MAX
-        ), f'{v} should be all less than {VAR_MAX}.'
-
+        if threshold <= 0:
+            assert np.all(v == 0), 'It should be rate 0 for threshold==0'
+        elif threshold >= 1e4:
+            assert np.all(v == 1), 'It should be rate 1 for threshold>=1e4'
 
 def test_presrat_transform(presrat_params, precip_fut):
     """A standard run with local_presrat_bc
