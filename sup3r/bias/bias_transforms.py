@@ -744,10 +744,11 @@ def local_presrat_bc(data: np.ndarray,
         An option to ignore the trend component of the correction, thus
         resulting in an ordinary Quantile Mapping, i.e. corrects the bias by
         comparing the distributions of the biased dataset with a reference
-        datasets. See
-        ``params_mf`` of :class:`rex.utilities.bc_utils.QuantileDeltaMapping`.
-        Note that this assumes that params_mh is the data distribution
-        representative for the target data.
+        datasets, without reinforcing the zero rate or applying the k-factor.
+        See ``params_mf`` of
+        :class:`rex.utilities.bc_utils.QuantileDeltaMapping`. Note that this
+        assumes that params_mh is the data distribution representative for the
+        target data.
     """
     assert data.ndim, 'data was expected to be a 3D array'
     assert (
@@ -804,10 +805,13 @@ def local_presrat_bc(data: np.ndarray,
         # to (spatial, spatial, temporal)
         subset = tmp.T.reshape(subset.shape)
 
-        subset = np.where(subset < bias_tau_fut, 0, subset)
+        # If no trend, it doesn't make sense to correct for zero rate or
+        # apply the k-factor, but limit to QDM only.
+        if not no_trend:
+            subset = np.where(subset < bias_tau_fut, 0, subset)
 
-        k_factor = params['k_factor'][:, :, nt]
-        subset = subset * k_factor[:, :, np.newaxis]
+            k_factor = params['k_factor'][:, :, nt]
+            subset = subset * k_factor[:, :, np.newaxis]
 
         data_unbiased[:, :, subset_idx] = subset
 
