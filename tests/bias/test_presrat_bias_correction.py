@@ -2,6 +2,7 @@
 
 
 Relevant resources used in the tests:
+- fp_resource: Synthetic dataset representing observed historical (oh).
 - fp_cc: Filename of standard biased dataset.
 - fut_cc: Future dataset sample based on fp_cc + an offset + small noise
 - fp_fut_cc: Filname to `fut_cc`.
@@ -13,7 +14,10 @@ Relevant resources used in the tests:
 - presrat_identity_params: All distributions (oh & mf) are identical to mh,
     i.e. observations equal to model that doesn't change on time.
 - presrat_nozeros_params: Same of presrat_params, but no zero_rate, i.e.
-    all zero_rate values are equal to 0 (percent).
+    there is a bias correction but all zero_rate values are equal to 0
+    (percent), i.e. no value is modified to zero.
+- presrat_nochanges_params: Like presrat_identity_params, but also all
+    zero_rate are zero percent, i.e. no values should be forced to be zero.
 """
 
 import os
