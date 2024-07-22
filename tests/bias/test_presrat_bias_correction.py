@@ -58,8 +58,8 @@ def fp_resource(tmpdir_factory):
 
     Note
     ----
-    Latitude MUST be descending, otherwise `bias_transforms._get_factors()`
-    does the wrong thing.
+    Latitude MUST be descending and longitude ascending, otherwise
+    `bias_transforms._get_factors()` does the wrong thing.
     """
     fn = tmpdir_factory.mktemp('data').join('precip_oh.h5')
 
