@@ -142,11 +142,12 @@ def precip():
     pr = rng.normal(210, 87.0, (time.size, lat.size, lon.size))
     pr = np.where(pr > 0, pr, 0)
 
-    ds = xr.Dataset(
-        data_vars={'rsds': (['time', 'lat', 'lon'], pr)},
+    ds = xr.DataArray(
+        name='rsds',
+        data=pr,
+        dims=['time', 'lat', 'lon'],
         coords={
             'time': ('time', time),
-            'time_bnds': (['time', 'bnds'], time_bnds),
             'lat': ('lat', lat),
             'lon': ('lon', lon),
         },
