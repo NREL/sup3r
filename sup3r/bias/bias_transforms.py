@@ -859,7 +859,7 @@ def local_presrat_bc(data: np.ndarray,
         # to (spatial, spatial, temporal)
         subset = tmp.T.reshape(subset.shape)
 
-        subset = np.where(subset < bias_tau_fut, subset, 0)
+        subset = np.where(subset < bias_tau_fut, 0, subset)
 
         k_factor = params['k_factor'][:, :, nt]
         subset = subset * k_factor[:, :, np.newaxis]
