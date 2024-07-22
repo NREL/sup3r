@@ -166,9 +166,8 @@ def precip():
     return ds
 
 
-# FP_CC
 @pytest.fixture(scope='module')
-def fp_precip(tmpdir_factory, precip):
+def fp_cc(tmpdir_factory, precip):
     """Precipitation sample filename
 
     DataHandlerNCforCC requires a string
@@ -250,13 +249,13 @@ def fut_cc(fp_fut_cc):
 
 
 @pytest.fixture(scope='module')
-def fp_fut_cc_notrend(tmpdir_factory, fp_precip):
-    """Sample future CC dataset identical to historical CC
+def fp_fut_cc_notrend(tmpdir_factory, fp_cc):
+    """Sample future CC (mf) dataset identical to historical CC (mh)
 
     This is currently a copy of FP_CC, thus no trend on time.
     """
     fn = tmpdir_factory.mktemp('data').join('test_mf_notrend.nc')
-    shutil.copyfile(fp_precip, fn)
+    shutil.copyfile(fp_cc, fn)
     # DataHandlerNCforCC requires a string
     fn = str(fn)
     return fn
@@ -302,7 +301,7 @@ def fut_cc_notrend(fp_fut_cc_notrend):
 
 
 @pytest.fixture(scope='module')
-def presrat_params(tmpdir_factory, fp_resource, fp_precip, fp_precip_fut):
+def presrat_params(tmpdir_factory, fp_resource, fp_cc, fp_fut_cc):
     """PresRat parameters for standard datasets
 
     Use the standard datasets to estimate the distributions and save
@@ -310,8 +309,8 @@ def presrat_params(tmpdir_factory, fp_resource, fp_precip, fp_precip_fut):
     """
     calc = PresRat(
         fp_resource,
-        fp_precip,
-        fp_precip_fut,
+        fp_cc,
+        fp_fut_cc,
         'ghi',
         'rsds',
         target=TARGET,
@@ -332,7 +331,7 @@ def presrat_params(tmpdir_factory, fp_resource, fp_precip, fp_precip_fut):
 
 @pytest.fixture(scope='module')
 def presrat_notrend_params(
-    tmpdir_factory, fp_resource, fp_precip, fp_fut_cc_notrend
+    tmpdir_factory, fp_resource, fp_cc, fp_fut_cc_notrend
 ):
     """No change in time
 
@@ -345,7 +344,7 @@ def presrat_notrend_params(
     """
     calc = PresRat(
         fp_resource,
-        fp_precip,
+        fp_cc,
         fp_fut_cc_notrend,
         'ghi',
         'rsds',
@@ -772,7 +771,7 @@ def test_compare_qdm_vs_presrat(presrat_params, precip_fut):
     ), 'PresRat should guarantee at least the same number of zero precipitation days'
 
 
-def test_fwp_integration(tmp_path, presrat_params, fp_precip_fut):
+def test_fwp_integration(tmp_path, presrat_params, fp_fut_cc):
     """Integration of the bias correction method into the forward pass
 
     Validate two aspects:
@@ -786,7 +785,7 @@ def test_fwp_integration(tmp_path, presrat_params, fp_precip_fut):
     shape = SHAPE
     temporal_slice = slice(None, None, 1)
     fwp_chunk_shape = (4, 4, 150)
-    input_files = [fp_precip_fut]
+    input_files = [fp_fut_cc]
 
     Sup3rGan.seed()
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
