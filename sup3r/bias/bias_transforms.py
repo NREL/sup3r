@@ -603,61 +603,6 @@ def local_qdm_bc(data: np.ndarray,
     return output
 
 
-def apply_zero_precipitation_rate(arr: np.ndarray, rate):
-    """Enforce the zero precipitation rate
-    Replace lowest values by zero to satisfy the given rate of zero
-    precipitation.
-
-    Parameters
-    ----------
-    arr : np.ndarray
-        An array of values to be analyzed. Usually precipitation. The expected
-        dimensions here are (space, space, time).
-    rate : np.ndarray
-        Rate of zero, or negligible, days of precipitation. The two first
-        dimensions are expected to align the the (space, space) from arr, but
-        due to a limitation on how the parameters are saved in HDF files, it
-        is assumed to have a third dummy dimension.
-
-    Returns
-    -------
-    corrected : np.array
-        A copy of given array that satisfies the rate of zero precipitation
-        days, i.e. the lowest values of precipitation are changed to zero
-        to satisfy that rate.
-
-    Note
-    ----
-    Whenever small values are frequent, and the dataset is truncated, such as
-    the outputs from numerical models, there is a chance that the precise rate
-    will not be respected.
-
-    Examples
-    --------
-    >>> data = np.array([5, 0.1, np.nan, 0.2, 1])
-    >>> apply_zero_precipitation_rate(data, 0.30)
-    array([5. , 0. , nan, 0.2, 1. ])
-    """
-    assert arr.ndim == 3
-    # Currently, due to the way how these parameters are saved in an HDF,
-    # there are issues mixing a 2D array, which would be the ideal shape for
-    # rate. So for now, let's just use a 3D rate with a useless dimension.
-    assert rate.ndim >= 2
-    assert arr.shape[:2] == rate.shape[:2]
-
-    r = np.atleast_1d(rate).flatten()
-    tmp = arr.reshape(*r.shape, -1)
-
-    n_valid = np.isfinite(tmp).astype('i').sum(axis=1)
-    n = (r * n_valid).round().astype('i')
-    s = np.sort(tmp, axis=1)
-    criterion = n[:, np.newaxis] > np.arange(s.shape[1])
-    threshold = np.nanmax(np.where(criterion, s, np.nan), axis=1)
-    tmp = np.where(tmp <= threshold[:, np.newaxis], 0, tmp)
-
-    return tmp.reshape(arr.shape)
-
-
 def get_spatial_bc_presrat(lat_lon: np.array,
                            base_dset: str,
                            feature_name: str,

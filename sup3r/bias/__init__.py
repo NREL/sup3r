@@ -2,14 +2,12 @@
 
 from .bias_calc import (LinearCorrection, MonthlyLinearCorrection,
                         MonthlyScalarCorrection, SkillAssessment)
-from .bias_transforms import (apply_zero_precipitation_rate,
-                              global_linear_bc, local_linear_bc,
+from .bias_transforms import (global_linear_bc, local_linear_bc,
                               local_qdm_bc, local_presrat_bc,
                               monthly_local_linear_bc)
 from .qdm import PresRat, QuantileDeltaMappingCorrection
 
 __all__ = [
-    "apply_zero_precipitation_rate",
     "global_linear_bc",
     "local_linear_bc",
     "local_qdm_bc",
