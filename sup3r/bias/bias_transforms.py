@@ -149,27 +149,29 @@ def get_spatial_bc_quantiles(lat_lon: np.array,
 
     Returns
     -------
-    base : np.array
-        Parameters used to define the statistical distribution estimated for
-        the ``base_dset``. It has a shape of (I, J, P), where (I, J) are the
-        same first two dimensions of the given `lat_lon` and P is the number
-        of parameters and depends on the type of distribution. See
-        :class:`~sup3r.bias.qdm.QuantileDeltaMappingCorrection` for more
-        details.
-    bias : np.array
-        Parameters used to define the statistical distribution estimated for
-        (historical) ``feature_name``. It has a shape of (I, J, P), where
-        (I, J) are the same first two dimensions of the given `lat_lon` and P
-        is the number of parameters and depends on the type of distribution.
-        See :class:`~sup3r.bias.qdm.QuantileDeltaMappingCorrection` for
-        more details.
-    bias_fut : np.array
-        Parameters used to define the statistical distribution estimated for
-        (future) ``feature_name``. It has a shape of (I, J, P), where (I, J)
-        are the same first two dimensions of the given `lat_lon` and P is the
-        number of parameters used and depends on the type of distribution. See
-        :class:`~sup3r.bias.qdm.QuantileDeltaMappingCorrection` for more
-        details.
+    params : dict
+        A dictionary collecting the following parameters:
+        - base : np.array
+          Parameters used to define the statistical distribution estimated for
+          the ``base_dset``. It has a shape of (I, J, P), where (I, J) are the
+          same first two dimensions of the given `lat_lon` and P is the number
+          of parameters and depends on the type of distribution. See
+          :class:`~sup3r.bias.qdm.QuantileDeltaMappingCorrection` for more
+          details.
+        - bias : np.array
+          Parameters used to define the statistical distribution estimated for
+          (historical) ``feature_name``. It has a shape of (I, J, P), where
+          (I, J) are the same first two dimensions of the given `lat_lon` and P
+          is the number of parameters and depends on the type of distribution.
+          See :class:`~sup3r.bias.qdm.QuantileDeltaMappingCorrection` for
+          more details.
+        - bias_fut : np.array
+          Parameters used to define the statistical distribution estimated for
+          (future) ``feature_name``. It has a shape of (I, J, P), where (I, J)
+          are the same first two dimensions of the given `lat_lon` and P is the
+          number of parameters used and depends on the type of distribution.
+          See :class:`~sup3r.bias.qdm.QuantileDeltaMappingCorrection` for more
+          details.
     cfg : dict
         Metadata used to guide how to use of the previous parameters on
         reconstructing the statistical distributions. For instance,
