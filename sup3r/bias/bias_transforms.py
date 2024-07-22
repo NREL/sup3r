@@ -596,6 +596,12 @@ def apply_zero_precipitation_rate(arr: np.ndarray, rate):
         days, i.e. the lowest values of precipitation are changed to zero
         to satisfy that rate.
 
+    Note
+    ----
+    Whenever small values are frequent, and the dataset is truncated, such as
+    the outputs from numerical models, there is a chance that the precise rate
+    will not be respected.
+
     Examples
     --------
     >>> data = np.array([5, 0.1, np.nan, 0.2, 1])
@@ -603,20 +609,23 @@ def apply_zero_precipitation_rate(arr: np.ndarray, rate):
     array([5. , 0. , nan, 0.2, 1. ])
     """
     assert arr.ndim == 3
+    # Currently, due to the way how these parameters are saved in an HDF,
+    # there are issues mixing a 2D array, which would be the ideal shape for
+    # rate. So for now, let's just use a 3D rate with a useless dimension.
     assert rate.ndim >= 2
     assert arr.shape[:2] == rate.shape[:2]
 
-    for i in range(rate.shape[0]):
-        for j in range(rate.shape[1]):
-            r = rate[i, j, 0]
-            if np.isfinite(r):
-                a = arr[i, j]
-                valid = np.isfinite(a)
-                idx = np.argsort(a)[valid][:round(r * valid.astype('i').sum())]
-                a[idx] = 0
-                arr[i, j] = a
+    r = np.atleast_1d(rate).flatten()
+    tmp = arr.reshape(*r.shape, -1)
 
-    return arr
+    n_valid = np.isfinite(tmp).astype('i').sum(axis=1)
+    n = (r * n_valid).round().astype('i')
+    s = np.sort(tmp, axis=1)
+    criterion = n[:, np.newaxis] > np.arange(s.shape[1])
+    threshold = np.nanmax(np.where(criterion, s, np.nan), axis=1)
+    tmp = np.where(tmp <= threshold[:, np.newaxis], 0, tmp)
+
+    return tmp.reshape(arr.shape)
 
 
 def get_spatial_bc_presrat(lat_lon: np.array,
