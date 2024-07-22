@@ -20,6 +20,7 @@ import os
 import shutil
 
 import h5py
+import math
 import numpy as np
 import pandas as pd
 import pytest
@@ -75,7 +76,7 @@ def fp_resource(tmpdir_factory):
     lat = np.arange(39.77, 39.00, -0.04)
     lon = np.arange(-105.14, -104.37, 0.04)
     rng = np.random.default_rng()
-    ghi = rng.normal(210, 87.0, (time.size, lat.size, lon.size))
+    ghi = rng.lognormal(0.0, 1.0, (time.size, lat.size, lon.size))
 
     ds = xr.Dataset(
         data_vars={'ghi': (['time', 'lat', 'lon'], ghi)},
@@ -144,11 +145,15 @@ def precip():
     bnds = (-np.timedelta64(12, 'h'), np.timedelta64(12, 'h'))
     time_bnds = time[:, np.newaxis] + bnds
     rng = np.random.default_rng()
-    # pr = rng.lognormal(3., 1., (time.size, lat.size, lon.size))
-    # pr = rng.uniform(0, 1., (time.size, lat.size, lon.size))
-    # Transitioning
-    pr = rng.normal(210, 87.0, (time.size, lat.size, lon.size))
-    pr = np.where(pr > 0, pr, 0)
+    pr = rng.lognormal(0.0, 1.0, (time.size, lat.size, lon.size))
+
+    # Transform the upper tail into negligible to guarantee some 'zero
+    # precipiation days'.
+    thr = np.sort(pr.flatten())[-math.ceil(0.001 * pr.size)]
+    pr = np.where(pr < thr, pr, SAMPLE_ZERO_RATE / 2)
+
+    # In case of playing with offset or other adjustments
+    assert pr.min() >= 0
 
     ds = xr.DataArray(
         name='rsds',
