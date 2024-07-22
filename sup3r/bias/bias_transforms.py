@@ -666,8 +666,7 @@ def get_spatial_bc_presrat(lat_lon: np.array,
     """Statistical distributions previously estimated for given lat/lon points
 
     Recover the parameters that describe the statistical distribution
-    previously estimated with
-    :class:`~sup3r.bias.PresRat` for three datasets:
+    previously estimated with :class:`~sup3r.bias.PresRat` for three datasets:
     ``base`` (historical reference), ``bias`` (historical biased reference),
     and ``bias_fut`` (the future biased dataset, usually the data to correct).
 
