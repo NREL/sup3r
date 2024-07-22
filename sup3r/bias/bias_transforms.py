@@ -14,7 +14,31 @@ from scipy.ndimage import gaussian_filter
 logger = logging.getLogger(__name__)
 
 
-def _get_factors(lat_lon, ds, bias_fp, threshold=0.1):
+def _get_factors(lat_lon, var_names, bias_fp, threshold=0.1):
+    """Get bias correction factors from sup3r's standard resource
+
+    This was stripped without any change from original
+    `get_spatial_bc_factors` to avoid redundancy.
+
+    Parameters
+    ----------
+    lat_lon : ndarray
+        Array of latitudes and longitudes for the domain to bias correct
+        (n_lats, n_lons, 2)
+    var_names : dict
+        A dictionary mapping the expected variable name in the `Resource`
+        and the desired name to output.
+    bias_fp : str
+        Filepath to bias correction file from the bias calc module. Must have
+        datasets "{feature_name}_scalar" and "{feature_name}_adder" that are
+        the full low-resolution shape of the forward pass input that will be
+        sliced using lr_padded_slice for the current chunk.
+    threshold : float
+        Nearest neighbor euclidean distance threshold. If the coordinates are
+        more than this value away from the bias correction lat/lon, an error is
+        raised.
+
+    """
     with Resource(bias_fp) as res:
         lat = np.expand_dims(res['latitude'], axis=-1)
         lon = np.expand_dims(res['longitude'], axis=-1)
@@ -43,12 +67,15 @@ def _get_factors(lat_lon, ds, bias_fp, threshold=0.1):
             raise RuntimeError(msg)
 
         res_names = [r.lower() for r in res.dsets]
-        missing = [d for d in ds.values() if d.lower() not in res_names]
+        missing = [d for d in var_names.values() if d.lower() not in res_names]
         msg = f'Missing {" and ".join(missing)} in resource: {bias_fp}.'
         assert missing == [], msg
 
-        varnames = {k: res.dsets[res_names.index(ds[k].lower())] for k in ds}
-        out = {k: res[varnames[k], slice_y, slice_x] for k in ds}
+        varnames = {
+            k: res.dsets[res_names.index(var_names[k].lower())]
+            for k in var_names
+        }
+        out = {k: res[varnames[k], slice_y, slice_x] for k in var_names}
 
     return out
 
@@ -76,9 +103,10 @@ def get_spatial_bc_factors(lat_lon, feature_name, bias_fp, threshold=0.1):
         more than this value away from the bias correction lat/lon, an error is
         raised.
     """
-    ds = {'scalar': f'{feature_name}_scalar',
-          'adder': f'{feature_name}_adder'}
-    out = _get_factors(lat_lon, ds, bias_fp, threshold)
+    var_names = {'scalar': f'{feature_name}_scalar',
+                 'adder': f'{feature_name}_adder',
+                 }
+    out = _get_factors(lat_lon, var_names, bias_fp, threshold)
 
     return out['scalar'], out['adder']
 
