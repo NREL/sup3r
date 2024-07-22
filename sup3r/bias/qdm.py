@@ -671,29 +671,27 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
 
     # pylint: disable=W0613
     @classmethod
-    def _run_single(
-        cls,
-        bias_data,
-        bias_fut_data,
-        base_fps,
-        bias_feature,
-        base_dset,
-        base_gid,
-        base_handler,
-        daily_reduction,
-        *,
-        bias_ti,
-        bias_fut_ti,
-        decimals,
-        dist,
-        relative,
-        sampling,
-        n_samples,
-        log_base,
-        zero_rate_threshold,
-        base_dh_inst=None,
-
-    ):
+    def _run_single(cls,
+                    bias_data,
+                    bias_fut_data,
+                    base_fps,
+                    bias_feature,
+                    base_dset,
+                    base_gid,
+                    base_handler,
+                    daily_reduction,
+                    *,
+                    bias_ti,
+                    bias_fut_ti,
+                    decimals,
+                    dist,
+                    relative,
+                    sampling,
+                    n_samples,
+                    log_base,
+                    zero_rate_threshold,
+                    base_dh_inst=None,
+                    ):
         """Estimate probability distributions at a single site
 
         ATTENTION: This should be refactored. There is too much redundancy in
