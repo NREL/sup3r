@@ -404,6 +404,7 @@ def presrat_nochanges_params(tmpdir_factory, presrat_params):
         f['bias_fut_rsds_params'][:] = f['bias_rsds_params'][:]
         f['base_ghi_params'][:] = f['bias_rsds_params'][:]
         f['ghi_zero_rate'][:] *= 0
+        f['rsds_tau_fut'][:] *= 0
         f['rsds_k_factor'][:] = 1
         f.flush()
 
