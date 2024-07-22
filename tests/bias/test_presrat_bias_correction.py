@@ -26,7 +26,6 @@ import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
-
 from rex import Outputs
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
@@ -179,7 +178,7 @@ def precip_fut(precip):
     time.attrs = da['time'].attrs
     da['time'] = time
     # Adding an offset of 3 IQ
-    offset =  3 * float(da.quantile(.75) - da.quantile(.25))
+    offset = 3 * float(da.quantile(0.75) - da.quantile(0.25))
     da += offset
     # adding a small noise
     da += 1e-6 * np.random.randn(*da.shape)
@@ -408,7 +407,9 @@ def presrat_nozeros_params(tmpdir_factory, presrat_params):
 
     return str(fn)
 
+
 # ==== Zero rate estimate ====
+
 
 def test_zero_precipitation_rate():
     """Zero rate estimate using median"""
@@ -461,7 +462,9 @@ def test_zero_precipitation_rate_nan():
     r2 = f(np.concatenate([5 * [np.nan], arr]), threshold=5)
     assert r1 == r2
 
+
 # ==== Test apply zero rate ====
+
 
 def test_apply_zero_precipitation_rate():
     """Reinforce the zero precipitation rate, standard run"""
@@ -497,7 +500,9 @@ def test_apply_zero_precipitation_rate_2D():
         equal_nan=True,
     )
 
+
 # ==== PresRat parameters estimate ====
+
 
 def test_presrat_calc(fp_resource, fp_cc, fp_fut_cc):
     """Standard PresRat (pre) calculation
@@ -527,14 +532,16 @@ def test_presrat_calc(fp_resource, fp_cc, fp_fut_cc):
     ]
     for v in expected_vars:
         assert v in out, f'Missing {v} in the calculated output'
-        assert out[v].shape[:2] == SHAPE, "Doesn't match expected spatial shape"
+        assert (
+            out[v].shape[:2] == SHAPE
+        ), "Doesn't match expected spatial shape"
         # This is only true because fill and extend are applied by default.
         assert np.all(np.isfinite(out[v])), f'Invalid value for {v}'
 
-    for k, v in ((k,v) for k,v in out.items() if k.endswith('_zero_rate')):
+    for k, v in ((k, v) for k, v in out.items() if k.endswith('_zero_rate')):
         assert np.all((v >= 0) & (v <= 1)), f'Out of range [0, 1]: {k}'
 
-    for k, v in ((k,v) for k,v in out.items() if k.endswith('_k_factor')):
+    for k, v in ((k, v) for k, v in out.items() if k.endswith('_k_factor')):
         assert np.all(v > 0), f'K factor must be positive: {k}'
 
 
@@ -601,7 +608,7 @@ def test_presrat_zero_rate(fp_resource, fp_cc, fp_fut_cc, threshold):
     out = calc.run(zero_rate_threshold=threshold)
 
     assert 'ghi_zero_rate' in out, 'Missing ghi_zero_rate in calc output'
-    for k, v in ((k,v) for k,v in out.items() if k.endswith('_zero_rate')):
+    for k, v in ((k, v) for k, v in out.items() if k.endswith('_zero_rate')):
         # This is only true because fill and extend are applied by default.
         assert np.all(np.isfinite(v)), f'Invalid value for {v}'
 
@@ -611,6 +618,10 @@ def test_presrat_zero_rate(fp_resource, fp_cc, fp_fut_cc, threshold):
             assert np.all(v == 0), 'It should be rate 0 for threshold==0'
         elif threshold >= 1e4:
             assert np.all(v == 1), 'It should be rate 1 for threshold>=1e4'
+
+
+# ==== PresRat Transform ====
+
 
 def test_presrat_transform(presrat_params, precip_fut):
     """A standard run with local_presrat_bc
@@ -626,16 +637,16 @@ def test_presrat_transform(presrat_params, precip_fut):
         xr.broadcast(precip_fut['lat'], precip_fut['lon'] - 360), axis=-1
     ).astype('float32')
 
-    corrected = local_presrat_bc(
-        data, time, latlon, 'ghi', 'rsds', presrat_params
+    unbiased = local_presrat_bc(
+        data, latlon, 'ghi', 'rsds', presrat_params, time
     )
 
-    assert np.isfinite(corrected).any(), "Can't compare if only NaN"
+    assert np.isfinite(unbiased).any(), "Can't compare if only NaN"
     # Confirm that there were changes, but at this point stop there.
-    assert not np.allclose(data, corrected, equal_nan=False)
+    assert not np.allclose(data, unbiased, equal_nan=False)
 
     n_zero = (data == 0).astype('i').sum()
-    unbiased_n_zero = (corrected == 0).astype('i').sum()
+    unbiased_n_zero = (unbiased == 0).astype('i').sum()
     assert n_zero <= unbiased_n_zero
 
 
@@ -723,17 +734,31 @@ def test_compare_qdm_vs_presrat(presrat_params, precip_fut):
     ).astype('float32')
 
     unbiased_qdm = local_qdm_bc(
-        data, latlon, 'ghi', 'rsds', presrat_params, time,
+        data,
+        latlon,
+        'ghi',
+        'rsds',
+        presrat_params,
+        time,
     )
     unbiased_presrat = local_presrat_bc(
-        data, latlon, 'ghi', 'rsds', presrat_params, time,
+        data,
+        latlon,
+        'ghi',
+        'rsds',
+        presrat_params,
+        time,
     )
 
-    assert unbiased_qdm.shape == unbiased_presrat.shape, "QDM and PresRat output should have the same shape"
+    assert (
+        unbiased_qdm.shape == unbiased_presrat.shape
+    ), 'QDM and PresRat output should have the same shape'
 
     n_zero_qdm = (unbiased_qdm < TAU).astype('i').sum()
     n_zero_presrat = (unbiased_presrat < TAU).astype('i').sum()
-    assert n_zero_qdm <= n_zero_presrat, "PresRat should guarantee at least the same number of zero precipitation days"
+    assert (
+        n_zero_qdm <= n_zero_presrat
+    ), 'PresRat should guarantee at least the same number of zero precipitation days'
 
 
 def test_fwp_integration(tmp_path, presrat_params, fp_precip_fut):
