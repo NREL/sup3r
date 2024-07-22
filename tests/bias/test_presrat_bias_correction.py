@@ -2,18 +2,16 @@
 
 
 Relevant resources used in the tests:
-- FP_CC: Filename of standard biased dataset.
-- fut_cc: Future dataset sample based on FP_CC + an offset + small noise
+- fp_cc: Filename of standard biased dataset.
+- fut_cc: Future dataset sample based on fp_cc + an offset + small noise
 - fp_fut_cc: Filname to `fut_cc`.
-- fut_cc_notrend: Future dataset identical to FP_CC, i.e. no trend.
+- fut_cc_notrend: Future dataset identical to fp_cc, i.e. no trend.
 - fp_fut_cc_notrend: Filename to fut_cc_notrend.
 - presrat_params: Parameters of reference to test PresRat (using fp_fut_cc).
 - presrat_notrend_params: Quantiles of future (mf) are identical to bias
   reference (mh). Thus, there is no trend in the model.
 - presrat_identity_params: All distributions (oh & mf) are identical to mh,
     i.e. observations equal to model that doesn't change on time.
-- presrat_nochanges_params: Like presrat_identity_params, but also all
-    zero_rate are zeros, i.e. no values should be forced to be zero.
 - presrat_nozeros_params: Same of presrat_params, but no zero_rate, i.e.
     all zero_rate values are equal to 0 (percent).
 """
@@ -170,10 +168,11 @@ def precip():
 def fp_cc(tmpdir_factory, precip):
     """Precipitation sample filename
 
-    DataHandlerNCforCC requires a string
+    DataHandlerNCforCC requires a file to be opened
     """
     fn = tmpdir_factory.mktemp('data').join('precip_mh.nc')
     precip.to_netcdf(fn)
+    # DataHandlerNCforCC requires a string
     fn = str(fn)
     return fn
 
@@ -181,7 +180,7 @@ def fp_cc(tmpdir_factory, precip):
 # fut_cc
 @pytest.fixture(scope='module')
 def precip_fut(precip):
-    """Synthetic data, modeled future dataset"""
+    """Synthetic data, modeled future (mf) dataset"""
     da = precip.copy(deep=True)
 
     time = da['time'] + np.timedelta64(18263, 'D')
@@ -252,7 +251,7 @@ def fut_cc(fp_fut_cc):
 def fp_fut_cc_notrend(tmpdir_factory, fp_cc):
     """Sample future CC (mf) dataset identical to historical CC (mh)
 
-    This is currently a copy of FP_CC, thus no trend on time.
+    This is currently a copy of fp_cc, thus no trend on time.
     """
     fn = tmpdir_factory.mktemp('data').join('test_mf_notrend.nc')
     shutil.copyfile(fp_cc, fn)
@@ -335,10 +334,10 @@ def presrat_notrend_params(
 ):
     """No change in time
 
-    The bias_fut distribution is equal to bias (mod_his), so no change in
-    time.
+    The bias_fut distribution is equal to bias (modeled historical), so no
+    change in time.
 
-    We could save some overhead here copying fp_fut_cc and replacing some
+    We could save some overhead by copying fp_fut_cc and replacing some
     values there. That was done before but missed some variables resulting
     in errors.
     """
@@ -733,8 +732,7 @@ def test_presrat_transform_nozerochanges(presrat_nozeros_params, fut_cc):
 
 
 def test_compare_qdm_vs_presrat(presrat_params, precip_fut):
-    """Compare bias correction methods QDM vs PresRat
-    """
+    """Compare bias correction methods QDM vs PresRat"""
 
     # local_presrat_bc and local_qdm_bc expects time in the last dimension.
     data = precip_fut.transpose('lat', 'lon', 'time').values
