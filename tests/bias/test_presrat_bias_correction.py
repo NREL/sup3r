@@ -33,6 +33,7 @@ from sup3r.models import Sup3rGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.bias import (
     apply_zero_precipitation_rate,
+    local_qdm_bc,
     local_presrat_bc,
     PresRat,
 )
