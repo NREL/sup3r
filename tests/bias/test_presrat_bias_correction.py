@@ -121,6 +121,14 @@ def fp_resource(tmpdir_factory):
     return fn
 
 
+# Time duration in days of all sample dataset
+# More than a year to check year transition situations
+SAMPLE_TIME_DURATION = 2 * 365 + 1
+# Temporal resolution in days of sample dataset
+SAMPLE_TIME_RESOLUTION = 1
+SAMPLE_ZERO_RATE = 0.01
+
+
 @pytest.fixture(scope='module')
 def precip():
     """Synthetic historical modeled dataset"""
@@ -132,7 +140,9 @@ def precip():
     # lon = np.linspace(254.53125, 256.640625, 20)
     lon = np.array([254.53125, 255.234375, 255.9375, 256.640625])
     t0 = np.datetime64('2015-01-01T12:00:00')
-    time = t0 + np.linspace(0, 364, 365, dtype='timedelta64[D]')
+    time = t0 + np.arange(
+        0, SAMPLE_TIME_DURATION, SAMPLE_TIME_RESOLUTION, dtype='timedelta64[D]'
+    )
     bnds = (-np.timedelta64(12, 'h'), np.timedelta64(12, 'h'))
     time_bnds = time[:, np.newaxis] + bnds
     rng = np.random.default_rng()
