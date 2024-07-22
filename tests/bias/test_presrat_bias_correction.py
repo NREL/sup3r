@@ -173,43 +173,26 @@ def fp_precip(tmpdir_factory, precip):
 @pytest.fixture(scope='module')
 def precip_fut(precip):
     """Synthetic data, modeled future dataset"""
-    ds = precip.copy(deep=True)
+    da = precip.copy(deep=True)
 
-    time = ds['time'] + np.timedelta64(18263, 'D')
-    time.attrs = ds['time'].attrs
-    ds['time'] = time
-    # Adding an offset
-    # ds['pr'] += 1
-    ds['rsds'] += 75
+    time = da['time'] + np.timedelta64(18263, 'D')
+    time.attrs = da['time'].attrs
+    da['time'] = time
+    # Adding an offset of 3 IQ
+    offset =  3 * float(da.quantile(.75) - da.quantile(.25))
+    da += offset
     # adding a small noise
-    # ds['pr'] += 1e-6 * np.random.randn(*ds['pr'].shape)
-    ds['rsds'] += 1e-4 * np.random.randn(*ds['rsds'].shape)
+    da += 1e-6 * np.random.randn(*da.shape)
 
-    return ds['rsds']
-
-
-@pytest.fixture(scope='module')
-def fp_precip_fut(tmpdir_factory, precip_fut):
-    """Future precipitation sample filename
-
-    DataHandlerNCforCC requires a string
-    """
-    fn = tmpdir_factory.mktemp('data').join('precip_mf.nc')
-    precip_fut.to_netcdf(fn)
-    fn = str(fn)
-    return fn
+    return da
 
 
 @pytest.fixture(scope='module')
 def fp_fut_cc(tmpdir_factory, precip_fut):
-    """Sample future CC dataset
-
-    One example would be a future modeled precipitation.
-
-    The same CC but with an offset (75.0) and negligible noise.
-    """
-    fn = tmpdir_factory.mktemp('data').join('test_mf.nc')
+    """Sample future CC dataset (precipitation) filename"""
+    fn = tmpdir_factory.mktemp('data').join('precip_mf.nc')
     precip_fut.to_netcdf(fn)
+    # DataHandlerNCforCC requires a string
     fn = str(fn)
     return fn
 
