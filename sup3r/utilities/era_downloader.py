@@ -414,6 +414,8 @@ class EraDownloader:
         """Rename variables and convert geopotential to geopotential height."""
         tmp_file = self.get_tmp_file(self.surface_file)
         with xr.open_dataset(self.surface_file, mode='a') as ds:
+            ds = self.convert_dtype(ds)
+            logger.info('Converting "z" var to "orog"')
             ds = self.convert_z(ds, name='orog')
             ds = self.map_vars(ds)
             ds.to_netcdf(tmp_file)
@@ -436,6 +438,7 @@ class EraDownloader:
         new_ds : Dataset
             xr.Dataset() object with new variables written.
         """
+        logger.info('Mapping var names.')
         for old_name in ds.data_vars:
             new_name = self.NAME_MAP.get(old_name, old_name)
             ds = ds.rename({old_name: new_name})
@@ -453,6 +456,7 @@ class EraDownloader:
         -------
         ds : Dataset
         """
+        logger.info('Converting temp variables.')
         for var in ds.data_vars:
             attrs = ds[var].attrs
             if 'units' in ds[var].attrs and ds[var].attrs['units'] == 'K':
@@ -474,6 +478,7 @@ class EraDownloader:
         ds : Dataset
         """
         if 'pressure' in self.variables and 'pressure' not in ds.data_vars:
+            logger.info('Adding pressure variable.')
             expand_axes = (0, 2, 3)
             pres = np.zeros(ds['zg'].values.shape)
             if 'number' in ds.dims:
@@ -505,10 +510,30 @@ class EraDownloader:
             ds = ds.rename({'z': name})
         return ds
 
+    def convert_dtype(self, ds):
+        """Convert z to given height variable
+
+        Parameters
+        ----------
+        ds : Dataset
+            xr.Dataset() object with data to be converted
+
+        Returns
+        -------
+        ds : Dataset
+            xr.Dataset() object with converted dtype.
+        """
+        logger.info('Converting dtype')
+        for f in list(ds.data_vars):
+            ds[f] = (ds[f].dims, ds[f].values.astype(np.float32))
+        return ds
+
     def process_level_file(self):
         """Convert geopotential to geopotential height."""
         tmp_file = self.get_tmp_file(self.level_file)
         with xr.open_dataset(self.level_file, mode='a') as ds:
+            ds = self.convert_dtype(ds)
+            logger.info('Converting "z" var to "zg"')
             ds = self.convert_z(ds, name='zg')
             ds = self.map_vars(ds)
             ds = self.shift_temp(ds)

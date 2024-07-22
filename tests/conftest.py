@@ -6,6 +6,9 @@ import pytest
 from rex import init_logger
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
+from sup3r.utilities.utilities import RANDOM_GENERATOR
+
+GLOBAL_STATE = RANDOM_GENERATOR.bit_generator.state
 
 
 @pytest.hookimpl
@@ -38,6 +41,13 @@ def pytest_configure(config):  # pylint: disable=unused-argument # noqa: ARG001
     ]
     pytest.FP_UAS = os.path.join(TEST_DATA_DIR, 'uas_test.nc')
     pytest.FP_RSDS = os.path.join(TEST_DATA_DIR, 'rsds_test.nc')
+
+
+@pytest.fixture(autouse=True)
+def set_random_state():
+    """Set random generator state for reproducibility across tests with random
+    sampling."""
+    RANDOM_GENERATOR.bit_generator.state = GLOBAL_STATE
 
 
 @pytest.fixture(scope='package')
