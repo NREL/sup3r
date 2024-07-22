@@ -84,3 +84,115 @@ def test_mixed_lr_hr_features(lr_features, hr_features, hr_exo_features):
         _ = pair.lr_features
         _ = pair.hr_out_features
         _ = pair.hr_exo_features
+
+
+@pytest.mark.parametrize(
+    ['features', 'lr_only_features', 'hr_exo_features'],
+    [
+        (
+            [
+                'u_10m',
+                'u_100m',
+                'u_200m',
+                'u_80m',
+                'u_120m',
+                'u_140m',
+                'pressure',
+                'kx',
+                'dewpoint_temperature',
+                'topography',
+            ],
+            ['pressure', 'kx', 'dewpoint_temperature'],
+            ['topography'],
+        ),
+        (
+            [
+                'u_10m',
+                'u_100m',
+                'u_200m',
+                'u_80m',
+                'u_120m',
+                'u_140m',
+                'pressure',
+                'kx',
+                'dewpoint_temperature',
+                'topography',
+                'srl',
+            ],
+            ['pressure', 'kx', 'dewpoint_temperature'],
+            ['topography', 'srl'],
+        ),
+        (
+            [
+                'u_10m',
+                'u_100m',
+                'u_200m',
+                'u_80m',
+                'u_120m',
+                'u_140m',
+                'pressure',
+                'kx',
+                'dewpoint_temperature',
+            ],
+            ['pressure', 'kx', 'dewpoint_temperature'],
+            [],
+        ),
+        (
+            [
+                'u_10m',
+                'u_100m',
+                'u_200m',
+                'u_80m',
+                'u_120m',
+                'u_140m',
+                'topography',
+                'srl',
+            ],
+            [],
+            ['topography', 'srl'],
+        ),
+    ],
+)
+def test_dual_feature_sets(features, lr_only_features, hr_exo_features):
+    """Each of these feature combinations should work fine with the dual
+    sampler"""
+
+    hr_sample_shape = (8, 8, 10)
+    lr_containers = [
+        DummyData(
+            data_shape=(10, 10, 20),
+            features=[f.lower() for f in features],
+        ),
+        DummyData(
+            data_shape=(12, 12, 15),
+            features=[f.lower() for f in features],
+        ),
+    ]
+    hr_containers = [
+        DummyData(
+            data_shape=(20, 20, 40),
+            features=[f.lower() for f in features],
+        ),
+        DummyData(
+            data_shape=(24, 24, 30),
+            features=[f.lower() for f in features],
+        ),
+    ]
+    sampler_pairs = [
+        DualSampler(
+            Sup3rDataset(low_res=lr.data, high_res=hr.data),
+            hr_sample_shape,
+            s_enhance=2,
+            t_enhance=2,
+            feature_sets={
+                'features': features,
+                'lr_only_features': lr_only_features,
+                'hr_exo_features': hr_exo_features},
+        )
+        for lr, hr in zip(lr_containers, hr_containers)
+    ]
+
+    for pair in sampler_pairs:
+        _ = pair.lr_features
+        _ = pair.hr_out_features
+        _ = pair.hr_exo_features
