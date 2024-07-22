@@ -388,10 +388,11 @@ def presrat_identity_params(tmpdir_factory, presrat_params):
 
 @pytest.fixture(scope='module')
 def presrat_nochanges_params(tmpdir_factory, presrat_params):
-    """Identical distribution and no zero rate
+    """Identical distribution, no zero rate, and K=1
 
-    All distributions are identical and zero rate changes are all zero,
-    therefore, the PresRat correction should not change anything.
+    All distributions are identical, zero rate changes are all zero, and the
+    K factor is equal to 1, therefore, the PresRat correction should not change
+    anything.
 
     Note that distributions are based on bias_fut, so it is assumed that the
     test cases will be datasets coherent with that bias_fut distribution,
@@ -404,6 +405,7 @@ def presrat_nochanges_params(tmpdir_factory, presrat_params):
         f['bias_fut_rsds_params'][:] = f['bias_rsds_params'][:]
         f['base_ghi_params'][:] = f['bias_rsds_params'][:]
         f['ghi_zero_rate'][:] *= 0
+        f['rsds_k_factor'][:] = 1
         f.flush()
 
     return str(fn)
@@ -669,7 +671,6 @@ def test_presrat_transform(presrat_params, precip_fut):
     assert n_zero <= unbiased_n_zero
 
 
-@pytest.mark.skip()
 def test_presrat_transform_nochanges(presrat_nochanges_params, fut_cc_notrend):
     """The correction should result in no changes at all
 
