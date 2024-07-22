@@ -25,8 +25,6 @@ FEATURES = ['windspeed', 'winddirection']
 means = dict.fromkeys(FEATURES, 0)
 stds = dict.fromkeys(FEATURES, 1)
 
-np.random.seed(42)
-
 
 BatchHandlerTester = BatchHandlerTesterFactory(BatchHandler, SamplerTester)
 
