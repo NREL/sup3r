@@ -761,19 +761,18 @@ def local_presrat_bc(data: np.ndarray,
         Note that this assumes that params_mh is the data distribution
         representative for the target data.
     """
-    assert data.ndim, "data was expected to be a 3D array"
-    assert data.shape[-1] == time_index.size, \
-        "The last dimension of data should be time"
+    assert data.ndim, 'data was expected to be a 3D array'
+    assert (
+        data.shape[-1] == time_index.size
+    ), 'The last dimension of data should be time'
 
-    params, cfg = get_spatial_bc_presrat(lat_lon,
-                                         base_dset,
-                                         feature_name,
-                                         bias_fp,
-                                         threshold)
+    params, cfg = get_spatial_bc_presrat(
+        lat_lon, base_dset, feature_name, bias_fp, threshold
+    )
     time_window_center = cfg['time_window_center']
-    base = params["base"]
-    bias = params["bias"]
-    bias_fut = params["bias_fut"]
+    base = params['base']
+    bias = params['bias']
+    bias_fut = params['bias_fut']
     bias_tau_fut = params['bias_tau_fut']
 
     if lr_padded_slice is not None:
@@ -804,8 +803,9 @@ def local_presrat_bc(data: np.ndarray,
                                    mf,
                                    dist=cfg['dist'],
                                    relative=relative,
-                                   sampling=cfg["sampling"],
-                                   log_base=cfg["log_base"])
+                                   sampling=cfg['sampling'],
+                                   log_base=cfg['log_base'],
+                                   )
 
         # input 3D shape (spatial, spatial, temporal)
         # QDM expects input arr with shape (time, space)
