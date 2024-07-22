@@ -683,7 +683,7 @@ def test_presrat_transform_nochanges(presrat_nochanges_params, fut_cc_notrend):
     ).astype('float32')
 
     corrected = local_presrat_bc(
-        data, time, latlon, 'ghi', 'rsds', presrat_nochanges_params
+        data, latlon, 'ghi', 'rsds', presrat_nochanges_params, time
     )
 
     assert np.isfinite(corrected).any(), "Can't compare if only NaN"
