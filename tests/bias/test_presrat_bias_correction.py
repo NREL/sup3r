@@ -711,7 +711,31 @@ def test_presrat_transform_nozerochanges(presrat_nozeros_params, fut_cc):
     ).any(), 'Unexpected value corrected (zero_rate) to zero (dry day)'
 
 
-@pytest.mark.skip()
+def test_compare_qdm_vs_presrat(presrat_params, precip_fut):
+    """Compare bias correction methods QDM vs PresRat
+    """
+
+    # local_presrat_bc and local_qdm_bc expects time in the last dimension.
+    data = precip_fut.transpose('lat', 'lon', 'time').values
+    time = pd.to_datetime(precip_fut.time)
+    latlon = np.stack(
+        xr.broadcast(precip_fut['lat'], precip_fut['lon'] - 360), axis=-1
+    ).astype('float32')
+
+    unbiased_qdm = local_qdm_bc(
+        data, latlon, 'ghi', 'rsds', presrat_params, time,
+    )
+    unbiased_presrat = local_presrat_bc(
+        data, latlon, 'ghi', 'rsds', presrat_params, time,
+    )
+
+    assert unbiased_qdm.shape == unbiased_presrat.shape, "QDM and PresRat output should have the same shape"
+
+    n_zero_qdm = (unbiased_qdm < TAU).astype('i').sum()
+    n_zero_presrat = (unbiased_presrat < TAU).astype('i').sum()
+    assert n_zero_qdm <= n_zero_presrat, "PresRat should guarantee at least the same number of zero precipitation days"
+
+
 def test_fwp_integration(tmp_path, presrat_params, fp_precip_fut):
     """Integration of the bias correction method into the forward pass
 
