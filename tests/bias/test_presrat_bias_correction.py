@@ -772,7 +772,7 @@ def test_compare_qdm_vs_presrat(presrat_params, precip_fut):
     n_zero_presrat = (unbiased_presrat < TAU).astype('i').sum()
     assert (
         n_zero_qdm <= n_zero_presrat
-    ), 'PresRat should guarantee at least the same number of zero precipitation days'
+    ), 'PresRat should guarantee greater or equal zero precipitation days'
 
 
 def test_fwp_integration(tmp_path, presrat_params, fp_fut_cc):
