@@ -43,7 +43,8 @@ FP_CC = os.path.join(TEST_DATA_DIR, 'rsds_test.nc')
 FP_CC_LAT_LON = DataHandlerNC(FP_CC, 'rsds').lat_lon
 # A reference zero rate threshold that might not make sense physically but for
 # testing purposes only. This might change in the future to force edge cases.
-ZR_THRESHOLD = 80
+ZR_THRESHOLD = 0.01
+TAU = 0.01
 TARGET = (38.24552917480469, -105.46875)
 SHAPE = (4, 4)
 VAR_MIN = 0
