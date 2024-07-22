@@ -580,10 +580,14 @@ def apply_zero_precipitation_rate(arr: np.ndarray, rate):
 
     Parameters
     ----------
-    arr : np.array
-        An array of values to be analyzed. Usually precipitation but it
-    rate : float or np.array
-        Rate of zero, or negligible, days of precipitation.
+    arr : np.ndarray
+        An array of values to be analyzed. Usually precipitation. The expected
+        dimensions here are (space, space, time).
+    rate : np.ndarray
+        Rate of zero, or negligible, days of precipitation. The two first
+        dimensions are expected to align the the (space, space) from arr, but
+        due to a limitation on how the parameters are saved in HDF files, it
+        is assumed to have a third dummy dimension.
 
     Returns
     -------
