@@ -70,8 +70,8 @@ def fp_resource(tmpdir_factory):
     time = pd.DatetimeIndex(
         np.arange(
             np.datetime64('2018-01-01 00:00:00+00:00'),
-            np.datetime64('2018-03-26 23:31:00+00:00'),
-            np.timedelta64(30, 'm'),
+            np.datetime64('2019-01-01 00:00:00+00:00'),
+            np.timedelta64(6, 'h'),
         )
     )
     lat = np.arange(39.77, 39.00, -0.04)
