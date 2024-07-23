@@ -108,6 +108,13 @@ def _compute_if_dask(arr):
     return arr.compute() if hasattr(arr, 'compute') else arr
 
 
+def _rechunk_if_dask(arr, chunks='auto'):
+
+    if hasattr(arr, 'rechunk'):
+        return arr.rechunk(chunks)
+    return arr
+
+
 def _parse_time_slice(value):
     return (
         value

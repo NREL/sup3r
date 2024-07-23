@@ -10,7 +10,11 @@ import dask.array as da
 import numpy as np
 
 from sup3r.preprocessing.base import Container
-from sup3r.preprocessing.utilities import Dimension, parse_to_list
+from sup3r.preprocessing.utilities import (
+    Dimension,
+    _rechunk_if_dask,
+    parse_to_list,
+)
 from sup3r.typing import T_Array, T_Dataset
 from sup3r.utilities.interpolation import Interpolator
 
@@ -250,7 +254,7 @@ class BaseDeriver(Container):
             level=np.float32(level),
             interp_method=interp_method,
         )
-        return out
+        return _rechunk_if_dask(out)
 
 
 class Deriver(BaseDeriver):

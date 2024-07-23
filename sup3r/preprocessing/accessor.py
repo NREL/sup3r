@@ -296,6 +296,12 @@ class Sup3rX:
         )
         return type(self)(out) if isinstance(out, xr.Dataset) else out
 
+    def normalize(self, means, stds):
+        """Normalize dataset using given means and stds. These are provided as
+        dictionaries."""
+        for f in self.features:
+            self._ds[f] = (self._ds[f] - means[f]) / stds[f]
+
     def interpolate_na(self, **kwargs):
         """Use `xr.DataArray.interpolate_na` to fill NaN values with a dask
         compatible method."""

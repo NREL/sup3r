@@ -7,6 +7,7 @@ from typing import Dict, Tuple
 
 import dask.array as da
 import numpy as np
+import pandas as pd
 import xarray as xr
 from rex import MultiFileWindX
 
@@ -57,7 +58,7 @@ class LoaderH5(BaseLoader):
             dims = (Dimension.FLATTENED_SPATIAL,)
         if not self._time_independent:
             dims = (Dimension.TIME, *dims)
-            coords[Dimension.TIME] = self.res['time_index']
+            coords[Dimension.TIME] = pd.DatetimeIndex(self.res['time_index'])
 
         chunks = (
             tuple(self.chunks[d] for d in dims)
@@ -76,22 +77,22 @@ class LoaderH5(BaseLoader):
                 dims,
                 da.asarray(elev, dtype=np.float32, chunks=chunks),
             )
-        data_vars = {
-            **data_vars,
-            **{
-                f: (
-                    dims,
-                    da.asarray(
-                        self.res.h5[f],
-                        dtype=np.float32,
-                        chunks=chunks,
-                    )
-                    / self.scale_factor(f),
+        feats = [
+            f
+            for f in self.res.h5.datasets
+            if f not in ('meta', 'time_index', 'coordinates')
+        ]
+        for f in feats:
+            logger.debug(f'Rechunking "{f}" with chunks: {self.chunks}')
+            data_vars[f] = (
+                dims,
+                da.asarray(
+                    self.res.h5[f],
+                    dtype=np.float32,
+                    chunks=chunks,
                 )
-                for f in self.res.h5.datasets
-                if f not in ('meta', 'time_index', 'coordinates')
-            },
-        }
+                / self.scale_factor(f),
+            )
         coords.update(
             {
                 Dimension.LATITUDE: (

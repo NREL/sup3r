@@ -140,31 +140,38 @@ class DualExtracter(Container):
         hr_data.shape is divisible by s_enhance. If not, take the largest
         shape that can be."""
         msg = (
-            f'hr_data.shape {self.hr_data.shape[:3]} is not '
-            f'divisible by s_enhance ({self.s_enhance}). Using shape = '
+            f'hr_data.shape: {self.hr_data.shape[:3]} is not '
+            f'divisible by s_enhance: {self.s_enhance}. Using shape: '
             f'{self.hr_required_shape} instead.'
         )
-        if self.hr_data.shape[:3] != self.hr_required_shape[:3]:
+        need_new_shape = self.hr_data.shape[:3] != self.hr_required_shape[:3]
+        if need_new_shape:
             logger.warning(msg)
             warn(msg)
 
-        hr_data_new = {
-            f: self.hr_data[
-                f,
-                slice(self.hr_required_shape[0]),
-                slice(self.hr_required_shape[1]),
-                slice(self.hr_required_shape[2]),
-            ]
-            for f in self.hr_data.data_vars
-        }
-        hr_coords_new = {
-            Dimension.LATITUDE: self.hr_lat_lon[..., 0],
-            Dimension.LONGITUDE: self.hr_lat_lon[..., 1],
-            Dimension.TIME: self.hr_data.indexes['time'][
-                : self.hr_required_shape[2]
-            ],
-        }
-        self.hr_data = self.hr_data.update_ds({**hr_coords_new, **hr_data_new})
+            hr_data_new = {
+                f: self.hr_data[
+                    f,
+                    slice(self.hr_required_shape[0]),
+                    slice(self.hr_required_shape[1]),
+                    slice(self.hr_required_shape[2]),
+                ]
+                for f in self.hr_data.data_vars
+            }
+            hr_coords_new = {
+                Dimension.LATITUDE: self.hr_lat_lon[..., 0],
+                Dimension.LONGITUDE: self.hr_lat_lon[..., 1],
+                Dimension.TIME: self.hr_data.indexes['time'][
+                    : self.hr_required_shape[2]
+                ],
+            }
+            logger.info(
+                'Updating self.hr_data with new shape: '
+                f'{self.hr_required_shape[:3]}'
+            )
+            self.hr_data = self.hr_data.update_ds(
+                {**hr_coords_new, **hr_data_new}
+            )
 
     def get_regridder(self):
         """Get regridder object"""
@@ -197,6 +204,7 @@ class DualExtracter(Container):
                     : self.lr_required_shape[2]
                 ],
             }
+            logger.info('Updating self.lr_data with regridded data.')
             self.lr_data = self.lr_data.update_ds(
                 {**lr_coords_new, **lr_data_new}
             )
@@ -205,6 +213,9 @@ class DualExtracter(Container):
         """Check for NaNs after regridding and do NN fill if needed."""
         fill_feats = []
         for f in self.lr_data.data_vars:
+            logger.info(
+                f'Checking for NaNs after regridding, for feature: {f}'
+            )
             nan_perc = (
                 100
                 * np.isnan(self.lr_data[f].data).sum()

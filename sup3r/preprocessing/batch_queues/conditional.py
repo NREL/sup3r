@@ -160,7 +160,6 @@ class ConditionalBatchQueue(SingleBatchQueue):
             attributes
         """
         lr, hr = self.transform(samples, **self.transform_kwargs)
-        lr, hr = self.normalize(lr, hr)
         mask = self.make_mask(high_res=hr)
         output = self.make_output(samples=(lr, hr))
         return self.ConditionalBatch(

@@ -42,6 +42,7 @@ class StatsCollection(Collection):
         self.means = self.get_means(means)
         self.stds = self.get_stds(stds)
         self.save_stats(stds=stds, means=means)
+        self.normalize(means=self.means, stds=self.stds)
 
     def _get_stat(self, stat_type):
         """Get either mean or std for all features and all containers."""
@@ -95,7 +96,7 @@ class StatsCollection(Collection):
             stds = dict.fromkeys(all_feats, 0)
             logger.info(f'Computing stds for {all_feats}.')
             cstds = [
-                w * cm ** 2
+                w * cm**2
                 for cm, w in zip(self._get_stat('std'), self.container_weights)
             ]
             for f in all_feats:
@@ -117,3 +118,10 @@ class StatsCollection(Collection):
             with open(means, 'w') as f:
                 f.write(safe_serialize(self.means))
                 logger.info(f'Saved means {self.means} to {means}.')
+
+    def normalize(self, stds, means):
+        """Normalize container data with computed stats."""
+        logger.info(
+            f'Normalizing container data with means: {means}, stds: {stds}.'
+        )
+        _ = [c.normalize(means=means, stds=stds) for c in self.containers]

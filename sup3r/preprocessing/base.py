@@ -240,9 +240,14 @@ class Sup3rDataset:
         kwargs['skipna'] = kwargs.get('skipna', True)
         return self._ds[-1].std(**kwargs)
 
+    def normalize(self, means, stds):
+        """Normalize dataset using the given mean and stds. These are provided
+        as dictionaries."""
+        _ = [d.normalize(means=means, stds=stds) for d in self._ds]
+
     def compute(self, **kwargs):
         """Load data into memory for each data member."""
-        _ = [data.compute(**kwargs) for data in self._ds]
+        _ = [d.compute(**kwargs) for d in self._ds]
 
     @property
     def loaded(self):

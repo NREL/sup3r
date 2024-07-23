@@ -8,16 +8,13 @@ import logging
 import threading
 from abc import ABC, abstractmethod
 from collections import namedtuple
-from typing import Dict, List, Optional, Tuple, Union
-from warnings import warn
+from typing import Dict, List, Optional, Union
 
 import numpy as np
 import tensorflow as tf
-from rex import safe_json_load
 
 from sup3r.preprocessing.collections.base import Collection
 from sup3r.preprocessing.samplers import DualSampler, Sampler
-from sup3r.typing import T_Array
 from sup3r.utilities.utilities import RANDOM_GENERATOR, Timer
 
 logger = logging.getLogger(__name__)
@@ -249,9 +246,9 @@ class AbstractBatchQueue(Collection, ABC):
 
     def _post_proc(self, samples) -> Batch:
         """Performs some post proc on dequeued samples before sending out for
-        training. Post processing can include normalization, coarsening on
-        high-res data (if :class:`Collection` consists of :class:`Sampler`
-        objects and not :class:`DualSampler` objects), smoothing, etc
+        training. Post processing can include coarsening on high-res data (if
+        :class:`Collection` consists of :class:`Sampler` objects and not
+        :class:`DualSampler` objects), smoothing, etc
 
         Returns
         -------
@@ -259,7 +256,6 @@ class AbstractBatchQueue(Collection, ABC):
              namedtuple with `low_res` and `high_res` attributes
         """
         lr, hr = self.transform(samples, **self.transform_kwargs)
-        lr, hr = self.normalize(lr, hr)
         return self.Batch(low_res=lr, high_res=hr)
 
     def start(self) -> None:
@@ -328,63 +324,13 @@ class AbstractBatchQueue(Collection, ABC):
                     samples = tuple(s[..., 0, :] for s in samples)
                 else:
                     samples = samples[..., 0, :]
-            batch = self.timer(self._post_proc, log=True)(samples)
+            batch = self.timer(self._post_proc, log=True)(
+                samples
+            )
             self._batch_counter += 1
         else:
             raise StopIteration
         return batch
-
-    @staticmethod
-    def _get_stats(means, stds, features):
-        msg = (f'Some of the features: {features} not found in the provided '
-               f'means: {means}')
-        assert all(f in means for f in features), msg
-        msg = (f'Some of the features: {features} not found in the provided '
-               f'stds: {stds}')
-        assert all(f in stds for f in features), msg
-        f_means = np.array([means[k] for k in features]).astype(np.float32)
-        f_stds = np.array([stds[k] for k in features]).astype(np.float32)
-        return f_means, f_stds
-
-    def get_stats(self, means, stds):
-        """Get means / stds from given files / dicts and group these into
-        low-res / high-res stats."""
-        means = means if isinstance(means, dict) else safe_json_load(means)
-        stds = stds if isinstance(stds, dict) else safe_json_load(stds)
-        msg = (
-            f'Received means = {means} with self.features = '
-            f'{self.features}. Make sure the means are valid, since they '
-            'clearly come from a different training run.'
-        )
-
-        if len(means) != len(self.features):
-            logger.warning(msg)
-            warn(msg)
-        msg = (
-            f'Received stds = {stds} with self.features = '
-            f'{self.features}. Make sure the stds are valid, since they '
-            'clearly come from a different training run.'
-        )
-        if len(stds) != len(self.features):
-            logger.warning(msg)
-            warn(msg)
-
-        lr_means, lr_stds = self._get_stats(means, stds, self.lr_features)
-        hr_means, hr_stds = self._get_stats(means, stds, self.hr_features)
-        return means, lr_means, hr_means, stds, lr_stds, hr_stds
-
-    @staticmethod
-    def _normalize(array, means, stds):
-        """Normalize an array with given means and stds."""
-        return (array - means) / stds
-
-    def normalize(self, lr, hr) -> Tuple[T_Array, T_Array]:
-        """Normalize a low-res / high-res pair with the stored means and
-        stdevs."""
-        return (
-            self._normalize(lr, self.lr_means, self.lr_stds),
-            self._normalize(hr, self.hr_means, self.hr_stds),
-        )
 
     def get_container_index(self):
         """Get random container index based on weights"""
