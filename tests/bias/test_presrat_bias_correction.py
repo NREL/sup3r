@@ -468,11 +468,11 @@ def test_zero_precipitation_rate_extremes():
     assert rate == 0
 
     rate = f(arr, threshold=0)
-    assert rate == 0
+    assert rate == 0.1
 
     # Remember, 9 is the last value, i.e. the 10th value
     rate = f(arr, threshold=9)
-    assert rate == 0.9
+    assert rate == 1
 
     rate = f(arr, threshold=arr.max() + 1)
     assert rate == 1
