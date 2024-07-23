@@ -18,26 +18,36 @@ def _get_factors(lat_lon, var_names, bias_fp, threshold=0.1):
     """Get bias correction factors from sup3r's standard resource
 
     This was stripped without any change from original
-    `get_spatial_bc_factors` to avoid redundancy.
+    `get_spatial_bc_factors` to allow re-use in other `*_bc_factors`
+    functions.
 
     Parameters
     ----------
-    lat_lon : ndarray
+    lat_lon : np.ndarray
         Array of latitudes and longitudes for the domain to bias correct
         (n_lats, n_lons, 2)
     var_names : dict
         A dictionary mapping the expected variable name in the `Resource`
-        and the desired name to output.
+        and the desired name to output. For instance the dictionary
+        `{'base': 'base_ghi_params'}` would return a `params['base']` with
+        a value equals to `base_ghi_params` from the `bias_fp` file.
     bias_fp : str
         Filepath to bias correction file from the bias calc module. Must have
-        datasets "{feature_name}_scalar" and "{feature_name}_adder" that are
-        the full low-resolution shape of the forward pass input that will be
-        sliced using lr_padded_slice for the current chunk.
+        datasets defined as values of the dictionary `var_names` given as an
+        input argument, such as "{feature_name}_scalar" or
+        "base_{base_dset}_params". Those are the full low-resolution shape of
+        the forward pass input that will be sliced using lr_padded_slice for
+        the current chunk.
     threshold : float
         Nearest neighbor euclidean distance threshold. If the coordinates are
         more than this value away from the bias correction lat/lon, an error is
         raised.
 
+    Return
+    ------
+    dict :
+        A dictionary with the content from `bias_fp` as mapped by `var_names`,
+        therefore, the keys here are the same keys in `var_names`.
     """
     with Resource(bias_fp) as res:
         lat = np.expand_dims(res['latitude'], axis=-1)
@@ -198,11 +208,11 @@ def get_spatial_bc_quantiles(lat_lon: np.array,
     >>> params, cfg = get_spatial_bc_quantiles(
     ...                 lat_lon, "ghi", "rsds", "./dist_params.hdf")
     """
-    ds = {'base': f'base_{base_dset}_params',
-          'bias': f'bias_{feature_name}_params',
-          'bias_fut': f'bias_fut_{feature_name}_params',
-          }
-    params = _get_factors(lat_lon, ds, bias_fp, threshold)
+    var_names = {'base': f'base_{base_dset}_params',
+                 'bias': f'bias_{feature_name}_params',
+                 'bias_fut': f'bias_fut_{feature_name}_params',
+                 }
+    params = _get_factors(lat_lon, var_names, bias_fp, threshold)
 
     with Resource(bias_fp) as res:
         cfg = res.global_attrs
