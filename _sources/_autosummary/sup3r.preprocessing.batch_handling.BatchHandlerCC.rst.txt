@@ -1,0 +1,48 @@
+sup3r.preprocessing.batch\_handling.BatchHandlerCC
+==================================================
+
+.. currentmodule:: sup3r.preprocessing.batch_handling
+
+.. autoclass:: BatchHandlerCC
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~BatchHandlerCC.cache_stats
+      ~BatchHandlerCC.check_cached_stats
+      ~BatchHandlerCC.get_handler_index
+      ~BatchHandlerCC.get_rand_handler
+      ~BatchHandlerCC.get_stats
+      ~BatchHandlerCC.load_handler_data
+      ~BatchHandlerCC.normalize
+      ~BatchHandlerCC.reduce_high_res_sub_daily
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~BatchHandlerCC.DATA_HANDLER_CLASS
+      ~BatchHandlerCC.feature_mem
+      ~BatchHandlerCC.features
+      ~BatchHandlerCC.handler_weights
+      ~BatchHandlerCC.hr_exo_features
+      ~BatchHandlerCC.hr_features_ind
+      ~BatchHandlerCC.hr_out_features
+      ~BatchHandlerCC.load_workers
+      ~BatchHandlerCC.lr_features
+      ~BatchHandlerCC.norm_workers
+      ~BatchHandlerCC.shape
+      ~BatchHandlerCC.stats_workers
+   
+   

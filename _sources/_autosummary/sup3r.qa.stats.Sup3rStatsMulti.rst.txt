@@ -1,0 +1,30 @@
+sup3r.qa.stats.Sup3rStatsMulti
+==============================
+
+.. currentmodule:: sup3r.qa.stats
+
+.. autoclass:: Sup3rStatsMulti
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~Sup3rStatsMulti.close
+      ~Sup3rStatsMulti.export
+      ~Sup3rStatsMulti.export_fig_data
+      ~Sup3rStatsMulti.get_node_cmd
+      ~Sup3rStatsMulti.load_cache
+      ~Sup3rStatsMulti.run
+      ~Sup3rStatsMulti.save_cache
+   
+   
+
+   
+   
+   

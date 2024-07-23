@@ -1,0 +1,51 @@
+sup3r.utilities.regridder.WindRegridder
+=======================================
+
+.. currentmodule:: sup3r.utilities.regridder
+
+.. autoclass:: WindRegridder
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~WindRegridder.cache_all_queries
+      ~WindRegridder.get_all_queries
+      ~WindRegridder.get_source_uv
+      ~WindRegridder.get_source_values
+      ~WindRegridder.get_spatial_chunk
+      ~WindRegridder.init_queries
+      ~WindRegridder.interpolate
+      ~WindRegridder.invert_uv
+      ~WindRegridder.load_cache
+      ~WindRegridder.query_tree
+      ~WindRegridder.regrid_coordinates
+      ~WindRegridder.run
+      ~WindRegridder.save_query
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~WindRegridder.MAX_DISTANCE
+      ~WindRegridder.MIN_DISTANCE
+      ~WindRegridder.cache_exists
+      ~WindRegridder.dist_mask
+      ~WindRegridder.distance_file
+      ~WindRegridder.distances
+      ~WindRegridder.index_file
+      ~WindRegridder.indices
+      ~WindRegridder.tree
+      ~WindRegridder.weights
+   
+   

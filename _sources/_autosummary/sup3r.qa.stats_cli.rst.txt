@@ -1,0 +1,23 @@
+sup3r.qa.stats\_cli
+===================
+
+.. automodule:: sup3r.qa.stats_cli
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

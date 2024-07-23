@@ -1,0 +1,45 @@
+sup3r.preprocessing.data\_handling.exo\_extraction.TopoExtractNC
+================================================================
+
+.. currentmodule:: sup3r.preprocessing.data_handling.exo_extraction
+
+.. autoclass:: TopoExtractNC
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~TopoExtractNC.get_cache_file
+      ~TopoExtractNC.get_data
+      ~TopoExtractNC.get_exo_raster
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~TopoExtractNC.data
+      ~TopoExtractNC.distance_upper_bound
+      ~TopoExtractNC.hr_lat_lon
+      ~TopoExtractNC.hr_shape
+      ~TopoExtractNC.hr_time_index
+      ~TopoExtractNC.lr_lat_lon
+      ~TopoExtractNC.lr_shape
+      ~TopoExtractNC.nn
+      ~TopoExtractNC.source_data
+      ~TopoExtractNC.source_handler
+      ~TopoExtractNC.source_lat_lon
+      ~TopoExtractNC.source_temporal_slice
+      ~TopoExtractNC.source_time_index
+      ~TopoExtractNC.tree
+   
+   

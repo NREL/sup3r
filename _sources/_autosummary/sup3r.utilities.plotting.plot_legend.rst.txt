@@ -1,0 +1,6 @@
+sup3r.utilities.plotting.plot\_legend
+=====================================
+
+.. currentmodule:: sup3r.utilities.plotting
+
+.. autofunction:: plot_legend

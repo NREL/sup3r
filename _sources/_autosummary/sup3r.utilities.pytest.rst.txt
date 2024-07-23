@@ -1,0 +1,34 @@
+sup3r.utilities.pytest
+======================
+
+.. automodule:: sup3r.utilities.pytest
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      make_fake_cs_ratio_files
+      make_fake_era_files
+      make_fake_h5_chunks
+      make_fake_multi_time_nc_files
+      make_fake_nc_files
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

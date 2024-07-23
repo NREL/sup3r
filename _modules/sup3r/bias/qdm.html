@@ -1,0 +1,1654 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>sup3r.bias.qdm &mdash; sup3r 0.1.3.dev340+g1431d2f9 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/copybutton.css?v=76b2166b" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/tabs.css?v=a5c4661c" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=83f89d32"></script>
+        <script src="../../../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="../../../_static/clipboard.min.js?v=a7894cd8"></script>
+        <script src="../../../_static/copybutton.js?v=f281be69"></script>
+        <script src="../../../_static/tabs.js?v=3030b3cb"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            sup3r
+          </a>
+              <div class="version">
+                0.1.3.dev340+g1431d2f9
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">Home page</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../misc/installation_usage.html">Installation and Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../misc/installation.html">Installation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../misc/installation.html#option-1-install-from-pip-recommended-for-analysts">Option 1: Install from PIP (recommended for analysts):</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../misc/installation.html#option-2-clone-repo-recommended-for-developers">Option 2: Clone repo (recommended for developers)</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/examples.html">Examples</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples/sup3rcc.html">Sup3rCC Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#sup3rcc-data-access">Sup3rCC Data Access</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#directory-structure">Directory Structure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#example-sup3rcc-data-usage">Example Sup3rCC Data Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#running-sup3rcc-models">Running Sup3rCC Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#nuances-of-sup3rcc">Nuances of Sup3rCC</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#sup3rcc-versions">Sup3rCC Versions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#recommended-citation">Recommended Citation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rcc.html#acknowledgements">Acknowledgements</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples/sup3rwind.html">Sup3rWind Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rwind.html#sup3rwind-data-access">Sup3rWind Data Access</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rwind.html#example-sup3rwind-data-usage">Example Sup3rWind Data Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rwind.html#running-sup3rwind-models">Running Sup3rWind Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rwind.html#sup3rwind-versions">Sup3rWind Versions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rwind.html#recommended-citation">Recommended Citation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../examples/sup3rwind.html#acknowledgements">Acknowledgements</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../_autosummary/sup3r.html">API reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.batch.html">sup3r.batch</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.batch.batch_cli.html">sup3r.batch.batch_cli</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.bias.html">sup3r.bias</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc.html">sup3r.bias.bias_calc</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc.DataRetrievalBase.html">sup3r.bias.bias_calc.DataRetrievalBase</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc.LinearCorrection.html">sup3r.bias.bias_calc.LinearCorrection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc.MonthlyLinearCorrection.html">sup3r.bias.bias_calc.MonthlyLinearCorrection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc.MonthlyScalarCorrection.html">sup3r.bias.bias_calc.MonthlyScalarCorrection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc.SkillAssessment.html">sup3r.bias.bias_calc.SkillAssessment</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc_cli.html">sup3r.bias.bias_calc_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc_cli.kickoff_local_job.html">sup3r.bias.bias_calc_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_calc_cli.kickoff_slurm_job.html">sup3r.bias.bias_calc_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_correct_means.html">sup3r.bias.bias_correct_means</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_correct_means.BiasCorrectUpdate.html">sup3r.bias.bias_correct_means.BiasCorrectUpdate</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_correct_means.VortexMeanPrepper.html">sup3r.bias.bias_correct_means.VortexMeanPrepper</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_transforms.html">sup3r.bias.bias_transforms</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_transforms.get_spatial_bc_factors.html">sup3r.bias.bias_transforms.get_spatial_bc_factors</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_transforms.get_spatial_bc_presrat.html">sup3r.bias.bias_transforms.get_spatial_bc_presrat</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_transforms.get_spatial_bc_quantiles.html">sup3r.bias.bias_transforms.get_spatial_bc_quantiles</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_transforms.global_linear_bc.html">sup3r.bias.bias_transforms.global_linear_bc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_transforms.local_linear_bc.html">sup3r.bias.bias_transforms.local_linear_bc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_transforms.local_presrat_bc.html">sup3r.bias.bias_transforms.local_presrat_bc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_transforms.local_qdm_bc.html">sup3r.bias.bias_transforms.local_qdm_bc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.bias_transforms.monthly_local_linear_bc.html">sup3r.bias.bias_transforms.monthly_local_linear_bc</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.bias.mixins.html">sup3r.bias.mixins</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.mixins.FillAndSmoothMixin.html">sup3r.bias.mixins.FillAndSmoothMixin</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.mixins.ZeroRateMixin.html">sup3r.bias.mixins.ZeroRateMixin</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.bias.qdm.html">sup3r.bias.qdm</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.qdm.PresRat.html">sup3r.bias.qdm.PresRat</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.bias.qdm.QuantileDeltaMappingCorrection.html">sup3r.bias.qdm.QuantileDeltaMappingCorrection</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.cli.html">sup3r.cli</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.models.html">sup3r.models</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.abstract.html">sup3r.models.abstract</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.abstract.AbstractInterface.html">sup3r.models.abstract.AbstractInterface</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.abstract.AbstractSingleModel.html">sup3r.models.abstract.AbstractSingleModel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.abstract.TensorboardMixIn.html">sup3r.models.abstract.TensorboardMixIn</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.base.html">sup3r.models.base</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.base.Sup3rGan.html">sup3r.models.base.Sup3rGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.conditional_moments.html">sup3r.models.conditional_moments</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.conditional_moments.Sup3rCondMom.html">sup3r.models.conditional_moments.Sup3rCondMom</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.data_centric.html">sup3r.models.data_centric</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.data_centric.Sup3rGanDC.html">sup3r.models.data_centric.Sup3rGanDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.data_centric.Sup3rGanSpatialDC.html">sup3r.models.data_centric.Sup3rGanSpatialDC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.linear.html">sup3r.models.linear</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.linear.LinearInterp.html">sup3r.models.linear.LinearInterp</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.multi_step.html">sup3r.models.multi_step</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.multi_step.MultiStepGan.html">sup3r.models.multi_step.MultiStepGan</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.multi_step.MultiStepSurfaceMetGan.html">sup3r.models.multi_step.MultiStepSurfaceMetGan</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.multi_step.SolarMultiStepGan.html">sup3r.models.multi_step.SolarMultiStepGan</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.solar_cc.html">sup3r.models.solar_cc</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.solar_cc.SolarCC.html">sup3r.models.solar_cc.SolarCC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.models.surface.html">sup3r.models.surface</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.models.surface.SurfaceSpatialMetModel.html">sup3r.models.surface.SurfaceSpatialMetModel</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.html">sup3r.pipeline</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass.html">sup3r.pipeline.forward_pass</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass.ForwardPass.html">sup3r.pipeline.forward_pass.ForwardPass</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass.ForwardPassSlicer.html">sup3r.pipeline.forward_pass.ForwardPassSlicer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass.ForwardPassStrategy.html">sup3r.pipeline.forward_pass.ForwardPassStrategy</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass_cli.html">sup3r.pipeline.forward_pass_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass_cli.kickoff_local_job.html">sup3r.pipeline.forward_pass_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.forward_pass_cli.kickoff_slurm_job.html">sup3r.pipeline.forward_pass_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.pipeline.pipeline_cli.html">sup3r.pipeline.pipeline_cli</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.html">sup3r.postprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.collection.html">sup3r.postprocessing.collection</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.collection.BaseCollector.html">sup3r.postprocessing.collection.BaseCollector</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.collection.CollectorH5.html">sup3r.postprocessing.collection.CollectorH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.collection.CollectorNC.html">sup3r.postprocessing.collection.CollectorNC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.data_collect_cli.html">sup3r.postprocessing.data_collect_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.data_collect_cli.kickoff_local_job.html">sup3r.postprocessing.data_collect_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.data_collect_cli.kickoff_slurm_job.html">sup3r.postprocessing.data_collect_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.html">sup3r.postprocessing.file_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.OutputHandler.html">sup3r.postprocessing.file_handling.OutputHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.OutputHandlerH5.html">sup3r.postprocessing.file_handling.OutputHandlerH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.OutputHandlerNC.html">sup3r.postprocessing.file_handling.OutputHandlerNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.OutputMixIn.html">sup3r.postprocessing.file_handling.OutputMixIn</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.postprocessing.file_handling.RexOutputs.html">sup3r.postprocessing.file_handling.RexOutputs</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.html">sup3r.preprocessing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.html">sup3r.preprocessing.batch_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.Batch.html">sup3r.preprocessing.batch_handling.Batch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.BatchHandler.html">sup3r.preprocessing.batch_handling.BatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.BatchHandlerCC.html">sup3r.preprocessing.batch_handling.BatchHandlerCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.BatchHandlerDC.html">sup3r.preprocessing.batch_handling.BatchHandlerDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.BatchHandlerSpatialDC.html">sup3r.preprocessing.batch_handling.BatchHandlerSpatialDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.SpatialBatchHandler.html">sup3r.preprocessing.batch_handling.SpatialBatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC.html">sup3r.preprocessing.batch_handling.SpatialBatchHandlerCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.ValidationData.html">sup3r.preprocessing.batch_handling.ValidationData</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.ValidationDataDC.html">sup3r.preprocessing.batch_handling.ValidationDataDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.ValidationDataSpatialDC.html">sup3r.preprocessing.batch_handling.ValidationDataSpatialDC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.batch_handling.ValidationDataTemporalDC.html">sup3r.preprocessing.batch_handling.ValidationDataTemporalDC</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.html">sup3r.preprocessing.conditional_moment_batch_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1SF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2Sep.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SepSF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchHandlerMom2SepSF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1SF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2Sep.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SepSF.html">sup3r.preprocessing.conditional_moment_batch_handling.BatchMom2SepSF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1SF.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SF.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2Sep.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SepSF.html">sup3r.preprocessing.conditional_moment_batch_handling.SpatialBatchHandlerMom2SepSF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1SF.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom1SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SF.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2Sep.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2Sep</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SepSF.html">sup3r.preprocessing.conditional_moment_batch_handling.ValidationDataMom2SepSF</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_extract_cli.html">sup3r.preprocessing.data_extract_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_extract_cli.kickoff_local_job.html">sup3r.preprocessing.data_extract_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_extract_cli.kickoff_slurm_job.html">sup3r.preprocessing.data_extract_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.html">sup3r.preprocessing.data_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.base.html">sup3r.preprocessing.data_handling.base</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.dual_data_handling.html">sup3r.preprocessing.data_handling.dual_data_handling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.exo_extraction.html">sup3r.preprocessing.data_handling.exo_extraction</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.exogenous_data_handling.html">sup3r.preprocessing.data_handling.exogenous_data_handling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.h5_data_handling.html">sup3r.preprocessing.data_handling.h5_data_handling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.mixin.html">sup3r.preprocessing.data_handling.mixin</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.data_handling.nc_data_handling.html">sup3r.preprocessing.data_handling.nc_data_handling</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.dual_batch_handling.html">sup3r.preprocessing.dual_batch_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.dual_batch_handling.DualBatchHandler.html">sup3r.preprocessing.dual_batch_handling.DualBatchHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.dual_batch_handling.DualValidationData.html">sup3r.preprocessing.dual_batch_handling.DualValidationData</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.dual_batch_handling.SpatialDualBatchHandler.html">sup3r.preprocessing.dual_batch_handling.SpatialDualBatchHandler</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.html">sup3r.preprocessing.feature_handling</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.BVFreqMon.html">sup3r.preprocessing.feature_handling.BVFreqMon</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.BVFreqSquaredH5.html">sup3r.preprocessing.feature_handling.BVFreqSquaredH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.BVFreqSquaredNC.html">sup3r.preprocessing.feature_handling.BVFreqSquaredNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.ClearSkyRatioCC.html">sup3r.preprocessing.feature_handling.ClearSkyRatioCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.ClearSkyRatioH5.html">sup3r.preprocessing.feature_handling.ClearSkyRatioH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.CloudMaskH5.html">sup3r.preprocessing.feature_handling.CloudMaskH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.DerivedFeature.html">sup3r.preprocessing.feature_handling.DerivedFeature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Feature.html">sup3r.preprocessing.feature_handling.Feature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.FeatureHandler.html">sup3r.preprocessing.feature_handling.FeatureHandler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.InverseMonNC.html">sup3r.preprocessing.feature_handling.InverseMonNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.LatLonH5.html">sup3r.preprocessing.feature_handling.LatLonH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.LatLonNC.html">sup3r.preprocessing.feature_handling.LatLonNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.PotentialTempNC.html">sup3r.preprocessing.feature_handling.PotentialTempNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.PressureNC.html">sup3r.preprocessing.feature_handling.PressureNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Rews.html">sup3r.preprocessing.feature_handling.Rews</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Shear.html">sup3r.preprocessing.feature_handling.Shear</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Tas.html">sup3r.preprocessing.feature_handling.Tas</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.TasMax.html">sup3r.preprocessing.feature_handling.TasMax</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.TasMin.html">sup3r.preprocessing.feature_handling.TasMin</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.TempNC.html">sup3r.preprocessing.feature_handling.TempNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.TempNCforCC.html">sup3r.preprocessing.feature_handling.TempNCforCC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.TopoH5.html">sup3r.preprocessing.feature_handling.TopoH5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.UWind.html">sup3r.preprocessing.feature_handling.UWind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.UWindPowerLaw.html">sup3r.preprocessing.feature_handling.UWindPowerLaw</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.VWind.html">sup3r.preprocessing.feature_handling.VWind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.VWindPowerLaw.html">sup3r.preprocessing.feature_handling.VWindPowerLaw</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Veer.html">sup3r.preprocessing.feature_handling.Veer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.Vorticity.html">sup3r.preprocessing.feature_handling.Vorticity</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.WinddirectionNC.html">sup3r.preprocessing.feature_handling.WinddirectionNC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.preprocessing.feature_handling.WindspeedNC.html">sup3r.preprocessing.feature_handling.WindspeedNC</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.qa.html">sup3r.qa</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.qa.qa.html">sup3r.qa.qa</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.qa.Sup3rQa.html">sup3r.qa.qa.Sup3rQa</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.qa.qa_cli.html">sup3r.qa.qa_cli</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.qa.stats.html">sup3r.qa.stats</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.stats.Sup3rStatsBase.html">sup3r.qa.stats.Sup3rStatsBase</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.stats.Sup3rStatsCompute.html">sup3r.qa.stats.Sup3rStatsCompute</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.stats.Sup3rStatsMulti.html">sup3r.qa.stats.Sup3rStatsMulti</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.stats.Sup3rStatsSingle.html">sup3r.qa.stats.Sup3rStatsSingle</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.qa.stats_cli.html">sup3r.qa.stats_cli</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.html">sup3r.qa.utilities</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.continuous_dist.html">sup3r.qa.utilities.continuous_dist</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.direct_dist.html">sup3r.qa.utilities.direct_dist</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.frequency_spectrum.html">sup3r.qa.utilities.frequency_spectrum</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.gradient_dist.html">sup3r.qa.utilities.gradient_dist</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.time_derivative_dist.html">sup3r.qa.utilities.time_derivative_dist</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.tke_frequency_spectrum.html">sup3r.qa.utilities.tke_frequency_spectrum</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.tke_wavenumber_spectrum.html">sup3r.qa.utilities.tke_wavenumber_spectrum</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.utilities.wavenumber_spectrum.html">sup3r.qa.utilities.wavenumber_spectrum</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.qa.visual_qa.html">sup3r.qa.visual_qa</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.qa.visual_qa.Sup3rVisualQa.html">sup3r.qa.visual_qa.Sup3rVisualQa</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.qa.visual_qa_cli.html">sup3r.qa.visual_qa_cli</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.solar.html">sup3r.solar</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.solar.solar.html">sup3r.solar.solar</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.solar.solar.Solar.html">sup3r.solar.solar.Solar</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.solar.solar_cli.html">sup3r.solar.solar_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.solar.solar_cli.kickoff_local_job.html">sup3r.solar.solar_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.solar.solar_cli.kickoff_slurm_job.html">sup3r.solar.solar_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.html">sup3r.utilities</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.ModuleName.html">sup3r.utilities.ModuleName</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.ModuleName.html#sup3r.utilities.ModuleName"><code class="docutils literal notranslate"><span class="pre">ModuleName</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.cli.html">sup3r.utilities.cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.cli.BaseCLI.html">sup3r.utilities.cli.BaseCLI</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.cli.SlurmManager.html">sup3r.utilities.cli.SlurmManager</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.era_downloader.html">sup3r.utilities.era_downloader</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.era_downloader.EraDownloader.html">sup3r.utilities.era_downloader.EraDownloader</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.execution.html">sup3r.utilities.execution</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.execution.DistributedProcess.html">sup3r.utilities.execution.DistributedProcess</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.interpolate_log_profile.html">sup3r.utilities.interpolate_log_profile</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.interpolate_log_profile.LogLinInterpolator.html">sup3r.utilities.interpolate_log_profile.LogLinInterpolator</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.interpolation.html">sup3r.utilities.interpolation</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.interpolation.Interpolator.html">sup3r.utilities.interpolation.Interpolator</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.html">sup3r.utilities.loss_metrics</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.gaussian_kernel.html">sup3r.utilities.loss_metrics.gaussian_kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.CoarseMseLoss.html">sup3r.utilities.loss_metrics.CoarseMseLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.ExpLoss.html">sup3r.utilities.loss_metrics.ExpLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.LowResLoss.html">sup3r.utilities.loss_metrics.LowResLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.MaterialDerivativeLoss.html">sup3r.utilities.loss_metrics.MaterialDerivativeLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.MmdLoss.html">sup3r.utilities.loss_metrics.MmdLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.MmdMseLoss.html">sup3r.utilities.loss_metrics.MmdMseLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.MseExpLoss.html">sup3r.utilities.loss_metrics.MseExpLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.SpatialExtremesLoss.html">sup3r.utilities.loss_metrics.SpatialExtremesLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.SpatialExtremesOnlyLoss.html">sup3r.utilities.loss_metrics.SpatialExtremesOnlyLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.SpatialFftOnlyLoss.html">sup3r.utilities.loss_metrics.SpatialFftOnlyLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.SpatiotemporalExtremesLoss.html">sup3r.utilities.loss_metrics.SpatiotemporalExtremesLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.SpatiotemporalFftOnlyLoss.html">sup3r.utilities.loss_metrics.SpatiotemporalFftOnlyLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.StExtremesFftLoss.html">sup3r.utilities.loss_metrics.StExtremesFftLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.TemporalExtremesLoss.html">sup3r.utilities.loss_metrics.TemporalExtremesLoss</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.loss_metrics.TemporalExtremesOnlyLoss.html">sup3r.utilities.loss_metrics.TemporalExtremesOnlyLoss</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.html">sup3r.utilities.plotting</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.ax_plot_legend.html">sup3r.utilities.plotting.ax_plot_legend</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.ax_pretty_labels.html">sup3r.utilities.plotting.ax_pretty_labels</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.make_movie.html">sup3r.utilities.plotting.make_movie</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.plot_legend.html">sup3r.utilities.plotting.plot_legend</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.plot_multi_contour.html">sup3r.utilities.plotting.plot_multi_contour</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.plot_single_contour.html">sup3r.utilities.plotting.plot_single_contour</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.plotting.pretty_labels.html">sup3r.utilities.plotting.pretty_labels</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.pytest.html">sup3r.utilities.pytest</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.pytest.make_fake_cs_ratio_files.html">sup3r.utilities.pytest.make_fake_cs_ratio_files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.pytest.make_fake_era_files.html">sup3r.utilities.pytest.make_fake_era_files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.pytest.make_fake_h5_chunks.html">sup3r.utilities.pytest.make_fake_h5_chunks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.pytest.make_fake_multi_time_nc_files.html">sup3r.utilities.pytest.make_fake_multi_time_nc_files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.pytest.make_fake_nc_files.html">sup3r.utilities.pytest.make_fake_nc_files</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.regridder.html">sup3r.utilities.regridder</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.regridder.RegridOutput.html">sup3r.utilities.regridder.RegridOutput</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.regridder.Regridder.html">sup3r.utilities.regridder.Regridder</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.regridder.WindRegridder.html">sup3r.utilities.regridder.WindRegridder</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.regridder_cli.html">sup3r.utilities.regridder_cli</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.regridder_cli.kickoff_local_job.html">sup3r.utilities.regridder_cli.kickoff_local_job</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.regridder_cli.kickoff_slurm_job.html">sup3r.utilities.regridder_cli.kickoff_slurm_job</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.html">sup3r.utilities.stitching</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.blend_domains.html">sup3r.utilities.stitching.blend_domains</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.forward_avg.html">sup3r.utilities.stitching.forward_avg</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.get_domain_region.html">sup3r.utilities.stitching.get_domain_region</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.get_files.html">sup3r.utilities.stitching.get_files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.get_handles.html">sup3r.utilities.stitching.get_handles</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.impute_domain.html">sup3r.utilities.stitching.impute_domain</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.prune_levels.html">sup3r.utilities.stitching.prune_levels</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.regrid_main_domain.html">sup3r.utilities.stitching.regrid_main_domain</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.stitch_and_save.html">sup3r.utilities.stitching.stitch_and_save</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.stitch_domains.html">sup3r.utilities.stitching.stitch_domains</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.unstagger_vars.html">sup3r.utilities.stitching.unstagger_vars</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.stitching.Regridder.html">sup3r.utilities.stitching.Regridder</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.html">sup3r.utilities.utilities</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.bvf_squared.html">sup3r.utilities.utilities.bvf_squared</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.correct_path.html">sup3r.utilities.utilities.correct_path</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.daily_temporal_coarsening.html">sup3r.utilities.utilities.daily_temporal_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.daily_time_sampler.html">sup3r.utilities.utilities.daily_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.estimate_max_workers.html">sup3r.utilities.utilities.estimate_max_workers</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.expand_paths.html">sup3r.utilities.utilities.expand_paths</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.forward_average.html">sup3r.utilities.utilities.forward_average</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.generate_random_string.html">sup3r.utilities.utilities.generate_random_string</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_chunk_slices.html">sup3r.utilities.utilities.get_chunk_slices</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_input_handler_class.html">sup3r.utilities.utilities.get_input_handler_class</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_raster_shape.html">sup3r.utilities.utilities.get_raster_shape</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_source_type.html">sup3r.utilities.utilities.get_source_type</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_time_dim_name.html">sup3r.utilities.utilities.get_time_dim_name</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.get_wrf_date_range.html">sup3r.utilities.utilities.get_wrf_date_range</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.gradient_richardson_number.html">sup3r.utilities.utilities.gradient_richardson_number</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.ignore_case_path_fetch.html">sup3r.utilities.utilities.ignore_case_path_fetch</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.inverse_mo_length.html">sup3r.utilities.utilities.inverse_mo_length</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.invert_pot_temp.html">sup3r.utilities.utilities.invert_pot_temp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.invert_uv.html">sup3r.utilities.utilities.invert_uv</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.lat_lon_coarsening.html">sup3r.utilities.utilities.lat_lon_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.nn_fill_array.html">sup3r.utilities.utilities.nn_fill_array</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.np_to_pd_times.html">sup3r.utilities.utilities.np_to_pd_times</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.nsrdb_reduce_daily_data.html">sup3r.utilities.utilities.nsrdb_reduce_daily_data</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.nsrdb_sub_daily_sampler.html">sup3r.utilities.utilities.nsrdb_sub_daily_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.pd_date_range.html">sup3r.utilities.utilities.pd_date_range</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.potential_temperature.html">sup3r.utilities.utilities.potential_temperature</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.potential_temperature_average.html">sup3r.utilities.utilities.potential_temperature_average</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.potential_temperature_difference.html">sup3r.utilities.utilities.potential_temperature_difference</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.rotor_area.html">sup3r.utilities.utilities.rotor_area</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.rotor_equiv_ws.html">sup3r.utilities.utilities.rotor_equiv_ws</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.round_array.html">sup3r.utilities.utilities.round_array</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.smooth_data.html">sup3r.utilities.utilities.smooth_data</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.spatial_coarsening.html">sup3r.utilities.utilities.spatial_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.spatial_simple_enhancing.html">sup3r.utilities.utilities.spatial_simple_enhancing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.st_interp.html">sup3r.utilities.utilities.st_interp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.temporal_coarsening.html">sup3r.utilities.utilities.temporal_coarsening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.temporal_simple_enhancing.html">sup3r.utilities.utilities.temporal_simple_enhancing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.transform_rotate_wind.html">sup3r.utilities.utilities.transform_rotate_wind</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.uniform_box_sampler.html">sup3r.utilities.utilities.uniform_box_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.uniform_time_sampler.html">sup3r.utilities.utilities.uniform_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.vorticity_calc.html">sup3r.utilities.utilities.vorticity_calc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.weighted_box_sampler.html">sup3r.utilities.utilities.weighted_box_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.weighted_time_sampler.html">sup3r.utilities.utilities.weighted_time_sampler</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.windspeed_log_law.html">sup3r.utilities.utilities.windspeed_log_law</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../_autosummary/sup3r.utilities.utilities.Timer.html">sup3r.utilities.utilities.Timer</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../_cli/cli.html">CLI reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../_cli/sup3r.html">sup3r</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-batch">batch</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-bias-calc">bias-calc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-data-collect">data-collect</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-data-extract">data-extract</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-forward-pass">forward-pass</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-pipeline">pipeline</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-qa">qa</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-regrid">regrid</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-solar">solar</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-stats">stats</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../_cli/sup3r.html#sup3r-visual-qa">visual-qa</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">sup3r</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">sup3r.bias.qdm</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for sup3r.bias.qdm</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;QDM related methods to correct and bias and trend</span>
+
+<span class="sd">Procedures to apply Quantile Delta Method correction and derived methods such</span>
+<span class="sd">as PresRat.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">concurrent.futures</span> <span class="kn">import</span> <span class="n">ProcessPoolExecutor</span><span class="p">,</span> <span class="n">as_completed</span>
+
+<span class="kn">import</span> <span class="nn">h5py</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">rex.utilities.bc_utils</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">QuantileDeltaMapping</span><span class="p">,</span>
+    <span class="n">sample_q_invlog</span><span class="p">,</span>
+    <span class="n">sample_q_linear</span><span class="p">,</span>
+    <span class="n">sample_q_log</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span>
+
+<span class="kn">from</span> <span class="nn">sup3r.preprocessing.data_handling.base</span> <span class="kn">import</span> <span class="n">DataHandler</span>
+<span class="kn">from</span> <span class="nn">sup3r.utilities.utilities</span> <span class="kn">import</span> <span class="n">expand_paths</span>
+<span class="kn">from</span> <span class="nn">.bias_calc</span> <span class="kn">import</span> <span class="n">DataRetrievalBase</span>
+<span class="kn">from</span> <span class="nn">.mixins</span> <span class="kn">import</span> <span class="n">FillAndSmoothMixin</span><span class="p">,</span> <span class="n">ZeroRateMixin</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="QuantileDeltaMappingCorrection">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.bias.qdm.QuantileDeltaMappingCorrection.html#sup3r.bias.qdm.QuantileDeltaMappingCorrection">[docs]</a>
+<span class="k">class</span> <span class="nc">QuantileDeltaMappingCorrection</span><span class="p">(</span><span class="n">FillAndSmoothMixin</span><span class="p">,</span> <span class="n">DataRetrievalBase</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Estimate probability distributions required by Quantile Delta Mapping</span>
+
+<span class="sd">    The main purpose of this class is to estimate the probability</span>
+<span class="sd">    distributions required by Quantile Delta Mapping (QDM) ([Cannon2015]_)</span>
+<span class="sd">    technique. Therefore, the name &#39;Correction&#39; can be misleading since it is</span>
+<span class="sd">    not the correction *per se*, but that was used to keep consistency within</span>
+<span class="sd">    this module.</span>
+
+<span class="sd">    The QDM technique corrects bias and trend by comparing the data</span>
+<span class="sd">    distributions of three datasets: a historical reference, a biased</span>
+<span class="sd">    reference, and a biased target to correct (in Cannon et. al. (2015)</span>
+<span class="sd">    called: historical observed, historical modeled, and future modeled</span>
+<span class="sd">    respectively). Those three probability distributions provided here</span>
+<span class="sd">    can be, for instance, used by</span>
+<span class="sd">    :func:`~sup3r.bias.bias_transforms.local_qdm_bc` to actually correct</span>
+<span class="sd">    a dataset.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Default to ~monthly scale centered on every ~15 days</span>
+    <span class="n">NT</span> <span class="o">=</span> <span class="mi">24</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Number of times to calculate QDM parameters in a year&quot;&quot;&quot;</span>
+    <span class="n">WINDOW_SIZE</span> <span class="o">=</span> <span class="mi">30</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Window width in days&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">base_fps</span><span class="p">,</span>
+                 <span class="n">bias_fps</span><span class="p">,</span>
+                 <span class="n">bias_fut_fps</span><span class="p">,</span>
+                 <span class="n">base_dset</span><span class="p">,</span>
+                 <span class="n">bias_feature</span><span class="p">,</span>
+                 <span class="n">distance_upper_bound</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">target</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">shape</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">base_handler</span><span class="o">=</span><span class="s1">&#39;Resource&#39;</span><span class="p">,</span>
+                 <span class="n">bias_handler</span><span class="o">=</span><span class="s1">&#39;DataHandlerNCforCC&#39;</span><span class="p">,</span>
+                 <span class="n">base_handler_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">bias_handler_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">decimals</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">match_zero_rate</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                 <span class="n">n_quantiles</span><span class="o">=</span><span class="mi">101</span><span class="p">,</span>
+                 <span class="n">dist</span><span class="o">=</span><span class="s1">&#39;empirical&#39;</span><span class="p">,</span>
+                 <span class="n">relative</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">sampling</span><span class="o">=</span><span class="s1">&#39;linear&#39;</span><span class="p">,</span>
+                 <span class="n">log_base</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+                 <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        base_fps : list | str</span>
+<span class="sd">            One or more baseline .h5 filepaths representing non-biased data to</span>
+<span class="sd">            use</span>
+<span class="sd">            to correct the biased dataset (observed historical in Cannon et.</span>
+<span class="sd">            al. (2015)). This is typically several years of WTK or NSRDB files.</span>
+<span class="sd">        bias_fps : list | str</span>
+<span class="sd">            One or more biased .nc or .h5 filepaths representing the biased</span>
+<span class="sd">            data</span>
+<span class="sd">            to be compared with the baseline data (modeled historical in Cannon</span>
+<span class="sd">            et. al. (2015)). This is typically several years of GCM .nc files.</span>
+<span class="sd">        bias_fut_fps : list | str</span>
+<span class="sd">            Consistent data to `bias_fps` but for a different time period</span>
+<span class="sd">            (modeled</span>
+<span class="sd">            future in Cannon et. al. (2015)). This is the dataset that would be</span>
+<span class="sd">            corrected, while `bias_fsp` is used to provide a transformation map</span>
+<span class="sd">            with the baseline data.</span>
+<span class="sd">        base_dset : str</span>
+<span class="sd">            A single dataset from the base_fps to retrieve. In the case of wind</span>
+<span class="sd">            components, this can be U_100m or V_100m which will retrieve</span>
+<span class="sd">            windspeed and winddirection and derive the U/V component.</span>
+<span class="sd">        bias_feature : str</span>
+<span class="sd">            This is the biased feature from bias_fps to retrieve. This should</span>
+<span class="sd">            be a single feature name corresponding to base_dset</span>
+<span class="sd">        distance_upper_bound : float</span>
+<span class="sd">            Upper bound on the nearest neighbor distance in decimal degrees.</span>
+<span class="sd">            This should be the approximate resolution of the low-resolution</span>
+<span class="sd">            bias data. None (default) will calculate this based on the median</span>
+<span class="sd">            distance between points in bias_fps</span>
+<span class="sd">        target : tuple</span>
+<span class="sd">            (lat, lon) lower left corner of raster to retrieve from bias_fps.</span>
+<span class="sd">            If None then the lower left corner of the full domain will be used.</span>
+<span class="sd">        shape : tuple</span>
+<span class="sd">            (rows, cols) grid size to retrieve from bias_fps. If None then the</span>
+<span class="sd">            full domain shape will be used.</span>
+<span class="sd">        base_handler : str</span>
+<span class="sd">            Name of rex resource handler or sup3r.preprocessing.data_handling</span>
+<span class="sd">            class to be retrieved from the rex/sup3r library. If a</span>
+<span class="sd">            sup3r.preprocessing.data_handling class is used, all data will be</span>
+<span class="sd">            loaded in this class&#39; initialization and the subsequent bias</span>
+<span class="sd">            calculation will be done in serial</span>
+<span class="sd">        bias_handler : str</span>
+<span class="sd">            Name of the bias data handler class to be retrieved from the</span>
+<span class="sd">            sup3r.preprocessing.data_handling library.</span>
+<span class="sd">        base_handler_kwargs : dict | None</span>
+<span class="sd">            Optional kwargs to send to the initialization of the base_handler</span>
+<span class="sd">            class</span>
+<span class="sd">        bias_handler_kwargs : dict | None</span>
+<span class="sd">            Optional kwargs to send to the initialization of the bias_handler</span>
+<span class="sd">            class</span>
+<span class="sd">        decimals : int | None</span>
+<span class="sd">            Option to round bias and base data to this number of</span>
+<span class="sd">            decimals, this gets passed to np.around(). If decimals</span>
+<span class="sd">            is negative, it specifies the number of positions to</span>
+<span class="sd">            the left of the decimal point.</span>
+<span class="sd">        match_zero_rate : bool</span>
+<span class="sd">            Option to fix the frequency of zero values in the biased data. The</span>
+<span class="sd">            lowest percentile of values in the biased data will be set to zero</span>
+<span class="sd">            to match the percentile of zeros in the base data. If</span>
+<span class="sd">            SkillAssessment is being run and this is True, the distributions</span>
+<span class="sd">            will not be mean-centered. This helps resolve the issue where</span>
+<span class="sd">            global climate models produce too many days with small</span>
+<span class="sd">            precipitation totals e.g., the &quot;drizzle problem&quot; [Polade2014]_.</span>
+<span class="sd">        dist : str, default=&quot;empirical&quot;,</span>
+<span class="sd">            Define the type of distribution, which can be &quot;empirical&quot; or any</span>
+<span class="sd">            parametric distribution defined in &quot;scipy&quot;.</span>
+<span class="sd">        n_quantiles : int, default=101</span>
+<span class="sd">            Defines the number of quantiles (between 0 and 1) for an empirical</span>
+<span class="sd">            distribution.</span>
+<span class="sd">        sampling : str, default=&quot;linear&quot;,</span>
+<span class="sd">            Defines how the quantiles are sampled. For instance, &#39;linear&#39; will</span>
+<span class="sd">            result in a linearly spaced quantiles. Other options are: &#39;log&#39;</span>
+<span class="sd">            and &#39;invlog&#39;.</span>
+<span class="sd">        log_base : int or float, default=10</span>
+<span class="sd">            Log base value if sampling is &quot;log&quot; or &quot;invlog&quot;.</span>
+
+<span class="sd">        Attributes</span>
+<span class="sd">        ----------</span>
+<span class="sd">        NT : int</span>
+<span class="sd">            Number of times to calculate QDM parameters equally distributed</span>
+<span class="sd">            along a year. For instance, `NT=1` results in a single set of</span>
+<span class="sd">            parameters while `NT=12` is approximately every month.</span>
+<span class="sd">        WINDOW_SIZE : int</span>
+<span class="sd">            Total time window period to be considered for each time QDM is</span>
+<span class="sd">            calculated. For instance, `WINDOW_SIZE=30` with `NT=12` would</span>
+<span class="sd">            result in approximately monthly estimates.</span>
+
+<span class="sd">        See Also</span>
+<span class="sd">        --------</span>
+<span class="sd">        sup3r.bias.bias_transforms.local_qdm_bc :</span>
+<span class="sd">            Bias correction using QDM.</span>
+<span class="sd">        sup3r.preprocessing.data_handling.DataHandler :</span>
+<span class="sd">            Bias correction using QDM directly from a derived handler.</span>
+<span class="sd">        rex.utilities.bc_utils.QuantileDeltaMapping</span>
+<span class="sd">            Quantile Delta Mapping method and support functions. Since</span>
+<span class="sd">            :mod:`rex.utilities.bc_utils` is used here, the arguments</span>
+<span class="sd">            ``dist``, ``n_quantiles``, ``sampling``, and ``log_base``</span>
+<span class="sd">            must be consitent with that package/module.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        One way of using this class is by saving the distributions definitions</span>
+<span class="sd">        obtained here with the method :meth:`.write_outputs` and then use that</span>
+<span class="sd">        file with :func:`~sup3r.bias.bias_transforms.local_qdm_bc` or through</span>
+<span class="sd">        a derived :class:`~sup3r.preprocessing.data_handling.base.DataHandler`.</span>
+<span class="sd">        **ATTENTION**, be careful handling that file of parameters. There is</span>
+<span class="sd">        no checking process and one could missuse the correction estimated for</span>
+<span class="sd">        the wrong dataset.</span>
+
+<span class="sd">        References</span>
+<span class="sd">        ----------</span>
+<span class="sd">        .. [Cannon2015] Cannon, A. J., Sobie, S. R., &amp; Murdock, T. Q. (2015).</span>
+<span class="sd">           Bias correction of GCM precipitation by quantile mapping: how well</span>
+<span class="sd">           do methods preserve changes in quantiles and extremes?. Journal of</span>
+<span class="sd">           Climate, 28(17), 6938-6959.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_quantiles</span> <span class="o">=</span> <span class="n">n_quantiles</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dist</span> <span class="o">=</span> <span class="n">dist</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">relative</span> <span class="o">=</span> <span class="n">relative</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sampling</span> <span class="o">=</span> <span class="n">sampling</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log_base</span> <span class="o">=</span> <span class="n">log_base</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">base_fps</span><span class="o">=</span><span class="n">base_fps</span><span class="p">,</span>
+                         <span class="n">bias_fps</span><span class="o">=</span><span class="n">bias_fps</span><span class="p">,</span>
+                         <span class="n">base_dset</span><span class="o">=</span><span class="n">base_dset</span><span class="p">,</span>
+                         <span class="n">bias_feature</span><span class="o">=</span><span class="n">bias_feature</span><span class="p">,</span>
+                         <span class="n">distance_upper_bound</span><span class="o">=</span><span class="n">distance_upper_bound</span><span class="p">,</span>
+                         <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span>
+                         <span class="n">shape</span><span class="o">=</span><span class="n">shape</span><span class="p">,</span>
+                         <span class="n">base_handler</span><span class="o">=</span><span class="n">base_handler</span><span class="p">,</span>
+                         <span class="n">bias_handler</span><span class="o">=</span><span class="n">bias_handler</span><span class="p">,</span>
+                         <span class="n">base_handler_kwargs</span><span class="o">=</span><span class="n">base_handler_kwargs</span><span class="p">,</span>
+                         <span class="n">bias_handler_kwargs</span><span class="o">=</span><span class="n">bias_handler_kwargs</span><span class="p">,</span>
+                         <span class="n">decimals</span><span class="o">=</span><span class="n">decimals</span><span class="p">,</span>
+                         <span class="n">match_zero_rate</span><span class="o">=</span><span class="n">match_zero_rate</span><span class="p">,</span>
+                         <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">bias_fut_fps</span> <span class="o">=</span> <span class="n">bias_fut_fps</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">bias_fut_fps</span> <span class="o">=</span> <span class="n">expand_paths</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bias_fut_fps</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">bias_fut_dh</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bias_handler</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bias_fut_fps</span><span class="p">,</span>
+                                             <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">bias_feature</span><span class="p">],</span>
+                                             <span class="n">target</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">target</span><span class="p">,</span>
+                                             <span class="n">shape</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span>
+                                             <span class="n">val_split</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+                                             <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">bias_handler_kwargs</span><span class="p">,</span>
+                                             <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_init_out</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize output arrays `self.out`</span>
+
+<span class="sd">        Three datasets are saved here with information to reconstruct the</span>
+<span class="sd">        probability distributions for the three datasets (see class</span>
+<span class="sd">        documentation).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">keys</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;bias_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">bias_feature</span><span class="si">}</span><span class="s1">_params&#39;</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s1">&#39;bias_fut_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">bias_feature</span><span class="si">}</span><span class="s1">_params&#39;</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s1">&#39;base_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">base_dset</span><span class="si">}</span><span class="s1">_params&#39;</span><span class="p">,</span>
+                <span class="p">]</span>
+        <span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">bias_gid_raster</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">NT</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_quantiles</span><span class="p">)</span>
+        <span class="n">arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">out</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">arr</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">keys</span><span class="p">}</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">time_window_center</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_window_center</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">NT</span><span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_window_center</span><span class="p">(</span><span class="n">ntimes</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;A sequence of equally spaced `ntimes` day of year</span>
+
+<span class="sd">        This is used to identify the center of moving windows to apply filters</span>
+<span class="sd">        and masks. For instance, if `ntimes` equal to 12, it would return</span>
+<span class="sd">        12 equal periods, i.e. approximately the months&#39; center time.</span>
+
+<span class="sd">        This is conveniently shifted one half time interval so that December</span>
+<span class="sd">        31st would be closest to the last interval of the year instead of the</span>
+<span class="sd">        first.</span>
+
+<span class="sd">        Leap years are neglected, but if processed here, the doy 366 is</span>
+<span class="sd">        included in the relevant windows as an extra data, which would</span>
+<span class="sd">        cause a negligible error.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ntimes : int</span>
+<span class="sd">            Number of intervals in one year. Choose 12 for approximately</span>
+<span class="sd">            monthly time scales.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        np.ndarray :</span>
+<span class="sd">            Sequence of days of the year equally spaced and shifted by half</span>
+<span class="sd">            window size, thus `ntimes`=12 results in approximately [15, 45,</span>
+<span class="sd">            ...]. It includes the fraction of a day, thus 15.5 is equivalent</span>
+<span class="sd">            to January 15th, 12:00h.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="n">ntimes</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Requires a positive number of intervals&quot;</span>
+
+        <span class="n">dt</span> <span class="o">=</span> <span class="mi">365</span> <span class="o">/</span> <span class="n">ntimes</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">dt</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">366</span><span class="p">,</span> <span class="n">dt</span><span class="p">)</span>
+
+    <span class="c1"># pylint: disable=W0613</span>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_run_single</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span>
+                    <span class="n">bias_data</span><span class="p">,</span>
+                    <span class="n">bias_fut_data</span><span class="p">,</span>
+                    <span class="n">base_fps</span><span class="p">,</span>
+                    <span class="n">bias_feature</span><span class="p">,</span>
+                    <span class="n">base_dset</span><span class="p">,</span>
+                    <span class="n">base_gid</span><span class="p">,</span>
+                    <span class="n">base_handler</span><span class="p">,</span>
+                    <span class="n">daily_reduction</span><span class="p">,</span>
+                    <span class="o">*</span><span class="p">,</span>
+                    <span class="n">bias_ti</span><span class="p">,</span>
+                    <span class="n">bias_fut_ti</span><span class="p">,</span>
+                    <span class="n">decimals</span><span class="p">,</span>
+                    <span class="n">dist</span><span class="p">,</span>
+                    <span class="n">relative</span><span class="p">,</span>
+                    <span class="n">sampling</span><span class="p">,</span>
+                    <span class="n">n_samples</span><span class="p">,</span>
+                    <span class="n">log_base</span><span class="p">,</span>
+                    <span class="n">base_dh_inst</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Estimate probability distributions at a single site&quot;&quot;&quot;</span>
+
+        <span class="n">base_data</span><span class="p">,</span> <span class="n">base_ti</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">get_base_data</span><span class="p">(</span><span class="n">base_fps</span><span class="p">,</span>
+                                               <span class="n">base_dset</span><span class="p">,</span>
+                                               <span class="n">base_gid</span><span class="p">,</span>
+                                               <span class="n">base_handler</span><span class="p">,</span>
+                                               <span class="n">daily_reduction</span><span class="o">=</span><span class="n">daily_reduction</span><span class="p">,</span>
+                                               <span class="n">decimals</span><span class="o">=</span><span class="n">decimals</span><span class="p">,</span>
+                                               <span class="n">base_dh_inst</span><span class="o">=</span><span class="n">base_dh_inst</span><span class="p">)</span>
+
+        <span class="n">window_size</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">WINDOW_SIZE</span> <span class="ow">or</span> <span class="mi">365</span> <span class="o">/</span> <span class="bp">cls</span><span class="o">.</span><span class="n">NT</span>
+        <span class="n">window_center</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_window_center</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">NT</span><span class="p">)</span>
+
+        <span class="n">template</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="bp">cls</span><span class="o">.</span><span class="n">NT</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">for</span> <span class="n">nt</span><span class="p">,</span> <span class="n">idt</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">window_center</span><span class="p">):</span>
+            <span class="n">base_idx</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">window_mask</span><span class="p">(</span><span class="n">base_ti</span><span class="o">.</span><span class="n">day_of_year</span><span class="p">,</span> <span class="n">idt</span><span class="p">,</span> <span class="n">window_size</span><span class="p">)</span>
+            <span class="n">bias_idx</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">window_mask</span><span class="p">(</span><span class="n">bias_ti</span><span class="o">.</span><span class="n">day_of_year</span><span class="p">,</span> <span class="n">idt</span><span class="p">,</span> <span class="n">window_size</span><span class="p">)</span>
+            <span class="n">bias_fut_idx</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">window_mask</span><span class="p">(</span><span class="n">bias_fut_ti</span><span class="o">.</span><span class="n">day_of_year</span><span class="p">,</span>
+                                           <span class="n">idt</span><span class="p">,</span>
+                                           <span class="n">window_size</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">base_idx</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span><span class="n">bias_idx</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span><span class="n">bias_fut_idx</span><span class="p">):</span>
+                <span class="n">tmp</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">get_qdm_params</span><span class="p">(</span><span class="n">bias_data</span><span class="p">[</span><span class="n">bias_idx</span><span class="p">],</span>
+                                         <span class="n">bias_fut_data</span><span class="p">[</span><span class="n">bias_fut_idx</span><span class="p">],</span>
+                                         <span class="n">base_data</span><span class="p">[</span><span class="n">base_idx</span><span class="p">],</span>
+                                         <span class="n">bias_feature</span><span class="p">,</span>
+                                         <span class="n">base_dset</span><span class="p">,</span>
+                                         <span class="n">sampling</span><span class="p">,</span>
+                                         <span class="n">n_samples</span><span class="p">,</span>
+                                         <span class="n">log_base</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">tmp</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">out</span><span class="p">:</span>
+                        <span class="n">out</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+                    <span class="n">out</span><span class="p">[</span><span class="n">k</span><span class="p">][(</span><span class="n">nt</span><span class="p">),</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">v</span>
+
+        <span class="k">return</span> <span class="n">out</span>
+
+<div class="viewcode-block" id="QuantileDeltaMappingCorrection.get_qdm_params">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.bias.qdm.QuantileDeltaMappingCorrection.html#sup3r.bias.qdm.QuantileDeltaMappingCorrection.get_qdm_params">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">get_qdm_params</span><span class="p">(</span><span class="n">bias_data</span><span class="p">,</span>
+                       <span class="n">bias_fut_data</span><span class="p">,</span>
+                       <span class="n">base_data</span><span class="p">,</span>
+                       <span class="n">bias_feature</span><span class="p">,</span>
+                       <span class="n">base_dset</span><span class="p">,</span>
+                       <span class="n">sampling</span><span class="p">,</span>
+                       <span class="n">n_samples</span><span class="p">,</span>
+                       <span class="n">log_base</span><span class="p">,</span>
+                       <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get quantiles&#39; cut point for given datasets</span>
+
+<span class="sd">        Estimate the quantiles&#39; cut points for each of the three given</span>
+<span class="sd">        datasets. Lacking a good analytical approximation, such as one of</span>
+<span class="sd">        the parametric distributions, those quantiles can be used to</span>
+<span class="sd">        approximate the statistical distribution of those datasets.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        bias_data : np.ndarray</span>
+<span class="sd">            1D array of biased data observations.</span>
+<span class="sd">        bias_fut_data : np.ndarray</span>
+<span class="sd">            1D array of biased data observations.</span>
+<span class="sd">        base_data : np.ndarray</span>
+<span class="sd">            1D array of base data observations.</span>
+<span class="sd">        bias_feature : str</span>
+<span class="sd">            This is the biased feature from bias_fps to retrieve. This should</span>
+<span class="sd">            be a single feature name corresponding to base_dset.</span>
+<span class="sd">        base_dset : str</span>
+<span class="sd">            A single dataset from the base_fps to retrieve. In the case of wind</span>
+<span class="sd">            components, this can be U_100m or V_100m which will retrieve</span>
+<span class="sd">            windspeed and winddirection and derive the U/V component.</span>
+<span class="sd">        sampling : str</span>
+<span class="sd">            Defines how the quantiles are sampled. For instance, &#39;linear&#39; will</span>
+<span class="sd">            result in a linearly spaced quantiles. Other options are: &#39;log&#39;</span>
+<span class="sd">            and &#39;invlog&#39;.</span>
+<span class="sd">        n_samples : int</span>
+<span class="sd">            Number of points to sample between 0 and 1, i.e. number of</span>
+<span class="sd">            quantiles.</span>
+<span class="sd">        log_base : int | float</span>
+<span class="sd">            Log base value.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        out : dict</span>
+<span class="sd">            Dictionary of the quantiles&#39; cut points. Note that to make sense</span>
+<span class="sd">            of those cut point values, one need to know the given arguments</span>
+<span class="sd">            such as `log_base`. For instance, the sequence [-1, 0, 2] are,</span>
+<span class="sd">            if sampling was linear, the minimum, median, and maximum values</span>
+<span class="sd">            respectively. The expected keys are &quot;bias_{bias_feature}_params&quot;,</span>
+<span class="sd">            &quot;bias_fut_{bias_feature}_params&quot;, and &quot;base_{base_dset}_params&quot;.</span>
+
+<span class="sd">        See Also</span>
+<span class="sd">        --------</span>
+<span class="sd">        rex.utilities.bc_utils : Sampling scales, such as `sample_q_linear()`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">sampling</span> <span class="o">==</span> <span class="s1">&#39;linear&#39;</span><span class="p">:</span>
+            <span class="n">quantiles</span> <span class="o">=</span> <span class="n">sample_q_linear</span><span class="p">(</span><span class="n">n_samples</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">sampling</span> <span class="o">==</span> <span class="s1">&#39;log&#39;</span><span class="p">:</span>
+            <span class="n">quantiles</span> <span class="o">=</span> <span class="n">sample_q_log</span><span class="p">(</span><span class="n">n_samples</span><span class="p">,</span> <span class="n">log_base</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">sampling</span> <span class="o">==</span> <span class="s1">&#39;invlog&#39;</span><span class="p">:</span>
+            <span class="n">quantiles</span> <span class="o">=</span> <span class="n">sample_q_invlog</span><span class="p">(</span><span class="n">n_samples</span><span class="p">,</span> <span class="n">log_base</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;sampling option must be linear, log, or invlog, but &#39;</span>
+                   <span class="s1">&#39;received: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">sampling</span><span class="p">)</span>
+                   <span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+        <span class="n">out</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="sa">f</span><span class="s1">&#39;bias_</span><span class="si">{</span><span class="n">bias_feature</span><span class="si">}</span><span class="s1">_params&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">quantile</span><span class="p">(</span><span class="n">bias_data</span><span class="p">,</span> <span class="n">quantiles</span><span class="p">),</span>
+            <span class="sa">f</span><span class="s1">&#39;bias_fut_</span><span class="si">{</span><span class="n">bias_feature</span><span class="si">}</span><span class="s1">_params&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">quantile</span><span class="p">(</span><span class="n">bias_fut_data</span><span class="p">,</span>
+                                                           <span class="n">quantiles</span><span class="p">),</span>
+            <span class="sa">f</span><span class="s1">&#39;base_</span><span class="si">{</span><span class="n">base_dset</span><span class="si">}</span><span class="s1">_params&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">quantile</span><span class="p">(</span><span class="n">base_data</span><span class="p">,</span> <span class="n">quantiles</span><span class="p">),</span>
+        <span class="p">}</span>
+
+        <span class="k">return</span> <span class="n">out</span></div>
+
+
+<div class="viewcode-block" id="QuantileDeltaMappingCorrection.write_outputs">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.bias.qdm.QuantileDeltaMappingCorrection.html#sup3r.bias.qdm.QuantileDeltaMappingCorrection.write_outputs">[docs]</a>
+    <span class="k">def</span> <span class="nf">write_outputs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fp_out</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Write outputs to an .h5 file.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        fp_out : str | None</span>
+<span class="sd">            An HDF5 filename to write the estimated statistical distributions.</span>
+<span class="sd">        out : dict, optional</span>
+<span class="sd">            A dictionary with the three statistical distribution parameters.</span>
+<span class="sd">            If not given, it uses :attr:`.out`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">out</span> <span class="o">=</span> <span class="n">out</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">out</span>
+
+        <span class="k">if</span> <span class="n">fp_out</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">fp_out</span><span class="p">)):</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">fp_out</span><span class="p">),</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+            <span class="k">with</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">fp_out</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="c1"># pylint: disable=E1136</span>
+                <span class="n">lat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bias_dh</span><span class="o">.</span><span class="n">lat_lon</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+                <span class="n">lon</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bias_dh</span><span class="o">.</span><span class="n">lat_lon</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="s1">&#39;latitude&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">lat</span><span class="p">)</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="s1">&#39;longitude&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">lon</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">dset</span><span class="p">,</span> <span class="n">data</span> <span class="ow">in</span> <span class="n">out</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="n">dset</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">)</span>
+
+                <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;dist&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dist</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;sampling&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sampling</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;log_base&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">log_base</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;base_fps&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">base_fps</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;bias_fps&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bias_fps</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;bias_fut_fps&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bias_fut_fps</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;time_window_center&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">time_window_center</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s1">&#39;Wrote quantiles to file: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">fp_out</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="QuantileDeltaMappingCorrection.run">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.bias.qdm.QuantileDeltaMappingCorrection.html#sup3r.bias.qdm.QuantileDeltaMappingCorrection.run">[docs]</a>
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+            <span class="n">fp_out</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">max_workers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">daily_reduction</span><span class="o">=</span><span class="s1">&#39;avg&#39;</span><span class="p">,</span>
+            <span class="n">fill_extend</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">smooth_extend</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+            <span class="n">smooth_interior</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+            <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Estimate the statistical distributions for each location</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        fp_out : str | None</span>
+<span class="sd">            Optional .h5 output file to write scalar and adder arrays.</span>
+<span class="sd">        max_workers : int, optional</span>
+<span class="sd">            Number of workers to run in parallel. 1 is serial and None is all</span>
+<span class="sd">            available.</span>
+<span class="sd">        daily_reduction : None | str</span>
+<span class="sd">            Option to do a reduction of the hourly+ source base data to daily</span>
+<span class="sd">            data. Can be None (no reduction, keep source time frequency), &quot;avg&quot;</span>
+<span class="sd">            (daily average), &quot;max&quot; (daily max), &quot;min&quot; (daily min),</span>
+<span class="sd">            &quot;sum&quot; (daily sum/total)</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        out : dict</span>
+<span class="sd">            Dictionary with parameters defining the statistical distributions</span>
+<span class="sd">            for each of the three given datasets. Each value has dimensions</span>
+<span class="sd">            (lat, lon, n-parameters).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Calculate CDF parameters for QDM&#39;</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Initialized params with shape: </span><span class="si">{}</span><span class="s1">&#39;</span>
+                    <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bias_gid_raster</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bad_bias_gids</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1"># sup3r DataHandler opening base files will load all data in parallel</span>
+        <span class="c1"># during the init and should not be passed in parallel to workers</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">base_dh</span><span class="p">,</span> <span class="n">DataHandler</span><span class="p">):</span>
+            <span class="n">max_workers</span> <span class="o">=</span> <span class="mi">1</span>
+
+        <span class="k">if</span> <span class="n">max_workers</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Running serial calculation.&#39;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">bias_gid</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bias_meta</span><span class="o">.</span><span class="n">index</span><span class="p">):</span>
+                <span class="n">raster_loc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bias_gid_raster</span> <span class="o">==</span> <span class="n">bias_gid</span><span class="p">)</span>
+                <span class="n">_</span><span class="p">,</span> <span class="n">base_gid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_base_gid</span><span class="p">(</span><span class="n">bias_gid</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">base_gid</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">bad_bias_gids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">bias_gid</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;No base data for bias_gid: </span><span class="si">{</span><span class="n">bias_gid</span><span class="si">}</span><span class="s1">. &#39;</span>
+                                 <span class="s1">&#39;Adding it to bad_bias_gids&#39;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">bias_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_bias_data</span><span class="p">(</span><span class="n">bias_gid</span><span class="p">)</span>
+                    <span class="n">bias_fut_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_bias_data</span><span class="p">(</span><span class="n">bias_gid</span><span class="p">,</span>
+                                                       <span class="bp">self</span><span class="o">.</span><span class="n">bias_fut_dh</span><span class="p">)</span>
+                    <span class="n">single_out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_single</span><span class="p">(</span>
+                        <span class="n">bias_data</span><span class="p">,</span>
+                        <span class="n">bias_fut_data</span><span class="p">,</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">base_fps</span><span class="p">,</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">bias_feature</span><span class="p">,</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">base_dset</span><span class="p">,</span>
+                        <span class="n">base_gid</span><span class="p">,</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">base_handler</span><span class="p">,</span>
+                        <span class="n">daily_reduction</span><span class="p">,</span>
+                        <span class="n">bias_ti</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bias_fut_dh</span><span class="o">.</span><span class="n">time_index</span><span class="p">,</span>
+                        <span class="n">bias_fut_ti</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bias_fut_dh</span><span class="o">.</span><span class="n">time_index</span><span class="p">,</span>
+                        <span class="n">decimals</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">decimals</span><span class="p">,</span>
+                        <span class="n">dist</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dist</span><span class="p">,</span>
+                        <span class="n">relative</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">relative</span><span class="p">,</span>
+                        <span class="n">sampling</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sampling</span><span class="p">,</span>
+                        <span class="n">n_samples</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_quantiles</span><span class="p">,</span>
+                        <span class="n">log_base</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">log_base</span><span class="p">,</span>
+                        <span class="n">base_dh_inst</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">base_dh</span><span class="p">,</span>
+                    <span class="p">)</span>
+                    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">arr</span> <span class="ow">in</span> <span class="n">single_out</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">out</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="n">raster_loc</span><span class="p">]</span> <span class="o">=</span> <span class="n">arr</span>
+
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Completed bias calculations for </span><span class="si">{}</span><span class="s1"> out of </span><span class="si">{}</span><span class="s1"> &#39;</span>
+                            <span class="s1">&#39;sites&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bias_meta</span><span class="p">)))</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                <span class="s1">&#39;Running parallel calculation with </span><span class="si">{}</span><span class="s1"> workers.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">max_workers</span><span class="p">))</span>
+            <span class="k">with</span> <span class="n">ProcessPoolExecutor</span><span class="p">(</span><span class="n">max_workers</span><span class="o">=</span><span class="n">max_workers</span><span class="p">)</span> <span class="k">as</span> <span class="n">exe</span><span class="p">:</span>
+                <span class="n">futures</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="k">for</span> <span class="n">bias_gid</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bias_meta</span><span class="o">.</span><span class="n">index</span><span class="p">:</span>
+                    <span class="n">raster_loc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bias_gid_raster</span> <span class="o">==</span> <span class="n">bias_gid</span><span class="p">)</span>
+                    <span class="n">_</span><span class="p">,</span> <span class="n">base_gid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_base_gid</span><span class="p">(</span><span class="n">bias_gid</span><span class="p">)</span>
+
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">base_gid</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">bad_bias_gids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">bias_gid</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">bias_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_bias_data</span><span class="p">(</span><span class="n">bias_gid</span><span class="p">)</span>
+                        <span class="n">bias_fut_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_bias_data</span><span class="p">(</span><span class="n">bias_gid</span><span class="p">,</span>
+                                                           <span class="bp">self</span><span class="o">.</span><span class="n">bias_fut_dh</span><span class="p">)</span>
+                        <span class="n">future</span> <span class="o">=</span> <span class="n">exe</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">_run_single</span><span class="p">,</span>
+                            <span class="n">bias_data</span><span class="p">,</span>
+                            <span class="n">bias_fut_data</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">base_fps</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">bias_feature</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">base_dset</span><span class="p">,</span>
+                            <span class="n">base_gid</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">base_handler</span><span class="p">,</span>
+                            <span class="n">daily_reduction</span><span class="p">,</span>
+                            <span class="n">bias_ti</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bias_fut_dh</span><span class="o">.</span><span class="n">time_index</span><span class="p">,</span>
+                            <span class="n">bias_fut_ti</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bias_fut_dh</span><span class="o">.</span><span class="n">time_index</span><span class="p">,</span>
+                            <span class="n">decimals</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">decimals</span><span class="p">,</span>
+                            <span class="n">dist</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dist</span><span class="p">,</span>
+                            <span class="n">relative</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">relative</span><span class="p">,</span>
+                            <span class="n">sampling</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sampling</span><span class="p">,</span>
+                            <span class="n">n_samples</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_quantiles</span><span class="p">,</span>
+                            <span class="n">log_base</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">log_base</span><span class="p">,</span>
+                        <span class="p">)</span>
+                        <span class="n">futures</span><span class="p">[</span><span class="n">future</span><span class="p">]</span> <span class="o">=</span> <span class="n">raster_loc</span>
+
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Finished launching futures.&#39;</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">future</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">as_completed</span><span class="p">(</span><span class="n">futures</span><span class="p">)):</span>
+                    <span class="n">raster_loc</span> <span class="o">=</span> <span class="n">futures</span><span class="p">[</span><span class="n">future</span><span class="p">]</span>
+                    <span class="n">single_out</span> <span class="o">=</span> <span class="n">future</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
+                    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">arr</span> <span class="ow">in</span> <span class="n">single_out</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">out</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="n">raster_loc</span><span class="p">]</span> <span class="o">=</span> <span class="n">arr</span>
+
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Completed bias calculations for </span><span class="si">{}</span><span class="s1"> out of </span><span class="si">{}</span><span class="s1"> &#39;</span>
+                                <span class="s1">&#39;sites&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">futures</span><span class="p">)))</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Finished calculating bias correction factors.&#39;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fill_and_smooth</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">out</span><span class="p">,</span> <span class="n">fill_extend</span><span class="p">,</span> <span class="n">smooth_extend</span><span class="p">,</span>
+                                        <span class="n">smooth_interior</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">write_outputs</span><span class="p">(</span><span class="n">fp_out</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">out</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">out</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="QuantileDeltaMappingCorrection.window_mask">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.bias.qdm.QuantileDeltaMappingCorrection.html#sup3r.bias.qdm.QuantileDeltaMappingCorrection.window_mask">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">window_mask</span><span class="p">(</span><span class="n">doy</span><span class="p">,</span> <span class="n">d0</span><span class="p">,</span> <span class="n">window_size</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;An index of elements within a given time window</span>
+
+<span class="sd">        Create an index of days of the year within the target time window. It</span>
+<span class="sd">        only considers the day of the year (doy), hence, it is limited to time</span>
+<span class="sd">        scales smaller than annual.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        doy : np.ndarray</span>
+<span class="sd">            An unordered array of days of year, i.e. January 1st is 1.</span>
+<span class="sd">        d0 : int</span>
+<span class="sd">            Center point of the target window [day of year].</span>
+<span class="sd">        window_size : float</span>
+<span class="sd">            Total size of the target window, i.e. the window covers half this</span>
+<span class="sd">            value on each side of d0. Note that it has the same units of doy,</span>
+<span class="sd">            thus it is equal to the number of points only if doy is daily.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        np.array</span>
+<span class="sd">            An boolean array with the same shape of the given `doy`, where</span>
+<span class="sd">            True means that position is within the target window.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        Leap years have the day 366 included in the output index, but a</span>
+<span class="sd">        precise shift is not calculated, resulting in a negligible error</span>
+<span class="sd">        in large datasets.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">d_start</span> <span class="o">=</span> <span class="n">d0</span> <span class="o">-</span> <span class="n">window_size</span> <span class="o">/</span> <span class="mi">2</span>
+        <span class="n">d_end</span> <span class="o">=</span> <span class="n">d0</span> <span class="o">+</span> <span class="n">window_size</span> <span class="o">/</span> <span class="mi">2</span>
+
+        <span class="k">if</span> <span class="n">d_start</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="p">(</span><span class="n">doy</span> <span class="o">&gt;</span> <span class="mi">365</span> <span class="o">+</span> <span class="n">d_start</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="n">doy</span> <span class="o">&lt;</span> <span class="n">d_end</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">d_end</span> <span class="o">&gt;</span> <span class="mi">365</span><span class="p">:</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="p">(</span><span class="n">doy</span> <span class="o">&gt;</span> <span class="n">d_start</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="n">doy</span> <span class="o">&lt;</span> <span class="n">d_end</span> <span class="o">-</span> <span class="mi">365</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="p">(</span><span class="n">doy</span> <span class="o">&gt;</span> <span class="n">d_start</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">doy</span> <span class="o">&lt;</span> <span class="n">d_end</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">idx</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="PresRat">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.bias.qdm.PresRat.html#sup3r.bias.qdm.PresRat">[docs]</a>
+<span class="k">class</span> <span class="nc">PresRat</span><span class="p">(</span><span class="n">ZeroRateMixin</span><span class="p">,</span> <span class="n">QuantileDeltaMappingCorrection</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;PresRat bias correction method (precipitation)</span>
+
+<span class="sd">    The PresRat correction [Pierce2015]_ is defined as the combination of</span>
+<span class="sd">    three steps:</span>
+<span class="sd">    * Use the model-predicted change ratio (with the CDFs);</span>
+<span class="sd">    * The treatment of zero-precipitation days (with the fraction of dry days);</span>
+<span class="sd">    * The final correction factor (K) to preserve the mean (ratio between both</span>
+<span class="sd">      estimated means);</span>
+
+<span class="sd">    To keep consistency with the full sup3r pipeline, PresRat was implemented</span>
+<span class="sd">    as follows:</span>
+
+<span class="sd">    1) Define zero rate from observations (oh)</span>
+
+<span class="sd">    Using the historical observations, estimate the zero rate precipitation</span>
+<span class="sd">    for each gridpoint. It is expected a long time series here, such as</span>
+<span class="sd">    decadal or longer. A threshold larger than zero is an option here.</span>
+
+<span class="sd">    The result is a 2D (space) `zero_rate` (non-dimensional).</span>
+
+<span class="sd">    2) Find the threshold for each gridpoint (mh)</span>
+
+<span class="sd">    Using the zero rate from the previous step, identify the magnitude</span>
+<span class="sd">    threshold for each gridpoint that satisfies that dry days rate.</span>
+
+<span class="sd">    Note that Pierce (2015) impose `tau` &gt;= 0.01 mm/day for precipitation.</span>
+
+<span class="sd">    The result is a 2D (space) threshold `tau` with the same dimensions</span>
+<span class="sd">    of the data been corrected. For instance, it could be mm/day for</span>
+<span class="sd">    precipitation.</span>
+
+<span class="sd">    3) Define `Z_fg` using `tau` (mf)</span>
+
+<span class="sd">    The `tau` that was defined with the *modeled historical*, is now</span>
+<span class="sd">    used as a threshold on *modeled future* before any correction to define</span>
+<span class="sd">    the equivalent zero rate in the future.</span>
+
+<span class="sd">    The result is a 2D (space) rate (non-dimensional)</span>
+
+<span class="sd">    4) Estimate `tau_fut` using `Z_fg`</span>
+
+<span class="sd">    Since sup3r process data in smaller chunks, it wouldn&#39;t be possible to</span>
+<span class="sd">    apply the rate `Z_fg` directly. To address that, all *modeled future*</span>
+<span class="sd">    data is corrected with QDM, and applying `Z_fg` it is defined the</span>
+<span class="sd">    `tau_fut`.</span>
+
+<span class="sd">    References</span>
+<span class="sd">    ----------</span>
+<span class="sd">    .. [Pierce2015] Pierce, D. W., Cayan, D. R., Maurer, E. P., Abatzoglou, J.</span>
+<span class="sd">       T., &amp; Hegewisch, K. C. (2015). Improved bias correction techniques for</span>
+<span class="sd">       hydrological simulations of climate change. Journal of Hydrometeorology,</span>
+<span class="sd">       16(6), 2421-2442.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">_init_out</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_init_out</span><span class="p">()</span>
+
+        <span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">bias_gid_raster</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">out</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">base_dset</span><span class="si">}</span><span class="s1">_zero_rate&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span>
+                                                          <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span>
+                                                          <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">out</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">bias_feature</span><span class="si">}</span><span class="s1">_tau_fut&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span>
+                                                           <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span>
+                                                           <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">bias_gid_raster</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">NT</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">out</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">bias_feature</span><span class="si">}</span><span class="s1">_k_factor&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span>
+            <span class="n">shape</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+    <span class="c1"># pylint: disable=W0613</span>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_run_single</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span>
+                    <span class="n">bias_data</span><span class="p">,</span>
+                    <span class="n">bias_fut_data</span><span class="p">,</span>
+                    <span class="n">base_fps</span><span class="p">,</span>
+                    <span class="n">bias_feature</span><span class="p">,</span>
+                    <span class="n">base_dset</span><span class="p">,</span>
+                    <span class="n">base_gid</span><span class="p">,</span>
+                    <span class="n">base_handler</span><span class="p">,</span>
+                    <span class="n">daily_reduction</span><span class="p">,</span>
+                    <span class="o">*</span><span class="p">,</span>
+                    <span class="n">bias_ti</span><span class="p">,</span>
+                    <span class="n">bias_fut_ti</span><span class="p">,</span>
+                    <span class="n">decimals</span><span class="p">,</span>
+                    <span class="n">dist</span><span class="p">,</span>
+                    <span class="n">relative</span><span class="p">,</span>
+                    <span class="n">sampling</span><span class="p">,</span>
+                    <span class="n">n_samples</span><span class="p">,</span>
+                    <span class="n">log_base</span><span class="p">,</span>
+                    <span class="n">zero_rate_threshold</span><span class="p">,</span>
+                    <span class="n">base_dh_inst</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Estimate probability distributions at a single site</span>
+
+<span class="sd">        TODO! This should be refactored. There is too much redundancy in</span>
+<span class="sd">        the code. Let&#39;s make it work first, and optimize later.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">base_data</span><span class="p">,</span> <span class="n">base_ti</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">get_base_data</span><span class="p">(</span>
+            <span class="n">base_fps</span><span class="p">,</span>
+            <span class="n">base_dset</span><span class="p">,</span>
+            <span class="n">base_gid</span><span class="p">,</span>
+            <span class="n">base_handler</span><span class="p">,</span>
+            <span class="n">daily_reduction</span><span class="o">=</span><span class="n">daily_reduction</span><span class="p">,</span>
+            <span class="n">decimals</span><span class="o">=</span><span class="n">decimals</span><span class="p">,</span>
+            <span class="n">base_dh_inst</span><span class="o">=</span><span class="n">base_dh_inst</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="n">window_size</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">WINDOW_SIZE</span> <span class="ow">or</span> <span class="mi">365</span> <span class="o">/</span> <span class="bp">cls</span><span class="o">.</span><span class="n">NT</span>
+        <span class="n">window_center</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_window_center</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">NT</span><span class="p">)</span>
+
+        <span class="n">template</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="bp">cls</span><span class="o">.</span><span class="n">NT</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">corrected_fut_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">bias_fut_data</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">nt</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">window_center</span><span class="p">):</span>
+            <span class="c1"># Define indices for which data goes in the current time window</span>
+            <span class="n">base_idx</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">window_mask</span><span class="p">(</span><span class="n">base_ti</span><span class="o">.</span><span class="n">day_of_year</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">window_size</span><span class="p">)</span>
+            <span class="n">bias_idx</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">window_mask</span><span class="p">(</span><span class="n">bias_ti</span><span class="o">.</span><span class="n">day_of_year</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">window_size</span><span class="p">)</span>
+            <span class="n">bias_fut_idx</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">window_mask</span><span class="p">(</span><span class="n">bias_fut_ti</span><span class="o">.</span><span class="n">day_of_year</span><span class="p">,</span>
+                                           <span class="n">t</span><span class="p">,</span>
+                                           <span class="n">window_size</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">base_idx</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span><span class="n">bias_idx</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span><span class="n">bias_fut_idx</span><span class="p">):</span>
+                <span class="n">tmp</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">get_qdm_params</span><span class="p">(</span><span class="n">bias_data</span><span class="p">[</span><span class="n">bias_idx</span><span class="p">],</span>
+                                         <span class="n">bias_fut_data</span><span class="p">[</span><span class="n">bias_fut_idx</span><span class="p">],</span>
+                                         <span class="n">base_data</span><span class="p">[</span><span class="n">base_idx</span><span class="p">],</span>
+                                         <span class="n">bias_feature</span><span class="p">,</span>
+                                         <span class="n">base_dset</span><span class="p">,</span>
+                                         <span class="n">sampling</span><span class="p">,</span>
+                                         <span class="n">n_samples</span><span class="p">,</span>
+                                         <span class="n">log_base</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">tmp</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">out</span><span class="p">:</span>
+                        <span class="n">out</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+                    <span class="n">out</span><span class="p">[</span><span class="n">k</span><span class="p">][(</span><span class="n">nt</span><span class="p">),</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">v</span>
+
+            <span class="n">QDM</span> <span class="o">=</span> <span class="n">QuantileDeltaMapping</span><span class="p">(</span>
+                <span class="n">out</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;base_</span><span class="si">{</span><span class="n">base_dset</span><span class="si">}</span><span class="s1">_params&#39;</span><span class="p">][</span><span class="n">nt</span><span class="p">],</span>
+                <span class="n">out</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;bias_</span><span class="si">{</span><span class="n">bias_feature</span><span class="si">}</span><span class="s1">_params&#39;</span><span class="p">][</span><span class="n">nt</span><span class="p">],</span>
+                <span class="n">out</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;bias_fut_</span><span class="si">{</span><span class="n">bias_feature</span><span class="si">}</span><span class="s1">_params&#39;</span><span class="p">][</span><span class="n">nt</span><span class="p">],</span>
+                <span class="n">dist</span><span class="o">=</span><span class="n">dist</span><span class="p">,</span>
+                <span class="n">relative</span><span class="o">=</span><span class="n">relative</span><span class="p">,</span>
+                <span class="n">sampling</span><span class="o">=</span><span class="n">sampling</span><span class="p">,</span>
+                <span class="n">log_base</span><span class="o">=</span><span class="n">log_base</span>
+            <span class="p">)</span>
+            <span class="n">subset</span> <span class="o">=</span> <span class="n">bias_fut_data</span><span class="p">[</span><span class="n">bias_fut_idx</span><span class="p">]</span>
+            <span class="n">corrected_fut_data</span><span class="p">[</span><span class="n">bias_fut_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">QDM</span><span class="p">(</span><span class="n">subset</span><span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">()</span>
+
+        <span class="c1"># Step 1: Define zero rate from observations</span>
+        <span class="k">assert</span> <span class="n">base_data</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span>
+        <span class="n">obs_zero_rate</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">zero_precipitation_rate</span><span class="p">(</span>
+            <span class="n">base_data</span><span class="p">,</span> <span class="n">zero_rate_threshold</span><span class="p">)</span>
+        <span class="n">out</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">base_dset</span><span class="si">}</span><span class="s1">_zero_rate&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">obs_zero_rate</span>
+
+        <span class="c1"># Step 2: Find tau for each grid point</span>
+
+        <span class="c1"># Removed NaN handling, thus reinforce finite-only data.</span>
+        <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">bias_data</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">(),</span> <span class="s2">&quot;Unexpected invalid values&quot;</span>
+        <span class="k">assert</span> <span class="n">bias_data</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;Assumed bias_data to be 1D&quot;</span>
+        <span class="n">n_threshold</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="n">obs_zero_rate</span> <span class="o">*</span> <span class="n">bias_data</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+        <span class="n">n_threshold</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">n_threshold</span><span class="p">,</span> <span class="n">bias_data</span><span class="o">.</span><span class="n">size</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">tau</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">bias_data</span><span class="p">)[</span><span class="n">n_threshold</span><span class="p">]</span>
+        <span class="c1"># Pierce (2015) imposes 0.01 mm/day</span>
+        <span class="c1"># tau = max(tau, 0.01)</span>
+
+        <span class="c1"># Step 3: Find Z_gf as the zero rate in mf</span>
+        <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">bias_fut_data</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">(),</span> <span class="s2">&quot;Unexpected invalid values&quot;</span>
+        <span class="n">z_fg</span> <span class="o">=</span> <span class="p">(</span><span class="n">bias_fut_data</span> <span class="o">&lt;</span> <span class="n">tau</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s1">&#39;i&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">/</span> <span class="n">bias_fut_data</span><span class="o">.</span><span class="n">size</span>
+
+        <span class="c1"># Step 4: Estimate tau_fut with corrected mf</span>
+        <span class="n">tau_fut</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">corrected_fut_data</span><span class="p">)[</span><span class="nb">round</span><span class="p">(</span>
+            <span class="n">z_fg</span> <span class="o">*</span> <span class="n">corrected_fut_data</span><span class="o">.</span><span class="n">size</span><span class="p">)]</span>
+
+        <span class="n">out</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">bias_feature</span><span class="si">}</span><span class="s1">_tau_fut&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tau_fut</span>
+
+        <span class="c1"># ---- K factor ----</span>
+
+        <span class="n">k</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">NT</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">nt</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">window_center</span><span class="p">):</span>
+            <span class="n">base_idx</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">window_mask</span><span class="p">(</span><span class="n">base_ti</span><span class="o">.</span><span class="n">day_of_year</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">window_size</span><span class="p">)</span>
+            <span class="n">bias_idx</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">window_mask</span><span class="p">(</span><span class="n">bias_ti</span><span class="o">.</span><span class="n">day_of_year</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">window_size</span><span class="p">)</span>
+            <span class="n">bias_fut_idx</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">window_mask</span><span class="p">(</span><span class="n">bias_fut_ti</span><span class="o">.</span><span class="n">day_of_year</span><span class="p">,</span>
+                                           <span class="n">t</span><span class="p">,</span>
+                                           <span class="n">window_size</span><span class="p">)</span>
+
+            <span class="n">oh</span> <span class="o">=</span> <span class="n">base_data</span><span class="p">[</span><span class="n">base_idx</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+            <span class="n">mh</span> <span class="o">=</span> <span class="n">bias_data</span><span class="p">[</span><span class="n">bias_idx</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+            <span class="n">mf</span> <span class="o">=</span> <span class="n">bias_fut_data</span><span class="p">[</span><span class="n">bias_fut_idx</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+            <span class="n">mf_unbiased</span> <span class="o">=</span> <span class="n">corrected_fut_data</span><span class="p">[</span><span class="n">bias_fut_idx</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+
+            <span class="n">x</span> <span class="o">=</span> <span class="n">mf</span> <span class="o">/</span> <span class="n">mh</span>
+            <span class="n">x_hat</span> <span class="o">=</span> <span class="n">mf_unbiased</span> <span class="o">/</span> <span class="n">oh</span>
+            <span class="n">k</span><span class="p">[</span><span class="n">nt</span><span class="p">]</span> <span class="o">=</span> <span class="n">x</span> <span class="o">/</span> <span class="n">x_hat</span>
+
+        <span class="n">out</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">bias_feature</span><span class="si">}</span><span class="s1">_k_factor&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">k</span>
+
+        <span class="k">return</span> <span class="n">out</span>
+
+<div class="viewcode-block" id="PresRat.run">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.bias.qdm.PresRat.html#sup3r.bias.qdm.PresRat.run">[docs]</a>
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">fp_out</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">max_workers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">daily_reduction</span><span class="o">=</span><span class="s1">&#39;avg&#39;</span><span class="p">,</span>
+        <span class="n">fill_extend</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">smooth_extend</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+        <span class="n">smooth_interior</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+        <span class="n">zero_rate_threshold</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Estimate the required information for PresRat correction</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        fp_out : str | None</span>
+<span class="sd">            Optional .h5 output file to write scalar and adder arrays.</span>
+<span class="sd">        max_workers : int, optional</span>
+<span class="sd">            Number of workers to run in parallel. 1 is serial and None is all</span>
+<span class="sd">            available.</span>
+<span class="sd">        daily_reduction : None | str</span>
+<span class="sd">            Option to do a reduction of the hourly+ source base data to daily</span>
+<span class="sd">            data. Can be None (no reduction, keep source time frequency), &quot;avg&quot;</span>
+<span class="sd">            (daily average), &quot;max&quot; (daily max), &quot;min&quot; (daily min),</span>
+<span class="sd">            &quot;sum&quot; (daily sum/total)</span>
+<span class="sd">        fill_extend : bool</span>
+<span class="sd">            Whether to fill data extending beyond the base meta data with</span>
+<span class="sd">            nearest neighbor values.</span>
+<span class="sd">        smooth_extend : float</span>
+<span class="sd">            Option to smooth the scalar/adder data outside of the spatial</span>
+<span class="sd">            domain set by the threshold input. This alleviates the weird seams</span>
+<span class="sd">            far from the domain of interest. This value is the standard</span>
+<span class="sd">            deviation for the gaussian_filter kernel</span>
+<span class="sd">        smooth_interior : float</span>
+<span class="sd">            Value to use to smooth the scalar/adder data inside of the spatial</span>
+<span class="sd">            domain set by the threshold input. This can reduce the effect of</span>
+<span class="sd">            extreme values within aggregations over large number of pixels.</span>
+<span class="sd">            This value is the standard deviation for the gaussian_filter</span>
+<span class="sd">            kernel.</span>
+<span class="sd">        zero_rate_threshold : float, default=0.0</span>
+<span class="sd">            Threshold value used to determine the zero rate in the observed</span>
+<span class="sd">            historical dataset. For instance, 0.01 means that anything less</span>
+<span class="sd">            than that will be considered negligible, hence equal to zero.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        out : dict</span>
+<span class="sd">            Dictionary with parameters defining the statistical distributions</span>
+<span class="sd">            for each of the three given datasets. Each value has dimensions</span>
+<span class="sd">            (lat, lon, n-parameters).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Calculate CDF parameters for QDM&#39;</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s1">&#39;Initialized params with shape: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">bias_gid_raster</span><span class="o">.</span><span class="n">shape</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bad_bias_gids</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1"># sup3r DataHandler opening base files will load all data in parallel</span>
+        <span class="c1"># during the init and should not be passed in parallel to workers</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">base_dh</span><span class="p">,</span> <span class="n">DataHandler</span><span class="p">):</span>
+            <span class="n">max_workers</span> <span class="o">=</span> <span class="mi">1</span>
+
+        <span class="k">if</span> <span class="n">max_workers</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Running serial calculation.&#39;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">bias_gid</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bias_meta</span><span class="o">.</span><span class="n">index</span><span class="p">):</span>
+                <span class="n">raster_loc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bias_gid_raster</span> <span class="o">==</span> <span class="n">bias_gid</span><span class="p">)</span>
+                <span class="n">_</span><span class="p">,</span> <span class="n">base_gid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_base_gid</span><span class="p">(</span><span class="n">bias_gid</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">base_gid</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">bad_bias_gids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">bias_gid</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s1">&#39;No base data for bias_gid: </span><span class="si">{</span><span class="n">bias_gid</span><span class="si">}</span><span class="s1">. &#39;</span>
+                        <span class="s1">&#39;Adding it to bad_bias_gids&#39;</span>
+                    <span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">bias_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_bias_data</span><span class="p">(</span><span class="n">bias_gid</span><span class="p">)</span>
+                    <span class="n">bias_fut_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_bias_data</span><span class="p">(</span>
+                        <span class="n">bias_gid</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">bias_fut_dh</span>
+                    <span class="p">)</span>
+                    <span class="n">single_out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_single</span><span class="p">(</span>
+                        <span class="n">bias_data</span><span class="p">,</span>
+                        <span class="n">bias_fut_data</span><span class="p">,</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">base_fps</span><span class="p">,</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">bias_feature</span><span class="p">,</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">base_dset</span><span class="p">,</span>
+                        <span class="n">base_gid</span><span class="p">,</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">base_handler</span><span class="p">,</span>
+                        <span class="n">daily_reduction</span><span class="p">,</span>
+                        <span class="n">bias_ti</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bias_fut_dh</span><span class="o">.</span><span class="n">time_index</span><span class="p">,</span>
+                        <span class="n">bias_fut_ti</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bias_fut_dh</span><span class="o">.</span><span class="n">time_index</span><span class="p">,</span>
+                        <span class="n">decimals</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">decimals</span><span class="p">,</span>
+                        <span class="n">dist</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dist</span><span class="p">,</span>
+                        <span class="n">relative</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">relative</span><span class="p">,</span>
+                        <span class="n">sampling</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sampling</span><span class="p">,</span>
+                        <span class="n">n_samples</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_quantiles</span><span class="p">,</span>
+                        <span class="n">log_base</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">log_base</span><span class="p">,</span>
+                        <span class="n">base_dh_inst</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">base_dh</span><span class="p">,</span>
+                        <span class="n">zero_rate_threshold</span><span class="o">=</span><span class="n">zero_rate_threshold</span><span class="p">,</span>
+                    <span class="p">)</span>
+                    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">arr</span> <span class="ow">in</span> <span class="n">single_out</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">out</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="n">raster_loc</span><span class="p">]</span> <span class="o">=</span> <span class="n">arr</span>
+
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s1">&#39;Completed bias calculations for </span><span class="si">{}</span><span class="s1"> out of </span><span class="si">{}</span><span class="s1"> &#39;</span>
+                    <span class="s1">&#39;sites&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bias_meta</span><span class="p">))</span>
+                <span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                <span class="s1">&#39;Running parallel calculation with </span><span class="si">{}</span><span class="s1"> workers.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">max_workers</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+            <span class="k">with</span> <span class="n">ProcessPoolExecutor</span><span class="p">(</span><span class="n">max_workers</span><span class="o">=</span><span class="n">max_workers</span><span class="p">)</span> <span class="k">as</span> <span class="n">exe</span><span class="p">:</span>
+                <span class="n">futures</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="k">for</span> <span class="n">bias_gid</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bias_meta</span><span class="o">.</span><span class="n">index</span><span class="p">:</span>
+                    <span class="n">raster_loc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bias_gid_raster</span> <span class="o">==</span> <span class="n">bias_gid</span><span class="p">)</span>
+                    <span class="n">_</span><span class="p">,</span> <span class="n">base_gid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_base_gid</span><span class="p">(</span><span class="n">bias_gid</span><span class="p">)</span>
+
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">base_gid</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">bad_bias_gids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">bias_gid</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">bias_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_bias_data</span><span class="p">(</span><span class="n">bias_gid</span><span class="p">)</span>
+                        <span class="n">bias_fut_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_bias_data</span><span class="p">(</span>
+                            <span class="n">bias_gid</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">bias_fut_dh</span>
+                        <span class="p">)</span>
+                        <span class="n">future</span> <span class="o">=</span> <span class="n">exe</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">_run_single</span><span class="p">,</span>
+                            <span class="n">bias_data</span><span class="p">,</span>
+                            <span class="n">bias_fut_data</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">base_fps</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">bias_feature</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">base_dset</span><span class="p">,</span>
+                            <span class="n">base_gid</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">base_handler</span><span class="p">,</span>
+                            <span class="n">daily_reduction</span><span class="p">,</span>
+                            <span class="n">bias_ti</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bias_fut_dh</span><span class="o">.</span><span class="n">time_index</span><span class="p">,</span>
+                            <span class="n">bias_fut_ti</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bias_fut_dh</span><span class="o">.</span><span class="n">time_index</span><span class="p">,</span>
+                            <span class="n">decimals</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">decimals</span><span class="p">,</span>
+                            <span class="n">dist</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dist</span><span class="p">,</span>
+                            <span class="n">relative</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">relative</span><span class="p">,</span>
+                            <span class="n">sampling</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sampling</span><span class="p">,</span>
+                            <span class="n">n_samples</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_quantiles</span><span class="p">,</span>
+                            <span class="n">log_base</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">log_base</span><span class="p">,</span>
+                            <span class="n">zero_rate_threshold</span><span class="o">=</span><span class="n">zero_rate_threshold</span><span class="p">,</span>
+                        <span class="p">)</span>
+                        <span class="n">futures</span><span class="p">[</span><span class="n">future</span><span class="p">]</span> <span class="o">=</span> <span class="n">raster_loc</span>
+
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Finished launching futures.&#39;</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">future</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">as_completed</span><span class="p">(</span><span class="n">futures</span><span class="p">)):</span>
+                    <span class="n">raster_loc</span> <span class="o">=</span> <span class="n">futures</span><span class="p">[</span><span class="n">future</span><span class="p">]</span>
+                    <span class="n">single_out</span> <span class="o">=</span> <span class="n">future</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
+                    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">arr</span> <span class="ow">in</span> <span class="n">single_out</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">out</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="n">raster_loc</span><span class="p">]</span> <span class="o">=</span> <span class="n">arr</span>
+
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                        <span class="s1">&#39;Completed bias calculations for </span><span class="si">{}</span><span class="s1"> out of </span><span class="si">{}</span><span class="s1"> &#39;</span>
+                        <span class="s1">&#39;sites&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">futures</span><span class="p">))</span>
+                    <span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Finished calculating bias correction factors.&#39;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fill_and_smooth</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">out</span><span class="p">,</span> <span class="n">fill_extend</span><span class="p">,</span> <span class="n">smooth_extend</span><span class="p">,</span> <span class="n">smooth_interior</span>
+        <span class="p">)</span>
+
+        <span class="n">extra_attrs</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;zero_rate_threshold&#39;</span><span class="p">:</span> <span class="n">zero_rate_threshold</span><span class="p">,</span>
+            <span class="s1">&#39;time_window_center&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">time_window_center</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write_outputs</span><span class="p">(</span><span class="n">fp_out</span><span class="p">,</span>
+                           <span class="bp">self</span><span class="o">.</span><span class="n">out</span><span class="p">,</span>
+                           <span class="n">extra_attrs</span><span class="o">=</span><span class="n">extra_attrs</span><span class="p">,</span>
+                           <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">out</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="PresRat.write_outputs">
+<a class="viewcode-back" href="../../../_autosummary/sup3r.bias.qdm.PresRat.html#sup3r.bias.qdm.PresRat.write_outputs">[docs]</a>
+    <span class="k">def</span> <span class="nf">write_outputs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fp_out</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                      <span class="n">out</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                      <span class="n">extra_attrs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Write outputs to an .h5 file.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        fp_out : str | None</span>
+<span class="sd">            An HDF5 filename to write the estimated statistical distributions.</span>
+<span class="sd">        out : dict, optional</span>
+<span class="sd">            A dictionary with the three statistical distribution parameters.</span>
+<span class="sd">            If not given, it uses :attr:`.out`.</span>
+<span class="sd">        extra_attrs: dict, optional</span>
+<span class="sd">            Extra attributes to be exported together with the dataset.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; mycalc = PresRat(...)</span>
+<span class="sd">        &gt;&gt;&gt; mycalc.write_outputs(fp_out=&quot;myfile.h5&quot;, out=mydictdataset,</span>
+<span class="sd">        ...   extra_attrs={&#39;zero_rate_threshold&#39;: 0.01})</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">out</span> <span class="o">=</span> <span class="n">out</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">out</span>
+
+        <span class="k">if</span> <span class="n">fp_out</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">fp_out</span><span class="p">)):</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">fp_out</span><span class="p">),</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+            <span class="k">with</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">fp_out</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="c1"># pylint: disable=E1136</span>
+                <span class="n">lat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bias_dh</span><span class="o">.</span><span class="n">lat_lon</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+                <span class="n">lon</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bias_dh</span><span class="o">.</span><span class="n">lat_lon</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="s1">&#39;latitude&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">lat</span><span class="p">)</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="s1">&#39;longitude&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">lon</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">dset</span><span class="p">,</span> <span class="n">data</span> <span class="ow">in</span> <span class="n">out</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="n">dset</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">)</span>
+
+                <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;dist&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dist</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;sampling&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sampling</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;log_base&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">log_base</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;base_fps&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">base_fps</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;bias_fps&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bias_fps</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;bias_fut_fps&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bias_fut_fps</span>
+                <span class="k">if</span> <span class="n">extra_attrs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">a</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">extra_attrs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                        <span class="n">f</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="n">a</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Wrote quantiles to file: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">fp_out</span><span class="p">))</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Alliance for Sustainable Energy, LLC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

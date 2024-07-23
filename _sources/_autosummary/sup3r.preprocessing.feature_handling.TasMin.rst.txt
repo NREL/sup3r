@@ -1,0 +1,31 @@
+sup3r.preprocessing.feature\_handling.TasMin
+============================================
+
+.. currentmodule:: sup3r.preprocessing.feature_handling
+
+.. autoclass:: TasMin
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~TasMin.compute
+      ~TasMin.inputs
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~TasMin.CC_FEATURE_NAME
+   
+   

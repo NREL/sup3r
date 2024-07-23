@@ -1,0 +1,6 @@
+sup3r.utilities.utilities.get\_source\_type
+===========================================
+
+.. currentmodule:: sup3r.utilities.utilities
+
+.. autofunction:: get_source_type

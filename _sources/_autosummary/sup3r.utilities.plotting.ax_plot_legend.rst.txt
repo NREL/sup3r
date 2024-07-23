@@ -1,0 +1,6 @@
+sup3r.utilities.plotting.ax\_plot\_legend
+=========================================
+
+.. currentmodule:: sup3r.utilities.plotting
+
+.. autofunction:: ax_plot_legend

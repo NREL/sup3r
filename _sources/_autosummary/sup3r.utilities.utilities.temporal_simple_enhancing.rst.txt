@@ -1,0 +1,6 @@
+sup3r.utilities.utilities.temporal\_simple\_enhancing
+=====================================================
+
+.. currentmodule:: sup3r.utilities.utilities
+
+.. autofunction:: temporal_simple_enhancing

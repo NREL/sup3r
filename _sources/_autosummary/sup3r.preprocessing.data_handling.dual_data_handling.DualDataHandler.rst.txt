@@ -1,0 +1,68 @@
+sup3r.preprocessing.data\_handling.dual\_data\_handling.DualDataHandler
+=======================================================================
+
+.. currentmodule:: sup3r.preprocessing.data_handling.dual_data_handling
+
+.. autoclass:: DualDataHandler
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~DualDataHandler.check_cached_features
+      ~DualDataHandler.check_clear_data
+      ~DualDataHandler.get_cache_file_names
+      ~DualDataHandler.get_data
+      ~DualDataHandler.get_lr_data
+      ~DualDataHandler.get_lr_regridded_data
+      ~DualDataHandler.get_next
+      ~DualDataHandler.get_regridder
+      ~DualDataHandler.load_cached_data
+      ~DualDataHandler.load_lr_cached_data
+      ~DualDataHandler.normalize
+      ~DualDataHandler.parallel_load
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~DualDataHandler.cache_files
+      ~DualDataHandler.cache_pattern
+      ~DualDataHandler.cached_features
+      ~DualDataHandler.data
+      ~DualDataHandler.feature_mem
+      ~DualDataHandler.features
+      ~DualDataHandler.grid_mem
+      ~DualDataHandler.hr_exo_features
+      ~DualDataHandler.hr_lat_lon
+      ~DualDataHandler.hr_out_features
+      ~DualDataHandler.hr_required_shape
+      ~DualDataHandler.hr_sample_shape
+      ~DualDataHandler.lr_features
+      ~DualDataHandler.lr_grid_shape
+      ~DualDataHandler.lr_input_data
+      ~DualDataHandler.lr_lat_lon
+      ~DualDataHandler.lr_only_features
+      ~DualDataHandler.lr_required_shape
+      ~DualDataHandler.lr_sample_shape
+      ~DualDataHandler.means
+      ~DualDataHandler.noncached_features
+      ~DualDataHandler.norm_workers
+      ~DualDataHandler.sample_shape
+      ~DualDataHandler.shape
+      ~DualDataHandler.size
+      ~DualDataHandler.stds
+      ~DualDataHandler.try_load
+      ~DualDataHandler.val_data
+   
+   

@@ -1,0 +1,31 @@
+sup3r.preprocessing.feature\_handling.Tas
+=========================================
+
+.. currentmodule:: sup3r.preprocessing.feature_handling
+
+.. autoclass:: Tas
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~Tas.compute
+      ~Tas.inputs
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~Tas.CC_FEATURE_NAME
+   
+   

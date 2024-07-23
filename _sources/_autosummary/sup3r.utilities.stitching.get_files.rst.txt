@@ -1,0 +1,6 @@
+sup3r.utilities.stitching.get\_files
+====================================
+
+.. currentmodule:: sup3r.utilities.stitching
+
+.. autofunction:: get_files

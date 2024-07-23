@@ -1,0 +1,6 @@
+sup3r.utilities.utilities.st\_interp
+====================================
+
+.. currentmodule:: sup3r.utilities.utilities
+
+.. autofunction:: st_interp

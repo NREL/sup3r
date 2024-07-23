@@ -1,0 +1,35 @@
+sup3r.utilities.interpolation.Interpolator
+==========================================
+
+.. currentmodule:: sup3r.utilities.interpolation
+
+.. autoclass:: Interpolator
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~Interpolator.calc_height
+      ~Interpolator.calc_pressure
+      ~Interpolator.extract_multi_level_var
+      ~Interpolator.extract_single_level_var
+      ~Interpolator.get_multi_level_data
+      ~Interpolator.get_single_level_data
+      ~Interpolator.get_single_level_vars
+      ~Interpolator.interp_to_level
+      ~Interpolator.interp_var_to_height
+      ~Interpolator.interp_var_to_pressure
+      ~Interpolator.prep_level_interp
+      ~Interpolator.unstagger_var
+   
+   
+
+   
+   
+   

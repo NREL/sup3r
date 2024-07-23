@@ -1,0 +1,6 @@
+sup3r.utilities.utilities.nsrdb\_sub\_daily\_sampler
+====================================================
+
+.. currentmodule:: sup3r.utilities.utilities
+
+.. autofunction:: nsrdb_sub_daily_sampler

@@ -1,0 +1,129 @@
+sup3r.preprocessing.data\_handling.h5\_data\_handling.DataHandlerH5
+===================================================================
+
+.. currentmodule:: sup3r.preprocessing.data_handling.h5_data_handling
+
+.. autoclass:: DataHandlerH5
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~DataHandlerH5.cache_data
+      ~DataHandlerH5.cap_worker_args
+      ~DataHandlerH5.check_cached_features
+      ~DataHandlerH5.check_clear_data
+      ~DataHandlerH5.clear_data
+      ~DataHandlerH5.data_fill
+      ~DataHandlerH5.extract_feature
+      ~DataHandlerH5.get_cache_file_names
+      ~DataHandlerH5.get_capped_workers
+      ~DataHandlerH5.get_closest_lat_lon
+      ~DataHandlerH5.get_full_domain
+      ~DataHandlerH5.get_handle_features
+      ~DataHandlerH5.get_input_arrays
+      ~DataHandlerH5.get_inputs_recursive
+      ~DataHandlerH5.get_lat_lon
+      ~DataHandlerH5.get_lat_lon_df
+      ~DataHandlerH5.get_next
+      ~DataHandlerH5.get_node_cmd
+      ~DataHandlerH5.get_raster_index
+      ~DataHandlerH5.get_raw_feature_list
+      ~DataHandlerH5.get_time_index
+      ~DataHandlerH5.has_exact_feature
+      ~DataHandlerH5.has_multilevel_feature
+      ~DataHandlerH5.has_surrounding_features
+      ~DataHandlerH5.lats_are_descending
+      ~DataHandlerH5.lin_bc
+      ~DataHandlerH5.load_cached_data
+      ~DataHandlerH5.lookup
+      ~DataHandlerH5.mask_nan
+      ~DataHandlerH5.normalize
+      ~DataHandlerH5.parallel_compute
+      ~DataHandlerH5.parallel_extract
+      ~DataHandlerH5.parallel_load
+      ~DataHandlerH5.pop_old_data
+      ~DataHandlerH5.preflight
+      ~DataHandlerH5.qdm_bc
+      ~DataHandlerH5.recursive_compute
+      ~DataHandlerH5.run_all_data_init
+      ~DataHandlerH5.run_data_compute
+      ~DataHandlerH5.run_data_extraction
+      ~DataHandlerH5.run_nn_fill
+      ~DataHandlerH5.serial_compute
+      ~DataHandlerH5.serial_data_fill
+      ~DataHandlerH5.serial_extract
+      ~DataHandlerH5.source_handler
+      ~DataHandlerH5.split_data
+      ~DataHandlerH5.time_index_conflict_check
+      ~DataHandlerH5.valid_handle_features
+      ~DataHandlerH5.valid_input_features
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~DataHandlerH5.FEATURE_REGISTRY
+      ~DataHandlerH5.attrs
+      ~DataHandlerH5.cache_files
+      ~DataHandlerH5.cache_pattern
+      ~DataHandlerH5.cached_features
+      ~DataHandlerH5.compute_workers
+      ~DataHandlerH5.derive_features
+      ~DataHandlerH5.extract_features
+      ~DataHandlerH5.extract_workers
+      ~DataHandlerH5.feature_mem
+      ~DataHandlerH5.file_paths
+      ~DataHandlerH5.full_raw_lat_lon
+      ~DataHandlerH5.grid_mem
+      ~DataHandlerH5.grid_shape
+      ~DataHandlerH5.handle_features
+      ~DataHandlerH5.hr_exo_features
+      ~DataHandlerH5.hr_out_features
+      ~DataHandlerH5.input_file_info
+      ~DataHandlerH5.invert_lat
+      ~DataHandlerH5.is_time_independent
+      ~DataHandlerH5.lat_lon
+      ~DataHandlerH5.latitude
+      ~DataHandlerH5.load_workers
+      ~DataHandlerH5.longitude
+      ~DataHandlerH5.lr_features
+      ~DataHandlerH5.lr_only_features
+      ~DataHandlerH5.means
+      ~DataHandlerH5.meta
+      ~DataHandlerH5.n_tsteps
+      ~DataHandlerH5.need_full_domain
+      ~DataHandlerH5.noncached_features
+      ~DataHandlerH5.norm_workers
+      ~DataHandlerH5.raster_index
+      ~DataHandlerH5.raw_features
+      ~DataHandlerH5.raw_lat_lon
+      ~DataHandlerH5.raw_time_index
+      ~DataHandlerH5.raw_tsteps
+      ~DataHandlerH5.requested_shape
+      ~DataHandlerH5.shape
+      ~DataHandlerH5.single_ts_files
+      ~DataHandlerH5.size
+      ~DataHandlerH5.source_type
+      ~DataHandlerH5.stds
+      ~DataHandlerH5.target
+      ~DataHandlerH5.temporal_slice
+      ~DataHandlerH5.ti_workers
+      ~DataHandlerH5.time_chunk_size
+      ~DataHandlerH5.time_chunks
+      ~DataHandlerH5.time_freq_hours
+      ~DataHandlerH5.time_index
+      ~DataHandlerH5.time_index_file
+      ~DataHandlerH5.try_load
+   
+   

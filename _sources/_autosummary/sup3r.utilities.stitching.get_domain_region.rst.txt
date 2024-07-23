@@ -1,0 +1,6 @@
+sup3r.utilities.stitching.get\_domain\_region
+=============================================
+
+.. currentmodule:: sup3r.utilities.stitching
+
+.. autofunction:: get_domain_region

@@ -1,0 +1,47 @@
+sup3r.utilities.regridder.Regridder
+===================================
+
+.. currentmodule:: sup3r.utilities.regridder
+
+.. autoclass:: Regridder
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~Regridder.cache_all_queries
+      ~Regridder.get_all_queries
+      ~Regridder.get_spatial_chunk
+      ~Regridder.init_queries
+      ~Regridder.interpolate
+      ~Regridder.load_cache
+      ~Regridder.query_tree
+      ~Regridder.run
+      ~Regridder.save_query
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~Regridder.MAX_DISTANCE
+      ~Regridder.MIN_DISTANCE
+      ~Regridder.cache_exists
+      ~Regridder.dist_mask
+      ~Regridder.distance_file
+      ~Regridder.distances
+      ~Regridder.index_file
+      ~Regridder.indices
+      ~Regridder.tree
+      ~Regridder.weights
+   
+   

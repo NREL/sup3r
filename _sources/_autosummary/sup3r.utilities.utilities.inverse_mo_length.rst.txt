@@ -1,0 +1,6 @@
+sup3r.utilities.utilities.inverse\_mo\_length
+=============================================
+
+.. currentmodule:: sup3r.utilities.utilities
+
+.. autofunction:: inverse_mo_length

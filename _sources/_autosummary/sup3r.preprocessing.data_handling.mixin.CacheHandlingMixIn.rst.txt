@@ -1,0 +1,36 @@
+sup3r.preprocessing.data\_handling.mixin.CacheHandlingMixIn
+===========================================================
+
+.. currentmodule:: sup3r.preprocessing.data_handling.mixin
+
+.. autoclass:: CacheHandlingMixIn
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~CacheHandlingMixIn.check_cached_features
+      ~CacheHandlingMixIn.get_cache_file_names
+      ~CacheHandlingMixIn.parallel_load
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~CacheHandlingMixIn.cache_files
+      ~CacheHandlingMixIn.cache_pattern
+      ~CacheHandlingMixIn.cached_features
+      ~CacheHandlingMixIn.noncached_features
+      ~CacheHandlingMixIn.try_load
+   
+   

@@ -1,0 +1,6 @@
+sup3r.utilities.stitching.regrid\_main\_domain
+==============================================
+
+.. currentmodule:: sup3r.utilities.stitching
+
+.. autofunction:: regrid_main_domain

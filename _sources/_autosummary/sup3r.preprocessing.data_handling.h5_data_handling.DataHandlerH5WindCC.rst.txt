@@ -1,0 +1,131 @@
+sup3r.preprocessing.data\_handling.h5\_data\_handling.DataHandlerH5WindCC
+=========================================================================
+
+.. currentmodule:: sup3r.preprocessing.data_handling.h5_data_handling
+
+.. autoclass:: DataHandlerH5WindCC
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~DataHandlerH5WindCC.cache_data
+      ~DataHandlerH5WindCC.cap_worker_args
+      ~DataHandlerH5WindCC.check_cached_features
+      ~DataHandlerH5WindCC.check_clear_data
+      ~DataHandlerH5WindCC.clear_data
+      ~DataHandlerH5WindCC.data_fill
+      ~DataHandlerH5WindCC.extract_feature
+      ~DataHandlerH5WindCC.get_cache_file_names
+      ~DataHandlerH5WindCC.get_capped_workers
+      ~DataHandlerH5WindCC.get_closest_lat_lon
+      ~DataHandlerH5WindCC.get_full_domain
+      ~DataHandlerH5WindCC.get_handle_features
+      ~DataHandlerH5WindCC.get_input_arrays
+      ~DataHandlerH5WindCC.get_inputs_recursive
+      ~DataHandlerH5WindCC.get_lat_lon
+      ~DataHandlerH5WindCC.get_lat_lon_df
+      ~DataHandlerH5WindCC.get_next
+      ~DataHandlerH5WindCC.get_node_cmd
+      ~DataHandlerH5WindCC.get_observation_index
+      ~DataHandlerH5WindCC.get_raster_index
+      ~DataHandlerH5WindCC.get_raw_feature_list
+      ~DataHandlerH5WindCC.get_time_index
+      ~DataHandlerH5WindCC.has_exact_feature
+      ~DataHandlerH5WindCC.has_multilevel_feature
+      ~DataHandlerH5WindCC.has_surrounding_features
+      ~DataHandlerH5WindCC.lats_are_descending
+      ~DataHandlerH5WindCC.lin_bc
+      ~DataHandlerH5WindCC.load_cached_data
+      ~DataHandlerH5WindCC.lookup
+      ~DataHandlerH5WindCC.mask_nan
+      ~DataHandlerH5WindCC.normalize
+      ~DataHandlerH5WindCC.parallel_compute
+      ~DataHandlerH5WindCC.parallel_extract
+      ~DataHandlerH5WindCC.parallel_load
+      ~DataHandlerH5WindCC.pop_old_data
+      ~DataHandlerH5WindCC.preflight
+      ~DataHandlerH5WindCC.qdm_bc
+      ~DataHandlerH5WindCC.recursive_compute
+      ~DataHandlerH5WindCC.run_all_data_init
+      ~DataHandlerH5WindCC.run_daily_averages
+      ~DataHandlerH5WindCC.run_data_compute
+      ~DataHandlerH5WindCC.run_data_extraction
+      ~DataHandlerH5WindCC.run_nn_fill
+      ~DataHandlerH5WindCC.serial_compute
+      ~DataHandlerH5WindCC.serial_data_fill
+      ~DataHandlerH5WindCC.serial_extract
+      ~DataHandlerH5WindCC.source_handler
+      ~DataHandlerH5WindCC.split_data
+      ~DataHandlerH5WindCC.time_index_conflict_check
+      ~DataHandlerH5WindCC.valid_handle_features
+      ~DataHandlerH5WindCC.valid_input_features
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~DataHandlerH5WindCC.FEATURE_REGISTRY
+      ~DataHandlerH5WindCC.attrs
+      ~DataHandlerH5WindCC.cache_files
+      ~DataHandlerH5WindCC.cache_pattern
+      ~DataHandlerH5WindCC.cached_features
+      ~DataHandlerH5WindCC.compute_workers
+      ~DataHandlerH5WindCC.derive_features
+      ~DataHandlerH5WindCC.extract_features
+      ~DataHandlerH5WindCC.extract_workers
+      ~DataHandlerH5WindCC.feature_mem
+      ~DataHandlerH5WindCC.file_paths
+      ~DataHandlerH5WindCC.full_raw_lat_lon
+      ~DataHandlerH5WindCC.grid_mem
+      ~DataHandlerH5WindCC.grid_shape
+      ~DataHandlerH5WindCC.handle_features
+      ~DataHandlerH5WindCC.hr_exo_features
+      ~DataHandlerH5WindCC.hr_out_features
+      ~DataHandlerH5WindCC.input_file_info
+      ~DataHandlerH5WindCC.invert_lat
+      ~DataHandlerH5WindCC.is_time_independent
+      ~DataHandlerH5WindCC.lat_lon
+      ~DataHandlerH5WindCC.latitude
+      ~DataHandlerH5WindCC.load_workers
+      ~DataHandlerH5WindCC.longitude
+      ~DataHandlerH5WindCC.lr_features
+      ~DataHandlerH5WindCC.lr_only_features
+      ~DataHandlerH5WindCC.means
+      ~DataHandlerH5WindCC.meta
+      ~DataHandlerH5WindCC.n_tsteps
+      ~DataHandlerH5WindCC.need_full_domain
+      ~DataHandlerH5WindCC.noncached_features
+      ~DataHandlerH5WindCC.norm_workers
+      ~DataHandlerH5WindCC.raster_index
+      ~DataHandlerH5WindCC.raw_features
+      ~DataHandlerH5WindCC.raw_lat_lon
+      ~DataHandlerH5WindCC.raw_time_index
+      ~DataHandlerH5WindCC.raw_tsteps
+      ~DataHandlerH5WindCC.requested_shape
+      ~DataHandlerH5WindCC.shape
+      ~DataHandlerH5WindCC.single_ts_files
+      ~DataHandlerH5WindCC.size
+      ~DataHandlerH5WindCC.source_type
+      ~DataHandlerH5WindCC.stds
+      ~DataHandlerH5WindCC.target
+      ~DataHandlerH5WindCC.temporal_slice
+      ~DataHandlerH5WindCC.ti_workers
+      ~DataHandlerH5WindCC.time_chunk_size
+      ~DataHandlerH5WindCC.time_chunks
+      ~DataHandlerH5WindCC.time_freq_hours
+      ~DataHandlerH5WindCC.time_index
+      ~DataHandlerH5WindCC.time_index_file
+      ~DataHandlerH5WindCC.try_load
+   
+   

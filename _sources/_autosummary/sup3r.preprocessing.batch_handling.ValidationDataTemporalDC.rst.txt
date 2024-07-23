@@ -1,0 +1,35 @@
+sup3r.preprocessing.batch\_handling.ValidationDataTemporalDC
+============================================================
+
+.. currentmodule:: sup3r.preprocessing.batch_handling
+
+.. autoclass:: ValidationDataTemporalDC
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~ValidationDataTemporalDC.any
+      ~ValidationDataTemporalDC.batch_next
+      ~ValidationDataTemporalDC.get_handler_index
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~ValidationDataTemporalDC.N_SPACE_BINS
+      ~ValidationDataTemporalDC.N_TIME_BINS
+      ~ValidationDataTemporalDC.handler_weights
+      ~ValidationDataTemporalDC.shape
+   
+   

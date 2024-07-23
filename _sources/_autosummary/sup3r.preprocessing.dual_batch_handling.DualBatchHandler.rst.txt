@@ -1,0 +1,50 @@
+sup3r.preprocessing.dual\_batch\_handling.DualBatchHandler
+==========================================================
+
+.. currentmodule:: sup3r.preprocessing.dual_batch_handling
+
+.. autoclass:: DualBatchHandler
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~DualBatchHandler.cache_stats
+      ~DualBatchHandler.check_cached_stats
+      ~DualBatchHandler.get_handler_index
+      ~DualBatchHandler.get_rand_handler
+      ~DualBatchHandler.get_stats
+      ~DualBatchHandler.load_handler_data
+      ~DualBatchHandler.normalize
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~DualBatchHandler.DATA_HANDLER_CLASS
+      ~DualBatchHandler.feature_mem
+      ~DualBatchHandler.features
+      ~DualBatchHandler.handler_weights
+      ~DualBatchHandler.hr_exo_features
+      ~DualBatchHandler.hr_features
+      ~DualBatchHandler.hr_features_ind
+      ~DualBatchHandler.hr_out_features
+      ~DualBatchHandler.hr_sample_shape
+      ~DualBatchHandler.load_workers
+      ~DualBatchHandler.lr_features
+      ~DualBatchHandler.lr_sample_shape
+      ~DualBatchHandler.norm_workers
+      ~DualBatchHandler.shape
+      ~DualBatchHandler.stats_workers
+   
+   

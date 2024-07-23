@@ -1,0 +1,50 @@
+sup3r.preprocessing.dual\_batch\_handling.SpatialDualBatchHandler
+=================================================================
+
+.. currentmodule:: sup3r.preprocessing.dual_batch_handling
+
+.. autoclass:: SpatialDualBatchHandler
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~SpatialDualBatchHandler.cache_stats
+      ~SpatialDualBatchHandler.check_cached_stats
+      ~SpatialDualBatchHandler.get_handler_index
+      ~SpatialDualBatchHandler.get_rand_handler
+      ~SpatialDualBatchHandler.get_stats
+      ~SpatialDualBatchHandler.load_handler_data
+      ~SpatialDualBatchHandler.normalize
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~SpatialDualBatchHandler.DATA_HANDLER_CLASS
+      ~SpatialDualBatchHandler.feature_mem
+      ~SpatialDualBatchHandler.features
+      ~SpatialDualBatchHandler.handler_weights
+      ~SpatialDualBatchHandler.hr_exo_features
+      ~SpatialDualBatchHandler.hr_features
+      ~SpatialDualBatchHandler.hr_features_ind
+      ~SpatialDualBatchHandler.hr_out_features
+      ~SpatialDualBatchHandler.hr_sample_shape
+      ~SpatialDualBatchHandler.load_workers
+      ~SpatialDualBatchHandler.lr_features
+      ~SpatialDualBatchHandler.lr_sample_shape
+      ~SpatialDualBatchHandler.norm_workers
+      ~SpatialDualBatchHandler.shape
+      ~SpatialDualBatchHandler.stats_workers
+   
+   

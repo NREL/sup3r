@@ -1,0 +1,6 @@
+sup3r.utilities.utilities.lat\_lon\_coarsening
+==============================================
+
+.. currentmodule:: sup3r.utilities.utilities
+
+.. autofunction:: lat_lon_coarsening

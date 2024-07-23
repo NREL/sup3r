@@ -1,0 +1,6 @@
+sup3r.bias.bias\_transforms.get\_spatial\_bc\_presrat
+=====================================================
+
+.. currentmodule:: sup3r.bias.bias_transforms
+
+.. autofunction:: get_spatial_bc_presrat

@@ -1,0 +1,23 @@
+sup3r.qa.visual\_qa\_cli
+========================
+
+.. automodule:: sup3r.qa.visual_qa_cli
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

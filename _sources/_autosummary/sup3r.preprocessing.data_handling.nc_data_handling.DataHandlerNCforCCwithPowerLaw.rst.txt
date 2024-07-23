@@ -1,0 +1,134 @@
+sup3r.preprocessing.data\_handling.nc\_data\_handling.DataHandlerNCforCCwithPowerLaw
+====================================================================================
+
+.. currentmodule:: sup3r.preprocessing.data_handling.nc_data_handling
+
+.. autoclass:: DataHandlerNCforCCwithPowerLaw
+   :members:
+   :show-inheritance:
+   :inherited-members:
+   :special-members: __call__, __add__, __mul__
+
+   
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~DataHandlerNCforCCwithPowerLaw.cache_data
+      ~DataHandlerNCforCCwithPowerLaw.cap_worker_args
+      ~DataHandlerNCforCCwithPowerLaw.check_cached_features
+      ~DataHandlerNCforCCwithPowerLaw.check_clear_data
+      ~DataHandlerNCforCCwithPowerLaw.clear_data
+      ~DataHandlerNCforCCwithPowerLaw.compute_raster_index
+      ~DataHandlerNCforCCwithPowerLaw.data_fill
+      ~DataHandlerNCforCCwithPowerLaw.direct_extract
+      ~DataHandlerNCforCCwithPowerLaw.extract_feature
+      ~DataHandlerNCforCCwithPowerLaw.get_cache_file_names
+      ~DataHandlerNCforCCwithPowerLaw.get_capped_workers
+      ~DataHandlerNCforCCwithPowerLaw.get_clearsky_ghi
+      ~DataHandlerNCforCCwithPowerLaw.get_closest_lat_lon
+      ~DataHandlerNCforCCwithPowerLaw.get_file_times
+      ~DataHandlerNCforCCwithPowerLaw.get_full_domain
+      ~DataHandlerNCforCCwithPowerLaw.get_handle_features
+      ~DataHandlerNCforCCwithPowerLaw.get_input_arrays
+      ~DataHandlerNCforCCwithPowerLaw.get_inputs_recursive
+      ~DataHandlerNCforCCwithPowerLaw.get_lat_lon
+      ~DataHandlerNCforCCwithPowerLaw.get_lat_lon_df
+      ~DataHandlerNCforCCwithPowerLaw.get_next
+      ~DataHandlerNCforCCwithPowerLaw.get_node_cmd
+      ~DataHandlerNCforCCwithPowerLaw.get_raster_index
+      ~DataHandlerNCforCCwithPowerLaw.get_raw_feature_list
+      ~DataHandlerNCforCCwithPowerLaw.get_time_index
+      ~DataHandlerNCforCCwithPowerLaw.has_exact_feature
+      ~DataHandlerNCforCCwithPowerLaw.has_multilevel_feature
+      ~DataHandlerNCforCCwithPowerLaw.has_surrounding_features
+      ~DataHandlerNCforCCwithPowerLaw.lats_are_descending
+      ~DataHandlerNCforCCwithPowerLaw.lin_bc
+      ~DataHandlerNCforCCwithPowerLaw.load_cached_data
+      ~DataHandlerNCforCCwithPowerLaw.lookup
+      ~DataHandlerNCforCCwithPowerLaw.mask_nan
+      ~DataHandlerNCforCCwithPowerLaw.normalize
+      ~DataHandlerNCforCCwithPowerLaw.parallel_compute
+      ~DataHandlerNCforCCwithPowerLaw.parallel_extract
+      ~DataHandlerNCforCCwithPowerLaw.parallel_load
+      ~DataHandlerNCforCCwithPowerLaw.pop_old_data
+      ~DataHandlerNCforCCwithPowerLaw.preflight
+      ~DataHandlerNCforCCwithPowerLaw.qdm_bc
+      ~DataHandlerNCforCCwithPowerLaw.recursive_compute
+      ~DataHandlerNCforCCwithPowerLaw.run_all_data_init
+      ~DataHandlerNCforCCwithPowerLaw.run_data_compute
+      ~DataHandlerNCforCCwithPowerLaw.run_data_extraction
+      ~DataHandlerNCforCCwithPowerLaw.run_nn_fill
+      ~DataHandlerNCforCCwithPowerLaw.serial_compute
+      ~DataHandlerNCforCCwithPowerLaw.serial_data_fill
+      ~DataHandlerNCforCCwithPowerLaw.serial_extract
+      ~DataHandlerNCforCCwithPowerLaw.source_handler
+      ~DataHandlerNCforCCwithPowerLaw.split_data
+      ~DataHandlerNCforCCwithPowerLaw.time_index_conflict_check
+      ~DataHandlerNCforCCwithPowerLaw.valid_handle_features
+      ~DataHandlerNCforCCwithPowerLaw.valid_input_features
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~DataHandlerNCforCCwithPowerLaw.CHUNKS
+      ~DataHandlerNCforCCwithPowerLaw.FEATURE_REGISTRY
+      ~DataHandlerNCforCCwithPowerLaw.attrs
+      ~DataHandlerNCforCCwithPowerLaw.cache_files
+      ~DataHandlerNCforCCwithPowerLaw.cache_pattern
+      ~DataHandlerNCforCCwithPowerLaw.cached_features
+      ~DataHandlerNCforCCwithPowerLaw.compute_workers
+      ~DataHandlerNCforCCwithPowerLaw.derive_features
+      ~DataHandlerNCforCCwithPowerLaw.extract_features
+      ~DataHandlerNCforCCwithPowerLaw.extract_workers
+      ~DataHandlerNCforCCwithPowerLaw.feature_mem
+      ~DataHandlerNCforCCwithPowerLaw.file_paths
+      ~DataHandlerNCforCCwithPowerLaw.full_raw_lat_lon
+      ~DataHandlerNCforCCwithPowerLaw.grid_mem
+      ~DataHandlerNCforCCwithPowerLaw.grid_shape
+      ~DataHandlerNCforCCwithPowerLaw.handle_features
+      ~DataHandlerNCforCCwithPowerLaw.hr_exo_features
+      ~DataHandlerNCforCCwithPowerLaw.hr_out_features
+      ~DataHandlerNCforCCwithPowerLaw.input_file_info
+      ~DataHandlerNCforCCwithPowerLaw.invert_lat
+      ~DataHandlerNCforCCwithPowerLaw.is_time_independent
+      ~DataHandlerNCforCCwithPowerLaw.lat_lon
+      ~DataHandlerNCforCCwithPowerLaw.latitude
+      ~DataHandlerNCforCCwithPowerLaw.load_workers
+      ~DataHandlerNCforCCwithPowerLaw.longitude
+      ~DataHandlerNCforCCwithPowerLaw.lr_features
+      ~DataHandlerNCforCCwithPowerLaw.lr_only_features
+      ~DataHandlerNCforCCwithPowerLaw.means
+      ~DataHandlerNCforCCwithPowerLaw.meta
+      ~DataHandlerNCforCCwithPowerLaw.n_tsteps
+      ~DataHandlerNCforCCwithPowerLaw.need_full_domain
+      ~DataHandlerNCforCCwithPowerLaw.noncached_features
+      ~DataHandlerNCforCCwithPowerLaw.norm_workers
+      ~DataHandlerNCforCCwithPowerLaw.raster_index
+      ~DataHandlerNCforCCwithPowerLaw.raw_features
+      ~DataHandlerNCforCCwithPowerLaw.raw_lat_lon
+      ~DataHandlerNCforCCwithPowerLaw.raw_time_index
+      ~DataHandlerNCforCCwithPowerLaw.raw_tsteps
+      ~DataHandlerNCforCCwithPowerLaw.requested_shape
+      ~DataHandlerNCforCCwithPowerLaw.shape
+      ~DataHandlerNCforCCwithPowerLaw.single_ts_files
+      ~DataHandlerNCforCCwithPowerLaw.size
+      ~DataHandlerNCforCCwithPowerLaw.source_type
+      ~DataHandlerNCforCCwithPowerLaw.stds
+      ~DataHandlerNCforCCwithPowerLaw.target
+      ~DataHandlerNCforCCwithPowerLaw.temporal_slice
+      ~DataHandlerNCforCCwithPowerLaw.ti_workers
+      ~DataHandlerNCforCCwithPowerLaw.time_chunk_size
+      ~DataHandlerNCforCCwithPowerLaw.time_chunks
+      ~DataHandlerNCforCCwithPowerLaw.time_freq_hours
+      ~DataHandlerNCforCCwithPowerLaw.time_index
+      ~DataHandlerNCforCCwithPowerLaw.time_index_file
+      ~DataHandlerNCforCCwithPowerLaw.try_load
+   
+   

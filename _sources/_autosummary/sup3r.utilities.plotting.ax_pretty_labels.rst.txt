@@ -1,0 +1,6 @@
+sup3r.utilities.plotting.ax\_pretty\_labels
+===========================================
+
+.. currentmodule:: sup3r.utilities.plotting
+
+.. autofunction:: ax_pretty_labels
