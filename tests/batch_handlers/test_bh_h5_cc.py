@@ -132,6 +132,8 @@ def test_solar_batch_nan_stats():
     assert np.allclose(batcher.means[FEATURES_S[0]], true_csr_mean)
     assert np.allclose(batcher.stds[FEATURES_S[0]], true_csr_stdev)
 
+    handler = DataHandlerH5SolarCC(pytest.FP_NSRDB, FEATURES_S, **dh_kwargs)
+
     batcher = BatchHandlerCC(
         [handler, handler],
         [],

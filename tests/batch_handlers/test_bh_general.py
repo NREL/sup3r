@@ -78,8 +78,68 @@ def test_eager_vs_lazy():
         assert np.array_equal(eb.low_res, lb.low_res)
 
 
+def test_not_enough_stats():
+    """Negative test for not enough means / stds for given features."""
+
+    dat = DummyData((10, 10, 100), FEATURES)
+
+    with pytest.raises(AssertionError):
+        _ = BatchHandler(
+            train_containers=[dat],
+            val_containers=[dat],
+            sample_shape=(8, 8, 4),
+            n_batches=3,
+            batch_size=4,
+            s_enhance=2,
+            t_enhance=2,
+            means={'windspeed': 4},
+            stds={'windspeed': 2},
+            queue_cap=10,
+            max_workers=1,
+        )
+
+
+def test_multi_container_normalization():
+    """Make sure stats are the same for 2 of the same container as a single
+    one"""
+
+    dat = DummyData((10, 10, 100), FEATURES)
+
+    stored_data = dat.as_array()
+
+    batcher1 = BatchHandler(
+        train_containers=[dat],
+        val_containers=[],
+        sample_shape=(8, 8, 4),
+        batch_size=4,
+        n_batches=3,
+        s_enhance=2,
+        t_enhance=1,
+        queue_cap=10,
+        max_workers=1,
+    )
+
+    dat.data['windspeed', ...] = stored_data[..., 0]
+    dat.data['winddirection', ...] = stored_data[..., 1]
+
+    batcher2 = BatchHandler(
+        train_containers=[dat, dat],
+        val_containers=[dat],
+        sample_shape=(8, 8, 4),
+        batch_size=4,
+        n_batches=3,
+        s_enhance=2,
+        t_enhance=1,
+        queue_cap=10,
+        max_workers=1,
+    )
+
+    assert batcher1.means == batcher2.means
+    assert batcher1.stds == batcher2.stds
+
+
 def test_normalization():
-    """Smoke test for batch queue."""
+    """Make sure batch handler normalization works correctly."""
 
     means = {'windspeed': 2, 'winddirection': 5}
     stds = {'windspeed': 6.5, 'winddirection': 8.2}
@@ -90,10 +150,13 @@ def test_normalization():
     dat.data['winddirection', ...] = 1
     dat.data['winddirection', 0:4] = np.nan
 
-    transform_kwargs = {'smoothing_ignore': [], 'smoothing': None}
+    val_dat = DummyData((10, 10, 100), FEATURES)
+    val_dat.data['windspeed', ...] = dat.data['windspeed', ...]
+    val_dat.data['winddirection', ...] = dat.data['winddirection', ...]
+
     batcher = BatchHandler(
         train_containers=[dat],
-        val_containers=[dat],
+        val_containers=[val_dat],
         sample_shape=(8, 8, 4),
         batch_size=4,
         n_batches=3,
@@ -103,11 +166,37 @@ def test_normalization():
         means=means,
         stds=stds,
         max_workers=1,
-        transform_kwargs=transform_kwargs,
     )
 
     means = list(means.values())
     stds = list(stds.values())
+
+    assert (
+        np.nanmean(
+            batcher.containers[0].as_array()[..., 0] * stds[0] + means[0]
+        )
+        == 1
+    )
+    assert (
+        np.nanmean(
+            batcher.containers[0].as_array()[..., 1] * stds[1] + means[1]
+        )
+        == 1
+    )
+    assert (
+        np.nanmean(
+            batcher.val_data.containers[0].as_array()[..., 0] * stds[0]
+            + means[0]
+        )
+        == 1
+    )
+    assert (
+        np.nanmean(
+            batcher.val_data.containers[0].as_array()[..., 1] * stds[1]
+            + means[1]
+        )
+        == 1
+    )
 
     assert len(batcher) == 3
     for b in batcher:

@@ -41,8 +41,15 @@ class StatsCollection(Collection):
         super().__init__(containers=containers)
         self.means = self.get_means(means)
         self.stds = self.get_stds(stds)
-        self.save_stats(stds=stds, means=means)
-        self.normalize(means=self.means, stds=self.stds)
+        self.save_stats(stds=self.stds, means=self.means)
+        msg = (
+            f'Not all features ({self.features}) are found in '
+            f'means / stds dictionaries: ({self.means} / {self.stds})!'
+        )
+        assert all(f in self.means for f in self.features) and all(
+            f in self.stds for f in self.features
+        ), msg
+        self.normalize(containers)
 
     def _get_stat(self, stat_type):
         """Get either mean or std for all features and all containers."""
@@ -119,9 +126,10 @@ class StatsCollection(Collection):
                 f.write(safe_serialize(self.means))
                 logger.info(f'Saved means {self.means} to {means}.')
 
-    def normalize(self, stds, means):
+    def normalize(self, containers):
         """Normalize container data with computed stats."""
         logger.info(
-            f'Normalizing container data with means: {means}, stds: {stds}.'
+            f'Normalizing container data with means: {self.means}, '
+            f'stds: {self.stds}.'
         )
-        _ = [c.normalize(means=means, stds=stds) for c in self.containers]
+        _ = [c.normalize(means=self.means, stds=self.stds) for c in containers]

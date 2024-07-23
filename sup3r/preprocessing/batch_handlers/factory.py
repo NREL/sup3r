@@ -98,12 +98,13 @@ def BatchHandlerFactory(
             )
 
             stats = StatsCollection(
-                containers=train_samplers + val_samplers,
+                containers=train_samplers,
                 means=means,
                 stds=stds,
             )
             self.means = stats.means
             self.stds = stats.stds
+            stats.normalize(val_samplers)
 
             if not val_samplers:
                 self.val_data: Union[List, Type[self.VAL_QUEUE]] = []

@@ -14,36 +14,6 @@ from sup3r.utilities.pytest.helpers import (
 )
 
 FEATURES = ['windspeed', 'winddirection']
-means = dict.fromkeys(FEATURES, 0)
-stds = dict.fromkeys(FEATURES, 1)
-
-
-def test_not_enough_stats_for_batch_queue():
-    """Negative test for not enough means / stds for given features."""
-
-    samplers = [
-        DummySampler(
-            sample_shape=(8, 8, 10), data_shape=(10, 10, 20), features=FEATURES
-        ),
-        DummySampler(
-            sample_shape=(8, 8, 10), data_shape=(12, 12, 15), features=FEATURES
-        ),
-    ]
-    transform_kwargs = {'smoothing_ignore': [], 'smoothing': None}
-
-    with pytest.raises(AssertionError):
-        _ = SingleBatchQueue(
-            samplers=samplers,
-            n_batches=3,
-            batch_size=4,
-            s_enhance=2,
-            t_enhance=2,
-            means={'windspeed': 4},
-            stds={'windspeed': 2},
-            queue_cap=10,
-            max_workers=1,
-            transform_kwargs=transform_kwargs,
-        )
 
 
 def test_batch_queue():
@@ -61,8 +31,6 @@ def test_batch_queue():
         batch_size=4,
         s_enhance=2,
         t_enhance=2,
-        means=means,
-        stds=stds,
         queue_cap=10,
         max_workers=1,
         transform_kwargs=transform_kwargs,
@@ -96,8 +64,6 @@ def test_spatial_batch_queue():
         n_batches=n_batches,
         batch_size=batch_size,
         queue_cap=queue_cap,
-        means=means,
-        stds=stds,
         max_workers=1,
         transform_kwargs=transform_kwargs,
     )
@@ -154,8 +120,6 @@ def test_dual_batch_queue():
         n_batches=3,
         batch_size=4,
         queue_cap=10,
-        means=means,
-        stds=stds,
         max_workers=1,
     )
     batcher.start()
@@ -202,8 +166,6 @@ def test_pair_batch_queue_with_lr_only_features():
         )
         for lr, hr in zip(lr_containers, hr_containers)
     ]
-    means = dict.fromkeys(lr_features, 0)
-    stds = dict.fromkeys(lr_features, 1)
     batcher = DualBatchQueue(
         samplers=sampler_pairs,
         s_enhance=2,
@@ -211,8 +173,6 @@ def test_pair_batch_queue_with_lr_only_features():
         n_batches=3,
         batch_size=4,
         queue_cap=10,
-        means=means,
-        stds=stds,
         max_workers=1,
     )
     batcher.start()
@@ -266,8 +226,6 @@ def test_bad_enhancement_factors():
                 n_batches=3,
                 batch_size=4,
                 queue_cap=10,
-                means=means,
-                stds=stds,
                 max_workers=1,
             )
 
@@ -293,7 +251,5 @@ def test_bad_sample_shapes():
             n_batches=3,
             batch_size=4,
             queue_cap=10,
-            means=means,
-            stds=stds,
             max_workers=1,
         )
