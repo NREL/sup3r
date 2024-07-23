@@ -692,8 +692,6 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
        hydrological simulations of climate change. Journal of Hydrometeorology,
        16(6), 2421-2442.
     """
-    zero_rate_threshold = None
-
     def _init_out(self):
         super()._init_out()
 
@@ -844,7 +842,7 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         fill_extend=True,
         smooth_extend=0,
         smooth_interior=0,
-        zero_rate_threshold=0.01,
+        zero_rate_threshold=0.0,
     ):
         """Estimate the required information for PresRat correction
 
@@ -860,6 +858,24 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
             data. Can be None (no reduction, keep source time frequency), "avg"
             (daily average), "max" (daily max), "min" (daily min),
             "sum" (daily sum/total)
+        fill_extend : bool
+            Whether to fill data extending beyond the base meta data with
+            nearest neighbor values.
+        smooth_extend : float
+            Option to smooth the scalar/adder data outside of the spatial
+            domain set by the threshold input. This alleviates the weird seams
+            far from the domain of interest. This value is the standard
+            deviation for the gaussian_filter kernel
+        smooth_interior : float
+            Value to use to smooth the scalar/adder data inside of the spatial
+            domain set by the threshold input. This can reduce the effect of
+            extreme values within aggregations over large number of pixels.
+            This value is the standard deviation for the gaussian_filter
+            kernel.
+        zero_rate_threshold : float, default=0.0
+            Threshold value used to determine the zero rate in the observed
+            historical dataset. For instance, 0.01 means that anything less
+            than that will be considered negligible, hence equal to zero.
 
         Returns
         -------
@@ -986,7 +1002,6 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
             self.out, fill_extend, smooth_extend, smooth_interior
         )
 
-        self.zero_rate_threshold = zero_rate_threshold
         extra_attrs = {
             'zero_rate_threshold': zero_rate_threshold,
             'time_window_center': self.time_window_center,
