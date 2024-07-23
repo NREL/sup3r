@@ -755,7 +755,7 @@ def local_presrat_bc(data: np.ndarray,
     data : np.ndarray
         Sup3r input data to be bias corrected, assumed to be 3D with shape
         (spatial, spatial, temporal) for a single feature.
-    lat_lon : ndarray
+    lat_lon : np.ndarray
         Array of latitudes and longitudes for the domain to bias correct
         (n_lats, n_lons, 2)
     base_dset :
@@ -771,6 +771,11 @@ def local_presrat_bc(data: np.ndarray,
         "bias_fut_{feature_name}_params", and "base_{base_dset}_params" that
         are the parameters to define the statistical distributions to be used
         to correct the given `data`.
+    time_index : pd.DatetimeIndex
+        DatetimeIndex object associated with the input data temporal axis
+        (assumed 3rd axis e.g. axis=2). Note that if this method is called as
+        part of a sup3r resolution forward pass, the time_index will be
+        included automatically for the current chunk.
     lr_padded_slice : tuple | None
         Tuple of length four that slices (spatial_1, spatial_2, temporal,
         features) where each tuple entry is a slice object for that axes.
@@ -778,6 +783,13 @@ def local_presrat_bc(data: np.ndarray,
         lr_padded_slice will be included automatically in the kwargs for the
         active chunk. If this is None, no slicing will be done and the full
         bias correction source shape will be used.
+    threshold : float
+        Nearest neighbor euclidean distance threshold. If the coordinates are
+        more than this value away from the bias correction lat/lon, an error
+        is raised.
+    relative : bool
+        Apply QDM correction as a relative factor (product), otherwise, it is
+        applied as an offset (sum).
     no_trend: bool, default=False
         An option to ignore the trend component of the correction, thus
         resulting in an ordinary Quantile Mapping, i.e. corrects the bias by
