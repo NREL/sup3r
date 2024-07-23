@@ -150,4 +150,4 @@ class ZeroRateMixin:
         """
         idx = np.isfinite(arr)
 
-        return np.mean((arr[idx] < threshold).astype('i'))
+        return np.mean((arr[idx] <= threshold).astype('i'))
