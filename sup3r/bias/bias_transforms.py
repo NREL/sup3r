@@ -653,26 +653,47 @@ def get_spatial_bc_presrat(lat_lon: np.array,
         A dictionary containing:
         - base : np.array
           Parameters used to define the statistical distribution estimated for
-          the ``base_dset``. It has a shape of (I, J, P), where (I, J) are the
-          same first two dimensions of the given `lat_lon` and P is the number
-          of parameters and depends on the type of distribution. See
-          :class:`~sup3r.bias.PresRat` for more details.
+          the ``base_dset``. It has a shape of (I, J, T, P), where (I, J) are
+          the same first two dimensions of the given `lat_lon`; T is time in
+          intervals equally spaced along a year. Check
+          `cfg['time_window_center']` below to map each T to a day of the
+          year; and P is the number of parameters and depends on the type of
+          distribution. See :class:`~sup3r.bias.PresRat` for more details.
         - bias : np.array
           Parameters used to define the statistical distribution estimated for
-          (historical) ``feature_name``. It has a shape of (I, J, P), where
-          (I, J) are the same first two dimensions of the given `lat_lon` and P
+          (historical) ``feature_name``. It has a shape of (I, J, T, P), where
+          (I, J) are the same first two dimensions of the given `lat_lon`; T
+          is time in intervals equally spaced along a year. Check
+          `cfg['time_window_center']` to map each T to a day of the year; and P
           is the number of parameters and depends on the type of distribution.
           See :class:`~sup3r.bias.PresRat` for more details.
         - bias_fut : np.array
           Parameters used to define the statistical distribution estimated for
-          (future) ``feature_name``. It has a shape of (I, J, P), where (I, J)
-          are the same first two dimensions of the given `lat_lon` and P is the
-          number of parameters used and depends on the type of distribution.
+          (future) ``feature_name``. It has a shape of (I, J, T, P), where
+          (I, J) are the same first two dimensions of the given `lat_lon`; T
+          is time in intervals equally spaced along a year. Check
+          `cfg['time_window_center']` to map each T to a day of the year; and
+          P is the number of parameters used and depends on the type of
+          distribution.
           See :class:`~sup3r.bias.PresRat` for more details.
+        - bias_tau_fut : np.array
+          The threshold for negligible magnitudes. Any value smaller than that
+          should be replaced by zero to preserve the zero (precipitation)
+          rate. I has dimension of (I, J, dummy), where (I, J) are the same
+          first two dimensions of the given `lat_lon`; and a dummy 3rd
+          dimension required due to the way sup3r saves data in an HDF.
+        - k_factor : np.array
+          The K factor used to preserve the mean rate of change from the model
+          (see [Pierce2015]_). It has a shape of (I, J, T), where (I, J) are
+          the same first two dimensions of the given `lat_lon`; T is time in
+          intervals equally spaced along a year. Check
+          `cfg['time_window_center']` to map each T to a day of the year.
     cfg : dict
         Metadata used to guide how to use of the previous parameters on
         reconstructing the statistical distributions. For instance,
-        `cfg['dist']` defines the type of distribution. See
+        `cfg['dist']` defines the type of distribution, and
+        `cfg['time_window_center']` maps the dimension T in days of the
+        year for the dimension T of the parameters above. See
         :class:`~sup3r.bias.PresRat` for more details, including which
         metadata is saved.
 
@@ -686,6 +707,13 @@ def get_spatial_bc_presrat(lat_lon: np.array,
     --------
     sup3r.bias.PresRat
         Estimate the statistical distributions loaded here.
+
+    References
+    ----------
+    .. [Pierce2015] Pierce, D. W., Cayan, D. R., Maurer, E. P., Abatzoglou, J.
+       T., & Hegewisch, K. C. (2015). Improved bias correction techniques for
+       hydrological simulations of climate change. Journal of Hydrometeorology,
+       16(6), 2421-2442.
 
     Examples
     --------
