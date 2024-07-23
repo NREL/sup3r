@@ -77,7 +77,11 @@ exclude = [
 ]
 
 [tool.ruff.lint]
-fixable = []
+fixable = [
+  "E225", # missing-whitespace-around-operator
+  "E303", # too-many-blank-lines
+  "UP039", # unnecessary-class-parentheses
+  ]
 # preview = true
 # logger-objects = []
 task-tags = ["TODO", "FIXME", "XXX"]
@@ -210,6 +214,9 @@ ignore = [
 # redundant-keyword-arg
 # c-extension-no-member
 
+[tool.ruff.lint.flake8-quotes]
+inline-quotes = 'single'
+
 [tool.ruff.lint.mccabe]
 # Flag errors (`C901`) whenever the complexity level exceeds 5.
 max-complexity = 12
@@ -253,13 +260,13 @@ channels = ["conda-forge", "anaconda", "main"]
 platforms = ["osx-arm64", "linux-64"]
 
 [tool.pixi.dependencies]
-python = "==3.11"
+python = "~=3.11.0"
 cftime = ">=1.6.2"
 dask = ">=2022.0"
 h5netcdf = ">=1.1.0"
 pillow = ">=10.0"
 matplotlib = ">=3.1"
-numpy = ">=1.7.0"
+numpy = "~=1.7"
 pandas = ">=2.0"
 scipy = ">=1.0.0"
 tensorflow = ">2.4,<2.16"
@@ -279,6 +286,7 @@ doc = { features = ["doc"], solve-group = "default" }
 test = { features = ["test"], solve-group = "default" }
 
 [tool.pixi.tasks]
+test = "pytest --pdb --durations=10 tests"
 
 [tool.pixi.feature.doc.dependencies]
 sphinx = ">=7.0"
@@ -292,3 +300,4 @@ build = ">=0.6"
 twine = ">=5.0"
 ruff = ">=0.4"
 ipython = ">=8.0"
+pytest-xdist = ">=3.0"

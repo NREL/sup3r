@@ -92,3 +92,62 @@ class FillAndSmoothMixin:
                 out[key][~nan_mask, idt] = arr_smooth_int[~nan_mask]
 
         return out
+
+
+class ZeroRateMixin:
+    """Estimate zero rate
+
+
+    [Pierce2015]_.
+
+    References
+    ----------
+    .. [Pierce2015] Pierce, D. W., Cayan, D. R., Maurer, E. P., Abatzoglou, J.
+       T., & Hegewisch, K. C. (2015). Improved bias correction techniques for
+       hydrological simulations of climate change. Journal of Hydrometeorology,
+       16(6), 2421-2442.
+    """
+    @staticmethod
+    def zero_precipitation_rate(arr: np.ndarray, threshold: float = 0.0):
+        """Rate of (nearly) zero precipitation days
+
+        Estimate the rate of values less than a given ``threshold``. In concept
+        the threshold would be zero (thus the name zero precipitation rate)
+        but it is often used a small threshold to truncate negligible values.
+        For instance, [Pierce2015]_ uses 0.01 mm/day for PresRat correction.
+
+        Parameters
+        ----------
+        arr : np.ndarray
+            An array of values to be analyzed. Usually precipitation but it
+            could be applied to other quantities.
+        threshold : float
+            Minimum value accepted. Less than that is assumed to be zero.
+
+        Returns
+        -------
+        rate : float
+            Rate of days with negligible precipitation (see Z_gf in
+            [Pierce2015]_).
+
+        Notes
+        -----
+        The ``NaN`` are ignored for the rate estimate. Therefore, a large
+        number of ``NaN`` might compromise the confidence of the estimator.
+
+        If the input values are all non-finite, it returns NaN.
+
+        Examples
+        --------
+        >>> ZeroRateMixin().zero_precipitation_rate([2, 3, 4], 1)
+        0.0
+
+        >>> ZeroRateMixin().zero_precipitation_rate([0, 1, 2, 3], 1)
+        0.25
+
+        >>> ZeroRateMixin().zero_precipitation_rate([0, 1, 2, 3, np.nan], 1)
+        0.25
+        """
+        idx = np.isfinite(arr)
+
+        return np.mean((arr[idx] <= threshold).astype('i'))
