@@ -54,6 +54,13 @@ VAR_MIN = 0
 # Fix this max
 VAR_MAX = 1300
 
+# Time duration in days of all sample dataset
+# More than a year to check year transition situations
+SAMPLE_TIME_DURATION = 2 * 365 + 1
+# Temporal resolution in days of sample dataset
+SAMPLE_TIME_RESOLUTION = 1
+SAMPLE_ZERO_RATE = 0.01
+
 
 @pytest.fixture(scope='module')
 def fp_resource(tmpdir_factory):
@@ -124,24 +131,34 @@ def fp_resource(tmpdir_factory):
     return fn
 
 
-# Time duration in days of all sample dataset
-# More than a year to check year transition situations
-SAMPLE_TIME_DURATION = 2 * 365 + 1
-# Temporal resolution in days of sample dataset
-SAMPLE_TIME_RESOLUTION = 1
-SAMPLE_ZERO_RATE = 0.01
-
-
 @pytest.fixture(scope='module')
 def precip():
-    """Synthetic historical modeled dataset"""
-    # lat = np.linspace(13.66, 31.57, 20)
-    # lat = np.linspace(38.245528, 40.350785, 20)
+    """Synthetic historical modeled dataset
+
+    Note
+    ----
+    There are different expected patterns in different components of the
+    processing. For instance, lon might be expected as 0-360 in some places
+    but -180 to 180 in others, and expect a certain order that does not
+    necessarily match latitutde. So changes in the coordinates shall be
+    done carefullly.
+    """
+    # first value must conform with TARGET[0]
+    # n values must conform with SHAPE[0]
+    # dlat = -0.70175216
     lat = np.array(
         [40.3507847105177, 39.649032596592, 38.9472804370071, 38.2455282337738]
     )
-    # lon = np.linspace(254.53125, 256.640625, 20)
+    # assert np.allclose(lat[0], TARGET[0])
+    # assert lat.size == SHAPE[0]
+
+    # lon = np.linspace(254.4, 255.1, 10)
+    # first value must conform with TARGET[1]
+    # n values must conform with SHAPE[1]
     lon = np.array([254.53125, 255.234375, 255.9375, 256.640625])
+    # assert np.allclose(lat[1], 360 + TARGET[0])
+    # assert lon.size == SHAPE[0]
+
     t0 = np.datetime64('2015-01-01T12:00:00')
     time = t0 + np.arange(
         0, SAMPLE_TIME_DURATION, SAMPLE_TIME_RESOLUTION, dtype='timedelta64[D]'
