@@ -202,6 +202,7 @@ def bias_correct_feature(
     """
     time_slice = _parse_time_slice(time_slice)
     data = input_handler[source_feature, ..., time_slice]
+    lat_lon = input_handler.lat_lon
     if bc_method is not None:
         bc_method = getattr(sup3r.bias.bias_transforms, bc_method)
         logger.info(f'Running bias correction with: {bc_method}.')
@@ -236,7 +237,7 @@ def bias_correct_feature(
         )
         logger.debug(msg)
 
-        data = bc_method(data, input_handler.lat_lon, **feature_kwargs)
+        data = bc_method(data, lat_lon, **feature_kwargs)
     return data
 
 

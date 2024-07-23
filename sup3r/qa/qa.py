@@ -85,8 +85,8 @@ class Sup3rQa:
             list input
         input_handler_name : str | None
             data handler class to use for input data. Provide a string name to
-            match a class in data_handling.py. If None the correct handler will
-            be guessed based on file type.
+            match a class in sup3r.preprocessing.data_handlers. If None the
+            correct handler will be guessed based on file type.
         input_handler_kwargs : dict
             Keyword arguments for `input_handler`. See :class:`Extracter` class
             for argument details.

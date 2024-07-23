@@ -572,6 +572,7 @@ def local_qdm_bc(
         data.shape[2] == time_index.size
     ), 'Time should align with data 3rd dimension'
 
+    logger.info(f'Getting spatial bc quantiles for feature: {feature_name}.')
     params, cfg = get_spatial_bc_quantiles(lat_lon,
                                            base_dset,
                                            feature_name,
@@ -605,6 +606,7 @@ def local_qdm_bc(
         # The distributions at this point, after selected the respective
         # time window with `window_idx`, are 3D (space, space, N-params)
         # Collapse 3D (space, space, N) into 2D (space**2, N)
+        logger.debug(f'Running QDM for window_idx: {window_idx}')
         QDM = QuantileDeltaMapping(
             oh.reshape(-1, oh.shape[-1]),
             mh.reshape(-1, mh.shape[-1]),

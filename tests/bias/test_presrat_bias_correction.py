@@ -20,11 +20,11 @@ Relevant resources used in the tests:
     zero_rate are zero percent, i.e. no values should be forced to be zero.
 """
 
+import math
 import os
 import shutil
 
 import h5py
-import math
 import numpy as np
 import pandas as pd
 import pytest
@@ -32,15 +32,15 @@ import xarray as xr
 from rex import Outputs
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
-from sup3r.models import Sup3rGan
-from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.bias import (
-    local_qdm_bc,
-    local_presrat_bc,
     PresRat,
+    local_presrat_bc,
+    local_qdm_bc,
 )
 from sup3r.bias.mixins import ZeroRateMixin
-from sup3r.preprocessing.data_handling import DataHandlerNC
+from sup3r.models import Sup3rGan
+from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
+from sup3r.preprocessing import DataHandlerNC
 
 FP_CC = os.path.join(TEST_DATA_DIR, 'rsds_test.nc')
 FP_CC_LAT_LON = DataHandlerNC(FP_CC, 'rsds').lat_lon
@@ -578,7 +578,7 @@ def test_parallel(fp_resource, fp_cc, fp_fut_cc, threshold):
 
     out_p = p.run(max_workers=2, zero_rate_threshold=threshold)
 
-    for k in out_s.keys():
+    for k in out_s:
         assert k in out_p, f'Missing {k} in parallel run'
         assert np.allclose(
             out_s[k], out_p[k], equal_nan=True
@@ -793,14 +793,12 @@ def test_fwp_integration(tmp_path, presrat_params, fp_fut_cc):
         fwp_chunk_shape=fwp_chunk_shape,
         spatial_pad=0,
         temporal_pad=0,
-        input_handler_kwargs=dict(
-            target=target,
-            shape=shape,
-            temporal_slice=temporal_slice,
-            worker_kwargs=dict(max_workers=1),
-        ),
+        input_handler_kwargs={
+            'target': target,
+            'shape': shape,
+            'time_slice': temporal_slice,
+        },
         out_pattern=os.path.join(tmp_path, 'out_{file_id}.nc'),
-        worker_kwargs=dict(max_workers=1),
         input_handler='DataHandlerNCforCC',
     )
     bc_strat = ForwardPassStrategy(
@@ -809,14 +807,12 @@ def test_fwp_integration(tmp_path, presrat_params, fp_fut_cc):
         fwp_chunk_shape=fwp_chunk_shape,
         spatial_pad=0,
         temporal_pad=0,
-        input_handler_kwargs=dict(
-            target=target,
-            shape=shape,
-            temporal_slice=temporal_slice,
-            worker_kwargs=dict(max_workers=1),
-        ),
+        input_handler_kwargs={
+            'target': target,
+            'shape': shape,
+            'time_slice': temporal_slice,
+        },
         out_pattern=os.path.join(tmp_path, 'out_{file_id}.nc'),
-        worker_kwargs=dict(max_workers=1),
         input_handler='DataHandlerNCforCC',
         bias_correct_method='local_presrat_bc',
         bias_correct_kwargs=bias_correct_kwargs,

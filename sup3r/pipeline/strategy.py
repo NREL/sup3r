@@ -456,7 +456,6 @@ class ForwardPassStrategy:
             if self.exo_data is not None
             else None
         )
-
         return ForwardPassChunk(
             input_data=self.input_handler.data[
                 lr_pad_slice[0], lr_pad_slice[1], ti_pad_slice

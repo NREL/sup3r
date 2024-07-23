@@ -344,8 +344,8 @@ class AbstractInterface(ABC):
 
         fnum_diff = len(self.lr_features) - low_res.shape[-1]
         exo_feats = [] if fnum_diff <= 0 else self.lr_features[-fnum_diff:]
-        msg = ('Provided exogenous_data is missing some required features '
-               f'({exo_feats})')
+        msg = (f'Provided exogenous_data: {exogenous_data} is missing some '
+               f'required features ({exo_feats})')
         assert all(feature in exogenous_data for feature in exo_feats), msg
         if exogenous_data is not None and fnum_diff > 0:
             for feature in exo_feats:
