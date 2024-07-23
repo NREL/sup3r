@@ -760,7 +760,7 @@ def local_presrat_bc(data: np.ndarray,
         assumes that params_mh is the data distribution representative for the
         target data.
     """
-    assert data.ndim, 'data was expected to be a 3D array'
+    assert data.ndim == 3, 'data was expected to be a 3D array'
     assert (
         data.shape[-1] == time_index.size
     ), 'The last dimension of data should be time'
