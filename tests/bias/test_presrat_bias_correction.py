@@ -441,6 +441,7 @@ def presrat_nozeros_params(tmpdir_factory, presrat_params):
 
     with h5py.File(fn, 'r+') as f:
         f['ghi_zero_rate'][:] *= 0
+        f['rsds_tau_fut'][:] *= 0
         f.flush()
 
     return str(fn)
@@ -682,7 +683,6 @@ def test_presrat_transform_nochanges(presrat_nochanges_params, fut_cc_notrend):
     ), "This case shouldn't modify the data"
 
 
-@pytest.mark.skip()
 def test_presrat_transform_nozerochanges(presrat_nozeros_params, fut_cc):
     """No adjustment to zero
 
