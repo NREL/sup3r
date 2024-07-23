@@ -656,7 +656,7 @@ def test_presrat_transform_nochanges(presrat_nochanges_params, fut_cc_notrend):
     Note that there are a lot of implicit transformations, so we cannot expect
     to be able to esily compare all gridpoints.
 
-    The corrected output must be the same if:
+    The unbiased output must be the same if:
     - The three CDFs are the same, so no change due to QDM. There is one
       caveat here. The data to be corrected is compared with the mf's CDF, and
       if out of distribution, it would lead to differences;
@@ -671,21 +671,14 @@ def test_presrat_transform_nochanges(presrat_nochanges_params, fut_cc_notrend):
         axis=-1,
     ).astype('float32')
 
-    corrected = local_presrat_bc(
+    unbiased = local_presrat_bc(
         data, latlon, 'ghi', 'rsds', presrat_nochanges_params, time
     )
 
-    assert np.isfinite(corrected).any(), "Can't compare if only NaN"
+    assert np.isfinite(unbiased).any(), "Can't compare if only NaN"
 
-    # The calculations are set in such a way that `run()` only applies to
-    # gripoints where there are historical reference and biased data. This is
-    # hidden by an implicit interpolation procedure, which results in values
-    # that can't be easily reproduced for validation. One solution is to
-    # allow the implicit interpolation but compare only where non-interpolated
-    # values are available. Let's call it the 'Magic index'.
-    idx = (slice(1, 3), slice(0, 3))
     assert np.allclose(
-        data[idx], corrected[idx], equal_nan=False
+        data, unbiased, equal_nan=False
     ), "This case shouldn't modify the data"
 
 
