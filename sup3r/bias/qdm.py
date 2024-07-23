@@ -245,28 +245,33 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
 
     @staticmethod
     def _window_center(ntimes: int):
-        """A sequence of equally spaced `ntimes` day of year along a year
+        """A sequence of equally spaced `ntimes` day of year
 
         This is used to identify the center of moving windows to apply filters
-        and masks. For instance, if ntimes equal to 12, it would return
-        approximately the months' center time.
+        and masks. For instance, if `ntimes` equal to 12, it would return
+        12 equal periods, i.e. approximately the months' center time.
 
         This is conveniently shifted one half time interval so that December
         31st would be closest to the last interval of the year instead of the
         first.
 
-        Leap years are neglected here.
+        Leap years are neglected, but if processed here, the doy 366 is
+        included in the relevant windows as an extra data, which would
+        cause a negligible error.
 
         Parameters
         ----------
         ntimes : int
-            Number of intervals in one year.
+            Number of intervals in one year. Choose 12 for approximately
+            monthly time scales.
 
         Returns
         -------
         np.ndarray :
-            Sequence of center points dividing a standard year in `ntimes`
-            intervals.
+            Sequence of days of the year equally spaced and shifted by half
+            window size, thus `ntimes`=12 results in approximately [15, 45,
+            ...]. It includes the fraction of a day, thus 15.5 is equivalent
+            to January 15th, 12:00h.
         """
         assert ntimes > 0, "Requires a positive number of intervals"
 
