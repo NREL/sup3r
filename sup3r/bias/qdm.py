@@ -648,15 +648,49 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
     * The final correction factor (K) to preserve the mean (ratio between both
       estimated means);
 
+    To keep consistency with the full sup3r pipeline, PresRat was implemented
+    as follows:
+
+    1) Define zero rate from observations (oh)
+
+    Using the historical observations, estimate the zero rate precipitation
+    for each gridpoint. It is expected a long time series here, such as
+    decadal or longer. A threshold larger than zero is an option here.
+
+    The result is a 2D (space) `zero_rate` (non-dimensional).
+
+    2) Find the threshold for each gridpoint (mh)
+
+    Using the zero rate from the previous step, identify the magnitude
+    threshold for each gridpoint that satisfies that dry days rate.
+
+    Note that Pierce (2015) impose `tau` >= 0.01 mm/day for precipitation.
+
+    The result is a 2D (space) threshold `tau` with the same dimensions
+    of the data been corrected. For instance, it could be mm/day for
+    precipitation.
+
+    3) Define `Z_fg` using `tau` (mf)
+
+    The `tau` that was defined with the *modeled historical*, is now
+    used as a threshold on *modeled future* before any correction to define
+    the equivalent zero rate in the future.
+
+    The result is a 2D (space) rate (non-dimensional)
+
+    4) Estimate `tau_fut` using `Z_fg`
+
+    Since sup3r process data in smaller chunks, it wouldn't be possible to
+    apply the rate `Z_fg` directly. To address that, all *modeled future*
+    data is corrected with QDM, and applying `Z_fg` it is defined the
+    `tau_fut`.
+
     References
     ----------
     .. [Pierce2015] Pierce, D. W., Cayan, D. R., Maurer, E. P., Abatzoglou, J.
        T., & Hegewisch, K. C. (2015). Improved bias correction techniques for
        hydrological simulations of climate change. Journal of Hydrometeorology,
        16(6), 2421-2442.
-    # Todo:
-    #   - Identify Z_gf. (0.01 mm) Also have to save on output params
-    #   - Estimate K = <x> / <hat{x}>
     """
     zero_rate_threshold = None
 
@@ -699,7 +733,7 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
                     ):
         """Estimate probability distributions at a single site
 
-        ATTENTION: This should be refactored. There is too much redundancy in
+        TODO! This should be refactored. There is too much redundancy in
         the code. Let's make it work first, and optimize later.
         """
         base_data, base_ti = cls.get_base_data(
@@ -719,6 +753,7 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         out = {}
         corrected_fut_data = np.full_like(bias_fut_data, np.nan)
         for nt, t in enumerate(window_center):
+            # Define indices for which data goes in the current time window
             base_idx = cls.window_mask(base_ti.day_of_year, t, window_size)
             bias_idx = cls.window_mask(bias_ti.day_of_year, t, window_size)
             bias_fut_idx = cls.window_mask(bias_fut_ti.day_of_year,
@@ -751,71 +786,34 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
             subset = bias_fut_data[bias_fut_idx]
             corrected_fut_data[bias_fut_idx] = QDM(subset).squeeze()
 
-        # -----------------------------------------------------------
-        # Dirty implementation of zero-rate
-        # Just a proof of concept. Let's leave to refactor it after
-        # implement K factor correction.
-
         # Step 1: Define zero rate from observations
-        # Assume base_data is a timeseries in a gridpoint
         assert base_data.ndim == 1
-        # Confirm zero_rate_thr default is now 0.0
         obs_zero_rate = cls.zero_precipitation_rate(
             base_data, zero_rate_threshold)
-        # Shall we save this rate for any reference later?
         out[f'{base_dset}_zero_rate'] = obs_zero_rate
 
-        # Step 2: Find tau for each grid point that would lead mh to match
-        # observed dry days.
-        # Remember that zero_rate can be zero. In that case, if there are zero
-        # precip in the historical modeled, we do not want to transform zero
-        # in some value. Find tau that leads to zero_rate found in
-        # observations Pierce2015 requires tau >= 0.01 mm day^-1
-        # ATTENTION, we might have to assume units of mm / day
+        # Step 2: Find tau for each grid point
 
-        # Remove handling of NaN. Implement assert if all finite()
+        # Removed NaN handling, thus reinforce finite-only data.
         assert np.isfinite(bias_data).all(), "Unexpected invalid values"
         assert bias_data.ndim == 1, "Assumed bias_data to be 1D"
         n_threshold = round(obs_zero_rate * bias_data.size)
-        # Confirm which side is the threshold, i.e. inclusive or not.
         n_threshold = min(n_threshold, bias_data.size - 1)
         tau = np.sort(bias_data)[n_threshold]
-        # Confirm units!!!!
-        tau = max(tau, 0.01)
+        # Pierce (2015) imposes 0.01 mm/day
+        # tau = max(tau, 0.01)
 
-        # Step 3: Find Z_gf as the zero rate in mf using tau as threshold
-        # So tau was defined on mh, and used in mf (before correction) to
-        # define the zero rate in future
+        # Step 3: Find Z_gf as the zero rate in mf
         assert np.isfinite(bias_fut_data).all(), "Unexpected invalid values"
         z_fg = (bias_fut_data < tau).astype('i').sum() / bias_fut_data.size
 
-        # Step 4: Apply QDM to obtain corrected mf
-        # !!!!!
-        # Find tau_fut such that corrected_fut_data would respect
-        # Z_gf rate
+        # Step 4: Estimate tau_fut with corrected mf
         tau_fut = np.sort(corrected_fut_data)[round(
             z_fg * corrected_fut_data.size)]
 
-        # Can't apply this anymore. Re-think it.
-        # assert tau_fut >= corrected_fut_data.min()
         out[f'{bias_feature}_tau_fut'] = tau_fut
 
-        # Step 5: Reinforce Z_gf fraction on the corrected future modeled.
-        # I.e., the lowest Z_gf values are replaced by zero so the zero rate
-        # can't be smaller than the historical (but can be larger if the model
-        # says so).
-
-        # Step 5a: Once we apply the full correction, we have no guarantee to
-        # have access anymore to a sufficiently long timeseries. For instance,
-        # it can operate in chunks of weeks or even smaller. Thus apply such
-        # rate (Z_fg) could lead to errors. Instead of the original paper
-        # procedure, we here identify the absolute precipitation that matches
-        # Z_gf, so that it can be applied in small chunks. Let's call this new
-        # threshold tau_fut
-
-        # tau_fut = .....
-
-        # ---- Dirty implementation of K factor. Proof of concept ----
+        # ---- K factor ----
 
         k = np.full(cls.NT, np.nan, np.float32)
         for nt, t in enumerate(window_center):
