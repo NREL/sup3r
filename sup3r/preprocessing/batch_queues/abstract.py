@@ -8,7 +8,7 @@ import logging
 import threading
 from abc import ABC, abstractmethod
 from collections import namedtuple
-from typing import Dict, List, Optional, Union
+from typing import List, Optional, Union
 
 import numpy as np
 import tensorflow as tf
@@ -34,8 +34,6 @@ class AbstractBatchQueue(Collection, ABC):
         n_batches: int = 64,
         s_enhance: int = 1,
         t_enhance: int = 1,
-        means: Optional[Union[Dict, str]] = None,
-        stds: Optional[Union[Dict, str]] = None,
         queue_cap: Optional[int] = None,
         transform_kwargs: Optional[dict] = None,
         max_workers: Optional[int] = None,
@@ -57,15 +55,6 @@ class AbstractBatchQueue(Collection, ABC):
             Integer factor by which the spatial axes is to be enhanced.
         t_enhance : int
             Integer factor by which the temporal axes is to be enhanced.
-        means : Union[Dict, str]
-            Either a .json path containing a dictionary or a dictionary of
-            means which will be used to normalize batches as they are built.
-            Provide a dictionary of zeros to run without normalization.
-        stds : Union[Dict, str]
-            Either a .json path containing a dictionary or a dictionary of
-            standard deviations which will be used to normalize batches as they
-            are built. Provide a dictionary of ones to run without
-            normalization.
         queue_cap : int
             Maximum number of batches the batch queue can store.
         transform_kwargs : Union[Dict, None]
@@ -105,9 +94,6 @@ class AbstractBatchQueue(Collection, ABC):
         self.n_batches = n_batches
         self.queue_cap = queue_cap or n_batches
         self.max_workers = max_workers or batch_size
-        stats = self.get_stats(means=means, stds=stds)
-        self.means, self.lr_means, self.hr_means = stats[:3]
-        self.stds, self.lr_stds, self.hr_stds = stats[3:]
         self.container_index = self.get_container_index()
         self.queue = self.get_queue()
         self.batches = self.prep_batches()
@@ -318,15 +304,13 @@ class AbstractBatchQueue(Collection, ABC):
             Batch object with batch.low_res and batch.high_res attributes
         """
         if self._batch_counter < self.n_batches:
-            samples = self.timer(self._get_batch, log=True)()
+            samples = self.timer(self._get_batch, log=self.mode == 'eager')()
             if self.sample_shape[2] == 1:
                 if isinstance(samples, (list, tuple)):
                     samples = tuple(s[..., 0, :] for s in samples)
                 else:
                     samples = samples[..., 0, :]
-            batch = self.timer(self._post_proc, log=True)(
-                samples
-            )
+            batch = self.timer(self._post_proc)(samples)
             self._batch_counter += 1
         else:
             raise StopIteration

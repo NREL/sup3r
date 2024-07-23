@@ -102,6 +102,8 @@ def BatchHandlerFactory(
                 means=means,
                 stds=stds,
             )
+            self.means = stats.means
+            self.stds = stats.stds
 
             if not val_samplers:
                 self.val_data: Union[List, Type[self.VAL_QUEUE]] = []
@@ -110,8 +112,6 @@ def BatchHandlerFactory(
                     samplers=val_samplers,
                     batch_size=batch_size,
                     n_batches=n_batches,
-                    means=stats.means,
-                    stds=stats.stds,
                     thread_name='validation',
                     **get_class_kwargs(self.VAL_QUEUE, kwargs),
                 )
@@ -119,8 +119,6 @@ def BatchHandlerFactory(
                 samplers=train_samplers,
                 batch_size=batch_size,
                 n_batches=n_batches,
-                means=stats.means,
-                stds=stats.stds,
                 **get_class_kwargs(MainQueueClass, kwargs),
             )
 
