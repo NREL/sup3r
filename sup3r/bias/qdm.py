@@ -1032,7 +1032,7 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         --------
         >>> mycalc = PresRat(...)
         >>> mycalc.write_outputs(fp_out="myfile.h5", out=mydictdataset,
-        ...   extra_attrs={'zero_rate_threshold': 80})
+        ...   extra_attrs={'zero_rate_threshold': 0.01})
         """
 
         out = out or self.out
