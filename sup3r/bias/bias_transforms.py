@@ -62,7 +62,10 @@ def _get_factors(target, shape, var_names, bias_fp, threshold=0.1):
         Also includes 'global_attrs' from Extracter.
     """
     res = Extracter(
-        file_paths=bias_fp, target=target, shape=shape, threshold=threshold
+        file_paths=bias_fp,
+        target=_compute_if_dask(target),
+        shape=shape,
+        threshold=threshold,
     )
     missing = [d for d in var_names.values() if d.lower() not in res.features]
     msg = f'Missing {" and ".join(missing)} in resource: {bias_fp}.'

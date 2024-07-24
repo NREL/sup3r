@@ -8,7 +8,11 @@ import dask.array as da
 import numpy as np
 
 from sup3r.preprocessing.base import Container
-from sup3r.preprocessing.utilities import _compute_if_dask, _parse_time_slice
+from sup3r.preprocessing.utilities import (
+    Dimension,
+    _compute_if_dask,
+    _parse_time_slice,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -123,10 +127,10 @@ class BaseExtracter(Container):
 
     def extract_data(self):
         """Get rasterized data."""
-        return self.loader.isel(
-            south_north=self.raster_index[0],
-            west_east=self.raster_index[1],
-            time=self.time_slice)
+        kwargs = dict(zip(Dimension.dims_2d(), self.raster_index))
+        if Dimension.TIME in self.loader.dims:
+            kwargs[Dimension.TIME] = self.time_slice
+        return self.loader.isel(**kwargs)
 
     def check_target_and_shape(self, full_lat_lon):
         """The data is assumed to use a regular grid so if either target or
