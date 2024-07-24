@@ -68,7 +68,6 @@ class BaseLoader(Container, ABC):
             converted to a tuple when used in `from_array().`
         """
         super().__init__()
-        self._res = None
         self._data = None
         self.res_kwargs = res_kwargs or {}
         self.file_paths = file_paths
@@ -87,6 +86,10 @@ class BaseLoader(Container, ABC):
     def add_attrs(self):
         """Add meta data to dataset."""
         attrs = {'source_files': self.file_paths}
+        if hasattr(self.res, 'global_attrs'):
+            attrs['global_attrs'] = self.res.global_attrs
+        if hasattr(self.res, 'attrs'):
+            attrs['attrs'] = self.res.attrs
         self.data.attrs.update(attrs)
 
     def __enter__(self):

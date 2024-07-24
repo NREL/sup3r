@@ -48,6 +48,7 @@ class ExtendedExtracter(BaseExtracter):
         time_slice=slice(None),
         raster_file=None,
         max_delta=20,
+        threshold=0.5
     ):
         self.raster_file = raster_file
         self.max_delta = max_delta
@@ -57,6 +58,7 @@ class ExtendedExtracter(BaseExtracter):
             target=target,
             shape=shape,
             time_slice=time_slice,
+            threshold=threshold
         )
         if self.raster_file is not None and not os.path.exists(
             self.raster_file

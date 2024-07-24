@@ -115,6 +115,7 @@ class ZeroRateMixin:
        hydrological simulations of climate change. Journal of Hydrometeorology,
        16(6), 2421-2442.
     """
+
     @staticmethod
     def zero_precipitation_rate(arr: np.ndarray, threshold: float = 0.0):
         """Rate of (nearly) zero precipitation days

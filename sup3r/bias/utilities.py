@@ -56,12 +56,13 @@ def lin_bc(handler, bc_files, threshold=0.1):
                     and dset_adder.lower() in dsets
                 )
             if feature not in completed and check:
-                scalar, adder = get_spatial_bc_factors(
+                out = get_spatial_bc_factors(
                     lat_lon=handler.lat_lon,
                     feature_name=feature,
                     bias_fp=fp,
                     threshold=threshold,
                 )
+                scalar, adder = out['scalar'], out['adder']
 
                 if scalar.shape[-1] == 1:
                     scalar = np.repeat(scalar, handler.shape[2], axis=2)

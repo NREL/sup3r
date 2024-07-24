@@ -13,7 +13,8 @@ from .bias_transforms import (
     local_qdm_bc,
     monthly_local_linear_bc,
 )
-from .qdm import PresRat, QuantileDeltaMappingCorrection
+from .presrat import PresRat
+from .qdm import QuantileDeltaMappingCorrection
 
 __all__ = [
     'LinearCorrection',

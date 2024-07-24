@@ -41,6 +41,7 @@ from sup3r.bias.mixins import ZeroRateMixin
 from sup3r.models import Sup3rGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.preprocessing import DataHandlerNC
+from sup3r.utilities.utilities import RANDOM_GENERATOR, Timer
 
 CC_LAT_LON = DataHandlerNC(pytest.FP_RSDS, 'rsds').lat_lon
 # A reference zero rate threshold that might not make sense physically but for
@@ -215,7 +216,7 @@ def precip_fut(precip):
     offset = 3 * float(da.quantile(0.75) - da.quantile(0.25))
     da += offset
     # adding a small noise
-    da += 1e-6 * np.random.randn(*da.shape)
+    da += 1e-6 * RANDOM_GENERATOR.random(da.shape)
 
     return da
 
@@ -296,9 +297,9 @@ def fut_cc_notrend(fp_fut_cc_notrend):
     ds = xr.open_dataset(fp_fut_cc_notrend)
 
     # Although it is the same file, somewhere in the data reading process
-    # the longitude is tranformed to the standard [-180 to 180] and it is
+    # the longitude is transformed to the standard [-180 to 180] and it is
     # expected to be like that everywhere.
-    ds['lon'] = ds['lon'] - 360
+    ds['lon'] -= 360
 
     # Operating with numpy arrays impose a fixed dimensions order
     # This compute is required here.
@@ -452,7 +453,7 @@ def presrat_nozeros_params(tmpdir_factory, presrat_params):
 def test_zero_precipitation_rate():
     """Zero rate estimate using median"""
     f = ZeroRateMixin().zero_precipitation_rate
-    arr = np.random.randn(100)
+    arr = RANDOM_GENERATOR.random(100)
 
     rate = f(arr, threshold=np.median(arr))
     assert rate == 0.5
@@ -755,8 +756,10 @@ def test_fwp_integration(tmp_path, presrat_params, fp_fut_cc):
     """Integration of the bias correction method into the forward pass
 
     Validate two aspects:
-    - We should be able to run a forward pass with unbiased data.
-    - The bias trend should be observed in the predicted output.
+        (1) We should be able to run a forward pass with unbiased data.
+        (2) The bias trend should be observed in the predicted output.
+
+    TODO: This still needs to do (2)
     """
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
@@ -798,7 +801,7 @@ def test_fwp_integration(tmp_path, presrat_params, fp_fut_cc):
             'time_slice': temporal_slice,
         },
         out_pattern=os.path.join(tmp_path, 'out_{file_id}.nc'),
-        input_handler='DataHandlerNCforCC',
+        input_handler_name='DataHandlerNCforCC',
     )
     bc_strat = ForwardPassStrategy(
         input_files,
@@ -812,14 +815,27 @@ def test_fwp_integration(tmp_path, presrat_params, fp_fut_cc):
             'time_slice': temporal_slice,
         },
         out_pattern=os.path.join(tmp_path, 'out_{file_id}.nc'),
-        input_handler='DataHandlerNCforCC',
+        input_handler_name='DataHandlerNCforCC',
         bias_correct_method='local_presrat_bc',
         bias_correct_kwargs=bias_correct_kwargs,
     )
 
-    for ichunk in range(strat.chunks):
-        fwp = ForwardPass(strat, chunk_index=ichunk)
-        bc_fwp = ForwardPass(bc_strat, chunk_index=ichunk)
+    timer = Timer()
+    fwp = timer(ForwardPass, log=True)(strat)
+    bc_fwp = timer(ForwardPass, log=True)(bc_strat)
 
-        _delta = bc_fwp.input_data - fwp.input_data
-        _delta = bc_fwp.run_chunk() - fwp.run_chunk()
+    for ichunk in range(len(strat.node_chunks)):
+        bc_chunk = bc_fwp.get_input_chunk(ichunk)
+        chunk = fwp.get_input_chunk(ichunk)
+
+        _delta = bc_chunk.input_data - chunk.input_data
+        kwargs = {
+            'model_kwargs': strat.model_kwargs,
+            'model_class': strat.model_class,
+            'allowed_const': strat.allowed_const,
+            'output_workers': strat.output_workers,
+        }
+        _, data = fwp.run_chunk(chunk, meta=fwp.meta, **kwargs)
+        _, bc_data = bc_fwp.run_chunk(bc_chunk, meta=bc_fwp.meta, **kwargs)
+
+        _delta = bc_data - data

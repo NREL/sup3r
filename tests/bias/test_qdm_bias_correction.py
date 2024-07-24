@@ -97,16 +97,17 @@ def dist_params(tmpdir_factory, fp_fut_cc):
     Use the standard datasets to estimate the distributions and save
     in a temporary place to be re-used
     """
-    calc = QuantileDeltaMappingCorrection(pytest.FP_NSRDB,
-                                          pytest.FP_RSDS,
-                                          fp_fut_cc,
-                                          'ghi',
-                                          'rsds',
-                                          target=TARGET,
-                                          shape=SHAPE,
-                                          distance_upper_bound=0.7,
-                                          bias_handler='DataHandlerNCforCC',
-                                          )
+    calc = QuantileDeltaMappingCorrection(
+        pytest.FP_NSRDB,
+        pytest.FP_RSDS,
+        fp_fut_cc,
+        'ghi',
+        'rsds',
+        target=TARGET,
+        shape=SHAPE,
+        distance_upper_bound=0.7,
+        bias_handler='DataHandlerNCforCC',
+    )
     fn = tmpdir_factory.mktemp('params').join('standard.h5')
     _ = calc.run(fp_out=fn)
 
@@ -123,15 +124,16 @@ def test_qdm_bc(fp_fut_cc):
     something fundamental is wrong.
     """
 
-    calc = QuantileDeltaMappingCorrection(pytest.FP_NSRDB,
-                                          pytest.FP_RSDS,
-                                          fp_fut_cc,
-                                          'ghi',
-                                          'rsds',
-                                          target=TARGET,
-                                          shape=SHAPE,
-                                          bias_handler='DataHandlerNCforCC',
-                                          )
+    calc = QuantileDeltaMappingCorrection(
+        pytest.FP_NSRDB,
+        pytest.FP_RSDS,
+        fp_fut_cc,
+        'ghi',
+        'rsds',
+        target=TARGET,
+        shape=SHAPE,
+        bias_handler='DataHandlerNCforCC',
+    )
 
     out = calc.run(max_workers=1)
 
@@ -210,7 +212,7 @@ def test_fill_nan(fp_fut_cc):
     # Without filling, at least one NaN or this test is useless.
     out = c.run(fill_extend=False)
     # Ignore non `params` parameters, such as window_center
-    params = (v for v in out.keys() if v.endswith('params'))
+    params = (v for v in out if v.endswith('params'))
     assert np.all(
         [np.isnan(out[v]).any() for v in params]
     ), 'Assume at least one NaN value for each param'
@@ -582,22 +584,14 @@ def test_fwp_integration(tmp_path):
             delta[..., 1], 2.72, atol=1e-03
         ), 'V reference offset is 1'
 
-        _, data = fwp.run_chunk(
-            fwp.get_input_chunk(chunk_index=ichunk),
-            model_kwargs=strat.model_kwargs,
-            model_class=strat.model_class,
-            allowed_const=strat.allowed_const,
-            output_workers=strat.output_workers,
-            meta=fwp.meta,
-        )
-        _, bc_data = bc_fwp.run_chunk(
-            bc_fwp.get_input_chunk(chunk_index=ichunk),
-            model_kwargs=strat.model_kwargs,
-            model_class=strat.model_class,
-            allowed_const=strat.allowed_const,
-            output_workers=strat.output_workers,
-            meta=bc_fwp.meta,
-        )
+        kwargs = {
+            'model_kwargs': strat.model_kwargs,
+            'model_class': strat.model_class,
+            'allowed_const': strat.allowed_const,
+            'output_workers': strat.output_workers,
+        }
+        _, data = fwp.run_chunk(chunk, meta=fwp.meta, **kwargs)
+        _, bc_data = bc_fwp.run_chunk(bc_chunk, meta=bc_fwp.meta, **kwargs)
         delta = bc_data - data
         assert delta[..., 0].mean() < 0, 'Predicted U should trend <0'
         assert delta[..., 1].mean() > 0, 'Predicted V should trend >0'

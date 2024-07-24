@@ -31,6 +31,7 @@ class BaseExtracter(Container):
         target=None,
         shape=None,
         time_slice=slice(None),
+        threshold=0.5
     ):
         """
         Parameters
@@ -50,9 +51,14 @@ class BaseExtracter(Container):
             Slice specifying extent and step of temporal extraction. e.g.
             slice(start, stop, step). If equal to slice(None, None, 1) the full
             time dimension is selected.
+        threshold : float
+            Nearest neighbor euclidean distance threshold. If the coordinates
+            are more than this value away from the target lat/lon, an error is
+            raised.
         """
         super().__init__(data=loader.data)
         self.loader = loader
+        self.threshold = threshold
         self.time_slice = time_slice
         self.grid_shape = shape
         self.target = target
@@ -167,8 +173,7 @@ class BaseExtracter(Container):
             warn(msg)
         return new_lat_slice, new_lon_slice
 
-    @staticmethod
-    def get_closest_row_col(lat_lon, target):
+    def get_closest_row_col(self, lat_lon, target):
         """Get closest indices to target lat lon
 
         Parameters
@@ -190,7 +195,15 @@ class BaseExtracter(Container):
         dist = np.hypot(
             lat_lon[..., 0] - target[0], lat_lon[..., 1] - target[1]
         )
-        return da.unravel_index(da.argmin(dist, axis=None), dist.shape)
+        row, col = da.unravel_index(da.argmin(dist, axis=None), dist.shape)
+        if dist.min() > self.threshold:
+            msg = ('The distance between the closest coordinate: '
+                   f'{_compute_if_dask(lat_lon[row, col])} in the grid from '
+                   f'{self.loader.file_paths} and the requested target '
+                   f'{target} exceeds the given threshold: {self.threshold}).')
+            logger.error(msg)
+            raise RuntimeError(msg)
+        return row, col
 
     def get_lat_lon(self):
         """Get the 2D array of coordinates corresponding to the requested

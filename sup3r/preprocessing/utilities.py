@@ -31,6 +31,8 @@ class Dimension(str, Enum):
     VARIABLE = 'variable'
     LATITUDE = 'latitude'
     LONGITUDE = 'longitude'
+    QUANTILE = 'quantile'
+    GLOBAL_TIME = 'global_time'
 
     def __str__(self):
         return self.value
@@ -59,13 +61,24 @@ class Dimension(str, Enum):
 
     @classmethod
     def dims_3d(cls):
-        """Return ordered tuple for 3d spatial coordinates."""
+        """Return ordered tuple for 3d spatiotemporal coordinates."""
         return (cls.SOUTH_NORTH, cls.WEST_EAST, cls.TIME)
 
     @classmethod
     def dims_4d(cls):
-        """Return ordered tuple for 3d spatial coordinates."""
+        """Return ordered tuple for 4d spatiotemporal coordinates."""
         return (cls.SOUTH_NORTH, cls.WEST_EAST, cls.TIME, cls.PRESSURE_LEVEL)
+
+    @classmethod
+    def dims_3d_bc(cls):
+        """Return ordered tuple for 3d spatiotemporal coordinates."""
+        return (cls.SOUTH_NORTH, cls.WEST_EAST, cls.TIME)
+
+    @classmethod
+    def dims_4d_bc(cls):
+        """Return ordered tuple for 4d spatiotemporal coordinates specifically
+        for bias correction factor files."""
+        return (cls.SOUTH_NORTH, cls.WEST_EAST, cls.TIME, cls.QUANTILE)
 
 
 def get_date_range_kwargs(time_index):

@@ -3,25 +3,27 @@
 TODO: These methods need to be refactored to use lazy calculations. They
 currently slow down the forward pass runs when operating on full input data
 volume.
+
+We should write bc factor files in a format compatible with Loaders /
+Extracters so we can use those class methods to match factors with locations
 """
 
 import logging
-import os
 from warnings import warn
 
 import numpy as np
 import pandas as pd
-from rex import Resource
 from rex.utilities.bc_utils import QuantileDeltaMapping
 from scipy.ndimage import gaussian_filter
 
+from sup3r.preprocessing import Extracter
 from sup3r.preprocessing.utilities import _compute_if_dask
 from sup3r.typing import T_Array
 
 logger = logging.getLogger(__name__)
 
 
-def _get_factors(lat_lon, var_names, bias_fp, threshold=0.1):
+def _get_factors(target, shape, var_names, bias_fp, threshold=0.1):
     """Get bias correction factors from sup3r's standard resource
 
     This was stripped without any change from original
@@ -30,9 +32,11 @@ def _get_factors(lat_lon, var_names, bias_fp, threshold=0.1):
 
     Parameters
     ----------
-    lat_lon : np.ndarray
-        Array of latitudes and longitudes for the domain to bias correct
-        (n_lats, n_lons, 2)
+    target : tuple
+        (lat, lon) lower left corner of raster. Either need target+shape or
+        raster_file.
+    shape : tuple
+        (rows, cols) grid size. Either need target+shape or raster_file.
     var_names : dict
         A dictionary mapping the expected variable name in the `Resource`
         and the desired name to output. For instance the dictionary
@@ -55,49 +59,17 @@ def _get_factors(lat_lon, var_names, bias_fp, threshold=0.1):
     dict :
         A dictionary with the content from `bias_fp` as mapped by `var_names`,
         therefore, the keys here are the same keys in `var_names`.
+        Also includes 'global_attrs' from Extracter.
     """
-    with Resource(bias_fp) as res:
-        lat = np.expand_dims(res['latitude'], axis=-1)
-        lon = np.expand_dims(res['longitude'], axis=-1)
-        assert (
-            np.diff(lat[:, :, 0], axis=0) <= 0
-        ).all(), 'Require latitude in decreasing order'
-        assert (
-            np.diff(lon[:, :, 0], axis=1) >= 0
-        ).all(), 'Require longitude in increasing order'
-        lat_lon_bc = np.dstack((lat, lon))
-        diff = lat_lon_bc - lat_lon[:1, :1]
-        diff = np.hypot(diff[..., 0], diff[..., 1])
-        idy, idx = np.where(diff == diff.min())
-        slice_y = slice(idy[0], idy[0] + lat_lon.shape[0])
-        slice_x = slice(idx[0], idx[0] + lat_lon.shape[1])
-
-        if diff.min() > threshold:
-            msg = (
-                'The DataHandler top left coordinate of {} '
-                'appears to be {} away from the nearest '
-                'bias correction coordinate of {} from {}. '
-                'Cannot apply bias correction.'.format(
-                    lat_lon,
-                    diff.min(),
-                    lat_lon_bc[idy, idx],
-                    os.path.basename(bias_fp),
-                )
-            )
-            logger.error(msg)
-            raise RuntimeError(msg)
-
-        res_names = [r.lower() for r in res.dsets]
-        missing = [d for d in var_names.values() if d.lower() not in res_names]
-        msg = f'Missing {" and ".join(missing)} in resource: {bias_fp}.'
-        assert missing == [], msg
-
-        varnames = {
-            k: res.dsets[res_names.index(var_names[k].lower())]
-            for k in var_names
-        }
-        out = {k: res[varnames[k], slice_y, slice_x] for k in var_names}
-
+    res = Extracter(
+        file_paths=bias_fp, target=target, shape=shape, threshold=threshold
+    )
+    missing = [d for d in var_names.values() if d.lower() not in res.features]
+    msg = f'Missing {" and ".join(missing)} in resource: {bias_fp}.'
+    assert missing == [], msg
+    # pylint: disable=E1136
+    out = {k: res[var_names[k].lower(), ...] for k in var_names} # noqa
+    out['cfg'] = res.global_attrs
     return out
 
 
@@ -128,11 +100,15 @@ def get_spatial_bc_factors(lat_lon, feature_name, bias_fp, threshold=0.1):
         'scalar': f'{feature_name}_scalar',
         'adder': f'{feature_name}_adder',
     }
-    out = _get_factors(
-        _compute_if_dask(lat_lon), var_names, bias_fp, threshold
+    target = lat_lon[-1, 0, :]
+    shape = lat_lon.shape[:-1]
+    return _get_factors(
+        target=target,
+        shape=shape,
+        var_names=var_names,
+        bias_fp=bias_fp,
+        threshold=threshold,
     )
-
-    return out['scalar'], out['adder']
 
 
 def get_spatial_bc_quantiles(
@@ -198,12 +174,12 @@ def get_spatial_bc_quantiles(
           number of parameters used and depends on the type of distribution.
           See :class:`~sup3r.bias.qdm.QuantileDeltaMappingCorrection` for more
           details.
-    cfg : dict
-        Metadata used to guide how to use of the previous parameters on
-        reconstructing the statistical distributions. For instance,
-        `cfg['dist']` defines the type of distribution. See
-        :class:`~sup3r.bias.qdm.QuantileDeltaMappingCorrection` for more
-        details, including which metadata is saved.
+        - global_attrs : dict
+          Metadata used to guide how to use of the previous parameters on
+          reconstructing the statistical distributions. For instance,
+          `cfg['dist']` defines the type of distribution. See
+          :class:`~sup3r.bias.qdm.QuantileDeltaMappingCorrection` for more
+          details, including which metadata is saved.
 
     Warnings
     --------
@@ -221,20 +197,23 @@ def get_spatial_bc_quantiles(
     >>> lat_lon = np.array([
     ...              [39.649033, -105.46875 ],
     ...              [39.649033, -104.765625]])
-    >>> params, cfg = get_spatial_bc_quantiles(
-    ...                 lat_lon, "ghi", "rsds", "./dist_params.hdf")
+    >>> params = get_spatial_bc_quantiles(
+    ...             lat_lon, "ghi", "rsds", "./dist_params.hdf")
     """
     var_names = {
         'base': f'base_{base_dset}_params',
         'bias': f'bias_{feature_name}_params',
         'bias_fut': f'bias_fut_{feature_name}_params',
     }
-    params = _get_factors(lat_lon, var_names, bias_fp, threshold)
-
-    with Resource(bias_fp) as res:
-        cfg = res.global_attrs
-
-    return params, cfg
+    target = lat_lon[-1, 0, :]
+    shape = lat_lon.shape[:-1]
+    return _get_factors(
+        target=target,
+        shape=shape,
+        var_names=var_names,
+        bias_fp=bias_fp,
+        threshold=threshold,
+    )
 
 
 def global_linear_bc(data, scalar, adder, out_range=None):
@@ -314,7 +293,8 @@ def local_linear_bc(
         out = data * scalar + adder
     """
 
-    scalar, adder = get_spatial_bc_factors(lat_lon, feature_name, bias_fp)
+    out = get_spatial_bc_factors(lat_lon, feature_name, bias_fp)
+    scalar, adder = out['scalar'], out['adder']
     # 3D bias correction factors have seasonal/monthly correction in last axis
     if len(scalar.shape) == 3 and len(adder.shape) == 3:
         scalar = scalar.mean(axis=-1)
@@ -419,7 +399,8 @@ def monthly_local_linear_bc(
         out = data * scalar + adder
     """
     time_index = pd.date_range(**date_range_kwargs)
-    scalar, adder = get_spatial_bc_factors(lat_lon, feature_name, bias_fp)
+    out = get_spatial_bc_factors(lat_lon, feature_name, bias_fp)
+    scalar, adder = out['scalar'], out['adder']
 
     assert len(scalar.shape) == 3, 'Monthly bias correct needs 3D scalars'
     assert len(adder.shape) == 3, 'Monthly bias correct needs 3D adders'
@@ -583,12 +564,13 @@ def local_qdm_bc(
     ), 'Time should align with data 3rd dimension'
 
     logger.info(f'Getting spatial bc quantiles for feature: {feature_name}.')
-    params, cfg = get_spatial_bc_quantiles(
+    params = get_spatial_bc_quantiles(
         lat_lon, base_dset, feature_name, bias_fp, threshold
     )
     base = params['base']
     bias = params['bias']
     bias_fut = params['bias_fut']
+    cfg = params['cfg']
 
     if lr_padded_slice is not None:
         spatial_slice = (lr_padded_slice[0], lr_padded_slice[1])
@@ -616,9 +598,9 @@ def local_qdm_bc(
         # Collapse 3D (space, space, N) into 2D (space**2, N)
         logger.debug(f'Running QDM for window_idx: {window_idx}')
         QDM = QuantileDeltaMapping(
-            oh.reshape(-1, oh.shape[-1]),
-            mh.reshape(-1, mh.shape[-1]),
-            mf,
+            _compute_if_dask(oh.reshape(-1, oh.shape[-1])),
+            _compute_if_dask(mh.reshape(-1, mh.shape[-1])),
+            _compute_if_dask(mf),
             dist=cfg['dist'],
             relative=relative,
             sampling=cfg['sampling'],
@@ -718,14 +700,14 @@ def get_spatial_bc_presrat(
           the same first two dimensions of the given `lat_lon`; T is time in
           intervals equally spaced along a year. Check
           `cfg['time_window_center']` to map each T to a day of the year.
-    cfg : dict
-        Metadata used to guide how to use of the previous parameters on
-        reconstructing the statistical distributions. For instance,
-        `cfg['dist']` defines the type of distribution, and
-        `cfg['time_window_center']` maps the dimension T in days of the
-        year for the dimension T of the parameters above. See
-        :class:`~sup3r.bias.PresRat` for more details, including which
-        metadata is saved.
+        - cfg
+          Metadata used to guide how to use of the previous parameters on
+          reconstructing the statistical distributions. For instance,
+          `cfg['dist']` defines the type of distribution, and
+          `cfg['time_window_center']` maps the dimension T in days of the
+          year for the dimension T of the parameters above. See
+          :class:`~sup3r.bias.PresRat` for more details, including which
+          metadata is saved.
 
     Warnings
     --------
@@ -750,22 +732,25 @@ def get_spatial_bc_presrat(
     >>> lat_lon = np.array([
     ...              [39.649033, -105.46875 ],
     ...              [39.649033, -104.765625]])
-    >>> params, cfg = get_spatial_bc_quantiles(
-    ...                 lat_lon, "ghi", "rsds", "./dist_params.hdf")
+    >>> params = get_spatial_bc_quantiles(
+    ...             lat_lon, "ghi", "rsds", "./dist_params.hdf")
     """
-    ds = {
+    var_names = {
         'base': f'base_{base_dset}_params',
         'bias': f'bias_{feature_name}_params',
         'bias_fut': f'bias_fut_{feature_name}_params',
         'bias_tau_fut': f'{feature_name}_tau_fut',
         'k_factor': f'{feature_name}_k_factor',
     }
-    params = _get_factors(lat_lon, ds, bias_fp, threshold)
-
-    with Resource(bias_fp) as res:
-        cfg = res.global_attrs
-
-    return params, cfg
+    target = lat_lon[-1, 0, :]
+    shape = lat_lon.shape[:-1]
+    return _get_factors(
+        target=target,
+        shape=shape,
+        var_names=var_names,
+        bias_fp=bias_fp,
+        threshold=threshold,
+    )
 
 
 def local_presrat_bc(
@@ -774,7 +759,7 @@ def local_presrat_bc(
     base_dset: str,
     feature_name: str,
     bias_fp,
-    time_index: np.ndarray,
+    date_range_kwargs: dict,
     lr_padded_slice=None,
     threshold=0.1,
     relative=True,
@@ -803,11 +788,12 @@ def local_presrat_bc(
         "bias_fut_{feature_name}_params", and "base_{base_dset}_params" that
         are the parameters to define the statistical distributions to be used
         to correct the given `data`.
-    time_index : pd.DatetimeIndex
-        DatetimeIndex object associated with the input data temporal axis
-        (assumed 3rd axis e.g. axis=2). Note that if this method is called as
-        part of a sup3r resolution forward pass, the time_index will be
-        included automatically for the current chunk.
+    date_range_kwargs : dict
+        Keyword args for pd.date_range to produce a DatetimeIndex object
+        associated with the input data temporal axis (assumed 3rd axis e.g.
+        axis=2). Note that if this method is called as part of a sup3r
+        resolution forward pass, the date_range_kwargs will be included
+        automatically for the current chunk.
     lr_padded_slice : tuple | None
         Tuple of length four that slices (spatial_1, spatial_2, temporal,
         features) where each tuple entry is a slice object for that axes.
@@ -832,14 +818,16 @@ def local_presrat_bc(
         assumes that params_mh is the data distribution representative for the
         target data.
     """
+    time_index = pd.date_range(**date_range_kwargs)
     assert data.ndim == 3, 'data was expected to be a 3D array'
     assert (
         data.shape[-1] == time_index.size
     ), 'The last dimension of data should be time'
 
-    params, cfg = get_spatial_bc_presrat(
+    params = get_spatial_bc_presrat(
         lat_lon, base_dset, feature_name, bias_fp, threshold
     )
+    cfg = params['cfg']
     time_window_center = cfg['time_window_center']
     base = params['base']
     bias = params['bias']
@@ -867,9 +855,9 @@ def local_presrat_bc(
         # The distributions are 3D (space, space, N-params)
         # Collapse 3D (space, space, N) into 2D (space**2, N)
         QDM = QuantileDeltaMapping(
-            oh.reshape(-1, oh.shape[-1]),
-            mh.reshape(-1, mh.shape[-1]),
-            mf,
+            _compute_if_dask(oh.reshape(-1, oh.shape[-1])),
+            _compute_if_dask(mh.reshape(-1, mh.shape[-1])),
+            _compute_if_dask(mf),
             dist=cfg['dist'],
             relative=relative,
             sampling=cfg['sampling'],
