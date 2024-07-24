@@ -21,7 +21,10 @@ from sup3r.bias.bias_transforms import local_linear_bc, monthly_local_linear_bc
 from sup3r.models import Sup3rGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.preprocessing import DataHandlerNCforCC
-from sup3r.preprocessing.utilities import get_date_range_kwargs
+from sup3r.preprocessing.utilities import (
+    _compute_if_dask,
+    get_date_range_kwargs,
+)
 from sup3r.qa.qa import Sup3rQa
 from sup3r.utilities.utilities import RANDOM_GENERATOR
 
@@ -309,6 +312,7 @@ def test_linear_transform():
                 out_range=None,
             )
 
+    with tempfile.TemporaryDirectory() as td:
         out = calc.run(fill_extend=True, max_workers=1, fp_out=fp_out)
         scalar = out['rsds_scalar']
         adder = out['rsds_adder']
@@ -551,14 +555,16 @@ def test_qa_integration():
         with h5py.File(out_file_path, 'w') as f:
             f.create_dataset('meta', data=RANDOM_GENERATOR.uniform(0, 1, 10))
 
-        scalar = RANDOM_GENERATOR.uniform(0.5, 1, (20, 20, 1))
-        adder = RANDOM_GENERATOR.uniform(0, 1, (20, 20, 1))
+        scalar = RANDOM_GENERATOR.uniform(0.5, 1, (20, 20, 1)).astype(
+            'float32'
+        )
+        adder = RANDOM_GENERATOR.uniform(0, 1, (20, 20, 1)).astype('float32')
 
         with h5py.File(bias_fp, 'w') as f:
-            f.create_dataset('u_100m_scalar', data=scalar)
-            f.create_dataset('u_100m_adder', data=adder)
-            f.create_dataset('v_100m_scalar', data=scalar)
-            f.create_dataset('v_100m_adder', data=adder)
+            f.create_dataset('u_100m_scalar', data=scalar, dtype='float32')
+            f.create_dataset('u_100m_adder', data=adder, dtype='float32')
+            f.create_dataset('v_100m_scalar', data=scalar, dtype='float32')
+            f.create_dataset('v_100m_adder', data=adder, dtype='float32')
             f.create_dataset('latitude', data=lat_lon[..., 0])
             f.create_dataset('longitude', data=lat_lon[..., 1])
 
@@ -596,11 +602,15 @@ def test_qa_integration():
         for feature in features:
             with Sup3rQa(pytest.FPS_GCM, out_file_path, **qa_kw) as qa:
                 data_base = qa.input_handler[feature, ...]
-                data_truth = data_base * scalar + adder
+                data_truth = _compute_if_dask(data_base * scalar + adder)
             with Sup3rQa(pytest.FPS_GCM, out_file_path, **bc_qa_kw) as qa:
-                data_bc = qa.input_handler[feature, ...]
+                data_bc = _compute_if_dask(qa.input_handler[feature, ...])
 
-            assert np.allclose(data_bc, data_truth, equal_nan=True)
+            assert np.allclose(
+                data_bc,
+                data_truth,
+                equal_nan=True,
+            )
 
 
 def test_skill_assessment():

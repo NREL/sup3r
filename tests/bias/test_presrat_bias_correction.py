@@ -741,7 +741,7 @@ def test_compare_qdm_vs_presrat(presrat_params, precip_fut):
         'ghi',
         'rsds',
         presrat_params,
-        time,
+        get_date_range_kwargs(time),
     )
     unbiased_presrat = local_presrat_bc(
         data,
@@ -749,7 +749,7 @@ def test_compare_qdm_vs_presrat(presrat_params, precip_fut):
         'ghi',
         'rsds',
         presrat_params,
-        time,
+        get_date_range_kwargs(time),
     )
 
     assert (

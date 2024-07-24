@@ -41,13 +41,13 @@ class StatsCollection(Collection):
         super().__init__(containers=containers)
         self.means = self.get_means(means)
         self.stds = self.get_stds(stds)
-        self.save_stats(stds=self.stds, means=self.means)
+        self.save_stats(stds=stds, means=means)
         msg = (
             f'Not all features ({self.features}) are found in '
             f'means / stds dictionaries: ({self.means} / {self.stds})!'
         )
-        assert all(f in self.means for f in self.features) and all(
-            f in self.stds for f in self.features
+        assert all(
+            f in set(self.means).intersection(self.stds) for f in self.features
         ), msg
         self.normalize(containers)
 
@@ -77,16 +77,15 @@ class StatsCollection(Collection):
         if means is None or (
             isinstance(means, str) and not os.path.exists(means)
         ):
-            all_feats = self.containers[0].data_vars
-            means = dict.fromkeys(all_feats, 0)
-            logger.info(f'Computing means for {all_feats}.')
+            means = dict.fromkeys(self.features, 0)
+            logger.info(f'Computing means for {self.features}.')
             cmeans = [
                 cm * w
                 for cm, w in zip(
                     self._get_stat('mean'), self.container_weights
                 )
             ]
-            for f in all_feats:
+            for f in means:
                 logger.info(f'Computing mean for {f}.')
                 means[f] = np.float32(np.sum(cm[f] for cm in cmeans))
         elif isinstance(means, str):
@@ -99,14 +98,13 @@ class StatsCollection(Collection):
         if stds is None or (
             isinstance(stds, str) and not os.path.exists(stds)
         ):
-            all_feats = self.containers[0].data_vars
-            stds = dict.fromkeys(all_feats, 0)
-            logger.info(f'Computing stds for {all_feats}.')
+            stds = dict.fromkeys(self.features, 0)
+            logger.info(f'Computing stds for {self.features}.')
             cstds = [
                 w * cm**2
                 for cm, w in zip(self._get_stat('std'), self.container_weights)
             ]
-            for f in all_feats:
+            for f in stds:
                 logger.info(f'Computing std for {f}.')
                 stds[f] = np.float32(np.sqrt(np.sum(cs[f] for cs in cstds)))
         elif isinstance(stds, str):

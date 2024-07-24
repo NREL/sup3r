@@ -212,6 +212,16 @@ class Sup3rDataset:
         return data_vars
 
     @property
+    def features(self):
+        """The features are determined by the set of features from all data
+        members."""
+        feats = [
+            f for f in self._ds[0].features if f not in self._ds[-1].features
+        ]
+        feats += self._ds[-1].features
+        return feats
+
+    @property
     def size(self):
         """Return number of elements in the largest data member."""
         return np.prod(self.shape)

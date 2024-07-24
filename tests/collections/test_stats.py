@@ -7,7 +7,7 @@ import numpy as np
 from rex import safe_json_load
 
 from sup3r import TEST_DATA_DIR
-from sup3r.preprocessing import ExtracterH5, StatsCollection
+from sup3r.preprocessing import Extracter, StatsCollection
 from sup3r.preprocessing.accessor import Sup3rX
 from sup3r.preprocessing.base import Sup3rDataset
 from sup3r.utilities.pytest.helpers import DummyData
@@ -47,11 +47,11 @@ def test_stats_dual_data():
 
     direct_means = {
         'windspeed': dat.data.mean(features='windspeed', skipna=True),
-        'winddirection': dat.data.mean(features='winddirection', skipna=True)
+        'winddirection': dat.data.mean(features='winddirection', skipna=True),
     }
     direct_stds = {
         'windspeed': dat.data.std(features='windspeed', skipna=True),
-        'winddirection': dat.data.std(features='winddirection', skipna=True)
+        'winddirection': dat.data.std(features='winddirection', skipna=True),
     }
 
     with TemporaryDirectory() as td:
@@ -107,7 +107,7 @@ def test_stats_calc():
     stats files."""
     features = ['windspeed_100m', 'winddirection_100m']
     extracters = [
-        ExtracterH5(file, features=features, **kwargs) for file in input_files
+        Extracter(file, features=features, **kwargs) for file in input_files
     ]
     with TemporaryDirectory() as td:
         means = os.path.join(td, 'means.json')
@@ -118,6 +118,12 @@ def test_stats_calc():
         stds = safe_json_load(stds)
         assert means == stats.means
         assert stds == stats.stds
+
+        # reload unnormalized extracters
+        extracters = [
+            Extracter(file, features=features, **kwargs)
+            for file in input_files
+        ]
 
         means = {
             f: np.sum(
