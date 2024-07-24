@@ -48,7 +48,7 @@ class ExtendedExtracter(BaseExtracter):
         time_slice=slice(None),
         raster_file=None,
         max_delta=20,
-        threshold=0.5
+        threshold=None
     ):
         self.raster_file = raster_file
         self.max_delta = max_delta

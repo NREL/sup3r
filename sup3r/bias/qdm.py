@@ -485,7 +485,7 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
             (lat, lon, n-parameters).
         """
 
-        logger.debug('Calculate CDF parameters for QDM')
+        logger.debug('Calculating CDF parameters for QDM')
 
         logger.info('Initialized params with shape: {}'
                     .format(self.bias_gid_raster.shape))

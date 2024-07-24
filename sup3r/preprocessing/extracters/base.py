@@ -31,7 +31,7 @@ class BaseExtracter(Container):
         target=None,
         shape=None,
         time_slice=slice(None),
-        threshold=0.5
+        threshold=None
     ):
         """
         Parameters
@@ -196,13 +196,15 @@ class BaseExtracter(Container):
             lat_lon[..., 0] - target[0], lat_lon[..., 1] - target[1]
         )
         row, col = da.unravel_index(da.argmin(dist, axis=None), dist.shape)
-        if dist.min() > self.threshold:
-            msg = ('The distance between the closest coordinate: '
-                   f'{_compute_if_dask(lat_lon[row, col])} in the grid from '
-                   f'{self.loader.file_paths} and the requested target '
-                   f'{target} exceeds the given threshold: {self.threshold}).')
-            logger.error(msg)
-            raise RuntimeError(msg)
+        msg = ('The distance between the closest coordinate: '
+               f'{_compute_if_dask(lat_lon[row, col])} and the requested '
+               f'target: {_compute_if_dask(target)} for files: '
+               f'{self.loader.file_paths} is {_compute_if_dask(dist.min())}.')
+        if self.threshold is not None and dist.min() > self.threshold:
+            add_msg = f'This exceeds the given threshold: {self.threshold}'
+            logger.error(f'{msg} {add_msg}')
+            raise RuntimeError(f'{msg} {add_msg}')
+        logger.info(msg)
         return row, col
 
     def get_lat_lon(self):
