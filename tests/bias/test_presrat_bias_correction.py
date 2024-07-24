@@ -41,6 +41,7 @@ from sup3r.bias.mixins import ZeroRateMixin
 from sup3r.models import Sup3rGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.preprocessing import DataHandlerNC
+from sup3r.preprocessing.utilities import get_date_range_kwargs
 from sup3r.utilities.utilities import RANDOM_GENERATOR, Timer
 
 CC_LAT_LON = DataHandlerNC(pytest.FP_RSDS, 'rsds').lat_lon
@@ -299,7 +300,7 @@ def fut_cc_notrend(fp_fut_cc_notrend):
     # Although it is the same file, somewhere in the data reading process
     # the longitude is transformed to the standard [-180 to 180] and it is
     # expected to be like that everywhere.
-    ds['lon'] -= 360
+    ds['lon'] = ds['lon'] - 360
 
     # Operating with numpy arrays impose a fixed dimensions order
     # This compute is required here.
@@ -639,7 +640,12 @@ def test_presrat_transform(presrat_params, precip_fut):
     ).astype('float32')
 
     unbiased = local_presrat_bc(
-        data, latlon, 'ghi', 'rsds', presrat_params, time
+        data,
+        latlon,
+        'ghi',
+        'rsds',
+        bias_fp=presrat_params,
+        date_range_kwargs=get_date_range_kwargs(time),
     )
 
     assert np.isfinite(unbiased).any(), "Can't compare if only NaN"
@@ -673,7 +679,12 @@ def test_presrat_transform_nochanges(presrat_nochanges_params, fut_cc_notrend):
     ).astype('float32')
 
     unbiased = local_presrat_bc(
-        data, latlon, 'ghi', 'rsds', presrat_nochanges_params, time
+        data,
+        latlon,
+        'ghi',
+        'rsds',
+        presrat_nochanges_params,
+        get_date_range_kwargs(time),
     )
 
     assert np.isfinite(unbiased).any(), "Can't compare if only NaN"
@@ -702,7 +713,7 @@ def test_presrat_transform_nozerochanges(presrat_nozeros_params, fut_cc):
         'ghi',
         'rsds',
         presrat_nozeros_params,
-        time,
+        get_date_range_kwargs(time),
     )
 
     assert np.isfinite(data).any(), "Can't compare if only NaN"

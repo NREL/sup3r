@@ -45,19 +45,6 @@ def fp_fut_cc(tmpdir_factory):
     return fn
 
 
-@pytest.fixture(scope='module')
-def fp_fut_cc_notrend(tmpdir_factory):
-    """Sample future CC dataset identical to historical CC
-
-    This is currently a copy of pytest.FP_RSDS, thus no trend on time.
-    """
-    fn = tmpdir_factory.mktemp('data').join('test_mf_notrend.nc')
-    shutil.copyfile(pytest.FP_RSDS, fn)
-    # DataHandlerNCforCC requires a string
-    fn = str(fn)
-    return fn
-
-
 def test_window_mask():
     """A basic window mask check
 

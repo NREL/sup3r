@@ -68,7 +68,7 @@ def _get_factors(target, shape, var_names, bias_fp, threshold=0.1):
     msg = f'Missing {" and ".join(missing)} in resource: {bias_fp}.'
     assert missing == [], msg
     # pylint: disable=E1136
-    out = {k: res[var_names[k].lower(), ...] for k in var_names} # noqa
+    out = {k: res[var_names[k].lower(), ...] for k in var_names}
     out['cfg'] = res.global_attrs
     return out
 
@@ -565,8 +565,13 @@ def local_qdm_bc(
 
     logger.info(f'Getting spatial bc quantiles for feature: {feature_name}.')
     params = get_spatial_bc_quantiles(
-        lat_lon, base_dset, feature_name, bias_fp, threshold
+        lat_lon=lat_lon,
+        base_dset=base_dset,
+        feature_name=feature_name,
+        bias_fp=bias_fp,
+        threshold=threshold,
     )
+    logger.info(f'Retreived spatial bc quantiles for feature: {feature_name}.')
     base = params['base']
     bias = params['bias']
     bias_fut = params['bias_fut']
@@ -579,16 +584,21 @@ def local_qdm_bc(
         bias_fut = bias_fut[spatial_slice]
 
     output = np.full_like(data, np.nan)
+    logger.info('Getting nearest_window_idx')
     nearest_window_idx = [
         np.argmin(abs(d - cfg['time_window_center']))
         for d in time_index.day_of_year
     ]
+    logger.info('Iterating through window indices.')
     for window_idx in set(nearest_window_idx):
         # Naming following the paper: observed historical
+        logger.info('Getting obs historical')
         oh = base[:, :, window_idx]
         # Modeled historical
+        logger.info('Getting modeled historical')
         mh = bias[:, :, window_idx]
         # Modeled future
+        logger.info('Getting modeled future')
         mf = bias_fut[:, :, window_idx]
 
         # This satisfies the rex's QDM design
@@ -596,28 +606,35 @@ def local_qdm_bc(
         # The distributions at this point, after selected the respective
         # time window with `window_idx`, are 3D (space, space, N-params)
         # Collapse 3D (space, space, N) into 2D (space**2, N)
-        logger.debug(f'Running QDM for window_idx: {window_idx}')
+        logger.info(f'Initializing QDM for window_idx: {window_idx}')
         QDM = QuantileDeltaMapping(
-            _compute_if_dask(oh.reshape(-1, oh.shape[-1])),
-            _compute_if_dask(mh.reshape(-1, mh.shape[-1])),
-            _compute_if_dask(mf),
+            oh.reshape(-1, oh.shape[-1]),
+            mh.reshape(-1, mh.shape[-1]),
+            mf,
+            # _compute_if_dask(oh.reshape(-1, oh.shape[-1])),
+            # _compute_if_dask(mh.reshape(-1, mh.shape[-1])),
+            # _compute_if_dask(mf),
             dist=cfg['dist'],
             relative=relative,
             sampling=cfg['sampling'],
             log_base=cfg['log_base'],
         )
 
+        logger.info('Finished initializing QDM')
         subset_idx = nearest_window_idx == window_idx
         subset = data[:, :, subset_idx]
         # input 3D shape (spatial, spatial, temporal)
         # QDM expects input arr with shape (time, space)
+        logger.info('Reshaping subset')
         tmp = subset.reshape(-1, subset.shape[-1]).T
         # Apply QDM correction
+        logger.info('Applying QDM correction')
         tmp = QDM(tmp)
         # Reorgnize array back from  (time, space)
         # to (spatial, spatial, temporal)
         tmp = tmp.T.reshape(subset.shape)
         # Position output respecting original time axis sequence
+        logger.info('Writing output')
         output[:, :, subset_idx] = tmp
 
     return output

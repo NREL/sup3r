@@ -122,10 +122,13 @@ class LoaderH5(BaseLoader):
                 dims,
                 da.asarray(elev, dtype=np.float32, chunks=chunks),
             )
-        for f in self.res.resource_datasets:
-            data_vars[f] = self._get_dset_tuple(
-                dset=f, dims=dims, chunks=chunks
-            )
+        data_vars.update(
+            {
+                f: self._get_dset_tuple(dset=f, dims=dims, chunks=chunks)
+                for f in set(self.res.h5.datasets)
+                - {'meta', 'time_index', 'coordinates'}
+            }
+        )
         return data_vars
 
     def _get_dims(self):

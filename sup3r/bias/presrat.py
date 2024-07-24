@@ -139,6 +139,7 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         template = np.full((cls.NT, n_samples), np.nan, np.float32)
         out = {}
         corrected_fut_data = np.full_like(bias_fut_data, np.nan)
+        logger.debug(f'Getting QDM params for feature: {bias_feature}.')
         for nt, t in enumerate(window_center):
             # Define indices for which data goes in the current time window
             base_idx = cls.window_mask(base_ti.day_of_year, t, window_size)
@@ -148,8 +149,6 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
                                            window_size)
 
             if any(base_idx) and any(bias_idx) and any(bias_fut_idx):
-                logger.debug(f'Getting QDM params for feature: {bias_feature} '
-                             f'and window_center: {t}')
                 tmp = cls.get_qdm_params(bias_data[bias_idx],
                                          bias_fut_data[bias_fut_idx],
                                          base_data[base_idx],
@@ -163,8 +162,6 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
                         out[k] = template.copy()
                     out[k][(nt), :] = v
 
-            logger.debug(f'Initializing QDM for feature: {bias_feature} '
-                         f'and window_center: {t}')
             QDM = QuantileDeltaMapping(
                 _compute_if_dask(out[f'base_{base_dset}_params'][nt]),
                 _compute_if_dask(out[f'bias_{bias_feature}_params'][nt]),
@@ -278,7 +275,7 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
             for each of the three given datasets. Each value has dimensions
             (lat, lon, n-parameters).
         """
-        logger.debug('Calculate CDF parameters for QDM')
+        logger.debug('Calculating CDF parameters for QDM')
 
         logger.info(
             'Initialized params with shape: {}'.format(
