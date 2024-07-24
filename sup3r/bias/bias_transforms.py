@@ -1,4 +1,9 @@
-"""Bias correction transformation functions."""
+"""Bias correction transformation functions.
+
+TODO: These methods need to be refactored to use lazy calculations. They
+currently slow down the forward pass runs when operating on full input data
+volume.
+"""
 
 import logging
 import os
@@ -10,6 +15,7 @@ from rex import Resource
 from rex.utilities.bc_utils import QuantileDeltaMapping
 from scipy.ndimage import gaussian_filter
 
+from sup3r.preprocessing.utilities import _compute_if_dask
 from sup3r.typing import T_Array
 
 logger = logging.getLogger(__name__)
@@ -118,10 +124,13 @@ def get_spatial_bc_factors(lat_lon, feature_name, bias_fp, threshold=0.1):
         more than this value away from the bias correction lat/lon, an error is
         raised.
     """
-    var_names = {'scalar': f'{feature_name}_scalar',
-                 'adder': f'{feature_name}_adder',
-                 }
-    out = _get_factors(lat_lon, var_names, bias_fp, threshold)
+    var_names = {
+        'scalar': f'{feature_name}_scalar',
+        'adder': f'{feature_name}_adder',
+    }
+    out = _get_factors(
+        _compute_if_dask(lat_lon), var_names, bias_fp, threshold
+    )
 
     return out['scalar'], out['adder']
 
@@ -215,10 +224,11 @@ def get_spatial_bc_quantiles(
     >>> params, cfg = get_spatial_bc_quantiles(
     ...                 lat_lon, "ghi", "rsds", "./dist_params.hdf")
     """
-    var_names = {'base': f'base_{base_dset}_params',
-                 'bias': f'bias_{feature_name}_params',
-                 'bias_fut': f'bias_fut_{feature_name}_params',
-                 }
+    var_names = {
+        'base': f'base_{base_dset}_params',
+        'bias': f'bias_{feature_name}_params',
+        'bias_fut': f'bias_fut_{feature_name}_params',
+    }
     params = _get_factors(lat_lon, var_names, bias_fp, threshold)
 
     with Resource(bias_fp) as res:
@@ -573,11 +583,9 @@ def local_qdm_bc(
     ), 'Time should align with data 3rd dimension'
 
     logger.info(f'Getting spatial bc quantiles for feature: {feature_name}.')
-    params, cfg = get_spatial_bc_quantiles(lat_lon,
-                                           base_dset,
-                                           feature_name,
-                                           bias_fp,
-                                           threshold)
+    params, cfg = get_spatial_bc_quantiles(
+        lat_lon, base_dset, feature_name, bias_fp, threshold
+    )
     base = params['base']
     bias = params['bias']
     bias_fut = params['bias_fut']
@@ -633,11 +641,13 @@ def local_qdm_bc(
     return output
 
 
-def get_spatial_bc_presrat(lat_lon: np.array,
-                           base_dset: str,
-                           feature_name: str,
-                           bias_fp: str,
-                           threshold: float = 0.1):
+def get_spatial_bc_presrat(
+    lat_lon: np.array,
+    base_dset: str,
+    feature_name: str,
+    bias_fp: str,
+    threshold: float = 0.1,
+):
     """Statistical distributions previously estimated for given lat/lon points
 
     Recover the parameters that describe the statistical distribution
@@ -743,12 +753,13 @@ def get_spatial_bc_presrat(lat_lon: np.array,
     >>> params, cfg = get_spatial_bc_quantiles(
     ...                 lat_lon, "ghi", "rsds", "./dist_params.hdf")
     """
-    ds = {'base': f'base_{base_dset}_params',
-          'bias': f'bias_{feature_name}_params',
-          'bias_fut': f'bias_fut_{feature_name}_params',
-          'bias_tau_fut': f'{feature_name}_tau_fut',
-          'k_factor': f'{feature_name}_k_factor',
-          }
+    ds = {
+        'base': f'base_{base_dset}_params',
+        'bias': f'bias_{feature_name}_params',
+        'bias_fut': f'bias_fut_{feature_name}_params',
+        'bias_tau_fut': f'{feature_name}_tau_fut',
+        'k_factor': f'{feature_name}_k_factor',
+    }
     params = _get_factors(lat_lon, ds, bias_fp, threshold)
 
     with Resource(bias_fp) as res:
@@ -757,17 +768,18 @@ def get_spatial_bc_presrat(lat_lon: np.array,
     return params, cfg
 
 
-def local_presrat_bc(data: np.ndarray,
-                     lat_lon: np.ndarray,
-                     base_dset: str,
-                     feature_name: str,
-                     bias_fp,
-                     time_index: np.ndarray,
-                     lr_padded_slice=None,
-                     threshold=0.1,
-                     relative=True,
-                     no_trend=False,
-                     ):
+def local_presrat_bc(
+    data: np.ndarray,
+    lat_lon: np.ndarray,
+    base_dset: str,
+    feature_name: str,
+    bias_fp,
+    time_index: np.ndarray,
+    lr_padded_slice=None,
+    threshold=0.1,
+    relative=True,
+    no_trend=False,
+):
     """Bias correction using PresRat
 
     Parameters
@@ -851,20 +863,18 @@ def local_presrat_bc(data: np.ndarray,
         mh = bias[:, :, nt]
         mf = bias_fut[:, :, nt]
 
-        if no_trend:
-            mf = None
-        else:
-            mf = mf.reshape(-1, mf.shape[-1])
+        mf = None if no_trend else mf.reshape(-1, mf.shape[-1])
         # The distributions are 3D (space, space, N-params)
         # Collapse 3D (space, space, N) into 2D (space**2, N)
-        QDM = QuantileDeltaMapping(oh.reshape(-1, oh.shape[-1]),
-                                   mh.reshape(-1, mh.shape[-1]),
-                                   mf,
-                                   dist=cfg['dist'],
-                                   relative=relative,
-                                   sampling=cfg['sampling'],
-                                   log_base=cfg['log_base'],
-                                   )
+        QDM = QuantileDeltaMapping(
+            oh.reshape(-1, oh.shape[-1]),
+            mh.reshape(-1, mh.shape[-1]),
+            mf,
+            dist=cfg['dist'],
+            relative=relative,
+            sampling=cfg['sampling'],
+            log_base=cfg['log_base'],
+        )
 
         # input 3D shape (spatial, spatial, temporal)
         # QDM expects input arr with shape (time, space)
@@ -881,7 +891,7 @@ def local_presrat_bc(data: np.ndarray,
             subset = np.where(subset < bias_tau_fut, 0, subset)
 
             k_factor = params['k_factor'][:, :, nt]
-            subset = subset * k_factor[:, :, np.newaxis]
+            subset *= k_factor[:, :, np.newaxis]
 
         data_unbiased[:, :, subset_idx] = subset
 

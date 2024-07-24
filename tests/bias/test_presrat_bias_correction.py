@@ -31,7 +31,7 @@ import pytest
 import xarray as xr
 from rex import Outputs
 
-from sup3r import CONFIG_DIR, TEST_DATA_DIR
+from sup3r import CONFIG_DIR
 from sup3r.bias import (
     PresRat,
     local_presrat_bc,
@@ -42,8 +42,7 @@ from sup3r.models import Sup3rGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.preprocessing import DataHandlerNC
 
-FP_CC = os.path.join(TEST_DATA_DIR, 'rsds_test.nc')
-FP_CC_LAT_LON = DataHandlerNC(FP_CC, 'rsds').lat_lon
+CC_LAT_LON = DataHandlerNC(pytest.FP_RSDS, 'rsds').lat_lon
 # A reference zero rate threshold that might not make sense physically but for
 # testing purposes only. This might change in the future to force edge cases.
 ZR_THRESHOLD = 0.01
@@ -260,9 +259,9 @@ def fut_cc(fp_fut_cc):
     latlon = np.stack(xr.broadcast(da['lat'], da['lon'] - 360), axis=-1)
     # Confirm that dataset order is consistent
     # Somewhere in pipeline latlon are downgraded to f32
-    assert np.allclose(latlon.astype('float32'), FP_CC_LAT_LON)
+    assert np.allclose(latlon.astype('float32'), CC_LAT_LON)
 
-    # Verify data alignment in comparison with expected for FP_CC
+    # Verify data alignment in comparison with expected for FP_RSDS
     for ii in range(ds.lat.size):
         for jj in range(ds.lon.size):
             assert np.allclose(
@@ -312,9 +311,9 @@ def fut_cc_notrend(fp_fut_cc_notrend):
     latlon = np.stack(xr.broadcast(da['lat'], da['lon']), axis=-1)
     # Confirm that dataset order is consistent
     # Somewhere in pipeline latlon are downgraded to f32
-    assert np.allclose(latlon.astype('float32'), FP_CC_LAT_LON)
+    assert np.allclose(latlon.astype('float32'), CC_LAT_LON)
 
-    # Verify data alignment in comparison with expected for FP_CC
+    # Verify data alignment in comparison with expected for FP_RSDS
     for ii in range(ds.lat.size):
         for jj in range(ds.lon.size):
             np.allclose(

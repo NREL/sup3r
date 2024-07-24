@@ -98,7 +98,7 @@ def dist_params(tmpdir_factory, fp_fut_cc):
     in a temporary place to be re-used
     """
     calc = QuantileDeltaMappingCorrection(pytest.FP_NSRDB,
-                                          pytest.FP_CC,
+                                          pytest.FP_RSDS,
                                           fp_fut_cc,
                                           'ghi',
                                           'rsds',
@@ -124,7 +124,7 @@ def test_qdm_bc(fp_fut_cc):
     """
 
     calc = QuantileDeltaMappingCorrection(pytest.FP_NSRDB,
-                                          pytest.FP_CC,
+                                          pytest.FP_RSDS,
                                           fp_fut_cc,
                                           'ghi',
                                           'rsds',
