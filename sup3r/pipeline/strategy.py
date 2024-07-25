@@ -19,6 +19,7 @@ from sup3r.pipeline.utilities import get_model
 from sup3r.postprocessing import OutputHandler
 from sup3r.preprocessing import ExoData, ExoDataHandler
 from sup3r.preprocessing.utilities import (
+    Dimension,
     expand_paths,
     get_class_kwargs,
     get_input_handler_class,
@@ -303,18 +304,6 @@ class ForwardPassStrategy:
         out = self.fwp_slicer.get_spatial_slices()
         self.lr_slices, self.lr_pad_slices, self.hr_slices = out
 
-        if self.bias_correct_kwargs is not None:
-            padded_tslice = slice(
-                self.ti_pad_slices[0].start, self.ti_pad_slices[-1].stop
-            )
-            self.input_handler = bias_correct_features(
-                features=list(self.bias_correct_kwargs),
-                input_handler=self.input_handler,
-                time_slice=padded_tslice,
-                bc_method=self.bias_correct_method,
-                bc_kwargs=self.bias_correct_kwargs,
-            )
-
     def get_chunk_indices(self, chunk_index):
         """Get (spatial, temporal) indices for the given chunk index"""
         return (
@@ -420,20 +409,6 @@ class ForwardPassStrategy:
 
         s_chunk_idx, t_chunk_idx = self.get_chunk_indices(chunk_index)
 
-        args_dict = {
-            'chunk': chunk_index,
-            'temporal_chunk': t_chunk_idx,
-            'spatial_chunk': s_chunk_idx,
-            'n_node_chunks': self.fwp_slicer.n_chunks,
-            'fwp_chunk_shape': self.fwp_chunk_shape,
-            'temporal_pad': self.temporal_pad,
-            'spatial_pad': self.spatial_pad,
-        }
-        logger.info(
-            'Initializing ForwardPassChunk with: '
-            f'{pprint.pformat(args_dict, indent=2)}'
-        )
-
         msg = (
             f'Requested forward pass on chunk_index={chunk_index} > '
             f'n_chunks={self.fwp_slicer.n_chunks}'
@@ -446,6 +421,22 @@ class ForwardPassStrategy:
         lr_pad_slice = self.lr_pad_slices[s_chunk_idx]
         ti_pad_slice = self.ti_pad_slices[t_chunk_idx]
 
+        args_dict = {
+            'chunk': chunk_index,
+            'temporal_chunk': t_chunk_idx,
+            'spatial_chunk': s_chunk_idx,
+            'n_node_chunks': self.fwp_slicer.n_chunks,
+            'fwp_chunk_shape': self.fwp_chunk_shape,
+            'temporal_pad': self.temporal_pad,
+            'spatial_pad': self.spatial_pad,
+            'lr_pad_slice': lr_pad_slice,
+            'ti_pad_slice': ti_pad_slice
+        }
+        logger.info(
+            'Initializing ForwardPassChunk with: '
+            f'{pprint.pformat(args_dict, indent=2)}'
+        )
+
         logger.info(f'Getting input data for chunk_index={chunk_index}.')
 
         exo_data = (
@@ -456,10 +447,23 @@ class ForwardPassStrategy:
             if self.exo_data is not None
             else None
         )
+
+        kwargs = dict(zip(Dimension.dims_2d(), lr_pad_slice))
+        kwargs[Dimension.TIME] = ti_pad_slice
+        input_data = self.input_handler.isel(**kwargs)
+
+        if self.bias_correct_kwargs is not None:
+            logger.info(f'Bias correcting data for chunk_index={chunk_index}, '
+                        f'with shape={input_data.shape}')
+            input_data = bias_correct_features(
+                features=list(self.bias_correct_kwargs),
+                input_handler=input_data,
+                bc_method=self.bias_correct_method,
+                bc_kwargs=self.bias_correct_kwargs,
+            )
+
         return ForwardPassChunk(
-            input_data=self.input_handler.data[
-                lr_pad_slice[0], lr_pad_slice[1], ti_pad_slice
-            ],
+            input_data=input_data.as_array(),
             exo_data=exo_data,
             lr_pad_slice=lr_pad_slice,
             hr_crop_slice=self.fwp_slicer.hr_crop_slices[t_chunk_idx][

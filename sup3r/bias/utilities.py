@@ -259,7 +259,7 @@ def bias_correct_features(
 
     time_slice = _parse_time_slice(time_slice)
     for feat in features:
-        input_handler.data[feat, ..., time_slice] = bias_correct_feature(
+        input_handler[feat, ..., time_slice] = bias_correct_feature(
             source_feature=feat,
             input_handler=input_handler,
             time_slice=time_slice,
