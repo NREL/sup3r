@@ -47,7 +47,7 @@ def test_solar_module(plot=False):
     with tempfile.TemporaryDirectory() as td:
 
         fps, _ = make_fake_cs_ratio_files(td, LOW_RES_TIMES, LOW_RES_LAT_LON,
-                                          gan_meta=GAN_META)
+                                          model_meta=GAN_META)
 
         with Resource(fps[1]) as res:
             meta_base = res.meta
@@ -149,7 +149,7 @@ def test_solar_cli(runner):
     with tempfile.TemporaryDirectory() as td:
         fps, fp_pattern = make_fake_cs_ratio_files(td, LOW_RES_TIMES,
                                                    LOW_RES_LAT_LON,
-                                                   gan_meta=GAN_META)
+                                                   model_meta=GAN_META)
         config = {'fp_pattern': fp_pattern,
                   'nsrdb_fp': NSRDB_FP,
                   'log_level': 'DEBUG',

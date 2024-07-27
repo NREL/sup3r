@@ -1,7 +1,9 @@
-"""Abstract Loader class merely for loading data from file paths. This data
-can be loaded lazily or eagerly."""
+"""Abstract Loader class merely for loading data from file paths. This data is
+always loaded lazily."""
 
+import logging
 from abc import ABC, abstractmethod
+from datetime import datetime as dt
 from typing import Callable, ClassVar
 
 import numpy as np
@@ -10,6 +12,8 @@ import xarray as xr
 
 from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.utilities import Dimension, expand_paths
+
+logger = logging.getLogger(__name__)
 
 
 class BaseLoader(Container, ABC):
@@ -90,10 +94,19 @@ class BaseLoader(Container, ABC):
 
     def add_attrs(self):
         """Add meta data to dataset."""
-        attrs = {'source_files': self.file_paths}
+        attrs = {
+            'source_files': self.file_paths,
+            'date_modified': dt.utcnow().isoformat(),
+        }
         if hasattr(self.res, 'global_attrs'):
-            attrs['global_attrs'] = self.res.global_attrs
-        if hasattr(self.res, 'attrs'):
+            attrs['global_attrs'] = dict(self.res.global_attrs)
+
+        if hasattr(self.res, 'h5'):
+            attrs['attrs'] = {
+                f: dict(self.res.h5[f.split('/')[0]].attrs)
+                for f in self.res.datasets
+            }
+        elif hasattr(self.res, 'attrs'):
             attrs['attrs'] = self.res.attrs
         self.data.attrs.update(attrs)
 

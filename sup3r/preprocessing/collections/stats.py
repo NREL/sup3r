@@ -3,6 +3,7 @@
 import logging
 import os
 import pprint
+from warnings import warn
 
 import numpy as np
 import xarray as xr
@@ -43,27 +44,25 @@ class StatsCollection(Collection):
         self.means = self.get_means(means)
         self.stds = self.get_stds(stds)
         self.save_stats(stds=stds, means=means)
-        msg = (
-            f'Not all features ({self.features}) are found in '
-            f'means / stds dictionaries: ({self.means} / {self.stds})!'
-        )
-        assert all(
-            f in set(self.means).intersection(self.stds) for f in self.features
-        ), msg
         self.normalize(containers)
 
-    def _get_stat(self, stat_type):
+    def _get_stat(self, stat_type, needed_features='all'):
         """Get either mean or std for all features and all containers."""
-        all_feats = self.containers[0].data_vars
-        hr_feats = self.containers[0].data.high_res.data_vars
-        lr_feats = [f for f in all_feats if f not in hr_feats]
+        all_feats = (
+            self.features if needed_features == 'all' else needed_features
+        )
+        hr_feats = set(self.containers[0].high_res.features).intersection(
+            all_feats
+        )
+        lr_feats = set(all_feats) - set(hr_feats)
+
         cstats = [
-            getattr(c.data.high_res[hr_feats], stat_type)(skipna=True)
+            getattr(c.high_res[hr_feats], stat_type)(skipna=True)
             for c in self.containers
         ]
         if any(lr_feats):
             cstats_lr = [
-                getattr(c.data.low_res[lr_feats], stat_type)(skipna=True)
+                getattr(c.low_res[lr_feats], stat_type)(skipna=True)
                 for c in self.containers
             ]
             cstats = [
@@ -72,64 +71,89 @@ class StatsCollection(Collection):
             ]
         return cstats
 
+    def _init_stats_dict(self, stats):
+        """Initialize dictionary for stds or means from given input. Check if
+        any existing stats are provided."""
+        if isinstance(stats, str) and os.path.exists(stats):
+            stats = safe_json_load(stats)
+        elif stats is None:
+            stats = {}
+        else:
+            msg = (f'Received incompatible type {type(stats)}. Need a file '
+                   'path or dictionary')
+            assert isinstance(stats, dict), msg
+            msg = (
+                f'Not all features ({self.features}) are found in the given '
+                f'stats dictionary {stats}. This is obviously from a prior '
+                'run so you better be sure these stats carry over.')
+            logger.warning(msg)
+            warn(msg)
+        return stats
+
     def get_means(self, means):
         """Dictionary of means for each feature, computed across all data
         handlers."""
-        if means is None or (
-            isinstance(means, str) and not os.path.exists(means)
-        ):
-            means = dict.fromkeys(self.features, 0)
-            logger.info(f'Computing means for {self.features}.')
+        means = self._init_stats_dict(means)
+        needed_features = set(self.features) - set(means)
+        if any(needed_features):
+            logger.info(f'Getting means for {needed_features}.')
             cmeans = [
                 cm * w
                 for cm, w in zip(
-                    self._get_stat('mean'), self.container_weights
+                    self._get_stat('mean', needed_features),
+                    self.container_weights,
                 )
             ]
-            for f in means:
+            for f in needed_features:
                 logger.info(f'Computing mean for {f}.')
                 means[f] = np.float32(np.sum([cm[f] for cm in cmeans]))
-        elif isinstance(means, str):
-            means = safe_json_load(means)
         return means
 
     def get_stds(self, stds):
         """Dictionary of standard deviations for each feature, computed across
         all data handlers."""
-        if stds is None or (
-            isinstance(stds, str) and not os.path.exists(stds)
-        ):
-            stds = dict.fromkeys(self.features, 0)
-            logger.info(f'Computing stds for {self.features}.')
+        stds = self._init_stats_dict(stds)
+        needed_features = set(self.features) - set(stds)
+        if any(needed_features):
+            logger.info(f'Getting stds for {needed_features}.')
             cstds = [
                 w * cm**2
                 for cm, w in zip(self._get_stat('std'), self.container_weights)
             ]
-            for f in stds:
+            for f in needed_features:
                 logger.info(f'Computing std for {f}.')
                 stds[f] = np.float32(np.sqrt(np.sum([cs[f] for cs in cstds])))
-        elif isinstance(stds, str):
-            stds = safe_json_load(stds)
         return stds
+
+    @staticmethod
+    def _added_stats(fp, stat_dict):
+        """Check if stats were added to the given file or not."""
+        return all(f in safe_json_load(fp) for f in stat_dict)
 
     def save_stats(self, stds, means):
         """Save stats to json files."""
-        if isinstance(stds, str) and not os.path.exists(stds):
+        if isinstance(stds, str) and (
+            not os.path.exists(stds) or self._added_stats(stds, self.stds)
+        ):
             with open(stds, 'w') as f:
                 f.write(safe_serialize(self.stds))
                 logger.info(
                     f'Saved standard deviations {self.stds} to {stds}.'
                 )
-        if isinstance(means, str) and not os.path.exists(means):
+        if isinstance(means, str) and (
+            not os.path.exists(means) or self._added_stats(means, self.means)
+        ):
             with open(means, 'w') as f:
                 f.write(safe_serialize(self.means))
                 logger.info(f'Saved means {self.means} to {means}.')
 
     def normalize(self, containers):
         """Normalize container data with computed stats."""
-        logger.debug('Normalizing containers with:\n'
-                     f'means: {pprint.pformat(self.means, indent=2)}\n'
-                     f'stds: {pprint.pformat(self.stds, indent=2)}')
+        logger.debug(
+            'Normalizing containers with:\n'
+            f'means: {pprint.pformat(self.means, indent=2)}\n'
+            f'stds: {pprint.pformat(self.stds, indent=2)}'
+        )
         for i, c in enumerate(containers):
             logger.info(f'Normalizing container {i + 1}')
             c.normalize(means=self.means, stds=self.stds)

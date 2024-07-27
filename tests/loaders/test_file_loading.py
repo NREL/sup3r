@@ -6,6 +6,7 @@ from tempfile import TemporaryDirectory
 import numpy as np
 import pandas as pd
 import pytest
+from rex import Resource
 
 from sup3r.preprocessing import Loader, LoaderH5, LoaderNC
 from sup3r.preprocessing.utilities import Dimension
@@ -208,6 +209,7 @@ def test_load_h5():
     )
     gen_loader = Loader(pytest.FP_WTK, chunks=chunks)
     assert np.array_equal(loader.as_array(), gen_loader.as_array())
+    assert Resource(pytest.FP_WTK).attrs == loader.attrs['attrs']
 
 
 def test_multi_file_load_nc():

@@ -86,8 +86,8 @@ def test_not_enough_stats():
 
     dat = DummyData((10, 10, 100), FEATURES)
 
-    with pytest.raises(AssertionError):
-        _ = BatchHandler(
+    with pytest.warns():
+        batcher = BatchHandler(
             train_containers=[dat],
             val_containers=[dat],
             sample_shape=(8, 8, 4),
@@ -100,6 +100,8 @@ def test_not_enough_stats():
             queue_cap=10,
             max_workers=1,
         )
+        assert all(f in batcher.means for f in FEATURES)
+        assert all(f in batcher.stds for f in FEATURES)
 
 
 def test_multi_container_normalization():

@@ -156,25 +156,13 @@ def test_pipeline_fwp_collect(runner, input_files):
             assert len(full_ti) == len(set(combined_ti))
 
 
-def test_data_collection_cli(runner):
+def test_data_collection_cli(runner, collect_check):
     """Test cli call to data collection on forward pass output"""
 
     with tempfile.TemporaryDirectory() as td:
         fp_out = os.path.join(td, 'out_combined.h5')
         out = make_fake_h5_chunks(td)
-        (
-            out_files,
-            data,
-            ws_true,
-            wd_true,
-            features,
-            _,
-            t_slices_hr,
-            _,
-            s_slices_hr,
-            _,
-            low_res_times,
-        ) = out
+        out_files = out[0]
 
         features = ['windspeed_100m', 'winddirection_100m']
         config = {
@@ -198,46 +186,7 @@ def test_data_collection_cli(runner):
 
         assert os.path.exists(fp_out)
 
-        with ResourceX(fp_out) as fh:
-            full_ti = fh.time_index
-            combined_ti = []
-            for _, f in enumerate(out_files):
-                tmp = f.replace('.h5', '').split('_')
-                t_idx = int(tmp[-3])
-                s1_idx = int(tmp[-2])
-                s2_idx = int(tmp[-1])
-                t_hr = t_slices_hr[t_idx]
-                s1_hr = s_slices_hr[s1_idx]
-                s2_hr = s_slices_hr[s2_idx]
-                with ResourceX(f) as fh_i:
-                    if s1_idx == s2_idx == 0:
-                        combined_ti += list(fh_i.time_index)
-
-                    ws_i = np.transpose(
-                        data[s1_hr, s2_hr, t_hr, 0], axes=(2, 0, 1)
-                    )
-                    wd_i = np.transpose(
-                        data[s1_hr, s2_hr, t_hr, 1], axes=(2, 0, 1)
-                    )
-                    ws_i = ws_i.reshape(48, 625)
-                    wd_i = wd_i.reshape(48, 625)
-                    assert np.allclose(ws_i, fh_i['windspeed_100m'], atol=0.01)
-                    assert np.allclose(
-                        wd_i, fh_i['winddirection_100m'], atol=0.1
-                    )
-
-                    for k, v in fh_i.global_attrs.items():
-                        assert k in fh.global_attrs, k
-                        assert fh.global_attrs[k] == v, k
-
-            assert len(full_ti) == len(combined_ti)
-            assert len(full_ti) == 2 * len(low_res_times)
-            wd_true = np.transpose(wd_true[..., 0], axes=(2, 0, 1))
-            ws_true = np.transpose(ws_true[..., 0], axes=(2, 0, 1))
-            wd_true = wd_true.reshape(96, 2500)
-            ws_true = ws_true.reshape(96, 2500)
-            assert np.allclose(ws_true, fh['windspeed_100m'], atol=0.01)
-            assert np.allclose(wd_true, fh['winddirection_100m'], atol=0.1)
+        collect_check(out, fp_out)
 
 
 def test_fwd_pass_with_bc_cli(runner, input_files):
@@ -567,7 +516,7 @@ def test_cli_solar(runner):
 
     with tempfile.TemporaryDirectory() as td:
         fps, _ = make_fake_cs_ratio_files(
-            td, LOW_RES_TIMES, LOW_RES_LAT_LON, gan_meta=GAN_META
+            td, LOW_RES_TIMES, LOW_RES_LAT_LON, model_meta=GAN_META
         )
 
         solar_config = {

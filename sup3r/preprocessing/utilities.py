@@ -338,6 +338,7 @@ def _log_args(thing, func, *args, **kwargs):
     logger.info(
         f'Initialized {name} with:\n' f'{pprint.pformat(args_dict, indent=2)}'
     )
+    logger.debug(_mem_check())
 
 
 def log_args(func):

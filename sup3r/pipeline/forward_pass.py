@@ -80,9 +80,9 @@ class ForwardPass:
         meta_data = {
             'node_index': self.node_index,
             'creation_date': dt.now().strftime('%d/%m/%Y %H:%M:%S'),
-            'gan_meta': self.model.meta,
+            'model_meta': self.model.meta,
             'gan_params': self.model.model_params,
-            **self.strategy.meta,
+            'strategy_meta': self.strategy.meta
         }
         return meta_data
 

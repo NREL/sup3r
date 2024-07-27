@@ -1,5 +1,6 @@
 """Basic objects that can cache extracted / derived data."""
 
+import gc
 import logging
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -7,11 +8,10 @@ from typing import Dict, Optional
 
 import dask.array as da
 import h5py
-import numpy as np
 import xarray as xr
 
 from sup3r.preprocessing.base import Container
-from sup3r.preprocessing.utilities import Dimension
+from sup3r.preprocessing.utilities import Dimension, _mem_check
 from sup3r.typing import T_Dataset
 
 logger = logging.getLogger(__name__)
@@ -60,32 +60,34 @@ class Cacher(Container):
         else:
             _, ext = os.path.splitext(out_file)
             os.makedirs(os.path.dirname(out_file), exist_ok=True)
-            logger.info(f'Writing {feature} to {out_file}.')
+            tmp_file = out_file + '.tmp'
+            logger.info(
+                'Writing %s to %s. %s', feature, tmp_file, _mem_check()
+            )
             data = self[feature, ...]
             if ext == '.h5':
                 if len(data.shape) == 3:
-                    data = np.transpose(data, axes=(2, 0, 1))
+                    data = da.transpose(data, axes=(2, 0, 1))
                 self.write_h5(
-                    out_file,
+                    tmp_file,
                     feature,
                     data,
                     self.coords,
-                    chunks,
+                    chunks=chunks,
                 )
             elif ext == '.nc':
                 self.write_netcdf(
-                    out_file,
-                    feature,
-                    data,
-                    self.coords,
+                    tmp_file, feature, data, self.coords, chunks=chunks
                 )
             else:
                 msg = (
-                    'cache_pattern must have either h5 or nc '
-                    f'extension. Recived {ext}.'
+                    'cache_pattern must have either h5 or nc extension. '
+                    f'Received {ext}.'
                 )
                 logger.error(msg)
                 raise ValueError(msg)
+            os.replace(tmp_file, out_file)
+            logger.info('Moved %s to %s', tmp_file, out_file)
 
     def cache_data(self, kwargs):
         """Cache data to file with file type based on user provided
@@ -152,8 +154,7 @@ class Cacher(Container):
             100, 10)}
         """
         chunks = chunks or {}
-        tmp_file = out_file + '.tmp'
-        with h5py.File(tmp_file, 'w') as f:
+        with h5py.File(out_file, 'w') as f:
             lats = coords[Dimension.LATITUDE].data
             lons = coords[Dimension.LONGITUDE].data
             times = coords[Dimension.TIME].astype(int)
@@ -178,12 +179,12 @@ class Cacher(Container):
                     chunks=chunks.get(dset, None),
                 )
                 da.store(vals, d)
-                logger.debug(f'Added {dset} to {tmp_file}.')
-        os.replace(tmp_file, out_file)
-        logger.info(f'Moved {tmp_file} to {out_file}.')
+                logger.debug(f'Added {dset} to {out_file}.')
 
     @classmethod
-    def write_netcdf(cls, out_file, feature, data, coords, attrs=None):
+    def write_netcdf(
+        cls, out_file, feature, data, coords, chunks=None, attrs=None
+    ):
         """Cache data to a netcdf file.
 
         Parameters
@@ -196,9 +197,13 @@ class Cacher(Container):
             Data to write to file
         coords : dict | xr.Dataset.coords
             Dictionary of coordinate variables or xr.Dataset coords attribute.
+        chunks : dict | None
+            Chunk sizes for coordinate dimensions. e.g. {'windspeed':
+            {'south_north': 100, 'west_east': 100, 'time': 10}}
         attrs : dict | None
             Optional attributes to write to file
         """
+        chunks = chunks or {}
         if isinstance(coords, dict):
             flattened = (
                 Dimension.FLATTENED_SPATIAL in coords[Dimension.LATITUDE][0]
@@ -214,4 +219,7 @@ class Cacher(Container):
         )
         data_vars = {feature: (dims, data)}
         out = xr.Dataset(data_vars=data_vars, coords=coords, attrs=attrs)
+        out = out.chunk(chunks.get(feature, 'auto'))
         out.to_netcdf(out_file)
+        del out
+        gc.collect()

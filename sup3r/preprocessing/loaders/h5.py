@@ -116,15 +116,17 @@ class LoaderH5(BaseLoader):
             else self.chunks
         )
         if len(self._meta_shape()) == 1 and 'elevation' in self.res.meta:
-            elev = self.res.meta['elevation'].values
-            if not self._time_independent:
-                elev = np.repeat(
-                    elev[None, ...], len(self.res['time_index']), axis=0
-                )
-            data_vars['elevation'] = (
-                dims,
-                da.asarray(elev, dtype=np.float32, chunks=chunks),
+            data_vars['elevation'] = da.asarray(
+                self.res.meta['elevation'].values.astype(np.float32)
             )
+            if not self._time_independent:
+                data_vars['elevation'] = da.repeat(
+                    data_vars['elevation'][None, ...],
+                    len(self.res['time_index']),
+                    axis=0,
+                )
+            data_vars['elevation'] = data_vars['elevation'].rechunk(chunks)
+            data_vars['elevation'] = (dims, data_vars['elevation'])
         data_vars.update(
             {
                 f: self._get_dset_tuple(dset=f, dims=dims, chunks=chunks)

@@ -155,10 +155,10 @@ def test_fwp_multi_step_model_topo_exoskip(input_files):
             assert 'full_version_record' in fh.global_attrs
             version_record = json.loads(fh.global_attrs['full_version_record'])
             assert version_record['tensorflow'] == tf.__version__
-            assert 'gan_meta' in fh.global_attrs
-            gan_meta = json.loads(fh.global_attrs['gan_meta'])
-            assert len(gan_meta) == 3  # three step model
-            assert gan_meta[0]['lr_features'] == [
+            assert 'model_meta' in fh.global_attrs
+            model_meta = json.loads(fh.global_attrs['model_meta'])
+            assert len(model_meta) == 3  # three step model
+            assert model_meta[0]['lr_features'] == [
                 'u_100m',
                 'v_100m',
                 'topography',
@@ -253,10 +253,10 @@ def test_fwp_multi_step_spatial_model_topo_noskip(input_files):
             assert 'full_version_record' in fh.global_attrs
             version_record = json.loads(fh.global_attrs['full_version_record'])
             assert version_record['tensorflow'] == tf.__version__
-            assert 'gan_meta' in fh.global_attrs
-            gan_meta = json.loads(fh.global_attrs['gan_meta'])
-            assert len(gan_meta) == 2  # two step model
-            assert gan_meta[0]['lr_features'] == [
+            assert 'model_meta' in fh.global_attrs
+            model_meta = json.loads(fh.global_attrs['model_meta'])
+            assert len(model_meta) == 2  # two step model
+            assert model_meta[0]['lr_features'] == [
                 'u_100m',
                 'v_100m',
                 'topography',
@@ -371,10 +371,10 @@ def test_fwp_multi_step_model_topo_noskip(input_files):
             assert 'full_version_record' in fh.global_attrs
             version_record = json.loads(fh.global_attrs['full_version_record'])
             assert version_record['tensorflow'] == tf.__version__
-            assert 'gan_meta' in fh.global_attrs
-            gan_meta = json.loads(fh.global_attrs['gan_meta'])
-            assert len(gan_meta) == 3  # three step model
-            assert gan_meta[0]['lr_features'] == [
+            assert 'model_meta' in fh.global_attrs
+            model_meta = json.loads(fh.global_attrs['model_meta'])
+            assert len(model_meta) == 3  # three step model
+            assert model_meta[0]['lr_features'] == [
                 'u_100m',
                 'v_100m',
                 'topography',
@@ -905,10 +905,10 @@ def test_fwp_multi_step_model_multi_exo(input_files):
             assert 'full_version_record' in fh.global_attrs
             version_record = json.loads(fh.global_attrs['full_version_record'])
             assert version_record['tensorflow'] == tf.__version__
-            assert 'gan_meta' in fh.global_attrs
-            gan_meta = json.loads(fh.global_attrs['gan_meta'])
-            assert len(gan_meta) == 3  # three step model
-            assert gan_meta[0]['lr_features'] == [
+            assert 'model_meta' in fh.global_attrs
+            model_meta = json.loads(fh.global_attrs['model_meta'])
+            assert len(model_meta) == 3  # three step model
+            assert model_meta[0]['lr_features'] == [
                 'u_100m',
                 'v_100m',
                 'topography',

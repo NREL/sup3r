@@ -266,8 +266,8 @@ def nsrdb_reduce_daily_data(data, shape, csr_ind=0):
         with NaN at night.
         (n_obs, spatial_1, spatial_2, temporal, features)
     shape : int
-        (time_steps) Size of time slice to sample from data, must be an integer
-        less than or equal to 24.
+        (time_steps) Size of time slice to sample from data. If this is
+        greater than data.shape[-2] data won't be reduced.
     csr_ind : int
         Index of the feature axis where clearsky ratio is located and NaN's can
         be found at night.

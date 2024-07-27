@@ -19,8 +19,10 @@ RANDOM_GENERATOR = np.random.default_rng(seed=42)
 def safe_serialize(obj):
     """json.dumps with non-serializable object handling."""
     def _default(o):
-        if isinstance(o, np.float32):
-            return np.float64(o)
+        if isinstance(o, (np.float64, np.float32)):
+            return float(o)
+        if isinstance(o, (np.int64, np.int32)):
+            return int(o)
         return f"<<non-serializable: {type(o).__qualname__}>>"
     return json.dumps(obj, default=_default)
 

@@ -242,10 +242,10 @@ def test_fwp_time_slice(input_files):
             assert 'full_version_record' in fh.global_attrs
             version_record = json.loads(fh.global_attrs['full_version_record'])
             assert version_record['tensorflow'] == tf.__version__
-            assert 'gan_meta' in fh.global_attrs
-            gan_meta = json.loads(fh.global_attrs['gan_meta'])
-            assert isinstance(gan_meta, dict)
-            assert gan_meta['lr_features'] == ['u_100m', 'v_100m']
+            assert 'model_meta' in fh.global_attrs
+            model_meta = json.loads(fh.global_attrs['model_meta'])
+            assert isinstance(model_meta, dict)
+            assert model_meta['lr_features'] == ['u_100m', 'v_100m']
 
 
 def test_fwp_handler(input_files):
@@ -557,10 +557,10 @@ def test_fwp_multi_step_model(input_files):
             assert 'full_version_record' in fh.global_attrs
             version_record = json.loads(fh.global_attrs['full_version_record'])
             assert version_record['tensorflow'] == tf.__version__
-            assert 'gan_meta' in fh.global_attrs
-            gan_meta = json.loads(fh.global_attrs['gan_meta'])
-            assert len(gan_meta) == 2  # two step model
-            assert gan_meta[0]['lr_features'] == ['u_100m', 'v_100m']
+            assert 'model_meta' in fh.global_attrs
+            model_meta = json.loads(fh.global_attrs['model_meta'])
+            assert len(model_meta) == 2  # two step model
+            assert model_meta[0]['lr_features'] == ['u_100m', 'v_100m']
 
 
 def test_slicing_no_pad(input_files):

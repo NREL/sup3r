@@ -34,9 +34,11 @@ dh_kwargs = {
     [
         (72, 24, ['clearsky_ratio']),
         (24, 8, ['clearsky_ratio']),
+        (12, 3, ['clearsky_ratio']),
         (72, 24, FEATURES_S),
         (72, 8, FEATURES_S),
         (24, 8, FEATURES_S),
+        (33, 3, FEATURES_S),
     ],
 )
 def test_solar_batching(hr_tsteps, t_enhance, features):

@@ -356,7 +356,7 @@ def make_fake_h5_chunks(td):
     )
 
 
-def make_fake_cs_ratio_files(td, low_res_times, low_res_lat_lon, gan_meta):
+def make_fake_cs_ratio_files(td, low_res_times, low_res_lat_lon, model_meta):
     """Make a set of dummy clearsky ratio files that match the GAN fwp outputs
 
     Parameters
@@ -370,7 +370,7 @@ def make_fake_cs_ratio_files(td, low_res_times, low_res_lat_lon, gan_meta):
         Array of lat/lon for input data.
         (spatial_1, spatial_2, 2)
         Last dimension has ordering (lat, lon)
-    gan_meta : dict
+    model_meta : dict
         Meta data for model to write to file.
 
     Returns
@@ -400,6 +400,6 @@ def make_fake_cs_ratio_files(td, low_res_times, low_res_lat_lon, gan_meta):
             [timestamp],
             out_file,
             max_workers=1,
-            meta_data=gan_meta,
+            meta_data=model_meta,
         )
     return fps, fp_pattern
