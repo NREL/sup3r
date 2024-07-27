@@ -413,7 +413,7 @@ class EraDownloader:
     def process_surface_file(self):
         """Rename variables and convert geopotential to geopotential height."""
         tmp_file = self.get_tmp_file(self.surface_file)
-        with xr.open_dataset(self.surface_file, mode='a') as ds:
+        with xr.open_dataset(self.surface_file) as ds:
             ds = self.convert_dtype(ds)
             logger.info('Converting "z" var to "orog"')
             ds = self.convert_z(ds, name='orog')
@@ -531,7 +531,7 @@ class EraDownloader:
     def process_level_file(self):
         """Convert geopotential to geopotential height."""
         tmp_file = self.get_tmp_file(self.level_file)
-        with xr.open_dataset(self.level_file, mode='a') as ds:
+        with xr.open_dataset(self.level_file) as ds:
             ds = self.convert_dtype(ds)
             logger.info('Converting "z" var to "zg"')
             ds = self.convert_z(ds, name='zg')
