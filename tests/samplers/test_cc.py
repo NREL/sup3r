@@ -4,7 +4,6 @@ import os
 import shutil
 import tempfile
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 from rex import Outputs
@@ -36,7 +35,7 @@ dh_kwargs = {
 sample_shape = (20, 20, 24)
 
 
-def test_solar_handler_sampling(plot=False):
+def test_solar_handler_sampling():
     """Test sampling from solar cc handler for spatiotemporal models."""
 
     handler = DataHandlerH5SolarCC(
@@ -51,7 +50,7 @@ def test_solar_handler_sampling(plot=False):
     assert ['clearsky_ghi', 'ghi', 'clearsky_ratio'] in handler
 
     sampler = DualSamplerTesterCC(
-        data=handler.data, sample_shape=sample_shape
+        data=handler.data, sample_shape=sample_shape, batch_size=1
     )
 
     assert handler.data.shape[2] % 24 == 0
@@ -75,17 +74,19 @@ def test_solar_handler_sampling(plot=False):
 
     for i in range(10):
         obs_low_res, obs_high_res = next(sampler)
-        assert obs_high_res.shape[2] == 24
-        assert obs_low_res.shape[2] == 1
+        assert obs_high_res[0].shape[2] == 24
+        assert obs_low_res[0].shape[2] == 1
 
         obs_ind_low_res, obs_ind_high_res = sampler.index_record[i]
         assert obs_ind_high_res[2].start / 24 == obs_ind_low_res[2].start
         assert obs_ind_high_res[2].stop / 24 == obs_ind_low_res[2].stop
 
-        assert np.array_equal(obs_low_res, handler.data.daily[obs_ind_low_res])
+        assert np.array_equal(
+            obs_low_res[0], handler.data.daily[obs_ind_low_res]
+        )
         mask = np.isnan(handler.data.hourly[obs_ind_high_res].compute())
         assert np.array_equal(
-            obs_high_res[~mask],
+            obs_high_res[0][~mask],
             handler.data.hourly[obs_ind_high_res].compute()[~mask],
         )
 
@@ -100,29 +101,6 @@ def test_solar_handler_sampling(plot=False):
             if np.isnan(obs_high_res[:, :, i, 0]).any():
                 assert np.isnan(obs_high_res[:, :, i, 0]).all()
 
-    if plot:
-        for p in range(2):
-            obs_high_res, obs_low_res = next(sampler)
-            for i in range(obs_high_res.shape[2]):
-                _, axes = plt.subplots(1, 2, figsize=(15, 8))
-
-                a = axes[0].imshow(obs_high_res[:, :, i, 0], vmin=0, vmax=1)
-                plt.colorbar(a, ax=axes[0])
-                axes[0].set_title('Clearsky Ratio')
-
-                tmp = obs_low_res[:, :, 0, 0]
-                a = axes[1].imshow(tmp, vmin=tmp.min(), vmax=tmp.max())
-                plt.colorbar(a, ax=axes[1])
-                axes[1].set_title('low_res Average Clearsky Ratio')
-
-                plt.title(i)
-                plt.savefig(
-                    './test_nsrdb_handler_{}_{}.png'.format(p, i),
-                    dpi=300,
-                    bbox_inches='tight',
-                )
-                plt.close()
-
 
 def test_solar_handler_sampling_spatial_only():
     """Test sampling from solar cc handler for a spatial only model
@@ -133,7 +111,7 @@ def test_solar_handler_sampling_spatial_only():
     )
 
     sampler = DualSamplerTesterCC(
-        data=handler.data, sample_shape=(20, 20, 1), t_enhance=1
+        data=handler.data, sample_shape=(20, 20, 1), t_enhance=1, batch_size=1
     )
 
     assert handler.data.shape[2] % 24 == 0
@@ -152,15 +130,15 @@ def test_solar_handler_sampling_spatial_only():
 
     for i in range(10):
         low_res, high_res = next(sampler)
-        assert high_res.shape[2] == 1
-        assert low_res.shape[2] == 1
+        assert high_res[0].shape[2] == 1
+        assert low_res[0].shape[2] == 1
 
         obs_ind_low_res, obs_ind_high_res = sampler.index_record[i]
         assert obs_ind_high_res[2].start == obs_ind_low_res[2].start
         assert obs_ind_high_res[2].stop == obs_ind_low_res[2].stop
 
-        assert np.array_equal(low_res, handler.data.daily[obs_ind_low_res])
-        assert np.allclose(high_res, handler.data.daily[obs_ind_low_res])
+        assert np.array_equal(low_res[0], handler.data.daily[obs_ind_low_res])
+        assert np.allclose(high_res[0], handler.data.daily[obs_ind_low_res])
 
 
 def test_solar_handler_w_wind():
@@ -186,7 +164,9 @@ def test_solar_handler_w_wind():
             )
 
         handler = DataHandlerH5SolarCC(res_fp, features_s, **dh_kwargs)
-        sampler = DualSamplerCC(handler, sample_shape=sample_shape)
+        sampler = DualSamplerCC(
+            handler, sample_shape=sample_shape, batch_size=1
+        )
         assert handler.data.shape[2] % 24 == 0
 
         # some of the raw clearsky ghi and clearsky ratio data should be loaded
@@ -199,13 +179,13 @@ def test_solar_handler_w_wind():
             assert obs_ind_hourly[2].stop / 24 == obs_ind_daily[2].stop
 
             obs_daily, obs_hourly = next(sampler)
-            assert obs_hourly.shape[2] == 24
-            assert obs_daily.shape[2] == 1
+            assert obs_hourly[0].shape[2] == 24
+            assert obs_daily[0].shape[2] == 1
 
             for idf in (1, 2):
                 msg = f'Wind feature "{features_s[idf]}" got messed up'
-                assert not (obs_daily[..., idf] == 0).any(), msg
-                assert not (np.abs(obs_daily[..., idf]) > 20).any(), msg
+                assert not (obs_daily[0][..., idf] == 0).any(), msg
+                assert not (np.abs(obs_daily[0][..., idf]) > 20).any(), msg
 
 
 def test_nsrdb_sub_daily_sampler():

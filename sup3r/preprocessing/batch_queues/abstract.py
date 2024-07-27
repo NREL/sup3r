@@ -251,6 +251,7 @@ class AbstractBatchQueue(Collection, ABC):
                         self.enqueue_pool.submit(self._enqueue_batch)
                         for _ in range(needed)
                     ]
+                    logger.debug("Added %s enqueue futures.", needed)
                     for future in as_completed(futures):
                         _ = future.result()
 
