@@ -737,6 +737,60 @@ def get_spatial_bc_presrat(lat_lon: np.array,
     return params, cfg
 
 
+def apply_presrat_bc(data, time_index, base_params, bias_params,
+                     bias_fut_params, bias_tau_fut, k_factor,
+                     time_window_center, dist='empirical', sampling='invlog',
+                     log_base=10, relative=True, no_trend=False):
+    """Run PresRat to bias correct data from input parameters and not from bias
+    correction file on disk."""
+
+    data_unbiased = np.full_like(data, np.nan)
+    closest_time_idx = abs(time_window_center[:, np.newaxis] -
+                           np.array(time_index.day_of_year))
+    closest_time_idx = closest_time_idx.argmin(axis=0)
+
+    for nt in set(closest_time_idx):
+        subset_idx = closest_time_idx == nt
+        subset = data[:, :, subset_idx]
+        oh = base_params[:, :, nt]
+        mh = bias_params[:, :, nt]
+        mf = bias_fut_params[:, :, nt]
+
+        if no_trend:
+            mf = None
+        else:
+            mf = mf.reshape(-1, mf.shape[-1])
+        # The distributions are 3D (space, space, N-params)
+        # Collapse 3D (space, space, N) into 2D (space**2, N)
+        QDM = QuantileDeltaMapping(oh.reshape(-1, oh.shape[-1]),
+                                   mh.reshape(-1, mh.shape[-1]),
+                                   mf,
+                                   dist=dist,
+                                   relative=relative,
+                                   sampling=sampling,
+                                   log_base=log_base,
+                                   )
+
+        # input 3D shape (spatial, spatial, temporal)
+        # QDM expects input arr with shape (time, space)
+        tmp = subset.reshape(-1, subset.shape[-1]).T
+        # Apply QDM correction
+        tmp = QDM(tmp)
+        # Reorgnize array back from  (time, space)
+        # to (spatial, spatial, temporal)
+        subset = tmp.T.reshape(subset.shape)
+
+        # If no trend, it doesn't make sense to correct for zero rate or
+        # apply the k-factor, but limit to QDM only.
+        if not no_trend:
+            subset = np.where(subset < bias_tau_fut, 0, subset)
+            subset = subset * k_factor[:, :, nt:nt + 1]
+
+        data_unbiased[:, :, subset_idx] = subset
+
+    return data_unbiased
+
+
 def local_presrat_bc(data: np.ndarray,
                      lat_lon: np.ndarray,
                      base_dset: str,
@@ -809,60 +863,26 @@ def local_presrat_bc(data: np.ndarray,
         lat_lon, base_dset, feature_name, bias_fp, threshold
     )
     time_window_center = cfg['time_window_center']
-    base = params['base']
-    bias = params['bias']
-    bias_fut = params['bias_fut']
+    base_params = params['base']
+    bias_params = params['bias']
+    bias_fut_params = params['bias_fut']
     bias_tau_fut = params['bias_tau_fut']
+    k_factor = params['k_factor']
+    dist = cfg['dist']
+    sampling = cfg['sampling']
+    log_base = cfg['log_base']
 
     if lr_padded_slice is not None:
         spatial_slice = (lr_padded_slice[0], lr_padded_slice[1])
-        base = base[spatial_slice]
-        bias = bias[spatial_slice]
-        bias_fut = bias_fut[spatial_slice]
+        base_params = base_params[spatial_slice]
+        bias_params = bias_params[spatial_slice]
+        bias_fut_params = bias_fut_params[spatial_slice]
 
-    data_unbiased = np.full_like(data, np.nan)
-    closest_time_idx = abs(
-        time_window_center[:, np.newaxis] - np.array(time_index.day_of_year)
-    ).argmin(axis=0)
-    for nt in set(closest_time_idx):
-        subset_idx = closest_time_idx == nt
-        subset = data[:, :, subset_idx]
-        oh = base[:, :, nt]
-        mh = bias[:, :, nt]
-        mf = bias_fut[:, :, nt]
-
-        if no_trend:
-            mf = None
-        else:
-            mf = mf.reshape(-1, mf.shape[-1])
-        # The distributions are 3D (space, space, N-params)
-        # Collapse 3D (space, space, N) into 2D (space**2, N)
-        QDM = QuantileDeltaMapping(oh.reshape(-1, oh.shape[-1]),
-                                   mh.reshape(-1, mh.shape[-1]),
-                                   mf,
-                                   dist=cfg['dist'],
-                                   relative=relative,
-                                   sampling=cfg['sampling'],
-                                   log_base=cfg['log_base'],
-                                   )
-
-        # input 3D shape (spatial, spatial, temporal)
-        # QDM expects input arr with shape (time, space)
-        tmp = subset.reshape(-1, subset.shape[-1]).T
-        # Apply QDM correction
-        tmp = QDM(tmp)
-        # Reorgnize array back from  (time, space)
-        # to (spatial, spatial, temporal)
-        subset = tmp.T.reshape(subset.shape)
-
-        # If no trend, it doesn't make sense to correct for zero rate or
-        # apply the k-factor, but limit to QDM only.
-        if not no_trend:
-            subset = np.where(subset < bias_tau_fut, 0, subset)
-
-            k_factor = params['k_factor'][:, :, nt]
-            subset = subset * k_factor[:, :, np.newaxis]
-
-        data_unbiased[:, :, subset_idx] = subset
+    data_unbiased = apply_presrat_bc(data, time_index, base_params,
+                                     bias_params, bias_fut_params,
+                                     bias_tau_fut, k_factor,
+                                     time_window_center, dist=dist,
+                                     sampling=sampling, log_base=log_base,
+                                     relative=relative, no_trend=no_trend)
 
     return data_unbiased
