@@ -89,7 +89,12 @@ def BatchHandlerFactory(
             stds: Optional[Union[Dict, str]] = None,
             **kwargs,
         ):
-            kwargs = {'s_enhance': s_enhance, 't_enhance': t_enhance, **kwargs}
+            kwargs = {
+                's_enhance': s_enhance,
+                't_enhance': t_enhance,
+                'batch_size': batch_size,
+                **kwargs,
+            }
 
             train_samplers, val_samplers = self.init_samplers(
                 train_containers,
@@ -111,14 +116,12 @@ def BatchHandlerFactory(
             else:
                 self.val_data = self.VAL_QUEUE(
                     samplers=val_samplers,
-                    batch_size=batch_size,
                     n_batches=n_batches,
                     thread_name='validation',
                     **get_class_kwargs(self.VAL_QUEUE, kwargs),
                 )
             super().__init__(
                 samplers=train_samplers,
-                batch_size=batch_size,
                 n_batches=n_batches,
                 **get_class_kwargs(MainQueueClass, kwargs),
             )
@@ -151,6 +154,9 @@ def BatchHandlerFactory(
         def stop(self):
             """Stop the val data batch queue in addition to the train batch
             queue."""
+            self._training_flag.clear()
+            if self.val_data != []:
+                self.val_data._training_flag.clear()
             if hasattr(self.val_data, 'stop'):
                 self.val_data.stop()
             super().stop()

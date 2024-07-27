@@ -17,7 +17,7 @@ from scipy.interpolate import griddata
 
 from sup3r.preprocessing.derivers.utilities import parse_feature
 from sup3r.utilities import VERSION_RECORD
-from sup3r.utilities.utilities import pd_date_range
+from sup3r.utilities.utilities import pd_date_range, safe_serialize
 
 logger = logging.getLogger(__name__)
 
@@ -265,7 +265,7 @@ class OutputMixin:
 
             if global_attrs is not None:
                 attrs = {
-                    k: v if isinstance(v, str) else json.dumps(v)
+                    k: v if isinstance(v, str) else safe_serialize(v)
                     for k, v in global_attrs.items()
                 }
                 fh.run_attrs = attrs
@@ -346,7 +346,7 @@ class OutputHandler(OutputMixin):
             if f_max > max_val:
                 logger.warning(msg)
                 warn(msg)
-            msg = f'{fn} has a min of {f_min} > {min_val}. {enforcing_msg}'
+            msg = f'{fn} has a min of {f_min} < {min_val}. {enforcing_msg}'
             if f_min < min_val:
                 logger.warning(msg)
                 warn(msg)

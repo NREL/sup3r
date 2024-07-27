@@ -660,10 +660,14 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
 
         if new_means is not None and new_stdevs is not None:
             logger.info('Setting new normalization statistics...')
-            logger.info("Model's previous data mean values: {}".format(
-                self._means))
-            logger.info("Model's previous data stdev values: {}".format(
-                self._stdevs))
+            logger.info(
+                "Model's previous data mean values:\n%s",
+                pprint.pformat(self._means, indent=2),
+            )
+            logger.info(
+                "Model's previous data stdev values:\n%s",
+                pprint.pformat(self._stdevs, indent=2),
+            )
 
             self._means = {k: np.float32(v) for k, v in new_means.items()}
             self._stdevs = {k: np.float32(v) for k, v in new_stdevs.items()}
@@ -686,10 +690,14 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
                 msg = (f'Need means for features "{missing}" but did not find '
                        f'in new means array: {self._means}')
 
-            logger.info('Set data normalization mean values: {}'.format(
-                self._means))
-            logger.info('Set data normalization stdev values: {}'.format(
-                self._stdevs))
+            logger.info(
+                'Set data normalization mean values:\n%s',
+                pprint.pformat(self._means, indent=2),
+            )
+            logger.info(
+                'Set data normalization stdev values:\n%s',
+                pprint.pformat(self._stdevs, indent=2),
+            )
 
     def norm_input(self, low_res):
         """Normalize low resolution data being input to the generator.
@@ -1223,7 +1231,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         if optimizer is None:
             optimizer = self.optimizer
 
-        if not multi_gpu or len(self.gpu_list) == 1:
+        if not multi_gpu or len(self.gpu_list) < 2:
             grad, loss_details = self.get_single_grad(
                 low_res,
                 hi_res_true,

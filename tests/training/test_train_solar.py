@@ -22,7 +22,8 @@ TARGET_S = (39.01, -105.13)
 tf.config.run_functions_eagerly(True)
 
 
-def test_solar_cc_model():
+@pytest.mark.parametrize('hr_steps', (24, 72))
+def test_solar_cc_model(hr_steps):
     """Test the solar climate change nsrdb super res model.
 
     NOTE: that the full 10x model is too big to train on the 20x20 test data.
@@ -49,7 +50,7 @@ def test_solar_cc_model():
         n_batches=2,
         s_enhance=1,
         t_enhance=8,
-        sample_shape=(20, 20, 72),
+        sample_shape=(20, 20, hr_steps),
         feature_sets={'lr_only_features': ['clearsky_ghi', 'ghi']},
     )
 
@@ -86,7 +87,7 @@ def test_solar_cc_model():
         assert model.meta['class'] == 'SolarCC'
         assert loaded.meta['class'] == 'SolarCC'
 
-    x = RANDOM_GENERATOR.uniform(0, 1, (1, 30, 30, 3, 1))
+    x = RANDOM_GENERATOR.uniform(0, 1, (1, 30, 30, hr_steps // 8, 1))
     y = model.generate(x)
     assert y.shape[0] == x.shape[0]
     assert y.shape[1] == x.shape[1]

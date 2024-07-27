@@ -3,8 +3,6 @@ interface with models."""
 
 import logging
 
-import tensorflow as tf
-
 from sup3r.preprocessing.utilities import _numpy_if_tensor
 from sup3r.utilities.utilities import spatial_coarsening, temporal_coarsening
 
@@ -30,15 +28,6 @@ class SingleBatchQueue(AbstractBatchQueue):
     def queue_shape(self):
         """Shape of objects stored in the queue."""
         return [(self.batch_size, *self.hr_sample_shape, len(self.features))]
-
-    @property
-    def output_signature(self):
-        """Signature of tensors returned by the queue."""
-        return tf.TensorSpec(
-            (*self.hr_sample_shape, len(self.features)),
-            tf.float32,
-            name='high_res',
-        )
 
     def transform(
         self,
@@ -96,8 +85,3 @@ class SingleBatchQueue(AbstractBatchQueue):
         )
         high_res = _numpy_if_tensor(samples)[..., self.hr_features_ind]
         return low_res, high_res
-
-    def _parallel_map(self, data: tf.data.Dataset):
-        """Perform call to map function for single dataset containers to enable
-        parallel sampling."""
-        return data.map(lambda x: x, num_parallel_calls=self.max_workers)

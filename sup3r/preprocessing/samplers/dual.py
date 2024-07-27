@@ -22,8 +22,9 @@ class DualSampler(Sampler):
         self,
         data: Sup3rDataset,
         sample_shape,
-        s_enhance,
-        t_enhance,
+        batch_size: int = 16,
+        s_enhance: int = 1,
+        t_enhance: int = 1,
         feature_sets: Optional[Dict] = None,
     ):
         """
@@ -60,7 +61,9 @@ class DualSampler(Sampler):
         )
         assert hasattr(data, 'low_res') and hasattr(data, 'high_res'), msg
         assert data.low_res == data[0] and data.high_res == data[1], msg
-        super().__init__(data=data, sample_shape=sample_shape)
+        super().__init__(
+            data=data, sample_shape=sample_shape, batch_size=batch_size
+        )
         self.lr_data, self.hr_data = self.data.low_res, self.data.high_res
         self.hr_sample_shape = self.sample_shape
         self.lr_sample_shape = (
@@ -112,15 +115,16 @@ class DualSampler(Sampler):
         )
         assert self.hr_data.shape[:3] == enhanced_shape, msg
 
-    def get_sample_index(self):
+    def get_sample_index(self, n_obs=None):
         """Get paired sample index, consisting of index for the low res sample
         and the index for the high res sample with the same spatiotemporal
         extent."""
+        n_obs = n_obs or self.batch_size
         spatial_slice = uniform_box_sampler(
             self.lr_data.shape, self.lr_sample_shape[:2]
         )
         time_slice = uniform_time_sampler(
-            self.lr_data.shape, self.lr_sample_shape[2]
+            self.lr_data.shape, self.lr_sample_shape[2] * n_obs
         )
         lr_index = (*spatial_slice, time_slice, self.lr_features)
         hr_index = [

@@ -3,7 +3,6 @@ interface with models."""
 
 import logging
 
-import tensorflow as tf
 from scipy.ndimage import gaussian_filter
 
 from .abstract import AbstractBatchQueue
@@ -31,14 +30,6 @@ class DualBatchQueue(AbstractBatchQueue):
             (self.batch_size, *self.hr_shape),
         ]
 
-    @property
-    def output_signature(self):
-        """Signature of tensors returned by the queue."""
-        return (
-            tf.TensorSpec(self.lr_shape, tf.float32, name='low_res'),
-            tf.TensorSpec(self.hr_shape, tf.float32, name='high_res'),
-        )
-
     def check_enhancement_factors(self):
         """Make sure each DualSampler has the same enhancment factors and they
         match those provided to the BatchQueue."""
@@ -51,17 +42,10 @@ class DualBatchQueue(AbstractBatchQueue):
         assert all(self.s_enhance == s for s in s_factors), msg
         t_factors = [c.t_enhance for c in self.containers]
         msg = (
-            f'Recived t_enhance = {self.t_enhance} but not all '
+            f'Received t_enhance = {self.t_enhance} but not all '
             f'DualSamplers in the collection have the same value.'
         )
         assert all(self.t_enhance == t for t in t_factors), msg
-
-    def _parallel_map(self, data: tf.data.Dataset):
-        """Perform call to map function for dual containers to enable parallel
-        sampling."""
-        return data.map(
-            lambda x, y: (x, y), num_parallel_calls=self.max_workers
-        )
 
     def transform(self, samples, smoothing=None, smoothing_ignore=None):
         """Perform smoothing if requested.

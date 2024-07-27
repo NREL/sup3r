@@ -8,7 +8,6 @@ from warnings import warn
 
 import dask.array as da
 import numpy as np
-import pandas as pd
 import xarray as xr
 from rex import MultiFileWindX
 
@@ -24,7 +23,11 @@ class LoaderH5(BaseLoader):
     provides access to the data in the files. This object provides a
     `__getitem__` method that can be used by :class:`Sampler` objects to build
     batches or by :class:`Extracter` objects to derive / extract specific
-    features / regions / time_periods."""
+    features / regions / time_periods.
+
+    TODO: Maybe we should use h5py instead of rex resource? Only thing we need
+    is get_raster_index
+    """
 
     BASE_LOADER = MultiFileWindX
 
@@ -55,7 +58,7 @@ class LoaderH5(BaseLoader):
         """Get coords dict for xr.Dataset construction."""
         coords: Dict[str, Tuple] = {}
         if not self._time_independent:
-            coords[Dimension.TIME] = pd.DatetimeIndex(self.res['time_index'])
+            coords[Dimension.TIME] = self.res['time_index']
         coord_base = (
             self.res.h5 if 'latitude' in self.res.h5 else self.res.h5['meta']
         )
@@ -112,7 +115,7 @@ class LoaderH5(BaseLoader):
             if isinstance(self.chunks, dict)
             else self.chunks
         )
-        if len(self._meta_shape()) == 1:
+        if len(self._meta_shape()) == 1 and 'elevation' in self.res.meta:
             elev = self.res.meta['elevation'].values
             if not self._time_independent:
                 elev = np.repeat(

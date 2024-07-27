@@ -166,7 +166,7 @@ class Sup3rDataset:
         """Get samples from self._ds members. idx should be either a tuple of
         slices for the dimensions (south_north, west_east, time) and a list of
         feature names or a 2-tuple of the same, for dual datasets."""
-        if len(idx) == 2:
+        if len(self._ds) == 2:
             return tuple(d.sample(idx[i]) for i, d in enumerate(self))
         return self._ds[-1].sample(idx)
 

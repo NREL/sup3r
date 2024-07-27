@@ -32,8 +32,9 @@ class DualSamplerCC(DualSampler):
         self,
         data: Sup3rDataset,
         sample_shape,
-        s_enhance=1,
-        t_enhance=24,
+        batch_size: int = 16,
+        s_enhance: int = 1,
+        t_enhance: int = 24,
         feature_sets: Optional[Dict] = None,
     ):
         """
@@ -61,6 +62,7 @@ class DualSamplerCC(DualSampler):
         super().__init__(
             data=data,
             sample_shape=sample_shape,
+            batch_size=batch_size,
             t_enhance=t_enhance,
             s_enhance=s_enhance,
             feature_sets=feature_sets,
@@ -115,16 +117,14 @@ class DualSamplerCC(DualSampler):
 
         *Needs review from @grantbuster
         """
-
         if self.t_enhance not in (24, 1):
             n_days = int(high_res.shape[3] / 24)
             if n_days > 1:
-                ind = np.arange(high_res.shape[3])
-                day_slices = np.array_split(ind, n_days)
-                day_slices = [slice(x[0], x[-1] + 1) for x in day_slices]
                 assert n_days % 2 == 1, 'Need odd days'
-                i_mid = int((n_days - 1) / 2)
-                high_res = high_res[:, :, :, day_slices[i_mid], :]
+                mid = high_res.shape[3] // 2
+                half_sample = self.hr_sample_shape[-1] // 2
+                t_slice = slice(mid - half_sample, mid + half_sample)
+                high_res = high_res[..., t_slice, :]
 
             high_res = nsrdb_reduce_daily_data(
                 high_res, self.hr_sample_shape[-1], csr_ind=csr_ind
@@ -132,10 +132,10 @@ class DualSamplerCC(DualSampler):
 
         return high_res
 
-    def get_sample_index(self):
+    def get_sample_index(self, n_obs=None):
         """Get sample index for expanded hourly chunk which will be reduced to
         the given sample shape."""
-        lr_ind, hr_ind = super().get_sample_index()
+        lr_ind, hr_ind = super().get_sample_index(n_obs=n_obs)
         upsamp_factor = 1 if self.t_enhance == 1 else 24
         hr_ind = (
             *hr_ind[:2],
@@ -145,6 +145,13 @@ class DualSamplerCC(DualSampler):
             hr_ind[-1],
         )
         return lr_ind, hr_ind
+
+    def _fast_batch_possible(self):
+        upsamp_factor = 1 if self.t_enhance == 1 else 24
+        return (
+            upsamp_factor * self.lr_sample_shape[2] * self.batch_size
+            <= self.data.shape[2]
+        )
 
     def __next__(self):
         """Slight modification of `super().__next__()` to first get a sample of

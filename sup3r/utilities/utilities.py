@@ -30,6 +30,7 @@ class Timer:
 
     def __init__(self):
         self.log = {}
+        self.elapsed = 0
 
     def __call__(self, func, log=False):
         """Time function call and store elapsed time in self.log.
@@ -58,6 +59,7 @@ class Timer:
             t0 = time.time()
             out = func(*args, **kwargs)
             t_elap = time.time() - t0
+            self.elapsed = t_elap
             self.log[f'elapsed:{func.__name__}'] = t_elap
             if log:
                 logger.debug(f'Call to {func.__name__} finished in '

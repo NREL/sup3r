@@ -45,6 +45,29 @@ class DerivedFeature(ABC):
         """
 
 
+class SurfaceRH(DerivedFeature):
+    """Surface Relative humidity feature for computing rh from dewpoint
+    temperature and ambient temperature.
+
+    https://earthscience.stackexchange.com/questions/24156/era5-single-level-calculate-relative-humidity
+
+    https://journals.ametsoc.org/view/journals/bams/86/2/bams-86-2-225.xml?tab_body=pdf
+    """
+
+    inputs = ('d2m', 'temperature_2m')
+
+    @classmethod
+    def compute(cls, data):
+        """Compute surface relative humidity."""
+        water_vapor_pressure = 6.1078 * np.exp(
+            17.1 * data['d2m'] / (235 + data['d2m'])
+        )
+        saturation_water_vapor_pressure = 6.1078 * np.exp(
+            17.1 * data['temperature_2m'] / (235 + data['temperature_2m'])
+        )
+        return water_vapor_pressure / saturation_water_vapor_pressure
+
+
 class ClearSkyRatioH5(DerivedFeature):
     """Clear Sky Ratio feature class for computing from H5 data"""
 
@@ -210,10 +233,7 @@ class UWindPowerLaw(DerivedFeature):
             Derived feature array
 
         """
-        return (
-            data['uas']
-            * (float(height) / cls.NEAR_SFC_HEIGHT) ** cls.ALPHA
-        )
+        return data['uas'] * (float(height) / cls.NEAR_SFC_HEIGHT) ** cls.ALPHA
 
 
 class VWindPowerLaw(DerivedFeature):
@@ -233,10 +253,7 @@ class VWindPowerLaw(DerivedFeature):
     def compute(cls, data, height):
         """Method to compute V wind component from data"""
 
-        return (
-            data['vas']
-            * (float(height) / cls.NEAR_SFC_HEIGHT) ** cls.ALPHA
-        )
+        return data['vas'] * (float(height) / cls.NEAR_SFC_HEIGHT) ** cls.ALPHA
 
 
 class UWind(DerivedFeature):
@@ -361,6 +378,7 @@ class TasMax(Tas):
 RegistryBase = {
     'u_(.*)': UWind,
     'v_(.*)': VWind,
+    'relativehumidity_2m': SurfaceRH,
     'windspeed_(.*)': Windspeed,
     'winddirection_(.*)': Winddirection,
 }

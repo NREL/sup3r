@@ -22,8 +22,8 @@ class BatchQueueDC(SingleBatchQueue):
         self._temporal_weights = np.ones(n_time_bins) / n_time_bins
         super().__init__(*args, **kwargs)
 
-    def get_samples(self):
-        """Update weights and get sample from sampled container."""
+    def _build_batch(self):
+        """Update weights and get batch of samples from sampled container."""
         sampler = self.get_random_container()
         sampler.update_weights(self.spatial_weights, self.temporal_weights)
         return next(sampler)

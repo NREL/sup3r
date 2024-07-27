@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from typing import Callable, ClassVar
 
 import numpy as np
+import pandas as pd
 import xarray as xr
 
 from sup3r.preprocessing.base import Container
@@ -62,7 +63,7 @@ class BaseLoader(Container, ABC):
             features will be returned.
         res_kwargs : dict
             kwargs for `.res` object
-        chunks : dict
+        chunks : dict | str
             Dictionary of chunk sizes to use for call to
             `dask.array.from_array()` or xr.Dataset().chunk(). Will be
             converted to a tuple when used in `from_array().`
@@ -79,6 +80,10 @@ class BaseLoader(Container, ABC):
         self.data[Dimension.LONGITUDE] = (
             self.data[Dimension.LONGITUDE] + 180.0
         ) % 360.0 - 180.0
+        if not self.data.time_independent:
+            self.data[Dimension.TIME] = pd.to_datetime(
+                self.data[Dimension.TIME]
+            )
 
         self.data = self.data[features] if features != 'all' else self.data
         self.add_attrs()

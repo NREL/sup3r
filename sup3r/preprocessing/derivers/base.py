@@ -195,10 +195,10 @@ class BaseDeriver(Container):
                 lev_list.append(np.float32(lev))
 
         if len(var_list) > 0:
-            var_array = da.concatenate(
+            var_array = np.concatenate(
                 [var_array, da.stack(var_list, axis=-1)], axis=-1
             )
-            lev_array = da.concatenate(
+            lev_array = np.concatenate(
                 [
                     lev_array,
                     da.broadcast_to(

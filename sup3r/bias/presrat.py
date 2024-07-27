@@ -85,39 +85,41 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         super()._init_out()
 
         shape = (*self.bias_gid_raster.shape, 1)
-        self.out[f'{self.base_dset}_zero_rate'] = np.full(shape,
-                                                          np.nan,
-                                                          np.float32)
-        self.out[f'{self.bias_feature}_tau_fut'] = np.full(shape,
-                                                           np.nan,
-                                                           np.float32)
+        self.out[f'{self.base_dset}_zero_rate'] = np.full(
+            shape, np.nan, np.float32
+        )
+        self.out[f'{self.bias_feature}_tau_fut'] = np.full(
+            shape, np.nan, np.float32
+        )
         shape = (*self.bias_gid_raster.shape, self.NT)
         self.out[f'{self.bias_feature}_k_factor'] = np.full(
-            shape, np.nan, np.float32)
+            shape, np.nan, np.float32
+        )
 
     # pylint: disable=W0613
     @classmethod
-    def _run_single(cls,
-                    bias_data,
-                    bias_fut_data,
-                    base_fps,
-                    bias_feature,
-                    base_dset,
-                    base_gid,
-                    base_handler,
-                    daily_reduction,
-                    *,
-                    bias_ti,
-                    bias_fut_ti,
-                    decimals,
-                    dist,
-                    relative,
-                    sampling,
-                    n_samples,
-                    log_base,
-                    zero_rate_threshold,
-                    base_dh_inst=None,
-                    ):
+    def _run_single(
+        cls,
+        bias_data,
+        bias_fut_data,
+        base_fps,
+        bias_feature,
+        base_dset,
+        base_gid,
+        base_handler,
+        daily_reduction,
+        *,
+        bias_ti,
+        bias_fut_ti,
+        decimals,
+        dist,
+        relative,
+        sampling,
+        n_samples,
+        log_base,
+        zero_rate_threshold,
+        base_dh_inst=None,
+    ):
         """Estimate probability distributions at a single site
 
         TODO! This should be refactored. There is too much redundancy in
@@ -144,19 +146,21 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
             # Define indices for which data goes in the current time window
             base_idx = cls.window_mask(base_ti.day_of_year, t, window_size)
             bias_idx = cls.window_mask(bias_ti.day_of_year, t, window_size)
-            bias_fut_idx = cls.window_mask(bias_fut_ti.day_of_year,
-                                           t,
-                                           window_size)
+            bias_fut_idx = cls.window_mask(
+                bias_fut_ti.day_of_year, t, window_size
+            )
 
             if any(base_idx) and any(bias_idx) and any(bias_fut_idx):
-                tmp = cls.get_qdm_params(bias_data[bias_idx],
-                                         bias_fut_data[bias_fut_idx],
-                                         base_data[base_idx],
-                                         bias_feature,
-                                         base_dset,
-                                         sampling,
-                                         n_samples,
-                                         log_base)
+                tmp = cls.get_qdm_params(
+                    bias_data[bias_idx],
+                    bias_fut_data[bias_fut_idx],
+                    base_data[base_idx],
+                    bias_feature,
+                    base_dset,
+                    sampling,
+                    n_samples,
+                    log_base,
+                )
                 for k, v in tmp.items():
                     if k not in out:
                         out[k] = template.copy()
@@ -169,7 +173,7 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
                 dist=dist,
                 relative=relative,
                 sampling=sampling,
-                log_base=log_base
+                log_base=log_base,
             )
             subset = bias_fut_data[bias_fut_idx]
             corrected_fut_data[bias_fut_idx] = QDM(subset).squeeze()
@@ -177,14 +181,15 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         # Step 1: Define zero rate from observations
         assert base_data.ndim == 1
         obs_zero_rate = cls.zero_precipitation_rate(
-            base_data, zero_rate_threshold)
+            base_data, zero_rate_threshold
+        )
         out[f'{base_dset}_zero_rate'] = obs_zero_rate
 
         # Step 2: Find tau for each grid point
 
         # Removed NaN handling, thus reinforce finite-only data.
-        assert np.isfinite(bias_data).all(), "Unexpected invalid values"
-        assert bias_data.ndim == 1, "Assumed bias_data to be 1D"
+        assert np.isfinite(bias_data).all(), 'Unexpected invalid values'
+        assert bias_data.ndim == 1, 'Assumed bias_data to be 1D'
         n_threshold = round(obs_zero_rate * bias_data.size)
         n_threshold = min(n_threshold, bias_data.size - 1)
         tau = np.sort(bias_data)[n_threshold]
@@ -192,12 +197,13 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         # tau = max(tau, 0.01)
 
         # Step 3: Find Z_gf as the zero rate in mf
-        assert np.isfinite(bias_fut_data).all(), "Unexpected invalid values"
+        assert np.isfinite(bias_fut_data).all(), 'Unexpected invalid values'
         z_fg = (bias_fut_data < tau).astype('i').sum() / bias_fut_data.size
 
         # Step 4: Estimate tau_fut with corrected mf
-        tau_fut = np.sort(corrected_fut_data)[round(
-            z_fg * corrected_fut_data.size)]
+        tau_fut = np.sort(corrected_fut_data)[
+            round(z_fg * corrected_fut_data.size)
+        ]
 
         out[f'{bias_feature}_tau_fut'] = tau_fut
 
@@ -208,9 +214,9 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         for nt, t in enumerate(window_center):
             base_idx = cls.window_mask(base_ti.day_of_year, t, window_size)
             bias_idx = cls.window_mask(bias_ti.day_of_year, t, window_size)
-            bias_fut_idx = cls.window_mask(bias_fut_ti.day_of_year,
-                                           t,
-                                           window_size)
+            bias_fut_idx = cls.window_mask(
+                bias_fut_ti.day_of_year, t, window_size
+            )
 
             oh = base_data[base_idx].mean()
             mh = bias_data[bias_idx].mean()
@@ -397,16 +403,20 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
             'zero_rate_threshold': zero_rate_threshold,
             'time_window_center': self.time_window_center,
         }
-        self.write_outputs(fp_out,
-                           self.out,
-                           extra_attrs=extra_attrs,
-                           )
+        self.write_outputs(
+            fp_out,
+            self.out,
+            extra_attrs=extra_attrs,
+        )
 
         return copy.deepcopy(self.out)
 
-    def write_outputs(self, fp_out: str,
-                      out: Optional[dict] = None,
-                      extra_attrs: Optional[dict] = None):
+    def write_outputs(
+        self,
+        fp_out: str,
+        out: Optional[dict] = None,
+        extra_attrs: Optional[dict] = None,
+    ):
         """Write outputs to an .h5 file.
 
         Parameters

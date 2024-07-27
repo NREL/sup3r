@@ -8,6 +8,7 @@ import logging
 import threading
 from abc import ABC, abstractmethod
 from collections import namedtuple
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Optional, Union
 
 import numpy as np
@@ -36,7 +37,7 @@ class AbstractBatchQueue(Collection, ABC):
         t_enhance: int = 1,
         queue_cap: Optional[int] = None,
         transform_kwargs: Optional[dict] = None,
-        max_workers: Optional[int] = None,
+        max_workers: int = 1,
         default_device: Optional[str] = None,
         thread_name: str = 'training',
         mode: str = 'lazy',
@@ -61,8 +62,8 @@ class AbstractBatchQueue(Collection, ABC):
             Dictionary of kwargs to be passed to `self.transform`. This method
             performs smoothing / coarsening.
         max_workers : int
-            Number of workers / threads to use for getting samples used to
-            build batches.
+            Number of workers / threads to use for getting batches to fill
+            queue
         default_device : str
             Default device to use for batch queue (e.g. /cpu:0, /gpu:0). If
             None this will use the first GPU if GPUs are available otherwise
@@ -92,11 +93,11 @@ class AbstractBatchQueue(Collection, ABC):
         self.t_enhance = t_enhance
         self.batch_size = batch_size
         self.n_batches = n_batches
-        self.queue_cap = queue_cap or n_batches
-        self.max_workers = max_workers or batch_size
+        self.queue_cap = queue_cap if queue_cap is not None else n_batches
+        self.max_workers = max_workers
+        self.enqueue_pool = None
         self.container_index = self.get_container_index()
         self.queue = self.get_queue()
-        self.batches = self.prep_batches()
         self.transform_kwargs = transform_kwargs or {
             'smoothing_ignore': [],
             'smoothing': None,
@@ -110,13 +111,6 @@ class AbstractBatchQueue(Collection, ABC):
         """Shape of objects stored in the queue. e.g. for single dataset queues
         this is (batch_size, *sample_shape, len(features)). For dual dataset
         queues this is [(batch_size, *lr_shape), (batch_size, *hr_shape)]"""
-
-    @property
-    @abstractmethod
-    def output_signature(self):
-        """Signature of tensors returned by the queue. e.g. single
-        TensorSpec(shape, dtype, name) for single dataset queues or tuples of
-        TensorSpec for dual queues."""
 
     def get_queue(self):
         """Return FIFO queue for storing batches."""
@@ -132,16 +126,23 @@ class AbstractBatchQueue(Collection, ABC):
         self._default_device = self._default_device or (
             '/cpu:0' if len(gpu_list) == 0 else '/gpu:0'
         )
-        msg = (
-            'Queue cap needs to be at least 1 when batching in "lazy" mode, '
-            f'but received queue_cap = {self.queue_cap}.'
-        )
-        assert self.mode == 'eager' or (
-            self.queue_cap > 0 and self.mode == 'lazy'
-        ), msg
         self.timer(self.check_features, log=True)()
         self.timer(self.check_enhancement_factors, log=True)()
         _ = self.check_shared_attr('sample_shape')
+
+        sampler_bs = self.check_shared_attr('batch_size')
+        msg = (
+            f'Samplers have a different batch_size: {sampler_bs} than the '
+            f'BatchQueue: {self.batch_size}'
+        )
+        assert sampler_bs == self.batch_size, msg
+
+        if self.max_workers > 1:
+            logger.info(f'Starting {self._thread_name} enqueue pool.')
+            self.enqueue_pool = ThreadPoolExecutor(
+                max_workers=self.max_workers
+            )
+
         if self.mode == 'eager':
             logger.info('Received mode = "eager".')
             _ = [c.compute() for c in self.containers]
@@ -176,52 +177,6 @@ class AbstractBatchQueue(Collection, ABC):
             )
         ), msg
 
-    def prep_batches(self):
-        """Return iterable of batches prefetched from the data generator.
-
-        TODO: Understand this better. Should prefetch be called more than just
-        for initialization? Every epoch?
-        """
-        logger.debug(
-            f'Prefetching {self._thread_name} batches with batch_size = '
-            f'{self.batch_size}.'
-        )
-        with tf.device(self._default_device):
-            data = tf.data.Dataset.from_generator(
-                self.generator, output_signature=self.output_signature
-            )
-            data = self._parallel_map(data)
-            data = data.prefetch(tf.data.AUTOTUNE)
-            batches = data.batch(
-                self.batch_size,
-                drop_remainder=True,
-                deterministic=False,
-                num_parallel_calls=tf.data.AUTOTUNE,
-            )
-
-        return batches.as_numpy_iterator()
-
-    def generator(self):
-        """Generator over samples. The samples are retrieved with the
-        :meth:`get_samples` method through randomly selecting a sampler from
-        the collection and then returning a sample from that sampler. Batches
-        are constructed from a set (`batch_size`) of these samples.
-
-        Returns
-        -------
-        samples : T_Array | Tuple[T_Array, T_Array]
-            (lats, lons, times, n_features)
-            Either an array or a 2-tuple of such arrays (in the case of queues
-            with :class:`DualSampler` samplers.) These arrays are queued in a
-            background thread and then dequeued during training.
-        """
-        while self._training_flag.is_set():
-            yield self.get_samples()
-
-    @abstractmethod
-    def _parallel_map(self, data: tf.data.Dataset):
-        """Perform call to map function to enable parallel sampling."""
-
     @abstractmethod
     def transform(self, samples, **kwargs):
         """Apply transform on batch samples. This can include smoothing /
@@ -247,39 +202,40 @@ class AbstractBatchQueue(Collection, ABC):
     def start(self) -> None:
         """Start thread to keep sample queue full for batches."""
         self._training_flag.set()
-        if not self.queue_thread.is_alive() and self.mode == 'lazy':
+        if (
+            not self.queue_thread.is_alive()
+            and self.mode == 'lazy'
+            and self.queue_cap > 0
+        ):
             logger.info(f'Starting {self._thread_name} queue.')
             self.queue_thread.start()
 
     def stop(self) -> None:
         """Stop loading batches."""
         self._training_flag.clear()
+        if self.enqueue_pool is not None:
+            logger.info(f'Stopping {self._thread_name} enqueue pool.')
+            self.enqueue_pool.shutdown()
         if self.queue_thread.is_alive():
             logger.info(f'Stopping {self._thread_name} queue.')
-            self.queue_thread.join()
+            self.queue_thread._delete()
 
     def __len__(self):
         return self.n_batches
 
     def __iter__(self):
         self._batch_counter = 0
-        self.timer(self.start)()
+        self.start()
         return self
 
-    def _enqueue_batch(self) -> None:
-        batch = next(self.batches, None)
-        if batch is not None:
-            self.timer(self.queue.enqueue, log=True)(batch)
-            msg = (
-                f'{self._thread_name.title()} queue length: '
-                f'{self.queue.size().numpy()} / {self.queue_cap}'
-            )
-            logger.debug(msg)
-
     def _get_batch(self) -> Batch:
-        if self.mode == 'eager':
-            return next(self.batches)
-        return self.timer(self.queue.dequeue, log=True)()
+        if (
+            self.mode == 'eager'
+            or self.queue_cap == 0
+            or self.queue.size().numpy() == 0
+        ):
+            return self._build_batch()
+        return self.queue.dequeue()
 
     def enqueue_batches(self) -> None:
         """Callback function for queue thread. While training, the queue is
@@ -287,8 +243,17 @@ class AbstractBatchQueue(Collection, ABC):
         removed from the queue."""
         try:
             while self._training_flag.is_set():
-                if self.queue.size().numpy() < self.queue_cap:
+                needed = self.queue_cap - self.queue.size().numpy()
+                if needed == 1 or self.enqueue_pool is None:
                     self._enqueue_batch()
+                elif needed > 0:
+                    futures = [
+                        self.enqueue_pool.submit(self._enqueue_batch)
+                        for _ in range(needed)
+                    ]
+                    for future in as_completed(futures):
+                        _ = future.result()
+
         except KeyboardInterrupt:
             logger.info(f'Stopping {self._thread_name.title()} queue.')
             self.stop()
@@ -304,7 +269,7 @@ class AbstractBatchQueue(Collection, ABC):
             Batch object with batch.low_res and batch.high_res attributes
         """
         if self._batch_counter < self.n_batches:
-            samples = self.timer(self._get_batch, log=self.mode == 'eager')()
+            samples = self.timer(self._get_batch, log=True)()
             if self.sample_shape[2] == 1:
                 if isinstance(samples, (list, tuple)):
                     samples = tuple(s[..., 0, :] for s in samples)
@@ -322,19 +287,28 @@ class AbstractBatchQueue(Collection, ABC):
         return RANDOM_GENERATOR.choice(indices, p=self.container_weights)
 
     def get_random_container(self):
-        """Get random container based on container weights
-
-        TODO: This will select a random container for every sample, instead of
-        every batch. Should we override this in the BatchHandler and use
-        the batch_counter to do every batch?
-        """
+        """Get random container based on container weights"""
         self.container_index = self.get_container_index()
         return self.containers[self.container_index]
 
-    def get_samples(self):
-        """Get random sampler from collection and return a sample from that
-        sampler."""
+    def _build_batch(self):
+        """Get random sampler from collection and return a batch of samples
+        from that sampler."""
         return next(self.get_random_container())
+
+    def _enqueue_batch(self):
+        """Build batch and send to queue."""
+        if (
+            self._training_flag.is_set()
+            and self.queue.size().numpy() < self.queue_cap
+        ):
+            self.queue.enqueue(self._build_batch())
+            logger.debug(
+                '%s queue length: %s / %s',
+                self._thread_name.title(),
+                self.queue.size().numpy(),
+                self.queue_cap,
+            )
 
     @property
     def lr_shape(self):

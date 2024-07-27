@@ -126,11 +126,7 @@ def weighted_time_sampler(data_shape, sample_shape, weights):
     """
 
     shape = data_shape[2] if data_shape[2] < sample_shape else sample_shape
-    t_indices = (
-        np.arange(0, data_shape[2])
-        if sample_shape == 1
-        else np.arange(0, data_shape[2] - sample_shape + 1)
-    )
+    t_indices = np.arange(0, data_shape[2] - shape + 1)
     t_chunks = np.array_split(t_indices, len(weights))
 
     weight_list = []
@@ -164,9 +160,7 @@ def uniform_time_sampler(data_shape, sample_shape, crop_slice=slice(None)):
     """
     shape = data_shape[2] if data_shape[2] < sample_shape else sample_shape
     indices = np.arange(data_shape[2] + 1)[crop_slice]
-    start = RANDOM_GENERATOR.integers(
-        indices[0], indices[-1] - sample_shape + 1
-    )
+    start = RANDOM_GENERATOR.integers(indices[0], indices[-1] - shape + 1)
     stop = start + shape
     return slice(start, stop)
 
@@ -268,9 +262,9 @@ def nsrdb_reduce_daily_data(data, shape, csr_ind=0):
     Parameters
     ----------
     data : T_Array
-        Data array 4D, where [..., csr_ind] is assumed to be
-        clearsky ratio with NaN at night.
-        (spatial_1, spatial_2, temporal, features)
+        5D data array, where [..., csr_ind] is assumed to be clearsky ratio
+        with NaN at night.
+        (n_obs, spatial_1, spatial_2, temporal, features)
     shape : int
         (time_steps) Size of time slice to sample from data, must be an integer
         less than or equal to 24.
@@ -285,9 +279,9 @@ def nsrdb_reduce_daily_data(data, shape, csr_ind=0):
         requested shape.
     """
 
-    night_mask = da.isnan(data[:, :, :, csr_ind]).any(axis=(0, 1))
+    night_mask = da.isnan(data[:, :, :, :, csr_ind]).any(axis=(0, 1, 2))
 
-    if shape >= data.shape[2]:
+    if shape >= data.shape[3]:
         return data
 
     if night_mask.all():

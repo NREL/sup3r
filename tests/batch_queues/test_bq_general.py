@@ -21,8 +21,18 @@ def test_batch_queue():
 
     sample_shape = (8, 8, 10)
     samplers = [
-        DummySampler(sample_shape, data_shape=(10, 10, 20), features=FEATURES),
-        DummySampler(sample_shape, data_shape=(12, 12, 15), features=FEATURES),
+        DummySampler(
+            sample_shape,
+            data_shape=(10, 10, 20),
+            batch_size=4,
+            features=FEATURES,
+        ),
+        DummySampler(
+            sample_shape,
+            data_shape=(12, 12, 15),
+            batch_size=4,
+            features=FEATURES,
+        ),
     ]
     transform_kwargs = {'smoothing_ignore': [], 'smoothing': None}
     batcher = SingleBatchQueue(
@@ -54,8 +64,18 @@ def test_spatial_batch_queue():
     n_batches = 3
     transform_kwargs = {'smoothing_ignore': [], 'smoothing': None}
     samplers = [
-        DummySampler(sample_shape, data_shape=(10, 10, 20), features=FEATURES),
-        DummySampler(sample_shape, data_shape=(12, 12, 15), features=FEATURES),
+        DummySampler(
+            sample_shape,
+            data_shape=(10, 10, 20),
+            batch_size=4,
+            features=FEATURES,
+        ),
+        DummySampler(
+            sample_shape,
+            data_shape=(12, 12, 15),
+            batch_size=4,
+            features=FEATURES,
+        ),
     ]
     batcher = SingleBatchQueue(
         samplers=samplers,
@@ -110,6 +130,7 @@ def test_dual_batch_queue():
             hr_sample_shape,
             s_enhance=2,
             t_enhance=2,
+            batch_size=4,
         )
         for lr, hr in zip(lr_containers, hr_containers)
     ]
@@ -162,6 +183,7 @@ def test_pair_batch_queue_with_lr_only_features():
             hr_sample_shape,
             s_enhance=2,
             t_enhance=2,
+            batch_size=4,
             feature_sets={'lr_only_features': lr_only_features},
         )
         for lr, hr in zip(lr_containers, hr_containers)
@@ -216,6 +238,7 @@ def test_bad_enhancement_factors():
                     hr_sample_shape,
                     s_enhance=s_enhance,
                     t_enhance=t_enhance,
+                    batch_size=4,
                 )
                 for lr, hr in zip(lr_containers, hr_containers)
             ]
@@ -236,10 +259,16 @@ def test_bad_sample_shapes():
 
     samplers = [
         DummySampler(
-            sample_shape=(4, 4, 5), data_shape=(10, 10, 20), features=FEATURES
+            sample_shape=(4, 4, 5),
+            data_shape=(10, 10, 20),
+            batch_size=4,
+            features=FEATURES,
         ),
         DummySampler(
-            sample_shape=(3, 3, 5), data_shape=(12, 12, 15), features=FEATURES
+            sample_shape=(3, 3, 5),
+            data_shape=(12, 12, 15),
+            batch_size=4,
+            features=FEATURES,
         ),
     ]
 

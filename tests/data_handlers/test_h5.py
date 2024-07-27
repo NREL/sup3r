@@ -41,10 +41,10 @@ def test_solar_spatial_h5(nan_method_kwargs):
     assert np.nanmin(dh.as_array()) == 0
     assert not np.isnan(dh.as_array()).any()
     assert np.isnan(dh_nan.as_array()).any()
-    sampler = Sampler(dh.data, sample_shape=(10, 10, 12))
+    sampler = Sampler(dh.data, sample_shape=(10, 10, 12), batch_size=8)
     for _ in range(10):
         x = next(sampler)
-        assert x.shape == (10, 10, 12, 1)
+        assert x.shape == (8, 10, 10, 12, 1)
         assert not np.isnan(x).any()
 
     batch_handler = BatchHandler(

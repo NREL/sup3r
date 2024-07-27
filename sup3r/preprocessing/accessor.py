@@ -104,6 +104,11 @@ class Sup3rX:
         data."""
         return Dimension.FLATTENED_SPATIAL in self.dims
 
+    @property
+    def time_independent(self):
+        """Check if the contained data is time independent."""
+        return Dimension.TIME not in self.dims
+
     @classmethod
     def good_dim_order(cls, ds):
         """Check if dims are in the right order for all variables.
@@ -196,9 +201,7 @@ class Sup3rX:
         """Get attribute and cast to type(self) if a xr.Dataset is returned
         first."""
         out = getattr(self._ds, attr)
-        if isinstance(out, xr.Dataset):
-            out = type(self)(out)
-        return out
+        return type(self)(out) if isinstance(out, xr.Dataset) else out
 
     def __mul__(self, other):
         """Multiply Sup3rX object by other. Used to compute weighted means and
@@ -235,13 +238,15 @@ class Sup3rX:
         the dimensions (south_north, west_east, time) and a list of feature
         names."""
         isel_kwargs = dict(zip(Dimension.dims_3d(), idx[:-1]))
-        features = _lowered(idx[-1])
-        chunk = self._ds.isel(**isel_kwargs)
-        arrs = [chunk[f].data for f in features]
+        features = (
+            self.features if not _is_strings(idx[-1]) else _lowered(idx[-1])
+        )
         return (
-            da.stack(arrs, axis=-1)
-            if not self.loaded
-            else np.stack(arrs, axis=-1)
+            self._ds[features]
+            .isel(**isel_kwargs)
+            .to_array()
+            .transpose(*self.dims, ...)
+            .data
         )
 
     @name.setter
@@ -258,16 +263,19 @@ class Sup3rX:
         """Return dims with our own enforced ordering."""
         return ordered_dims(self._ds.dims)
 
+    def _stack_features(self, arrs):
+        return (
+            da.stack(arrs, axis=-1)
+            if not self.loaded
+            else np.stack(arrs, axis=-1)
+        )
+
     def as_array(self, features='all') -> T_Array:
         """Return dask.array for the contained xr.Dataset."""
         features = parse_to_list(data=self._ds, features=features)
         arrs = [self._ds[f].data for f in features]
         if all(arr.shape == arrs[0].shape for arr in arrs):
-            return (
-                da.stack(arrs, axis=-1)
-                if not self.loaded
-                else np.stack(arrs, axis=-1)
-            )
+            return self._stack_features(arrs)
         return self.as_darray(features=features).data
 
     def as_darray(self, features='all') -> xr.DataArray:
@@ -416,9 +424,10 @@ class Sup3rX:
         bool(['u', 'v'] in self)
         bool('u' in self)
         """
-        if isinstance(vals, (list, tuple)) and all(
+        feature_check = isinstance(vals, (list, tuple)) and all(
             isinstance(s, str) for s in vals
-        ):
+        )
+        if feature_check:
             return all(s.lower() in self._ds for s in vals)
         return self._ds.__contains__(vals)
 
@@ -590,3 +599,16 @@ class Sup3rX:
             columns=[Dimension.LATITUDE, Dimension.LONGITUDE],
             data=self.lat_lon.reshape((-1, 2)),
         )
+
+    def unflatten(self, grid_shape):
+        """Convert flattened dataset into rasterized dataset with the given
+        grid shape."""
+        assert self.flattened, 'Dataset is already unflattened'
+        ind = pd.MultiIndex.from_product(
+            (np.arange(grid_shape[0]), np.arange(grid_shape[1])),
+            names=Dimension.dims_2d(),
+        )
+        self._ds = self._ds.assign({Dimension.FLATTENED_SPATIAL: ind}).unstack(
+            Dimension.FLATTENED_SPATIAL
+        )
+        return type(self)(self._ds)

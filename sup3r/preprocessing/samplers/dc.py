@@ -24,6 +24,7 @@ class SamplerDC(Sampler):
         self,
         data: T_Dataset,
         sample_shape,
+        batch_size: int = 16,
         feature_sets: Optional[Dict] = None,
         spatial_weights: Optional[Union[T_Array, List]] = None,
         temporal_weights: Optional[Union[T_Array, List]] = None,
@@ -31,7 +32,10 @@ class SamplerDC(Sampler):
         self.spatial_weights = spatial_weights or [1]
         self.temporal_weights = temporal_weights or [1]
         super().__init__(
-            data=data, sample_shape=sample_shape, feature_sets=feature_sets
+            data=data,
+            sample_shape=sample_shape,
+            batch_size=batch_size,
+            feature_sets=feature_sets,
         )
 
     def update_weights(self, spatial_weights, temporal_weights):
@@ -39,17 +43,8 @@ class SamplerDC(Sampler):
         self.spatial_weights = spatial_weights
         self.temporal_weights = temporal_weights
 
-    def get_sample_index(self):
+    def get_sample_index(self, n_obs=None):
         """Randomly gets weighted spatial sample and time sample indices
-
-        Parameters
-        ----------
-        temporal_weights : array
-            Weights used to select time slice
-            (n_time_chunks)
-        spatial_weights : array
-            Weights used to select spatial chunks
-            (n_lat_chunks * n_lon_chunks)
 
         Returns
         -------
@@ -57,6 +52,7 @@ class SamplerDC(Sampler):
             Tuple of sampled spatial grid, time slice, and features indices.
             Used to get single observation like self.data[observation_index]
         """
+        n_obs = n_obs or self.batch_size
         if self.spatial_weights is not None:
             spatial_slice = weighted_box_sampler(
                 self.shape, self.sample_shape[:2], weights=self.spatial_weights
@@ -67,8 +63,12 @@ class SamplerDC(Sampler):
             )
         if self.temporal_weights is not None:
             time_slice = weighted_time_sampler(
-                self.shape, self.sample_shape[2], weights=self.temporal_weights
+                self.shape,
+                self.sample_shape[2] * n_obs,
+                weights=self.temporal_weights,
             )
         else:
-            time_slice = uniform_time_sampler(self.shape, self.sample_shape[2])
+            time_slice = uniform_time_sampler(
+                self.shape, self.sample_shape[2] * n_obs
+            )
         return (*spatial_slice, time_slice, self.features)

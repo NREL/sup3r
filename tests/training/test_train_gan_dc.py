@@ -45,8 +45,8 @@ def test_train_spatial_dc(
         shape=full_shape,
         time_slice=slice(None, None, 10),
     )
-    batch_size = 10
-    n_batches = 2
+    batch_size = 1
+    n_batches = 10
 
     batcher = BatchHandlerTesterDC(
         train_containers=[handler],
@@ -118,8 +118,8 @@ def test_train_st_dc(n_space_bins, n_time_bins, n_epoch=2):
         shape=(20, 20),
         time_slice=slice(None, None, 10),
     )
-    batch_size = 30
-    n_batches = 2
+    batch_size = 1
+    n_batches = 30
     batcher = BatchHandlerTesterDC(
         train_containers=[handler],
         val_containers=[handler],

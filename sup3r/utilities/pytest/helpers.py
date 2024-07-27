@@ -5,7 +5,6 @@ import os
 import dask.array as da
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 import xarray as xr
 
 from sup3r.postprocessing import OutputHandlerH5
@@ -106,11 +105,14 @@ class DummyData(Container):
 class DummySampler(Sampler):
     """Dummy container with random data."""
 
-    def __init__(self, sample_shape, data_shape, features, feature_sets=None):
+    def __init__(
+        self, sample_shape, data_shape, features, batch_size, feature_sets=None
+    ):
         data = make_fake_dset(data_shape, features=features)
         super().__init__(
             Sup3rDataset(high_res=data),
             sample_shape,
+            batch_size=batch_size,
             feature_sets=feature_sets,
         )
 
@@ -127,9 +129,33 @@ def test_sampler_factory(SamplerClass):
 
         def get_sample_index(self, **kwargs):
             """Override get_sample_index to keep record of index accessible by
-            batch handler."""
+            batch handler. We store the index with the time entry divided by
+            the batch size, since we have multiplied by the batch size to get
+            a continuous time sample for multiple observations."""
             idx = super().get_sample_index(**kwargs)
-            self.index_record.append(idx)
+            if len(idx) == 2:
+                lr = list(idx[0])
+                hr = list(idx[1])
+                lr[2] = slice(
+                    lr[2].start,
+                    (lr[2].stop - lr[2].start) // self.batch_size
+                    + lr[2].start,
+                )
+                hr[2] = slice(
+                    hr[2].start,
+                    (hr[2].stop - hr[2].start) // self.batch_size
+                    + hr[2].start,
+                )
+                new_idx = (tuple(lr), tuple(hr))
+            else:
+                new_idx = list(idx)
+                new_idx[2] = slice(
+                    new_idx[2].start,
+                    (new_idx[2].stop - new_idx[2].start) // self.batch_size
+                    + new_idx[2].start,
+                )
+                new_idx = tuple(new_idx)
+            self.index_record.append(new_idx)
             return idx
 
     return SamplerTester
@@ -182,9 +208,9 @@ class BatchHandlerTesterDC(BatchHandlerDC):
         self.space_bin_count[np.digitize(s_idx, self.spatial_bins)] += 1
         self.time_bin_count[np.digitize(t_idx, self.temporal_bins)] += 1
 
-    def get_samples(self):
+    def _build_batch(self):
         """Override get_samples to track sample indices."""
-        out = super().get_samples()
+        out = super()._build_batch()
         if len(self.containers[0].index_record) > 0:
             self._update_bin_count(self.containers[0].index_record[-1])
         return out
@@ -223,23 +249,10 @@ def BatchHandlerTesterFactory(BatchHandlerClass, SamplerClass):
             self.sample_count = 0
             super().__init__(*args, **kwargs)
 
-        def get_samples(self):
+        def _build_batch(self):
             """Override get_samples to track sample count."""
             self.sample_count += 1
-            return super().get_samples()
-
-        def prep_batches(self):
-            """Override prep batches to run without parallel prefetching."""
-            data = tf.data.Dataset.from_generator(
-                self.generator, output_signature=self.output_signature
-            )
-            batches = data.batch(
-                self.batch_size,
-                drop_remainder=True,
-                deterministic=True,
-                num_parallel_calls=1,
-            )
-            return batches.as_numpy_iterator()
+            return super()._build_batch()
 
     return BatchHandlerTester
 

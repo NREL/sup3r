@@ -260,7 +260,7 @@ class Regridder:
             data = data.reshape((data.shape[0] * data.shape[1], -1))
         msg = 'Input data must be 2D (spatial, temporal)'
         assert len(data.shape) == 2, msg
-        vals = data[da.concatenate(self.indices)].reshape(
+        vals = data[np.concatenate(self.indices)].reshape(
             (len(self.indices), self.k_neighbors, -1)
         )
         vals = da.transpose(vals, axes=(2, 0, 1))

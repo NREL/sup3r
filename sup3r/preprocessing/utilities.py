@@ -85,18 +85,22 @@ def get_date_range_kwargs(time_index):
     """Get kwargs for pd.date_range from a DatetimeIndex. This is used to
     provide a concise time_index representation which can be passed through
     the cli and avoid logging lengthly time indices."""
+    freq = (
+        f'{(time_index[-1] - time_index[0]).total_seconds() / 60}min'
+        if len(time_index) == 2
+        else pd.infer_freq(time_index)
+    )
     return {
         'start': time_index[0].strftime('%Y-%m-%d %H:%M:%S'),
         'end': time_index[-1].strftime('%Y-%m-%d %H:%M:%S'),
-        'freq': pd.infer_freq(time_index),
+        'freq': freq,
     }
 
 
 def _mem_check():
     mem = psutil.virtual_memory()
-    return (
-        f'Memory usage is {mem.used / 1e9:.3f} GB out of {mem.total / 1e9:.3f}'
-    )
+    return (f'Memory usage is {mem.used / 1e9:.3f} GB out of '
+            f'{mem.total / 1e9:.3f} GB')
 
 
 def _compute_chunks_if_dask(arr):
@@ -122,7 +126,6 @@ def _compute_if_dask(arr):
 
 
 def _rechunk_if_dask(arr, chunks='auto'):
-
     if hasattr(arr, 'rechunk'):
         return arr.rechunk(chunks)
     return arr

@@ -132,11 +132,11 @@ class ForwardPassSlicer:
             going through the generator
         """
         if self._s_lr_slices is None:
-            self._s_lr_slices = []
-            for _, s1 in enumerate(self.s1_lr_slices):
-                for _, s2 in enumerate(self.s2_lr_slices):
-                    s_slice = (s1, s2, slice(None), slice(None))
-                    self._s_lr_slices.append(s_slice)
+            self._s_lr_slices = [
+                (s1, s2)
+                for s1 in self.s1_lr_slices
+                for s2 in self.s2_lr_slices
+            ]
         return self._s_lr_slices
 
     @property
@@ -149,19 +149,15 @@ class ForwardPassSlicer:
         _s_lr_pad_slices : list
             List of slices which have been padded so that high res output
             can be stitched together. Each entry in this list has a slice for
-            each spatial dimension and then slice(None) for temporal and
-            feature dimension. This is because the temporal dimension is only
-            chunked across nodes and not within a single node.
-            data_handler.data[s_lr_pad_slice] gives the padded data volume
-            passed through the generator
+            each spatial dimension. data_handler.data[s_lr_pad_slice] gives the
+            padded data volume passed through the generator
         """
         if self._s_lr_pad_slices is None:
-            self._s_lr_pad_slices = []
-            for _, s1 in enumerate(self.s1_lr_pad_slices):
-                for _, s2 in enumerate(self.s2_lr_pad_slices):
-                    pad_slice = (s1, s2, slice(None), slice(None))
-                    self._s_lr_pad_slices.append(pad_slice)
-
+            self._s_lr_pad_slices = [
+                (s1, s2)
+                for s1 in self.s1_lr_pad_slices
+                for s2 in self.s2_lr_pad_slices
+            ]
         return self._s_lr_pad_slices
 
     @property
@@ -249,18 +245,16 @@ class ForwardPassSlicer:
         -------
         _s_hr_slices : list
             List of high res slices. Each entry in this list has a slice for
-            each spatial dimension and then slice(None) for temporal and
-            feature dimension. This is because the temporal dimension is only
-            chunked across nodes and not within a single node. output[hr_slice]
-            gives the superresolved domain corresponding to
-            data_handler.data[lr_slice]
+            each spatial dimension. output[hr_slice] gives the superresolved
+            domain corresponding to data_handler.data[lr_slice]
         """
         if self._s_hr_slices is None:
             self._s_hr_slices = []
-            for _, s1 in enumerate(self.s1_hr_slices):
-                for _, s2 in enumerate(self.s2_hr_slices):
-                    hr_slice = (s1, s2, slice(None), slice(None))
-                    self._s_hr_slices.append(hr_slice)
+            self._s_hr_slices = [
+                (s1, s2)
+                for s1 in self.s1_hr_slices
+                for s2 in self.s2_hr_slices
+            ]
         return self._s_hr_slices
 
     @property
@@ -271,8 +265,7 @@ class ForwardPassSlicer:
         -------
         _s_lr_crop_slices : list
             List of low res cropped slices. Each entry in this list has a
-            slice for each spatial dimension and then slice(None) for temporal
-            and feature dimension.
+            slice for each spatial dimension.
         """
         if self._s_lr_crop_slices is None:
             self._s_lr_crop_slices = []
@@ -282,15 +275,9 @@ class ForwardPassSlicer:
             s2_crop_slices = self.get_cropped_slices(
                 self.s2_lr_slices, self.s2_lr_pad_slices, 1
             )
-            for i, _ in enumerate(self.s1_lr_slices):
-                for j, _ in enumerate(self.s2_lr_slices):
-                    lr_crop_slice = (
-                        s1_crop_slices[i],
-                        s2_crop_slices[j],
-                        slice(None),
-                        slice(None),
-                    )
-                    self._s_lr_crop_slices.append(lr_crop_slice)
+            self._s_lr_crop_slices = [
+                (s1, s2) for s1 in s1_crop_slices for s2 in s2_crop_slices
+            ]
         return self._s_lr_crop_slices
 
     @property
@@ -301,8 +288,7 @@ class ForwardPassSlicer:
         -------
         _s_hr_crop_slices : list
             List of high res cropped slices. Each entry in this list has a
-            slice for each spatial dimension and then slice(None) for temporal
-            and feature dimension.
+            slice for each spatial dimension.
         """
         hr_crop_start = None
         hr_crop_stop = None
@@ -321,10 +307,11 @@ class ForwardPassSlicer:
                 for _ in range(len(self.s2_lr_slices))
             ]
 
-            for _, s1 in enumerate(s1_hr_crop_slices):
-                for _, s2 in enumerate(s2_hr_crop_slices):
-                    hr_crop_slice = (s1, s2, slice(None), slice(None))
-                    self._s_hr_crop_slices.append(hr_crop_slice)
+            self._s_hr_crop_slices = [
+                (s1, s2)
+                for s1 in s1_hr_crop_slices
+                for s2 in s2_hr_crop_slices
+            ]
         return self._s_hr_crop_slices
 
     @property

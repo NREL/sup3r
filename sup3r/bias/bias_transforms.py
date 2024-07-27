@@ -468,6 +468,7 @@ def local_qdm_bc(
     threshold=0.1,
     relative=True,
     no_trend=False,
+    max_workers=1
 ):
     """Bias correction using QDM
 
@@ -519,6 +520,8 @@ def local_qdm_bc(
         ``params_mf`` of :class:`rex.utilities.bc_utils.QuantileDeltaMapping`.
         Note that this assumes that params_mh is the data distribution
         representative for the target data.
+    max_workers: int | None
+        Max number of workers to use for QDM process pool
 
     Returns
     -------
@@ -566,7 +569,6 @@ def local_qdm_bc(
         data.shape[2] == time_index.size
     ), 'Time should align with data 3rd dimension'
 
-    logger.info(f'Getting spatial bc quantiles for feature: {feature_name}.')
     params = get_spatial_bc_quantiles(
         lat_lon=lat_lon,
         base_dset=base_dset,
@@ -574,10 +576,10 @@ def local_qdm_bc(
         bias_fp=bias_fp,
         threshold=threshold,
     )
-    logger.info(f'Retreived spatial bc quantiles for feature: {feature_name}.')
-    base = params['base']
-    bias = params['bias']
-    bias_fut = params['bias_fut']
+    data = _compute_if_dask(data)
+    base = _compute_if_dask(params['base'])
+    bias = _compute_if_dask(params['bias'])
+    bias_fut = _compute_if_dask(params['bias_fut'])
     cfg = params['cfg']
 
     if lr_padded_slice is not None:
@@ -587,21 +589,16 @@ def local_qdm_bc(
         bias_fut = bias_fut[spatial_slice]
 
     output = np.full_like(data, np.nan)
-    logger.info('Getting nearest_window_idx')
     nearest_window_idx = [
         np.argmin(abs(d - cfg['time_window_center']))
         for d in time_index.day_of_year
     ]
-    logger.info('Iterating through window indices.')
     for window_idx in set(nearest_window_idx):
         # Naming following the paper: observed historical
-        logger.info('Getting obs historical')
         oh = base[:, :, window_idx]
         # Modeled historical
-        logger.info('Getting modeled historical')
         mh = bias[:, :, window_idx]
         # Modeled future
-        logger.info('Getting modeled future')
         mf = bias_fut[:, :, window_idx]
 
         # This satisfies the rex's QDM design
@@ -609,35 +606,27 @@ def local_qdm_bc(
         # The distributions at this point, after selected the respective
         # time window with `window_idx`, are 3D (space, space, N-params)
         # Collapse 3D (space, space, N) into 2D (space**2, N)
-        logger.info(f'Initializing QDM for window_idx: {window_idx}')
         QDM = QuantileDeltaMapping(
             oh.reshape(-1, oh.shape[-1]),
             mh.reshape(-1, mh.shape[-1]),
             mf,
-            # _compute_if_dask(oh.reshape(-1, oh.shape[-1])),
-            # _compute_if_dask(mh.reshape(-1, mh.shape[-1])),
-            # _compute_if_dask(mf),
             dist=cfg['dist'],
             relative=relative,
             sampling=cfg['sampling'],
             log_base=cfg['log_base'],
         )
 
-        logger.info('Finished initializing QDM')
         subset_idx = nearest_window_idx == window_idx
         subset = data[:, :, subset_idx]
         # input 3D shape (spatial, spatial, temporal)
         # QDM expects input arr with shape (time, space)
-        logger.info('Reshaping subset')
         tmp = subset.reshape(-1, subset.shape[-1]).T
         # Apply QDM correction
-        logger.info('Applying QDM correction')
-        tmp = QDM(tmp)
+        tmp = QDM(tmp, max_workers=max_workers)
         # Reorgnize array back from  (time, space)
         # to (spatial, spatial, temporal)
         tmp = tmp.T.reshape(subset.shape)
         # Position output respecting original time axis sequence
-        logger.info('Writing output')
         output[:, :, subset_idx] = tmp
 
     return output
@@ -784,6 +773,7 @@ def local_presrat_bc(
     threshold=0.1,
     relative=True,
     no_trend=False,
+    max_workers=1
 ):
     """Bias correction using PresRat
 
@@ -828,7 +818,7 @@ def local_presrat_bc(
     relative : bool
         Apply QDM correction as a relative factor (product), otherwise, it is
         applied as an offset (sum).
-    no_trend: bool, default=False
+    no_trend : bool, default=False
         An option to ignore the trend component of the correction, thus
         resulting in an ordinary Quantile Mapping, i.e. corrects the bias by
         comparing the distributions of the biased dataset with a reference
@@ -837,6 +827,8 @@ def local_presrat_bc(
         :class:`rex.utilities.bc_utils.QuantileDeltaMapping`. Note that this
         assumes that params_mh is the data distribution representative for the
         target data.
+    max_workers : int | None
+        Max number of workers to use for QDM process pool
     """
     time_index = pd.date_range(**date_range_kwargs)
     assert data.ndim == 3, 'data was expected to be a 3D array'
@@ -849,10 +841,11 @@ def local_presrat_bc(
     )
     cfg = params['cfg']
     time_window_center = cfg['time_window_center']
-    base = params['base']
-    bias = params['bias']
-    bias_fut = params['bias_fut']
-    bias_tau_fut = params['bias_tau_fut']
+    data = _compute_if_dask(data)
+    base = _compute_if_dask(params['base'])
+    bias = _compute_if_dask(params['bias'])
+    bias_fut = _compute_if_dask(params['bias_fut'])
+    bias_tau_fut = _compute_if_dask(params['bias_tau_fut'])
 
     if lr_padded_slice is not None:
         spatial_slice = (lr_padded_slice[0], lr_padded_slice[1])
@@ -875,9 +868,9 @@ def local_presrat_bc(
         # The distributions are 3D (space, space, N-params)
         # Collapse 3D (space, space, N) into 2D (space**2, N)
         QDM = QuantileDeltaMapping(
-            _compute_if_dask(oh.reshape(-1, oh.shape[-1])),
-            _compute_if_dask(mh.reshape(-1, mh.shape[-1])),
-            _compute_if_dask(mf),
+            oh.reshape(-1, oh.shape[-1]),
+            mh.reshape(-1, mh.shape[-1]),
+            mf,
             dist=cfg['dist'],
             relative=relative,
             sampling=cfg['sampling'],
@@ -888,7 +881,7 @@ def local_presrat_bc(
         # QDM expects input arr with shape (time, space)
         tmp = subset.reshape(-1, subset.shape[-1]).T
         # Apply QDM correction
-        tmp = QDM(tmp)
+        tmp = QDM(tmp, max_workers=max_workers)
         # Reorgnize array back from  (time, space)
         # to (spatial, spatial, temporal)
         subset = tmp.T.reshape(subset.shape)
@@ -898,7 +891,7 @@ def local_presrat_bc(
         if not no_trend:
             subset = np.where(subset < bias_tau_fut, 0, subset)
 
-            k_factor = params['k_factor'][:, :, nt]
+            k_factor = _compute_if_dask(params['k_factor'][:, :, nt])
             subset *= k_factor[:, :, np.newaxis]
 
         data_unbiased[:, :, subset_idx] = subset

@@ -30,7 +30,10 @@ BatchHandlerTester = BatchHandlerTesterFactory(BatchHandler, SamplerTester)
 
 
 def test_eager_vs_lazy():
-    """Make sure eager and lazy loading agree."""
+    """Make sure eager and lazy loading agree. We use queue_cap = 0 here so
+    there is no disagreement that results from dequeuing vs direct batch
+    requests. e.g. when the queue is empty the batch handler will directly
+    sample from the contained data."""
 
     eager_data = DummyData((10, 10, 100), FEATURES)
     lazy_data = Container(copy.deepcopy(eager_data.data))
@@ -41,7 +44,7 @@ def test_eager_vs_lazy():
         'n_batches': 4,
         's_enhance': 2,
         't_enhance': 1,
-        'queue_cap': 3,
+        'queue_cap': 0,
         'means': means,
         'stds': stds,
         'max_workers': 1,

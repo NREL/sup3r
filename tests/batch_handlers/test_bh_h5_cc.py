@@ -35,6 +35,7 @@ dh_kwargs = {
         (72, 24, ['clearsky_ratio']),
         (24, 8, ['clearsky_ratio']),
         (72, 24, FEATURES_S),
+        (72, 8, FEATURES_S),
         (24, 8, FEATURES_S),
     ],
 )
@@ -53,6 +54,7 @@ def test_solar_batching(hr_tsteps, t_enhance, features):
         batch_size=1,
         n_batches=5,
         s_enhance=1,
+        queue_cap=0,
         t_enhance=t_enhance,
         means=dict.fromkeys(features, 0),
         stds=dict.fromkeys(features, 1),
@@ -64,7 +66,7 @@ def test_solar_batching(hr_tsteps, t_enhance, features):
     high_res_source = _compute_if_dask(handler.data.hourly[...])
     for counter, batch in enumerate(batcher):
         assert batch.high_res.shape[3] == hr_tsteps
-        assert batch.low_res.shape[3] == 3
+        assert batch.low_res.shape[3] == hr_tsteps // t_enhance
 
         # make sure the high res sample is found in the source handler data
         daily_idx, hourly_idx = batcher.containers[0].index_record[counter]

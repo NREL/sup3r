@@ -22,10 +22,12 @@ from sup3r.preprocessing.utilities import (
     Dimension,
     expand_paths,
     get_class_kwargs,
+    get_date_range_kwargs,
     get_input_handler_class,
     log_args,
 )
 from sup3r.typing import T_Array
+from sup3r.utilities.utilities import Timer
 
 logger = logging.getLogger(__name__)
 
@@ -186,13 +188,17 @@ class ForwardPassStrategy:
     def __post_init__(self):
         self.file_paths = expand_paths(self.file_paths)
         self.bias_correct_kwargs = self.bias_correct_kwargs or {}
+        self.timer = Timer()
 
         model = get_model(self.model_class, self.model_kwargs)
         self.s_enhance, self.t_enhance = model.s_enhance, model.t_enhance
         self.input_features = model.lr_features
         self.output_features = model.hr_out_features
         self.features, self.exo_features = self._init_features(model)
-        self.input_handler, self.time_slice = self.init_input_handler()
+        self.input_handler = self.init_input_handler()
+        self.time_slice = self.input_handler_kwargs.get(
+            'time_slice', slice(None)
+        )
         self.fwp_chunk_shape = self._get_fwp_chunk_shape()
 
         self.fwp_slicer = ForwardPassSlicer(
@@ -231,6 +237,10 @@ class ForwardPassStrategy:
             'input_files': self.file_paths,
             'input_features': self.features,
             'output_features': self.output_features,
+            'input_shape': self.input_handler.grid_shape,
+            'input_time_range': get_date_range_kwargs(
+                self.input_handler.time_index[self.time_slice]
+            ),
         }
         return meta_data
 
@@ -242,7 +252,6 @@ class ForwardPassStrategy:
         self.input_handler_kwargs = self.input_handler_kwargs or {}
         self.input_handler_kwargs['file_paths'] = self.file_paths
         self.input_handler_kwargs['features'] = self.features
-        time_slice = self.input_handler_kwargs.get('time_slice', slice(None))
 
         InputHandler = get_input_handler_class(self.input_handler_name)
         input_handler_kwargs = copy.deepcopy(self.input_handler_kwargs)
@@ -250,7 +259,7 @@ class ForwardPassStrategy:
         input_handler_kwargs['features'] = features
         input_handler_kwargs['time_slice'] = slice(None)
 
-        return InputHandler(**input_handler_kwargs), time_slice
+        return InputHandler(**input_handler_kwargs)
 
     def _init_features(self, model):
         """Initialize feature attributes."""
@@ -399,6 +408,41 @@ class ForwardPassStrategy:
             ),
         )
 
+    def prep_chunk_data(self, chunk_index=0):
+        """Get low res input data and exo data for given chunk index and bias
+        correct low res data if requested."""
+
+        s_chunk_idx, t_chunk_idx = self.get_chunk_indices(chunk_index)
+        lr_pad_slice = self.lr_pad_slices[s_chunk_idx]
+        ti_pad_slice = self.ti_pad_slices[t_chunk_idx]
+
+        exo_data = (
+            self.timer(self.exo_data.get_chunk, log=True)(
+                self.input_handler.shape,
+                [lr_pad_slice[0], lr_pad_slice[1], ti_pad_slice],
+            )
+            if self.exo_data is not None
+            else None
+        )
+
+        kwargs = dict(zip(Dimension.dims_2d(), lr_pad_slice))
+        kwargs[Dimension.TIME] = ti_pad_slice
+        input_data = self.input_handler.isel(**kwargs)
+        input_data.compute()
+
+        if self.bias_correct_kwargs is not None:
+            logger.info(
+                f'Bias correcting data for chunk_index={chunk_index}, '
+                f'with shape={input_data.shape}'
+            )
+            input_data = self.timer(bias_correct_features, log=True)(
+                features=list(self.bias_correct_kwargs),
+                input_handler=input_data,
+                bc_method=self.bias_correct_method,
+                bc_kwargs=self.bias_correct_kwargs,
+            )
+        return input_data, exo_data
+
     def init_chunk(self, chunk_index=0):
         """Get :class:`FowardPassChunk` instance for the given chunk index.
 
@@ -430,7 +474,7 @@ class ForwardPassStrategy:
             'temporal_pad': self.temporal_pad,
             'spatial_pad': self.spatial_pad,
             'lr_pad_slice': lr_pad_slice,
-            'ti_pad_slice': ti_pad_slice
+            'ti_pad_slice': ti_pad_slice,
         }
         logger.info(
             'Initializing ForwardPassChunk with: '
@@ -439,28 +483,9 @@ class ForwardPassStrategy:
 
         logger.info(f'Getting input data for chunk_index={chunk_index}.')
 
-        exo_data = (
-            self.exo_data.get_chunk(
-                self.input_handler.shape,
-                [lr_pad_slice[0], lr_pad_slice[1], ti_pad_slice],
-            )
-            if self.exo_data is not None
-            else None
+        input_data, exo_data = self.timer(self.prep_chunk_data, log=True)(
+            chunk_index=chunk_index
         )
-
-        kwargs = dict(zip(Dimension.dims_2d(), lr_pad_slice))
-        kwargs[Dimension.TIME] = ti_pad_slice
-        input_data = self.input_handler.isel(**kwargs)
-
-        if self.bias_correct_kwargs is not None:
-            logger.info(f'Bias correcting data for chunk_index={chunk_index}, '
-                        f'with shape={input_data.shape}')
-            input_data = bias_correct_features(
-                features=list(self.bias_correct_kwargs),
-                input_handler=input_data,
-                bc_method=self.bias_correct_method,
-                bc_kwargs=self.bias_correct_kwargs,
-            )
 
         return ForwardPassChunk(
             input_data=input_data.as_array(),

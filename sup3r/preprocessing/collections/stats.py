@@ -2,6 +2,7 @@
 
 import logging
 import os
+import pprint
 
 import numpy as np
 import xarray as xr
@@ -87,7 +88,7 @@ class StatsCollection(Collection):
             ]
             for f in means:
                 logger.info(f'Computing mean for {f}.')
-                means[f] = np.float32(np.sum(cm[f] for cm in cmeans))
+                means[f] = np.float32(np.sum([cm[f] for cm in cmeans]))
         elif isinstance(means, str):
             means = safe_json_load(means)
         return means
@@ -106,7 +107,7 @@ class StatsCollection(Collection):
             ]
             for f in stds:
                 logger.info(f'Computing std for {f}.')
-                stds[f] = np.float32(np.sqrt(np.sum(cs[f] for cs in cstds)))
+                stds[f] = np.float32(np.sqrt(np.sum([cs[f] for cs in cstds])))
         elif isinstance(stds, str):
             stds = safe_json_load(stds)
         return stds
@@ -126,8 +127,9 @@ class StatsCollection(Collection):
 
     def normalize(self, containers):
         """Normalize container data with computed stats."""
-        logger.info(
-            f'Normalizing container data with means: {self.means}, '
-            f'stds: {self.stds}.'
-        )
-        _ = [c.normalize(means=self.means, stds=self.stds) for c in containers]
+        logger.debug('Normalizing containers with:\n'
+                     f'means: {pprint.pformat(self.means, indent=2)}\n'
+                     f'stds: {pprint.pformat(self.stds, indent=2)}')
+        for i, c in enumerate(containers):
+            logger.info(f'Normalizing container {i + 1}')
+            c.normalize(means=self.means, stds=self.stds)

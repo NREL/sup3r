@@ -5,7 +5,9 @@ information about how different features are used by models."""
 import logging
 from fnmatch import fnmatch
 from typing import Dict, Optional, Tuple, Union
+from warnings import warn
 
+import dask.array as da
 import numpy as np
 
 from sup3r.preprocessing.base import Container
@@ -13,7 +15,7 @@ from sup3r.preprocessing.samplers.utilities import (
     uniform_box_sampler,
     uniform_time_sampler,
 )
-from sup3r.preprocessing.utilities import lowered
+from sup3r.preprocessing.utilities import _compute_if_dask, lowered
 from sup3r.typing import T_Array, T_Dataset
 
 logger = logging.getLogger(__name__)
@@ -25,7 +27,8 @@ class Sampler(Container):
     def __init__(
         self,
         data: T_Dataset,
-        sample_shape,
+        sample_shape: tuple,
+        batch_size: int = 16,
         feature_sets: Optional[Dict] = None,
     ):
         """
@@ -38,6 +41,12 @@ class Sampler(Container):
             the spatial dimensions are not flattened.
         sample_shape : tuple
             Size of arrays to sample from the contained data.
+        batch_size : int
+            Number of samples to get to build a single batch. A sample of
+            (sample_shape[0], sample_shape[1], batch_size * sample_shape[2])
+            is first selected from underlying dataset and then reshaped into
+            (batch_size, *sample_shape) to get a single batch. This is more
+            efficient than getting N = batch_size samples and then stacking.
         feature_sets : Optional[dict]
             Optional dictionary describing how the full set of features is
             split between `lr_only_features` and `hr_exo_features`.
@@ -62,11 +71,21 @@ class Sampler(Container):
         self._hr_exo_features = feature_sets.get('hr_exo_features', [])
         self._counter = 0
         self.sample_shape = sample_shape
+        self.batch_size = batch_size
         self.lr_features = self.features
         self.preflight()
 
-    def get_sample_index(self):
-        """Randomly gets spatial sample and time sample
+    def get_sample_index(self, n_obs=None):
+        """Randomly gets spatiotemporal sample index.
+
+        Note
+        ----
+        If n_obs > 1 this will
+        get a time slice with n_obs * self.sample_shape[2] time steps, which
+        will then be reshaped into n_obs samples each with self.sample_shape[2]
+        time steps. This is a much more efficient way of getting batches of
+        samples but only works if there are enough continuous time steps to
+        sample.
 
         Returns
         -------
@@ -74,8 +93,11 @@ class Sampler(Container):
             Tuple of latitude slice, longitude slice, time slice, and features.
             Used to get single observation like self.data[sample_index]
         """
+        n_obs = n_obs or self.batch_size
         spatial_slice = uniform_box_sampler(self.shape, self.sample_shape[:2])
-        time_slice = uniform_time_sampler(self.shape, self.sample_shape[2])
+        time_slice = uniform_time_sampler(
+            self.shape, self.sample_shape[2] * n_obs
+        )
         return (*spatial_slice, time_slice, self.features)
 
     def preflight(self):
@@ -98,6 +120,17 @@ class Sampler(Container):
         )
 
         assert self.data.shape[2] >= self.sample_shape[2], msg
+
+        msg = (
+            f'sample_shape[2] * batch_size ({self.sample_shape[2]} * '
+            f'{self.batch_size}) is larger than the number of time steps in '
+            'the raw data. This prevents us from building batches from '
+            'a single sample with n_time_steps = sample_shape[2] * batch_size '
+            'which is far more performant than building batches n_samples = '
+            'batch_size, each with n_time_steps = sample_shape[2].')
+        if self.data.shape[2] < self.sample_shape[2] * self.batch_size:
+            logger.warning(msg)
+            warn(msg)
 
     @property
     def sample_shape(self) -> Tuple:
@@ -129,11 +162,55 @@ class Sampler(Container):
         as sample_shape"""
         self._sample_shape = hr_sample_shape
 
+    def _reshape_samples(self, samples):
+        """Reshape samples into batch shapes, with shape = (batch_size,
+        *sample_shape, n_features). Samples start out with a time dimension of
+        shape = batch_size * sample_shape[2] so we need to split this and
+        reorder the dimensions."""
+        new_shape = list(samples.shape)
+        new_shape = [
+            *new_shape[:2],
+            self.batch_size,
+            new_shape[2] // self.batch_size,
+            new_shape[-1],
+        ]
+        out = samples.reshape(new_shape)
+        return _compute_if_dask(out.transpose((2, 0, 1, 3, 4)))
+
+    def _stack_samples(self, samples):
+        if isinstance(samples[0], tuple):
+            lr = da.stack([s[0] for s in samples], axis=0)
+            hr = da.stack([s[1] for s in samples], axis=0)
+            return (lr, hr)
+        return da.stack(samples, axis=0)
+
+    def _fast_batch(self):
+        """Get batch of samples with adjacent time slices."""
+        out = self.data.sample(
+            self.get_sample_index(n_obs=self.batch_size)
+        )
+        if isinstance(out, tuple):
+            return tuple(self._reshape_samples(o) for o in out)
+        return self._reshape_samples(out)
+
+    def _slow_batch(self):
+        """Get batch of samples with random time slices."""
+        samples = [
+            self.data.sample(self.get_sample_index(n_obs=1))
+            for _ in range(self.batch_size)
+        ]
+        return self._stack_samples(samples)
+
+    def _fast_batch_possible(self):
+        return self.batch_size * self.sample_shape[2] <= self.data.shape[2]
+
     def __next__(self) -> Union[T_Array, Tuple[T_Array, T_Array]]:
-        """Get next sample. This retrieves a sample of size = sample_shape
-        from the `.data` (a xr.Dataset or Sup3rDataset) through the Sup3rX
-        accessor."""
-        return self.data.sample(self.get_sample_index())
+        """Get next batch of samples. This retrieves n_samples = batch_size
+        with shape = sample_shape from the `.data` (a xr.Dataset or
+        Sup3rDataset) through the Sup3rX accessor."""
+        if self._fast_batch_possible():
+            return self._fast_batch()
+        return self._slow_batch()
 
     def __iter__(self):
         self._counter = 0
