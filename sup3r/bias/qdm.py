@@ -706,6 +706,79 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         self.out[f'{self.bias_feature}_k_factor'] = np.full(
             shape, np.nan, np.float32)
 
+    @classmethod
+    def calc_tau_fut(cls, base_data, bias_data, bias_fut_data,
+                     corrected_fut_data, zero_rate_threshold=0):
+        """Calculate a precipitation threshold (tau) that preserves the
+        model-predicted changes in fraction of dry days at a single spatial
+        location.
+
+        Returns
+        -------
+        obs_zero_rate : float
+            Rate of dry days in the observed historical data.
+        tau_fut : float
+            Precipitation threshold that will preserve the model predicted
+            changes in fraction of dry days. Precipitation less than this value
+            in the modeled future data can be set to zero.
+        """
+
+        # Step 1: Define zero rate from observations
+        assert base_data.ndim == 1
+        obs_zero_rate = cls.zero_precipitation_rate(
+            base_data, zero_rate_threshold)
+
+        # Step 2: Find tau for each grid point
+        # Removed NaN handling, thus reinforce finite-only data.
+        assert np.isfinite(bias_data).all(), "Unexpected invalid values"
+        assert bias_data.ndim == 1, "Assumed bias_data to be 1D"
+        n_threshold = round(obs_zero_rate * bias_data.size)
+        n_threshold = min(n_threshold, bias_data.size - 1)
+        tau = np.sort(bias_data)[n_threshold]
+        # Pierce (2015) imposes 0.01 mm/day
+        # tau = max(tau, 0.01)
+
+        # Step 3: Find Z_gf as the zero rate in mf
+        assert np.isfinite(bias_fut_data).all(), "Unexpected invalid values"
+        z_fg = (bias_fut_data < tau).astype('i').sum() / bias_fut_data.size
+
+        # Step 4: Estimate tau_fut with corrected mf
+        tau_fut = np.sort(corrected_fut_data)[round(
+            z_fg * corrected_fut_data.size)]
+
+        return tau_fut, obs_zero_rate
+
+    @classmethod
+    def calc_k_factor(cls, base_data, bias_data, bias_fut_data,
+                      corrected_fut_data, base_ti, bias_ti, bias_fut_ti,
+                      window_center, window_size):
+        """Calculate the K factor at a single spatial location that will
+        preserve the original model-predicted mean change in precipitation
+
+        Returns
+        -------
+        k : np.ndarray
+            K factor from the Pierce 2015 paper with shape (number_of_time,)
+            for a single spatial location.
+        """
+
+        k = np.full(cls.NT, np.nan, np.float32)
+        for nt, t in enumerate(window_center):
+            base_idt = cls.window_mask(base_ti.day_of_year, t, window_size)
+            bias_idt = cls.window_mask(bias_ti.day_of_year, t, window_size)
+            bias_fut_idt = cls.window_mask(bias_fut_ti.day_of_year, t,
+                                           window_size)
+
+            oh = base_data[base_idt].mean()
+            mh = bias_data[bias_idt].mean()
+            mf = bias_fut_data[bias_fut_idt].mean()
+            mf_unbiased = corrected_fut_data[bias_fut_idt].mean()
+
+            x = mf / mh
+            x_hat = mf_unbiased / oh
+            k[nt] = x / x_hat
+        return k
+
     # pylint: disable=W0613
     @classmethod
     def _run_single(cls,
@@ -784,53 +857,17 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
             subset = bias_fut_data[bias_fut_idx]
             corrected_fut_data[bias_fut_idx] = QDM(subset).squeeze()
 
-        # Step 1: Define zero rate from observations
-        assert base_data.ndim == 1
-        obs_zero_rate = cls.zero_precipitation_rate(
-            base_data, zero_rate_threshold)
-        out[f'{base_dset}_zero_rate'] = obs_zero_rate
-
-        # Step 2: Find tau for each grid point
-
-        # Removed NaN handling, thus reinforce finite-only data.
-        assert np.isfinite(bias_data).all(), "Unexpected invalid values"
-        assert bias_data.ndim == 1, "Assumed bias_data to be 1D"
-        n_threshold = round(obs_zero_rate * bias_data.size)
-        n_threshold = min(n_threshold, bias_data.size - 1)
-        tau = np.sort(bias_data)[n_threshold]
-        # Pierce (2015) imposes 0.01 mm/day
-        # tau = max(tau, 0.01)
-
-        # Step 3: Find Z_gf as the zero rate in mf
-        assert np.isfinite(bias_fut_data).all(), "Unexpected invalid values"
-        z_fg = (bias_fut_data < tau).astype('i').sum() / bias_fut_data.size
-
-        # Step 4: Estimate tau_fut with corrected mf
-        tau_fut = np.sort(corrected_fut_data)[round(
-            z_fg * corrected_fut_data.size)]
-
-        out[f'{bias_feature}_tau_fut'] = tau_fut
-
-        # ---- K factor ----
-
-        k = np.full(cls.NT, np.nan, np.float32)
-        for nt, t in enumerate(window_center):
-            base_idx = cls.window_mask(base_ti.day_of_year, t, window_size)
-            bias_idx = cls.window_mask(bias_ti.day_of_year, t, window_size)
-            bias_fut_idx = cls.window_mask(bias_fut_ti.day_of_year,
-                                           t,
-                                           window_size)
-
-            oh = base_data[base_idx].mean()
-            mh = bias_data[bias_idx].mean()
-            mf = bias_fut_data[bias_fut_idx].mean()
-            mf_unbiased = corrected_fut_data[bias_fut_idx].mean()
-
-            x = mf / mh
-            x_hat = mf_unbiased / oh
-            k[nt] = x / x_hat
+        tau_fut, obs_zero_rate = cls.calc_tau_fut(base_data, bias_data,
+                                                  bias_fut_data,
+                                                  corrected_fut_data,
+                                                  zero_rate_threshold)
+        k = cls.calc_k_factor(base_data, bias_data, bias_fut_data,
+                              corrected_fut_data, base_ti, bias_ti,
+                              bias_fut_ti, window_center, window_size)
 
         out[f'{bias_feature}_k_factor'] = k
+        out[f'{base_dset}_zero_rate'] = obs_zero_rate
+        out[f'{bias_feature}_tau_fut'] = tau_fut
 
         return out
 
