@@ -791,7 +791,8 @@ def get_spatial_bc_presrat(
 def apply_presrat_bc(data, time_index, base_params, bias_params,
                      bias_fut_params, bias_tau_fut, k_factor,
                      time_window_center, dist='empirical', sampling='invlog',
-                     log_base=10, relative=True, no_trend=False):
+                     log_base=10, relative=True, no_trend=False,
+                     zero_rate_threshold=1.182033e-07):
     """Run PresRat to bias correct data from input parameters and not from bias
     correction file on disk."""
 
@@ -818,6 +819,7 @@ def apply_presrat_bc(data, time_index, base_params, bias_params,
                                    relative=relative,
                                    sampling=sampling,
                                    log_base=log_base,
+                                   delta_denom_min=zero_rate_threshold,
                                    )
 
         # input 3D shape (spatial, spatial, temporal)
@@ -927,6 +929,7 @@ def local_presrat_bc(data: np.ndarray,
     dist = cfg['dist']
     sampling = cfg['sampling']
     log_base = cfg['log_base']
+    zero_rate_threshold = cfg['zero_rate_threshold']
 
     if lr_padded_slice is not None:
         spatial_slice = (lr_padded_slice[0], lr_padded_slice[1])
@@ -939,6 +942,7 @@ def local_presrat_bc(data: np.ndarray,
                                      bias_tau_fut, k_factor,
                                      time_window_center, dist=dist,
                                      sampling=sampling, log_base=log_base,
-                                     relative=relative, no_trend=no_trend)
+                                     relative=relative, no_trend=no_trend,
+                                     zero_rate_threshold=zero_rate_threshold)
 
     return data_unbiased
