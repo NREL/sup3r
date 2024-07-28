@@ -18,8 +18,8 @@ from sup3r.pipeline.slicer import ForwardPassSlicer
 from sup3r.pipeline.utilities import get_model
 from sup3r.postprocessing import OutputHandler
 from sup3r.preprocessing import ExoData, ExoDataHandler
+from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.utilities import (
-    Dimension,
     expand_paths,
     get_class_kwargs,
     get_date_range_kwargs,

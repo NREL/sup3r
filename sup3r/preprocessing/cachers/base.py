@@ -11,7 +11,8 @@ import h5py
 import xarray as xr
 
 from sup3r.preprocessing.base import Container
-from sup3r.preprocessing.utilities import Dimension, _mem_check
+from sup3r.preprocessing.names import Dimension
+from sup3r.preprocessing.utilities import _mem_check
 from sup3r.typing import T_Dataset
 
 logger = logging.getLogger(__name__)

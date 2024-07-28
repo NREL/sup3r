@@ -8,7 +8,7 @@ import numpy as np
 import xarray as xr
 
 from sup3r.preprocessing.loaders import LoaderH5
-from sup3r.preprocessing.utilities import Dimension
+from sup3r.preprocessing.names import Dimension
 
 from .base import BaseExtracter
 

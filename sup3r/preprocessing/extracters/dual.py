@@ -11,7 +11,8 @@ import xarray as xr
 
 from sup3r.preprocessing.base import Container, Sup3rDataset
 from sup3r.preprocessing.cachers import Cacher
-from sup3r.preprocessing.utilities import Dimension, _compute_if_dask
+from sup3r.preprocessing.names import Dimension
+from sup3r.preprocessing.utilities import _compute_if_dask
 from sup3r.utilities.regridder import Regridder
 from sup3r.utilities.utilities import spatial_coarsening
 

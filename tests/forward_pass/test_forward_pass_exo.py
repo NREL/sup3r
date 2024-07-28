@@ -20,7 +20,7 @@ from sup3r.models import (
     SurfaceSpatialMetModel,
 )
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
-from sup3r.preprocessing.utilities import Dimension
+from sup3r.preprocessing import Dimension
 from sup3r.utilities.pytest.helpers import make_fake_nc_file
 from sup3r.utilities.utilities import RANDOM_GENERATOR
 

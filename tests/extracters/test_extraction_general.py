@@ -5,8 +5,7 @@ import pytest
 import xarray as xr
 from rex import Resource
 
-from sup3r.preprocessing import ExtracterH5, ExtracterNC
-from sup3r.preprocessing.utilities import Dimension
+from sup3r.preprocessing import Dimension, ExtracterH5, ExtracterNC
 
 features = ['windspeed_100m', 'winddirection_100m']
 

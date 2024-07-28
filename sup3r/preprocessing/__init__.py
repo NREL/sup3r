@@ -56,4 +56,5 @@ from .extracters import (
     TopoExtracterNC,
 )
 from .loaders import LoaderH5, LoaderNC
+from .names import COORD_NAMES, DIM_NAMES, FEATURE_NAMES, Dimension
 from .samplers import DualSampler, DualSamplerCC, Sampler, SamplerDC

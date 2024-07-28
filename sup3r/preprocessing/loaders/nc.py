@@ -8,7 +8,7 @@ import dask.array as da
 import numpy as np
 import xarray as xr
 
-from sup3r.preprocessing.utilities import Dimension
+from sup3r.preprocessing.names import COORD_NAMES, DIM_NAMES, Dimension
 
 from .base import BaseLoader
 
@@ -72,10 +72,10 @@ class LoaderNC(BaseLoader):
         """Load netcdf xarray.Dataset()."""
         res = self.lower_names(self.res)
         res = res.swap_dims(
-            {k: v for k, v in self.DIM_NAMES.items() if k in res.dims}
+            {k: v for k, v in DIM_NAMES.items() if k in res.dims}
         )
         res = res.rename(
-            {k: v for k, v in self.COORD_NAMES.items() if k in res}
+            {k: v for k, v in COORD_NAMES.items() if k in res}
         )
         lats = res[Dimension.LATITUDE].data.squeeze()
         lons = res[Dimension.LONGITUDE].data.squeeze()

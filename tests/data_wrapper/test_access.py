@@ -5,9 +5,9 @@ import dask.array as da
 import numpy as np
 import pytest
 
+from sup3r.preprocessing import Dimension
 from sup3r.preprocessing.accessor import Sup3rX
 from sup3r.preprocessing.base import Sup3rDataset
-from sup3r.preprocessing.utilities import Dimension
 from sup3r.utilities.pytest.helpers import (
     make_fake_dset,
 )

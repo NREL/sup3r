@@ -4,14 +4,18 @@ always loaded lazily."""
 import logging
 from abc import ABC, abstractmethod
 from datetime import datetime as dt
-from typing import Callable, ClassVar
+from typing import Callable
 
 import numpy as np
 import pandas as pd
 import xarray as xr
 
 from sup3r.preprocessing.base import Container
-from sup3r.preprocessing.utilities import Dimension, expand_paths
+from sup3r.preprocessing.names import (
+    FEATURE_NAMES,
+    Dimension,
+)
+from sup3r.preprocessing.utilities import expand_paths
 
 logger = logging.getLogger(__name__)
 
@@ -24,31 +28,6 @@ class BaseLoader(Container, ABC):
     to derive / extract specific features / regions / time_periods."""
 
     BASE_LOADER: Callable = xr.open_dataset
-
-    FEATURE_NAMES: ClassVar = {
-        'elevation': 'topography',
-        'orog': 'topography',
-        'hgt': 'topography',
-    }
-
-    DIM_NAMES: ClassVar = {
-        'lat': Dimension.SOUTH_NORTH,
-        'lon': Dimension.WEST_EAST,
-        'xlat': Dimension.SOUTH_NORTH,
-        'xlong': Dimension.WEST_EAST,
-        'latitude': Dimension.SOUTH_NORTH,
-        'longitude': Dimension.WEST_EAST,
-        'plev': Dimension.PRESSURE_LEVEL,
-        'xtime': Dimension.TIME,
-    }
-
-    COORD_NAMES: ClassVar = {
-        'lat': Dimension.LATITUDE,
-        'lon': Dimension.LONGITUDE,
-        'xlat': Dimension.LATITUDE,
-        'xlong': Dimension.LONGITUDE,
-        'plev': Dimension.PRESSURE_LEVEL,
-    }
 
     def __init__(
         self,
@@ -78,7 +57,7 @@ class BaseLoader(Container, ABC):
         self.file_paths = file_paths
         self.chunks = chunks
         self.res = self.BASE_LOADER(self.file_paths, **self.res_kwargs)
-        self.data = self.rename(self.load(), self.FEATURE_NAMES).astype(
+        self.data = self.rename(self.load(), FEATURE_NAMES).astype(
             np.float32
         )
         self.data[Dimension.LONGITUDE] = (

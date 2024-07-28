@@ -10,8 +10,8 @@ import dask.array as da
 import numpy as np
 
 from sup3r.preprocessing.base import Container
+from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.utilities import (
-    Dimension,
     _rechunk_if_dask,
     parse_to_list,
 )

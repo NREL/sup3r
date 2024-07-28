@@ -76,7 +76,7 @@ class StatsCollection(Collection):
         any existing stats are provided."""
         if isinstance(stats, str) and os.path.exists(stats):
             stats = safe_json_load(stats)
-        elif stats is None:
+        elif stats is None or isinstance(stats, str):
             stats = {}
         else:
             msg = (f'Received incompatible type {type(stats)}. Need a file '

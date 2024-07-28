@@ -13,10 +13,10 @@ from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing import (
     DataHandlerNCforCC,
     DataHandlerNCforCCwithPowerLaw,
+    Dimension,
     LoaderNC,
 )
 from sup3r.preprocessing.derivers.methods import UWindPowerLaw, VWindPowerLaw
-from sup3r.preprocessing.utilities import Dimension
 
 
 def test_get_just_coords_nc():

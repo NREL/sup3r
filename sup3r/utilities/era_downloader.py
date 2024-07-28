@@ -235,14 +235,14 @@ class EraDownloader:
         e.g. if variable = 'u' add all downloadable u variables to list.
         """
         d_vars = []
-        vars = variables.copy()
-        for i, v in enumerate(vars):
+        var_list = variables.copy()
+        for i, v in enumerate(var_list):
             if v in ('u', 'v'):
-                vars[i] = f'{v}_'
-        for var in vars:
-            for d_var in self.SFC_VARS + self.LEVEL_VARS + ['zg', 'orog']:
-                if var in d_var:
-                    d_vars.append(d_var)
+                var_list[i] = f'{v}_'
+
+        all_vars = self.SFC_VARS + self.LEVEL_VARS + ['zg', 'orog']
+        for var in var_list:
+            d_vars.extend([d_var for d_var in all_vars if var in d_var])
         return d_vars
 
     def prep_var_lists(self, variables):
@@ -484,7 +484,7 @@ class EraDownloader:
             if 'number' in ds.dims:
                 expand_axes = (0, 1, 3, 4)
             pres[:] = np.expand_dims(
-                100 * ds['level'].values, axis=expand_axes
+                100 * ds['isobaricInhPa'].values, axis=expand_axes
             )
             ds['pressure'] = (ds['zg'].dims, pres)
             ds['pressure'].attrs['units'] = 'Pa'

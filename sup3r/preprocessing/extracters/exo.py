@@ -21,8 +21,8 @@ from sup3r.postprocessing.writers.base import OutputHandler
 from sup3r.preprocessing.base import TypeAgnosticClass
 from sup3r.preprocessing.cachers import Cacher
 from sup3r.preprocessing.loaders import LoaderH5, LoaderNC
+from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.utilities import (
-    Dimension,
     _compute_if_dask,
     get_class_kwargs,
     get_input_handler_class,

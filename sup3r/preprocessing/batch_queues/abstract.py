@@ -8,7 +8,7 @@ import logging
 import threading
 from abc import ABC, abstractmethod
 from collections import namedtuple
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from typing import List, Optional, Union
 
 import numpy as np
@@ -93,7 +93,7 @@ class AbstractBatchQueue(Collection, ABC):
         self.t_enhance = t_enhance
         self.batch_size = batch_size
         self.n_batches = n_batches
-        self.queue_cap = queue_cap if queue_cap is not None else n_batches
+        self.queue_cap = n_batches if queue_cap is None else queue_cap
         self.max_workers = max_workers
         self.enqueue_pool = None
         self.container_index = self.get_container_index()
@@ -232,7 +232,7 @@ class AbstractBatchQueue(Collection, ABC):
         if (
             self.mode == 'eager'
             or self.queue_cap == 0
-            or self.queue.size().numpy() == 0
+            or self.queue.size().numpy() < 2
         ):
             return self._build_batch()
         return self.queue.dequeue()
@@ -247,13 +247,11 @@ class AbstractBatchQueue(Collection, ABC):
                 if needed == 1 or self.enqueue_pool is None:
                     self._enqueue_batch()
                 elif needed > 0:
-                    futures = [
+                    _ = [
                         self.enqueue_pool.submit(self._enqueue_batch)
                         for _ in range(needed)
                     ]
                     logger.debug("Added %s enqueue futures.", needed)
-                    for future in as_completed(futures):
-                        _ = future.result()
 
         except KeyboardInterrupt:
             logger.info(f'Stopping {self._thread_name.title()} queue.')
@@ -261,8 +259,8 @@ class AbstractBatchQueue(Collection, ABC):
 
     def __next__(self) -> Batch:
         """Dequeue batch samples, squeeze if for a spatial only model, perform
-        some post-proc like normalization, smoothing, coarsening, etc, and then
-        send out for training as a namedtuple of low_res / high_res arrays.
+        some post-proc like smoothing, coarsening, etc, and then send out for
+        training as a namedtuple of low_res / high_res arrays.
 
         Returns
         -------

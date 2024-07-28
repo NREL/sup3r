@@ -14,8 +14,7 @@ from rex import ResourceX
 from sup3r import CONFIG_DIR, __version__
 from sup3r.models import Sup3rGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
-from sup3r.preprocessing import DataHandlerNC
-from sup3r.preprocessing.utilities import Dimension
+from sup3r.preprocessing import DataHandlerNC, Dimension
 from sup3r.utilities.pytest.helpers import (
     make_fake_nc_file,
 )

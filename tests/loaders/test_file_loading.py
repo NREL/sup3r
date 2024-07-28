@@ -8,8 +8,7 @@ import pandas as pd
 import pytest
 from rex import Resource
 
-from sup3r.preprocessing import Loader, LoaderH5, LoaderNC
-from sup3r.preprocessing.utilities import Dimension
+from sup3r.preprocessing import Dimension, Loader, LoaderH5, LoaderNC
 from sup3r.utilities.pytest.helpers import (
     make_fake_dset,
     make_fake_nc_file,

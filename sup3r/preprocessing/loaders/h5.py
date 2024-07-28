@@ -1,6 +1,9 @@
-"""Base loading classes. These are containers which also load data from
-file_paths and include some sampling ability to interface with batcher
-classes."""
+"""Base loading class for H5 files.
+
+TODO: Explore replacing rex handlers with xarray. xarray should be able to
+load H5 files fine. We would still need get_raster_index method in Extracters
+though.
+"""
 
 import logging
 from typing import Dict, Tuple
@@ -11,7 +14,7 @@ import numpy as np
 import xarray as xr
 from rex import MultiFileWindX
 
-from sup3r.preprocessing.utilities import Dimension
+from sup3r.preprocessing.names import Dimension
 
 from .base import BaseLoader
 

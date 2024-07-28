@@ -6,9 +6,10 @@ from typing import Dict, Optional
 import numpy as np
 
 from sup3r.preprocessing.base import Sup3rDataset
+from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.samplers.dual import DualSampler
 from sup3r.preprocessing.samplers.utilities import nsrdb_reduce_daily_data
-from sup3r.preprocessing.utilities import Dimension, _compute_if_dask
+from sup3r.preprocessing.utilities import _compute_if_dask
 from sup3r.utilities.utilities import nn_fill_array
 
 logger = logging.getLogger(__name__)

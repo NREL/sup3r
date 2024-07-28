@@ -11,8 +11,8 @@ import xarray as xr
 from scipy.stats import mode
 from typing_extensions import Self
 
+from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.utilities import (
-    Dimension,
     _compute_if_dask,
     _contains_ellipsis,
     _get_strings,

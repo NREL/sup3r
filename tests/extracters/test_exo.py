@@ -12,13 +12,13 @@ import xarray as xr
 from rex import Outputs, Resource
 
 from sup3r.preprocessing import (
+    Dimension,
+    ExoData,
     ExoDataHandler,
     TopoExtracter,
     TopoExtracterH5,
     TopoExtracterNC,
 )
-from sup3r.preprocessing.data_handlers.base import ExoData
-from sup3r.preprocessing.utilities import Dimension
 from sup3r.utilities.utilities import RANDOM_GENERATOR
 
 TARGET = (13.67, 125.0)
