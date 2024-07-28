@@ -1,6 +1,5 @@
 """Basic objects that can cache extracted / derived data."""
 
-import gc
 import logging
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -14,6 +13,8 @@ from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.utilities import _mem_check
 from sup3r.typing import T_Dataset
+
+from .utilities import _check_for_cache
 
 logger = logging.getLogger(__name__)
 
@@ -67,19 +68,11 @@ class Cacher(Container):
             )
             data = self[feature, ...]
             if ext == '.h5':
+                func = self.write_h5
                 if len(data.shape) == 3:
                     data = da.transpose(data, axes=(2, 0, 1))
-                self.write_h5(
-                    tmp_file,
-                    feature,
-                    data,
-                    self.coords,
-                    chunks=chunks,
-                )
             elif ext == '.nc':
-                self.write_netcdf(
-                    tmp_file, feature, data, self.coords, chunks=chunks
-                )
+                func = self.write_netcdf
             else:
                 msg = (
                     'cache_pattern must have either h5 or nc extension. '
@@ -87,6 +80,14 @@ class Cacher(Container):
                 )
                 logger.error(msg)
                 raise ValueError(msg)
+            func(
+                tmp_file,
+                feature,
+                data,
+                self.coords,
+                chunks=chunks,
+                attrs=self.attrs,
+            )
             os.replace(tmp_file, out_file)
             logger.info('Moved %s to %s', tmp_file, out_file)
 
@@ -107,37 +108,55 @@ class Cacher(Container):
         chunks = kwargs.get('chunks', None)
         msg = 'cache_pattern must have {feature} format key.'
         assert '{feature}' in cache_pattern, msg
-        out_files = [cache_pattern.format(feature=f) for f in self.features]
 
-        if max_workers == 1:
-            for feature, out_file in zip(self.features, out_files):
-                self._write_single(
-                    feature=feature, out_file=out_file, chunks=chunks
-                )
-        else:
-            futures = {}
-            with ThreadPoolExecutor(max_workers=max_workers) as exe:
-                for feature, out_file in zip(self.features, out_files):
-                    future = exe.submit(
-                        self._write_single,
-                        feature=feature,
-                        out_file=out_file,
-                        chunks=chunks,
+        cached_files, _, missing_files, missing_features = _check_for_cache(
+            self.features, kwargs
+        )
+
+        if any(cached_files):
+            logger.info(
+                'Cache files %s already exist. Delete to overwrite.',
+                cached_files,
+            )
+
+        if any(missing_files):
+            if max_workers == 1:
+                for feature, out_file in zip(missing_features, missing_files):
+                    self._write_single(
+                        feature=feature, out_file=out_file, chunks=chunks
                     )
-                    futures[future] = (feature, out_file)
-                logger.info(f'Submitted cacher futures for {self.features}.')
-            for i, future in enumerate(as_completed(futures)):
-                _ = future.result()
-                feature, out_file = futures[future]
-                logger.info(
-                    f'Finished writing {out_file}. ({i + 1} of {len(futures)} '
-                    'files).'
-                )
-        logger.info(f'Finished writing {out_files}.')
-        return out_files
+            else:
+                futures = {}
+                with ThreadPoolExecutor(max_workers=max_workers) as exe:
+                    for feature, out_file in zip(
+                        missing_features, missing_files
+                    ):
+                        future = exe.submit(
+                            self._write_single,
+                            feature=feature,
+                            out_file=out_file,
+                            chunks=chunks,
+                        )
+                        futures[future] = (feature, out_file)
+                    logger.info(
+                        f'Submitted cacher futures for {self.features}.'
+                    )
+                for i, future in enumerate(as_completed(futures)):
+                    _ = future.result()
+                    feature, out_file = futures[future]
+                    logger.info(
+                        'Finished writing %s. (%s of %s files).',
+                        out_file,
+                        i + 1,
+                        len(futures),
+                    )
+            logger.info('Finished writing %s', missing_files)
+        return missing_files + cached_files
 
     @classmethod
-    def write_h5(cls, out_file, feature, data, coords, chunks=None):
+    def write_h5(
+        cls, out_file, feature, data, coords, chunks=None, attrs=None
+    ):
         """Cache data to h5 file using user provided chunks value.
 
         Parameters
@@ -153,12 +172,17 @@ class Cacher(Container):
         chunks : dict | None
             Chunk sizes for coordinate dimensions. e.g. {'windspeed': (100,
             100, 10)}
+        attrs : dict | None
+            Optional attributes to write to file
         """
         chunks = chunks or {}
+        attrs = attrs or {}
         with h5py.File(out_file, 'w') as f:
             lats = coords[Dimension.LATITUDE].data
             lons = coords[Dimension.LONGITUDE].data
             times = coords[Dimension.TIME].astype(int)
+            for k, v in attrs.items():
+                f.attrs[k] = v
             data_dict = dict(
                 zip(
                     [
@@ -205,6 +229,7 @@ class Cacher(Container):
             Optional attributes to write to file
         """
         chunks = chunks or {}
+        attrs = attrs or {}
         if isinstance(coords, dict):
             flattened = (
                 Dimension.FLATTENED_SPATIAL in coords[Dimension.LATITUDE][0]
@@ -218,9 +243,9 @@ class Cacher(Container):
             if flattened
             else Dimension.order()[1 : len(data.shape) + 1]
         )
-        data_vars = {feature: (dims, data)}
-        out = xr.Dataset(data_vars=data_vars, coords=coords, attrs=attrs)
+        out = xr.Dataset(
+            data_vars={feature: (dims, data)}, coords=coords, attrs=attrs
+        )
         out = out.chunk(chunks.get(feature, 'auto'))
         out.to_netcdf(out_file)
-        del out
-        gc.collect()
+        out.close()

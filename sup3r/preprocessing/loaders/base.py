@@ -16,6 +16,7 @@ from sup3r.preprocessing.names import (
     Dimension,
 )
 from sup3r.preprocessing.utilities import expand_paths
+from sup3r.utilities.utilities import safe_serialize
 
 logger = logging.getLogger(__name__)
 
@@ -57,9 +58,7 @@ class BaseLoader(Container, ABC):
         self.file_paths = file_paths
         self.chunks = chunks
         self.res = self.BASE_LOADER(self.file_paths, **self.res_kwargs)
-        self.data = self.rename(self.load(), FEATURE_NAMES).astype(
-            np.float32
-        )
+        self.data = self.rename(self.load(), FEATURE_NAMES).astype(np.float32)
         self.data[Dimension.LONGITUDE] = (
             self.data[Dimension.LONGITUDE] + 180.0
         ) % 360.0 - 180.0
@@ -78,16 +77,20 @@ class BaseLoader(Container, ABC):
             'date_modified': dt.utcnow().isoformat(),
         }
         if hasattr(self.res, 'global_attrs'):
-            attrs['global_attrs'] = dict(self.res.global_attrs)
+            attrs['global_attrs'] = self.res.global_attrs
 
         if hasattr(self.res, 'h5'):
-            attrs['attrs'] = {
-                f: dict(self.res.h5[f.split('/')[0]].attrs)
-                for f in self.res.datasets
-            }
+            attrs.update(
+                {
+                    f: dict(self.res.h5[f.split('/')[0]].attrs)
+                    for f in self.res.datasets
+                }
+            )
         elif hasattr(self.res, 'attrs'):
-            attrs['attrs'] = self.res.attrs
-        self.data.attrs.update(attrs)
+            attrs.update(self.res.attrs)
+        self.data.attrs.update(
+            {k: safe_serialize(v) for k, v in attrs.items()}
+        )
 
     def __enter__(self):
         return self

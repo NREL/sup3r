@@ -79,13 +79,21 @@ class StatsCollection(Collection):
         elif stats is None or isinstance(stats, str):
             stats = {}
         else:
-            msg = (f'Received incompatible type {type(stats)}. Need a file '
-                   'path or dictionary')
+            msg = (
+                f'Received incompatible type {type(stats)}. Need a file '
+                'path or dictionary'
+            )
             assert isinstance(stats, dict), msg
+        if (
+            isinstance(stats, dict)
+            and stats != {}
+            and any(f not in stats for f in self.features)
+        ):
             msg = (
                 f'Not all features ({self.features}) are found in the given '
                 f'stats dictionary {stats}. This is obviously from a prior '
-                'run so you better be sure these stats carry over.')
+                'run so you better be sure these stats carry over.'
+            )
             logger.warning(msg)
             warn(msg)
         return stats
@@ -128,7 +136,7 @@ class StatsCollection(Collection):
     @staticmethod
     def _added_stats(fp, stat_dict):
         """Check if stats were added to the given file or not."""
-        return all(f in safe_json_load(fp) for f in stat_dict)
+        return any(f not in safe_json_load(fp) for f in stat_dict)
 
     def save_stats(self, stds, means):
         """Save stats to json files."""

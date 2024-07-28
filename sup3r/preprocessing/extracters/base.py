@@ -35,7 +35,7 @@ class BaseExtracter(Container):
         target=None,
         shape=None,
         time_slice=slice(None),
-        threshold=None
+        threshold=None,
     ):
         """
         Parameters
@@ -100,7 +100,7 @@ class BaseExtracter(Container):
         lat_lon but _target is set to bottom left corner of the full domain if
         None and then used to get the raster_index, which is then used to get
         the lat_lon"""
-        self._target = value
+        self._target = _compute_if_dask(value)
 
     @property
     def grid_shape(self):
@@ -127,6 +127,11 @@ class BaseExtracter(Container):
 
     def extract_data(self):
         """Get rasterized data."""
+        logger.info(
+            'Extracting data for target / shape: %s / %s',
+            _compute_if_dask(self._target),
+            _compute_if_dask(self._grid_shape),
+        )
         kwargs = dict(zip(Dimension.dims_2d(), self.raster_index))
         if Dimension.TIME in self.loader.dims:
             kwargs[Dimension.TIME] = self.time_slice
@@ -144,6 +149,11 @@ class BaseExtracter(Container):
     def get_raster_index(self):
         """Get set of slices or indices selecting the requested region from
         the contained data."""
+        logger.info(
+            'Getting raster index for target / shape: %s / %s',
+            _compute_if_dask(self._target),
+            _compute_if_dask(self._grid_shape),
+        )
         self.check_target_and_shape(self.full_lat_lon)
         row, col = self.get_closest_row_col(self.full_lat_lon, self._target)
         lat_slice = slice(row - self._grid_shape[0] + 1, row + 1)
@@ -200,10 +210,12 @@ class BaseExtracter(Container):
             lat_lon[..., 0] - target[0], lat_lon[..., 1] - target[1]
         )
         row, col = da.unravel_index(da.argmin(dist, axis=None), dist.shape)
-        msg = ('The distance between the closest coordinate: '
-               f'{_compute_if_dask(lat_lon[row, col])} and the requested '
-               f'target: {_compute_if_dask(target)} for files: '
-               f'{self.loader.file_paths} is {_compute_if_dask(dist.min())}.')
+        msg = (
+            'The distance between the closest coordinate: '
+            f'{_compute_if_dask(lat_lon[row, col])} and the requested '
+            f'target: {_compute_if_dask(target)} for files: '
+            f'{self.loader.file_paths} is {_compute_if_dask(dist.min())}.'
+        )
         if self.threshold is not None and dist.min() > self.threshold:
             add_msg = f'This exceeds the given threshold: {self.threshold}'
             logger.error(f'{msg} {add_msg}')

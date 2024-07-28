@@ -14,9 +14,11 @@ from sup3r.preprocessing import (
     DataHandlerNCforCC,
     DataHandlerNCforCCwithPowerLaw,
     Dimension,
+    Loader,
     LoaderNC,
 )
 from sup3r.preprocessing.derivers.methods import UWindPowerLaw, VWindPowerLaw
+from sup3r.utilities.pytest.helpers import make_fake_dset
 
 
 def test_get_just_coords_nc():
@@ -40,6 +42,44 @@ def test_get_just_coords_nc():
     assert not handler.data_vars
     assert handler.grid_shape == shape
     assert np.array_equal(handler.target, target)
+
+
+def test_reload_cache():
+    """Test auto reloading of cached data."""
+
+    with xr.open_mfdataset(pytest.FPS_GCM) as fh:
+        min_lat = np.min(fh.lat.values.astype(np.float32))
+        min_lon = np.min(fh.lon.values.astype(np.float32))
+        target = (min_lat, min_lon)
+
+    features = ['u_100m', 'v_100m']
+    with tempfile.TemporaryDirectory() as td:
+        dummy_file = os.path.join(td, 'dummy.nc')
+        dummy = make_fake_dset((20, 20, 20), features=['dummy'])
+        loader = Loader(pytest.FPS_GCM)
+        loader.data['dummy'] = dummy['dummy'].values
+        out = loader.data[['dummy']]
+        out.to_netcdf(dummy_file)
+        cache_pattern = os.path.join(td, 'cache_{feature}.nc')
+        cache_kwargs = {'cache_pattern': cache_pattern}
+        handler = DataHandlerNCforCC(
+            pytest.FPS_GCM,
+            features=features,
+            target=target,
+            shape=(20, 20),
+            cache_kwargs=cache_kwargs,
+        )
+
+        # reload from cache
+        cached = DataHandlerNCforCC(
+            file_paths=dummy_file,
+            features=features,
+            target=target,
+            shape=(20, 20),
+            cache_kwargs=cache_kwargs
+        )
+        assert all(f in cached for f in features)
+        assert np.array_equal(handler.as_array(), cached.as_array())
 
 
 @pytest.mark.parametrize(

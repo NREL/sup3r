@@ -6,13 +6,12 @@ from dataclasses import dataclass
 from datetime import datetime as dt
 from typing import Optional
 
-import dask.array as da
 import numpy as np
 import pandas as pd
 import psutil
 from sklearn.neighbors import BallTree
 
-from sup3r.preprocessing.utilities import log_args
+from sup3r.preprocessing.utilities import _mem_check, log_args
 
 logger = logging.getLogger(__name__)
 
@@ -181,12 +180,8 @@ class Regridder:
                 future = exe.submit(self.save_query, s_slice=s_slice)
                 futures[future] = i
                 mem = psutil.virtual_memory()
-                msg = (
-                    'Query futures submitted: {} out of {}. Current '
-                    'memory usage is {:.3f} GB out of {:.3f} GB '
-                    'total.'.format(
-                        i + 1, len(slices), mem.used / 1e9, mem.total / 1e9
-                    )
+                msg = 'Query futures submitted: {} out of {}. {} '.format(
+                    i + 1, len(slices), _mem_check()
                 )
                 logger.info(msg)
 
@@ -260,8 +255,13 @@ class Regridder:
             data = data.reshape((data.shape[0] * data.shape[1], -1))
         msg = 'Input data must be 2D (spatial, temporal)'
         assert len(data.shape) == 2, msg
-        vals = data[np.concatenate(self.indices)].reshape(
-            (len(self.indices), self.k_neighbors, -1)
-        )
-        vals = da.transpose(vals, axes=(2, 0, 1))
-        return da.einsum('ijk,jk->ij', vals, self.weights).T
+
+        if isinstance(data, np.ndarray):
+            vals = data[np.array(self.indices), :]
+        else:
+            vals = data[np.concatenate(self.indices)].reshape(
+                (len(self.indices), self.k_neighbors, -1)
+            )
+        vals = np.transpose(vals, axes=(2, 0, 1))
+
+        return np.einsum('ijk,jk->ij', vals, self.weights).T

@@ -16,7 +16,6 @@ containing pairs of low / high res data, rather than coarsening high-res to get
 low res then use :class:`DualBatchQueue` with :class:`DualSampler` objects.
 """
 
-from .agnostic import DataHandler, Loader
 from .base import Container
 from .batch_handlers import (
     BatchHandler,
@@ -34,6 +33,7 @@ from .batch_queues import DualBatchQueue, SingleBatchQueue
 from .cachers import Cacher
 from .collections import Collection, StatsCollection
 from .data_handlers import (
+    DataHandler,
     DataHandlerH5,
     DataHandlerH5SolarCC,
     DataHandlerH5WindCC,
@@ -55,6 +55,6 @@ from .extracters import (
     TopoExtracterH5,
     TopoExtracterNC,
 )
-from .loaders import LoaderH5, LoaderNC
+from .loaders import Loader, LoaderH5, LoaderNC
 from .names import COORD_NAMES, DIM_NAMES, FEATURE_NAMES, Dimension
 from .samplers import DualSampler, DualSamplerCC, Sampler, SamplerDC

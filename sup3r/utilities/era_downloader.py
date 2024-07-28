@@ -99,8 +99,6 @@ class EraDownloader:
         'v_component_of_wind': 'v',
     }
 
-    CHUNKS: ClassVar = {'latitude': 100, 'longitude': 100, 'time': 20}
-
     def __init__(
         self,
         year,
@@ -290,7 +288,7 @@ class EraDownloader:
         downloads."""
 
         try:
-            import cdsapi
+            import cdsapi  # noqa
         except ImportError as e:
             msg = f'Could not import cdsapi package. {e}'
             raise ImportError(msg) from e
@@ -546,6 +544,24 @@ class EraDownloader:
             f'{tmp_file} to {self.level_file}.'
         )
 
+    @classmethod
+    def _write_dsets(cls, files, out_file, kwargs):
+        """Write data vars to out_file one dset at a time."""
+        os.makedirs(os.path.dirname(out_file), exist_ok=True)
+        added_features = []
+        tmp_file = cls.get_tmp_file(out_file)
+        for file in files:
+            with xr.open_mfdataset(file, **kwargs) as ds:
+                for f in set(ds.data_vars) - set(added_features):
+                    mode = 'w' if not os.path.exists(tmp_file) else 'a'
+                    logger.info('Adding %s to %s.', f, tmp_file)
+                    ds[f].to_netcdf(tmp_file, mode=mode)
+                    logger.info('Added %s to %s.', f, tmp_file)
+                    added_features.append(f)
+        logger.info(f'Finished writing {tmp_file}')
+        os.replace(tmp_file, out_file)
+        logger.info('Moved %s to %s.', tmp_file, out_file)
+
     def process_and_combine(self):
         """Process variables and combine."""
         if not os.path.exists(self.combined_file) or self.overwrite:
@@ -560,11 +576,11 @@ class EraDownloader:
                 files.append(self.surface_file)
 
             logger.info(f'Combining {files} to {self.combined_file}.')
-            kwargs = {'compat': 'override', 'chunks': self.CHUNKS}
+            kwargs = {'compat': 'override', 'chunks': 'auto'}
             try:
-                with xr.open_mfdataset(files, **kwargs) as ds:
-                    ds.to_netcdf(self.combined_file)
-                logger.info(f'Finished writing {self.combined_file}')
+                self._write_dsets(
+                    files, out_file=self.combined_file, kwargs=kwargs
+                )
             except Exception as e:
                 msg = f'Error combining {files}.'
                 logger.error(msg)
@@ -832,12 +848,9 @@ class EraDownloader:
 
         if not os.path.exists(outfile):
             logger.info(f'Combining {files} into {outfile}.')
-            kwargs = {'chunks': cls.CHUNKS}
+            kwargs = {'chunks': 'auto'}
             try:
-                with xr.open_mfdataset(files, **kwargs) as res:
-                    os.makedirs(os.path.dirname(outfile), exist_ok=True)
-                    res.to_netcdf(outfile)
-                    logger.info(f'Saved {outfile}')
+                cls._write_dsets(files, out_file=outfile, kwargs=kwargs)
             except Exception as e:
                 msg = f'Error combining {files}.'
                 logger.error(msg)
@@ -876,14 +889,10 @@ class EraDownloader:
             kwargs = {
                 'combine': 'nested',
                 'concat_dim': 'time',
-                'chunks': cls.CHUNKS,
+                'chunks': 'auto',
             }
             try:
-                with xr.open_mfdataset(files, **kwargs) as res:
-                    logger.info(f'Combining {files}')
-                    os.makedirs(os.path.dirname(yearly_file), exist_ok=True)
-                    res.to_netcdf(yearly_file)
-                    logger.info(f'Saved {yearly_file}')
+                cls._write_dsets(files, out_file=yearly_file, kwargs=kwargs)
             except Exception as e:
                 msg = f'Error combining {files}'
                 logger.error(msg)

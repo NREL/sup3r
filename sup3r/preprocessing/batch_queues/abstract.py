@@ -8,7 +8,7 @@ import logging
 import threading
 from abc import ABC, abstractmethod
 from collections import namedtuple
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Optional, Union
 
 import numpy as np
@@ -232,7 +232,7 @@ class AbstractBatchQueue(Collection, ABC):
         if (
             self.mode == 'eager'
             or self.queue_cap == 0
-            or self.queue.size().numpy() < 2
+            or self.queue.size().numpy() == 0
         ):
             return self._build_batch()
         return self.queue.dequeue()
@@ -243,15 +243,22 @@ class AbstractBatchQueue(Collection, ABC):
         removed from the queue."""
         try:
             while self._training_flag.is_set():
-                needed = self.queue_cap - self.queue.size().numpy()
+                needed = min(
+                    (
+                        self.max_workers,
+                        self.queue_cap - self.queue.size().numpy(),
+                    )
+                )
                 if needed == 1 or self.enqueue_pool is None:
                     self._enqueue_batch()
                 elif needed > 0:
-                    _ = [
+                    futures = [
                         self.enqueue_pool.submit(self._enqueue_batch)
                         for _ in range(needed)
                     ]
-                    logger.debug("Added %s enqueue futures.", needed)
+                    logger.debug('Added %s enqueue futures.', needed)
+                    for future in as_completed(futures):
+                        _ = future.result()
 
         except KeyboardInterrupt:
             logger.info(f'Stopping {self._thread_name.title()} queue.')

@@ -47,7 +47,8 @@ class DerivedFeature(ABC):
 
 class SurfaceRH(DerivedFeature):
     """Surface Relative humidity feature for computing rh from dewpoint
-    temperature and ambient temperature.
+    temperature and ambient temperature. This is in a 0 - 100 scale to match
+    the ERA5 pressure level relative humidity scale.
 
     https://earthscience.stackexchange.com/questions/24156/era5-single-level-calculate-relative-humidity
 
@@ -65,7 +66,7 @@ class SurfaceRH(DerivedFeature):
         saturation_water_vapor_pressure = 6.1078 * np.exp(
             17.1 * data['temperature_2m'] / (235 + data['temperature_2m'])
         )
-        return water_vapor_pressure / saturation_water_vapor_pressure
+        return 100 * water_vapor_pressure / saturation_water_vapor_pressure
 
 
 class ClearSkyRatioH5(DerivedFeature):

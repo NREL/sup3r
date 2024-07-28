@@ -10,6 +10,7 @@ from sup3r.preprocessing.base import (
     Sup3rDataset,
 )
 from sup3r.preprocessing.cachers import Cacher
+from sup3r.preprocessing.cachers.utilities import _check_for_cache
 from sup3r.preprocessing.derivers import Deriver
 from sup3r.preprocessing.derivers.methods import (
     RegistryH5,
@@ -18,13 +19,22 @@ from sup3r.preprocessing.derivers.methods import (
     RegistryNC,
 )
 from sup3r.preprocessing.extracters import Extracter
+from sup3r.preprocessing.loaders import Loader
 from sup3r.preprocessing.utilities import (
+    expand_paths,
     get_class_kwargs,
     get_composite_signature,
     parse_to_list,
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _save_cache(data, kwargs):
+    """Save cache if given a cache_pattern for file names."""
+    cache_kwargs = kwargs.get('cache_kwargs', None)
+    if cache_kwargs is not None and 'cache_pattern' in cache_kwargs:
+        _ = Cacher(data=data, **get_class_kwargs(Cacher, kwargs))
 
 
 def DataHandlerFactory(
@@ -77,8 +87,8 @@ def DataHandlerFactory(
                 Cacher
             """
             features = parse_to_list(features=features)
-            self.extracter = Extracter(
-                file_paths=file_paths, **get_class_kwargs(Extracter, kwargs)
+            self.extracter = self._extract_data(
+                file_paths=file_paths, features=features, kwargs=kwargs
             )
             self.loader = self.extracter.loader
             self.time_slice = self.extracter.time_slice
@@ -90,9 +100,7 @@ def DataHandlerFactory(
                 **get_class_kwargs(Deriver, kwargs),
             )
             self._deriver_hook()
-            cache_kwargs = kwargs.get('cache_kwargs', None)
-            if cache_kwargs is not None and 'cache_pattern' in cache_kwargs:
-                _ = Cacher(data=self.data, **get_class_kwargs(Cacher, kwargs))
+            _save_cache(data=self.data, kwargs=kwargs)
 
         def _extracter_hook(self):
             """Hook in after extracter initialization. Implement this to extend
@@ -115,6 +123,31 @@ def DataHandlerFactory(
             initialization. e.g. If special methods are required to derive
             additional features which might depend on non-standard inputs (e.g.
             other source files than those used by the loader)."""
+
+        def _extract_data(self, file_paths, features, kwargs):
+            """Fill extracter data with cached data if available."""
+            cached_files, cached_features, _, _ = _check_for_cache(
+                features=features, kwargs=kwargs
+            )
+            if any(f not in cached_features for f in features):
+                extracter = Extracter(
+                    file_paths=file_paths,
+                    **get_class_kwargs(Extracter, kwargs),
+                )
+            else:
+                extracter = Extracter(
+                    file_paths=file_paths,
+                    features=[],
+                    **get_class_kwargs(Extracter, kwargs),
+                )
+
+            if any(cached_files):
+                loader_kwargs = get_class_kwargs(Loader, kwargs)
+                cache = Loader(file_paths=cached_files, **loader_kwargs)
+                for f in cache.features:
+                    extracter.data[f] = cache.data[f]
+            extracter.file_paths = expand_paths(file_paths) + cached_files
+            return extracter
 
         def __repr__(self):
             return f"<class '{self.__module__}.{self.__name__}'>"
