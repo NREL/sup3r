@@ -46,11 +46,13 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
     a dataset.
     """
 
-    # Default to ~monthly scale centered on every ~15 days
     NT = 24
-    """Number of times to calculate QDM parameters in a year"""
-    WINDOW_SIZE = 30
-    """Window width in days"""
+    """Number of times to calculate QDM parameters in a year. Default to every
+    ~15 days"""
+
+    WINDOW_SIZE = 60
+    """Window width in days. Default to data from +/- 30 days centered on NT
+    sample time"""
 
     def __init__(self,
                  base_fps,
@@ -705,7 +707,7 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
 
     @classmethod
     def calc_tau_fut(cls, base_data, bias_data, bias_fut_data,
-                     corrected_fut_data, zero_rate_threshold=0):
+                     corrected_fut_data, zero_rate_threshold=1.182033e-07):
         """Calculate a precipitation threshold (tau) that preserves the
         model-predicted changes in fraction of dry days at a single spatial
         location.
@@ -814,6 +816,10 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
             base_dh_inst=base_dh_inst,
         )
 
+        base_data[base_data <= zero_rate_threshold] = 0
+        bias_data[bias_data <= zero_rate_threshold] = 0
+        bias_fut_data[bias_fut_data <= zero_rate_threshold] = 0
+
         window_size = cls.WINDOW_SIZE or 365 / cls.NT
         window_center = cls._window_center(cls.NT)
 
@@ -849,7 +855,8 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
                 dist=dist,
                 relative=relative,
                 sampling=sampling,
-                log_base=log_base
+                log_base=log_base,
+                delta_denom_min=zero_rate_threshold,
             )
             subset = bias_fut_data[bias_fut_idx]
             corrected_fut_data[bias_fut_idx] = QDM(subset).squeeze()
@@ -876,7 +883,7 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         fill_extend=True,
         smooth_extend=0,
         smooth_interior=0,
-        zero_rate_threshold=0.0,
+        zero_rate_threshold=1.182033e-07,
     ):
         """Estimate the required information for PresRat correction
 
@@ -906,10 +913,12 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
             extreme values within aggregations over large number of pixels.
             This value is the standard deviation for the gaussian_filter
             kernel.
-        zero_rate_threshold : float, default=0.0
+        zero_rate_threshold : float, default=1.182033e-07
             Threshold value used to determine the zero rate in the observed
             historical dataset. For instance, 0.01 means that anything less
-            than that will be considered negligible, hence equal to zero.
+            than that will be considered negligible, hence equal to zero. Dai
+            2006 defined this as 1mm/day. Pierce 2015 used 0.01mm/day. We
+            recommend 0.01mm/day (1.182033e-07 kg/m2/s).
 
         Returns
         -------
