@@ -456,6 +456,8 @@ def local_qdm_bc(data: np.ndarray,
                  threshold=0.1,
                  relative=True,
                  no_trend=False,
+                 delta_denom_min=None,
+                 delta_denom_zero=None,
                  ):
     """Bias correction using QDM
 
@@ -506,6 +508,18 @@ def local_qdm_bc(data: np.ndarray,
         ``params_mf`` of :class:`rex.utilities.bc_utils.QuantileDeltaMapping`.
         Note that this assumes that params_mh is the data distribution
         representative for the target data.
+    delta_denom_min : float | None
+        Option to specify a minimum value for the denominator term in the
+        calculation of a relative delta value. This prevents division by a
+        very small number making delta blow up and resulting in very large
+        output bias corrected values. See equation 4 of Cannon et al., 2015
+        for the delta term.
+    delta_denom_zero : float | None
+        Option to specify a value to replace zeros in the denominator term
+        in the calculation of a relative delta value. This prevents
+        division by a very small number making delta blow up and resulting
+        in very large output bias corrected values. See equation 4 of
+        Cannon et al., 2015 for the delta term.
 
     Returns
     -------
@@ -595,6 +609,8 @@ def local_qdm_bc(data: np.ndarray,
                                    relative=relative,
                                    sampling=cfg['sampling'],
                                    log_base=cfg['log_base'],
+                                   delta_denom_min=delta_denom_min,
+                                   delta_denom_zero=delta_denom_zero,
                                    )
 
         subset_idx = nearest_window_idx == window_idx
