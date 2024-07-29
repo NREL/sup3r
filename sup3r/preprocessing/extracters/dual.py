@@ -9,11 +9,11 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+from rex.utilities.regridder import Regridder
 from sup3r.preprocessing.base import Container, Sup3rDataset
 from sup3r.preprocessing.cachers import Cacher
 from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.utilities import _compute_if_dask
-from sup3r.utilities.regridder import Regridder
 from sup3r.utilities.utilities import spatial_coarsening
 
 logger = logging.getLogger(__name__)
