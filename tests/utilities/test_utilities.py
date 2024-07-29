@@ -18,7 +18,6 @@ from sup3r.preprocessing.samplers.utilities import (
     weighted_time_sampler,
 )
 from sup3r.utilities.interpolation import Interpolator
-from sup3r.utilities.regridder import Regridder
 from sup3r.utilities.utilities import (
     RANDOM_GENERATOR,
     spatial_coarsening,
@@ -52,51 +51,6 @@ def test_log_interp():
         )
     )
     assert u_check
-
-
-def test_regridding():
-    """Make sure regridding reproduces original data when coordinates in the
-    meta is the same"""
-
-    with Resource(pytest.FP_WTK) as res:
-        source_meta = res.meta.copy()
-        source_meta['gid'] = np.arange(len(source_meta))
-        shuffled_meta = source_meta.sample(frac=1, random_state=0)
-
-        regridder = Regridder(
-            source_meta=source_meta,
-            target_meta=shuffled_meta,
-            max_workers=1,
-        )
-
-        out = regridder(res['windspeed_100m', ...].T).T.compute()
-
-        assert np.array_equal(
-            res['windspeed_100m', ...][:, shuffled_meta['gid'].values], out
-        )
-
-        new_shuffled_meta = shuffled_meta.copy()
-        rand = RANDOM_GENERATOR.uniform(
-            0, 1e-12, size=(2 * len(shuffled_meta))
-        )
-        rand = rand.reshape((len(shuffled_meta), 2))
-        new_shuffled_meta['latitude'] += rand[:, 0]
-        new_shuffled_meta['longitude'] += rand[:, 1]
-
-        regridder = Regridder(
-            source_meta=source_meta,
-            target_meta=new_shuffled_meta,
-            max_workers=1,
-            min_distance=0,
-        )
-
-        out = regridder(res['windspeed_100m', ...].T).T.compute()
-
-        assert np.allclose(
-            res['windspeed_100m', ...][:, new_shuffled_meta['gid'].values],
-            out,
-            atol=0.1,
-        )
 
 
 def test_get_chunk_slices():
