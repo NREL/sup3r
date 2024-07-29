@@ -750,7 +750,7 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
     @classmethod
     def calc_k_factor(cls, base_data, bias_data, bias_fut_data,
                       corrected_fut_data, base_ti, bias_ti, bias_fut_ti,
-                      window_center, window_size):
+                      window_center, window_size, zero_rate_threshold):
         """Calculate the K factor at a single spatial location that will
         preserve the original model-predicted mean change in precipitation
 
@@ -772,6 +772,11 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
             mh = bias_data[bias_idt].mean()
             mf = bias_fut_data[bias_fut_idt].mean()
             mf_unbiased = corrected_fut_data[bias_fut_idt].mean()
+
+            oh = np.maximum(oh, zero_rate_threshold)
+            mh = np.maximum(mh, zero_rate_threshold)
+            mf = np.maximum(mf, zero_rate_threshold)
+            mf_unbiased = np.maximum(mf_unbiased, zero_rate_threshold)
 
             x = mf / mh
             x_hat = mf_unbiased / oh
@@ -867,7 +872,8 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
                                                   zero_rate_threshold)
         k = cls.calc_k_factor(base_data, bias_data, bias_fut_data,
                               corrected_fut_data, base_ti, bias_ti,
-                              bias_fut_ti, window_center, window_size)
+                              bias_fut_ti, window_center, window_size,
+                              zero_rate_threshold)
 
         out[f'{bias_feature}_k_factor'] = k
         out[f'{base_dset}_zero_rate'] = obs_zero_rate
