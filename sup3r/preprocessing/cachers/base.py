@@ -13,6 +13,7 @@ from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.utilities import _mem_check
 from sup3r.typing import T_Dataset
+from sup3r.utilities.utilities import safe_serialize
 
 from .utilities import _check_for_cache
 
@@ -86,7 +87,7 @@ class Cacher(Container):
                 data,
                 self.coords,
                 chunks=chunks,
-                attrs=self.attrs,
+                attrs={k: safe_serialize(v) for k, v in self.attrs.items()},
             )
             os.replace(tmp_file, out_file)
             logger.info('Moved %s to %s', tmp_file, out_file)

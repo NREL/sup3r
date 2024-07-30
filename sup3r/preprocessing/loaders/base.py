@@ -7,16 +7,15 @@ from datetime import datetime as dt
 from typing import Callable
 
 import numpy as np
-import pandas as pd
 import xarray as xr
 
 from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.names import (
     FEATURE_NAMES,
-    Dimension,
 )
 from sup3r.preprocessing.utilities import expand_paths
-from sup3r.utilities.utilities import safe_serialize
+
+from .utilities import standardize_names, standardize_values
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +27,7 @@ class BaseLoader(Container, ABC):
     :class:`Sampler` objects to build batches or by :class:`Extracter` objects
     to derive / extract specific features / regions / time_periods."""
 
-    BASE_LOADER: Callable = xr.open_dataset
+    BASE_LOADER: Callable = xr.open_mfdataset
 
     def __init__(
         self,
@@ -58,15 +57,9 @@ class BaseLoader(Container, ABC):
         self.file_paths = file_paths
         self.chunks = chunks
         self.res = self.BASE_LOADER(self.file_paths, **self.res_kwargs)
-        self.data = self.rename(self.load(), FEATURE_NAMES).astype(np.float32)
-        self.data[Dimension.LONGITUDE] = (
-            self.data[Dimension.LONGITUDE] + 180.0
-        ) % 360.0 - 180.0
-        if not self.data.time_independent:
-            self.data[Dimension.TIME] = pd.to_datetime(
-                self.data[Dimension.TIME]
-            )
-
+        self.data = self.load().astype(np.float32)
+        self.data = standardize_names(self.data, FEATURE_NAMES)
+        self.data = standardize_values(self.data)
         self.data = self.data[features] if features != 'all' else self.data
         self.add_attrs()
 
@@ -88,38 +81,13 @@ class BaseLoader(Container, ABC):
             )
         elif hasattr(self.res, 'attrs'):
             attrs.update(self.res.attrs)
-        self.data.attrs.update(
-            {k: safe_serialize(v) for k, v in attrs.items()}
-        )
+        self.data.attrs.update(attrs)
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_value, trace):
         self.res.close()
-
-    def lower_names(self, data):
-        """Set all fields / coords / dims to lower case."""
-        return data.rename(
-            {
-                f: f.lower()
-                for f in [
-                    *list(data.data_vars),
-                    *list(data.dims),
-                    *list(data.coords),
-                ]
-                if f != f.lower()
-            }
-        )
-
-    def rename(self, data, standard_names):
-        """Standardize fields in the dataset using the `standard_names`
-        dictionary."""
-        data = self.lower_names(data)
-        data = data.rename(
-            {k: v for k, v in standard_names.items() if k in data}
-        )
-        return data
 
     @property
     def file_paths(self):

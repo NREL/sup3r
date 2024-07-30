@@ -23,7 +23,9 @@ def safe_serialize(obj):
             return float(o)
         if isinstance(o, (np.int64, np.int32)):
             return int(o)
-        return f"<<non-serializable: {type(o).__qualname__}>>"
+        if isinstance(o, (tuple, np.ndarray)):
+            return list(o)
+        return str(o)
     return json.dumps(obj, default=_default)
 
 

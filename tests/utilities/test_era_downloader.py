@@ -5,6 +5,7 @@ import os
 import numpy as np
 import xarray as xr
 
+from sup3r.preprocessing.names import FEATURE_NAMES
 from sup3r.utilities.era_downloader import EraDownloader
 from sup3r.utilities.pytest.helpers import make_fake_dset
 
@@ -77,10 +78,11 @@ def test_era_dl(tmpdir_factory):
         variables=variables,
     )
     for v in variables:
+        standard_name = FEATURE_NAMES.get(v, v)
         tmp = xr.open_dataset(
             combined_out_pattern.format(year=2000, month='01', var=v)
         )
-        assert v in tmp
+        assert standard_name in tmp
 
 
 def test_era_dl_year(tmpdir_factory):

@@ -230,13 +230,16 @@ class Sup3rDataset:
         """Check for vals in all of the dset members."""
         return any(d.sx.__contains__(vals) for d in self._ds)
 
-    def __setitem__(self, variable, data):
+    def __setitem__(self, keys, data):
         """Set dset member values. Check if values is a tuple / list and if
         so interpret this as sending a tuple / list element to each dset
         member. e.g. `vals[0] -> dsets[0]`, `vals[1] -> dsets[1]`, etc"""
-        for i, self_i in enumerate(self):
-            dat = data[i] if isinstance(data, (tuple, list)) else data
-            self_i.__setitem__(variable, dat)
+        if len(self._ds) == 1:
+            self._ds[-1].__setitem__(keys, data)
+        else:
+            for i, self_i in enumerate(self):
+                dat = data[i] if isinstance(data, (tuple, list)) else data
+                self_i.__setitem__(keys, dat)
 
     def mean(self, **kwargs):
         """Use the high_res members to compute the means. These are used for
@@ -341,6 +344,10 @@ class Container:
     def __getitem__(self, keys):
         """Get item from underlying data."""
         return self.data[keys]
+
+    def __setitem__(self, keys, data):
+        """Set item in underlying data."""
+        self.data.__setitem__(keys, data)
 
     def __getattr__(self, attr):
         """Check if attribute is available from `.data`"""

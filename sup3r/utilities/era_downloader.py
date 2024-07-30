@@ -14,11 +14,19 @@ from concurrent.futures import (
     ThreadPoolExecutor,
     as_completed,
 )
-from typing import ClassVar
 from warnings import warn
 
+import dask.array as da
 import numpy as np
-import xarray as xr
+
+from sup3r.preprocessing import Loader
+from sup3r.preprocessing.loaders.utilities import standardize_names
+from sup3r.preprocessing.names import (
+    ERA_NAME_MAP,
+    LEVEL_VARS,
+    SFC_VARS,
+    Dimension,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -26,78 +34,6 @@ logger = logging.getLogger(__name__)
 class EraDownloader:
     """Class to handle ERA5 downloading, variable renaming, and file
     combinations."""
-
-    # variables available on a single level (e.g. surface)
-    SFC_VARS: ClassVar[list] = [
-        '10m_u_component_of_wind',
-        '10m_v_component_of_wind',
-        '100m_u_component_of_wind',
-        '100m_v_component_of_wind',
-        'surface_pressure',
-        '2m_temperature',
-        'geopotential',
-        'total_precipitation',
-        'convective_available_potential_energy',
-        '2m_dewpoint_temperature',
-        'convective_inhibition',
-        'surface_latent_heat_flux',
-        'instantaneous_moisture_flux',
-        'mean_total_precipitation_rate',
-        'mean_sea_level_pressure',
-        'friction_velocity',
-        'lake_cover',
-        'high_vegetation_cover',
-        'land_sea_mask',
-        'k_index',
-        'forecast_surface_roughness',
-        'northward_turbulent_surface_stress',
-        'eastward_turbulent_surface_stress',
-        'sea_surface_temperature',
-    ]
-
-    # variables available on multiple pressure levels
-    LEVEL_VARS: ClassVar[list] = [
-        'u_component_of_wind',
-        'v_component_of_wind',
-        'geopotential',
-        'temperature',
-        'relative_humidity',
-        'specific_humidity',
-        'divergence',
-        'vertical_velocity',
-        'pressure',
-        'potential_vorticity',
-    ]
-
-    NAME_MAP: ClassVar[dict] = {
-        'u10': 'u_10m',
-        'v10': 'v_10m',
-        'u100': 'u_100m',
-        'v100': 'v_100m',
-        't': 'temperature',
-        't2m': 'temperature_2m',
-        'sp': 'pressure_0m',
-        'r': 'relativehumidity',
-        'relative_humidity': 'relativehumidity',
-        'q': 'specifichumidity',
-        'd': 'divergence',
-    }
-
-    SHORT_NAME_MAP: ClassVar[dict] = {
-        'convective_inhibition': 'cin',
-        '2m_dewpoint_temperature': 'd2m',
-        'potential_vorticity': 'pv',
-        'vertical_velocity': 'w',
-        'surface_latent_heat_flux': 'slhf',
-        'instantaneous_moisture_flux': 'ie',
-        'divergence': 'd',
-        'total_precipitation': 'tp',
-        'relative_humidity': 'relativehumidity',
-        'convective_available_potential_energy': 'cape',
-        'mean_total_precipitation_rate': 'mtpr',
-        'u_component_of_wind': 'u',
-        'v_component_of_wind': 'v',
-    }
 
     def __init__(
         self,
@@ -238,7 +174,7 @@ class EraDownloader:
             if v in ('u', 'v'):
                 var_list[i] = f'{v}_'
 
-        all_vars = self.SFC_VARS + self.LEVEL_VARS + ['zg', 'orog']
+        all_vars = SFC_VARS + LEVEL_VARS + ['zg', 'orog']
         for var in var_list:
             d_vars.extend([d_var for d_var in all_vars if var in d_var])
         return d_vars
@@ -249,13 +185,13 @@ class EraDownloader:
         """
         variables = self._prep_var_lists(variables)
         for var in variables:
-            if var in self.SFC_VARS and var not in self.sfc_file_variables:
+            if var in SFC_VARS and var not in self.sfc_file_variables:
                 self.sfc_file_variables.append(var)
             elif (
-                var in self.LEVEL_VARS and var not in self.level_file_variables
+                var in LEVEL_VARS and var not in self.level_file_variables
             ):
                 self.level_file_variables.append(var)
-            elif var not in self.SFC_VARS + self.LEVEL_VARS + ['zg', 'orog']:
+            elif var not in SFC_VARS + LEVEL_VARS + ['zg', 'orog']:
                 msg = f'Requested {var} is not available for download.'
                 logger.warning(msg)
                 warn(msg)
@@ -411,57 +347,17 @@ class EraDownloader:
     def process_surface_file(self):
         """Rename variables and convert geopotential to geopotential height."""
         tmp_file = self.get_tmp_file(self.surface_file)
-        with xr.open_dataset(self.surface_file) as ds:
+        with Loader(self.surface_file) as ds:
             ds = self.convert_dtype(ds)
             logger.info('Converting "z" var to "orog"')
             ds = self.convert_z(ds, name='orog')
-            ds = self.map_vars(ds)
+            ds = standardize_names(ds, ERA_NAME_MAP)
             ds.to_netcdf(tmp_file)
-        os.system(f'mv {tmp_file} {self.surface_file}')
+        os.replace(tmp_file, self.surface_file)
         logger.info(
             f'Finished processing {self.surface_file}. Moved '
             f'{tmp_file} to {self.surface_file}.'
         )
-
-    def map_vars(self, ds):
-        """Map variables from old dataset to new dataset
-
-        Parameters
-        ----------
-        ds : Dataset
-            xr.Dataset() object for which to rename variables
-
-        Returns
-        -------
-        new_ds : Dataset
-            xr.Dataset() object with new variables written.
-        """
-        logger.info('Mapping var names.')
-        for old_name in ds.data_vars:
-            new_name = self.NAME_MAP.get(old_name, old_name)
-            ds = ds.rename({old_name: new_name})
-        return ds
-
-    def shift_temp(self, ds):
-        """Shift temperature to celsius
-
-        Parameters
-        ----------
-        ds : Dataset
-            xr.Dataset() object for which to shift temperature
-
-        Returns
-        -------
-        ds : Dataset
-        """
-        logger.info('Converting temp variables.')
-        for var in ds.data_vars:
-            attrs = ds[var].attrs
-            if 'units' in ds[var].attrs and ds[var].attrs['units'] == 'K':
-                ds[var] = (ds[var].dims, ds[var].values - 273.15)
-                attrs['units'] = 'C'
-            ds[var].attrs = attrs
-        return ds
 
     def add_pressure(self, ds):
         """Add pressure to dataset
@@ -477,14 +373,11 @@ class EraDownloader:
         """
         if 'pressure' in self.variables and 'pressure' not in ds.data_vars:
             logger.info('Adding pressure variable.')
-            expand_axes = (0, 2, 3)
-            pres = np.zeros(ds['zg'].values.shape)
-            if 'number' in ds.dims:
-                expand_axes = (0, 1, 3, 4)
-            pres[:] = np.expand_dims(
-                100 * ds['isobaricInhPa'].values, axis=expand_axes
+            pres = 100 * ds[Dimension.PRESSURE_LEVEL].values
+            ds['pressure'] = (
+                ds['zg'].dims,
+                da.broadcast_to(pres, ds['zg'].shape),
             )
-            ds['pressure'] = (ds['zg'].dims, pres)
             ds['pressure'].attrs['units'] = 'Pa'
         return ds
 
@@ -508,37 +401,17 @@ class EraDownloader:
             ds = ds.rename({'z': name})
         return ds
 
-    def convert_dtype(self, ds):
-        """Convert z to given height variable
-
-        Parameters
-        ----------
-        ds : Dataset
-            xr.Dataset() object with data to be converted
-
-        Returns
-        -------
-        ds : Dataset
-            xr.Dataset() object with converted dtype.
-        """
-        logger.info('Converting dtype')
-        for f in list(ds.data_vars):
-            ds[f] = (ds[f].dims, ds[f].values.astype(np.float32))
-        return ds
-
     def process_level_file(self):
         """Convert geopotential to geopotential height."""
         tmp_file = self.get_tmp_file(self.level_file)
-        with xr.open_dataset(self.level_file) as ds:
-            ds = self.convert_dtype(ds)
+        with Loader(self.level_file) as ds:
             logger.info('Converting "z" var to "zg"')
             ds = self.convert_z(ds, name='zg')
-            ds = self.map_vars(ds)
-            ds = self.shift_temp(ds)
+            ds = standardize_names(ds, ERA_NAME_MAP)
             ds = self.add_pressure(ds)
             ds.to_netcdf(tmp_file)
 
-        os.system(f'mv {tmp_file} {self.level_file}')
+        os.replace(tmp_file, self.level_file)
         logger.info(
             f'Finished processing {self.level_file}. Moved '
             f'{tmp_file} to {self.level_file}.'
@@ -551,7 +424,7 @@ class EraDownloader:
         added_features = []
         tmp_file = cls.get_tmp_file(out_file)
         for file in files:
-            with xr.open_mfdataset(file, **kwargs) as ds:
+            with Loader(file, res_kwargs=kwargs) as ds:
                 for f in set(ds.data_vars) - set(added_features):
                     mode = 'w' if not os.path.exists(tmp_file) else 'a'
                     logger.info('Adding %s to %s.', f, tmp_file)

@@ -285,6 +285,7 @@ default = { solve-group = "default" }
 dev = { features = ["dev", "doc", "test"], solve-group = "default" }
 doc = { features = ["doc"], solve-group = "default" }
 test = { features = ["test"], solve-group = "default" }
+viz = { features = ["viz"], solve-group = "default" }
 
 [tool.pixi.tasks]
 test = "pytest --pdb --durations=10 tests"
@@ -295,6 +296,7 @@ sphinx_rtd_theme = ">=2.0"
 
 [tool.pixi.feature.test.dependencies]
 pytest = ">=5.2"
+pytest-cov = ">=5.0.0"
 
 [tool.pixi.feature.dev.dependencies]
 build = ">=0.6"
@@ -302,6 +304,10 @@ twine = ">=5.0"
 ruff = ">=0.4"
 ipython = ">=8.0"
 pytest-xdist = ">=3.0"
+
+[tool.pixi.feature.viz.dependencies]
+jupyter = ">1.0.0"
+hvplot = ">0.10.0"
 
 [tool.pytest_env]
 CUDA_VISIBLE_DEVICES = "-1"
