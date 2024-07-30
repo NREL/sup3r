@@ -16,7 +16,7 @@ from scipy.spatial import KDTree
 
 import sup3r.preprocessing
 from sup3r.preprocessing import DataHandlerNC as DataHandler
-from sup3r.preprocessing.utilities import _compute_if_dask, expand_paths
+from sup3r.preprocessing.utilities import expand_paths
 from sup3r.utilities import VERSION_RECORD, ModuleName
 from sup3r.utilities.cli import BaseCLI
 
@@ -425,7 +425,7 @@ class DataRetrievalBase:
         if self.decimals is not None:
             bias_data = np.around(bias_data, decimals=self.decimals)
 
-        return _compute_if_dask(bias_data)
+        return np.asarray(bias_data)
 
     @classmethod
     def get_base_data(
@@ -529,7 +529,7 @@ class DataRetrievalBase:
         if decimals is not None:
             out_data = np.around(out_data, decimals=decimals)
 
-        return _compute_if_dask(out_data), out_ti
+        return np.asarray(out_data), out_ti
 
     @staticmethod
     def _match_zero_rate(bias_data, base_data):

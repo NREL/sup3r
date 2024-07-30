@@ -320,6 +320,8 @@ def nn_fill_array(array):
     indices = nd.distance_transform_edt(
         nan_mask, return_distances=False, return_indices=True
     )
+    if hasattr(array, 'vindex'):
+        return array.vindex[tuple(indices)]
     return array[tuple(indices)]
 
 

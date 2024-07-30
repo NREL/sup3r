@@ -10,7 +10,6 @@ from sup3r.preprocessing import (
     Deriver,
     ExtracterNC,
 )
-from sup3r.preprocessing.utilities import _compute_if_dask
 from sup3r.utilities.interpolation import Interpolator
 from sup3r.utilities.pytest.helpers import make_fake_nc_file
 
@@ -149,5 +148,5 @@ def test_log_interp(DirectExtracter, Deriver, shape, target):
     )
     assert transform.data['u_40m'].data.dtype == np.float32
     assert np.array_equal(
-        _compute_if_dask(out), _compute_if_dask(transform.data['u_40m'].data)
+        np.asarray(out), np.asarray(transform.data['u_40m'].data)
     )

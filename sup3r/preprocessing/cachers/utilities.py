@@ -9,12 +9,11 @@ logger = logging.getLogger(__name__)
 def _check_for_cache(features, kwargs):
     """Check if features are available in cache and return available
     files"""
-    cache_kwargs = kwargs.get('cache_kwargs', {})
-    cache_pattern = cache_kwargs.get('cache_pattern', None)
+    cache_pattern = kwargs.get('cache_kwargs', {}).get('cache_pattern', None)
     cached_files = []
     cached_features = []
     missing_files = []
-    missing_features = []
+    missing_features = features
     if cache_pattern is not None:
         cached_files = [
             cache_pattern.format(feature=f)

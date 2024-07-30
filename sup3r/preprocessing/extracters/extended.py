@@ -141,7 +141,6 @@ class ExtendedExtracter(BaseExtracter):
 
     def _get_flat_data_lat_lon(self):
         """Get lat lon for flattened source data."""
-        lat_lon = self.full_lat_lon[self.raster_index.flatten()].reshape(
-            (*self.raster_index.shape, -1)
-        )
-        return lat_lon
+        if hasattr(self.full_lat_lon, 'vindex'):
+            return self.full_lat_lon.vindex[self.raster_index.flatten]
+        return self.full_lat_lon[self.raster_index.flatten]

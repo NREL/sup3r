@@ -8,7 +8,6 @@ import numpy as np
 
 from sup3r.preprocessing.utilities import (
     _compute_chunks_if_dask,
-    _compute_if_dask,
 )
 from sup3r.typing import T_Array
 from sup3r.utilities.utilities import RANDOM_GENERATOR
@@ -57,7 +56,7 @@ class Interpolator:
             if ~over_mask.sum() >= lev_array[..., 0].size
             else lev_array
         )
-        argmin1 = _compute_if_dask(
+        argmin1 = np.asarray(
             da.argmin(da.abs(under_levs - level), axis=-1, keepdims=True)
         )
         lev_indices = da.broadcast_to(
@@ -70,7 +69,7 @@ class Interpolator:
             if over_mask.sum() >= lev_array[..., 0].size
             else da.ma.masked_array(lev_array, mask1)
         )
-        argmin2 = _compute_if_dask(
+        argmin2 = np.asarray(
             da.argmin(da.abs(over_levs - level), axis=-1, keepdims=True)
         )
         mask2 = lev_indices == argmin2
@@ -178,7 +177,7 @@ class Interpolator:
         bad_max = max(levels) > highest_height
 
         if nans.any():
-            nans = _compute_if_dask(nans)
+            nans = np.asarray(nans)
             msg = (
                 'Approximately {:.2f}% of the vertical level '
                 'array is NaN. Data will be interpolated or extrapolated '
@@ -192,8 +191,8 @@ class Interpolator:
         # does not correspond to the lowest or highest height. Interpolation
         # can be performed without issue in this case.
         if bad_min.any():
-            bad_min = _compute_if_dask(bad_min)
-            lev_array = _compute_if_dask(lev_array)
+            bad_min = np.asarray(bad_min)
+            lev_array = np.asarray(lev_array)
             msg = (
                 'Approximately {:.2f}% of the lowest vertical levels '
                 '(maximum value of {:.3f}, minimum value of {:.3f}) '
@@ -208,8 +207,8 @@ class Interpolator:
             warn(msg)
 
         if bad_max.any():
-            bad_max = _compute_if_dask(bad_max)
-            lev_array = _compute_if_dask(lev_array)
+            bad_max = np.asarray(bad_max)
+            lev_array = np.asarray(lev_array)
             msg = (
                 'Approximately {:.2f}% of the highest vertical levels '
                 '(minimum value of {:.3f}, maximum value of {:.3f}) '

@@ -8,12 +8,11 @@ from warnings import warn
 import numpy as np
 import pandas as pd
 import xarray as xr
-
 from rex.utilities.regridder import Regridder
+
 from sup3r.preprocessing.base import Container, Sup3rDataset
 from sup3r.preprocessing.cachers import Cacher
 from sup3r.preprocessing.names import Dimension
-from sup3r.preprocessing.utilities import _compute_if_dask
 from sup3r.utilities.utilities import spatial_coarsening
 
 logger = logging.getLogger(__name__)
@@ -224,7 +223,7 @@ class DualExtracter(Container):
             )
             if nan_perc > 0:
                 msg = (
-                    f'{f} data has {_compute_if_dask(nan_perc):.3f}% NaN '
+                    f'{f} data has {np.asarray(nan_perc):.3f}% NaN '
                     'values!'
                 )
                 fill_feats.append(f)

@@ -8,7 +8,6 @@ import numpy as np
 
 from sup3r.preprocessing.utilities import (
     _compute_chunks_if_dask,
-    _compute_if_dask,
 )
 from sup3r.utilities.utilities import RANDOM_GENERATOR
 
@@ -248,7 +247,7 @@ def nsrdb_sub_daily_sampler(data, shape, time_index=None):
         warn(msg)
         return tslice
 
-    day_ilocs = np.where(_compute_if_dask(~night_mask))[0]
+    day_ilocs = np.where(np.asarray(~night_mask))[0]
     padding = shape - len(day_ilocs)
     half_pad = int(np.round(padding / 2))
     new_start = tslice.start + day_ilocs[0] - half_pad

@@ -6,7 +6,6 @@ from typing import Tuple
 
 import numpy as np
 
-from sup3r.preprocessing.utilities import _compute_if_dask
 from sup3r.typing import T_Dataset
 
 from .utilities import invert_uv, transform_rotate_wind
@@ -91,7 +90,7 @@ class ClearSkyRatioH5(DerivedFeature):
 
         # set any timestep with any nighttime equal to NaN to avoid weird
         # sunrise/sunset artifacts.
-        night_mask = _compute_if_dask(night_mask.any(axis=(0, 1)))
+        night_mask = np.asarray(night_mask.any(axis=(0, 1)))
 
         cs_ratio = data['ghi'] / data['clearsky_ghi']
         cs_ratio[..., night_mask] = np.nan
@@ -148,7 +147,7 @@ class CloudMaskH5(DerivedFeature):
 
         # set any timestep with any nighttime equal to NaN to avoid weird
         # sunrise/sunset artifacts.
-        night_mask = _compute_if_dask(night_mask.any(axis=(0, 1)))
+        night_mask = np.asarray(night_mask.any(axis=(0, 1)))
 
         cloud_mask = data['ghi'] < data['clearsky_ghi']
         cloud_mask = cloud_mask.astype(np.float32)

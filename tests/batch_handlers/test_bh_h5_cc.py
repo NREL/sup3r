@@ -9,7 +9,7 @@ from sup3r.preprocessing import (
     DataHandlerH5SolarCC,
     DataHandlerH5WindCC,
 )
-from sup3r.preprocessing.utilities import _compute_if_dask, _numpy_if_tensor
+from sup3r.preprocessing.utilities import _numpy_if_tensor
 from sup3r.utilities.pytest.helpers import (
     BatchHandlerTesterCC,
 )
@@ -65,7 +65,7 @@ def test_solar_batching(hr_tsteps, t_enhance, features):
 
     assert not np.isnan(handler.data.hourly[...]).all()
     assert not np.isnan(handler.data.daily[...]).any()
-    high_res_source = _compute_if_dask(handler.data.hourly[...])
+    high_res_source = np.asarray(handler.data.hourly[...])
     for counter, batch in enumerate(batcher):
         assert batch.high_res.shape[3] == hr_tsteps
         assert batch.low_res.shape[3] == hr_tsteps // t_enhance

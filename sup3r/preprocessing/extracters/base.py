@@ -92,7 +92,7 @@ class BaseExtracter(Container):
         """Return the true value based on the closest lat lon instead of the
         user provided value self._target, which is used to find the closest lat
         lon."""
-        return _compute_if_dask(self.lat_lon[-1, 0])
+        return np.asarray(self.lat_lon[-1, 0])
 
     @target.setter
     def target(self, value):
@@ -100,7 +100,7 @@ class BaseExtracter(Container):
         lat_lon but _target is set to bottom left corner of the full domain if
         None and then used to get the raster_index, which is then used to get
         the lat_lon"""
-        self._target = _compute_if_dask(value)
+        self._target = np.asarray(value) if value is not None else None
 
     @property
     def grid_shape(self):
@@ -129,8 +129,8 @@ class BaseExtracter(Container):
         """Get rasterized data."""
         logger.info(
             'Extracting data for target / shape: %s / %s',
-            _compute_if_dask(self._target),
-            _compute_if_dask(self._grid_shape),
+            np.asarray(self._target),
+            np.asarray(self._grid_shape),
         )
         kwargs = dict(zip(Dimension.dims_2d(), self.raster_index))
         if Dimension.TIME in self.loader.dims:
@@ -151,8 +151,8 @@ class BaseExtracter(Container):
         the contained data."""
         logger.info(
             'Getting raster index for target / shape: %s / %s',
-            _compute_if_dask(self._target),
-            _compute_if_dask(self._grid_shape),
+            np.asarray(self._target),
+            np.asarray(self._grid_shape),
         )
         self.check_target_and_shape(self.full_lat_lon)
         row, col = self.get_closest_row_col(self.full_lat_lon, self._target)
@@ -212,9 +212,9 @@ class BaseExtracter(Container):
         row, col = da.unravel_index(da.argmin(dist, axis=None), dist.shape)
         msg = (
             'The distance between the closest coordinate: '
-            f'{_compute_if_dask(lat_lon[row, col])} and the requested '
-            f'target: {_compute_if_dask(target)} for files: '
-            f'{self.loader.file_paths} is {_compute_if_dask(dist.min())}.'
+            f'{np.asarray(lat_lon[row, col])} and the requested '
+            f'target: {np.asarray(target)} for files: '
+            f'{self.loader.file_paths} is {np.asarray(dist.min())}.'
         )
         if self.threshold is not None and dist.min() > self.threshold:
             add_msg = f'This exceeds the given threshold: {self.threshold}'

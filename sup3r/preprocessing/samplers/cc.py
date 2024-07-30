@@ -9,7 +9,6 @@ from sup3r.preprocessing.base import Sup3rDataset
 from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.samplers.dual import DualSampler
 from sup3r.preprocessing.samplers.utilities import nsrdb_reduce_daily_data
-from sup3r.preprocessing.utilities import _compute_if_dask
 from sup3r.utilities.utilities import nn_fill_array
 
 logger = logging.getLogger(__name__)
@@ -123,7 +122,6 @@ class DualSamplerCC(DualSampler):
             high_res = nsrdb_reduce_daily_data(
                 high_res, self.hr_sample_shape[-1], csr_ind=csr_ind
             )
-
         return high_res
 
     @staticmethod
@@ -135,7 +133,7 @@ class DualSamplerCC(DualSampler):
         if n_days > 1:
             mid = int(np.ceil(high_res.shape[3] / 2))
             start = mid - np.max((sample_shape[-1] // 2, 12))
-            t_slice = slice(start, start + np.max((sample_shape[-1], 12)))
+            t_slice = slice(start, start + np.max((sample_shape[-1], 24)))
             high_res = high_res[..., t_slice, :]
         return high_res
 
@@ -176,8 +174,6 @@ class DualSamplerCC(DualSampler):
             high_res = self.reduce_high_res_sub_daily(high_res, csr_ind=i_cs)
 
             if np.isnan(high_res[..., i_cs]).any():
-                high_res[..., i_cs] = nn_fill_array(
-                    _compute_if_dask(high_res[..., i_cs])
-                )
+                high_res[..., i_cs] = nn_fill_array(high_res[..., i_cs])
 
         return low_res, high_res

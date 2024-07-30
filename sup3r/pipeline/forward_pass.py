@@ -17,7 +17,6 @@ from sup3r.postprocessing import (
     OutputHandlerNC,
 )
 from sup3r.preprocessing.utilities import (
-    _compute_if_dask,
     get_source_type,
     lowered,
 )
@@ -326,7 +325,7 @@ class ForwardPass:
                         out = np.transpose(entry['data'], axes=(2, 0, 1, 3))
                     else:
                         out = np.expand_dims(entry['data'], axis=0)
-                    exo_data[feature]['steps'][i]['data'] = _compute_if_dask(
+                    exo_data[feature]['steps'][i]['data'] = np.asarray(
                         out
                     )
 
@@ -339,7 +338,7 @@ class ForwardPass:
             i_lr_s = 1
             data_chunk = np.expand_dims(data_chunk, axis=0)
 
-        return _compute_if_dask(data_chunk), exo_data, i_lr_t, i_lr_s
+        return np.asarray(data_chunk), exo_data, i_lr_t, i_lr_s
 
     @classmethod
     def get_node_cmd(cls, config):

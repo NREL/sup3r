@@ -49,7 +49,7 @@ class Cacher(Container):
         super().__init__(data=data)
         if (
             cache_kwargs is not None
-            and cache_kwargs.get('cache_pattern') is not None
+            and cache_kwargs.get('cache_pattern', None) is not None
         ):
             self.out_files = self.cache_data(cache_kwargs)
 
@@ -110,7 +110,7 @@ class Cacher(Container):
         assert '{feature}' in cache_pattern, msg
 
         cached_files, _, missing_files, missing_features = _check_for_cache(
-            self.features, kwargs
+            features=self.features, kwargs={'cache_kwargs': kwargs}
         )
 
         if any(cached_files):
@@ -191,7 +191,7 @@ class Cacher(Container):
                         Dimension.LONGITUDE,
                         feature,
                     ],
-                    [da.from_array(times), lats, lons, data],
+                    [da.asarray(times), lats, lons, data],
                 )
             )
             for dset, vals in data_dict.items():

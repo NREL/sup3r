@@ -13,7 +13,6 @@ from typing_extensions import Self
 
 from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.utilities import (
-    _compute_if_dask,
     _contains_ellipsis,
     _get_strings,
     _is_ints,
@@ -76,6 +75,7 @@ class Sup3rX:
         """
         self._ds = self.reorder(ds) if isinstance(ds, xr.Dataset) else ds
         self._features = None
+        self.time_slice = None
 
     def compute(self, **kwargs):
         """Load `._ds` into memory. This updates the internal `xr.Dataset` if
@@ -352,7 +352,10 @@ class Sup3rX:
     @staticmethod
     def _check_fancy_indexing(data, keys) -> T_Array:
         """Need to compute first if keys use fancy indexing, only supported by
-        numpy."""
+        numpy.
+
+        TODO: Can we use vindex here?
+        """
         where_list = [
             i
             for i, ind in enumerate(keys)
@@ -362,7 +365,7 @@ class Sup3rX:
             msg = "Don't yet support nd fancy indexing. Computing first..."
             logger.warning(msg)
             warn(msg)
-            return _compute_if_dask(data)[keys]
+            return np.asarray(data)[keys]
         return data[keys]
 
     def _get_from_tuple(self, keys) -> T_Array:
@@ -585,7 +588,7 @@ class Sup3rX:
     @property
     def target(self):
         """Return the value of the lower left hand coordinate."""
-        return _compute_if_dask(self.lat_lon[-1, 0])
+        return np.asarray(self.lat_lon[-1, 0])
 
     @property
     def grid_shape(self):

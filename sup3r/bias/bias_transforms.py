@@ -17,7 +17,6 @@ from rex.utilities.bc_utils import QuantileDeltaMapping
 from scipy.ndimage import gaussian_filter
 
 from sup3r.preprocessing import Extracter
-from sup3r.preprocessing.utilities import _compute_if_dask
 from sup3r.typing import T_Array
 
 logger = logging.getLogger(__name__)
@@ -63,7 +62,7 @@ def _get_factors(target, shape, var_names, bias_fp, threshold=0.1):
     """
     res = Extracter(
         file_paths=bias_fp,
-        target=_compute_if_dask(target),
+        target=np.asarray(target),
         shape=shape,
         threshold=threshold,
     )
@@ -576,10 +575,10 @@ def local_qdm_bc(
         bias_fp=bias_fp,
         threshold=threshold,
     )
-    data = _compute_if_dask(data)
-    base = _compute_if_dask(params['base'])
-    bias = _compute_if_dask(params['bias'])
-    bias_fut = _compute_if_dask(params['bias_fut'])
+    data = np.asarray(data)
+    base = np.asarray(params['base'])
+    bias = np.asarray(params['bias'])
+    bias_fut = np.asarray(params['bias_fut'])
     cfg = params['cfg']
 
     if lr_padded_slice is not None:
@@ -841,11 +840,11 @@ def local_presrat_bc(
     )
     cfg = params['cfg']
     time_window_center = cfg['time_window_center']
-    data = _compute_if_dask(data)
-    base = _compute_if_dask(params['base'])
-    bias = _compute_if_dask(params['bias'])
-    bias_fut = _compute_if_dask(params['bias_fut'])
-    bias_tau_fut = _compute_if_dask(params['bias_tau_fut'])
+    data = np.asarray(data)
+    base = np.asarray(params['base'])
+    bias = np.asarray(params['bias'])
+    bias_fut = np.asarray(params['bias_fut'])
+    bias_tau_fut = np.asarray(params['bias_tau_fut'])
 
     if lr_padded_slice is not None:
         spatial_slice = (lr_padded_slice[0], lr_padded_slice[1])
@@ -891,7 +890,7 @@ def local_presrat_bc(
         if not no_trend:
             subset = np.where(subset < bias_tau_fut, 0, subset)
 
-            k_factor = _compute_if_dask(params['k_factor'][:, :, nt])
+            k_factor = np.asarray(params['k_factor'][:, :, nt])
             subset *= k_factor[:, :, np.newaxis]
 
         data_unbiased[:, :, subset_idx] = subset

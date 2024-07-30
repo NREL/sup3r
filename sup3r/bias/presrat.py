@@ -18,7 +18,6 @@ from rex.utilities.bc_utils import (
 )
 
 from sup3r.preprocessing import DataHandler
-from sup3r.preprocessing.utilities import _compute_if_dask
 
 from .mixins import ZeroRateMixin
 from .qdm import QuantileDeltaMappingCorrection
@@ -167,9 +166,9 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
                     out[k][(nt), :] = v
 
             QDM = QuantileDeltaMapping(
-                _compute_if_dask(out[f'base_{base_dset}_params'][nt]),
-                _compute_if_dask(out[f'bias_{bias_feature}_params'][nt]),
-                _compute_if_dask(out[f'bias_fut_{bias_feature}_params'][nt]),
+                np.asarray(out[f'base_{base_dset}_params'][nt]),
+                np.asarray(out[f'bias_{bias_feature}_params'][nt]),
+                np.asarray(out[f'bias_fut_{bias_feature}_params'][nt]),
                 dist=dist,
                 relative=relative,
                 sampling=sampling,

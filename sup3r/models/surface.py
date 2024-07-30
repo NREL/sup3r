@@ -8,7 +8,6 @@ import numpy as np
 from PIL import Image
 from sklearn import linear_model
 
-from sup3r.preprocessing.utilities import _compute_if_dask
 from sup3r.utilities.utilities import RANDOM_GENERATOR, spatial_coarsening
 
 from .linear import LinearInterp
@@ -609,10 +608,10 @@ class SurfaceSpatialMetModel(LinearInterp):
             channel can include temperature_*m, relativehumidity_*m, and/or
             pressure_*m
         """
-        low_res = _compute_if_dask(low_res)
+        low_res = np.asarray(low_res)
         lr_topo, hr_topo = self._get_topo_from_exo(exogenous_data)
-        lr_topo = _compute_if_dask(lr_topo)
-        hr_topo = _compute_if_dask(hr_topo)
+        lr_topo = np.asarray(lr_topo)
+        hr_topo = np.asarray(hr_topo)
         logger.debug(
             'SurfaceSpatialMetModel received low/high res topo '
             'shapes of {} and {}'.format(lr_topo.shape, hr_topo.shape)

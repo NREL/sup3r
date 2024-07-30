@@ -189,6 +189,52 @@ def test_fwp_nc(input_files):
             )
 
 
+def test_fwp_with_cache_reload(input_files):
+    """Test forward pass handler output with cache loading"""
+
+    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
+
+    Sup3rGan.seed()
+    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+    _ = model.generate(np.ones((4, 10, 10, 6, len(FEATURES))))
+    model.meta['lr_features'] = FEATURES
+    model.meta['hr_out_features'] = ['u_100m', 'v_100m']
+    model.meta['s_enhance'] = 3
+    model.meta['t_enhance'] = 4
+    with tempfile.TemporaryDirectory() as td:
+        out_dir = os.path.join(td, 'st_gan')
+        model.save(out_dir)
+        out_files = os.path.join(td, 'out_{file_id}.nc')
+        cache_pattern = os.path.join(td, 'cache_{feature}.nc')
+        kwargs = {
+            'model_kwargs': {'model_dir': out_dir},
+            'fwp_chunk_shape': fwp_chunk_shape,
+            'spatial_pad': 1,
+            'temporal_pad': 1,
+            'input_handler_kwargs': {
+                'target': target,
+                'shape': shape,
+                'time_slice': time_slice,
+                'cache_kwargs': {'cache_pattern': cache_pattern},
+            },
+            'input_handler_name': 'DataHandlerNC',
+            'out_pattern': out_files,
+            'pass_workers': 1,
+        }
+        strat = ForwardPassStrategy(input_files, **kwargs)
+        forward_pass = ForwardPass(strat)
+        forward_pass.run(strat, node_index=0)
+
+        assert all(
+            os.path.exists(cache_pattern.format(feature=f)) for f in FEATURES
+        )
+
+        strat = ForwardPassStrategy(input_files, **kwargs)
+        forward_pass = ForwardPass(strat)
+        forward_pass.run(strat, node_index=0)
+
+
 def test_fwp_time_slice(input_files):
     """Test forward pass handler output to h5 file. Includes temporal
     slicing."""

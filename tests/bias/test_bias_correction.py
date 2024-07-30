@@ -22,7 +22,6 @@ from sup3r.models import Sup3rGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.preprocessing import DataHandlerNCforCC
 from sup3r.preprocessing.utilities import (
-    _compute_if_dask,
     get_date_range_kwargs,
 )
 from sup3r.qa.qa import Sup3rQa
@@ -602,9 +601,9 @@ def test_qa_integration():
         for feature in features:
             with Sup3rQa(pytest.FPS_GCM, out_file_path, **qa_kw) as qa:
                 data_base = qa.input_handler[feature, ...]
-                data_truth = _compute_if_dask(data_base * scalar + adder)
+                data_truth = np.asarray(data_base * scalar + adder)
             with Sup3rQa(pytest.FPS_GCM, out_file_path, **bc_qa_kw) as qa:
-                data_bc = _compute_if_dask(qa.input_handler[feature, ...])
+                data_bc = np.asarray(qa.input_handler[feature, ...])
 
             assert np.allclose(
                 data_bc,
