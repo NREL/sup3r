@@ -46,14 +46,6 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
     a dataset.
     """
 
-    NT = 24
-    """Number of times to calculate QDM parameters in a year. Default to every
-    ~15 days"""
-
-    WINDOW_SIZE = 60
-    """Window width in days. Default to data from +/- 30 days centered on NT
-    sample time"""
-
     def __init__(self,
                  base_fps,
                  bias_fps,
@@ -74,6 +66,8 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                  relative=True,
                  sampling='linear',
                  log_base=10,
+                 n_time_steps=24,
+                 window_size=120,
                  ):
         """
         Parameters
@@ -152,17 +146,15 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
             and 'invlog'.
         log_base : int or float, default=10
             Log base value if sampling is "log" or "invlog".
-
-        Attributes
-        ----------
-        NT : int
+        n_time_steps : int
             Number of times to calculate QDM parameters equally distributed
-            along a year. For instance, `NT=1` results in a single set of
-            parameters while `NT=12` is approximately every month.
-        WINDOW_SIZE : int
-            Total time window period to be considered for each time QDM is
-            calculated. For instance, `WINDOW_SIZE=30` with `NT=12` would
-            result in approximately monthly estimates.
+            along a year. For instance, `n_time_steps=1` results in a single
+            set of parameters while `n_time_steps=12` is approximately every
+            month.
+        window_size : int
+            Total time window period in days to be considered for each time QDM
+            is calculated. For instance, `window_size=30` with
+            `n_time_steps=12` would result in approximately monthly estimates.
 
         See Also
         --------
@@ -199,6 +191,8 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
         self.relative = relative
         self.sampling = sampling
         self.log_base = log_base
+        self.n_time_steps = n_time_steps
+        self.window_size = window_size
 
         super().__init__(base_fps=base_fps,
                          bias_fps=bias_fps,
@@ -236,11 +230,12 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                 f'bias_fut_{self.bias_feature}_params',
                 f'base_{self.base_dset}_params',
                 ]
-        shape = (*self.bias_gid_raster.shape, self.NT, self.n_quantiles)
+        shape = (*self.bias_gid_raster.shape, self.n_time_steps,
+                 self.n_quantiles)
         arr = np.full(shape, np.nan, np.float32)
         self.out = {k: arr.copy() for k in keys}
 
-        self.time_window_center = self._window_center(self.NT)
+        self.time_window_center = self._window_center(self.n_time_steps)
 
     @staticmethod
     def _window_center(ntimes: int):
@@ -297,6 +292,8 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                     sampling,
                     n_samples,
                     log_base,
+                    n_time_steps,
+                    window_size,
                     base_dh_inst=None,
                     ):
         """Estimate probability distributions at a single site"""
@@ -309,10 +306,10 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                                                decimals=decimals,
                                                base_dh_inst=base_dh_inst)
 
-        window_size = cls.WINDOW_SIZE or 365 / cls.NT
-        window_center = cls._window_center(cls.NT)
+        window_size = window_size or 365 / n_time_steps
+        window_center = cls._window_center(n_time_steps)
 
-        template = np.full((cls.NT, n_samples), np.nan, np.float32)
+        template = np.full((n_time_steps, n_samples), np.nan, np.float32)
         out = {}
 
         for nt, idt in enumerate(window_center):
@@ -529,6 +526,8 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                         sampling=self.sampling,
                         n_samples=self.n_quantiles,
                         log_base=self.log_base,
+                        n_time_steps=self.n_time_steps,
+                        window_size=self.window_size,
                         base_dh_inst=self.base_dh,
                     )
                     for key, arr in single_out.items():
@@ -571,6 +570,8 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                             sampling=self.sampling,
                             n_samples=self.n_quantiles,
                             log_base=self.log_base,
+                            n_time_steps=self.n_time_steps,
+                            window_size=self.window_size,
                         )
                         futures[future] = raster_loc
 
@@ -701,7 +702,7 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         self.out[f'{self.bias_feature}_tau_fut'] = np.full(shape,
                                                            np.nan,
                                                            np.float32)
-        shape = (*self.bias_gid_raster.shape, self.NT)
+        shape = (*self.bias_gid_raster.shape, self.n_time_steps)
         self.out[f'{self.bias_feature}_k_factor'] = np.full(
             shape, np.nan, np.float32)
 
@@ -750,7 +751,8 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
     @classmethod
     def calc_k_factor(cls, base_data, bias_data, bias_fut_data,
                       corrected_fut_data, base_ti, bias_ti, bias_fut_ti,
-                      window_center, window_size, zero_rate_threshold):
+                      window_center, window_size, n_time_steps,
+                      zero_rate_threshold):
         """Calculate the K factor at a single spatial location that will
         preserve the original model-predicted mean change in precipitation
 
@@ -761,7 +763,7 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
             for a single spatial location.
         """
 
-        k = np.full(cls.NT, np.nan, np.float32)
+        k = np.full(n_time_steps, np.nan, np.float32)
         for nt, t in enumerate(window_center):
             base_idt = cls.window_mask(base_ti.day_of_year, t, window_size)
             bias_idt = cls.window_mask(bias_ti.day_of_year, t, window_size)
@@ -803,6 +805,8 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
                     sampling,
                     n_samples,
                     log_base,
+                    n_time_steps,
+                    window_size,
                     zero_rate_threshold,
                     base_dh_inst=None,
                     ):
@@ -825,10 +829,10 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         bias_data[bias_data <= zero_rate_threshold] = 0
         bias_fut_data[bias_fut_data <= zero_rate_threshold] = 0
 
-        window_size = cls.WINDOW_SIZE or 365 / cls.NT
-        window_center = cls._window_center(cls.NT)
+        window_size = window_size or 365 / n_time_steps
+        window_center = cls._window_center(n_time_steps)
 
-        template = np.full((cls.NT, n_samples), np.nan, np.float32)
+        template = np.full((n_time_steps, n_samples), np.nan, np.float32)
         out = {}
         corrected_fut_data = np.full_like(bias_fut_data, np.nan)
         for nt, t in enumerate(window_center):
@@ -873,7 +877,7 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         k = cls.calc_k_factor(base_data, bias_data, bias_fut_data,
                               corrected_fut_data, base_ti, bias_ti,
                               bias_fut_ti, window_center, window_size,
-                              zero_rate_threshold)
+                              n_time_steps, zero_rate_threshold)
 
         out[f'{bias_feature}_k_factor'] = k
         out[f'{base_dset}_zero_rate'] = obs_zero_rate
@@ -981,6 +985,8 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
                         sampling=self.sampling,
                         n_samples=self.n_quantiles,
                         log_base=self.log_base,
+                        n_time_steps=self.n_time_steps,
+                        window_size=self.window_size,
                         base_dh_inst=self.base_dh,
                         zero_rate_threshold=zero_rate_threshold,
                     )
@@ -1029,6 +1035,8 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
                             sampling=self.sampling,
                             n_samples=self.n_quantiles,
                             log_base=self.log_base,
+                            n_time_steps=self.n_time_steps,
+                            window_size=self.window_size,
                             zero_rate_threshold=zero_rate_threshold,
                         )
                         futures[future] = raster_loc
