@@ -5,9 +5,7 @@ from inspect import signature
 import numpy as np
 import pytest
 
-from sup3r.preprocessing.utilities import (
-    get_composite_signature,
-)
+from sup3r.preprocessing.utilities import composite_info
 from sup3r.utilities.pytest.helpers import (
     BatchHandlerTesterDC,
     DummyData,
@@ -34,7 +32,7 @@ def test_signature():
         'spatial_weights',
         'temporal_weights'
     ]
-    comp_sig = get_composite_signature(BatchHandlerTesterDC)
+    comp_sig, _ = composite_info(BatchHandlerTesterDC)
     sig = signature(BatchHandlerTesterDC)
     init_sig = signature(BatchHandlerTesterDC.__init__)
     params = [p.name for p in sig.parameters.values()]

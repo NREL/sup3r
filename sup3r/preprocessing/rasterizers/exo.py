@@ -22,9 +22,9 @@ from sup3r.preprocessing.cachers import Cacher
 from sup3r.preprocessing.loaders import Loader
 from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.utilities import (
+    composite_info,
     compute_if_dask,
     get_class_kwargs,
-    get_composite_signature,
     get_input_handler_class,
     get_source_type,
     log_args,
@@ -399,4 +399,4 @@ class TopoRasterizer:
         SpecificClass = cls.TypeSpecificClasses[get_source_type(source_file)]
         return SpecificClass(file_paths, source_file, *args, **kwargs)
 
-    __signature__ = get_composite_signature(list(TypeSpecificClasses.values()))
+    __signature__, __doc__ = composite_info(list(TypeSpecificClasses.values()))

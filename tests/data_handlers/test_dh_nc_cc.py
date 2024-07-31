@@ -20,7 +20,7 @@ from sup3r.preprocessing import (
     LoaderNC,
 )
 from sup3r.preprocessing.derivers.methods import UWindPowerLaw, VWindPowerLaw
-from sup3r.preprocessing.utilities import get_composite_signature
+from sup3r.preprocessing.utilities import composite_info
 from sup3r.utilities.pytest.helpers import make_fake_dset
 
 
@@ -36,22 +36,26 @@ def test_signature():
         'target',
         'time_slice',
         'time_roll',
-        'max_delta',
         'threshold',
-        'raster_file',
+        'hr_spatial_coarsen',
+        'res_kwargs',
+        'cache_kwargs',
+        'name',
+        'BaseLoader',
+        'FeatureRegistry',
+        'chunks',
+        'interp_method',
         'nan_method_kwargs'
     ]
-    comp_sig = get_composite_signature(
-        [DataHandlerNCforCC.__init__, DataHandler]
-    )
+    comp_sig, _ = composite_info([DataHandlerNCforCC.__init__, DataHandler])
     sig = signature(DataHandlerNCforCC)
     init_sig = signature(DataHandlerNCforCC.__init__)
     params = [p.name for p in sig.parameters.values()]
     comp_params = [p.name for p in comp_sig.parameters.values()]
     init_params = [p.name for p in init_sig.parameters.values()]
-    assert all(p in comp_params for p in arg_names)
-    assert all(p in params for p in arg_names)
-    assert all(p in init_params for p in arg_names)
+    assert not set(arg_names) - set(comp_params)
+    assert not set(arg_names) - set(params)
+    assert not set(arg_names) - set(init_params)
 
 
 def test_get_just_coords_nc():

@@ -13,7 +13,7 @@ from sup3r.preprocessing import (
     DataHandlerH5SolarCC,
     DataHandlerH5WindCC,
 )
-from sup3r.preprocessing.utilities import get_composite_signature, lowered
+from sup3r.preprocessing.utilities import lowered
 from sup3r.utilities.utilities import RANDOM_GENERATOR
 
 SHAPE = (20, 20)
@@ -35,18 +35,30 @@ dh_kwargs = {
 
 
 def test_signature():
-    """Make sure signature of composite data handler is resolved."""
+    """Make sure signature of composite data handler is resolved.
 
-    arg_names = []
-    comp_sig = get_composite_signature(DataHandlerH5SolarCC)
+    This is a bad test, with hardcoded arg names, but I'm not sure of a better
+    way here.
+    """
+
+    arg_names = [
+        'file_paths',
+        'features',
+        'res_kwargs',
+        'chunks',
+        'target',
+        'shape',
+        'time_slice',
+        'threshold',
+        'time_roll',
+        'hr_spatial_coarsen',
+        'nan_method_kwargs',
+        'interp_method',
+        'cache_kwargs',
+    ]
     sig = signature(DataHandlerH5SolarCC)
-    init_sig = signature(DataHandlerH5SolarCC.__init__)
     params = [p.name for p in sig.parameters.values()]
-    comp_params = [p.name for p in comp_sig.parameters.values()]
-    init_params = [p.name for p in init_sig.parameters.values()]
-    assert all(p in comp_params for p in arg_names)
-    assert all(p in params for p in arg_names)
-    assert all(p in init_params for p in arg_names)
+    assert not set(arg_names) - set(params)
 
 
 def test_daily_handler():

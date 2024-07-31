@@ -3,10 +3,7 @@ data."""
 
 from typing import ClassVar
 
-from sup3r.preprocessing.utilities import (
-    get_composite_signature,
-    get_source_type,
-)
+from sup3r.preprocessing.utilities import composite_info, get_source_type
 
 from .base import BaseLoader
 from .h5 import LoaderH5
@@ -25,4 +22,4 @@ class Loader:
         SpecificClass = cls.TypeSpecificClasses[get_source_type(file_paths)]
         return SpecificClass(file_paths, **kwargs)
 
-    __signature__ = get_composite_signature(list(TypeSpecificClasses.values()))
+    __signature__, __doc__ = composite_info(list(TypeSpecificClasses.values()))

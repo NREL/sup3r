@@ -15,7 +15,7 @@ from sup3r.preprocessing.derivers.methods import (
 )
 from sup3r.preprocessing.loaders import Loader
 from sup3r.preprocessing.names import Dimension
-from sup3r.preprocessing.utilities import log_args
+from sup3r.preprocessing.utilities import composite_info, log_args
 
 from .factory import (
     DataHandler,
@@ -69,6 +69,9 @@ class DataHandlerNCforCC(DataHandler):
         self._nsrdb_smoothing = nsrdb_smoothing
         self._features = features
         super().__init__(file_paths=file_paths, features=features, **kwargs)
+
+    __signature__, __init__.__doc__ = composite_info((__init__, DataHandler))
+    __init__.__signature__ = __signature__
 
     def _rasterizer_hook(self):
         """Rasterizer hook implementation to add 'clearsky_ghi' data to

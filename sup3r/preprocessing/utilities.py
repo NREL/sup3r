@@ -200,21 +200,6 @@ def get_input_handler_class(input_handler_name: Optional[str] = None):
     return HandlerClass
 
 
-def _combine_sigs(sigs):
-    """Combine parameter sets for given objects."""
-    params = []
-    for sig in sigs:
-        new_params = list(sig.parameters.values())
-        param_names = [p.name for p in params]
-        new_params = [
-            p
-            for p in new_params
-            if p.name not in (*param_names, 'args', 'kwargs')
-        ]
-        params.extend(new_params)
-    return params
-
-
 def get_obj_params(obj):
     """Get available signature parameters for obj and obj bases"""
     objs = (obj, *getattr(obj, '_legos', ()))
@@ -223,51 +208,50 @@ def get_obj_params(obj):
 
 def get_class_kwargs(obj, kwargs):
     """Get kwargs which match obj signature."""
-    params = get_obj_params(obj)
-    param_names = [p.name for p in params]
+    param_names = list(get_obj_params(obj))
     return {k: v for k, v in kwargs.items() if k in param_names}
 
 
-def get_composite_signature(objs, exclude=None):
-    """Get signature of an object built from the given list of classes, with
-    option to exclude some parameters"""
-    objs = objs if isinstance(objs, (tuple, list)) else [objs]
-    sigs = CommandDocumentation(*objs, skip_params=exclude).signatures
-    return combine_sigs(sigs, exclude=exclude)
-
-
-def get_composite_doc(objs, exclude=None):
-    """Get doc for an object built from the given list of classes, with
-    option to exclude some parameters"""
-    objs = objs if isinstance(objs, (tuple, list)) else [objs]
-    return CommandDocumentation(*objs, skip_params=exclude).parameter_help
-
-
-def get_composite_info(objs, exclude=None):
+def composite_info(objs, skip_params=None):
     """Get composite signature and doc string for given set of objects."""
     objs = objs if isinstance(objs, (tuple, list)) else [objs]
-    docs = CommandDocumentation(*objs, skip_params=exclude)
-    return combine_sigs(docs.signatures, exclude=exclude), docs.parameter_help
+    docs = CommandDocumentation(*objs, skip_params=skip_params)
+    return combine_sigs(
+        docs.signatures, skip_params=skip_params
+    ), docs.parameter_help
 
 
-def combine_sigs(sigs, exclude=None):
+def _combine_sigs(sigs):
+    """Combine parameter sets for given objects."""
+    params = []
+    for sig in sigs:
+        new_params = list(sig.parameters.values())
+        param_names = [p.name for p in params]
+        new_params = [
+            p for p in new_params if p.name not in (*param_names, 'args')
+        ]
+        params.extend(new_params)
+    return params
+
+
+def combine_sigs(sigs, skip_params=None):
     """Get signature of an object built from the given list of signatures, with
-    option to exclude some parameters."""
+    option to skip some parameters."""
     params = _combine_sigs(sigs)
-    filtered = (
-        params
-        if exclude is None
-        else [p for p in params if p.name not in exclude]
-    )
+    skip_params = skip_params or []
+    no_skips = [p for p in params if p.name not in skip_params]
+    filtered = [p for p in no_skips if p.name not in ('args', 'kwargs')]
     defaults = [p for p in filtered if p.default != p.empty]
-    filtered = [p for p in filtered if p.default == p.empty] + defaults
+    filtered = [p for p in filtered if p.default == p.empty]
     filtered = [
         Parameter(p.name, p.kind)
         if p.kind
         not in (Parameter.KEYWORD_ONLY, Parameter.POSITIONAL_OR_KEYWORD)
         else Parameter(p.name, p.KEYWORD_ONLY, default=p.default)
-        for p in filtered
+        for p in [*filtered, *defaults]
     ]
+    if any(p.name == 'kwargs' for p in no_skips):
+        filtered += [Parameter('kwargs', Parameter.VAR_KEYWORD)]
     return Signature(parameters=filtered)
 
 
@@ -315,6 +299,7 @@ def log_args(func):
     def wrapper(self, *args, **kwargs):
         _log_args(self, func, *args, **kwargs)
         return func(self, *args, **kwargs)
+
     wrapper.__signature__ = signature(func)
     wrapper.__doc__ = func.__doc__
     return wrapper

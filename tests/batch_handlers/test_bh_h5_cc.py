@@ -11,10 +11,7 @@ from sup3r.preprocessing import (
     DataHandlerH5SolarCC,
     DataHandlerH5WindCC,
 )
-from sup3r.preprocessing.utilities import (
-    get_composite_signature,
-    numpy_if_tensor,
-)
+from sup3r.preprocessing.utilities import composite_info, numpy_if_tensor
 from sup3r.utilities.pytest.helpers import BatchHandlerTesterCC
 
 SHAPE = (20, 20)
@@ -46,15 +43,15 @@ def test_signature():
         't_enhance',
         'batch_size',
     ]
-    comp_sig = get_composite_signature(BatchHandlerCC.__init__)
+    comp_sig, _ = composite_info(BatchHandlerCC.__init__)
     sig = signature(BatchHandlerCC)
     init_sig = signature(BatchHandlerCC.__init__)
     params = [p.name for p in sig.parameters.values()]
     comp_params = [p.name for p in comp_sig.parameters.values()]
     init_params = [p.name for p in init_sig.parameters.values()]
-    assert all(p in comp_params for p in arg_names)
-    assert all(p in params for p in arg_names)
-    assert all(p in init_params for p in arg_names)
+    assert not set(arg_names) - set(params)
+    assert not set(arg_names) - set(comp_params)
+    assert not set(arg_names) - set(init_params)
 
 
 @pytest.mark.parametrize(

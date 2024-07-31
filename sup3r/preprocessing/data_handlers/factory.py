@@ -21,6 +21,7 @@ from sup3r.preprocessing.derivers.methods import (
 from sup3r.preprocessing.loaders import Loader
 from sup3r.preprocessing.rasterizers import Rasterizer
 from sup3r.preprocessing.utilities import (
+    composite_info,
     expand_paths,
     get_class_kwargs,
     log_args,
@@ -228,36 +229,6 @@ class DataHandler(Deriver, metaclass=FactoryMeta):
         return f"<class '{self.__module__}.{self.__name__}'>"
 
 
-def DataHandlerFactory(
-    cls, BaseLoader=None, FeatureRegistry=None, name='DataHandler'
-):
-    """Build composite objects that load from file_paths, rasterize a specified
-    region, derive new features, and cache derived data.
-
-    Parameters
-    ----------
-    BaseLoader : Callable
-        Optional base loader update. The default for H5 is MultiFileWindX and
-        for NETCDF the default is xarray
-    FeatureRegistry : Dict[str, DerivedFeature]
-        Dictionary of compute methods for features. This is used to look up how
-        to derive features that are not contained in the raw loaded data.
-    name : str
-        Optional name for class built from factory. This will display in
-        logging.
-    """
-
-    class NewDataHandler(cls):
-        __init__ = partialmethod(
-            cls.__init__,
-            BaseLoader=BaseLoader,
-            FeatureRegistry=FeatureRegistry,
-            name=name,
-        )
-
-    return NewDataHandler
-
-
 class DailyDataHandler(DataHandler):
     """General data handler class with daily data as an additional attribute.
     xr.Dataset coarsen method employed to compute averages / mins / maxes over
@@ -286,6 +257,11 @@ class DailyDataHandler(DataHandler):
             ]
             features.extend(needed)
         super().__init__(file_paths=file_paths, features=features, **kwargs)
+
+    __signature__, __init__.__doc__ = composite_info(
+        (__init__, DataHandler)
+    )
+    __init__.__signature__ = __signature__
 
     def _deriver_hook(self):
         """Hook to run daily coarsening calculations after derivations of
@@ -343,6 +319,43 @@ class DailyDataHandler(DataHandler):
         hourly_data.attrs.update({'name': 'hourly'})
         daily_data.attrs.update({'name': 'daily'})
         self.data = Sup3rDataset(daily=daily_data, hourly=hourly_data)
+
+
+def DataHandlerFactory(
+    cls, BaseLoader=None, FeatureRegistry=None, name='DataHandler'
+):
+    """Build composite objects that load from file_paths, rasterize a specified
+    region, derive new features, and cache derived data.
+
+    Parameters
+    ----------
+    BaseLoader : Callable
+        Optional base loader update. The default for H5 is MultiFileWindX and
+        for NETCDF the default is xarray
+    FeatureRegistry : Dict[str, DerivedFeature]
+        Dictionary of compute methods for features. This is used to look up how
+        to derive features that are not contained in the raw loaded data.
+    name : str
+        Optional name for class built from factory. This will display in
+        logging.
+    """
+
+    class FactoryDataHandler(cls):
+        """FactoryDataHandler object. Is a partially initialized instance with
+        `BaseLoader`, `FeatureRegistry`, and `name` set."""
+
+        __init__ = partialmethod(
+            cls.__init__,
+            BaseLoader=BaseLoader,
+            FeatureRegistry=FeatureRegistry,
+            name=name,
+        )
+
+        _skips = ('FeatureRegistry', 'BaseLoader', 'name')
+        __signature__, __doc__ = composite_info(cls, skip_params=_skips)
+        __init__.__signature__ = __signature__
+
+    return FactoryDataHandler
 
 
 def _base_loader(file_paths, **kwargs):

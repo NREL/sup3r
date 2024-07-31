@@ -23,8 +23,8 @@ from sup3r.preprocessing.samplers.base import Sampler
 from sup3r.preprocessing.samplers.cc import DualSamplerCC
 from sup3r.preprocessing.samplers.dual import DualSampler
 from sup3r.preprocessing.utilities import (
+    composite_info,
     get_class_kwargs,
-    get_composite_info,
     log_args,
 )
 
@@ -227,9 +227,9 @@ def BatchHandlerFactory(
                 **get_class_kwargs(MainQueueClass, kwargs),
             )
 
-        _skips = ('samplers', 'data', 'containers', 'thread_name', 'kwargs')
-        __signature__, __init__.__doc__ = get_composite_info(
-            (__init__, *_legos), exclude=_skips
+        _skips = ('samplers', 'data', 'containers', 'thread_name')
+        __signature__, __init__.__doc__ = composite_info(
+            (__init__, *_legos), skip_params=_skips
         )
         __init__.__signature__ = __signature__
 
