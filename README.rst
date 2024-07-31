@@ -1,6 +1,6 @@
-#################
+*****************
 Welcome to SUP3R!
-#################
+*****************
 
 |Docs| |Tests| |Linter| |PyPi| |PythonV| |Codecov| |Zenodo|
 

@@ -11,7 +11,7 @@ from sup3r import CONFIG_DIR
 from sup3r.models import Sup3rGan
 from sup3r.preprocessing import (
     BatchHandler,
-    DataHandlerH5,
+    DataHandler,
 )
 from sup3r.utilities.utilities import RANDOM_GENERATOR
 
@@ -43,9 +43,9 @@ def test_wind_hi_res_topo(
         'shape': SHAPE,
     }
 
-    train_handler = DataHandlerH5(**kwargs, time_slice=slice(None, 3000, 10))
+    train_handler = DataHandler(**kwargs, time_slice=slice(None, 3000, 10))
 
-    val_handler = DataHandlerH5(**kwargs, time_slice=slice(3000, None, 10))
+    val_handler = DataHandler(**kwargs, time_slice=slice(3000, None, 10))
 
     batcher = BatchHandler(
         [train_handler],

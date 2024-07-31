@@ -29,18 +29,18 @@ class Collection(Container):
         super().__init__()
         self.data = tuple(c.data for c in containers)
         self.containers = containers
-        self._data_vars: List = []
+        self._features: List = []
 
     @property
-    def data_vars(self):
-        """Get all data vars contained in data."""
-        if not self._data_vars:
+    def features(self):
+        """Get all features contained in data."""
+        if not self._features:
             _ = [
-                self._data_vars.append(f)
-                for f in np.concatenate([d.data_vars for d in self.data])
-                if f not in self._data_vars
+                self._features.append(f)
+                for f in np.concatenate([d.features for d in self.data])
+                if f not in self._features
             ]
-        return self._data_vars
+        return self._features
 
     @property
     def container_weights(self):

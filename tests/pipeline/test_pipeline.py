@@ -16,7 +16,7 @@ from rex.utilities.loggers import LOGGERS
 
 from sup3r import CONFIG_DIR, TEST_DATA_DIR
 from sup3r.models.base import Sup3rGan
-from sup3r.preprocessing import DataHandlerNC
+from sup3r.preprocessing import DataHandler
 from sup3r.utilities.pytest.helpers import make_fake_nc_file
 from sup3r.utilities.utilities import RANDOM_GENERATOR
 
@@ -75,7 +75,7 @@ def test_fwp_pipeline_with_bc(input_files):
             'time_slice': [t_slice.start, t_slice.stop],
         }
 
-        lat_lon = DataHandlerNC(
+        lat_lon = DataHandler(
             file_paths=input_files, features=[], **input_handler_kwargs
         ).lat_lon
 

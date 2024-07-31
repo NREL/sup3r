@@ -8,7 +8,7 @@ import numpy as np
 
 # pylint: disable=cyclic-import
 import sup3r.models
-from sup3r.preprocessing.data_handlers.base import ExoData
+from sup3r.preprocessing.data_handlers import ExoData
 
 from .abstract import AbstractInterface
 from .base import Sup3rGan

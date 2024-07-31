@@ -6,7 +6,7 @@ import tempfile
 import numpy as np
 import pytest
 
-from sup3r.preprocessing import Cacher, Extracter, Loader
+from sup3r.preprocessing import Cacher, Loader, Rasterizer
 
 target = (39.01, -105.15)
 shape = (20, 20)
@@ -19,13 +19,13 @@ def test_raster_index_caching():
     # saving raster file
     with tempfile.TemporaryDirectory() as td:
         raster_file = os.path.join(td, 'raster.txt')
-        extracter = Extracter(
+        rasterizer = Rasterizer(
             pytest.FP_WTK, raster_file=raster_file, target=target, shape=shape
         )
         # loading raster file
-        extracter = Extracter(pytest.FP_WTK, raster_file=raster_file)
-    assert np.allclose(extracter.target, target, atol=1)
-    assert extracter.shape[:3] == (shape[0], shape[1], extracter.shape[2])
+        rasterizer = Rasterizer(pytest.FP_WTK, raster_file=raster_file)
+    assert np.allclose(rasterizer.target, target, atol=1)
+    assert rasterizer.shape[:3] == (shape[0], shape[1], rasterizer.shape[2])
 
 
 @pytest.mark.parametrize(
@@ -52,22 +52,22 @@ def test_data_caching(input_files, ext, shape, target, features):
 
     with tempfile.TemporaryDirectory() as td:
         cache_pattern = os.path.join(td, 'cached_{feature}.' + ext)
-        extracter = Extracter(input_files, shape=shape, target=target)
+        rasterizer = Rasterizer(input_files, shape=shape, target=target)
         cacher = Cacher(
-            extracter, cache_kwargs={'cache_pattern': cache_pattern}
+            rasterizer, cache_kwargs={'cache_pattern': cache_pattern}
         )
 
-        assert extracter.shape[:3] == (shape[0], shape[1], extracter.shape[2])
-        assert extracter.data.dtype == np.dtype(np.float32)
+        assert rasterizer.shape[:3] == (shape[0], shape[1], rasterizer.shape[2])
+        assert rasterizer.data.dtype == np.dtype(np.float32)
         loader = Loader(cacher.out_files)
         assert np.array_equal(
             loader.data[features, ...].compute(),
-            extracter.data[features, ...].compute(),
+            rasterizer.data[features, ...].compute(),
         )
 
-        # make sure full domain can be loaded with extracters
-        extracter = Extracter(cacher.out_files)
+        # make sure full domain can be loaded with rasterizers
+        rasterizer = Rasterizer(cacher.out_files)
         assert np.array_equal(
             loader.data[features, ...].compute(),
-            extracter.data[features, ...].compute(),
+            rasterizer.data[features, ...].compute(),
         )

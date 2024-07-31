@@ -13,7 +13,7 @@ from sup3r.preprocessing import (
     BatchHandlerMom2Sep,
     BatchHandlerMom2SepSF,
     BatchHandlerMom2SF,
-    DataHandlerH5,
+    DataHandler,
 )
 
 TARGET_COORD = (39.01, -105.15)
@@ -200,7 +200,7 @@ def test_train_conditional(
     model = Sup3rCondMom(fp_gen, learning_rate=1e-4)
     model_mom1 = Sup3rCondMom(fp_gen, learning_rate=1e-4)
 
-    handler = DataHandlerH5(
+    handler = DataHandler(
         pytest.FP_WTK,
         FEATURES,
         target=TARGET_COORD,
@@ -208,7 +208,7 @@ def test_train_conditional(
         time_slice=slice(500, None, 1),
     )
 
-    val_handler = DataHandlerH5(
+    val_handler = DataHandler(
         pytest.FP_WTK,
         FEATURES,
         target=TARGET_COORD,

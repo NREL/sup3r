@@ -1,5 +1,7 @@
 """pytests for H5 climate change data batch handlers"""
 
+from inspect import signature
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
@@ -9,10 +11,11 @@ from sup3r.preprocessing import (
     DataHandlerH5SolarCC,
     DataHandlerH5WindCC,
 )
-from sup3r.preprocessing.utilities import _numpy_if_tensor
-from sup3r.utilities.pytest.helpers import (
-    BatchHandlerTesterCC,
+from sup3r.preprocessing.utilities import (
+    get_composite_signature,
+    numpy_if_tensor,
 )
+from sup3r.utilities.pytest.helpers import BatchHandlerTesterCC
 
 SHAPE = (20, 20)
 FEATURES_S = ['clearsky_ratio', 'ghi', 'clearsky_ghi']
@@ -27,6 +30,31 @@ dh_kwargs = {
     'time_slice': slice(None, None, 2),
     'time_roll': -7,
 }
+
+
+def test_signature():
+    """Make sure signature of composite batch handler is resolved."""
+
+    arg_names = [
+        'train_containers',
+        'sample_shape',
+        'val_containers',
+        'means',
+        'stds',
+        'feature_sets',
+        'n_batches',
+        't_enhance',
+        'batch_size',
+    ]
+    comp_sig = get_composite_signature(BatchHandlerCC.__init__)
+    sig = signature(BatchHandlerCC)
+    init_sig = signature(BatchHandlerCC.__init__)
+    params = [p.name for p in sig.parameters.values()]
+    comp_params = [p.name for p in comp_sig.parameters.values()]
+    init_params = [p.name for p in init_sig.parameters.values()]
+    assert all(p in comp_params for p in arg_names)
+    assert all(p in params for p in arg_names)
+    assert all(p in init_params for p in arg_names)
 
 
 @pytest.mark.parametrize(
@@ -78,7 +106,7 @@ def test_solar_batching(hr_tsteps, t_enhance, features):
             check = hr_source[..., i : i + hr_tsteps, :]
             mask = np.isnan(check)
             if np.allclose(
-                _numpy_if_tensor(batch.high_res[0][~mask]), check[~mask]
+                numpy_if_tensor(batch.high_res[0][~mask]), check[~mask]
             ):
                 found = True
                 break
@@ -88,9 +116,9 @@ def test_solar_batching(hr_tsteps, t_enhance, features):
         day_start = int(hourly_idx[2].start / 24)
         day_stop = int(hourly_idx[2].stop / 24)
         check = handler.data.daily[:, :, slice(day_start, day_stop)]
-        assert np.allclose(_numpy_if_tensor(batch.low_res[0]), check)
+        assert np.allclose(numpy_if_tensor(batch.low_res[0]), check)
         check = handler.data.daily[:, :, daily_idx[2]]
-        assert np.allclose(_numpy_if_tensor(batch.low_res[0]), check)
+        assert np.allclose(numpy_if_tensor(batch.low_res[0]), check)
     batcher.stop()
 
 

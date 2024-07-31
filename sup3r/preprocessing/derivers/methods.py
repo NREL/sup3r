@@ -1,12 +1,14 @@
 """Derivation methods for deriving features from raw data."""
 
+import copy
 import logging
 from abc import ABC, abstractmethod
-from typing import Tuple
+from typing import Tuple, Union
 
 import numpy as np
 
-from sup3r.typing import T_Dataset
+from sup3r.preprocessing.accessor import Sup3rX
+from sup3r.preprocessing.base import Sup3rDataset
 
 from .utilities import invert_uv, transform_rotate_wind
 
@@ -27,17 +29,17 @@ class DerivedFeature(ABC):
 
     @classmethod
     @abstractmethod
-    def compute(cls, data: T_Dataset, **kwargs):
+    def compute(cls, data: Union[Sup3rX, Sup3rDataset], **kwargs):
         """Compute method for derived feature. This can use any of the features
         contained in the xr.Dataset data and the attributes (e.g.
         `.lat_lon`, `.time_index` accessed through Sup3rX accessor).
 
         Parameters
         ----------
-        data : T_Dataset
+        data : Union[Sup3rX, Sup3rDataset]
             Initialized and standardized through a :class:`Loader` with a
-            specific spatiotemporal extent extracted for the features contained
-            using a :class:`Extracter`.
+            specific spatiotemporal extent rasterized for the features
+            contained using a :class:`Rasterizer`.
         **kwargs : dict
             Optional keyword arguments used in derivation. height is a typical
             example. Could also be pressure.
@@ -68,8 +70,9 @@ class SurfaceRH(DerivedFeature):
         return 100 * water_vapor_pressure / saturation_water_vapor_pressure
 
 
-class ClearSkyRatioH5(DerivedFeature):
-    """Clear Sky Ratio feature class for computing from H5 data"""
+class ClearSkyRatio(DerivedFeature):
+    """Clear Sky Ratio feature class. Inputs here are typically found in H5
+    data like the NSRDB"""
 
     inputs = ('ghi', 'clearsky_ghi')
 
@@ -110,7 +113,7 @@ class ClearSkyRatioCC(DerivedFeature):
 
         Parameters
         ----------
-        data : T_Dataset
+        data : Union[Sup3rX, Sup3rDataset]
             xarray dataset used for this compuation, must include clearsky_ghi
             and rsds (rsds==ghi for cc datasets)
 
@@ -125,8 +128,9 @@ class ClearSkyRatioCC(DerivedFeature):
         return np.maximum(cs_ratio, 0)
 
 
-class CloudMaskH5(DerivedFeature):
-    """Cloud Mask feature class for computing from H5 data"""
+class CloudMask(DerivedFeature):
+    """Cloud Mask feature class. Inputs here are typically found in H5 data
+    like the NSRDB."""
 
     inputs = ('ghi', 'clearky_ghi')
 
@@ -220,10 +224,10 @@ class UWindPowerLaw(DerivedFeature):
 
         Parameters
         ----------
-        data : T_Dataset
+        data : Union[Sup3rX, Sup3rDataset]
             Initialized and standardized through a :class:`Loader` with a
-            specific spatiotemporal extent extracted for the features contained
-            using a :class:`Extracter`.
+            specific spatiotemporal extent rasterized for the features
+            contained using a :class:`Rasterizer`.
         height : str | int
             Height at which to compute the derived feature
 
@@ -381,18 +385,12 @@ RegistryBase = {
     'relativehumidity_2m': SurfaceRH,
     'windspeed_(.*)': Windspeed,
     'winddirection_(.*)': Winddirection,
-}
-
-RegistryNC = RegistryBase
-
-RegistryH5 = {
-    **RegistryBase,
-    'cloud_mask': CloudMaskH5,
-    'clearsky_ratio': ClearSkyRatioH5,
+    'cloud_mask': CloudMask,
+    'clearsky_ratio': ClearSkyRatio,
 }
 
 RegistryH5WindCC = {
-    **RegistryH5,
+    **RegistryBase,
     'temperature_max_(.*)m': 'temperature_(.*)m',
     'temperature_min_(.*)m': 'temperature_(.*)m',
     'relativehumidity_max_(.*)m': 'relativehumidity_(.*)m',
@@ -407,8 +405,8 @@ RegistryH5SolarCC = {
     'V': VSolar,
 }
 
-RegistryNCforCC = {
-    **RegistryNC,
+RegistryNCforCC = copy.deepcopy(RegistryBase)
+RegistryNCforCC.update({
     'u_(.*)': 'ua_(.*)',
     'v_(.*)': 'va_(.*)',
     'relativehumidity_2m': 'hurs',
@@ -420,7 +418,7 @@ RegistryNCforCC = {
     'temperature_2m': Tas,
     'temperature_max_2m': TasMax,
     'temperature_min_2m': TasMin,
-}
+})
 
 
 RegistryNCforCCwithPowerLaw = {

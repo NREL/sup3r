@@ -7,7 +7,7 @@ import numpy as np
 from rex import safe_json_load
 
 from sup3r import TEST_DATA_DIR
-from sup3r.preprocessing import Extracter, StatsCollection
+from sup3r.preprocessing import Rasterizer, StatsCollection
 from sup3r.preprocessing.accessor import Sup3rX
 from sup3r.preprocessing.base import Sup3rDataset
 from sup3r.utilities.pytest.helpers import DummyData
@@ -103,25 +103,25 @@ def test_stats_known():
 
 
 def test_stats_calc():
-    """Check accuracy of stats calcs across multiple extracters and caching
+    """Check accuracy of stats calcs across multiple rasterizers and caching
     stats files."""
     features = ['windspeed_100m', 'winddirection_100m']
-    extracters = [
-        Extracter(file, features=features, **kwargs) for file in input_files
+    rasterizers = [
+        Rasterizer(file, features=features, **kwargs) for file in input_files
     ]
     with TemporaryDirectory() as td:
         means = os.path.join(td, 'means.json')
         stds = os.path.join(td, 'stds.json')
-        stats = StatsCollection(extracters, means=means, stds=stds)
+        stats = StatsCollection(rasterizers, means=means, stds=stds)
 
         means = safe_json_load(means)
         stds = safe_json_load(stds)
         assert means == stats.means
         assert stds == stats.stds
 
-        # reload unnormalized extracters
-        extracters = [
-            Extracter(file, features=features, **kwargs)
+        # reload unnormalized rasterizers
+        rasterizers = [
+            Rasterizer(file, features=features, **kwargs)
             for file in input_files
         ]
 
@@ -129,7 +129,7 @@ def test_stats_calc():
             f: np.sum(
                 [
                     wgt * c.data[f].mean()
-                    for wgt, c in zip(stats.container_weights, extracters)
+                    for wgt, c in zip(stats.container_weights, rasterizers)
                 ]
             )
             for f in features
@@ -139,7 +139,7 @@ def test_stats_calc():
                 np.sum(
                     [
                         wgt * c.data[f].std() ** 2
-                        for wgt, c in zip(stats.container_weights, extracters)
+                        for wgt, c in zip(stats.container_weights, rasterizers)
                     ]
                 )
             )

@@ -1,5 +1,5 @@
 """Basic objects that can perform derivations of new features from loaded /
-extracted features."""
+rasterized features."""
 
 import logging
 import re
@@ -9,13 +9,15 @@ from typing import Type, Union
 import dask.array as da
 import numpy as np
 
-from sup3r.preprocessing.base import Container
+from sup3r.preprocessing.accessor import Sup3rX
+from sup3r.preprocessing.base import Container, Sup3rDataset
 from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.utilities import (
     _rechunk_if_dask,
+    log_args,
     parse_to_list,
 )
-from sup3r.typing import T_Array, T_Dataset
+from sup3r.typing import T_Array
 from sup3r.utilities.interpolation import Interpolator
 
 from .methods import DerivedFeature, RegistryBase
@@ -26,13 +28,13 @@ logger = logging.getLogger(__name__)
 
 class BaseDeriver(Container):
     """Container subclass with additional methods for transforming / deriving
-    data exposed through an :class:`Extracter` object."""
+    data exposed through an :class:`Rasterizer` object."""
 
     FEATURE_REGISTRY = RegistryBase
 
     def __init__(
         self,
-        data: T_Dataset,
+        data: Union[Sup3rX, Sup3rDataset],
         features,
         FeatureRegistry=None,
         interp_method='linear',
@@ -40,19 +42,19 @@ class BaseDeriver(Container):
         """
         Parameters
         ----------
-        data : T_Dataset
+        data : Union[Sup3rX, Sup3rDataset]
             Data to use for derivations. Usually comes from the `.data`
-            attribute of a :class:`Extracter` object.
+            attribute of a :class:`Rasterizer` object.
         features : list
-            List of feature names to derive from the :class:`Extracter` data.
-            The :class:`Extracter` object contains the features available to
-            use in the derivation. e.g. extracter.features = ['windspeed',
+            List of feature names to derive from the :class:`Rasterizer` data.
+            The :class:`Rasterizer` object contains the features available to
+            use in the derivation. e.g. rasterizer.features = ['windspeed',
             'winddirection'] with self.features = ['U', 'V']
         FeatureRegistry : Dict
             Optional FeatureRegistry dictionary to use for derivation method
             lookups. When the :class:`Deriver` is asked to derive a feature
-            that is not found in the :class:`Extracter` data it will look for a
-            method to derive the feature in the registry.
+            that is not found in the :class:`Rasterizer` data it will look for
+            a method to derive the feature in the registry.
         interp_method : str
             Interpolation method to use for height interpolation. e.g. Deriving
             u_20m from u_10m and u_100m. Options are "linear" and "log"
@@ -159,14 +161,14 @@ class BaseDeriver(Container):
             if compute_check is not None:
                 return compute_check
 
-            if fstruct.basename in self.data.data_vars:
+            if fstruct.basename in self.data.features:
                 logger.debug(f'Attempting level interpolation for {feature}.')
                 return self.do_level_interpolation(
                     feature, interp_method=self.interp_method
                 )
 
             msg = (
-                f'Could not find {feature} in contained data or in the '
+                f'Could not find "{feature}" in contained data or in the '
                 'available compute methods.'
             )
             logger.error(msg)
@@ -223,8 +225,8 @@ class BaseDeriver(Container):
                 'data needs to include "zg" and "topography".'
             )
             assert (
-                'zg' in self.data.data_vars
-                and 'topography' in self.data.data_vars
+                'zg' in self.data.features
+                and 'topography' in self.data.features
             ), msg
             lev_array = (
                 self.data['zg', ...]
@@ -261,9 +263,10 @@ class Deriver(BaseDeriver):
     """Extends base :class:`BaseDeriver` class with time_roll and
     hr_spatial_coarsen args."""
 
+    @log_args
     def __init__(
         self,
-        data: T_Dataset,
+        data: Union[Sup3rX, Sup3rDataset],
         features,
         time_roll=0,
         hr_spatial_coarsen=1,
@@ -274,7 +277,7 @@ class Deriver(BaseDeriver):
         """
         Parameters
         ----------
-        data : T_Dataset
+        data : Union[Sup3rX, Sup3rDataset]
             Data used for derivations
         features: list
             List of features to derive

@@ -1,4 +1,4 @@
-"""Basic objects that can cache extracted / derived data."""
+"""Basic objects that can cache rasterized / derived data."""
 
 import logging
 import os
@@ -6,10 +6,11 @@ import os
 logger = logging.getLogger(__name__)
 
 
-def _check_for_cache(features, kwargs):
+def _check_for_cache(features, cache_kwargs):
     """Check if features are available in cache and return available
     files"""
-    cache_pattern = kwargs.get('cache_kwargs', {}).get('cache_pattern', None)
+    cache_kwargs = cache_kwargs or {}
+    cache_pattern = cache_kwargs.get('cache_pattern', None)
     cached_files = []
     cached_features = []
     missing_files = []

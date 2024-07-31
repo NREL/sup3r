@@ -40,11 +40,11 @@ from sup3r.bias import (
 from sup3r.bias.mixins import ZeroRateMixin
 from sup3r.models import Sup3rGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
-from sup3r.preprocessing import DataHandlerNC
+from sup3r.preprocessing import DataHandler
 from sup3r.preprocessing.utilities import get_date_range_kwargs
 from sup3r.utilities.utilities import RANDOM_GENERATOR, Timer
 
-CC_LAT_LON = DataHandlerNC(pytest.FP_RSDS, 'rsds').lat_lon
+CC_LAT_LON = DataHandler(pytest.FP_RSDS, 'rsds').lat_lon
 # A reference zero rate threshold that might not make sense physically but for
 # testing purposes only. This might change in the future to force edge cases.
 ZR_THRESHOLD = 0.01

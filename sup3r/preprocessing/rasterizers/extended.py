@@ -7,20 +7,61 @@ import os
 import numpy as np
 import xarray as xr
 
-from sup3r.preprocessing.loaders import LoaderH5
+from sup3r.preprocessing.loaders import Loader
 from sup3r.preprocessing.names import Dimension
 
-from .base import BaseExtracter
+from .base import BaseRasterizer
 
 logger = logging.getLogger(__name__)
 
 
-class ExtendedExtracter(BaseExtracter):
-    """Extended `Extracter` class which also handles the flattened data format
-    used for some H5 files (e.g. Wind Toolkit or NSRDB data)
+class Rasterizer(BaseRasterizer):
+    """Extended `Rasterizer` class which also handles the flattened data format
+    used for some H5 files (e.g. Wind Toolkit or NSRDB data), and rasterizes
+    directly from file paths rather than taking a Loader as input"""
 
-    Arguments added to parent class:
-
+    def __init__(
+        self,
+        file_paths,
+        features='all',
+        res_kwargs=None,
+        chunks='auto',
+        target=None,
+        shape=None,
+        time_slice=slice(None),
+        threshold=None,
+        raster_file=None,
+        max_delta=20,
+        BaseLoader=None
+    ):
+        """
+        Parameters
+        ----------
+        file_paths : str | list | pathlib.Path
+            file_paths input to LoaderClass
+        features : list | str
+            Features to return in loaded dataset. If 'all' then all
+            available features will be returned.
+        res_kwargs : dict
+            kwargs for `.res` object
+        chunks : dict | str
+            Dictionary of chunk sizes to use for call to
+            `dask.array.from_array()` or xr.Dataset().chunk(). Will be
+            converted to a tuple when used in `from_array().`
+        target : tuple
+            (lat, lon) lower left corner of raster. Either need
+            target+shape or raster_file.
+        shape : tuple
+            (rows, cols) grid size. Either need target+shape or
+            raster_file.
+        time_slice : slice
+            Slice specifying extent and step of temporal extraction. e.g.
+            slice(start, stop, step). If equal to slice(None, None, 1) the
+            full time dimension is selected.
+        threshold : float
+            Nearest neighbor euclidean distance threshold. If the
+            coordinates are more than this value away from the target
+            lat/lon, an error is raised.
         raster_file : str | None
             File for raster_index array for the corresponding target and shape.
             If specified the raster_index will be loaded from the file if it
@@ -33,27 +74,25 @@ class ExtendedExtracter(BaseExtracter):
             once. If shape is (20, 20) and max_delta=10, the full raster will
             be retrieved in four chunks of (10, 10). This helps adapt to
             non-regular grids that curve over large distances.
-
-    See Also
-    --------
-    :class:`Extracter` for description of other arguments.
-    """
-
-    def __init__(
-        self,
-        loader: LoaderH5,
-        features='all',
-        target=None,
-        shape=None,
-        time_slice=slice(None),
-        raster_file=None,
-        max_delta=20,
-        threshold=None
-    ):
+        BaseLoader : Callable
+            Optional base loader method update. This is a function which
+            takes `file_paths` and `**kwargs` and returns an initialized
+            base loader with those arguments. The default for h5 is a
+            method which returns MultiFileWindX(file_paths, **kwargs) and
+            for nc the default is
+            xarray.open_mfdataset(file_paths, **kwargs)
+        """
         self.raster_file = raster_file
         self.max_delta = max_delta
+        self.loader = Loader(
+            file_paths,
+            features=features,
+            res_kwargs=res_kwargs,
+            chunks=chunks,
+            BaseLoader=BaseLoader
+        )
         super().__init__(
-            loader=loader,
+            loader=self.loader,
             features=features,
             target=target,
             shape=shape,
@@ -85,7 +124,7 @@ class ExtendedExtracter(BaseExtracter):
         data = self.loader[feats].isel(
             **{Dimension.FLATTENED_SPATIAL: self.raster_index.flatten()}
         )
-        for f in self.loader.data_vars:
+        for f in feats:
             if Dimension.TIME in self.loader[f].dims:
                 dat = data[f].isel({Dimension.TIME: self.time_slice})
                 dat = dat.data.reshape(

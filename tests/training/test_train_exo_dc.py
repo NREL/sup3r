@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 from sup3r.models import Sup3rGanDC
-from sup3r.preprocessing import DataHandlerH5
+from sup3r.preprocessing import DataHandler
 from sup3r.utilities.pytest.helpers import BatchHandlerTesterDC
 from sup3r.utilities.utilities import RANDOM_GENERATOR
 
@@ -29,8 +29,8 @@ def test_wind_dc_hi_res_topo(CustomLayer):
         'target': TARGET_W,
         'shape': SHAPE,
     }
-    handler = DataHandlerH5(**kwargs, time_slice=slice(100, None, 2))
-    val_handler = DataHandlerH5(**kwargs, time_slice=slice(None, 100, 2))
+    handler = DataHandler(**kwargs, time_slice=slice(100, None, 2))
+    val_handler = DataHandler(**kwargs, time_slice=slice(None, 100, 2))
 
     # number of bins conflicts with data shape and sample shape
     with pytest.raises(AssertionError):

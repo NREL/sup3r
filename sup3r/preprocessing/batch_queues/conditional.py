@@ -8,7 +8,7 @@ from typing import Dict, Optional
 import numpy as np
 
 from sup3r.models.conditional import Sup3rCondMom
-from sup3r.preprocessing.utilities import _numpy_if_tensor
+from sup3r.preprocessing.utilities import numpy_if_tensor
 
 from .base import SingleBatchQueue
 from .utilities import spatial_simple_enhancing, temporal_simple_enhancing
@@ -220,7 +220,7 @@ class QueueMom2(ConditionalBatchQueue):
         # Remove first moment from HR and square it
         lr, hr = samples
         exo_data = self.lower_models[1].get_high_res_exo_input(hr)
-        out = _numpy_if_tensor(self.lower_models[1]._tf_generate(lr, exo_data))
+        out = numpy_if_tensor(self.lower_models[1]._tf_generate(lr, exo_data))
         out = self.lower_models[1]._combine_loss_input(hr, out)
         return (hr - out) ** 2
 
@@ -260,7 +260,7 @@ class QueueMom2SF(ConditionalBatchQueue):
         # Remove LR and first moment from HR and square it
         lr, hr = samples
         exo_data = self.lower_models[1].get_high_res_exo_input(hr)
-        out = _numpy_if_tensor(self.lower_models[1]._tf_generate(lr, exo_data))
+        out = numpy_if_tensor(self.lower_models[1]._tf_generate(lr, exo_data))
         out = self.lower_models[1]._combine_loss_input(hr, out)
         enhanced_lr = spatial_simple_enhancing(lr, s_enhance=self.s_enhance)
         enhanced_lr = temporal_simple_enhancing(

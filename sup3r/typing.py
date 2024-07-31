@@ -1,9 +1,8 @@
 """Types used across preprocessing library."""
 
-from typing import TypeVar, Union
+from typing import Union
 
 import dask
 import numpy as np
 
-T_Dataset = TypeVar('T_Dataset')
 T_Array = Union[np.ndarray, dask.array.core.Array]

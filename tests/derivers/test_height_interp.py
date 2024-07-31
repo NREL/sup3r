@@ -6,23 +6,20 @@ from tempfile import TemporaryDirectory
 import numpy as np
 import pytest
 
-from sup3r.preprocessing import (
-    Deriver,
-    ExtracterNC,
-)
+from sup3r.preprocessing import Deriver, Rasterizer
 from sup3r.utilities.interpolation import Interpolator
 from sup3r.utilities.pytest.helpers import make_fake_nc_file
 
 
 @pytest.mark.parametrize(
-    ['DirectExtracter', 'Deriver', 'shape', 'target', 'height'],
+    ['shape', 'target', 'height'],
     [
-        (ExtracterNC, Deriver, (10, 10), (37.25, -107), 20),
-        (ExtracterNC, Deriver, (10, 10), (37.25, -107), 2),
-        (ExtracterNC, Deriver, (10, 10), (37.25, -107), 1000),
+        ((10, 10), (37.25, -107), 20),
+        ((10, 10), (37.25, -107), 2),
+        ((10, 10), (37.25, -107), 1000),
     ],
 )
-def test_height_interp_nc(DirectExtracter, Deriver, shape, target, height):
+def test_height_interp_nc(shape, target, height):
     """Test that variables can be interpolated and extrapolated with height
     correctly"""
 
@@ -35,7 +32,7 @@ def test_height_interp_nc(DirectExtracter, Deriver, shape, target, height):
         )
 
         derive_features = [f'U_{height}m']
-        no_transform = DirectExtracter(
+        no_transform = Rasterizer(
             [wind_file, level_file], target=target, shape=shape
         )
 
@@ -56,13 +53,8 @@ def test_height_interp_nc(DirectExtracter, Deriver, shape, target, height):
     assert np.array_equal(out, transform.data[f'u_{height}m'].data)
 
 
-@pytest.mark.parametrize(
-    ['DirectExtracter', 'Deriver', 'shape', 'target'],
-    [(ExtracterNC, Deriver, (10, 10), (37.25, -107))],
-)
-def test_height_interp_with_single_lev_data_nc(
-    DirectExtracter, Deriver, shape, target
-):
+@pytest.mark.parametrize(['shape', 'target'], [(10, 10), (37.25, -107)])
+def test_height_interp_with_single_lev_data_nc(shape, target):
     """Test that variables can be interpolated with height correctly"""
 
     with TemporaryDirectory() as td:
@@ -76,7 +68,7 @@ def test_height_interp_with_single_lev_data_nc(
         )
 
         derive_features = ['u_100m']
-        no_transform = DirectExtracter(
+        no_transform = Rasterizer(
             [wind_file, level_file], target=target, shape=shape
         )
 
@@ -98,13 +90,8 @@ def test_height_interp_with_single_lev_data_nc(
     assert np.array_equal(out, transform.data['u_100m'].data)
 
 
-@pytest.mark.parametrize(
-    ['DirectExtracter', 'Deriver', 'shape', 'target'],
-    [
-        (ExtracterNC, Deriver, (10, 10), (37.25, -107)),
-    ],
-)
-def test_log_interp(DirectExtracter, Deriver, shape, target):
+@pytest.mark.parametrize(['shape', 'target'], [(10, 10), (37.25, -107)])
+def test_log_interp(shape, target):
     """Test that wind is successfully interpolated with log profile when the
     requested height is under 100 meters."""
 
@@ -119,7 +106,7 @@ def test_log_interp(DirectExtracter, Deriver, shape, target):
         )
 
         derive_features = ['u_40m']
-        no_transform = DirectExtracter(
+        no_transform = Rasterizer(
             [wind_file, level_file], target=target, shape=shape
         )
 

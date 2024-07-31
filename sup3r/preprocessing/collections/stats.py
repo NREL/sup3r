@@ -29,7 +29,7 @@ class StatsCollection(Collection):
         """
         Parameters
         ----------
-        containers: List[Extracter]
+        containers: List[Rasterizer]
             List of containers to compute stats for.
         means : str | dict | None
             Usually a file path for saving results, or None for just

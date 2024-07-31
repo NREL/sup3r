@@ -13,7 +13,7 @@ from sup3r.preprocessing import (
     BatchHandlerMom2Sep,
     BatchHandlerMom2SepSF,
     BatchHandlerMom2SF,
-    DataHandlerH5,
+    DataHandler,
 )
 
 TARGET_COORD = (39.01, -105.15)
@@ -43,7 +43,7 @@ def test_out_conditional(
 ):
     """Test basic spatiotemporal model outputing for
     first conditional moment."""
-    handler = DataHandlerH5(
+    handler = DataHandler(
         pytest.FP_WTK,
         FEATURES,
         target=TARGET_COORD,

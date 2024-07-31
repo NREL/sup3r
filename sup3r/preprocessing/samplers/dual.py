@@ -21,7 +21,7 @@ class DualSampler(Sampler):
     def __init__(
         self,
         data: Sup3rDataset,
-        sample_shape,
+        sample_shape: Optional[tuple] = None,
         batch_size: int = 16,
         s_enhance: int = 1,
         t_enhance: int = 1,
@@ -31,8 +31,8 @@ class DualSampler(Sampler):
         Parameters
         ----------
         data : Sup3rDataset
-            A tuple of xr.Dataset instances. The first must be low-res
-            and the second must be high-res data
+            A :class:`~sup3r.preprocessing.Sup3rDataset` instance with low-res
+            and high-res data members
         sample_shape : tuple
             Size of arrays to sample from the high-res data. The sample shape
             for the low-res sampler will be determined from the enhancement

@@ -15,7 +15,7 @@ from sup3r.preprocessing import (
     BatchHandlerMom2Sep,
     BatchHandlerMom2SepSF,
     BatchHandlerMom2SF,
-    DataHandlerH5,
+    DataHandler,
 )
 
 SHAPE = (20, 20)
@@ -94,7 +94,7 @@ def test_wind_non_cc_hi_res_st_topo_mom1(
     Sup3rConcat layer that concatenates hi-res topography in the middle of
     the network. Test for direct first moment or subfilter velocity."""
 
-    handler = DataHandlerH5(
+    handler = DataHandler(
         pytest.FP_WTK,
         ['u_100m', 'v_100m', 'topography'],
         target=TARGET_COORD,
@@ -148,7 +148,7 @@ def test_wind_non_cc_hi_res_st_topo_mom2(
     the network. Test for direct second moment or subfilter velocity.
     Test for separate or learning coupled with first moment."""
 
-    handler = DataHandlerH5(
+    handler = DataHandler(
         pytest.FP_WTK,
         ['u_100m', 'v_100m', 'topography'],
         target=TARGET_COORD,

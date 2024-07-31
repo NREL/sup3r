@@ -11,6 +11,7 @@ import xarray as xr
 from sup3r.preprocessing.names import COORD_NAMES, DIM_NAMES, Dimension
 
 from .base import BaseLoader
+from .utilities import lower_names
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +71,7 @@ class LoaderNC(BaseLoader):
 
     def load(self):
         """Load netcdf xarray.Dataset()."""
-        res = self.lower_names(self.res)
+        res = lower_names(self.res)
         res = res.swap_dims(
             {k: v for k, v in DIM_NAMES.items() if k in res.dims}
         )

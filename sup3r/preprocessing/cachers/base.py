@@ -1,18 +1,18 @@
-"""Basic objects that can cache extracted / derived data."""
+"""Basic objects that can cache rasterized / derived data."""
 
 import logging
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
 import dask.array as da
 import h5py
 import xarray as xr
 
-from sup3r.preprocessing.base import Container
+from sup3r.preprocessing.accessor import Sup3rX
+from sup3r.preprocessing.base import Container, Sup3rDataset
 from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.utilities import _mem_check
-from sup3r.typing import T_Dataset
 from sup3r.utilities.utilities import safe_serialize
 
 from .utilities import _check_for_cache
@@ -25,13 +25,13 @@ class Cacher(Container):
 
     def __init__(
         self,
-        data: T_Dataset,
+        data: Union[Sup3rX, Sup3rDataset],
         cache_kwargs: Optional[Dict] = None,
     ):
         """
         Parameters
         ----------
-        data : T_Dataset
+        data : Union[Sup3rX, Sup3rDataset]
             Data to write to file
         cache_kwargs : dict
             Dictionary with kwargs for caching wrangled data. This should at
@@ -92,7 +92,7 @@ class Cacher(Container):
             os.replace(tmp_file, out_file)
             logger.info('Moved %s to %s', tmp_file, out_file)
 
-    def cache_data(self, kwargs):
+    def cache_data(self, cache_kwargs):
         """Cache data to file with file type based on user provided
         cache_pattern.
 
@@ -104,14 +104,14 @@ class Cacher(Container):
             specifying the chunks for h5 writes. 'cache_pattern' must have a
             {feature} format key.
         """
-        cache_pattern = kwargs.get('cache_pattern', None)
-        max_workers = kwargs.get('max_workers', 1)
-        chunks = kwargs.get('chunks', None)
+        cache_pattern = cache_kwargs.get('cache_pattern', None)
+        max_workers = cache_kwargs.get('max_workers', 1)
+        chunks = cache_kwargs.get('chunks', None)
         msg = 'cache_pattern must have {feature} format key.'
         assert '{feature}' in cache_pattern, msg
 
         cached_files, _, missing_files, missing_features = _check_for_cache(
-            features=self.features, kwargs={'cache_kwargs': kwargs}
+            features=self.features, cache_kwargs=cache_kwargs
         )
 
         if any(cached_files):

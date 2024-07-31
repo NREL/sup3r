@@ -17,7 +17,7 @@ class DualBatchQueue(AbstractBatchQueue):
         """
         See Also
         --------
-        :class:`AbstractBatchQueue` for argument descriptions.
+        :class:`~sup3r.preprocessing.batch_queues.abstract.AbstractBatchQueue`
         """
         super().__init__(*args, **kwargs)
         self.check_enhancement_factors()

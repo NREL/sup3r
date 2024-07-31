@@ -24,7 +24,8 @@ from sup3r.preprocessing.samplers.cc import DualSamplerCC
 from sup3r.preprocessing.samplers.dual import DualSampler
 from sup3r.preprocessing.utilities import (
     get_class_kwargs,
-    get_composite_signature,
+    get_composite_info,
+    log_args,
 )
 
 logger = logging.getLogger(__name__)
@@ -34,12 +35,17 @@ def BatchHandlerFactory(
     MainQueueClass, SamplerClass, ValQueueClass=None, name='BatchHandler'
 ):
     """BatchHandler factory. Can build handlers from different queue classes
-    and sampler classes. For example, to build a standard BatchHandler use
-    :class:`BatchQueue` and :class:`Sampler`. To build a
-    :class:`DualBatchHandler` use :class:`DualBatchQueue` and
-    :class:`DualSampler`. To build a BatchHandlerCC use a
-    :class:`BatchQueueDC`, :class:`ValBatchQueueDC` and
-    :class:`SamplerDC`
+    and sampler classes. For example, to build a standard
+    :class:`~sup3r.preprocessing.batch_handlers.BatchHandler` use
+    :class:`~sup3r.preprocessing.batch_queues.SingleBatchQueue` and
+    :class:`~sup3r.preprocessing.samplers.Sampler`. To build a
+    :class:`~sup3r.preprocessing.batch_handlers.DualBatchHandler` use
+    :class:`~sup3r.preprocessing.batch_queues.DualBatchQueue` and
+    :class:`~sup3r.preprocessing.samplers.DualSampler`. To build a
+    :class:`~sup3r.preprocessing.batch_handlers.BatchHandlerDC` use a
+    :class:`~sup3r.preprocessing.batch_queues.BatchQueueDC`,
+    :class:`~sup3r.preprocessing.batch_queues.ValBatchQueueDC` and
+    :class:`~sup3r.preprocessing.samplers.SamplerDC`
 
     Note
     ----
@@ -51,23 +57,25 @@ def BatchHandlerFactory(
     """
 
     class BatchHandler(MainQueueClass, metaclass=FactoryMeta):
-        """BatchHandler object built from two lists of class:`Container`
-        objects, one with training data and one with validation data. These
-        lists will be used to initialize lists of class:`Sampler` objects that
-        will then be used to build batches at run time.
+        """BatchHandler object built from two lists of
+        class:`~sup3r.preprocessing.Container` objects, one with training data
+        and one with validation data. These lists will be used to initialize
+        lists of class:`Sampler` objects that will then be used to build
+        batches at run time.
 
         Note
         ----
         These lists of containers can contain data from the same underlying
         data source (e.g. CONUS WTK) (e.g. initialize train / val containers
-        with different time period and / or regions.  , or they can be used to
+        with different time period and / or regions, or they can be used to
         sample from completely different data sources (e.g. train on CONUS WTK
         while validating on Canada WTK).
 
         See Also
         --------
-        :class:`Sampler` and :class:`AbstractBatchQueue` for a description of
-        arguments
+        :class:`~sup3r.preprocessing.samplers.Sampler`,
+        :class:`~sup3r.preprocessing.batch_queues.abstract.AbstractBatchQueue`,
+        :class:`~sup3r.preprocessing.collections.StatsCollection`
         """
 
         VAL_QUEUE = MainQueueClass if ValQueueClass is None else ValQueueClass
@@ -75,31 +83,114 @@ def BatchHandlerFactory(
 
         __name__ = name
         _legos = (MainQueueClass, SamplerClass, VAL_QUEUE)
-        __signature__ = get_composite_signature(_legos)
 
+        @log_args
         def __init__(
             self,
             train_containers: List[Container],
             val_containers: Optional[List[Container]] = None,
+            sample_shape: Optional[tuple] = None,
             batch_size: int = 16,
             n_batches: int = 64,
             s_enhance: int = 1,
             t_enhance: int = 1,
             means: Optional[Union[Dict, str]] = None,
             stds: Optional[Union[Dict, str]] = None,
+            queue_cap: Optional[int] = None,
+            transform_kwargs: Optional[dict] = None,
+            max_workers: int = 1,
+            mode: str = 'lazy',
+            feature_sets: Optional[dict] = None,
             **kwargs,
         ):
+            """
+            Parameters
+            ----------
+            train_containers : List[Container]
+                List of objects with a `.data` attribute, which will be used
+                to initialize Sampler objects and then used to initialize a
+                batch queue of training data. The data can be a Sup3rX or
+                Sup3rDataset object.
+            val_containers : List[Container]
+                List of objects with a `.data` attribute, which will be used
+                to initialize Sampler objects and then used to initialize a
+                batch queue of validation data. The data can be a Sup3rX or a
+                Sup3rDataset object.
+            batch_size : int
+                Number of samples to get to build a single batch. A sample of
+                (sample_shape[0], sample_shape[1], batch_size *
+                sample_shape[2]) is first selected from underlying dataset
+                and then reshaped into (batch_size, *sample_shape) to get a
+                single batch. This is more efficient than getting N =
+                batch_size samples and then stacking.
+            n_batches : int
+                Number of batches in an epoch, this sets the iteration limit
+                for this object.
+            s_enhance : int
+                Integer factor by which the spatial axes is to be enhanced.
+            t_enhance : int
+                Integer factor by which the temporal axes is to be enhanced.
+            means : str | dict | None
+                Usually a file path for loading / saving results, or None for
+                just calculating stats and not saving. Can also be a dict.
+            stds : str | dict | None
+                Usually a file path for loading / saving results, or None for
+                just calculating stats and not saving. Can also be a dict.
+            queue_cap : int
+                Maximum number of batches the batch queue can store. Changing
+                this can effect the speed with which batches move through
+                training.
+            transform_kwargs : Union[Dict, None]
+                Dictionary of kwargs to be passed to `self.transform`. This
+                method performs smoothing / coarsening.
+            max_workers : int
+                Number of workers / threads to use for getting batches to fill
+                queue
+            mode : str
+                Loading mode. Default is 'lazy', which only loads data into
+                memory as batches are queued. 'eager' will load all data into
+                memory right away.
+            feature_sets : Optional[dict]
+                Optional dictionary describing how the full set of features is
+                split between `lr_only_features` and `hr_exo_features`.
+
+                features : list | tuple
+                    List of full set of features to use for sampling. If no
+                    entry is provided then all data_vars from container data
+                    will be used.
+                lr_only_features : list | tuple
+                    List of feature names or patt*erns that should only be
+                    included in the low-res training set and not the high-res
+                    observations. This
+                hr_exo_features : list | tuple
+                    List of feature names or patt*erns that should be included
+                    in the high-resolution observation but not expected to be
+                    output from the generative model. An example is high-res
+                    topography that is to be injected mid-network.
+            kwargs : dict
+                Additional keyword arguments for BatchQueue and / or Samplers.
+                This can vary depending on the type of BatchQueue / Sampler
+                given to the Factory. For example, to build a BatchHandlerDC
+                object (data-centric batch handler) we use a queue and sampler
+                which takes spatial and temporal weight / bin arguments used
+                to determine how to weigh spatiotemporal regions when sampling.
+                Using ConditionalBatchQueue will result in arguments for
+                computing moments from batches and how to pad batch data to
+                enable these calculations.
+            """
             kwargs = {
                 's_enhance': s_enhance,
                 't_enhance': t_enhance,
-                'batch_size': batch_size,
                 **kwargs,
             }
 
             train_samplers, val_samplers = self.init_samplers(
                 train_containers,
                 val_containers,
-                get_class_kwargs(SamplerClass, kwargs),
+                sample_shape=sample_shape,
+                feature_sets=feature_sets,
+                batch_size=batch_size,
+                sampler_kwargs=get_class_kwargs(SamplerClass, kwargs),
             )
 
             stats = StatsCollection(
@@ -118,27 +209,61 @@ def BatchHandlerFactory(
                     samplers=val_samplers,
                     n_batches=n_batches,
                     thread_name='validation',
+                    batch_size=batch_size,
+                    queue_cap=queue_cap,
+                    transform_kwargs=transform_kwargs,
+                    max_workers=max_workers,
+                    mode=mode,
                     **get_class_kwargs(self.VAL_QUEUE, kwargs),
                 )
             super().__init__(
                 samplers=train_samplers,
                 n_batches=n_batches,
+                batch_size=batch_size,
+                queue_cap=queue_cap,
+                transform_kwargs=transform_kwargs,
+                max_workers=max_workers,
+                mode=mode,
                 **get_class_kwargs(MainQueueClass, kwargs),
             )
 
+        _skips = ('samplers', 'data', 'containers', 'thread_name', 'kwargs')
+        __signature__, __init__.__doc__ = get_composite_info(
+            (__init__, *_legos), exclude=_skips
+        )
+        __init__.__signature__ = __signature__
+
         def init_samplers(
-            self, train_containers, val_containers, sampler_kwargs
+            self,
+            train_containers,
+            val_containers,
+            sample_shape,
+            feature_sets,
+            batch_size,
+            sampler_kwargs,
         ):
             """Initialize samplers from given data containers."""
             train_samplers = [
-                self.SAMPLER(data=c.data, **sampler_kwargs)
+                self.SAMPLER(
+                    data=c.data,
+                    sample_shape=sample_shape,
+                    feature_sets=feature_sets,
+                    batch_size=batch_size,
+                    **sampler_kwargs,
+                )
                 for c in train_containers
             ]
             val_samplers = (
                 []
                 if val_containers is None
                 else [
-                    self.SAMPLER(data=c.data, **sampler_kwargs)
+                    self.SAMPLER(
+                        data=c.data,
+                        sample_shape=sample_shape,
+                        feature_sets=feature_sets,
+                        batch_size=batch_size,
+                        **sampler_kwargs,
+                    )
                     for c in val_containers
                 ]
             )

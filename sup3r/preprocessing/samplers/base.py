@@ -10,13 +10,14 @@ from warnings import warn
 import dask.array as da
 import numpy as np
 
-from sup3r.preprocessing.base import Container
+from sup3r.preprocessing.accessor import Sup3rX
+from sup3r.preprocessing.base import Container, Sup3rDataset
 from sup3r.preprocessing.samplers.utilities import (
     uniform_box_sampler,
     uniform_time_sampler,
 )
-from sup3r.preprocessing.utilities import _compute_if_dask, lowered
-from sup3r.typing import T_Array, T_Dataset
+from sup3r.preprocessing.utilities import compute_if_dask, lowered
+from sup3r.typing import T_Array
 
 logger = logging.getLogger(__name__)
 
@@ -26,18 +27,18 @@ class Sampler(Container):
 
     def __init__(
         self,
-        data: T_Dataset,
-        sample_shape: tuple,
+        data: Union[Sup3rX, Sup3rDataset],
+        sample_shape: Optional[tuple] = None,
         batch_size: int = 16,
         feature_sets: Optional[Dict] = None,
     ):
         """
         Parameters
         ----------
-        data : T_Dataset
-            Object with data that will be sampled from. Can be the `.data`
+        data: Union[Sup3rX, Sup3rDataset],
+            Object with data that will be sampled from. Usually the `.data`
             attribute of various :class:`Container` objects.  i.e.
-            :class:`Loader`, :class:`Extracter`, :class:`Deriver`, as long as
+            :class:`Loader`, :class:`Rasterizer`, :class:`Deriver`, as long as
             the spatial dimensions are not flattened.
         sample_shape : tuple
             Size of arrays to sample from the contained data.
@@ -66,11 +67,10 @@ class Sampler(Container):
         """
         super().__init__(data=data)
         feature_sets = feature_sets or {}
-        self.features = feature_sets.get('features', list(self.data.data_vars))
+        self.features = feature_sets.get('features', self.data.features)
         self._lr_only_features = feature_sets.get('lr_only_features', [])
         self._hr_exo_features = feature_sets.get('hr_exo_features', [])
-        self._counter = 0
-        self.sample_shape = sample_shape
+        self.sample_shape = sample_shape or (10, 10, 1)
         self.batch_size = batch_size
         self.lr_features = self.features
         self.preflight()
@@ -175,7 +175,7 @@ class Sampler(Container):
             new_shape[-1],
         ]
         out = samples.reshape(new_shape)
-        return _compute_if_dask(out.transpose((2, 0, 1, 3, 4)))
+        return compute_if_dask(out.transpose((2, 0, 1, 3, 4)))
 
     def _stack_samples(self, samples):
         if isinstance(samples[0], tuple):

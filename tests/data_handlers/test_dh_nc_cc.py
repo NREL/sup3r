@@ -2,6 +2,7 @@
 
 import os
 import tempfile
+from inspect import signature
 
 import numpy as np
 import pytest
@@ -11,6 +12,7 @@ from scipy.spatial import KDTree
 
 from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing import (
+    DataHandler,
     DataHandlerNCforCC,
     DataHandlerNCforCCwithPowerLaw,
     Dimension,
@@ -18,7 +20,38 @@ from sup3r.preprocessing import (
     LoaderNC,
 )
 from sup3r.preprocessing.derivers.methods import UWindPowerLaw, VWindPowerLaw
+from sup3r.preprocessing.utilities import get_composite_signature
 from sup3r.utilities.pytest.helpers import make_fake_dset
+
+
+def test_signature():
+    """Make sure signature of composite data handler is resolved."""
+    arg_names = [
+        'file_paths',
+        'features',
+        'nsrdb_source_fp',
+        'nsrdb_agg',
+        'nsrdb_smoothing',
+        'shape',
+        'target',
+        'time_slice',
+        'time_roll',
+        'max_delta',
+        'threshold',
+        'raster_file',
+        'nan_method_kwargs'
+    ]
+    comp_sig = get_composite_signature(
+        [DataHandlerNCforCC.__init__, DataHandler]
+    )
+    sig = signature(DataHandlerNCforCC)
+    init_sig = signature(DataHandlerNCforCC.__init__)
+    params = [p.name for p in sig.parameters.values()]
+    comp_params = [p.name for p in comp_sig.parameters.values()]
+    init_params = [p.name for p in init_sig.parameters.values()]
+    assert all(p in comp_params for p in arg_names)
+    assert all(p in params for p in arg_names)
+    assert all(p in init_params for p in arg_names)
 
 
 def test_get_just_coords_nc():
@@ -35,11 +68,11 @@ def test_get_just_coords_nc():
     assert np.array_equal(
         handler.lat_lon[-1, 0, :],
         (
-            handler.extracter.data[Dimension.LATITUDE].min(),
-            handler.extracter.data[Dimension.LONGITUDE].min(),
+            handler.rasterizer.data[Dimension.LATITUDE].min(),
+            handler.rasterizer.data[Dimension.LONGITUDE].min(),
         ),
     )
-    assert not handler.data_vars
+    assert not handler.features
     assert handler.grid_shape == shape
     assert np.array_equal(handler.target, target)
 
@@ -76,7 +109,7 @@ def test_reload_cache():
             features=features,
             target=target,
             shape=(20, 20),
-            cache_kwargs=cache_kwargs
+            cache_kwargs=cache_kwargs,
         )
         assert all(f in cached for f in features)
         assert np.array_equal(handler.as_array(), cached.as_array())

@@ -307,7 +307,8 @@ class Sup3rX:
     def normalize(self, means, stds):
         """Normalize dataset using given means and stds. These are provided as
         dictionaries."""
-        for f in self.features:
+        feats = set(self._ds.data_vars).intersection(means).intersection(stds)
+        for f in feats:
             self._ds[f] = (self._ds[f] - means[f]) / stds[f]
 
     def interpolate_na(self, **kwargs):

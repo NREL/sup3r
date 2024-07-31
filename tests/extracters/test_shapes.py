@@ -1,9 +1,9 @@
-"""Ensure correct data shapes for :class:`Extracter` objects."""
+"""Ensure correct data shapes for :class:`Rasterizer` objects."""
 
 import os
 from tempfile import TemporaryDirectory
 
-from sup3r.preprocessing import ExtracterNC
+from sup3r.preprocessing import Rasterizer
 from sup3r.utilities.pytest.helpers import make_fake_nc_file
 
 features = ['windspeed_100m', 'winddirection_100m']
@@ -26,10 +26,10 @@ def test_5d_extract_nc():
         make_fake_nc_file(
             level_file, shape=(10, 10, 20, 3), features=['zg', 'u']
         )
-        extracter = ExtracterNC([wind_file, level_file])
-        assert extracter.shape == (10, 10, 20, 3, 5)
-        assert sorted(extracter.features) == sorted(
+        rasterizer = Rasterizer([wind_file, level_file])
+        assert rasterizer.shape == (10, 10, 20, 3, 5)
+        assert sorted(rasterizer.features) == sorted(
             ['topography', 'u_100m', 'v_100m', 'zg', 'u']
         )
-        assert extracter['u_100m'].shape == (10, 10, 20)
-        assert extracter['U'].shape == (10, 10, 20, 3)
+        assert rasterizer['u_100m'].shape == (10, 10, 20)
+        assert rasterizer['U'].shape == (10, 10, 20, 3)

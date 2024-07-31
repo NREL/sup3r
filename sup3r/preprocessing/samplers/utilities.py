@@ -216,7 +216,7 @@ def nsrdb_sub_daily_sampler(data, shape, time_index=None):
 
     Parameters
     ----------
-    data : T_Dataset
+    data : Union[Sup3rX, Sup3rDataset]
         Dataset object with 'clearsky_ratio' accessible as
         data['clearsky_ratio'] (spatial_1, spatial_2, temporal, features)
     shape : int

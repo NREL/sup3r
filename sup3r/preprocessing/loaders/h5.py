@@ -1,7 +1,7 @@
 """Base loading class for H5 files.
 
 TODO: Explore replacing rex handlers with xarray. xarray should be able to
-load H5 files fine. We would still need get_raster_index method in Extracters
+load H5 files fine. We would still need get_raster_index method in Rasterizers
 though.
 """
 
@@ -25,7 +25,7 @@ class LoaderH5(BaseLoader):
     """Base H5 loader. "Loads" h5 files so that a `.data` attribute
     provides access to the data in the files. This object provides a
     `__getitem__` method that can be used by :class:`Sampler` objects to build
-    batches or by :class:`Extracter` objects to derive / extract specific
+    batches or by :class:`Rasterizer` objects to derive / extract specific
     features / regions / time_periods.
 
     TODO: Maybe we should use h5py instead of rex resource? Only thing we need

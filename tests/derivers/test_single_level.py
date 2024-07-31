@@ -7,11 +7,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from sup3r.preprocessing import (
-    Deriver,
-    ExtracterH5,
-    ExtracterNC,
-)
+from sup3r.preprocessing import Deriver, Rasterizer
 from sup3r.preprocessing.derivers.utilities import (
     transform_rotate_wind,
 )
@@ -38,41 +34,37 @@ def make_5d_nc_file(td, features):
 
 
 @pytest.mark.parametrize(
-    ['input_files', 'DirectExtracter', 'Deriver', 'shape', 'target'],
-    [(None, ExtracterNC, Deriver, nc_shape, nc_target)],
+    ['input_files', 'shape', 'target'], [(None, nc_shape, nc_target)]
 )
-def test_unneeded_uv_transform(
-    input_files, DirectExtracter, Deriver, shape, target
-):
-    """Test that output of deriver is the same as extracter when no derivation
+def test_unneeded_uv_transform(input_files, shape, target):
+    """Test that output of deriver is the same as rasterizer when no derivation
     is needed."""
 
     with TemporaryDirectory() as td:
         if input_files is None:
             input_files = [make_5d_nc_file(td, ['u_100m', 'v_100m'])]
         derive_features = ['U_100m', 'V_100m']
-        extracter = DirectExtracter(input_files[0], target=target, shape=shape)
+        rasterizer = Rasterizer(input_files[0], target=target, shape=shape)
 
     # upper case features warning
     with pytest.warns():
-        deriver = Deriver(extracter.data, features=derive_features)
+        deriver = Deriver(rasterizer.data, features=derive_features)
 
         assert np.array_equal(
-            extracter['U_100m'].data.compute(),
-            deriver['U_100m'].data.compute())
+            rasterizer['U_100m'].data.compute(),
+            deriver['U_100m'].data.compute(),
+        )
         assert np.array_equal(
-            extracter['V_100m'].data.compute(),
-            deriver['V_100m'].data.compute())
+            rasterizer['V_100m'].data.compute(),
+            deriver['V_100m'].data.compute(),
+        )
 
 
 @pytest.mark.parametrize(
-    ['input_files', 'DirectExtracter', 'Deriver', 'shape', 'target'],
-    [
-        (None, ExtracterNC, Deriver, nc_shape, nc_target),
-        (pytest.FPS_WTK, ExtracterH5, Deriver, h5_shape, h5_target),
-    ],
+    ['input_files', 'shape', 'target'],
+    [(None, nc_shape, nc_target), (pytest.FPS_WTK, h5_shape, h5_target)],
 )
-def test_uv_transform(input_files, DirectExtracter, Deriver, shape, target):
+def test_uv_transform(input_files, shape, target):
     """Test that ws/wd -> u/v transform is done correctly"""
 
     with TemporaryDirectory() as td:
@@ -81,7 +73,7 @@ def test_uv_transform(input_files, DirectExtracter, Deriver, shape, target):
                 make_5d_nc_file(td, ['windspeed_100m', 'winddirection_100m'])
             ]
         derive_features = ['U_100m', 'V_100m']
-        extracter = DirectExtracter(
+        rasterizer = Rasterizer(
             input_files[0],
             target=target,
             shape=shape,
@@ -89,32 +81,29 @@ def test_uv_transform(input_files, DirectExtracter, Deriver, shape, target):
 
     # warning about upper case features
     with pytest.warns():
-        deriver = Deriver(extracter.data, features=derive_features)
+        deriver = Deriver(rasterizer.data, features=derive_features)
     u, v = transform_rotate_wind(
-        extracter['windspeed_100m'],
-        extracter['winddirection_100m'],
-        extracter.lat_lon,
+        rasterizer['windspeed_100m'],
+        rasterizer['winddirection_100m'],
+        rasterizer.lat_lon,
     )
     assert np.array_equal(u, deriver['U_100m'])
     assert np.array_equal(v, deriver['V_100m'])
 
 
 @pytest.mark.parametrize(
-    ['input_files', 'DirectExtracter', 'Deriver', 'shape', 'target'],
-    [
-        (pytest.FPS_WTK, ExtracterH5, Deriver, h5_shape, h5_target),
-        (None, ExtracterNC, Deriver, nc_shape, nc_target),
-    ],
+    ['input_files', 'shape', 'target'],
+    [(pytest.FPS_WTK, h5_shape, h5_target), (None, nc_shape, nc_target)],
 )
-def test_hr_coarsening(input_files, DirectExtracter, Deriver, shape, target):
+def test_hr_coarsening(input_files, shape, target):
     """Test spatial coarsening of the high res field"""
 
     features = ['windspeed_100m', 'winddirection_100m']
     with TemporaryDirectory() as td:
         if input_files is None:
             input_files = [make_5d_nc_file(td, features=features)]
-        extracter = DirectExtracter(input_files[0], target=target, shape=shape)
-    deriver = Deriver(extracter.data, features=features, hr_spatial_coarsen=2)
+        rasterizer = Rasterizer(input_files[0], target=target, shape=shape)
+    deriver = Deriver(rasterizer.data, features=features, hr_spatial_coarsen=2)
     assert deriver.data.shape == (
         shape[0] // 2,
         shape[1] // 2,
@@ -122,5 +111,5 @@ def test_hr_coarsening(input_files, DirectExtracter, Deriver, shape, target):
         len(features),
     )
     assert deriver.lat_lon.shape == (shape[0] // 2, shape[1] // 2, 2)
-    assert extracter.lat_lon.shape == (shape[0], shape[1], 2)
+    assert rasterizer.lat_lon.shape == (shape[0], shape[1], 2)
     assert deriver.data.dtype == np.dtype(np.float32)

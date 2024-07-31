@@ -1,8 +1,13 @@
 """Smoke tests for batcher objects. Just make sure things run without errors"""
 
+from inspect import signature
+
 import numpy as np
 import pytest
 
+from sup3r.preprocessing.utilities import (
+    get_composite_signature,
+)
 from sup3r.utilities.pytest.helpers import (
     BatchHandlerTesterDC,
     DummyData,
@@ -11,6 +16,33 @@ from sup3r.utilities.pytest.helpers import (
 FEATURES = ['windspeed', 'winddirection']
 means = dict.fromkeys(FEATURES, 0)
 stds = dict.fromkeys(FEATURES, 1)
+
+
+def test_signature():
+    """Make sure signature of composite batch handler is resolved."""
+
+    arg_names = [
+        'train_containers',
+        'sample_shape',
+        'val_containers',
+        'means',
+        'stds',
+        'feature_sets',
+        'n_batches',
+        't_enhance',
+        'batch_size',
+        'spatial_weights',
+        'temporal_weights'
+    ]
+    comp_sig = get_composite_signature(BatchHandlerTesterDC)
+    sig = signature(BatchHandlerTesterDC)
+    init_sig = signature(BatchHandlerTesterDC.__init__)
+    params = [p.name for p in sig.parameters.values()]
+    comp_params = [p.name for p in comp_sig.parameters.values()]
+    init_params = [p.name for p in init_sig.parameters.values()]
+    assert all(p in comp_params for p in arg_names)
+    assert all(p in params for p in arg_names)
+    assert all(p in init_params for p in arg_names)
 
 
 @pytest.mark.parametrize(

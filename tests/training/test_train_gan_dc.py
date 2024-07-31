@@ -8,7 +8,7 @@ import pytest
 
 from sup3r.models import Sup3rGan, Sup3rGanDC
 from sup3r.preprocessing import (
-    DataHandlerH5,
+    DataHandler,
 )
 from sup3r.utilities.loss_metrics import MmdMseLoss
 from sup3r.utilities.pytest.helpers import BatchHandlerTesterDC
@@ -38,7 +38,7 @@ def test_train_spatial_dc(
         loss='MmdMseLoss',
     )
 
-    handler = DataHandlerH5(
+    handler = DataHandler(
         pytest.FP_WTK,
         FEATURES,
         target=TARGET_COORD,
@@ -111,7 +111,7 @@ def test_train_st_dc(n_space_bins, n_time_bins, n_epoch=2):
         loss='MmdMseLoss',
     )
 
-    handler = DataHandlerH5(
+    handler = DataHandler(
         pytest.FP_WTK,
         FEATURES,
         target=TARGET_COORD,

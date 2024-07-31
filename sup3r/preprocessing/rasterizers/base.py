@@ -10,23 +10,23 @@ import numpy as np
 from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.utilities import (
-    _compute_if_dask,
     _parse_time_slice,
+    compute_if_dask,
 )
 
 logger = logging.getLogger(__name__)
 
 
-class BaseExtracter(Container):
+class BaseRasterizer(Container):
     """Container subclass with additional methods for extracting a
     spatiotemporal extent from contained data.
 
     Note
     ----
-    This `Extracter` base class is for 3D rasterized data. This usually
+    This `Rasterizer` base class is for 3D rasterized data. This usually
     comes from NETCDF files but can also be cached H5 files saved from
     previously rasterized data. For 3D, whether H5 or NETCDF, the full domain
-    will be extracted automatically if no target / shape are provided."""
+    will be rasterized automatically if no target / shape are provided."""
 
     def __init__(
         self,
@@ -79,7 +79,7 @@ class BaseExtracter(Container):
 
     @property
     def time_slice(self):
-        """Return time slice for extracted time period."""
+        """Return time slice for rasterized time period."""
         return self._time_slice
 
     @time_slice.setter
@@ -172,15 +172,15 @@ class BaseExtracter(Container):
         new_lat_slice = slice(lat_start, lat_end)
         new_lon_slice = slice(lon_start, lon_end)
         msg = (
-            f'Computed lat_slice = {_compute_if_dask(lat_slice)} exceeds '
-            f'available region. Using {_compute_if_dask(new_lat_slice)}.'
+            f'Computed lat_slice = {compute_if_dask(lat_slice)} exceeds '
+            f'available region. Using {compute_if_dask(new_lat_slice)}.'
         )
         if lat_slice != new_lat_slice:
             logger.warning(msg)
             warn(msg)
         msg = (
-            f'Computed lon_slice = {_compute_if_dask(lon_slice)} exceeds '
-            f'available region. Using {_compute_if_dask(new_lon_slice)}.'
+            f'Computed lon_slice = {compute_if_dask(lon_slice)} exceeds '
+            f'available region. Using {compute_if_dask(new_lon_slice)}.'
         )
         if lon_slice != new_lon_slice:
             logger.warning(msg)

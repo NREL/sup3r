@@ -277,7 +277,7 @@ xarray = ">=2023.0"
 NREL-sup3r = { path = ".", editable = true }
 NREL-rex = { version = ">=0.2.87" }
 NREL-phygnn = { version = ">=0.0.23" }
-NREL-gaps = { version = ">=0.6.0" }
+NREL-gaps = { version = ">=0.6.12" }
 NREL-farms = { version = ">=1.0.4" }
 
 [tool.pixi.environments]

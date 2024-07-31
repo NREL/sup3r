@@ -24,7 +24,7 @@ class BaseLoader(Container, ABC):
     """Base loader. "Loads" files so that a `.data` attribute provides access
     to the data in the files as a dask array with shape (lats, lons, time,
     features). This object provides a `__getitem__` method that can be used by
-    :class:`Sampler` objects to build batches or by :class:`Extracter` objects
+    :class:`Sampler` objects to build batches or by :class:`Rasterizer` objects
     to derive / extract specific features / regions / time_periods."""
 
     BASE_LOADER: Callable = xr.open_mfdataset
@@ -35,6 +35,7 @@ class BaseLoader(Container, ABC):
         features='all',
         res_kwargs=None,
         chunks='auto',
+        BaseLoader=None
     ):
         """
         Parameters
@@ -50,13 +51,20 @@ class BaseLoader(Container, ABC):
             Dictionary of chunk sizes to use for call to
             `dask.array.from_array()` or xr.Dataset().chunk(). Will be
             converted to a tuple when used in `from_array().`
+        BaseLoader : Callable
+            Optional base loader method update. This is a function which takes
+            `file_paths` and `**kwargs` and returns an initialized base loader
+            with those arguments. The default for h5 is a method which returns
+            MultiFileWindX(file_paths, **kwargs) and for nc the default is
+            xarray.open_mfdataset(file_paths, **kwargs)
         """
         super().__init__()
         self._data = None
         self.res_kwargs = res_kwargs or {}
         self.file_paths = file_paths
         self.chunks = chunks
-        self.res = self.BASE_LOADER(self.file_paths, **self.res_kwargs)
+        BASE_LOADER = BaseLoader or self.BASE_LOADER
+        self.res = BASE_LOADER(self.file_paths, **self.res_kwargs)
         self.data = self.load().astype(np.float32)
         self.data = standardize_names(self.data, FEATURE_NAMES)
         self.data = standardize_values(self.data)

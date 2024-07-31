@@ -38,7 +38,6 @@ class AbstractBatchQueue(Collection, ABC):
         queue_cap: Optional[int] = None,
         transform_kwargs: Optional[dict] = None,
         max_workers: int = 1,
-        default_device: Optional[str] = None,
         thread_name: str = 'training',
         mode: str = 'lazy',
     ):
@@ -64,10 +63,6 @@ class AbstractBatchQueue(Collection, ABC):
         max_workers : int
             Number of workers / threads to use for getting batches to fill
             queue
-        default_device : str
-            Default device to use for batch queue (e.g. /cpu:0, /gpu:0). If
-            None this will use the first GPU if GPUs are available otherwise
-            the CPU.
         thread_name : str
             Name of the queue thread. Default is 'training'. Used to set name
             to 'validation' for :class:`BatchHandler`, which has a training and
@@ -85,7 +80,6 @@ class AbstractBatchQueue(Collection, ABC):
         super().__init__(containers=samplers)
         self._batch_counter = 0
         self._queue_thread = None
-        self._default_device = default_device
         self._training_flag = threading.Event()
         self._thread_name = thread_name
         self.mode = mode
@@ -121,11 +115,7 @@ class AbstractBatchQueue(Collection, ABC):
         )
 
     def preflight(self):
-        """Get data generator and run checks before kicking off the queue."""
-        gpu_list = tf.config.list_physical_devices('GPU')
-        self._default_device = self._default_device or (
-            '/cpu:0' if len(gpu_list) == 0 else '/gpu:0'
-        )
+        """Run checks before kicking off the queue."""
         self.timer(self.check_features, log=True)()
         self.timer(self.check_enhancement_factors, log=True)()
         _ = self.check_shared_attr('sample_shape')
@@ -159,7 +149,7 @@ class AbstractBatchQueue(Collection, ABC):
 
     def check_features(self):
         """Make sure all samplers have the same sets of features."""
-        features = [list(c.data.data_vars) for c in self.containers]
+        features = [list(c.features) for c in self.containers]
         msg = 'Received samplers with different sets of features.'
         assert all(feats == features[0] for feats in features), msg
 

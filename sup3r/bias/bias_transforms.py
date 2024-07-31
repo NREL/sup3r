@@ -5,7 +5,7 @@ currently slow down the forward pass runs when operating on full input data
 volume.
 
 We should write bc factor files in a format compatible with Loaders /
-Extracters so we can use those class methods to match factors with locations
+Rasterizers so we can use those class methods to match factors with locations
 """
 
 import logging
@@ -16,7 +16,7 @@ import pandas as pd
 from rex.utilities.bc_utils import QuantileDeltaMapping
 from scipy.ndimage import gaussian_filter
 
-from sup3r.preprocessing import Extracter
+from sup3r.preprocessing import Rasterizer
 from sup3r.typing import T_Array
 
 logger = logging.getLogger(__name__)
@@ -58,9 +58,9 @@ def _get_factors(target, shape, var_names, bias_fp, threshold=0.1):
     dict :
         A dictionary with the content from `bias_fp` as mapped by `var_names`,
         therefore, the keys here are the same keys in `var_names`.
-        Also includes 'global_attrs' from Extracter.
+        Also includes 'global_attrs' from Rasterizer.
     """
-    res = Extracter(
+    res = Rasterizer(
         file_paths=bias_fp,
         target=np.asarray(target),
         shape=shape,

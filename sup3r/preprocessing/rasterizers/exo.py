@@ -1,6 +1,6 @@
-"""Exo data extracters for topography and sza
+"""Exo data rasterizers for topography and sza
 
-TODO: ExoDataHandler is pretty similar to ExoExtracter. Maybe a mixin or
+TODO: ExoDataHandler is pretty similar to ExoRasterizer. Maybe a mixin or
 subclass refactor here."""
 
 import logging
@@ -18,14 +18,15 @@ from rex.utilities.solar_position import SolarPosition
 from scipy.spatial import KDTree
 
 from sup3r.postprocessing.writers.base import OutputHandler
-from sup3r.preprocessing.base import TypeAgnosticClass
 from sup3r.preprocessing.cachers import Cacher
-from sup3r.preprocessing.loaders import LoaderH5, LoaderNC
+from sup3r.preprocessing.loaders import Loader
 from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.utilities import (
-    _compute_if_dask,
+    compute_if_dask,
     get_class_kwargs,
+    get_composite_signature,
     get_input_handler_class,
+    get_source_type,
     log_args,
 )
 from sup3r.utilities.utilities import generate_random_string, nn_fill_array
@@ -34,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class ExoExtracter(ABC):
+class ExoRasterizer(ABC):
     """Class to extract high-res (4km+) data rasters for new
     spatially-enhanced datasets (e.g. GCM files after spatial enhancement)
     using nearest neighbor mapping and aggregation from NREL datasets
@@ -57,7 +58,7 @@ class ExoExtracter(ABC):
         significantly higher resolution than file_paths. Warnings will be
         raised if the low-resolution pixels in file_paths do not have unique
         nearest pixels from source_file. File format can be .h5 for
-        TopoExtracterH5 or .nc for TopoExtracterNC
+        TopoRasterizerH5 or .nc for TopoRasterizerNC
     s_enhance : int
         Factor by which the Sup3rGan model will enhance the spatial
         dimensions of low resolution data from file_paths input. For
@@ -72,7 +73,7 @@ class ExoExtracter(ABC):
         corresponding to the file_paths temporally enhanced 4x to 15 min
     input_handler_name : str
         data handler class to use for input data. Provide a string name to
-        match a :class:`Extracter`. If None the correct handler will
+        match a :class:`Rasterizer`. If None the correct handler will
         be guessed based on file type and time series properties.
     input_handler_kwargs : dict | None
         Any kwargs for initializing the `input_handler_name` class.
@@ -139,7 +140,7 @@ class ExoExtracter(ABC):
     def source_lat_lon(self):
         """Get the 2D array (n, 2) of lat, lon data from the source_file_h5"""
         if self._source_lat_lon is None:
-            with LoaderH5(self.source_file) as res:
+            with Loader(self.source_file) as res:
                 self._source_lat_lon = res.lat_lon
         return self._source_lat_lon
 
@@ -202,7 +203,7 @@ class ExoExtracter(ABC):
             self.distance_upper_bound = diff
             logger.info(
                 'Set distance upper bound to {:.4f}'.format(
-                    _compute_if_dask(self.distance_upper_bound)
+                    compute_if_dask(self.distance_upper_bound)
                 )
             )
         return self.distance_upper_bound
@@ -226,7 +227,7 @@ class ExoExtracter(ABC):
         return nn
 
     def cache_data(self, data, dset_name, cache_fp):
-        """Save extracted data to cache file."""
+        """Save rasterized data to cache file."""
         tmp_fp = cache_fp + f'.{generate_random_string(10)}.tmp'
         coords = {
             Dimension.LATITUDE: (
@@ -260,7 +261,7 @@ class ExoExtracter(ABC):
         cache_fp = self.get_cache_file(feature=dset_name)
 
         if os.path.exists(cache_fp):
-            data = LoaderNC(cache_fp)[dset_name, ...]
+            data = Loader(cache_fp)[dset_name, ...]
         else:
             data = self.get_data()
 
@@ -280,14 +281,14 @@ class ExoExtracter(ABC):
         (lats, lons, temporal)"""
 
 
-class TopoExtracterH5(ExoExtracter):
-    """TopoExtracter for H5 files"""
+class TopoRasterizerH5(ExoRasterizer):
+    """TopoRasterizer for H5 files"""
 
     @property
     def source_data(self):
         """Get the 1D array of elevation data from the source_file_h5"""
         if self._source_data is None:
-            with LoaderH5(self.source_file) as res:
+            with Loader(self.source_file) as res:
                 self._source_data = (
                     res['topography', ..., None]
                     if 'time' not in res['topography'].dims
@@ -335,8 +336,8 @@ class TopoExtracterH5(ExoExtracter):
         return da.from_array(hr_data[..., None])
 
 
-class TopoExtracterNC(TopoExtracterH5):
-    """TopoExtracter for netCDF files"""
+class TopoRasterizerNC(TopoRasterizerH5):
+    """TopoRasterizer for netCDF files"""
 
     @property
     def source_handler(self):
@@ -347,9 +348,8 @@ class TopoExtracterNC(TopoExtracterH5):
                 'Getting topography for full domain from '
                 f'{self.source_file}'
             )
-            self._source_handler = LoaderNC(
-                self.source_file,
-                features=['topography'],
+            self._source_handler = Loader(
+                self.source_file, features=['topography']
             )
         return self._source_handler
 
@@ -365,8 +365,8 @@ class TopoExtracterNC(TopoExtracterH5):
         return source_lat_lon
 
 
-class SzaExtracter(ExoExtracter):
-    """SzaExtracter for H5 files"""
+class SzaRasterizer(ExoRasterizer):
+    """SzaRasterizer for H5 files"""
 
     @property
     def source_data(self):
@@ -385,16 +385,18 @@ class SzaExtracter(ExoExtracter):
         return hr_data.astype(np.float32)
 
 
-class TopoExtracter(TypeAgnosticClass):
-    """Type agnostic `TopoExtracter` class."""
+class TopoRasterizer:
+    """Type agnostic `TopoRasterizer` class."""
 
     TypeSpecificClasses: ClassVar = {
-        'nc': TopoExtracterNC,
-        'h5': TopoExtracterH5,
+        'nc': TopoRasterizerNC,
+        'h5': TopoRasterizerH5,
     }
 
     def __new__(cls, file_paths, source_file, *args, **kwargs):
         """Override parent class to return type specific class based on
         `source_file`"""
-        SpecificClass = cls.get_specific_class(source_file)
+        SpecificClass = cls.TypeSpecificClasses[get_source_type(source_file)]
         return SpecificClass(file_paths, source_file, *args, **kwargs)
+
+    __signature__ = get_composite_signature(list(TypeSpecificClasses.values()))

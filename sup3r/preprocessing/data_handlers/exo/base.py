@@ -1,5 +1,5 @@
 """Base container classes - object that contains data. All objects that
-interact with data are containers. e.g. loaders, extracters, data handlers,
+interact with data are containers. e.g. loaders, rasterizers, data handlers,
 samplers, batch queues, batch handlers.
 """
 

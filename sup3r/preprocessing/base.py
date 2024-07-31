@@ -1,13 +1,14 @@
-"""Base container classes - object that contains data. All objects that
-interact with data are containers. e.g. loaders, extracters, data handlers,
-samplers, batch queues, batch handlers.
+"""Base classes - fundamental dataset objects and the base :class:`Container`
+object, which just contains dataset objects. All objects that interact with
+data are containers. e.g. loaders, rasterizers, data handlers, samplers, batch
+queues, batch handlers.
 """
 
 import logging
 import pprint
 from abc import ABCMeta
 from collections import namedtuple
-from typing import ClassVar, Dict, Optional, Tuple, Union
+from typing import Optional, Tuple, Union
 from warnings import warn
 
 import numpy as np
@@ -15,28 +16,37 @@ import xarray as xr
 
 import sup3r.preprocessing.accessor  # noqa: F401 # pylint: disable=W0611
 from sup3r.preprocessing.accessor import Sup3rX
-from sup3r.preprocessing.utilities import (
-    _log_args,
-    get_composite_signature,
-    get_source_type,
-)
-from sup3r.typing import T_Dataset
 
 logger = logging.getLogger(__name__)
 
 
 class Sup3rDataset:
-    """Interface for interacting with one or two `xr.Dataset` instances
-    This is either a simple passthrough for a `xr.Dataset` instance or a
+    """Interface for interacting with one or two ``xr.Dataset`` instances
+    This is either a simple passthrough for a ``xr.Dataset`` instance or a
     wrapper around two of them so they work well with Dual objects like
-    DualSampler, DualExtracter, DualBatchHandler, etc...)
+    DualSampler, DualRasterizer, DualBatchHandler, etc...)
+
+    Examples
+    --------
+    >>> hr = xr.Dataset(...)
+    >>> lr = xr.Dataset(...)
+    >>> ds = Sup3rDataset(low_res=lr, high_res=hr)
+    >>> # access high_res or low_res:
+    >>> ds.high_res; ds.low_res
+
+    >>> daily = xr.Dataset(...)
+    >>> hourly = xr.Dataset(...)
+    >>> ds = Sup3rDataset(daily=daily, hourly=hourly)
+    >>> # access hourly or daily:
+    >>> ds.hourly; ds.daily
 
     Note
     ----
-    (1) This may seem similar to :class:`Collection`, which also can
-    contain multiple data members, but members of :class:`Collection` objects
-    are completely independent while here there are at most two members which
-    are related as low / high res versions of the same underlying data.
+    (1) This may seem similar to :class:`~sup3r.preprocessing.Collection`,
+    which also can contain multiple data members, but members of
+    :class:`~sup3r.preprocessing.Collection` objects are completely independent
+    while here there are at most two members which are related as low / high
+    res versions of the same underlying data.
 
     (2) Here we make an important choice to use high_res members to compute
     means / stds. It would be reasonable to instead use the average of high_res
@@ -49,11 +59,56 @@ class Sup3rDataset:
 
     def __init__(
         self,
-        data: Optional[Union[tuple, T_Dataset]] = None,
+        data: Optional[
+            Union[Tuple[xr.Dataset, ...], Tuple[Sup3rX, ...]]
+        ] = None,
         **dsets: Union[xr.Dataset, Sup3rX],
     ):
+        """
+        Parameters
+        ----------
+        data : Tuple[xr.Dataset | Sup3rX | Sup3rDataset]
+            ``Sup3rDataset`` will accomodate various types of data inputs,
+            which will ultimately be wrapped as a namedtuple of
+            :class:`~sup3r.preprocessing.Sup3rX` objects, stored in the
+            self._ds attribute. The preferred way to pass data here is through
+            dsets, as a dictionary with names. If data is given as a tuple of
+            :class:`~sup3r.preprocessing.Sup3rX` objects then great, no prep
+            needed. If given as a tuple of ``xr.Dataset`` objects then each
+            will be cast to ``Sup3rX`` objects. If given as tuple of
+            Sup3rDataset objects then we make sure they contain only a single
+            data member and use those to initialize a new ``Sup3rDataset``.
+
+            If the tuple here is a singleton the namedtuple will use the name
+            "high_res" for the single dataset. If the tuple is a doublet then
+            the first tuple member will be called "low_res" and the second
+            will be called "high_res".
+
+        dsets : dict[str, Union[xr.Dataset, Sup3rX]]
+            The preferred way to initialize a Sup3rDataset object, as a
+            dictionary with keys used to name a namedtuple of Sup3rX objects.
+            If dsets contains xr.Dataset objects these will be cast to Sup3rX
+            objects first.
+
+        """
         if data is not None:
             data = data if isinstance(data, tuple) else (data,)
+            if all(isinstance(d, type(self)) for d in data):
+                msg = (
+                    'Sup3rDataset received a tuple of Sup3rDataset objects'
+                    ', each with two data members. If you insist on '
+                    'initializing a Sup3rDataset with a tuple of the same, '
+                    'then they have to be singletons.'
+                )
+                assert all(len(d) == 1 for d in data), msg
+                msg = (
+                    'Sup3rDataset received a tuple of Sup3rDataset '
+                    'objects. You got away with it this time because they '
+                    'each contain a single data member, but be careful'
+                )
+                logger.warning(msg)
+                warn(msg)
+
             if len(data) == 1:
                 msg = (
                     f'{self.__class__.__name__} received a single data member '
@@ -177,8 +232,8 @@ class Sup3rDataset:
     def __getitem__(self, keys):
         """If keys is an int this is interpreted as a request for that member
         of self._ds. If self._ds consists of two members we call
-        :meth:`get_dual_item`. Otherwise we get the item from the single member
-        of self._ds."""
+        :py:meth:`~sup3r.preprocesing.Sup3rDataset.get_dual_item`. Otherwise we
+        get the item from the single member of self._ds."""
         if isinstance(keys, int):
             return self._ds[keys]
         if len(self._ds) == 1:
@@ -190,26 +245,6 @@ class Sup3rDataset:
         """We use the shape of the largest data member. These are assumed to be
         ordered as (low-res, high-res) if there are two members."""
         return self._ds[-1].shape
-
-    @property
-    def data_vars(self):
-        """The data_vars are determined by the set of data_vars from all data
-        members.
-
-        Note
-        ----
-        We use features to refer to our own selections and data_vars to refer
-        to variables contained in datasets independent of our use of them. e.g.
-        a dset might contain ['u', 'v', 'potential_temp'] = data_vars, while
-        the features we use might just be ['u','v']
-        """
-        data_vars = list(self._ds[0].data_vars)
-        _ = [
-            data_vars.append(f)
-            for f in list(self._ds[-1].data_vars)
-            if f not in data_vars
-        ]
-        return data_vars
 
     @property
     def features(self):
@@ -270,23 +305,24 @@ class Sup3rDataset:
 
 class Container:
     """Basic fundamental object used to build preprocessing objects. Contains
-    a xr.Dataset or wrapped tuple of xr.Dataset objects (:class:`Sup3rDataset`)
+    an xarray-like Dataset (:class:`~sup3r.preprocessing.Sup3rX`) or wrapped
+    tuple of `Sup3rX` objects (:class:`.Sup3rDataset`).
     """
 
-    __slots__ = [
-        '_data',
-    ]
+    __slots__ = ['_data']
 
     def __init__(
         self,
-        data: Optional[Union[Tuple[T_Dataset, ...], T_Dataset]] = None,
+        data: Union[Sup3rX, Sup3rDataset] = None,
     ):
         """
         Parameters
         ----------
-        data : T_Dataset
-            Either a single xr.Dataset or a tuple of datasets. Tuple used for
-            dual / paired containers like :class:`DualSamplers`.
+        data : Union[Sup3rX, Sup3rDataset]
+            Can be an `xr.Dataset`, a :class:`~sup3r.preprocessing.Sup3rX`
+            object, a :class:`.Sup3rDataset` object, or a tuple of such
+            objects. A tuple can be used for dual / paired containers like
+            :class:`~sup3r.preprocessing.DualSampler`.
         """
         self.data = data
 
@@ -319,11 +355,14 @@ class Container:
             else data
         )
 
+    '''
     def __new__(cls, *args, **kwargs):
         """Include arg logging in construction."""
         instance = super().__new__(cls)
         _log_args(cls, cls.__init__, *args, **kwargs)
+        instance.__signature__ = signature(cls.__init__)
         return instance
+    '''
 
     def post_init_log(self, args_dict=None):
         """Log additional arguments after initialization."""
@@ -366,14 +405,6 @@ class FactoryMeta(ABCMeta, type):
     def __new__(mcs, name, bases, namespace, **kwargs):  # noqa: N804
         """Define __name__ and __signature__"""
         name = namespace.get('__name__', name)
-        type_spec_classes = namespace.get('TypeSpecificClasses', {})
-        _legos = namespace.get('_legos', ())
-        _legos += tuple(type_spec_classes.values())
-        namespace['_legos'] = _legos
-        sig = namespace.get('__signature__', None)
-        namespace['__signature__'] = (
-            sig if sig is not None else get_composite_signature(_legos)
-        )
         return super().__new__(mcs, name, bases, namespace, **kwargs)
 
     def __subclasscheck__(cls, subclass):
@@ -386,29 +417,3 @@ class FactoryMeta(ABCMeta, type):
 
     def __repr__(cls):
         return f"<class '{cls.__module__}.{cls.__name__}'>"
-
-
-class TypeAgnosticClass(metaclass=FactoryMeta):
-    """Factory pattern for returning type specific classes based on input file
-    type."""
-
-    TypeSpecificClasses: ClassVar[Dict] = {}
-
-    def __new__(cls, file_paths, *args, **kwargs):
-        """Return a new object based on input file type."""
-        SpecificClass = cls.get_specific_class(file_paths)
-        return SpecificClass(file_paths, *args, **kwargs)
-
-    @classmethod
-    def get_specific_class(cls, file_arg):
-        """Get type specific class based on file type of `file_arg`."""
-        source_type = get_source_type(file_arg)
-        SpecificClass = cls.TypeSpecificClasses.get(source_type, None)
-        if SpecificClass is None:
-            msg = (
-                f'Can only handle H5 or NETCDF files. Received '
-                f'"{source_type}" for files: {file_arg}'
-            )
-            logger.error(msg)
-            raise ValueError(msg)
-        return SpecificClass

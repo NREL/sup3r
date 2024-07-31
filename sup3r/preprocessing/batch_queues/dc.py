@@ -15,12 +15,30 @@ class BatchQueueDC(SingleBatchQueue):
     can be derived from validation training losses and updated during training
     or set a priori to construct a validation queue"""
 
-    def __init__(self, *args, n_space_bins=1, n_time_bins=1, **kwargs):
+    def __init__(self, samplers, n_space_bins=1, n_time_bins=1, **kwargs):
+        """
+        Parameters
+        ----------
+        samplers : List[Sampler]
+            List of Sampler instances
+        n_space_bins : int
+            Number of spatial bins to use for weighted sampling. e.g. if this
+            is 4 the spatial domain will be divided into 4 equal regions and
+            losses will be calculated across these regions during traning in
+            order to adaptively sample from lower performing regions.
+        n_time_bins : int
+            Number of time bins to use for weighted sampling. e.g. if this
+            is 4 the temporal domain will be divided into 4 equal periods and
+            losses will be calculated across these periods during traning in
+            order to adaptively sample from lower performing time periods.
+        **kwargs : dict
+            Keyword arguments for parent class.
+        """
         self.n_space_bins = n_space_bins
         self.n_time_bins = n_time_bins
         self._spatial_weights = np.ones(n_space_bins) / n_space_bins
         self._temporal_weights = np.ones(n_time_bins) / n_time_bins
-        super().__init__(*args, **kwargs)
+        super().__init__(samplers, **kwargs)
 
     def _build_batch(self):
         """Update weights and get batch of samples from sampled container."""

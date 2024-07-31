@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 import psutil
 import xarray as xr
+from gaps.cli.documentation import CommandDocumentation
 
 import sup3r.preprocessing
 
@@ -39,8 +40,10 @@ def get_date_range_kwargs(time_index):
 
 def _mem_check():
     mem = psutil.virtual_memory()
-    return (f'Memory usage is {mem.used / 1e9:.3f} GB out of '
-            f'{mem.total / 1e9:.3f} GB')
+    return (
+        f'Memory usage is {mem.used / 1e9:.3f} GB out of '
+        f'{mem.total / 1e9:.3f} GB'
+    )
 
 
 def _compute_chunks_if_dask(arr):
@@ -51,16 +54,19 @@ def _compute_chunks_if_dask(arr):
     )
 
 
-def _numpy_if_tensor(arr):
+def numpy_if_tensor(arr):
+    """Cast array to numpy array if it is a tensor."""
     return arr.numpy() if hasattr(arr, 'numpy') else arr
 
 
-def _compute_if_dask(arr):
+def compute_if_dask(arr):
+    """Apply compute method to input if it consists of a dask array or slice
+    with dask elements."""
     if isinstance(arr, slice):
         return slice(
-            _compute_if_dask(arr.start),
-            _compute_if_dask(arr.stop),
-            _compute_if_dask(arr.step),
+            compute_if_dask(arr.start),
+            compute_if_dask(arr.stop),
+            compute_if_dask(arr.step),
         )
     return arr.compute() if hasattr(arr, 'compute') else arr
 
@@ -72,11 +78,13 @@ def _rechunk_if_dask(arr, chunks='auto'):
 
 
 def _parse_time_slice(value):
+    """Parses a value and returns a slice. Input can be a list, tuple, None, or
+    a slice."""
     return (
         value
         if isinstance(value, slice)
         else slice(*value)
-        if isinstance(value, list)
+        if isinstance(value, (tuple, list))
         else slice(None)
     )
 
@@ -105,7 +113,10 @@ def expand_paths(fps):
 
     out = []
     for f in fps:
-        out.extend(glob(f))
+        files = glob(f)
+        assert any(files), f'Unable to resolve file path: {f}'
+        out.extend(files)
+
     return sorted(set(out))
 
 
@@ -137,28 +148,34 @@ def get_source_type(file_paths):
 
     if source_type in ('.h5', '.hdf'):
         return 'h5'
-    return 'nc'
+    if source_type in ('.nc',):
+        return 'nc'
+    msg = (
+        f'Can only handle HDF or NETCDF files. Received "{source_type}" for '
+        f'files: {file_paths}'
+    )
+    logger.error(msg)
+    raise ValueError(msg)
 
 
 def get_input_handler_class(input_handler_name: Optional[str] = None):
-    """Get the :class:`DataHandler` or :class:`Extracter` object.
+    """Get the :class:`DataHandler` or :class:`Rasterizer` object.
 
     Parameters
     ----------
     input_handler_name : str
         Class to use for input data. Provide a string name to match a class in
-        `sup3r.preprocessing`. If None this will return :class:`Extracter`,
-        which uses `ExtracterNC` or `ExtracterH5` depending on file type.  This
-        is a simple handler object which does not derive new features from raw
-        data.
+        `sup3r.preprocessing`. If None this will return :class:`Rasterizer`,
+        which uses `LoaderNC` or `LoaderH5` depending on file type. This is a
+        simple handler object which does not derive new features from raw data.
 
     Returns
     -------
-    HandlerClass : ExtracterH5 | ExtracterNC | DataHandlerH5 | DataHandlerNC
-        DataHandler or Extracter class from sup3r.preprocessing.
+    HandlerClass : Rasterizer | DataHandler
+        DataHandler or Rasterizer class from sup3r.preprocessing.
     """
     if input_handler_name is None:
-        input_handler_name = 'Extracter'
+        input_handler_name = 'Rasterizer'
 
         logger.info(
             '"input_handler_name" arg was not provided. Using '
@@ -183,43 +200,60 @@ def get_input_handler_class(input_handler_name: Optional[str] = None):
     return HandlerClass
 
 
-def get_class_params(Class):
-    """Get list of `Parameter` instances for a given class."""
-    params = (
-        list(Class.__signature__.parameters.values())
-        if hasattr(Class, '__signature__')
-        else list(signature(Class.__init__).parameters.values())
-    )
-    params = [p for p in params if p.name not in ('args', 'kwargs')]
-    if Class.__bases__ == (object,):
-        return params
-    bases = Class.__bases__ + getattr(Class, '_legos', ())
-    bases = list(bases) if isinstance(bases, tuple) else [bases]
-    return _extend_params(bases, params)
-
-
-def _extend_params(Classes, params):
-    for kls in Classes:
-        new_params = get_class_params(kls)
+def _combine_sigs(sigs):
+    """Combine parameter sets for given objects."""
+    params = []
+    for sig in sigs:
+        new_params = list(sig.parameters.values())
         param_names = [p.name for p in params]
         new_params = [
             p
             for p in new_params
-            if p.name not in param_names and p.name not in ('args', 'kwargs')
+            if p.name not in (*param_names, 'args', 'kwargs')
         ]
         params.extend(new_params)
     return params
 
 
-def get_composite_signature(Classes, exclude=None):
+def get_obj_params(obj):
+    """Get available signature parameters for obj and obj bases"""
+    objs = (obj, *getattr(obj, '_legos', ()))
+    return CommandDocumentation(*objs).param_docs
+
+
+def get_class_kwargs(obj, kwargs):
+    """Get kwargs which match obj signature."""
+    params = get_obj_params(obj)
+    param_names = [p.name for p in params]
+    return {k: v for k, v in kwargs.items() if k in param_names}
+
+
+def get_composite_signature(objs, exclude=None):
     """Get signature of an object built from the given list of classes, with
+    option to exclude some parameters"""
+    objs = objs if isinstance(objs, (tuple, list)) else [objs]
+    sigs = CommandDocumentation(*objs, skip_params=exclude).signatures
+    return combine_sigs(sigs, exclude=exclude)
+
+
+def get_composite_doc(objs, exclude=None):
+    """Get doc for an object built from the given list of classes, with
+    option to exclude some parameters"""
+    objs = objs if isinstance(objs, (tuple, list)) else [objs]
+    return CommandDocumentation(*objs, skip_params=exclude).parameter_help
+
+
+def get_composite_info(objs, exclude=None):
+    """Get composite signature and doc string for given set of objects."""
+    objs = objs if isinstance(objs, (tuple, list)) else [objs]
+    docs = CommandDocumentation(*objs, skip_params=exclude)
+    return combine_sigs(docs.signatures, exclude=exclude), docs.parameter_help
+
+
+def combine_sigs(sigs, exclude=None):
+    """Get signature of an object built from the given list of signatures, with
     option to exclude some parameters."""
-    params = []
-    for kls in Classes:
-        new_params = get_class_params(kls)
-        param_names = [p.name for p in params]
-        new_params = [p for p in new_params if p.name not in param_names]
-        params.extend(new_params)
+    params = _combine_sigs(sigs)
     filtered = (
         params
         if exclude is None
@@ -235,12 +269,6 @@ def get_composite_signature(Classes, exclude=None):
         for p in filtered
     ]
     return Signature(parameters=filtered)
-
-
-def get_class_kwargs(Class, kwargs):
-    """Get kwargs which match Class signature."""
-    param_names = [p.name for p in get_class_params(Class)]
-    return {k: v for k, v in kwargs.items() if k in param_names}
 
 
 def _get_args_dict(thing, func, *args, **kwargs):
@@ -287,7 +315,8 @@ def log_args(func):
     def wrapper(self, *args, **kwargs):
         _log_args(self, func, *args, **kwargs)
         return func(self, *args, **kwargs)
-
+    wrapper.__signature__ = signature(func)
+    wrapper.__doc__ = func.__doc__
     return wrapper
 
 

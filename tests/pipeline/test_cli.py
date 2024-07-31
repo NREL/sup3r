@@ -20,7 +20,7 @@ from sup3r.models.base import Sup3rGan
 from sup3r.pipeline.forward_pass_cli import from_config as fwp_main
 from sup3r.pipeline.pipeline_cli import from_config as pipe_main
 from sup3r.postprocessing.data_collect_cli import from_config as dc_main
-from sup3r.preprocessing import DataHandlerNC
+from sup3r.preprocessing import DataHandler
 from sup3r.solar.solar_cli import from_config as solar_main
 from sup3r.utilities.pytest.helpers import (
     make_fake_cs_ratio_files,
@@ -222,7 +222,7 @@ def test_fwd_pass_with_bc_cli(runner, input_files):
             'cache_kwargs': {'cache_pattern': cache_pattern},
         }
 
-        lat_lon = DataHandlerNC(
+        lat_lon = DataHandler(
             file_paths=input_files, features=[], **input_handler_kwargs
         ).lat_lon
 
@@ -262,7 +262,7 @@ def test_fwd_pass_with_bc_cli(runner, input_files):
             'out_pattern': out_files,
             'log_pattern': log_pattern,
             'fwp_chunk_shape': fwp_chunk_shape,
-            'input_handler_name': 'DataHandlerNC',
+            'input_handler_name': 'DataHandler',
             'input_handler_kwargs': input_handler_kwargs.copy(),
             'spatial_pad': 1,
             'temporal_pad': 1,
@@ -324,7 +324,7 @@ def test_fwd_pass_cli(runner, input_files):
             'out_pattern': out_files,
             'log_pattern': log_pattern,
             'input_handler_kwargs': input_handler_kwargs,
-            'input_handler_name': 'DataHandlerNC',
+            'input_handler_name': 'DataHandler',
             'fwp_chunk_shape': fwp_chunk_shape,
             'pass_workers': 1,
             'spatial_pad': 1,
@@ -501,7 +501,7 @@ def test_cli_bias_calc(runner, bias_calc_class):
 
         assert os.path.exists(fp_out)
 
-        handler = DataHandlerNC(
+        handler = DataHandler(
             pytest.FP_RSDS, features=['rsds'], target=TARGET, shape=SHAPE
         )
         og_data = handler['rsds', ...].copy()

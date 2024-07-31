@@ -6,13 +6,7 @@ import tempfile
 import numpy as np
 import pytest
 
-from sup3r.preprocessing import (
-    Cacher,
-    DataHandlerH5,
-    DataHandlerNC,
-    LoaderH5,
-    LoaderNC,
-)
+from sup3r.preprocessing import Cacher, DataHandler
 
 target = (39.01, -105.15)
 shape = (20, 20)
@@ -20,20 +14,10 @@ features = ['windspeed_100m', 'winddirection_100m']
 
 
 @pytest.mark.parametrize(
-    [
-        'input_files',
-        'Loader',
-        'Deriver',
-        'derive_features',
-        'ext',
-        'shape',
-        'target',
-    ],
+    ['input_files', 'derive_features', 'ext', 'shape', 'target'],
     [
         (
             pytest.FP_WTK,
-            LoaderH5,
-            DataHandlerH5,
             ['u_100m', 'v_100m'],
             'h5',
             (20, 20),
@@ -41,8 +25,6 @@ features = ['windspeed_100m', 'winddirection_100m']
         ),
         (
             pytest.FP_ERA,
-            LoaderNC,
-            DataHandlerNC,
             ['windspeed_100m', 'winddirection_100m'],
             'nc',
             (10, 10),
@@ -51,19 +33,13 @@ features = ['windspeed_100m', 'winddirection_100m']
     ],
 )
 def test_derived_data_caching(
-    input_files,
-    Loader,
-    Deriver,
-    derive_features,
-    ext,
-    shape,
-    target,
+    input_files, derive_features, ext, shape, target
 ):
     """Test feature derivation followed by caching/loading"""
 
     with tempfile.TemporaryDirectory() as td:
         cache_pattern = os.path.join(td, 'cached_{feature}.' + ext)
-        deriver = Deriver(
+        deriver = DataHandler(
             file_paths=input_files,
             features=derive_features,
             shape=shape,
@@ -81,25 +57,17 @@ def test_derived_data_caching(
         )
         assert deriver.data.dtype == np.dtype(np.float32)
 
-        loader = Loader(cacher.out_files, features=derive_features)
+        loader = DataHandler(cacher.out_files, features=derive_features)
         assert np.array_equal(
             loader.as_array().compute(), deriver.as_array().compute()
         )
 
 
 @pytest.mark.parametrize(
-    [
-        'input_files',
-        'Deriver',
-        'derive_features',
-        'ext',
-        'shape',
-        'target',
-    ],
+    ['input_files', 'derive_features', 'ext', 'shape', 'target'],
     [
         (
             pytest.FP_WTK,
-            DataHandlerH5,
             ['u_100m', 'v_100m'],
             'h5',
             (20, 20),
@@ -107,7 +75,6 @@ def test_derived_data_caching(
         ),
         (
             pytest.FP_ERA,
-            DataHandlerNC,
             ['windspeed_100m', 'winddirection_100m'],
             'nc',
             (10, 10),
@@ -116,18 +83,13 @@ def test_derived_data_caching(
     ],
 )
 def test_caching_with_dh_loading(
-    input_files,
-    Deriver,
-    derive_features,
-    ext,
-    shape,
-    target,
+    input_files, derive_features, ext, shape, target
 ):
     """Test feature derivation followed by caching/loading"""
 
     with tempfile.TemporaryDirectory() as td:
         cache_pattern = os.path.join(td, 'cached_{feature}.' + ext)
-        deriver = Deriver(
+        deriver = DataHandler(
             file_paths=input_files,
             features=derive_features,
             shape=shape,
@@ -145,7 +107,7 @@ def test_caching_with_dh_loading(
         )
         assert deriver.data.dtype == np.dtype(np.float32)
 
-        loader = Deriver(cacher.out_files, features=derive_features)
+        loader = DataHandler(cacher.out_files, features=derive_features)
         assert np.array_equal(
             loader.as_array().compute(), deriver.as_array().compute()
         )

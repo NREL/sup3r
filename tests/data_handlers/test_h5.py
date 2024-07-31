@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from sup3r import TEST_DATA_DIR
-from sup3r.preprocessing import BatchHandler, DataHandlerH5, Sampler
+from sup3r.preprocessing import BatchHandler, DataHandler, Sampler
 
 sample_shape = (10, 10, 12)
 t_enhance = 2
@@ -26,10 +26,10 @@ def test_solar_spatial_h5(nan_method_kwargs):
     input_file_s = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')
     features_s = ['clearsky_ratio']
     target_s = (39.01, -105.13)
-    dh_nan = DataHandlerH5(
+    dh_nan = DataHandler(
         input_file_s, features=features_s, target=target_s, shape=(20, 20)
     )
-    dh = DataHandlerH5(
+    dh = DataHandler(
         input_file_s,
         features=features_s,
         target=target_s,

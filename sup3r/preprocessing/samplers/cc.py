@@ -31,7 +31,7 @@ class DualSamplerCC(DualSampler):
     def __init__(
         self,
         data: Sup3rDataset,
-        sample_shape,
+        sample_shape: Optional[tuple] = None,
         batch_size: int = 16,
         s_enhance: int = 1,
         t_enhance: int = 24,
@@ -40,7 +40,7 @@ class DualSamplerCC(DualSampler):
         """
         See Also
         --------
-        :class:`DualSampler` for argument descriptions.
+        :class:`~sup3r.preprocessing.DualSampler`
         """
         msg = (
             f'{self.__class__.__name__} requires a Sup3rDataset object '
@@ -118,19 +118,18 @@ class DualSamplerCC(DualSampler):
         *Needs review from @grantbuster
         """
         if self.t_enhance not in (24, 1):
-            high_res = self.get_middle(high_res, self.hr_sample_shape)
+            high_res = self.get_middle_days(high_res, self.hr_sample_shape)
             high_res = nsrdb_reduce_daily_data(
                 high_res, self.hr_sample_shape[-1], csr_ind=csr_ind
             )
         return high_res
 
     @staticmethod
-    def get_middle(high_res, sample_shape):
+    def get_middle_days(high_res, sample_shape):
         """Get middle chunk of high_res data that will then be reduced to day
         time steps. This has n_time_steps = 24 if sample_shape[-1] <= 24
         otherwise n_time_steps = sample_shape[-1]."""
-        n_days = int(high_res.shape[3] / 24)
-        if n_days > 1:
+        if int(high_res.shape[3] / 24) > 1:
             mid = int(np.ceil(high_res.shape[3] / 2))
             start = mid - np.max((sample_shape[-1] // 2, 12))
             t_slice = slice(start, start + np.max((sample_shape[-1], 24)))

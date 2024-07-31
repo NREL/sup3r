@@ -108,7 +108,7 @@ class ForwardPassStrategy:
         and not saved.
     input_handler_name : str | None
         Class to use for input data. Provide a string name to match an
-        extracter or handler class in `sup3r.preprocessing`
+        rasterizer or handler class in `sup3r.preprocessing`
     input_handler_kwargs : dict | None
         Any kwargs for initializing the `input_handler_name` class.
     exo_handler_kwargs : dict | None

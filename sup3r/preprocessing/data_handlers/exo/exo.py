@@ -12,8 +12,8 @@ from typing import ClassVar, List, Optional, Union
 
 import numpy as np
 
-from sup3r.preprocessing.extracters import SzaExtracter, TopoExtracter
-from sup3r.preprocessing.utilities import get_class_params, log_args
+from sup3r.preprocessing.rasterizers import SzaRasterizer, TopoRasterizer
+from sup3r.preprocessing.utilities import get_obj_params, log_args
 
 from .base import SingleExoDataStep
 
@@ -45,7 +45,7 @@ class ExoDataHandler:
         List of models used with the given steps list. This list of models is
         used to determine the input and output resolution and enhancement
         factors for each model step which is then used to determine the target
-        shape for extracted exo data. If enhancement factors are provided in
+        shape for rasterized exo data. If enhancement factors are provided in
         the steps list the model list is not needed.
     steps : list
         List of dictionaries containing info on which models to use for a
@@ -65,7 +65,7 @@ class ExoDataHandler:
         do not have unique nearest pixels from this exo source data.
     input_handler_name : str
         data handler class used by the exo handler. Provide a string name to
-        match a :class:`Extracter`. If None the correct handler will
+        match a :class:`Rasterizer`. If None the correct handler will
         be guessed based on file type and time series properties. This is
         passed directly to the exo handler, along with input_handler_kwargs
     input_handler_kwargs : dict | None
@@ -77,8 +77,8 @@ class ExoDataHandler:
     """
 
     AVAILABLE_HANDLERS: ClassVar = {
-        'topography': TopoExtracter,
-        'sza': SzaExtracter,
+        'topography': TopoRasterizer,
+        'sza': SzaRasterizer,
     }
 
     file_paths: Union[str, list, pathlib.Path]
@@ -93,7 +93,7 @@ class ExoDataHandler:
     @log_args
     def __post_init__(self):
         """Initialize `self.data`, perform checks on enhancement factors, and
-        update `self.data` for each model step with extracted exo data for the
+        update `self.data` for each model step with rasterized exo data for the
         corresponding enhancement factors."""
         self.data = {self.feature: {'steps': []}}
         en_check = all('s_enhance' in v for v in self.steps)
@@ -113,7 +113,7 @@ class ExoDataHandler:
         assert not any(s is None for s in self.s_enhancements), msg
         assert not any(t is None for t in self.t_enhancements), msg
 
-        msg = ('No extracter available for the requested feature: '
+        msg = ('No rasterizer available for the requested feature: '
                f'{self.feature}')
         assert self.feature.lower() in self.AVAILABLE_HANDLERS, msg
         self.get_all_step_data()
@@ -240,7 +240,7 @@ class ExoDataHandler:
         ExoHandler = self.AVAILABLE_HANDLERS[feature.lower()]
         kwargs = {'s_enhance': s_enhance, 't_enhance': t_enhance}
 
-        params = get_class_params(ExoHandler)
+        params = get_obj_params(ExoHandler)
         kwargs.update(
             {
                 k.name: getattr(self, k.name)

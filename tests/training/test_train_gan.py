@@ -10,7 +10,7 @@ import tensorflow as tf
 from tensorflow.python.framework.errors_impl import InvalidArgumentError
 
 from sup3r.models import Sup3rGan
-from sup3r.preprocessing import BatchHandler, DataHandlerH5
+from sup3r.preprocessing import BatchHandler, DataHandler
 
 TARGET_COORD = (39.01, -105.15)
 FEATURES = ['u_100m', 'v_100m']
@@ -25,12 +25,12 @@ def _get_handlers():
         'target': TARGET_COORD,
         'shape': (20, 20),
     }
-    train_handler = DataHandlerH5(
+    train_handler = DataHandler(
         **kwargs,
         time_slice=slice(1000, None, 1),
     )
 
-    val_handler = DataHandlerH5(
+    val_handler = DataHandler(
         **kwargs,
         time_slice=slice(None, 1000, 1),
     )

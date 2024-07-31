@@ -1,4 +1,4 @@
-"""Test correct functioning of exogenous data specific extracters"""
+"""Test correct functioning of exogenous data specific rasterizers"""
 
 import os
 import tempfile
@@ -15,9 +15,9 @@ from sup3r.preprocessing import (
     Dimension,
     ExoData,
     ExoDataHandler,
-    TopoExtracter,
-    TopoExtracterH5,
-    TopoExtracterNC,
+    TopoRasterizer,
+    TopoRasterizerH5,
+    TopoRasterizerNC,
 )
 from sup3r.utilities.utilities import RANDOM_GENERATOR
 
@@ -55,7 +55,7 @@ def test_exo_cache(feature):
             source_file=fp_topo,
             steps=steps,
             input_handler_kwargs={'target': TARGET, 'shape': SHAPE},
-            input_handler_name='ExtracterNC',
+            input_handler_name='RasterizerNC',
             cache_dir=os.path.join(td, 'exo_cache'),
         )
         for i, arr in enumerate(base.data[feature]['steps']):
@@ -71,7 +71,7 @@ def test_exo_cache(feature):
             source_file=pytest.FP_WTK,
             steps=steps,
             input_handler_kwargs={'target': TARGET, 'shape': SHAPE},
-            input_handler_name='ExtracterNC',
+            input_handler_name='RasterizerNC',
             cache_dir=os.path.join(td, 'exo_cache'),
         )
         assert len(os.listdir(f'{td}/exo_cache')) == 2
@@ -155,9 +155,9 @@ def test_topo_extraction_h5(s_enhance, plot=False):
             'cache_dir': f'{td}/exo_cache/',
         }
 
-        te = TopoExtracterH5(**kwargs)
+        te = TopoRasterizerH5(**kwargs)
 
-        te_gen = TopoExtracter(
+        te_gen = TopoRasterizer(
             **{k: v for k, v in kwargs.items() if k != 'cache_dir'}
         )
 
@@ -215,7 +215,7 @@ def test_bad_s_enhance(s_enhance=10):
         fp_exo_topo = make_topo_file(pytest.FP_WTK, td)
 
         with pytest.warns(UserWarning) as warnings:
-            te = TopoExtracterH5(
+            te = TopoRasterizerH5(
                 pytest.FP_WTK,
                 fp_exo_topo,
                 s_enhance=s_enhance,
@@ -240,10 +240,10 @@ def test_topo_extraction_nc():
     elevation data to a reference WRF file (also the same file for the test)
 
     We already test proper topo mapping and aggregation in the h5 test so this
-    just makes sure that the data can be extracted from a WRF file.
+    just makes sure that the data can be rasterized from a WRF file.
     """
     with TemporaryDirectory() as td:
-        te = TopoExtracterNC(
+        te = TopoRasterizerNC(
             pytest.FP_WRF,
             pytest.FP_WRF,
             s_enhance=1,
@@ -252,7 +252,7 @@ def test_topo_extraction_nc():
         )
         hr_elev = te.data
 
-        te_gen = TopoExtracter(
+        te_gen = TopoRasterizer(
             pytest.FP_WRF,
             pytest.FP_WRF,
             s_enhance=1,

@@ -16,7 +16,7 @@ import h5py
 import numpy as np
 from scipy import stats
 
-from sup3r.preprocessing import DataHandlerNC as DataHandler
+from sup3r.preprocessing import DataHandler
 
 from .base import DataRetrievalBase
 from .mixins import FillAndSmoothMixin

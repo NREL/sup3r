@@ -13,22 +13,24 @@ from sup3r.preprocessing.derivers.methods import (
     RegistryNCforCC,
     RegistryNCforCCwithPowerLaw,
 )
-from sup3r.preprocessing.loaders import LoaderH5
+from sup3r.preprocessing.loaders import Loader
 from sup3r.preprocessing.names import Dimension
+from sup3r.preprocessing.utilities import log_args
 
 from .factory import (
-    DataHandlerNC,
+    DataHandler,
 )
 
 logger = logging.getLogger(__name__)
 
 
-class DataHandlerNCforCC(DataHandlerNC):
-    """Extended NETCDF data handler. This implements an extracter hook to add
-    "clearsky_ghi" to the extracted data if "clearsky_ghi" is requested."""
+class DataHandlerNCforCC(DataHandler):
+    """Extended NETCDF data handler. This implements a rasterizer hook to add
+    "clearsky_ghi" to the rasterized data if "clearsky_ghi" is requested."""
 
     FEATURE_REGISTRY = RegistryNCforCC
 
+    @log_args
     def __init__(
         self,
         file_paths,
@@ -42,7 +44,7 @@ class DataHandlerNCforCC(DataHandlerNC):
         Parameters
         ----------
         file_paths : str | list | pathlib.Path
-            file_paths input to :class:`Extracter`
+            file_paths input to :class:`Rasterizer`
         features : list
             Features to derive from loaded data.
         nsrdb_source_fp : str | None
@@ -68,14 +70,14 @@ class DataHandlerNCforCC(DataHandlerNC):
         self._features = features
         super().__init__(file_paths=file_paths, features=features, **kwargs)
 
-    def _extracter_hook(self):
-        """Extracter hook implementation to add 'clearsky_ghi' data to
-        extracted data, which will then be used when the :class:`Deriver` is
+    def _rasterizer_hook(self):
+        """Rasterizer hook implementation to add 'clearsky_ghi' data to
+        rasterized data, which will then be used when the :class:`Deriver` is
         called."""
         if any(
             f in self._features for f in ('clearsky_ratio', 'clearsky_ghi')
         ):
-            self.extracter.data['clearsky_ghi'] = self.get_clearsky_ghi()
+            self.rasterizer.data['clearsky_ghi'] = self.get_clearsky_ghi()
 
     def run_input_checks(self):
         """Run checks on the files provided for extracting clearsky_ghi. Make
@@ -94,49 +96,49 @@ class DataHandlerNCforCC(DataHandlerNC):
             'Can only handle source CC data in hourly frequency but '
             'received daily frequency of {}hrs (should be 24) '
             'with raw time index: {}'.format(
-                self.loader.time_step / 3600, self.extracter.time_index
+                self.loader.time_step / 3600, self.rasterizer.time_index
             )
         )
         assert self.loader.time_step / 3600 == 24.0, msg
 
         msg = (
             'Can only handle source CC data with time_slice.step == 1 '
-            'but received: {}'.format(self.extracter.time_slice.step)
+            'but received: {}'.format(self.rasterizer.time_slice.step)
         )
-        assert (self.extracter.time_slice.step is None) | (
-            self.extracter.time_slice.step == 1
+        assert (self.rasterizer.time_slice.step is None) | (
+            self.rasterizer.time_slice.step == 1
         ), msg
 
     def run_wrap_checks(self, cs_ghi):
-        """Run check on extracted data from clearsky_ghi source."""
+        """Run check on rasterized data from clearsky_ghi source."""
         logger.info(
             'Reshaped clearsky_ghi data to final shape {} to '
             'correspond with CC daily average data over source '
             'time_slice {} with (lat, lon) grid shape of {}'.format(
                 cs_ghi.shape,
-                self.extracter.time_slice,
-                self.extracter.grid_shape,
+                self.rasterizer.time_slice,
+                self.rasterizer.grid_shape,
             )
         )
         msg = (
             'nsrdb clearsky GHI time dimension {} '
             'does not match the GCM time dimension {}'.format(
-                cs_ghi.shape[2], len(self.extracter.time_index)
+                cs_ghi.shape[2], len(self.rasterizer.time_index)
             )
         )
-        assert cs_ghi.shape[2] == len(self.extracter.time_index), msg
+        assert cs_ghi.shape[2] == len(self.rasterizer.time_index), msg
 
     def get_time_slice(self, ti_nsrdb):
         """Get nsrdb data time slice consistent with self.time_index."""
         t_start = np.where(
-            (self.extracter.time_index[0].month == ti_nsrdb.month)
-            & (self.extracter.time_index[0].day == ti_nsrdb.day)
+            (self.rasterizer.time_index[0].month == ti_nsrdb.month)
+            & (self.rasterizer.time_index[0].day == ti_nsrdb.day)
         )[0][0]
         t_end = (
             1
             + np.where(
-                (self.extracter.time_index[-1].month == ti_nsrdb.month)
-                & (self.extracter.time_index[-1].day == ti_nsrdb.day)
+                (self.rasterizer.time_index[-1].month == ti_nsrdb.month)
+                & (self.rasterizer.time_index[-1].day == ti_nsrdb.day)
             )[0][-1]
         )
         t_slice = slice(t_start, t_end)
@@ -157,7 +159,7 @@ class DataHandlerNCforCC(DataHandlerNC):
         """
         self.run_input_checks()
 
-        res = LoaderH5(self._nsrdb_source_fp)
+        res = Loader(self._nsrdb_source_fp)
         ti_nsrdb = res.time_index
         t_slice = self.get_time_slice(ti_nsrdb)
         cc_meta = self.lat_lon.reshape((-1, 2))
@@ -195,8 +197,8 @@ class DataHandlerNCforCC(DataHandlerNC):
 
         cs_ghi = cs_ghi.coarsen({Dimension.TIME: int(24 // time_freq)}).mean()
         lat_idx, lon_idx = (
-            np.arange(self.extracter.grid_shape[0]),
-            np.arange(self.extracter.grid_shape[1]),
+            np.arange(self.rasterizer.grid_shape[0]),
+            np.arange(self.rasterizer.grid_shape[1]),
         )
         ind = pd.MultiIndex.from_product(
             (lat_idx, lon_idx), names=Dimension.dims_2d()
@@ -208,11 +210,13 @@ class DataHandlerNCforCC(DataHandlerNC):
         cs_ghi = cs_ghi.transpose(*Dimension.dims_3d())
 
         cs_ghi = cs_ghi['clearsky_ghi'].data
-        if cs_ghi.shape[-1] < len(self.extracter.time_index):
-            n = int(da.ceil(len(self.extracter.time_index) / cs_ghi.shape[-1]))
+        if cs_ghi.shape[-1] < len(self.rasterizer.time_index):
+            n = int(
+                da.ceil(len(self.rasterizer.time_index) / cs_ghi.shape[-1])
+            )
             cs_ghi = da.repeat(cs_ghi, n, axis=2)
 
-        cs_ghi = cs_ghi[..., : len(self.extracter.time_index)]
+        cs_ghi = cs_ghi[..., : len(self.rasterizer.time_index)]
 
         self.run_wrap_checks(cs_ghi)
 

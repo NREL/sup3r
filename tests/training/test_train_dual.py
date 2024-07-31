@@ -8,10 +8,9 @@ import pytest
 
 from sup3r.models import Sup3rGan
 from sup3r.preprocessing import (
-    DataHandlerH5,
-    DataHandlerNC,
+    DataHandler,
     DualBatchHandler,
-    DualExtracter,
+    DualRasterizer,
 )
 from sup3r.preprocessing.samplers import DualSampler
 from sup3r.utilities.pytest.helpers import BatchHandlerTesterFactory
@@ -53,12 +52,12 @@ def test_train_h5_nc(
         'target': TARGET_COORD,
         'shape': (20, 20),
     }
-    hr_handler = DataHandlerH5(
+    hr_handler = DataHandler(
         pytest.FP_WTK,
         **kwargs,
         time_slice=slice(None, None, 1),
     )
-    lr_handler = DataHandlerNC(
+    lr_handler = DataHandler(
         pytest.FP_ERA,
         features=FEATURES,
         time_slice=slice(None, None, 30),
@@ -66,26 +65,26 @@ def test_train_h5_nc(
 
     # time indices conflict with t_enhance
     with pytest.raises(AssertionError):
-        dual_extracter = DualExtracter(
+        dual_rasterizer = DualRasterizer(
             data=(lr_handler.data, hr_handler.data),
             s_enhance=s_enhance,
             t_enhance=t_enhance,
         )
 
-    lr_handler = DataHandlerNC(
+    lr_handler = DataHandler(
         pytest.FP_ERA,
         features=FEATURES,
         time_slice=slice(None, None, t_enhance),
     )
 
-    dual_extracter = DualExtracter(
+    dual_rasterizer = DualRasterizer(
         data=(lr_handler.data, hr_handler.data),
         s_enhance=s_enhance,
         t_enhance=t_enhance,
     )
 
     batch_handler = DualBatchHandlerTester(
-        train_containers=[dual_extracter],
+        train_containers=[dual_rasterizer],
         val_containers=[],
         sample_shape=sample_shape,
         batch_size=3,
@@ -146,26 +145,26 @@ def test_train_coarse_h5(
         'target': TARGET_COORD,
         'shape': (20, 20),
     }
-    hr_handler = DataHandlerH5(
+    hr_handler = DataHandler(
         pytest.FP_WTK,
         **kwargs,
         time_slice=slice(None, None, 1),
     )
-    lr_handler = DataHandlerH5(
+    lr_handler = DataHandler(
         pytest.FP_WTK,
         **kwargs,
         hr_spatial_coarsen=s_enhance,
         time_slice=slice(None, None, t_enhance),
     )
 
-    dual_extracter = DualExtracter(
+    dual_rasterizer = DualRasterizer(
         data=(lr_handler.data, hr_handler.data),
         s_enhance=s_enhance,
         t_enhance=t_enhance,
     )
 
     batch_handler = DualBatchHandlerTester(
-        train_containers=[dual_extracter],
+        train_containers=[dual_rasterizer],
         val_containers=[],
         sample_shape=sample_shape,
         batch_size=3,

@@ -6,11 +6,7 @@ from tempfile import TemporaryDirectory
 import pytest
 
 from sup3r.models import Sup3rGan
-from sup3r.preprocessing import (
-    BatchHandler,
-    DataHandlerH5,
-    LoaderH5,
-)
+from sup3r.preprocessing import BatchHandler, DataHandler
 
 TARGET_COORD = (39.01, -105.15)
 FEATURES = ['u_100m', 'v_100m']
@@ -34,7 +30,7 @@ def test_end_to_end():
         train_cache_pattern = os.path.join(td, 'train_{feature}.h5')
         val_cache_pattern = os.path.join(td, 'val_{feature}.h5')
         # get training data
-        _ = DataHandlerH5(
+        train_dh = DataHandler(
             pytest.FPS_WTK[0],
             features=derive_features,
             **kwargs,
@@ -44,7 +40,7 @@ def test_end_to_end():
             },
         )
         # get val data
-        _ = DataHandlerH5(
+        val_dh = DataHandler(
             pytest.FPS_WTK[1],
             features=derive_features,
             **kwargs,
@@ -54,26 +50,12 @@ def test_end_to_end():
             },
         )
 
-        train_files = [
-            train_cache_pattern.format(feature=f.lower())
-            for f in derive_features
-        ]
-        val_files = [
-            val_cache_pattern.format(feature=f.lower())
-            for f in derive_features
-        ]
-
         means = os.path.join(td, 'means.json')
         stds = os.path.join(td, 'stds.json')
 
-        train_containers = LoaderH5(train_files)
-        train_containers.data = train_containers.data[derive_features]
-        val_containers = LoaderH5(val_files)
-        val_containers.data = val_containers.data[derive_features]
-
         batcher = BatchHandler(
-            train_containers=[train_containers],
-            val_containers=[val_containers],
+            train_containers=[train_dh],
+            val_containers=[val_dh],
             n_batches=2,
             batch_size=10,
             sample_shape=(12, 12, 16),

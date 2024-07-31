@@ -10,18 +10,37 @@ import logging
 
 from sup3r.preprocessing.batch_queues.dc import BatchQueueDC, ValBatchQueueDC
 from sup3r.preprocessing.samplers.dc import SamplerDC
+from sup3r.preprocessing.utilities import (
+    get_composite_info,
+    log_args,
+)
 
 from .factory import BatchHandlerFactory
 
 logger = logging.getLogger(__name__)
 
 
-class BatchHandlerDC(
-    BatchHandlerFactory(BatchQueueDC, SamplerDC, ValBatchQueueDC)
-):
-    """Add validation data requirement. Makes no sense to use this handler
-    without validation data."""
+BaseDC = BatchHandlerFactory(
+    BatchQueueDC, SamplerDC, ValBatchQueueDC, name='BaseDC'
+)
 
+
+class BatchHandlerDC(BaseDC):
+    """Data-Centric BatchHandler which can be used to adaptively select data
+    from lower performing spatiotemporal extents during training. To do this
+    validation data is required, as it is used to compute losses within fixed
+    spatiotemporal bins which are then used as sampling probabilities
+    for those same regions when building batches.
+
+    See Also
+    --------
+    :class:`~sup3r.preprocessing.BatchQueueDC`,
+    :class:`~sup3r.preprocessing.SamplerDC`,
+    :class:`~sup3r.preprocessing.ValBatchQueueDC`,
+    :func:`~sup3r.preprocessing.batch_handlers.factory.BatchHandlerFactory`
+    """
+
+    @log_args
     def __init__(self, train_containers, val_containers, *args, **kwargs):
         msg = (
             f'{self.__class__.__name__} requires validation data. If you '
@@ -47,3 +66,9 @@ class BatchHandlerDC(
         )
         assert self.n_space_bins <= max_space_bins, msg
         assert self.n_time_bins <= max_time_bins, msg
+
+    _skips = ('samplers', 'data', 'thread_name', 'kwargs')
+    __signature__, __init__.__doc__ = get_composite_info(
+        (__init__, BaseDC), exclude=_skips
+    )
+    __init__.__signature__ = __signature__

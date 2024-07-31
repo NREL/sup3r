@@ -3,15 +3,26 @@ data."""
 
 from typing import ClassVar
 
-from sup3r.preprocessing.base import TypeAgnosticClass
+from sup3r.preprocessing.utilities import (
+    get_composite_signature,
+    get_source_type,
+)
 
 from .base import BaseLoader
 from .h5 import LoaderH5
 from .nc import LoaderNC
 
 
-class Loader(TypeAgnosticClass):
+class Loader:
     """`Loader` class which parses input file type and returns
     appropriate `TypeSpecificLoader`."""
 
     TypeSpecificClasses: ClassVar = {'nc': LoaderNC, 'h5': LoaderH5}
+
+    def __new__(cls, file_paths, **kwargs):
+        """Override parent class to return type specific class based on
+        `source_file`"""
+        SpecificClass = cls.TypeSpecificClasses[get_source_type(file_paths)]
+        return SpecificClass(file_paths, **kwargs)
+
+    __signature__ = get_composite_signature(list(TypeSpecificClasses.values()))

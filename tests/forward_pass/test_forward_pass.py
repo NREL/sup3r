@@ -14,7 +14,7 @@ from rex import ResourceX
 from sup3r import CONFIG_DIR, __version__
 from sup3r.models import Sup3rGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
-from sup3r.preprocessing import DataHandlerNC, Dimension
+from sup3r.preprocessing import DataHandler, Dimension
 from sup3r.utilities.pytest.helpers import (
     make_fake_nc_file,
 )
@@ -113,7 +113,7 @@ def test_fwp_spatial_only(input_files):
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=1,
             temporal_pad=1,
-            input_handler_name='ExtracterNC',
+            input_handler_name='RasterizerNC',
             input_handler_kwargs={
                 'target': target,
                 'shape': shape,
@@ -218,7 +218,7 @@ def test_fwp_with_cache_reload(input_files):
                 'time_slice': time_slice,
                 'cache_kwargs': {'cache_pattern': cache_pattern},
             },
-            'input_handler_name': 'DataHandlerNC',
+            'input_handler_name': 'DataHandler',
             'out_pattern': out_files,
             'pass_workers': 1,
         }
@@ -386,7 +386,7 @@ def test_fwp_chunking(input_files, plot=False):
                 len(model.hr_out_features),
             )
         )
-        handlerNC = DataHandlerNC(
+        handlerNC = DataHandler(
             input_files, FEATURES, target=target, shape=shape
         )
         pad_width = (
@@ -511,7 +511,7 @@ def test_fwp_nochunking(input_files):
             meta=fwp.meta,
         )
 
-        handlerNC = DataHandlerNC(
+        handlerNC = DataHandler(
             input_files,
             FEATURES,
             target=target,
@@ -631,7 +631,7 @@ def test_slicing_no_pad(input_files):
         st_out_dir = os.path.join(td, 'st_gan')
         st_model.save(st_out_dir)
 
-        handler = DataHandlerNC(
+        handler = DataHandler(
             input_files, features, target=target, shape=shape
         )
 
@@ -690,7 +690,7 @@ def test_slicing_pad(input_files):
         out_files = os.path.join(td, 'out_{file_id}.h5')
         st_out_dir = os.path.join(td, 'st_gan')
         st_model.save(st_out_dir)
-        handler = DataHandlerNC(
+        handler = DataHandler(
             input_files, features, target=target, shape=shape
         )
         input_handler_kwargs = {

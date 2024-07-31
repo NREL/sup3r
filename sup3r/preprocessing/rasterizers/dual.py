@@ -1,4 +1,4 @@
-"""Paired extracter class for matching separate low_res and high_res
+"""Paired rasterizer class for matching separate low_res and high_res
 datasets"""
 
 import logging
@@ -13,26 +13,29 @@ from rex.utilities.regridder import Regridder
 from sup3r.preprocessing.base import Container, Sup3rDataset
 from sup3r.preprocessing.cachers import Cacher
 from sup3r.preprocessing.names import Dimension
+from sup3r.preprocessing.utilities import log_args
 from sup3r.utilities.utilities import spatial_coarsening
 
 logger = logging.getLogger(__name__)
 
 
-class DualExtracter(Container):
+class DualRasterizer(Container):
     """Object containing xr.Dataset instances for low and high-res data.
     (Usually ERA5 and WTK, respectively). This essentially just regrids the
     low-res data to the coarsened high-res grid.  This is useful for caching
-    data which then can go directly to a :class:`DualSampler` object for a
+    prepping data which then can go directly to a
+    :class:`~sup3r.preprocessing.DualSampler` object for a
     :class:`DualBatchQueue`.
 
     Note
     ----
     When first extracting the low_res data make sure to extract a region that
-    completely overlaps the high_res region.  It is easiest to load the full
-    low_res domain and let :class:`DualExtracter` select the appropriate region
-    through regridding.
+    completely overlaps the high_res region. It is easiest to load the full
+    low_res domain and let :class:`DualRasterizer` select the appropriate
+    region through regridding.
     """
 
+    @log_args
     def __init__(
         self,
         data: Union[Sup3rDataset, Tuple[xr.Dataset, xr.Dataset]],
@@ -75,9 +78,9 @@ class DualExtracter(Container):
         if isinstance(data, tuple):
             data = Sup3rDataset(low_res=data[0], high_res=data[1])
         msg = (
-            'The DualExtracter requires either a data tuple with two members, '
-            'low and high resolution in that order, or a Sup3rDataset '
-            f'instance. Received {type(data)}.'
+            'The DualRasterizer requires either a data tuple with two '
+            'members, low and high resolution in that order, or a '
+            f'Sup3rDataset instance. Received {type(data)}.'
         )
         assert isinstance(data, Sup3rDataset), msg
         self.lr_data, self.hr_data = data.low_res, data.high_res
@@ -156,7 +159,7 @@ class DualExtracter(Container):
                     slice(self.hr_required_shape[1]),
                     slice(self.hr_required_shape[2]),
                 ]
-                for f in self.hr_data.data_vars
+                for f in self.hr_data.features
             }
             hr_coords_new = {
                 Dimension.LATITUDE: self.hr_lat_lon[..., 0],
@@ -195,7 +198,7 @@ class DualExtracter(Container):
                 f: regridder(
                     self.lr_data[f, ..., : self.lr_required_shape[2]]
                 ).reshape(self.lr_required_shape)
-                for f in self.lr_data.data_vars
+                for f in self.lr_data.features
             }
             lr_coords_new = {
                 Dimension.LATITUDE: self.lr_lat_lon[..., 0],
@@ -212,7 +215,7 @@ class DualExtracter(Container):
     def check_regridded_lr_data(self):
         """Check for NaNs after regridding and do NN fill if needed."""
         fill_feats = []
-        for f in self.lr_data.data_vars:
+        for f in self.lr_data.features:
             logger.info(
                 f'Checking for NaNs after regridding, for feature: {f}'
             )
