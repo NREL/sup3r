@@ -114,8 +114,10 @@ class ExoDataHandler:
         assert not any(s is None for s in self.s_enhancements), msg
         assert not any(t is None for t in self.t_enhancements), msg
 
-        msg = ('No rasterizer available for the requested feature: '
-               f'{self.feature}')
+        msg = (
+            'No rasterizer available for the requested feature: '
+            f'{self.feature}'
+        )
         assert self.feature.lower() in self.AVAILABLE_HANDLERS, msg
         self.get_all_step_data()
 

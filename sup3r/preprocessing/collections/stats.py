@@ -9,6 +9,7 @@ import numpy as np
 import xarray as xr
 from rex import safe_json_load
 
+from sup3r.preprocessing.utilities import log_args
 from sup3r.utilities.utilities import safe_serialize
 
 from .base import Collection
@@ -25,6 +26,7 @@ class StatsCollection(Collection):
     We write stats as float64 because float32 is not json serializable
     """
 
+    @log_args
     def __init__(self, containers, means=None, stds=None):
         """
         Parameters

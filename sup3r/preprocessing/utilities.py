@@ -284,11 +284,7 @@ def _log_args(thing, func, *args, **kwargs):
     """Log annotated attributes and args."""
 
     args_dict = _get_args_dict(thing, func, *args, **kwargs)
-    name = (
-        thing.__name__
-        if hasattr(thing, '__name__')
-        else thing.__class__.__name__
-    )
+    name = thing.__class__.__name__
     logger.info(
         f'Initialized {name} with:\n' f'{pprint.pformat(args_dict, indent=2)}'
     )

@@ -16,7 +16,7 @@ from sup3r.preprocessing.samplers.utilities import (
     uniform_box_sampler,
     uniform_time_sampler,
 )
-from sup3r.preprocessing.utilities import compute_if_dask, lowered
+from sup3r.preprocessing.utilities import compute_if_dask, log_args, lowered
 from sup3r.typing import T_Array
 
 logger = logging.getLogger(__name__)
@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 class Sampler(Container):
     """Sampler class for iterating through samples of contained data."""
 
+    @log_args
     def __init__(
         self,
         data: Union[Sup3rX, Sup3rDataset],

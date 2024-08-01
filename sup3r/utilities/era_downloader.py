@@ -87,14 +87,6 @@ class EraDownloader:
         self.product_type = product_type
         self.hours = self.get_hours()
 
-        msg = (
-            'Initialized EraDownloader with: '
-            f'year={self.year}, month={self.month}, area={self.area}, '
-            f'levels={self.levels}, variables={self.variables}, '
-            f'product_type={self.product_type}'
-        )
-        logger.info(msg)
-
     def get_hours(self):
         """ERA5 is hourly and EDA is 3-hourly. Check and warn for incompatible
         requests."""
@@ -323,8 +315,8 @@ class EraDownloader:
         """
         if not os.path.exists(out_file) or overwrite:
             msg = (
-                f'Downloading {variables} to '
-                f'{out_file} with levels = {levels}.'
+                f'Downloading {variables} to {out_file} with levels '
+                f'= {levels}.'
             )
             logger.info(msg)
             entry = {
@@ -347,17 +339,15 @@ class EraDownloader:
     def process_surface_file(self):
         """Rename variables and convert geopotential to geopotential height."""
         tmp_file = self.get_tmp_file(self.surface_file)
-        with Loader(self.surface_file) as ds:
-            logger.info(
-                'Converting "z" var to "orog" for %s', self.surface_file
-            )
-            ds = self.convert_z(ds, name='orog')
-            ds = standardize_names(ds, ERA_NAME_MAP)
-            ds.to_netcdf(tmp_file)
+        ds = Loader(self.surface_file)
+        logger.info('Converting "z" var to "orog" for %s', self.surface_file)
+        ds = self.convert_z(ds, name='orog')
+        ds = standardize_names(ds, ERA_NAME_MAP)
+        ds.to_netcdf(tmp_file)
         os.replace(tmp_file, self.surface_file)
         logger.info(
-            f'Finished processing {self.surface_file}. Moved '
-            f'{tmp_file} to {self.surface_file}.'
+            f'Finished processing {self.surface_file}. Moved {tmp_file} to '
+            f'{self.surface_file}.'
         )
 
     def add_pressure(self, ds):
@@ -405,13 +395,12 @@ class EraDownloader:
     def process_level_file(self):
         """Convert geopotential to geopotential height."""
         tmp_file = self.get_tmp_file(self.level_file)
-        with Loader(self.level_file) as ds:
-            logger.info('Converting "z" var to "zg" for %s', self.level_file)
-            ds = self.convert_z(ds, name='zg')
-            ds = standardize_names(ds, ERA_NAME_MAP)
-            ds = self.add_pressure(ds)
-            ds.to_netcdf(tmp_file)
-
+        ds = Loader(self.level_file)
+        logger.info('Converting "z" var to "zg" for %s', self.level_file)
+        ds = self.convert_z(ds, name='zg')
+        ds = standardize_names(ds, ERA_NAME_MAP)
+        ds = self.add_pressure(ds)
+        ds.to_netcdf(tmp_file)
         os.replace(tmp_file, self.level_file)
         logger.info(
             f'Finished processing {self.level_file}. Moved '
@@ -425,13 +414,13 @@ class EraDownloader:
         added_features = []
         tmp_file = cls.get_tmp_file(out_file)
         for file in files:
-            with Loader(file, res_kwargs=kwargs) as ds:
-                for f in set(ds.data_vars) - set(added_features):
-                    mode = 'w' if not os.path.exists(tmp_file) else 'a'
-                    logger.info('Adding %s to %s.', f, tmp_file)
-                    ds.data[f].to_netcdf(tmp_file, mode=mode)
-                    logger.info('Added %s to %s.', f, tmp_file)
-                    added_features.append(f)
+            ds = Loader(file, res_kwargs=kwargs)
+            for f in set(ds.data_vars) - set(added_features):
+                mode = 'w' if not os.path.exists(tmp_file) else 'a'
+                logger.info('Adding %s to %s.', f, tmp_file)
+                ds.data[f].to_netcdf(tmp_file, mode=mode)
+                logger.info('Added %s to %s.', f, tmp_file)
+                added_features.append(f)
         logger.info(f'Finished writing {tmp_file}')
         os.replace(tmp_file, out_file)
         logger.info('Moved %s to %s.', tmp_file, out_file)

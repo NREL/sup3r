@@ -14,7 +14,6 @@ from sup3r.preprocessing.base import Container, Sup3rDataset
 from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.utilities import (
     _rechunk_if_dask,
-    log_args,
     parse_to_list,
 )
 from sup3r.typing import T_Array
@@ -263,7 +262,6 @@ class Deriver(BaseDeriver):
     """Extends base :class:`BaseDeriver` class with time_roll and
     hr_spatial_coarsen args."""
 
-    @log_args
     def __init__(
         self,
         data: Union[Sup3rX, Sup3rDataset],
