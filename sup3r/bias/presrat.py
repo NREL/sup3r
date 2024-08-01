@@ -84,41 +84,120 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         super()._init_out()
 
         shape = (*self.bias_gid_raster.shape, 1)
-        self.out[f'{self.base_dset}_zero_rate'] = np.full(
-            shape, np.nan, np.float32
-        )
-        self.out[f'{self.bias_feature}_tau_fut'] = np.full(
-            shape, np.nan, np.float32
-        )
-        shape = (*self.bias_gid_raster.shape, self.NT)
+        self.out[f'{self.base_dset}_zero_rate'] = np.full(shape,
+                                                          np.nan,
+                                                          np.float32)
+        self.out[f'{self.bias_feature}_tau_fut'] = np.full(shape,
+                                                           np.nan,
+                                                           np.float32)
+        shape = (*self.bias_gid_raster.shape, self.n_time_steps)
         self.out[f'{self.bias_feature}_k_factor'] = np.full(
-            shape, np.nan, np.float32
-        )
+            shape, np.nan, np.float32)
+
+    @classmethod
+    def calc_tau_fut(cls, base_data, bias_data, bias_fut_data,
+                     corrected_fut_data, zero_rate_threshold=1.182033e-07):
+        """Calculate a precipitation threshold (tau) that preserves the
+        model-predicted changes in fraction of dry days at a single spatial
+        location.
+
+        Returns
+        -------
+        obs_zero_rate : float
+            Rate of dry days in the observed historical data.
+        tau_fut : float
+            Precipitation threshold that will preserve the model predicted
+            changes in fraction of dry days. Precipitation less than this value
+            in the modeled future data can be set to zero.
+        """
+
+        # Step 1: Define zero rate from observations
+        assert base_data.ndim == 1
+        obs_zero_rate = cls.zero_precipitation_rate(
+            base_data, zero_rate_threshold)
+
+        # Step 2: Find tau for each grid point
+        # Removed NaN handling, thus reinforce finite-only data.
+        assert np.isfinite(bias_data).all(), "Unexpected invalid values"
+        assert bias_data.ndim == 1, "Assumed bias_data to be 1D"
+        n_threshold = round(obs_zero_rate * bias_data.size)
+        n_threshold = min(n_threshold, bias_data.size - 1)
+        tau = np.sort(bias_data)[n_threshold]
+        # Pierce (2015) imposes 0.01 mm/day
+        # tau = max(tau, 0.01)
+
+        # Step 3: Find Z_gf as the zero rate in mf
+        assert np.isfinite(bias_fut_data).all(), "Unexpected invalid values"
+        z_fg = (bias_fut_data < tau).astype('i').sum() / bias_fut_data.size
+
+        # Step 4: Estimate tau_fut with corrected mf
+        tau_fut = np.sort(corrected_fut_data)[round(
+            z_fg * corrected_fut_data.size)]
+
+        return tau_fut, obs_zero_rate
+
+    @classmethod
+    def calc_k_factor(cls, base_data, bias_data, bias_fut_data,
+                      corrected_fut_data, base_ti, bias_ti, bias_fut_ti,
+                      window_center, window_size, n_time_steps,
+                      zero_rate_threshold):
+        """Calculate the K factor at a single spatial location that will
+        preserve the original model-predicted mean change in precipitation
+
+        Returns
+        -------
+        k : np.ndarray
+            K factor from the Pierce 2015 paper with shape (number_of_time,)
+            for a single spatial location.
+        """
+
+        k = np.full(n_time_steps, np.nan, np.float32)
+        for nt, t in enumerate(window_center):
+            base_idt = cls.window_mask(base_ti.day_of_year, t, window_size)
+            bias_idt = cls.window_mask(bias_ti.day_of_year, t, window_size)
+            bias_fut_idt = cls.window_mask(bias_fut_ti.day_of_year, t,
+                                           window_size)
+
+            oh = base_data[base_idt].mean()
+            mh = bias_data[bias_idt].mean()
+            mf = bias_fut_data[bias_fut_idt].mean()
+            mf_unbiased = corrected_fut_data[bias_fut_idt].mean()
+
+            oh = np.maximum(oh, zero_rate_threshold)
+            mh = np.maximum(mh, zero_rate_threshold)
+            mf = np.maximum(mf, zero_rate_threshold)
+            mf_unbiased = np.maximum(mf_unbiased, zero_rate_threshold)
+
+            x = mf / mh
+            x_hat = mf_unbiased / oh
+            k[nt] = x / x_hat
+        return k
 
     # pylint: disable=W0613
     @classmethod
-    def _run_single(
-        cls,
-        bias_data,
-        bias_fut_data,
-        base_fps,
-        bias_feature,
-        base_dset,
-        base_gid,
-        base_handler,
-        daily_reduction,
-        *,
-        bias_ti,
-        bias_fut_ti,
-        decimals,
-        dist,
-        relative,
-        sampling,
-        n_samples,
-        log_base,
-        zero_rate_threshold,
-        base_dh_inst=None,
-    ):
+    def _run_single(cls,
+                    bias_data,
+                    bias_fut_data,
+                    base_fps,
+                    bias_feature,
+                    base_dset,
+                    base_gid,
+                    base_handler,
+                    daily_reduction,
+                    *,
+                    bias_ti,
+                    bias_fut_ti,
+                    decimals,
+                    dist,
+                    relative,
+                    sampling,
+                    n_samples,
+                    log_base,
+                    n_time_steps,
+                    window_size,
+                    zero_rate_threshold,
+                    base_dh_inst=None,
+                    ):
         """Estimate probability distributions at a single site
 
         TODO! This should be refactored. There is too much redundancy in
@@ -134,32 +213,33 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
             base_dh_inst=base_dh_inst,
         )
 
-        window_size = cls.WINDOW_SIZE or 365 / cls.NT
-        window_center = cls._window_center(cls.NT)
+        base_data[base_data <= zero_rate_threshold] = 0
+        bias_data[bias_data <= zero_rate_threshold] = 0
+        bias_fut_data[bias_fut_data <= zero_rate_threshold] = 0
 
-        template = np.full((cls.NT, n_samples), np.nan, np.float32)
+        window_size = window_size or 365 / n_time_steps
+        window_center = cls._window_center(n_time_steps)
+
+        template = np.full((n_time_steps, n_samples), np.nan, np.float32)
         out = {}
         corrected_fut_data = np.full_like(bias_fut_data, np.nan)
-        logger.debug(f'Getting QDM params for feature: {bias_feature}.')
         for nt, t in enumerate(window_center):
             # Define indices for which data goes in the current time window
             base_idx = cls.window_mask(base_ti.day_of_year, t, window_size)
             bias_idx = cls.window_mask(bias_ti.day_of_year, t, window_size)
-            bias_fut_idx = cls.window_mask(
-                bias_fut_ti.day_of_year, t, window_size
-            )
+            bias_fut_idx = cls.window_mask(bias_fut_ti.day_of_year,
+                                           t,
+                                           window_size)
 
             if any(base_idx) and any(bias_idx) and any(bias_fut_idx):
-                tmp = cls.get_qdm_params(
-                    bias_data[bias_idx],
-                    bias_fut_data[bias_fut_idx],
-                    base_data[base_idx],
-                    bias_feature,
-                    base_dset,
-                    sampling,
-                    n_samples,
-                    log_base,
-                )
+                tmp = cls.get_qdm_params(bias_data[bias_idx],
+                                         bias_fut_data[bias_fut_idx],
+                                         base_data[base_idx],
+                                         bias_feature,
+                                         base_dset,
+                                         sampling,
+                                         n_samples,
+                                         log_base)
                 for k, v in tmp.items():
                     if k not in out:
                         out[k] = template.copy()
@@ -173,60 +253,23 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
                 relative=relative,
                 sampling=sampling,
                 log_base=log_base,
+                delta_denom_min=zero_rate_threshold,
             )
             subset = bias_fut_data[bias_fut_idx]
             corrected_fut_data[bias_fut_idx] = QDM(subset).squeeze()
 
-        # Step 1: Define zero rate from observations
-        assert base_data.ndim == 1
-        obs_zero_rate = cls.zero_precipitation_rate(
-            base_data, zero_rate_threshold
-        )
-        out[f'{base_dset}_zero_rate'] = obs_zero_rate
-
-        # Step 2: Find tau for each grid point
-
-        # Removed NaN handling, thus reinforce finite-only data.
-        assert np.isfinite(bias_data).all(), 'Unexpected invalid values'
-        assert bias_data.ndim == 1, 'Assumed bias_data to be 1D'
-        n_threshold = round(obs_zero_rate * bias_data.size)
-        n_threshold = min(n_threshold, bias_data.size - 1)
-        tau = np.sort(bias_data)[n_threshold]
-        # Pierce (2015) imposes 0.01 mm/day
-        # tau = max(tau, 0.01)
-
-        # Step 3: Find Z_gf as the zero rate in mf
-        assert np.isfinite(bias_fut_data).all(), 'Unexpected invalid values'
-        z_fg = (bias_fut_data < tau).astype('i').sum() / bias_fut_data.size
-
-        # Step 4: Estimate tau_fut with corrected mf
-        tau_fut = np.sort(corrected_fut_data)[
-            round(z_fg * corrected_fut_data.size)
-        ]
-
-        out[f'{bias_feature}_tau_fut'] = tau_fut
-
-        # ---- K factor ----
-
-        k = np.full(cls.NT, np.nan, np.float32)
-        logger.debug(f'Computing K factor for feature: {bias_feature}.')
-        for nt, t in enumerate(window_center):
-            base_idx = cls.window_mask(base_ti.day_of_year, t, window_size)
-            bias_idx = cls.window_mask(bias_ti.day_of_year, t, window_size)
-            bias_fut_idx = cls.window_mask(
-                bias_fut_ti.day_of_year, t, window_size
-            )
-
-            oh = base_data[base_idx].mean()
-            mh = bias_data[bias_idx].mean()
-            mf = bias_fut_data[bias_fut_idx].mean()
-            mf_unbiased = corrected_fut_data[bias_fut_idx].mean()
-
-            x = mf / mh
-            x_hat = mf_unbiased / oh
-            k[nt] = x / x_hat
+        tau_fut, obs_zero_rate = cls.calc_tau_fut(base_data, bias_data,
+                                                  bias_fut_data,
+                                                  corrected_fut_data,
+                                                  zero_rate_threshold)
+        k = cls.calc_k_factor(base_data, bias_data, bias_fut_data,
+                              corrected_fut_data, base_ti, bias_ti,
+                              bias_fut_ti, window_center, window_size,
+                              n_time_steps, zero_rate_threshold)
 
         out[f'{bias_feature}_k_factor'] = k
+        out[f'{base_dset}_zero_rate'] = obs_zero_rate
+        out[f'{bias_feature}_tau_fut'] = tau_fut
 
         return out
 
@@ -238,7 +281,7 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         fill_extend=True,
         smooth_extend=0,
         smooth_interior=0,
-        zero_rate_threshold=0.0,
+        zero_rate_threshold=1.182033e-07,
     ):
         """Estimate the required information for PresRat correction
 
@@ -268,10 +311,12 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
             extreme values within aggregations over large number of pixels.
             This value is the standard deviation for the gaussian_filter
             kernel.
-        zero_rate_threshold : float, default=0.0
+        zero_rate_threshold : float, default=1.182033e-07
             Threshold value used to determine the zero rate in the observed
             historical dataset. For instance, 0.01 means that anything less
-            than that will be considered negligible, hence equal to zero.
+            than that will be considered negligible, hence equal to zero. Dai
+            2006 defined this as 1mm/day. Pierce 2015 used 0.01mm/day. We
+            recommend 0.01mm/day (1.182033e-07 kg/m2/s).
 
         Returns
         -------
@@ -320,7 +365,7 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
                         base_gid,
                         self.base_handler,
                         daily_reduction,
-                        bias_ti=self.bias_fut_dh.time_index,
+                        bias_ti=self.bias_dh.time_index,
                         bias_fut_ti=self.bias_fut_dh.time_index,
                         decimals=self.decimals,
                         dist=self.dist,
@@ -328,6 +373,8 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
                         sampling=self.sampling,
                         n_samples=self.n_quantiles,
                         log_base=self.log_base,
+                        n_time_steps=self.n_time_steps,
+                        window_size=self.window_size,
                         base_dh_inst=self.base_dh,
                         zero_rate_threshold=zero_rate_threshold,
                     )
@@ -368,7 +415,7 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
                             base_gid,
                             self.base_handler,
                             daily_reduction,
-                            bias_ti=self.bias_fut_dh.time_index,
+                            bias_ti=self.bias_dh.time_index,
                             bias_fut_ti=self.bias_fut_dh.time_index,
                             decimals=self.decimals,
                             dist=self.dist,
@@ -376,6 +423,8 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
                             sampling=self.sampling,
                             n_samples=self.n_quantiles,
                             log_base=self.log_base,
+                            n_time_steps=self.n_time_steps,
+                            window_size=self.window_size,
                             zero_rate_threshold=zero_rate_threshold,
                         )
                         futures[future] = raster_loc
@@ -402,20 +451,16 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
             'zero_rate_threshold': zero_rate_threshold,
             'time_window_center': self.time_window_center,
         }
-        self.write_outputs(
-            fp_out,
-            self.out,
-            extra_attrs=extra_attrs,
-        )
+        self.write_outputs(fp_out,
+                           self.out,
+                           extra_attrs=extra_attrs,
+                           )
 
         return copy.deepcopy(self.out)
 
-    def write_outputs(
-        self,
-        fp_out: str,
-        out: Optional[dict] = None,
-        extra_attrs: Optional[dict] = None,
-    ):
+    def write_outputs(self, fp_out: str,
+                      out: dict = None,
+                      extra_attrs: Optional[dict] = None):
         """Write outputs to an .h5 file.
 
         Parameters
