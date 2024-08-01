@@ -212,13 +212,6 @@ class Sampler(Container):
             return self._fast_batch()
         return self._slow_batch()
 
-    def __iter__(self):
-        self._counter = 0
-        return self
-
-    def __len__(self):
-        return self._size
-
     def _parse_features(self, unparsed_feats):
         """Return a list of parsed feature names without wildcards."""
         if isinstance(unparsed_feats, str):

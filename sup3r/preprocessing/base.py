@@ -355,15 +355,6 @@ class Container:
             else data
         )
 
-    '''
-    def __new__(cls, *args, **kwargs):
-        """Include arg logging in construction."""
-        instance = super().__new__(cls)
-        _log_args(cls, cls.__init__, *args, **kwargs)
-        instance.__signature__ = signature(cls.__init__)
-        return instance
-    '''
-
     def post_init_log(self, args_dict=None):
         """Log additional arguments after initialization."""
         if args_dict is not None:

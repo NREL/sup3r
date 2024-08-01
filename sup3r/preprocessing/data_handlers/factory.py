@@ -55,7 +55,6 @@ class DataHandler(Deriver, metaclass=FactoryMeta):
         FeatureRegistry: Optional[dict] = None,
         interp_method: str = 'linear',
         cache_kwargs: Optional[dict] = None,
-        name: str = 'DataHandler',
         **kwargs,
     ):
         """
@@ -116,15 +115,11 @@ class DataHandler(Deriver, metaclass=FactoryMeta):
             have a {feature} format key and either a h5 or nc file extension,
             based on desired output type. See class:`Cacher` for description
             of more arguments.
-        name : str
-            Optional class name, used to resolve `repr(Class)` and distinguish
-            partially initialized DataHandlers with different FeatureRegistrys
         **kwargs : dict
             Dictionary of additional keyword args for
             :class:`~sup3r.preprocessing.Rasterizer`, used specifically for
             rasterizing flattended data
         """
-        self.__name__ = name
         features = parse_to_list(features=features)
         self.loader, self.rasterizer = self.get_data(
             file_paths=file_paths,
@@ -191,11 +186,15 @@ class DataHandler(Deriver, metaclass=FactoryMeta):
         cache_kwargs=None,
         **kwargs,
     ):
-        """Fill rasterizer data with cached data if available. Otherwise
-        load and rasterize all requested features."""
+        """Fill rasterizer data with cached data if available. If no features
+        requested then we just return coordinates. Otherwise we load and
+        rasterize all contained features. We rasterize all available features
+        because they might be used in future derivations."""
         cached_files, cached_features, _, missing_features = _check_for_cache(
             features=features, cache_kwargs=cache_kwargs
         )
+        just_coords = not features
+        raster_feats = 'all' if any(missing_features) else []
         rasterizer = loader = cache = None
         if any(cached_features):
             cache = Loader(
@@ -207,10 +206,11 @@ class DataHandler(Deriver, metaclass=FactoryMeta):
             )
             rasterizer = loader = cache
 
-        if any(missing_features):
+        if any(missing_features) or just_coords:
             rasterizer = Rasterizer(
                 file_paths=file_paths,
                 res_kwargs=res_kwargs,
+                features=raster_feats,
                 chunks=chunks,
                 target=target,
                 shape=shape,
@@ -224,9 +224,6 @@ class DataHandler(Deriver, metaclass=FactoryMeta):
                 rasterizer.file_paths = expand_paths(file_paths) + cached_files
             loader = rasterizer.loader
         return loader, rasterizer
-
-    def __repr__(self):
-        return f"<class '{self.__module__}.{self.__name__}'>"
 
 
 class DailyDataHandler(DataHandler):
@@ -321,9 +318,7 @@ class DailyDataHandler(DataHandler):
         self.data = Sup3rDataset(daily=daily_data, hourly=hourly_data)
 
 
-def DataHandlerFactory(
-    cls, BaseLoader=None, FeatureRegistry=None, name='DataHandler'
-):
+def DataHandlerFactory(cls, BaseLoader=None, FeatureRegistry=None, name=None):
     """Build composite objects that load from file_paths, rasterize a specified
     region, derive new features, and cache derived data.
 
@@ -336,22 +331,23 @@ def DataHandlerFactory(
         Dictionary of compute methods for features. This is used to look up how
         to derive features that are not contained in the raw loaded data.
     name : str
-        Optional name for class built from factory. This will display in
-        logging.
+        Optional class name, used to resolve `repr(Class)` and distinguish
+        partially initialized DataHandlers with different FeatureRegistrys
     """
 
     class FactoryDataHandler(cls):
         """FactoryDataHandler object. Is a partially initialized instance with
         `BaseLoader`, `FeatureRegistry`, and `name` set."""
 
+        __name__ = name or 'FactoryDataHandler'
+
         __init__ = partialmethod(
             cls.__init__,
             BaseLoader=BaseLoader,
-            FeatureRegistry=FeatureRegistry,
-            name=name,
+            FeatureRegistry=FeatureRegistry
         )
 
-        _skips = ('FeatureRegistry', 'BaseLoader', 'name')
+        _skips = ('FeatureRegistry', 'BaseLoader')
         __signature__, __doc__ = composite_info(cls, skip_params=_skips)
         __init__.__signature__ = __signature__
 

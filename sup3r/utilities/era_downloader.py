@@ -27,6 +27,7 @@ from sup3r.preprocessing.names import (
     SFC_VARS,
     Dimension,
 )
+from sup3r.preprocessing.utilities import log_args
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,7 @@ class EraDownloader:
     """Class to handle ERA5 downloading, variable renaming, and file
     combinations."""
 
+    @log_args
     def __init__(
         self,
         year,
@@ -187,9 +189,7 @@ class EraDownloader:
         for var in variables:
             if var in SFC_VARS and var not in self.sfc_file_variables:
                 self.sfc_file_variables.append(var)
-            elif (
-                var in LEVEL_VARS and var not in self.level_file_variables
-            ):
+            elif var in LEVEL_VARS and var not in self.level_file_variables:
                 self.level_file_variables.append(var)
             elif var not in SFC_VARS + LEVEL_VARS + ['zg', 'orog']:
                 msg = f'Requested {var} is not available for download.'
@@ -348,8 +348,9 @@ class EraDownloader:
         """Rename variables and convert geopotential to geopotential height."""
         tmp_file = self.get_tmp_file(self.surface_file)
         with Loader(self.surface_file) as ds:
-            ds = self.convert_dtype(ds)
-            logger.info('Converting "z" var to "orog"')
+            logger.info(
+                'Converting "z" var to "orog" for %s', self.surface_file
+            )
             ds = self.convert_z(ds, name='orog')
             ds = standardize_names(ds, ERA_NAME_MAP)
             ds.to_netcdf(tmp_file)
@@ -405,7 +406,7 @@ class EraDownloader:
         """Convert geopotential to geopotential height."""
         tmp_file = self.get_tmp_file(self.level_file)
         with Loader(self.level_file) as ds:
-            logger.info('Converting "z" var to "zg"')
+            logger.info('Converting "z" var to "zg" for %s', self.level_file)
             ds = self.convert_z(ds, name='zg')
             ds = standardize_names(ds, ERA_NAME_MAP)
             ds = self.add_pressure(ds)
@@ -428,7 +429,7 @@ class EraDownloader:
                 for f in set(ds.data_vars) - set(added_features):
                     mode = 'w' if not os.path.exists(tmp_file) else 'a'
                     logger.info('Adding %s to %s.', f, tmp_file)
-                    ds[f].to_netcdf(tmp_file, mode=mode)
+                    ds.data[f].to_netcdf(tmp_file, mode=mode)
                     logger.info('Added %s to %s.', f, tmp_file)
                     added_features.append(f)
         logger.info(f'Finished writing {tmp_file}')

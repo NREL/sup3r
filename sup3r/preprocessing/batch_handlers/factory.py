@@ -2,6 +2,7 @@
 samplers."""
 
 import logging
+from inspect import signature
 from typing import Dict, List, Optional, Type, Union
 
 from sup3r.preprocessing.base import (
@@ -170,19 +171,19 @@ def BatchHandlerFactory(
             kwargs : dict
                 Additional keyword arguments for BatchQueue and / or Samplers.
                 This can vary depending on the type of BatchQueue / Sampler
-                given to the Factory. For example, to build a BatchHandlerDC
+                given to the Factory. For example, to build a
+                :class:`~sup3r.preprocessing.batch_handlers.BatchHandlerDC`
                 object (data-centric batch handler) we use a queue and sampler
-                which takes spatial and temporal weight / bin arguments used
-                to determine how to weigh spatiotemporal regions when sampling.
-                Using ConditionalBatchQueue will result in arguments for
-                computing moments from batches and how to pad batch data to
-                enable these calculations.
-            """
-            kwargs = {
-                's_enhance': s_enhance,
-                't_enhance': t_enhance,
-                **kwargs,
-            }
+                which takes spatial and temporal weight / bin arguments used to
+                determine how to weigh spatiotemporal regions when sampling.
+                Using
+                :class:`~sup3r.preprocessing.batch_queues.ConditionalBatchQueue`
+                will result in arguments for computing moments from batches and
+                how to pad batch data to enable these calculations.
+            """  # pylint: disable=line-too-long
+
+            self.check_signatures(*self._legos)
+            kwargs = {'s_enhance': s_enhance, 't_enhance': t_enhance, **kwargs}
 
             train_samplers, val_samplers = self.init_samplers(
                 train_containers,
@@ -192,7 +193,7 @@ def BatchHandlerFactory(
                 batch_size=batch_size,
                 sampler_kwargs=get_class_kwargs(SamplerClass, kwargs),
             )
-
+            logger.info('Normalizing training samplers')
             stats = StatsCollection(
                 containers=train_samplers,
                 means=means,
@@ -200,11 +201,12 @@ def BatchHandlerFactory(
             )
             self.means = stats.means
             self.stds = stats.stds
-            stats.normalize(val_samplers)
 
             if not val_samplers:
                 self.val_data: Union[List, Type[self.VAL_QUEUE]] = []
             else:
+                logger.info('Normalizing validation samplers.')
+                stats.normalize(val_samplers)
                 self.val_data = self.VAL_QUEUE(
                     samplers=val_samplers,
                     n_batches=n_batches,
@@ -268,6 +270,20 @@ def BatchHandlerFactory(
                 ]
             )
             return train_samplers, val_samplers
+
+        @staticmethod
+        def check_signatures(MainQueueClass, SamplerClass, ValQueueClass):
+            """Make sure signatures of factory building blocks can be parsed
+            for required arguments."""
+            for kls in (MainQueueClass, ValQueueClass, SamplerClass):
+                msg = (
+                    f'The signature of {kls!r} cannot be resolved '
+                    'sufficiently. We need a detailed signature to '
+                    'determine how to distribute arguments given to the '
+                    'BatchHandler'
+                )
+                params = signature(kls).parameters.values()
+                assert {p.name for p in params} - {'args', 'kwargs'}, msg
 
         def start(self):
             """Start the val data batch queue in addition to the train batch

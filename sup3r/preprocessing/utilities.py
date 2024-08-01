@@ -4,7 +4,7 @@ import logging
 import os
 import pprint
 from glob import glob
-from inspect import Parameter, Signature, getfullargspec, signature
+from inspect import Parameter, Signature, getfullargspec
 from pathlib import Path
 from typing import ClassVar, Optional, Tuple, Union
 from warnings import warn
@@ -203,12 +203,12 @@ def get_input_handler_class(input_handler_name: Optional[str] = None):
 def get_obj_params(obj):
     """Get available signature parameters for obj and obj bases"""
     objs = (obj, *getattr(obj, '_legos', ()))
-    return CommandDocumentation(*objs).param_docs
+    return _combine_sigs(CommandDocumentation(*objs).signatures)
 
 
 def get_class_kwargs(obj, kwargs):
     """Get kwargs which match obj signature."""
-    param_names = list(get_obj_params(obj))
+    param_names = [p.name for p in get_obj_params(obj)]
     return {k: v for k, v in kwargs.items() if k in param_names}
 
 
@@ -258,11 +258,13 @@ def combine_sigs(sigs, skip_params=None):
 def _get_args_dict(thing, func, *args, **kwargs):
     """Get args dict from given object and object method."""
 
-    ann_dict = {
-        name: getattr(thing, name)
-        for name, val in getattr(thing, '__annotations__', {}).items()
-        if val is not ClassVar
-    }
+    ann_dict = {}
+    if '__annotations__' in dir(thing):
+        ann_dict = {
+            name: getattr(thing, name)
+            for name, val in thing.__annotations__.items()
+            if val is not ClassVar
+        }
     arg_spec = getfullargspec(func)
     args = args or []
     names = arg_spec.args if 'self' not in arg_spec.args else arg_spec.args[1:]
@@ -300,8 +302,7 @@ def log_args(func):
         _log_args(self, func, *args, **kwargs)
         return func(self, *args, **kwargs)
 
-    wrapper.__signature__ = signature(func)
-    wrapper.__doc__ = func.__doc__
+    wrapper.__signature__, wrapper.__doc__ = composite_info(func)
     return wrapper
 
 

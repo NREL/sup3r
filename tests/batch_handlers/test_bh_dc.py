@@ -5,6 +5,7 @@ from inspect import signature
 import numpy as np
 import pytest
 
+from sup3r.preprocessing import BatchHandlerDC
 from sup3r.preprocessing.utilities import composite_info
 from sup3r.utilities.pytest.helpers import (
     BatchHandlerTesterDC,
@@ -32,15 +33,15 @@ def test_signature():
         'spatial_weights',
         'temporal_weights'
     ]
-    comp_sig, _ = composite_info(BatchHandlerTesterDC)
-    sig = signature(BatchHandlerTesterDC)
-    init_sig = signature(BatchHandlerTesterDC.__init__)
+    comp_sig, _ = composite_info(BatchHandlerDC)
+    sig = signature(BatchHandlerDC)
+    init_sig = signature(BatchHandlerDC.__init__)
     params = [p.name for p in sig.parameters.values()]
     comp_params = [p.name for p in comp_sig.parameters.values()]
     init_params = [p.name for p in init_sig.parameters.values()]
-    assert all(p in comp_params for p in arg_names)
-    assert all(p in params for p in arg_names)
-    assert all(p in init_params for p in arg_names)
+    assert not set(arg_names) - set(params)
+    assert not set(arg_names) - set(comp_params)
+    assert not set(arg_names) - set(init_params)
 
 
 @pytest.mark.parametrize(

@@ -38,6 +38,33 @@ class DualSamplerCC(DualSampler):
         feature_sets: Optional[Dict] = None,
     ):
         """
+        Parameters
+        ----------
+        data : Sup3rDataset
+            A :class:`~sup3r.preprocessing.Sup3rDataset` instance with low-res
+            and high-res data members
+        sample_shape : tuple
+            Size of arrays to sample from the high-res data. The sample shape
+            for the low-res sampler will be determined from the enhancement
+            factors.
+        s_enhance : int
+            Spatial enhancement factor
+        t_enhance : int
+            Temporal enhancement factor
+        feature_sets : Optional[dict]
+            Optional dictionary describing how the full set of features is
+            split between `lr_only_features` and `hr_exo_features`.
+
+            lr_only_features : list | tuple
+                List of feature names or patt*erns that should only be
+                included in the low-res training set and not the high-res
+                observations.
+            hr_exo_features : list | tuple
+                List of feature names or patt*erns that should be included
+                in the high-resolution observation but not expected to be
+                output from the generative model. An example is high-res
+                topography that is to be injected mid-network.
+
         See Also
         --------
         :class:`~sup3r.preprocessing.DualSampler`

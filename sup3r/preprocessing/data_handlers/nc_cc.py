@@ -17,18 +17,17 @@ from sup3r.preprocessing.loaders import Loader
 from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.utilities import composite_info, log_args
 
-from .factory import (
-    DataHandler,
-)
+from .factory import DataHandler, DataHandlerFactory
 
 logger = logging.getLogger(__name__)
 
 
-class DataHandlerNCforCC(DataHandler):
+BaseNCforCC = DataHandlerFactory(DataHandler, FeatureRegistry=RegistryNCforCC)
+
+
+class DataHandlerNCforCC(BaseNCforCC):
     """Extended NETCDF data handler. This implements a rasterizer hook to add
     "clearsky_ghi" to the rasterized data if "clearsky_ghi" is requested."""
-
-    FEATURE_REGISTRY = RegistryNCforCC
 
     @log_args
     def __init__(
@@ -70,7 +69,9 @@ class DataHandlerNCforCC(DataHandler):
         self._features = features
         super().__init__(file_paths=file_paths, features=features, **kwargs)
 
-    __signature__, __init__.__doc__ = composite_info((__init__, DataHandler))
+    __signature__, __init__.__doc__ = composite_info(
+        (__init__, DataHandler), skip_params=['name', 'FeatureRegistry']
+    )
     __init__.__signature__ = __signature__
 
     def _rasterizer_hook(self):
@@ -182,7 +183,7 @@ class DataHandlerNCforCC(DataHandler):
         )
 
         cs_ghi = (
-            res[['clearsky_ghi']]
+            res.data[['clearsky_ghi']]
             .isel(
                 {
                     Dimension.FLATTENED_SPATIAL: i.flatten(),

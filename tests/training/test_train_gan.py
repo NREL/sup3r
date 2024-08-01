@@ -63,10 +63,10 @@ def test_train(fp_gen, fp_disc, s_enhance, t_enhance, sample_shape, n_epoch=3):
             train_containers=[train_handler],
             val_containers=[val_handler],
             sample_shape=sample_shape,
-            batch_size=10,
+            batch_size=15,
             s_enhance=s_enhance,
             t_enhance=t_enhance,
-            n_batches=4,
+            n_batches=5,
             means=None,
             stds=None,
         )

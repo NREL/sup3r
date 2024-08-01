@@ -3,12 +3,13 @@
 import logging
 from abc import abstractmethod
 from collections import namedtuple
-from typing import Dict, Optional
+from typing import Dict, List, Optional, Union
 
 import numpy as np
 
 from sup3r.models.conditional import Sup3rCondMom
-from sup3r.preprocessing.utilities import numpy_if_tensor
+from sup3r.preprocessing.samplers import DualSampler, Sampler
+from sup3r.preprocessing.utilities import composite_info, numpy_if_tensor
 
 from .base import SingleBatchQueue
 from .utilities import spatial_simple_enhancing, temporal_simple_enhancing
@@ -25,7 +26,7 @@ class ConditionalBatchQueue(SingleBatchQueue):
 
     def __init__(
         self,
-        *args,
+        samplers: Union[List[Sampler], List[DualSampler]],
         time_enhance_mode: str = 'constant',
         lower_models: Optional[Dict[int, Sup3rCondMom]] = None,
         s_padding: int = 0,
@@ -36,8 +37,8 @@ class ConditionalBatchQueue(SingleBatchQueue):
         """
         Parameters
         ----------
-        *args : list
-            Positional arguments for parent class
+        samplers: List[Sampler] | List[DualSampler]
+            List of samplers to use for queue.
         time_enhance_mode : str
             [constant, linear]
             Method to enhance temporally when constructing subfilter. At every
@@ -73,7 +74,12 @@ class ConditionalBatchQueue(SingleBatchQueue):
         self.end_t_padding = end_t_padding
         self.time_enhance_mode = time_enhance_mode
         self.lower_models = lower_models
-        super().__init__(*args, **kwargs)
+        super().__init__(samplers, **kwargs)
+
+    __signature__, __init__.__docs__ = composite_info(
+        (__init__, SingleBatchQueue)
+    )
+    __init__.__signature__ = __signature__
 
     def make_mask(self, high_res):
         """Make mask for output. This is used to ensure consistency when

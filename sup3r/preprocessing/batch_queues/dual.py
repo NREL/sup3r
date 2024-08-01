@@ -5,6 +5,8 @@ import logging
 
 from scipy.ndimage import gaussian_filter
 
+from sup3r.preprocessing.utilities import composite_info
+
 from .abstract import AbstractBatchQueue
 
 logger = logging.getLogger(__name__)
@@ -22,6 +24,9 @@ class DualBatchQueue(AbstractBatchQueue):
         super().__init__(*args, **kwargs)
         self.check_enhancement_factors()
 
+    __signature__, __init__.__doc__ = composite_info(AbstractBatchQueue)
+    __init__.__signature__ = __signature__
+
     @property
     def queue_shape(self):
         """Shape of objects stored in the queue."""
@@ -37,7 +42,7 @@ class DualBatchQueue(AbstractBatchQueue):
         s_factors = [c.s_enhance for c in self.containers]
         msg = (
             f'Received s_enhance = {self.s_enhance} but not all '
-            f'DualSamplers in the collection have the same value.'
+            f'DualSamplers in the collection have the same value: {s_factors}.'
         )
         assert all(self.s_enhance == s for s in s_factors), msg
         t_factors = [c.t_enhance for c in self.containers]

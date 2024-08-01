@@ -249,4 +249,3 @@ class Cacher(Container):
         )
         out = out.chunk(chunks.get(feature, 'auto'))
         out.to_netcdf(out_file)
-        out.close()

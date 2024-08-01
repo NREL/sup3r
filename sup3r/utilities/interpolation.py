@@ -198,8 +198,8 @@ class Interpolator:
                 '(maximum value of {:.3f}, minimum value of {:.3f}) '
                 'were greater than the minimum requested level: {}'.format(
                     100 * bad_min.sum() / bad_min.size,
-                    lev_array[..., 0].max(),
-                    lev_array[..., 0].min(),
+                    np.nanmax(lev_array[..., 0]),
+                    np.nanmin(lev_array[..., 0]),
                     min(levels),
                 )
             )
@@ -214,8 +214,8 @@ class Interpolator:
                 '(minimum value of {:.3f}, maximum value of {:.3f}) '
                 'were lower than the maximum requested level: {}'.format(
                     100 * bad_max.sum() / bad_max.size,
-                    lev_array[..., -1].min(),
-                    lev_array[..., -1].max(),
+                    np.nanmin(lev_array[..., -1]),
+                    np.nanmax(lev_array[..., -1]),
                     max(levels),
                 )
             )

@@ -352,21 +352,17 @@ class Sup3rX:
 
     @staticmethod
     def _check_fancy_indexing(data, keys) -> T_Array:
-        """Need to compute first if keys use fancy indexing, only supported by
-        numpy.
-
-        TODO: Can we use vindex here?
-        """
+        """We use `.vindex` if keys require fancy indexing."""
         where_list = [
             i
             for i, ind in enumerate(keys)
             if isinstance(ind, np.ndarray) and ind.ndim > 0
         ]
         if len(where_list) > 1:
-            msg = "Don't yet support nd fancy indexing. Computing first..."
+            msg = "Attempting fancy indexing, using .vindex method."
             logger.warning(msg)
             warn(msg)
-            return np.asarray(data)[keys]
+            return data.vindex[keys]
         return data[keys]
 
     def _get_from_tuple(self, keys) -> T_Array:

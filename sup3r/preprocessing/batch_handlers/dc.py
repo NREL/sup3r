@@ -41,7 +41,7 @@ class BatchHandlerDC(BaseDC):
     """
 
     @log_args
-    def __init__(self, train_containers, val_containers, *args, **kwargs):
+    def __init__(self, train_containers, val_containers, **kwargs):
         msg = (
             f'{self.__class__.__name__} requires validation data. If you '
             'do not plan to sample training data based on performance '
@@ -49,7 +49,6 @@ class BatchHandlerDC(BaseDC):
         )
         assert val_containers is not None and val_containers != [], msg
         super().__init__(
-            *args,
             train_containers=train_containers,
             val_containers=val_containers,
             **kwargs,

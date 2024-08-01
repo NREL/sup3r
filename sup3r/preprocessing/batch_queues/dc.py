@@ -5,6 +5,8 @@ import logging
 
 import numpy as np
 
+from sup3r.preprocessing.utilities import composite_info
+
 from .base import SingleBatchQueue
 
 logger = logging.getLogger(__name__)
@@ -40,6 +42,11 @@ class BatchQueueDC(SingleBatchQueue):
         self._temporal_weights = np.ones(n_time_bins) / n_time_bins
         super().__init__(samplers, **kwargs)
 
+    __signature__, __init__.__docs__ = composite_info(
+        (__init__, SingleBatchQueue)
+    )
+    __init__.__signature__ = __signature__
+
     def _build_batch(self):
         """Update weights and get batch of samples from sampled container."""
         sampler = self.get_random_container()
@@ -71,11 +78,35 @@ class ValBatchQueueDC(BatchQueueDC):
     performance across these batches will determine the weights for how the
     training batch queue is sampled."""
 
-    def __init__(self, *args, n_space_bins=1, n_time_bins=1, **kwargs):
+    def __init__(self, samplers, n_space_bins=1, n_time_bins=1, **kwargs):
+        """
+        Parameters
+        ----------
+        samplers : List[Sampler]
+            List of Sampler instances
+        n_space_bins : int
+            Number of spatial bins to use for weighted sampling. e.g. if this
+            is 4 the spatial domain will be divided into 4 equal regions and
+            losses will be calculated across these regions during traning in
+            order to adaptively sample from lower performing regions.
+        n_time_bins : int
+            Number of time bins to use for weighted sampling. e.g. if this
+            is 4 the temporal domain will be divided into 4 equal periods and
+            losses will be calculated across these periods during traning in
+            order to adaptively sample from lower performing time periods.
+        **kwargs : dict
+            Keyword arguments for parent class.
+        """
         super().__init__(
-            *args, n_space_bins=n_space_bins, n_time_bins=n_time_bins, **kwargs
+            samplers,
+            n_space_bins=n_space_bins,
+            n_time_bins=n_time_bins,
+            **kwargs,
         )
         self.n_batches = n_space_bins * n_time_bins
+
+    __signature__, __init__.__docs__ = composite_info((__init__, BatchQueueDC))
+    __init__.__signature__ = __signature__
 
     @property
     def spatial_weights(self):

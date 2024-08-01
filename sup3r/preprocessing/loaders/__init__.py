@@ -23,3 +23,9 @@ class Loader:
         return SpecificClass(file_paths, **kwargs)
 
     __signature__, __doc__ = composite_info(list(TypeSpecificClasses.values()))
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, trace):
+        self.res.close()

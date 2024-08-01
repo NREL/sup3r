@@ -8,12 +8,13 @@ lazy loading.
 import logging
 import pathlib
 from dataclasses import dataclass
+from inspect import signature
 from typing import ClassVar, List, Optional, Union
 
 import numpy as np
 
 from sup3r.preprocessing.rasterizers import SzaRasterizer, TopoRasterizer
-from sup3r.preprocessing.utilities import get_obj_params, log_args
+from sup3r.preprocessing.utilities import log_args
 
 from .base import SingleExoDataStep
 
@@ -240,7 +241,7 @@ class ExoDataHandler:
         ExoHandler = self.AVAILABLE_HANDLERS[feature.lower()]
         kwargs = {'s_enhance': s_enhance, 't_enhance': t_enhance}
 
-        params = get_obj_params(ExoHandler)
+        params = signature(ExoHandler).parameters.values()
         kwargs.update(
             {
                 k.name: getattr(self, k.name)
