@@ -88,8 +88,8 @@ class Sup3rQa:
             match a class in sup3r.preprocessing.data_handlers. If None the
             correct handler will be guessed based on file type.
         input_handler_kwargs : dict
-            Keyword arguments for `input_handler`. See :class:`Rasterizer` class
-            for argument details.
+            Keyword arguments for `input_handler`. See :class:`Rasterizer`
+            class for argument details.
         qa_fp : str | None
             Optional filepath to output QA file when you call Sup3rQa.run()
             (only .h5 is supported)

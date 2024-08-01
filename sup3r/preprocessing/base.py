@@ -348,15 +348,17 @@ class Container(metaclass=Sup3rMeta):
 
     def __init__(
         self,
-        data: Union[Sup3rX, Sup3rDataset, Tuple[...]] = None,
+        data: Union[
+            Sup3rX, Sup3rDataset, Tuple[Sup3rX, ...], Tuple[Sup3rDataset, ...]
+        ] = None,
     ):
         """
         Parameters
         ----------
-        data : Union[Sup3rX, Sup3rDataset, Tuple]
-            Can be an `xr.Dataset`, a :class:`~.accessor.Sup3rX`
-            object, a :class:`.Sup3rDataset` object, or a tuple of such
-            objects.
+        data: Union[Sup3rX, Sup3rDataset, Tuple[Sup3rX, ...],
+                    Tuple[Sup3rDataset, ...]
+            Can be an `xr.Dataset`, a :class:`~.accessor.Sup3rX` object, a
+            :class:`.Sup3rDataset` object, or a tuple of such objects.
 
             Note
             ----
