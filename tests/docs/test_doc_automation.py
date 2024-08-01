@@ -106,7 +106,6 @@ def test_nc_for_cc_sig():
         'hr_spatial_coarsen',
         'res_kwargs',
         'cache_kwargs',
-        'BaseLoader',
         'chunks',
         'interp_method',
         'nan_method_kwargs',

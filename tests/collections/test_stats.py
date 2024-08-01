@@ -46,12 +46,18 @@ def test_stats_dual_data():
     }
 
     direct_means = {
-        'windspeed': dat.data.mean(features='windspeed', skipna=True),
-        'winddirection': dat.data.mean(features='winddirection', skipna=True),
+        'windspeed': dat.data.mean(
+            features='windspeed', skipna=True
+        ).compute(),
+        'winddirection': dat.data.mean(
+            features='winddirection', skipna=True
+        ).compute(),
     }
     direct_stds = {
-        'windspeed': dat.data.std(features='windspeed', skipna=True),
-        'winddirection': dat.data.std(features='winddirection', skipna=True),
+        'windspeed': dat.data.std(features='windspeed', skipna=True).compute(),
+        'winddirection': dat.data.std(
+            features='winddirection', skipna=True
+        ).compute(),
     }
 
     with TemporaryDirectory() as td:
@@ -64,11 +70,11 @@ def test_stats_dual_data():
         assert means == stats.means
         assert stds == stats.stds
 
-        assert np.allclose(list(means.values()), list(og_means.values()))
-        assert np.allclose(list(stds.values()), list(og_stds.values()))
-
-        assert np.allclose(list(means.values()), list(direct_means.values()))
-        assert np.allclose(list(stds.values()), list(direct_stds.values()))
+        for k in set(means):
+            assert np.allclose(means[k], og_means[k])
+            assert np.allclose(stds[k], og_stds[k])
+            assert np.allclose(means[k], direct_means[k])
+            assert np.allclose(stds[k], direct_stds[k])
 
 
 def test_stats_known():
