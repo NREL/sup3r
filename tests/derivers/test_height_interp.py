@@ -53,8 +53,9 @@ def test_height_interp_nc(shape, target, height):
     assert np.array_equal(out, transform.data[f'u_{height}m'].data)
 
 
-@pytest.mark.parametrize(['shape', 'target'], [(10, 10), (37.25, -107)])
-def test_height_interp_with_single_lev_data_nc(shape, target):
+def test_height_interp_with_single_lev_data_nc(
+    shape=(10, 10), target=(37.25, -107)
+):
     """Test that variables can be interpolated with height correctly"""
 
     with TemporaryDirectory() as td:
@@ -90,8 +91,7 @@ def test_height_interp_with_single_lev_data_nc(shape, target):
     assert np.array_equal(out, transform.data['u_100m'].data)
 
 
-@pytest.mark.parametrize(['shape', 'target'], [(10, 10), (37.25, -107)])
-def test_log_interp(shape, target):
+def test_log_interp(shape=(10, 10), target=(37.25, -107)):
     """Test that wind is successfully interpolated with log profile when the
     requested height is under 100 meters."""
 

@@ -69,7 +69,7 @@ class DataHandlerNCforCC(BaseNCforCC):
         self._features = features
         super().__init__(file_paths=file_paths, features=features, **kwargs)
 
-    _signature_objs = (__init__, DataHandler)
+    _signature_objs = (__init__, BaseNCforCC)
     _skip_params = ('name', 'FeatureRegistry')
 
     def _rasterizer_hook(self):

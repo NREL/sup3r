@@ -13,6 +13,7 @@ from sup3r.preprocessing.cachers import Cacher
 from sup3r.preprocessing.cachers.utilities import _check_for_cache
 from sup3r.preprocessing.derivers import Deriver
 from sup3r.preprocessing.derivers.methods import (
+    RegistryBase,
     RegistryH5SolarCC,
     RegistryH5WindCC,
 )
@@ -334,6 +335,7 @@ def DataHandlerFactory(cls, BaseLoader=None, FeatureRegistry=None, name=None):
         """FactoryDataHandler object. Is a partially initialized instance with
         `BaseLoader`, `FeatureRegistry`, and `name` set."""
 
+        FEATURE_REGISTRY = FeatureRegistry or RegistryBase
         __name__ = name or 'FactoryDataHandler'
 
         def __init__(self, file_paths, features='all', **kwargs):
@@ -354,7 +356,7 @@ def DataHandlerFactory(cls, BaseLoader=None, FeatureRegistry=None, name=None):
                 file_paths,
                 features=features,
                 BaseLoader=BaseLoader,
-                FeatureRegistry=FeatureRegistry,
+                FeatureRegistry=self.FEATURE_REGISTRY,
                 **kwargs,
             )
 

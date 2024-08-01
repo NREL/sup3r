@@ -113,7 +113,7 @@ def expand_paths(fps):
 
     out = []
     for f in fps:
-        files = glob(f)
+        files = glob(str(f))
         assert any(files), f'Unable to resolve file path: {f}'
         out.extend(files)
 

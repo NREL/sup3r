@@ -1,6 +1,7 @@
 """pytests for :class:`Loader` objects"""
 
 import os
+from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import numpy as np
@@ -146,11 +147,12 @@ def test_load_cc():
     )
 
 
-def test_load_era5():
+@pytest.mark.parametrize('fp', (pytest.FP_ERA, Path(pytest.FP_ERA)))
+def test_load_era5(fp):
     """Test simple era5 file loading. Make sure general loader matches the type
-    specific loader"""
+    specific loader and that it works with pathlib"""
     chunks = {'south_north': 10, 'west_east': 10, 'time': 1000}
-    loader = LoaderNC(pytest.FP_ERA, chunks=chunks)
+    loader = LoaderNC(fp, chunks=chunks)
     assert all(
         loader[f].data.chunksize == tuple(chunks.values())
         for f in loader.features
