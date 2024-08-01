@@ -24,8 +24,8 @@ logger = logging.getLogger(__name__)
 class Sup3rMeta(ABCMeta, type):
     """Meta class to define __name__, __signature__, and __subclasscheck__ of
     composite and derived classes. This allows us to still resolve a signature
-    for classes which pass through parent args / kwargs as *args / **kwargs,
-    for example"""
+    for classes which pass through parent args / kwargs as *args / **kwargs or
+    those built through factory composition, for example."""
 
     def __new__(mcs, name, bases, namespace, **kwargs):  # noqa: N804
         """Define __name__ and __signature__"""
@@ -44,8 +44,10 @@ class Sup3rMeta(ABCMeta, type):
         """Check if factory built class shares base classes."""
         if super().__subclasscheck__(subclass):
             return True
-        if hasattr(subclass, '_legos'):
-            return cls._legos == subclass._legos
+        if hasattr(subclass, '_signature_objs'):
+            return {obj.__name__ for obj in cls._signature_objs} == {
+                obj.__name__ for obj in subclass._signature_objs
+            }
         return False
 
     def __repr__(cls):
