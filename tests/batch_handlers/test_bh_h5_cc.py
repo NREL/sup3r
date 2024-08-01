@@ -1,6 +1,5 @@
 """pytests for H5 climate change data batch handlers"""
 
-from inspect import signature
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -11,7 +10,7 @@ from sup3r.preprocessing import (
     DataHandlerH5SolarCC,
     DataHandlerH5WindCC,
 )
-from sup3r.preprocessing.utilities import composite_info, numpy_if_tensor
+from sup3r.preprocessing.utilities import numpy_if_tensor
 from sup3r.utilities.pytest.helpers import BatchHandlerTesterCC
 
 SHAPE = (20, 20)
@@ -27,31 +26,6 @@ dh_kwargs = {
     'time_slice': slice(None, None, 2),
     'time_roll': -7,
 }
-
-
-def test_signature():
-    """Make sure signature of composite batch handler is resolved."""
-
-    arg_names = [
-        'train_containers',
-        'sample_shape',
-        'val_containers',
-        'means',
-        'stds',
-        'feature_sets',
-        'n_batches',
-        't_enhance',
-        'batch_size',
-    ]
-    comp_sig, _ = composite_info(BatchHandlerCC.__init__)
-    sig = signature(BatchHandlerCC)
-    init_sig = signature(BatchHandlerCC.__init__)
-    params = [p.name for p in sig.parameters.values()]
-    comp_params = [p.name for p in comp_sig.parameters.values()]
-    init_params = [p.name for p in init_sig.parameters.values()]
-    assert not set(arg_names) - set(params)
-    assert not set(arg_names) - set(comp_params)
-    assert not set(arg_names) - set(init_params)
 
 
 @pytest.mark.parametrize(

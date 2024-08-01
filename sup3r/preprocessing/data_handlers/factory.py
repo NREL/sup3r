@@ -2,13 +2,11 @@
 ``Rasterizer``, ``Deriver``, and ``Cacher`` objects"""
 
 import logging
-from functools import partialmethod
 from typing import Callable, Dict, Optional, Union
 
 from rex import MultiFileNSRDBX
 
 from sup3r.preprocessing.base import (
-    FactoryMeta,
     Sup3rDataset,
 )
 from sup3r.preprocessing.cachers import Cacher
@@ -21,7 +19,6 @@ from sup3r.preprocessing.derivers.methods import (
 from sup3r.preprocessing.loaders import Loader
 from sup3r.preprocessing.rasterizers import Rasterizer
 from sup3r.preprocessing.utilities import (
-    composite_info,
     expand_paths,
     get_class_kwargs,
     log_args,
@@ -31,7 +28,7 @@ from sup3r.preprocessing.utilities import (
 logger = logging.getLogger(__name__)
 
 
-class DataHandler(Deriver, metaclass=FactoryMeta):
+class DataHandler(Deriver):
     """Base DataHandler. Composes :class:`~sup3r.preprocessing.Rasterizer`,
     :class:`~sup3r.preprocessing.Loader`,
     :class:`~sup3r.preprocessing.Deriver`, and
@@ -63,8 +60,9 @@ class DataHandler(Deriver, metaclass=FactoryMeta):
         file_paths : str | list | pathlib.Path
             file_paths input to LoaderClass
         features : list | str
-            Features to return in loaded dataset. If 'all' then all available
-            features will be returned.
+            Features to load and / or derive. If 'all' then all available raw
+            features will be loaded. Specify explicit feature names for
+            derivations.
         res_kwargs : dict
             kwargs for `.res` object
         chunks : dict | str
@@ -84,12 +82,12 @@ class DataHandler(Deriver, metaclass=FactoryMeta):
             Nearest neighbor euclidean distance threshold. If the coordinates
             are more than this value away from the target lat/lon, an error is
             raised.
-        time_roll: int
+        time_roll : int
             Number of steps to shift the time axis. `Passed to
             xr.Dataset.roll()`
-        hr_spatial_coarsen: int
+        hr_spatial_coarsen : int
             Spatial coarsening factor. Passed to `xr.Dataset.coarsen()`
-        nan_method_kwargs: str | dict | None
+        nan_method_kwargs : str | dict | None
             Keyword arguments for nan handling. If 'mask', time steps with nans
             will be dropped. Otherwise this should be a dict of kwargs which
             will be passed to
@@ -99,8 +97,7 @@ class DataHandler(Deriver, metaclass=FactoryMeta):
             `file_paths` and `**kwargs` and returns an initialized base loader
             with those arguments. The default for h5 is a method which returns
             MultiFileWindX(file_paths, **kwargs) and for nc the default is
-            xarray.open_mfdataset(file_paths,
-            **kwargs)
+            xarray.open_mfdataset(file_paths, **kwargs)
         FeatureRegistry : dict
             Dictionary of
             :class:`~sup3r.preprocessing.derivers.methods.DerivedFeature`
@@ -109,13 +106,13 @@ class DataHandler(Deriver, metaclass=FactoryMeta):
             Interpolation method to use for height interpolation. e.g. Deriving
             u_20m from u_10m and u_100m. Options are "linear" and "log". See
             :py:meth:`sup3r.preprocessing.Deriver.do_level_interpolation`
-        cache_kwargs: dict | None
+        cache_kwargs : dict | None
             Dictionary with kwargs for caching wrangled data. This should at
             minimum include a `cache_pattern` key, value. This pattern must
             have a {feature} format key and either a h5 or nc file extension,
             based on desired output type. See class:`Cacher` for description
             of more arguments.
-        **kwargs : dict
+        kwargs : dict
             Dictionary of additional keyword args for
             :class:`~sup3r.preprocessing.Rasterizer`, used specifically for
             rasterizing flattended data
@@ -232,10 +229,11 @@ class DailyDataHandler(DataHandler):
     daily windows. Special treatment of clearsky_ratio, which requires
     derivation from total clearsky_ghi and total ghi.
 
-    TODO: Not a fan of manually adding cs_ghi / ghi and then removing. Maybe
+    TODO:
+    (1) Not a fan of manually adding cs_ghi / ghi and then removing. Maybe
     this could be handled through a derivation instead
 
-    TODO: We assume daily and hourly data here but we could generalize this to
+    (2) We assume daily and hourly data here but we could generalize this to
     go from daily -> any time step. This would then enable the CC models to do
     arbitrary temporal enhancement.
     """
@@ -255,10 +253,7 @@ class DailyDataHandler(DataHandler):
             features.extend(needed)
         super().__init__(file_paths=file_paths, features=features, **kwargs)
 
-    __signature__, __init__.__doc__ = composite_info(
-        (__init__, DataHandler)
-    )
-    __init__.__signature__ = __signature__
+    _signature_objs = (__init__, DataHandler)
 
     def _deriver_hook(self):
         """Hook to run daily coarsening calculations after derivations of
@@ -341,15 +336,30 @@ def DataHandlerFactory(cls, BaseLoader=None, FeatureRegistry=None, name=None):
 
         __name__ = name or 'FactoryDataHandler'
 
-        __init__ = partialmethod(
-            cls.__init__,
-            BaseLoader=BaseLoader,
-            FeatureRegistry=FeatureRegistry
-        )
+        def __init__(self, file_paths, features='all', **kwargs):
+            """
+            Parameters
+            ----------
+            file_paths : str | list | pathlib.Path
+                file_paths input to LoaderClass
+            features : list | str
+                Features to load and / or derive. If 'all' then all available
+                raw features will be loaded. Specify explicit feature names for
+                derivations.
+            kwargs : dict
+                kwargs for parent class, except for FeatureRegistry and
+                BaseLoader
+            """
+            super().__init__(
+                file_paths,
+                features=features,
+                BaseLoader=BaseLoader,
+                FeatureRegistry=FeatureRegistry,
+                **kwargs,
+            )
 
-        _skips = ('FeatureRegistry', 'BaseLoader')
-        __signature__, __doc__ = composite_info(cls, skip_params=_skips)
-        __init__.__signature__ = __signature__
+        _signature_objs = (cls,)
+        _skip_params = ('FeatureRegistry', 'BaseLoader')
 
     return FactoryDataHandler
 

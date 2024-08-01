@@ -34,7 +34,7 @@ class SamplerDC(Sampler):
         """
         Parameters
         ----------
-        data: Union[Sup3rX, Sup3rDataset],
+        data : Union[Sup3rX, Sup3rDataset],
             Object with data that will be sampled from. Usually the `.data`
             attribute of various :class:`Container` objects.  i.e.
             :class:`Loader`, :class:`Rasterizer`, :class:`Deriver`, as long as

@@ -16,8 +16,40 @@ import xarray as xr
 
 import sup3r.preprocessing.accessor  # noqa: F401 # pylint: disable=W0611
 from sup3r.preprocessing.accessor import Sup3rX
+from sup3r.preprocessing.utilities import composite_info
 
 logger = logging.getLogger(__name__)
+
+
+class Sup3rMeta(ABCMeta, type):
+    """Meta class to define __name__, __signature__, and __subclasscheck__ of
+    composite and derived classes. This allows us to still resolve a signature
+    for classes which pass through parent args / kwargs as *args / **kwargs,
+    for example"""
+
+    def __new__(mcs, name, bases, namespace, **kwargs):  # noqa: N804
+        """Define __name__ and __signature__"""
+        name = namespace.get('__name__', name)
+        sig_objs = namespace.get('_signature_objs', None)
+        skips = namespace.get('_skip_params', None)
+        if sig_objs:
+            _sig, _doc = composite_info(sig_objs, skip_params=skips)
+            namespace['__signature__'] = _sig
+            if '__init__' in namespace:
+                namespace['__init__'].__signature__ = _sig
+                namespace['__init__'].__doc__ = _doc
+        return super().__new__(mcs, name, bases, namespace, **kwargs)
+
+    def __subclasscheck__(cls, subclass):
+        """Check if factory built class shares base classes."""
+        if super().__subclasscheck__(subclass):
+            return True
+        if hasattr(subclass, '_legos'):
+            return cls._legos == subclass._legos
+        return False
+
+    def __repr__(cls):
+        return f"<class '{cls.__module__}.{cls.__name__}'>"
 
 
 class Sup3rDataset:
@@ -303,44 +335,70 @@ class Sup3rDataset:
         return all(d.loaded for d in self._ds)
 
 
-class Container:
+class Container(metaclass=Sup3rMeta):
     """Basic fundamental object used to build preprocessing objects. Contains
-    an xarray-like Dataset (:class:`~sup3r.preprocessing.Sup3rX`) or wrapped
-    tuple of `Sup3rX` objects (:class:`.Sup3rDataset`).
+    an xarray-like Dataset (:class:`~sup3r.preprocessing.Sup3rX`), wrapped
+    tuple of `Sup3rX` objects (:class:`.Sup3rDataset`), or a tuple of such
+    objects.
     """
 
     __slots__ = ['_data']
 
     def __init__(
         self,
-        data: Union[Sup3rX, Sup3rDataset] = None,
+        data: Union[Sup3rX, Sup3rDataset, Tuple[...]] = None,
     ):
         """
         Parameters
         ----------
-        data : Union[Sup3rX, Sup3rDataset]
-            Can be an `xr.Dataset`, a :class:`~sup3r.preprocessing.Sup3rX`
+        data : Union[Sup3rX, Sup3rDataset, Tuple]
+            Can be an `xr.Dataset`, a :class:`~.accessor.Sup3rX`
             object, a :class:`.Sup3rDataset` object, or a tuple of such
-            objects. A tuple can be used for dual / paired containers like
-            :class:`~sup3r.preprocessing.DualSampler`.
+            objects.
+
+            Note
+            ----
+            `.data` will return a :class:`~.Sup3rDataset` object or tuple of
+            such. This is a tuple when the `.data` attribute belongs to a
+            :class:`~sup3r.preprocessing.collections.Collection` object like
+            :class:`~sup3r.preprocessing.batch_handlers.BatchHandler`.
+            Otherwise this is :class:`~.Sup3rDataset` object, which is either a
+            wrapped 2-tuple or 1-tuple (e.g. len(data) == 2 or len(data) == 1).
+            This is a 2-tuple when `.data` belongs to a dual container object
+            like :class:`~sup3r.preprocessing.samplers.DualSampler` and a
+            1-tuple otherwise.
         """
         self.data = data
 
     @property
     def data(self):
-        """Return a wrapped 1-tuple or 2-tuple xr.Dataset."""
+        """Return underlying data.
+
+        See Also
+        --------
+        :py:meth:`.wrap`
+        """
         return self._data
 
     @data.setter
     def data(self, data):
-        """Set data value. Cast to Sup3rDataset if not already. This just
-        wraps the data in a namedtuple, simplifying interactions in the case
-        of dual datasets."""
+        """Set data value. Wrap given value depending on type.
+
+        See Also
+        --------
+        :py:meth:`.wrap`"""
         self._data = self.wrap(data)
 
     @staticmethod
     def wrap(data):
-        """Wrap data as :class:`Sup3rDataset` if not already."""
+        """Return a :class:`~.Sup3rDataset` object or tuple of such. This is a
+        tuple when the `.data` attribute belongs to a
+        :class:`~sup3r.preprocessing.collections.Collection` object like
+        :class:`~sup3r.preprocessing.batch_handlers.BatchHandler`. Otherwise
+        this is is :class:`~.Sup3rDataset` objects, which is either a wrapped
+        2-tuple or 1-tuple (e.g. len(data) == 2 or len(data) == 1) depending on
+        whether this container is used for a dual dataset or not.
+        """
         if isinstance(data, Sup3rDataset):
             return data
         if isinstance(data, tuple) and all(
@@ -387,24 +445,3 @@ class Container:
         except Exception as e:
             msg = f'{self.__class__.__name__} object has no attribute "{attr}"'
             raise AttributeError(msg) from e
-
-
-class FactoryMeta(ABCMeta, type):
-    """Meta class to define __name__ and __signature__ of factory built
-    classes."""
-
-    def __new__(mcs, name, bases, namespace, **kwargs):  # noqa: N804
-        """Define __name__ and __signature__"""
-        name = namespace.get('__name__', name)
-        return super().__new__(mcs, name, bases, namespace, **kwargs)
-
-    def __subclasscheck__(cls, subclass):
-        """Check if factory built class shares base classes."""
-        if super().__subclasscheck__(subclass):
-            return True
-        if hasattr(subclass, '_legos'):
-            return cls._legos == subclass._legos
-        return False
-
-    def __repr__(cls):
-        return f"<class '{cls.__module__}.{cls.__name__}'>"

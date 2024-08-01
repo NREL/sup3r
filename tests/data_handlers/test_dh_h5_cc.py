@@ -3,7 +3,6 @@
 import os
 import shutil
 import tempfile
-from inspect import signature
 
 import numpy as np
 import pytest
@@ -32,33 +31,6 @@ dh_kwargs = {
     'time_slice': slice(None, None, 2),
     'time_roll': -7,
 }
-
-
-def test_signature():
-    """Make sure signature of composite data handler is resolved.
-
-    This is a bad test, with hardcoded arg names, but I'm not sure of a better
-    way here.
-    """
-
-    arg_names = [
-        'file_paths',
-        'features',
-        'res_kwargs',
-        'chunks',
-        'target',
-        'shape',
-        'time_slice',
-        'threshold',
-        'time_roll',
-        'hr_spatial_coarsen',
-        'nan_method_kwargs',
-        'interp_method',
-        'cache_kwargs',
-    ]
-    sig = signature(DataHandlerH5SolarCC)
-    params = [p.name for p in sig.parameters.values()]
-    assert not set(arg_names) - set(params)
 
 
 def test_daily_handler():

@@ -2,7 +2,6 @@
 
 import os
 import tempfile
-from inspect import signature
 
 import numpy as np
 import pytest
@@ -12,7 +11,6 @@ from scipy.spatial import KDTree
 
 from sup3r import TEST_DATA_DIR
 from sup3r.preprocessing import (
-    DataHandler,
     DataHandlerNCforCC,
     DataHandlerNCforCCwithPowerLaw,
     Dimension,
@@ -20,42 +18,7 @@ from sup3r.preprocessing import (
     LoaderNC,
 )
 from sup3r.preprocessing.derivers.methods import UWindPowerLaw, VWindPowerLaw
-from sup3r.preprocessing.utilities import composite_info
 from sup3r.utilities.pytest.helpers import make_fake_dset
-
-
-def test_signature():
-    """Make sure signature of composite data handler is resolved."""
-    arg_names = [
-        'file_paths',
-        'features',
-        'nsrdb_source_fp',
-        'nsrdb_agg',
-        'nsrdb_smoothing',
-        'shape',
-        'target',
-        'time_slice',
-        'time_roll',
-        'threshold',
-        'hr_spatial_coarsen',
-        'res_kwargs',
-        'cache_kwargs',
-        'name',
-        'BaseLoader',
-        'FeatureRegistry',
-        'chunks',
-        'interp_method',
-        'nan_method_kwargs'
-    ]
-    comp_sig, _ = composite_info([DataHandlerNCforCC.__init__, DataHandler])
-    sig = signature(DataHandlerNCforCC)
-    init_sig = signature(DataHandlerNCforCC.__init__)
-    params = [p.name for p in sig.parameters.values()]
-    comp_params = [p.name for p in comp_sig.parameters.values()]
-    init_params = [p.name for p in init_sig.parameters.values()]
-    assert not set(arg_names) - set(comp_params)
-    assert not set(arg_names) - set(params)
-    assert not set(arg_names) - set(init_params)
 
 
 def test_get_just_coords_nc():

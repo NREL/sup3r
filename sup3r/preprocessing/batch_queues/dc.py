@@ -5,8 +5,6 @@ import logging
 
 import numpy as np
 
-from sup3r.preprocessing.utilities import composite_info
-
 from .base import SingleBatchQueue
 
 logger = logging.getLogger(__name__)
@@ -33,7 +31,7 @@ class BatchQueueDC(SingleBatchQueue):
             is 4 the temporal domain will be divided into 4 equal periods and
             losses will be calculated across these periods during traning in
             order to adaptively sample from lower performing time periods.
-        **kwargs : dict
+        kwargs : dict
             Keyword arguments for parent class.
         """
         self.n_space_bins = n_space_bins
@@ -42,10 +40,7 @@ class BatchQueueDC(SingleBatchQueue):
         self._temporal_weights = np.ones(n_time_bins) / n_time_bins
         super().__init__(samplers, **kwargs)
 
-    __signature__, __init__.__docs__ = composite_info(
-        (__init__, SingleBatchQueue)
-    )
-    __init__.__signature__ = __signature__
+    _signature_objs = (__init__, SingleBatchQueue)
 
     def _build_batch(self):
         """Update weights and get batch of samples from sampled container."""
@@ -94,7 +89,7 @@ class ValBatchQueueDC(BatchQueueDC):
             is 4 the temporal domain will be divided into 4 equal periods and
             losses will be calculated across these periods during traning in
             order to adaptively sample from lower performing time periods.
-        **kwargs : dict
+        kwargs : dict
             Keyword arguments for parent class.
         """
         super().__init__(
@@ -105,8 +100,7 @@ class ValBatchQueueDC(BatchQueueDC):
         )
         self.n_batches = n_space_bins * n_time_bins
 
-    __signature__, __init__.__docs__ = composite_info((__init__, BatchQueueDC))
-    __init__.__signature__ = __signature__
+    _signature_objs = (__init__, BatchQueueDC)
 
     @property
     def spatial_weights(self):

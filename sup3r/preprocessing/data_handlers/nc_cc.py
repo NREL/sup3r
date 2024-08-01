@@ -15,7 +15,7 @@ from sup3r.preprocessing.derivers.methods import (
 )
 from sup3r.preprocessing.loaders import Loader
 from sup3r.preprocessing.names import Dimension
-from sup3r.preprocessing.utilities import composite_info, log_args
+from sup3r.preprocessing.utilities import log_args
 
 from .factory import DataHandler, DataHandlerFactory
 
@@ -60,7 +60,7 @@ class DataHandlerNCforCC(BaseNCforCC):
             clearsky_ghi from high-resolution nsrdb source data. This is
             typically done because spatially aggregated nsrdb data is still
             usually rougher than CC irradiance data.
-        **kwargs : list
+        kwargs : list
             Same optional keyword arguments as parent class.
         """
         self._nsrdb_source_fp = nsrdb_source_fp
@@ -69,10 +69,8 @@ class DataHandlerNCforCC(BaseNCforCC):
         self._features = features
         super().__init__(file_paths=file_paths, features=features, **kwargs)
 
-    __signature__, __init__.__doc__ = composite_info(
-        (__init__, DataHandler), skip_params=['name', 'FeatureRegistry']
-    )
-    __init__.__signature__ = __signature__
+    _signature_objs = (__init__, DataHandler)
+    _skip_params = ('name', 'FeatureRegistry')
 
     def _rasterizer_hook(self):
         """Rasterizer hook implementation to add 'clearsky_ghi' data to

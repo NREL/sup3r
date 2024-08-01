@@ -113,7 +113,7 @@ def test_fwp_spatial_only(input_files):
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=1,
             temporal_pad=1,
-            input_handler_name='RasterizerNC',
+            input_handler_name='Rasterizer',
             input_handler_kwargs={
                 'target': target,
                 'shape': shape,

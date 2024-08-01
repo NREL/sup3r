@@ -4,7 +4,6 @@ import dask.array as da
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
-
 from scipy.interpolate import interp1d
 
 from sup3r.models.utilities import st_interp

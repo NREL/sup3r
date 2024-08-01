@@ -11,7 +11,6 @@ import logging
 from sup3r.preprocessing.batch_queues.dc import BatchQueueDC, ValBatchQueueDC
 from sup3r.preprocessing.samplers.dc import SamplerDC
 from sup3r.preprocessing.utilities import (
-    composite_info,
     log_args,
 )
 
@@ -66,8 +65,5 @@ class BatchHandlerDC(BaseDC):
         assert self.n_space_bins <= max_space_bins, msg
         assert self.n_time_bins <= max_time_bins, msg
 
-    _skips = ('samplers', 'data', 'thread_name', 'kwargs')
-    __signature__, __init__.__doc__ = composite_info(
-        (__init__, BaseDC), skip_params=_skips
-    )
-    __init__.__signature__ = __signature__
+    _signature_objs = (__init__, BaseDC)
+    _skip_params = ('samplers', 'data', 'thread_name', 'kwargs')

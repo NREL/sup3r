@@ -71,6 +71,18 @@ FEATURE_NAMES = {
     'hgt': 'topography',
 }
 
+COORD_NAMES = {
+    'lat': Dimension.LATITUDE,
+    'lon': Dimension.LONGITUDE,
+    'xlat': Dimension.LATITUDE,
+    'xlong': Dimension.LONGITUDE,
+    'plev': Dimension.PRESSURE_LEVEL,
+    'isobaricInhPa': Dimension.PRESSURE_LEVEL,
+    'pressure_level': Dimension.PRESSURE_LEVEL,
+    'xtime': Dimension.TIME,
+    'valid_time': Dimension.TIME
+}
+
 DIM_NAMES = {
     'lat': Dimension.SOUTH_NORTH,
     'lon': Dimension.WEST_EAST,
@@ -80,17 +92,11 @@ DIM_NAMES = {
     'longitude': Dimension.WEST_EAST,
     'plev': Dimension.PRESSURE_LEVEL,
     'isobaricInhPa': Dimension.PRESSURE_LEVEL,
+    'pressure_level': Dimension.PRESSURE_LEVEL,
     'xtime': Dimension.TIME,
+    'valid_time': Dimension.TIME
 }
 
-COORD_NAMES = {
-    'lat': Dimension.LATITUDE,
-    'lon': Dimension.LONGITUDE,
-    'xlat': Dimension.LATITUDE,
-    'xlong': Dimension.LONGITUDE,
-    'plev': Dimension.PRESSURE_LEVEL,
-    'isobaricInhPa': Dimension.PRESSURE_LEVEL,
-}
 
 # ERA5 variable names
 

@@ -40,7 +40,7 @@ class DerivedFeature(ABC):
             Initialized and standardized through a :class:`Loader` with a
             specific spatiotemporal extent rasterized for the features
             contained using a :class:`Rasterizer`.
-        **kwargs : dict
+        kwargs : dict
             Optional keyword arguments used in derivation. height is a typical
             example. Could also be pressure.
         """

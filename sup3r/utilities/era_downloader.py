@@ -364,7 +364,7 @@ class EraDownloader:
         """
         if 'pressure' in self.variables and 'pressure' not in ds.data_vars:
             logger.info('Adding pressure variable.')
-            pres = 100 * ds[Dimension.PRESSURE_LEVEL].values
+            pres = 100 * ds[Dimension.PRESSURE_LEVEL].values.astype(np.float32)
             ds['pressure'] = (
                 ds['zg'].dims,
                 da.broadcast_to(pres, ds['zg'].shape),
@@ -418,7 +418,7 @@ class EraDownloader:
             for f in set(ds.data_vars) - set(added_features):
                 mode = 'w' if not os.path.exists(tmp_file) else 'a'
                 logger.info('Adding %s to %s.', f, tmp_file)
-                ds.data[f].to_netcdf(tmp_file, mode=mode)
+                ds.to_netcdf(tmp_file, mode=mode)
                 logger.info('Added %s to %s.', f, tmp_file)
                 added_features.append(f)
         logger.info(f'Finished writing {tmp_file}')
@@ -439,7 +439,7 @@ class EraDownloader:
                 files.append(self.surface_file)
 
             logger.info(f'Combining {files} to {self.combined_file}.')
-            kwargs = {'compat': 'override', 'chunks': 'auto'}
+            kwargs = {'compat': 'override'}
             try:
                 self._write_dsets(
                     files, out_file=self.combined_file, kwargs=kwargs

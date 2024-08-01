@@ -4,7 +4,7 @@ import logging
 import os
 import pprint
 from glob import glob
-from inspect import Parameter, Signature, getfullargspec
+from inspect import Parameter, Signature, getfullargspec, signature
 from pathlib import Path
 from typing import ClassVar, Optional, Tuple, Union
 from warnings import warn
@@ -151,11 +151,13 @@ def get_source_type(file_paths):
     if source_type in ('.nc',):
         return 'nc'
     msg = (
-        f'Can only handle HDF or NETCDF files. Received "{source_type}" for '
-        f'files: {file_paths}'
+        f'Can only handle HDF or NETCDF files. Received unknown extension '
+        f'"{source_type}" for files: {file_paths}. We will try to open this '
+        'with xarray.'
     )
-    logger.error(msg)
-    raise ValueError(msg)
+    logger.warning(msg)
+    warn(msg)
+    return 'nc'
 
 
 def get_input_handler_class(input_handler_name: Optional[str] = None):
@@ -203,7 +205,7 @@ def get_input_handler_class(input_handler_name: Optional[str] = None):
 def get_obj_params(obj):
     """Get available signature parameters for obj and obj bases"""
     objs = (obj, *getattr(obj, '_legos', ()))
-    return _combine_sigs(CommandDocumentation(*objs).signatures)
+    return composite_sig(CommandDocumentation(*objs)).parameters.values()
 
 
 def get_class_kwargs(obj, kwargs):
@@ -212,47 +214,48 @@ def get_class_kwargs(obj, kwargs):
     return {k: v for k, v in kwargs.items() if k in param_names}
 
 
+def composite_sig(docs: CommandDocumentation):
+    """Get composite signature from command documentation instance."""
+    param_names = {
+        p.name for sig in docs.signatures for p in sig.parameters.values()
+    }
+    config = {
+        k: v for k, v in docs.template_config.items() if k in param_names
+    }
+    has_kwargs = config.pop('kwargs', False)
+    kw_only = []
+    pos_or_kw = []
+    for k, v in config.items():
+        if v != docs.REQUIRED_TAG:
+            kw_only.append(Parameter(k, Parameter.KEYWORD_ONLY, default=v))
+        else:
+            pos_or_kw.append(Parameter(k, Parameter.POSITIONAL_OR_KEYWORD))
+
+    params = pos_or_kw + kw_only
+    if has_kwargs:
+        params += [Parameter('kwargs', Parameter.VAR_KEYWORD)]
+    return Signature(parameters=params)
+
+
 def composite_info(objs, skip_params=None):
     """Get composite signature and doc string for given set of objects."""
     objs = objs if isinstance(objs, (tuple, list)) else [objs]
     docs = CommandDocumentation(*objs, skip_params=skip_params)
-    return combine_sigs(
-        docs.signatures, skip_params=skip_params
-    ), docs.parameter_help
+    return composite_sig(docs), docs.parameter_help
 
 
-def _combine_sigs(sigs):
-    """Combine parameter sets for given objects."""
-    params = []
-    for sig in sigs:
-        new_params = list(sig.parameters.values())
-        param_names = [p.name for p in params]
-        new_params = [
-            p for p in new_params if p.name not in (*param_names, 'args')
-        ]
-        params.extend(new_params)
-    return params
+def check_signatures(objs, skip_params=None):
+    """Make sure signatures of objects can be parsed for required arguments."""
+    docs = CommandDocumentation(*objs, skip_params=skip_params)
+    for i, sig in enumerate(docs.signatures):
+        msg = (
+            f'The signature of {objs[i]!r} cannot be resolved sufficiently. '
+            'We need a detailed signature to determine how to distribute '
+            'arguments.'
+        )
 
-
-def combine_sigs(sigs, skip_params=None):
-    """Get signature of an object built from the given list of signatures, with
-    option to skip some parameters."""
-    params = _combine_sigs(sigs)
-    skip_params = skip_params or []
-    no_skips = [p for p in params if p.name not in skip_params]
-    filtered = [p for p in no_skips if p.name not in ('args', 'kwargs')]
-    defaults = [p for p in filtered if p.default != p.empty]
-    filtered = [p for p in filtered if p.default == p.empty]
-    filtered = [
-        Parameter(p.name, p.kind)
-        if p.kind
-        not in (Parameter.KEYWORD_ONLY, Parameter.POSITIONAL_OR_KEYWORD)
-        else Parameter(p.name, p.KEYWORD_ONLY, default=p.default)
-        for p in [*filtered, *defaults]
-    ]
-    if any(p.name == 'kwargs' for p in no_skips):
-        filtered += [Parameter('kwargs', Parameter.VAR_KEYWORD)]
-    return Signature(parameters=filtered)
+        params = sig.parameters.values()
+        assert {p.name for p in params} - {'args', 'kwargs'}, msg
 
 
 def _get_args_dict(thing, func, *args, **kwargs):
@@ -292,13 +295,17 @@ def _log_args(thing, func, *args, **kwargs):
 
 
 def log_args(func):
-    """Decorator to log annotations and args."""
+    """Decorator to log annotations and args. This can used to wrap __init__
+    methods so we need to pass through the signature and docs"""
 
     def wrapper(self, *args, **kwargs):
         _log_args(self, func, *args, **kwargs)
         return func(self, *args, **kwargs)
 
-    wrapper.__signature__, wrapper.__doc__ = composite_info(func)
+    wrapper.__signature__, wrapper.__doc__ = (
+        signature(func),
+        getattr(func, '__doc__', ''),
+    )
     return wrapper
 
 

@@ -208,7 +208,7 @@ def test_load_h5():
     )
     gen_loader = Loader(pytest.FP_WTK, chunks=chunks)
     assert np.array_equal(loader.as_array(), gen_loader.as_array())
-    assert Resource(pytest.FP_WTK).attrs == loader.attrs['attrs']
+    assert not set(Resource(pytest.FP_WTK).attrs) - set(loader.attrs)
 
 
 def test_multi_file_load_nc():

@@ -74,7 +74,7 @@ class BaseLoader(Container, ABC):
     def add_attrs(self):
         """Add meta data to dataset."""
         attrs = {
-            'source_files': self.file_paths,
+            'source_files': str(self.file_paths),
             'date_modified': dt.utcnow().isoformat(),
         }
         if hasattr(self.res, 'global_attrs'):

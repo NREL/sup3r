@@ -2,12 +2,10 @@
 samplers."""
 
 import logging
-from inspect import signature
 from typing import Dict, List, Optional, Type, Union
 
 from sup3r.preprocessing.base import (
     Container,
-    FactoryMeta,
 )
 from sup3r.preprocessing.batch_queues.base import SingleBatchQueue
 from sup3r.preprocessing.batch_queues.conditional import (
@@ -24,7 +22,7 @@ from sup3r.preprocessing.samplers.base import Sampler
 from sup3r.preprocessing.samplers.cc import DualSamplerCC
 from sup3r.preprocessing.samplers.dual import DualSampler
 from sup3r.preprocessing.utilities import (
-    composite_info,
+    check_signatures,
     get_class_kwargs,
     log_args,
 )
@@ -57,7 +55,7 @@ def BatchHandlerFactory(
     produce batches without a time dimension.
     """
 
-    class BatchHandler(MainQueueClass, metaclass=FactoryMeta):
+    class BatchHandler(MainQueueClass):
         """BatchHandler object built from two lists of
         class:`~sup3r.preprocessing.Container` objects, one with training data
         and one with validation data. These lists will be used to initialize
@@ -79,11 +77,11 @@ def BatchHandlerFactory(
         :class:`~sup3r.preprocessing.collections.StatsCollection`
         """
 
-        VAL_QUEUE = MainQueueClass if ValQueueClass is None else ValQueueClass
+        TRAIN_QUEUE = MainQueueClass
+        VAL_QUEUE = ValQueueClass or MainQueueClass
         SAMPLER = SamplerClass
 
         __name__ = name
-        _legos = (MainQueueClass, SamplerClass, VAL_QUEUE)
 
         @log_args
         def __init__(
@@ -182,7 +180,7 @@ def BatchHandlerFactory(
                 how to pad batch data to enable these calculations.
             """  # pylint: disable=line-too-long
 
-            self.check_signatures(*self._legos)
+            check_signatures((self.TRAIN_QUEUE, self.VAL_QUEUE, self.SAMPLER))
             kwargs = {'s_enhance': s_enhance, 't_enhance': t_enhance, **kwargs}
 
             train_samplers, val_samplers = self.init_samplers(
@@ -229,11 +227,8 @@ def BatchHandlerFactory(
                 **get_class_kwargs(MainQueueClass, kwargs),
             )
 
-        _skips = ('samplers', 'data', 'containers', 'thread_name')
-        __signature__, __init__.__doc__ = composite_info(
-            (__init__, *_legos), skip_params=_skips
-        )
-        __init__.__signature__ = __signature__
+        _skip_params = ('samplers', 'data', 'containers', 'thread_name')
+        _signature_objs = (__init__, SAMPLER, VAL_QUEUE, TRAIN_QUEUE)
 
         def init_samplers(
             self,
@@ -270,20 +265,6 @@ def BatchHandlerFactory(
                 ]
             )
             return train_samplers, val_samplers
-
-        @staticmethod
-        def check_signatures(MainQueueClass, SamplerClass, ValQueueClass):
-            """Make sure signatures of factory building blocks can be parsed
-            for required arguments."""
-            for kls in (MainQueueClass, ValQueueClass, SamplerClass):
-                msg = (
-                    f'The signature of {kls!r} cannot be resolved '
-                    'sufficiently. We need a detailed signature to '
-                    'determine how to distribute arguments given to the '
-                    'BatchHandler'
-                )
-                params = signature(kls).parameters.values()
-                assert {p.name for p in params} - {'args', 'kwargs'}, msg
 
         def start(self):
             """Start the val data batch queue in addition to the train batch

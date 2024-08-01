@@ -9,7 +9,7 @@ import numpy as np
 
 from sup3r.models.conditional import Sup3rCondMom
 from sup3r.preprocessing.samplers import DualSampler, Sampler
-from sup3r.preprocessing.utilities import composite_info, numpy_if_tensor
+from sup3r.preprocessing.utilities import numpy_if_tensor
 
 from .base import SingleBatchQueue
 from .utilities import spatial_simple_enhancing, temporal_simple_enhancing
@@ -37,7 +37,7 @@ class ConditionalBatchQueue(SingleBatchQueue):
         """
         Parameters
         ----------
-        samplers: List[Sampler] | List[DualSampler]
+        samplers : List[Sampler] | List[DualSampler]
             List of samplers to use for queue.
         time_enhance_mode : str
             [constant, linear]
@@ -63,7 +63,7 @@ class ConditionalBatchQueue(SingleBatchQueue):
             Zero pad the end of temporal space.  Ensures that loss is
             calculated only if snapshot is surrounded by temporal landmarks.
             False by default
-        **kwargs : dict
+        kwargs : dict
             Keyword arguments for parent class
         """
         self.low_res = None
@@ -76,10 +76,7 @@ class ConditionalBatchQueue(SingleBatchQueue):
         self.lower_models = lower_models
         super().__init__(samplers, **kwargs)
 
-    __signature__, __init__.__docs__ = composite_info(
-        (__init__, SingleBatchQueue)
-    )
-    __init__.__signature__ = __signature__
+    _signature_objs = (__init__, SingleBatchQueue)
 
     def make_mask(self, high_res):
         """Make mask for output. This is used to ensure consistency when

@@ -55,9 +55,9 @@ class Timer:
 
             Parameters
             ----------
-            *args : list
+            args : list
                 positional arguments for fun
-            **kwargs : dict
+            kwargs : dict
                 keyword arguments for fun
             """
             t0 = time.time()

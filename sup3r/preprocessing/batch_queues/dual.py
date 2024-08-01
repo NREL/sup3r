@@ -5,27 +5,25 @@ import logging
 
 from scipy.ndimage import gaussian_filter
 
-from sup3r.preprocessing.utilities import composite_info
-
 from .abstract import AbstractBatchQueue
 
 logger = logging.getLogger(__name__)
 
 
 class DualBatchQueue(AbstractBatchQueue):
-    """Base BatchQueue for DualSampler containers."""
+    """Base BatchQueue for use with
+    :class:`~sup3r.preprocessing.samplers.DualSampler` objects."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, samplers, **kwargs):
         """
         See Also
         --------
         :class:`~sup3r.preprocessing.batch_queues.abstract.AbstractBatchQueue`
         """
-        super().__init__(*args, **kwargs)
+        super().__init__(samplers, **kwargs)
         self.check_enhancement_factors()
 
-    __signature__, __init__.__doc__ = composite_info(AbstractBatchQueue)
-    __init__.__signature__ = __signature__
+    _signature_objs = (AbstractBatchQueue,)
 
     @property
     def queue_shape(self):

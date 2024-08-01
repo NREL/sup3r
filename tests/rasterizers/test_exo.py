@@ -55,7 +55,7 @@ def test_exo_cache(feature):
             source_file=fp_topo,
             steps=steps,
             input_handler_kwargs={'target': TARGET, 'shape': SHAPE},
-            input_handler_name='RasterizerNC',
+            input_handler_name='Rasterizer',
             cache_dir=os.path.join(td, 'exo_cache'),
         )
         for i, arr in enumerate(base.data[feature]['steps']):
@@ -71,7 +71,7 @@ def test_exo_cache(feature):
             source_file=pytest.FP_WTK,
             steps=steps,
             input_handler_kwargs={'target': TARGET, 'shape': SHAPE},
-            input_handler_name='RasterizerNC',
+            input_handler_name='Rasterizer',
             cache_dir=os.path.join(td, 'exo_cache'),
         )
         assert len(os.listdir(f'{td}/exo_cache')) == 2
