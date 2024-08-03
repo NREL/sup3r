@@ -21,15 +21,15 @@ from sup3r.postprocessing.writers.base import OutputHandler
 from sup3r.preprocessing.cachers import Cacher
 from sup3r.preprocessing.loaders import Loader
 from sup3r.preprocessing.names import Dimension
-from sup3r.preprocessing.utilities import (
+from sup3r.utilities.utilities import generate_random_string, nn_fill_array
+
+from ..utilities import (
     composite_info,
-    compute_if_dask,
     get_class_kwargs,
     get_input_handler_class,
     get_source_type,
     log_args,
 )
-from sup3r.utilities.utilities import generate_random_string, nn_fill_array
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +52,7 @@ class ExoRasterizer(ABC):
         source low-resolution data intended to be sup3r resolved.
     source_file : str
         Filepath to source data file to get hi-res exogenous data from which
-        will be mapped to the enhanced grid of the file_paths input.  Pixels
+        will be mapped to the enhanced grid of the file_paths input. Pixels
         from this source_file will be mapped to their nearest low-res pixel in
         the file_paths input. Accordingly, source_file should be a
         significantly higher resolution than file_paths. Warnings will be
@@ -73,8 +73,9 @@ class ExoRasterizer(ABC):
         corresponding to the file_paths temporally enhanced 4x to 15 min
     input_handler_name : str
         data handler class to use for input data. Provide a string name to
-        match a :class:`Rasterizer`. If None the correct handler will
-        be guessed based on file type and time series properties.
+        match a :class:`~sup3r.preprocessing.rasterizers.Rasterizer`. If None
+        the correct handler will be guessed based on file type and time series
+        properties.
     input_handler_kwargs : dict | None
         Any kwargs for initializing the `input_handler_name` class.
     cache_dir : str
@@ -203,7 +204,7 @@ class ExoRasterizer(ABC):
             self.distance_upper_bound = diff
             logger.info(
                 'Set distance upper bound to {:.4f}'.format(
-                    compute_if_dask(self.distance_upper_bound)
+                    np.asarray(self.distance_upper_bound)
                 )
             )
         return self.distance_upper_bound

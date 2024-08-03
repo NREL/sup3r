@@ -12,6 +12,7 @@ class Dimension(str, Enum):
     WEST_EAST = 'west_east'
     TIME = 'time'
     PRESSURE_LEVEL = 'level'
+    HEIGHT = 'height'
     VARIABLE = 'variable'
     LATITUDE = 'latitude'
     LONGITUDE = 'longitude'
@@ -30,6 +31,7 @@ class Dimension(str, Enum):
             cls.WEST_EAST,
             cls.TIME,
             cls.PRESSURE_LEVEL,
+            cls.HEIGHT,
             cls.VARIABLE,
         )
 
@@ -51,6 +53,12 @@ class Dimension(str, Enum):
     @classmethod
     def dims_4d(cls):
         """Return ordered tuple for 4d spatiotemporal coordinates."""
+        return (cls.SOUTH_NORTH, cls.WEST_EAST, cls.TIME, cls.HEIGHT)
+
+    @classmethod
+    def dims_4d_pres(cls):
+        """Return ordered tuple for 4d spatiotemporal coordinates with vertical
+        pressure levels"""
         return (cls.SOUTH_NORTH, cls.WEST_EAST, cls.TIME, cls.PRESSURE_LEVEL)
 
     @classmethod

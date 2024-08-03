@@ -8,6 +8,7 @@ from typing import Type, Union
 
 import dask.array as da
 import numpy as np
+import xarray as xr
 
 from sup3r.preprocessing.accessor import Sup3rX
 from sup3r.preprocessing.base import Container, Sup3rDataset
@@ -68,9 +69,7 @@ class BaseDeriver(Container):
         for f in new_features:
             self.data[f] = self.derive(f)
         self.data = (
-            self.data[
-                [Dimension.LATITUDE, Dimension.LONGITUDE, Dimension.TIME]
-            ]
+            self.data[list(self.data.coords)]
             if not features
             else self.data
             if features == 'all'
@@ -172,14 +171,14 @@ class BaseDeriver(Container):
             )
             logger.error(msg)
             raise RuntimeError(msg)
-        return self.data[feature, ...].astype(np.float32)
+        return self.data[feature]
 
     def add_single_level_data(self, feature, lev_array, var_array):
         """When doing level interpolation we should include the single level
-        data available. e.g. If we have u_100m already and want to
-        interpolation u_40m from multi-level data U we should add u_100m at
-        height 100m before doing interpolation since 100 could be a closer
-        level to 40m than those available in U."""
+        data available. e.g. If we have u_100m already and want to interpolate
+        u_40m from multi-level data U we should add u_100m at height 100m
+        before doing interpolation, since 100 could be a closer level to 40m
+        than those available in U."""
         fstruct = parse_feature(feature)
         pattern = fstruct.basename + '_(.*)'
         var_list = []
@@ -221,19 +220,29 @@ class BaseDeriver(Container):
             level = [fstruct.height]
             msg = (
                 f'To interpolate {fstruct.basename} to {feature} the loaded '
-                'data needs to include "zg" and "topography".'
+                'data needs to include "zg" and "topography" or have a '
+                f'"{Dimension.HEIGHT}" dimension.'
             )
-            assert (
+            can_calc_height = (
                 'zg' in self.data.features
                 and 'topography' in self.data.features
-            ), msg
-            lev_array = (
-                self.data['zg', ...]
-                - da.broadcast_to(
-                    self.data['topography', ...].T,
-                    self.data['zg', ...].T.shape,
-                ).T
             )
+            have_height = Dimension.HEIGHT in self.data.dims
+            assert can_calc_height or have_height, msg
+
+            if can_calc_height:
+                lev_array = (
+                    self.data['zg', ...]
+                    - da.broadcast_to(
+                        self.data['topography', ...].T,
+                        self.data['zg', ...].T.shape,
+                    ).T
+                )
+            else:
+                lev_array = da.broadcast_to(
+                    self.data[Dimension.HEIGHT, ...].astype(np.float32),
+                    var_array.shape
+                )
         else:
             level = [fstruct.pressure]
             msg = (
@@ -243,7 +252,8 @@ class BaseDeriver(Container):
             )
             assert Dimension.PRESSURE_LEVEL in self.data, msg
             lev_array = da.broadcast_to(
-                self.data[Dimension.PRESSURE_LEVEL, ...], var_array.shape
+                self.data[Dimension.PRESSURE_LEVEL, ...].astype(np.float32),
+                var_array.shape
             )
 
         lev_array, var_array = self.add_single_level_data(
@@ -255,7 +265,11 @@ class BaseDeriver(Container):
             level=np.float32(level),
             interp_method=interp_method,
         )
-        return _rechunk_if_dask(out)
+        return xr.DataArray(
+            data=_rechunk_if_dask(out),
+            dims=Dimension.dims_3d(),
+            attrs=self.data[fstruct.basename].attrs,
+        )
 
 
 class Deriver(BaseDeriver):

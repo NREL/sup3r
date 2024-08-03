@@ -10,12 +10,10 @@ import numpy as np
 import xarray as xr
 
 from sup3r.preprocessing.base import Container
-from sup3r.preprocessing.names import (
-    FEATURE_NAMES,
-)
+from sup3r.preprocessing.names import FEATURE_NAMES
 from sup3r.preprocessing.utilities import expand_paths
 
-from .utilities import standardize_names, standardize_values
+from .utilities import lower_names, standardize_names, standardize_values
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +33,7 @@ class BaseLoader(Container, ABC):
         features='all',
         res_kwargs=None,
         chunks='auto',
-        BaseLoader=None
+        BaseLoader=None,
     ):
         """
         Parameters
@@ -65,13 +63,13 @@ class BaseLoader(Container, ABC):
         self.chunks = chunks
         BASE_LOADER = BaseLoader or self.BASE_LOADER
         self.res = BASE_LOADER(self.file_paths, **self.res_kwargs)
-        self.data = self.load().astype(np.float32)
-        self.data = standardize_names(self.data, FEATURE_NAMES)
-        self.data = standardize_values(self.data)
-        self.data = self.data[features] if features != 'all' else self.data
-        self.add_attrs()
+        data = self.load().astype(np.float32)
+        data = self.add_attrs(lower_names(data))
+        data = standardize_names(standardize_values(data), FEATURE_NAMES)
+        features = list(data.dims) if features == [] else features
+        self.data = data[features] if features != 'all' else data
 
-    def add_attrs(self):
+    def add_attrs(self, data):
         """Add meta data to dataset."""
         attrs = {
             'source_files': str(self.file_paths),
@@ -80,16 +78,11 @@ class BaseLoader(Container, ABC):
         if hasattr(self.res, 'global_attrs'):
             attrs['global_attrs'] = self.res.global_attrs
 
-        if hasattr(self.res, 'h5'):
-            attrs.update(
-                {
-                    f: dict(self.res.h5[f.split('/')[0]].attrs)
-                    for f in self.res.datasets
-                }
-            )
-        elif hasattr(self.res, 'attrs'):
+        if not hasattr(self.res, 'h5'):
             attrs.update(self.res.attrs)
-        self.data.attrs.update(attrs)
+
+        data.attrs.update(attrs)
+        return data
 
     def __enter__(self):
         return self

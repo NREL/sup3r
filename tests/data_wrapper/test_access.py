@@ -4,6 +4,7 @@ accessor."""
 import dask.array as da
 import numpy as np
 import pytest
+import xarray as xr
 
 from sup3r.preprocessing import Dimension
 from sup3r.preprocessing.accessor import Sup3rX
@@ -12,6 +13,39 @@ from sup3r.utilities.pytest.helpers import (
     make_fake_dset,
 )
 from sup3r.utilities.utilities import RANDOM_GENERATOR
+
+
+def test_suffled_dim_order():
+    """Make sure when we get arrays from Sup3rX object they come back in
+    standard (lats, lons, time, features) order, regardless of internal
+    ordering."""
+
+    shape_2d = (2, 2)
+    times = 2
+    values = RANDOM_GENERATOR.uniform(0, 1, (*shape_2d, times, 3)).astype(
+        np.float32
+    )
+    lats = RANDOM_GENERATOR.uniform(0, 1, shape_2d).astype(np.float32)
+    lons = RANDOM_GENERATOR.uniform(0, 1, shape_2d).astype(np.float32)
+    time = np.arange(times)
+    dim_order = ('south_north', 'west_east', 'time')
+
+    feats = ['u', 'v', 'temp']
+    data_vars = {
+        f: (dim_order[::-1], values[..., i].transpose(2, 1, 0))
+        for i, f in enumerate(feats)
+    }
+    nc = xr.Dataset(
+        coords={
+            'latitude': (dim_order[:-1][::-1], lats),
+            'longitude': (dim_order[:-1][::-1], lons),
+            'time': time,
+        },
+        data_vars=data_vars,
+    )
+    snc = Sup3rX(nc)
+
+    assert np.array_equal(snc[feats, ...], values)
 
 
 @pytest.mark.parametrize(
@@ -41,16 +75,13 @@ def test_correct_single_member_access(data):
     assert hasattr(out.sx, 'time_index')
     out = data[['u', 'v'], slice(0, 10)]
     assert out.shape == (10, 20, 100, 3, 2)
+    out = data[['u', 'v'], [0, 1], [2, 3], ..., slice(0, 10)]
+    assert out.shape == (2, 2, 100, 3, 2)
     out = data[['u', 'v'], slice(0, 10), ..., slice(0, 1)]
     assert out.shape == (10, 20, 100, 1, 2)
     out = data.as_array()[..., 0]
     assert out.shape == (20, 20, 100, 3)
     assert np.array_equal(out.compute(), data['u', ...].compute())
-    assert np.array_equal(out[..., None].compute(), data[..., 'u'].compute())
-    assert np.array_equal(
-        data[['v', 'u']].as_darray().data.compute(),
-        data.as_array()[..., [1, 0]].compute(),
-    )
     data.compute()
     assert data.loaded
 
@@ -82,26 +113,10 @@ def test_correct_multi_member_access():
     assert all(o.shape == (10, 20, 100, 3, 2) for o in out)
     out = data[['u', 'v'], slice(0, 10), ..., slice(0, 1)]
     assert all(o.shape == (10, 20, 100, 1, 2) for o in out)
-    out = data[..., 0]
-    assert all(o.shape == (20, 20, 100, 3) for o in out)
-    assert all(
-        np.array_equal(o.compute(), d.compute())
-        for o, d in zip(out, data['u', ...])
-    )
-    assert all(
-        np.array_equal(o[..., None].compute(), d.compute())
-        for o, d in zip(out, data[..., 'u'])
-    )
-    assert all(
-        np.array_equal(
-            da.moveaxis(d0.to_array().data, 0, -1).compute(), d1.compute()
-        )
-        for d0, d1 in zip(data[['v', 'u']], data[..., [1, 0]])
-    )
     out = data[
         (
-            (slice(0, 10), slice(0, 10), slice(0, 5), ['u', 'v']),
-            (slice(0, 20), slice(0, 20), slice(0, 10), ['u', 'v']),
+            (['u', 'v'], slice(0, 10), slice(0, 10), slice(0, 5)),
+            (['u', 'v'], slice(0, 20), slice(0, 20), slice(0, 10)),
         )
     ]
     assert out[0].shape == (10, 10, 5, 3, 2)

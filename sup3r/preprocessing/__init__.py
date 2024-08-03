@@ -1,23 +1,25 @@
-"""Top level containers. These are just things that have access to data.
-Loaders, Rasterizers, Samplers, Derivers, Handlers, Batchers, etc are
-subclasses of Containers. Rather than having a single object that does
-everything - extract data, compute features, sample the data for batching,
-split into train and val, etc, we have fundamental objects that do one of
-these things.
+"""Sup3r preprocessing module. Here you will find things that have access to
+data, which we call Containers. Loaders, Rasterizers, Samplers, Derivers,
+Handlers, Batchers, etc are subclasses of Containers. Rather than having a
+single object that does everything - extract data, compute features, sample the
+data for batching, split into train and val, etc, we have fundamental objects
+that do one of these things and we build multi-purpose objects with class
+factories. These factory generated objects are DataHandlers and BatchHandlers.
 
 If you want to extract a specific spatiotemporal extent from a data file then
-use :class:`Rasterizer`. If you want to split into a test and validation set
+use :class:`.Rasterizer`. If you want to split into a test and validation set
 then use :class:`Rasterizer` to extract different temporal extents separately.
 If you've already rasterized data and written that to a file and then want to
-sample that data for batches then use a :class:`Loader`, :class:`Sampler`, and
-:class:`SingleBatchQueue`. If you want to have training and validation batches
-then load those separate data sets, wrap the data objects in Sampler objects
-and provide these to :class:`BatchQueue`. If you want to have a BatchQueue
-containing pairs of low / high res data, rather than coarsening high-res to get
-low res then use :class:`DualBatchQueue` with :class:`DualSampler` objects.
+sample that data for batches, then use a :class:`.Loader` (or a
+:class:`.DataHandler`), and give that object to a :class:`.BatchHandler`. If
+you want to have training and validation batches then load those separate data
+sets, and provide these to :class:`.BatchHandler`. If you want to have a
+BatchQueue containing pairs of low / high res data, rather than coarsening
+high-res to get low res, then load lr and hr data with separate Loaders or
+DataHandlers, use :class:`.DualRasterizer` to match the lr and hr grids, and
+provide this to :class:`.DualBatchHandler`.
 """
 
-from .accessor import Sup3rX
 from .base import Container, Sup3rDataset
 from .batch_handlers import (
     BatchHandler,

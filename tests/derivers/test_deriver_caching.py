@@ -6,32 +6,27 @@ import tempfile
 import numpy as np
 import pytest
 
-from sup3r.preprocessing import Cacher, DataHandler
+from sup3r.preprocessing import Cacher, DataHandler, Loader
+from sup3r.utilities.pytest.helpers import make_fake_dset
 
 target = (39.01, -105.15)
 shape = (20, 20)
 features = ['windspeed_100m', 'winddirection_100m']
 
 
-@pytest.mark.parametrize(
-    ['input_files', 'derive_features', 'ext', 'shape', 'target'],
-    [
-        (
-            pytest.FP_WTK,
-            ['u_100m', 'v_100m'],
-            'h5',
-            (20, 20),
-            (39.01, -105.15),
-        ),
-        (
-            pytest.FP_ERA,
-            ['windspeed_100m', 'winddirection_100m'],
-            'nc',
-            (10, 10),
-            (37.25, -107),
-        ),
-    ],
-)
+def test_cacher_attrs():
+    """Make sure attributes are preserved in cached data."""
+    with tempfile.TemporaryDirectory() as td:
+        nc = make_fake_dset(shape=(10, 10, 10), features=['windspeed_100m'])
+        nc['windspeed_100m'].attrs = {'attrs': 'test'}
+
+        cache_pattern = os.path.join(td, 'cached_{feature}.nc')
+        Cacher(data=nc, cache_kwargs={'cache_pattern': cache_pattern})
+
+        out = Loader(cache_pattern.format(feature='windspeed_100m'))
+        assert out.data['windspeed_100m'].attrs == {'attrs': 'test'}
+
+
 def test_derived_data_caching(
     input_files, derive_features, ext, shape, target
 ):

@@ -348,19 +348,16 @@ class TempNCforCC(DerivedFeature):
 class Tas(DerivedFeature):
     """Air temperature near surface variable from climate change nc files"""
 
-    CC_FEATURE_NAME = 'tas'
-    """Source CC.nc dataset name for air temperature variable. This can be
-    changed in subclasses for other temperature datasets."""
-
-    @property
-    def inputs(self):
-        """Get inputs dynamically for subclasses."""
-        return [self.CC_FEATURE_NAME]
+    inputs = ('tas',)
 
     @classmethod
     def compute(cls, data):
         """Method to compute tas in Celsius from tas source in Kelvin"""
-        return data[cls.CC_FEATURE_NAME] - 273.15
+        units = data[cls.inputs[0]].attrs.get('units', 'K')
+        out = data[cls.inputs[0]]
+        if units == 'K':
+            out -= 273.15
+        return out
 
 
 class TasMin(Tas):
@@ -368,7 +365,7 @@ class TasMin(Tas):
     files
     """
 
-    CC_FEATURE_NAME = 'tasmin'
+    inputs = ('tasmin',)
 
 
 class TasMax(Tas):
@@ -376,7 +373,7 @@ class TasMax(Tas):
     files
     """
 
-    CC_FEATURE_NAME = 'tasmax'
+    inputs = ('tasmax',)
 
 
 RegistryBase = {
@@ -413,8 +410,8 @@ RegistryNCforCC.update({
     'relativehumidity_min_2m': 'hursmin',
     'relativehumidity_max_2m': 'hursmax',
     'clearsky_ratio': ClearSkyRatioCC,
-    'Pressure_(.*)': 'level_(.*)',
-    'Temperature_(.*)': TempNCforCC,
+    'pressure_(.*)': 'level_(.*)',
+    'temperature_(.*)': TempNCforCC,
     'temperature_2m': Tas,
     'temperature_max_2m': TasMax,
     'temperature_min_2m': TasMin,

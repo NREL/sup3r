@@ -40,9 +40,12 @@ class LoaderNC(BaseLoader):
                 *list(dset.data_vars),
             ]:
                 if Dimension.SOUTH_NORTH in dset[var].dims:
-                    dset[var] = (
-                        dset[var].dims,
-                        dset[var].isel(south_north=slice(None, None, -1)).data,
+                    dset.update(
+                        {
+                            var: dset[var].isel(
+                                south_north=slice(None, None, -1)
+                            )
+                        }
                     )
         return dset
 
@@ -63,10 +66,14 @@ class LoaderNC(BaseLoader):
         if invert_levels:
             for var in list(dset.data_vars):
                 if Dimension.PRESSURE_LEVEL in dset[var].dims:
-                    dset[var] = (
-                        dset[var].dims,
-                        dset[var].isel(level=slice(None, None, -1)).data,
+                    new_var = dset[var].isel(
+                        {Dimension.PRESSURE_LEVEL: slice(None, None, -1)}
                     )
+                    dset.update(
+                        {var: (dset[var].dims, new_var.data, dset[var].attrs)}
+                    )
+            new_press = dset[Dimension.PRESSURE_LEVEL][::-1]
+            dset.update({Dimension.PRESSURE_LEVEL: new_press})
         return dset
 
     def load(self):
@@ -75,9 +82,7 @@ class LoaderNC(BaseLoader):
         res = res.swap_dims(
             {k: v for k, v in DIM_NAMES.items() if k in res.dims}
         )
-        res = res.rename(
-            {k: v for k, v in COORD_NAMES.items() if k in res}
-        )
+        res = res.rename({k: v for k, v in COORD_NAMES.items() if k in res})
         lats = res[Dimension.LATITUDE].data.squeeze()
         lons = res[Dimension.LONGITUDE].data.squeeze()
 

@@ -6,6 +6,7 @@ from .bias_calc import (
     MonthlyScalarCorrection,
     SkillAssessment,
 )
+from .bias_calc_vortex import VortexMeanPrepper
 from .bias_transforms import (
     global_linear_bc,
     local_linear_bc,
@@ -23,6 +24,7 @@ __all__ = [
     'PresRat',
     'QuantileDeltaMappingCorrection',
     'SkillAssessment',
+    'VortexMeanPrepper',
     'global_linear_bc',
     'global_linear_bc',
     'local_linear_bc',

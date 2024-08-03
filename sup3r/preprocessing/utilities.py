@@ -4,6 +4,7 @@ import logging
 import os
 import pprint
 from glob import glob
+from importlib import import_module
 from inspect import Parameter, Signature, getfullargspec, signature
 from pathlib import Path
 from typing import ClassVar, Optional, Tuple, Union
@@ -15,11 +16,113 @@ import psutil
 import xarray as xr
 from gaps.cli.documentation import CommandDocumentation
 
-import sup3r.preprocessing
-
 from .names import Dimension
 
 logger = logging.getLogger(__name__)
+
+
+def get_input_handler_class(input_handler_name: Optional[str] = None):
+    """Get the :class:`~sup3r.preprocessing.data_handlers.DataHandler` or
+    :class:`~sup3r.preprocessing.rasterizers.Rasterizer` object.
+
+    Parameters
+    ----------
+    input_handler_name : str
+        Class to use for input data. Provide a string name to match a class in
+        `sup3r.preprocessing`. If None this will return
+        :class:`~sup3r.preprocessing.rasterizers.Rasterizer`, which uses
+        `LoaderNC` or `LoaderH5` depending on file type. This is a simple
+        handler object which does not derive new features from raw data.
+
+    Returns
+    -------
+    HandlerClass : Rasterizer | DataHandler
+        DataHandler or Rasterizer class from sup3r.preprocessing.
+    """
+    if input_handler_name is None:
+        input_handler_name = 'Rasterizer'
+
+        logger.info(
+            '"input_handler_name" arg was not provided. Using '
+            f'"{input_handler_name}". If this is incorrect, please provide '
+            'input_handler_name="DataHandlerName".'
+        )
+
+    HandlerClass = (
+        getattr(import_module('sup3r.preprocessing'), input_handler_name, None)
+        if isinstance(input_handler_name, str)
+        else None
+    )
+
+    if HandlerClass is None:
+        msg = (
+            'Could not find requested data handler class '
+            f'"{input_handler_name}" in sup3r.preprocessing.'
+        )
+        logger.error(msg)
+        raise KeyError(msg)
+
+    return HandlerClass
+
+
+def _mem_check():
+    mem = psutil.virtual_memory()
+    return (
+        f'Memory usage is {mem.used / 1e9:.3f} GB out of '
+        f'{mem.total / 1e9:.3f} GB'
+    )
+
+
+def log_args(func):
+    """Decorator to log annotations and args. This can be used to wrap __init__
+    methods so we need to pass through the signature and docs"""
+
+    def _get_args_dict(thing, fun, *args, **kwargs):
+        """Get args dict from given object and object method."""
+
+        ann_dict = {}
+        if '__annotations__' in dir(thing):
+            ann_dict = {
+                name: getattr(thing, name)
+                for name, val in thing.__annotations__.items()
+                if val is not ClassVar
+            }
+        arg_spec = getfullargspec(fun)
+        args = args or []
+        names = (
+            arg_spec.args if 'self' not in arg_spec.args else arg_spec.args[1:]
+        )
+        names = ['args', *names] if arg_spec.varargs is not None else names
+        vals = [None] * len(names)
+        defaults = arg_spec.defaults or []
+        vals[-len(defaults) :] = defaults
+        vals[: len(args)] = args
+        args_dict = dict(zip(names, vals))
+        args_dict.update(kwargs)
+        args_dict.update(ann_dict)
+
+        return args_dict
+
+    def _log_args(thing, fun, *args, **kwargs):
+        """Log annotated attributes and args."""
+
+        args_dict = _get_args_dict(thing, fun, *args, **kwargs)
+        name = thing.__class__.__name__
+        logger.info(
+            f'Initialized {name} with:\n'
+            f'{pprint.pformat(args_dict, indent=2)}'
+        )
+        logger.debug(_mem_check())
+
+    def wrapper(self, *args, **kwargs):
+        _log_args(self, func, *args, **kwargs)
+        return func(self, *args, **kwargs)
+
+    wrapper.__signature__, wrapper.__doc__ = (
+        signature(func),
+        getattr(func, '__doc__', ''),
+    )
+    return wrapper
 
 
 def get_date_range_kwargs(time_index):
@@ -36,14 +139,6 @@ def get_date_range_kwargs(time_index):
         'end': time_index[-1].strftime('%Y-%m-%d %H:%M:%S'),
         'freq': freq,
     }
-
-
-def _mem_check():
-    mem = psutil.virtual_memory()
-    return (
-        f'Memory usage is {mem.used / 1e9:.3f} GB out of '
-        f'{mem.total / 1e9:.3f} GB'
-    )
 
 
 def _compute_chunks_if_dask(arr):
@@ -160,51 +255,9 @@ def get_source_type(file_paths):
     return 'nc'
 
 
-def get_input_handler_class(input_handler_name: Optional[str] = None):
-    """Get the :class:`DataHandler` or :class:`Rasterizer` object.
-
-    Parameters
-    ----------
-    input_handler_name : str
-        Class to use for input data. Provide a string name to match a class in
-        `sup3r.preprocessing`. If None this will return :class:`Rasterizer`,
-        which uses `LoaderNC` or `LoaderH5` depending on file type. This is a
-        simple handler object which does not derive new features from raw data.
-
-    Returns
-    -------
-    HandlerClass : Rasterizer | DataHandler
-        DataHandler or Rasterizer class from sup3r.preprocessing.
-    """
-    if input_handler_name is None:
-        input_handler_name = 'Rasterizer'
-
-        logger.info(
-            '"input_handler_name" arg was not provided. Using '
-            f'"{input_handler_name}". If this is incorrect, please provide '
-            'input_handler_name="DataHandlerName".'
-        )
-
-    HandlerClass = (
-        getattr(sup3r.preprocessing, input_handler_name, None)
-        if isinstance(input_handler_name, str)
-        else None
-    )
-
-    if HandlerClass is None:
-        msg = (
-            'Could not find requested data handler class '
-            f'"{input_handler_name}" in sup3r.preprocessing.'
-        )
-        logger.error(msg)
-        raise KeyError(msg)
-
-    return HandlerClass
-
-
 def get_obj_params(obj):
     """Get available signature parameters for obj and obj bases"""
-    objs = (obj, *getattr(obj, '_legos', ()))
+    objs = (obj, *getattr(obj, '_signature_objs', ()))
     return composite_sig(CommandDocumentation(*objs)).parameters.values()
 
 
@@ -258,57 +311,6 @@ def check_signatures(objs, skip_params=None):
         assert {p.name for p in params} - {'args', 'kwargs'}, msg
 
 
-def _get_args_dict(thing, func, *args, **kwargs):
-    """Get args dict from given object and object method."""
-
-    ann_dict = {}
-    if '__annotations__' in dir(thing):
-        ann_dict = {
-            name: getattr(thing, name)
-            for name, val in thing.__annotations__.items()
-            if val is not ClassVar
-        }
-    arg_spec = getfullargspec(func)
-    args = args or []
-    names = arg_spec.args if 'self' not in arg_spec.args else arg_spec.args[1:]
-    names = ['args', *names] if arg_spec.varargs is not None else names
-    vals = [None] * len(names)
-    defaults = arg_spec.defaults or []
-    vals[-len(defaults) :] = defaults
-    vals[: len(args)] = args
-    args_dict = dict(zip(names, vals))
-    args_dict.update(kwargs)
-    args_dict.update(ann_dict)
-
-    return args_dict
-
-
-def _log_args(thing, func, *args, **kwargs):
-    """Log annotated attributes and args."""
-
-    args_dict = _get_args_dict(thing, func, *args, **kwargs)
-    name = thing.__class__.__name__
-    logger.info(
-        f'Initialized {name} with:\n' f'{pprint.pformat(args_dict, indent=2)}'
-    )
-    logger.debug(_mem_check())
-
-
-def log_args(func):
-    """Decorator to log annotations and args. This can used to wrap __init__
-    methods so we need to pass through the signature and docs"""
-
-    def wrapper(self, *args, **kwargs):
-        _log_args(self, func, *args, **kwargs)
-        return func(self, *args, **kwargs)
-
-    wrapper.__signature__, wrapper.__doc__ = (
-        signature(func),
-        getattr(func, '__doc__', ''),
-    )
-    return wrapper
-
-
 def parse_features(features: Optional[Union[str, list]] = None, data=None):
     """Parse possible inputs for features (list, str, None, 'all'). If 'all'
     this returns all data_vars in data. If None this returns an empty list.
@@ -348,6 +350,27 @@ def parse_to_list(features=None, data=None):
         .tolist()
     )
     return parse_features(features=features, data=data)
+
+
+def _parse_ellipsis(vals, dim_num):
+    """
+    Replace ellipsis with N slices where N is dim_num - len(vals) + 1
+
+    Parameters
+    ----------
+    vals : list | tuple
+        Entries that will be used to index an array with dim_num dimensions.
+    dim_num : int
+        Number of dimensions of array that will be indexed with given vals.
+    """
+    new_vals = []
+    for v in vals:
+        if v is Ellipsis:
+            needed = dim_num - len(vals) + 1
+            new_vals.extend([slice(None)] * needed)
+        else:
+            new_vals.append(v)
+    return new_vals
 
 
 def _contains_ellipsis(vals):

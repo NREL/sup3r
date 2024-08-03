@@ -9,10 +9,8 @@ import pytest
 
 from sup3r import CONFIG_DIR
 from sup3r.models import Sup3rGan
-from sup3r.preprocessing import (
-    BatchHandlerCC,
-    DataHandlerH5WindCC,
-)
+from sup3r.preprocessing.batch_handlers.factory import BatchHandlerCC
+from sup3r.preprocessing.data_handlers.factory import DataHandlerH5WindCC
 from sup3r.preprocessing.utilities import lowered
 from sup3r.utilities.utilities import RANDOM_GENERATOR
 
@@ -39,7 +37,7 @@ def test_wind_hi_res_topo(
 
     handler = DataHandlerH5WindCC(
         pytest.FP_WTK,
-        features,
+        features=features,
         target=TARGET_W,
         shape=SHAPE,
         time_slice=slice(None, None, 2),

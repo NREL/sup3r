@@ -54,6 +54,20 @@ def test_dim_ordering():
     )
 
 
+def test_standard_values():
+    """Make sure standardization of values works."""
+    with TemporaryDirectory() as td:
+        tmp_file = os.path.join(td, 'ta.nc')
+        nc = make_fake_dset((10, 10, 10), features=['ta'])
+        old_vals = nc['ta'].values.copy() - 273.15
+        nc['ta'].attrs['units'] = 'K'
+        nc.to_netcdf(tmp_file)
+        loader = Loader(tmp_file)
+        assert loader.data['ta'].attrs['units'] == 'C'
+        ta_vals = loader.data['ta'].transpose(*nc.dims).values
+        assert np.allclose(ta_vals, old_vals)
+
+
 def test_lat_inversion():
     """Write temp file with ascending lats and load. Needs to be corrected to
     descending lats."""
@@ -109,25 +123,22 @@ def test_level_inversion():
             nc[Dimension.PRESSURE_LEVEL].dims,
             nc[Dimension.PRESSURE_LEVEL].data[::-1],
         )
-        nc['u'] = (nc['u'].dims, nc['u'].data[:, ::-1, :, :])
+        nc['u'] = (
+            nc['u'].dims,
+            nc['u']
+            .isel({Dimension.PRESSURE_LEVEL: slice(None, None, -1)})
+            .data,
+        )
         out_file = os.path.join(td, 'inverted.nc')
         nc.to_netcdf(out_file)
-        loader = LoaderNC(out_file)
+        loader = LoaderNC(out_file, res_kwargs={'chunks': None})
         assert (
             nc[Dimension.PRESSURE_LEVEL][0] < nc[Dimension.PRESSURE_LEVEL][-1]
         )
 
-        assert np.array_equal(
-            nc['u']
-            .transpose(
-                Dimension.SOUTH_NORTH,
-                Dimension.WEST_EAST,
-                Dimension.TIME,
-                Dimension.PRESSURE_LEVEL,
-            )
-            .data[..., ::-1],
-            loader['u'],
-        )
+        og = nc['u'].transpose(*Dimension.dims_4d_pres()).values[..., ::-1]
+        corrected = loader['u'].values
+        assert np.array_equal(og, corrected)
 
 
 def test_load_cc():
@@ -210,7 +221,10 @@ def test_load_h5():
     )
     gen_loader = Loader(pytest.FP_WTK, chunks=chunks)
     assert np.array_equal(loader.as_array(), gen_loader.as_array())
-    assert not set(Resource(pytest.FP_WTK).attrs) - set(loader.attrs)
+    loader_attrs = {f: loader[f].attrs for f in feats}
+    resource_attrs = Resource(pytest.FP_WTK).attrs
+    matching_feats = set(Resource(pytest.FP_WTK).datasets).intersection(feats)
+    assert all(loader_attrs[f] == resource_attrs[f] for f in matching_feats)
 
 
 def test_multi_file_load_nc():

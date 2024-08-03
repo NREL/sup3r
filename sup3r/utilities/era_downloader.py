@@ -20,7 +20,10 @@ import dask.array as da
 import numpy as np
 
 from sup3r.preprocessing import Loader
-from sup3r.preprocessing.loaders.utilities import standardize_names
+from sup3r.preprocessing.loaders.utilities import (
+    standardize_names,
+    standardize_values,
+)
 from sup3r.preprocessing.names import (
     ERA_NAME_MAP,
     LEVEL_VARS,
@@ -343,6 +346,7 @@ class EraDownloader:
         logger.info('Converting "z" var to "orog" for %s', self.surface_file)
         ds = self.convert_z(ds, name='orog')
         ds = standardize_names(ds, ERA_NAME_MAP)
+        ds = standardize_values(ds)
         ds.to_netcdf(tmp_file)
         os.replace(tmp_file, self.surface_file)
         logger.info(
@@ -399,6 +403,7 @@ class EraDownloader:
         logger.info('Converting "z" var to "zg" for %s', self.level_file)
         ds = self.convert_z(ds, name='zg')
         ds = standardize_names(ds, ERA_NAME_MAP)
+        ds = standardize_values(ds)
         ds = self.add_pressure(ds)
         ds.to_netcdf(tmp_file)
         os.replace(tmp_file, self.level_file)
@@ -408,7 +413,7 @@ class EraDownloader:
         )
 
     @classmethod
-    def _write_dsets(cls, files, out_file, kwargs):
+    def _write_dsets(cls, files, out_file, kwargs=None):
         """Write data vars to out_file one dset at a time."""
         os.makedirs(os.path.dirname(out_file), exist_ok=True)
         added_features = []
@@ -711,9 +716,8 @@ class EraDownloader:
 
         if not os.path.exists(outfile):
             logger.info(f'Combining {files} into {outfile}.')
-            kwargs = {'chunks': 'auto'}
             try:
-                cls._write_dsets(files, out_file=outfile, kwargs=kwargs)
+                cls._write_dsets(files, out_file=outfile)
             except Exception as e:
                 msg = f'Error combining {files}.'
                 logger.error(msg)
@@ -749,11 +753,7 @@ class EraDownloader:
         ]
 
         if not os.path.exists(yearly_file):
-            kwargs = {
-                'combine': 'nested',
-                'concat_dim': 'time',
-                'chunks': 'auto',
-            }
+            kwargs = {'combine': 'nested', 'concat_dim': 'time'}
             try:
                 cls._write_dsets(files, out_file=yearly_file, kwargs=kwargs)
             except Exception as e:

@@ -80,8 +80,8 @@ class LoaderH5(BaseLoader):
         return coords
 
     def _get_dset_tuple(self, dset, dims, chunks):
-        """Get tuple of (dims, array) for given dataset. Used in data_vars
-        entries"""
+        """Get tuple of (dims, array, attrs) for given dataset. Used in
+        data_vars entries"""
         arr = da.asarray(
             self.res.h5[dset], dtype=np.float32, chunks=chunks
         ) / self.scale_factor(dset)
@@ -107,7 +107,7 @@ class LoaderH5(BaseLoader):
             arr_dims = Dimension.dims_4d_bc()
         else:
             arr_dims = dims
-        return (arr_dims, arr)
+        return (arr_dims, arr, self.res.h5[dset].attrs)
 
     def _get_data_vars(self, dims):
         """Define data_vars dict for xr.Dataset construction."""

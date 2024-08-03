@@ -13,10 +13,10 @@ from sup3r.preprocessing.samplers.dual import DualSampler
 
 class Collection(Container):
     """Object consisting of a set of containers. These objects are distinct
-    from :class:`Data` objects, which also contain multiple data members,
-    because these members are completely independent of each other. They are
-    collected together for the purpose of expanding a training dataset (e.g.
-    BatchHandlers)."""
+    from :class:`~sup3r.preprocessing.base.Sup3rDataset` objects, which also
+    contain multiple data members, because these members are completely
+    independent of each other. They are collected together for the purpose of
+    expanding a training dataset (e.g. BatchHandlers)."""
 
     def __init__(
         self,

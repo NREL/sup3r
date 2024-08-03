@@ -8,12 +8,9 @@ and override SamplerDC get_sample_index method.
 
 import logging
 
-from sup3r.preprocessing.batch_queues.dc import BatchQueueDC, ValBatchQueueDC
-from sup3r.preprocessing.samplers.dc import SamplerDC
-from sup3r.preprocessing.utilities import (
-    log_args,
-)
-
+from ..batch_queues.dc import BatchQueueDC, ValBatchQueueDC
+from ..samplers.dc import SamplerDC
+from ..utilities import log_args
 from .factory import BatchHandlerFactory
 
 logger = logging.getLogger(__name__)
@@ -25,18 +22,18 @@ BaseDC = BatchHandlerFactory(
 
 
 class BatchHandlerDC(BaseDC):
-    """Data-Centric BatchHandler which can be used to adaptively select data
-    from lower performing spatiotemporal extents during training. To do this
+    """Data-Centric BatchHandler. This is used to adaptively select data
+    from lower performing spatiotemporal extents during training. To do this,
     validation data is required, as it is used to compute losses within fixed
-    spatiotemporal bins which are then used as sampling probabilities
-    for those same regions when building batches.
+    spatiotemporal bins which are then used as sampling probabilities for those
+    same regions when building batches.
 
     See Also
     --------
-    :class:`~sup3r.preprocessing.BatchQueueDC`,
-    :class:`~sup3r.preprocessing.SamplerDC`,
-    :class:`~sup3r.preprocessing.ValBatchQueueDC`,
-    :func:`~sup3r.preprocessing.batch_handlers.factory.BatchHandlerFactory`
+    :class:`~sup3r.preprocessing.batch_queues.dc.BatchQueueDC`,
+    :class:`~sup3r.preprocessing.batch_queues.dc.ValBatchQueueDC`,
+    :class:`~sup3r.preprocessing.samplers.dc.SamplerDC`,
+    :func:`~.factory.BatchHandlerFactory`
     """
 
     @log_args

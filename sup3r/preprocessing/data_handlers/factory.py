@@ -13,7 +13,6 @@ from sup3r.preprocessing.cachers import Cacher
 from sup3r.preprocessing.cachers.utilities import _check_for_cache
 from sup3r.preprocessing.derivers import Deriver
 from sup3r.preprocessing.derivers.methods import (
-    RegistryBase,
     RegistryH5SolarCC,
     RegistryH5WindCC,
 )
@@ -130,7 +129,7 @@ class DataHandler(Deriver):
             threshold=threshold,
             cache_kwargs=cache_kwargs,
             BaseLoader=BaseLoader,
-            kwargs=kwargs,
+            **kwargs,
         )
         self.time_slice = self.rasterizer.time_slice
         self.lat_lon = self.rasterizer.lat_lon
@@ -197,7 +196,6 @@ class DataHandler(Deriver):
         if any(cached_features):
             cache = Loader(
                 file_paths=cached_files,
-                features=features,
                 res_kwargs=res_kwargs,
                 chunks=chunks,
                 BaseLoader=BaseLoader,
@@ -335,7 +333,8 @@ def DataHandlerFactory(cls, BaseLoader=None, FeatureRegistry=None, name=None):
         """FactoryDataHandler object. Is a partially initialized instance with
         `BaseLoader`, `FeatureRegistry`, and `name` set."""
 
-        FEATURE_REGISTRY = FeatureRegistry or RegistryBase
+        FEATURE_REGISTRY = FeatureRegistry or None
+        BASE_LOADER = BaseLoader or None
         __name__ = name or 'FactoryDataHandler'
 
         def __init__(self, file_paths, features='all', **kwargs):
@@ -355,7 +354,7 @@ def DataHandlerFactory(cls, BaseLoader=None, FeatureRegistry=None, name=None):
             super().__init__(
                 file_paths,
                 features=features,
-                BaseLoader=BaseLoader,
+                BaseLoader=self.BASE_LOADER,
                 FeatureRegistry=self.FEATURE_REGISTRY,
                 **kwargs,
             )
@@ -372,7 +371,7 @@ def _base_loader(file_paths, **kwargs):
 
 DataHandlerH5SolarCC = DataHandlerFactory(
     DailyDataHandler,
-    BaseLoader=_base_loader,
+    BaseLoader=MultiFileNSRDBX,
     FeatureRegistry=RegistryH5SolarCC,
     name='DataHandlerH5SolarCC',
 )
@@ -380,7 +379,7 @@ DataHandlerH5SolarCC = DataHandlerFactory(
 
 DataHandlerH5WindCC = DataHandlerFactory(
     DailyDataHandler,
-    BaseLoader=_base_loader,
+    BaseLoader=MultiFileNSRDBX,
     FeatureRegistry=RegistryH5WindCC,
     name='DataHandlerH5WindCC',
 )

@@ -10,8 +10,7 @@ from warnings import warn
 import dask.array as da
 import numpy as np
 
-from sup3r.preprocessing.accessor import Sup3rX
-from sup3r.preprocessing.base import Container, Sup3rDataset
+from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.samplers.utilities import (
     uniform_box_sampler,
     uniform_time_sampler,
@@ -28,7 +27,7 @@ class Sampler(Container):
     @log_args
     def __init__(
         self,
-        data: Union[Sup3rX, Sup3rDataset],
+        data,
         sample_shape: Optional[tuple] = None,
         batch_size: int = 16,
         feature_sets: Optional[Dict] = None,

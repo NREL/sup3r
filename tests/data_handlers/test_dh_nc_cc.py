@@ -2,6 +2,7 @@
 
 import os
 import tempfile
+from tempfile import TemporaryDirectory
 
 import numpy as np
 import pytest
@@ -139,6 +140,35 @@ def test_data_handling_nc_cc():
     assert handler.data.shape == (20, 20, 20, 2)
     assert np.allclose(ua[::-1], handler.data[..., 0])
     assert np.allclose(va[::-1], handler.data[..., 1])
+
+
+def test_nc_cc_temp():
+    """Make sure the netcdf cc data handler operates correctly on temperature
+    derivations, including unit conversions."""
+
+    with TemporaryDirectory() as td:
+        tmp_file = os.path.join(td, 'ta.nc')
+        nc = make_fake_dset((10, 10, 10), features=['tas', 'tasmin', 'tasmax'])
+        for f in nc.data_vars:
+            nc[f].attrs['units'] = 'K'
+        nc.to_netcdf(tmp_file)
+        dh = DataHandlerNCforCC(
+            tmp_file,
+            features=[
+                'temperature_2m',
+                'temperature_min_2m',
+                'temperature_max_2m',
+            ],
+        )
+        for f in dh.features:
+            assert dh[f].attrs['units'] == 'C'
+
+        nc = make_fake_dset((10, 10, 10, 10), features=['ta'])
+        nc['ta'].attrs['units'] = 'K'
+        nc = nc.swap_dims({'level': 'height'})
+        nc.to_netcdf(tmp_file)
+        dh = DataHandlerNCforCC(tmp_file, features=['ta_100m'])
+        assert dh['ta_100m'].attrs['units'] == 'C'
 
 
 @pytest.mark.parametrize('agg', (1, 4))

@@ -54,8 +54,8 @@ dev = [
 ]
 doc = [
   "sphinx>=7.0",
-  "sphinx_rtd_theme>=2.0",
   "sphinx-click>=4.0",
+  "pydata-sphinx-theme>=15.4"
 ]
 test = [
   "pytest>=5.2",

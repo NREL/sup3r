@@ -67,11 +67,8 @@ class Cacher(Container):
             logger.info(
                 'Writing %s to %s. %s', feature, tmp_file, _mem_check()
             )
-            data = self[feature, ...]
             if ext == '.h5':
                 func = self.write_h5
-                if len(data.shape) == 3:
-                    data = da.transpose(data, axes=(2, 0, 1))
             elif ext == '.nc':
                 func = self.write_netcdf
             else:
@@ -84,8 +81,8 @@ class Cacher(Container):
             func(
                 tmp_file,
                 feature,
-                data,
-                self.coords,
+                data=self[feature],
+                coords=self.coords,
                 chunks=chunks,
                 attrs={k: safe_serialize(v) for k, v in self.attrs.items()},
             )
@@ -166,8 +163,9 @@ class Cacher(Container):
             Name of file to write. Must have a .h5 extension.
         feature : str
             Name of feature to write to file.
-        data : T_Array | xr.Dataset
-            Data to write to file
+        data : xr.DataArray
+            Data to write to file. Comes from self.data[feature], so an xarray
+            DataArray with dims and attributes
         coords : dict
             Dictionary of coordinate variables
         chunks : dict | None
@@ -178,6 +176,11 @@ class Cacher(Container):
         """
         chunks = chunks or {}
         attrs = attrs or {}
+        data = (
+            da.transpose(data.data, axes=(2, 0, 1))
+            if len(data.shape) == 3
+            else data.data
+        )
         with h5py.File(out_file, 'w') as f:
             lats = coords[Dimension.LATITUDE].data
             lons = coords[Dimension.LONGITUDE].data
@@ -219,8 +222,9 @@ class Cacher(Container):
             Name of file to write. Must have a .nc extension.
         feature : str
             Name of feature to write to file.
-        data : T_Array | xr.Dataset
-            Data to write to file
+        data : xr.DataArray
+            Data to write to file. Comes from self.data[feature], so an xarray
+            DataArray with dims and attributes
         coords : dict | xr.Dataset.coords
             Dictionary of coordinate variables or xr.Dataset coords attribute.
         chunks : dict | None
@@ -231,21 +235,10 @@ class Cacher(Container):
         """
         chunks = chunks or {}
         attrs = attrs or {}
-        if isinstance(coords, dict):
-            flattened = (
-                Dimension.FLATTENED_SPATIAL in coords[Dimension.LATITUDE][0]
-            )
-        else:
-            flattened = (
-                Dimension.FLATTENED_SPATIAL in coords[Dimension.LATITUDE].dims
-            )
-        dims = (
-            Dimension.flat_2d()
-            if flattened
-            else Dimension.order()[1 : len(data.shape) + 1]
-        )
         out = xr.Dataset(
-            data_vars={feature: (dims, data)}, coords=coords, attrs=attrs
+            data_vars={feature: (data.dims, data.data, data.attrs)},
+            coords=coords,
+            attrs=attrs,
         )
         out = out.chunk(chunks.get(feature, 'auto'))
         out.to_netcdf(out_file)
