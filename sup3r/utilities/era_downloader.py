@@ -393,6 +393,7 @@ class EraDownloader:
         """
         if name not in ds.data_vars and 'z' in ds.data_vars:
             ds['z'] = (ds['z'].dims, ds['z'].values / 9.81)
+            ds['z'].attrs['units'] = 'm'
             ds = ds.rename({'z': name})
         return ds
 

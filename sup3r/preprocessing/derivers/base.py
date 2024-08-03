@@ -123,12 +123,20 @@ class BaseDeriver(Container):
         name."""
         fstruct = parse_feature(feature)
         pstruct = parse_feature(pattern)
-        if fstruct.height is not None:
+        if '*' not in pattern:
+            new_feature = pattern
+        elif fstruct.height is not None:
             new_feature = pstruct.basename + f'_{fstruct.height}m'
         elif fstruct.pressure is not None:
             new_feature = pstruct.basename + f'_{fstruct.pressure}pa'
         else:
-            new_feature = pattern
+            msg = (
+                f'Found matching pattern "{pattern}" for feature '
+                f'"{feature}" but could not construct a valid new feature '
+                'name'
+            )
+            logger.error(msg)
+            raise RuntimeError(msg)
         logger.debug(
             f'Found alternative name {new_feature} for '
             f'feature {feature}. Continuing with search for '
@@ -212,10 +220,10 @@ class BaseDeriver(Container):
 
     def do_level_interpolation(
         self, feature, interp_method='linear'
-    ) -> T_Array:
+    ) -> xr.DataArray:
         """Interpolate over height or pressure to derive the given feature."""
         fstruct = parse_feature(feature)
-        var_array: T_Array = self.data[fstruct.basename, ...]
+        var_array = self.data[fstruct.basename, ...]
         if fstruct.height is not None:
             level = [fstruct.height]
             msg = (
@@ -241,7 +249,7 @@ class BaseDeriver(Container):
             else:
                 lev_array = da.broadcast_to(
                     self.data[Dimension.HEIGHT, ...].astype(np.float32),
-                    var_array.shape
+                    var_array.shape,
                 )
         else:
             level = [fstruct.pressure]
@@ -253,7 +261,7 @@ class BaseDeriver(Container):
             assert Dimension.PRESSURE_LEVEL in self.data, msg
             lev_array = da.broadcast_to(
                 self.data[Dimension.PRESSURE_LEVEL, ...].astype(np.float32),
-                var_array.shape
+                var_array.shape,
             )
 
         lev_array, var_array = self.add_single_level_data(

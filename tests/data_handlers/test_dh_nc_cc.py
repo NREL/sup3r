@@ -167,8 +167,30 @@ def test_nc_cc_temp():
         nc['ta'].attrs['units'] = 'K'
         nc = nc.swap_dims({'level': 'height'})
         nc.to_netcdf(tmp_file)
-        dh = DataHandlerNCforCC(tmp_file, features=['ta_100m'])
+        dh = DataHandlerNCforCC(
+            tmp_file, features=['ta_100m', 'temperature_100m']
+        )
         assert dh['ta_100m'].attrs['units'] == 'C'
+        assert dh['temperature_100m'].attrs['units'] == 'C'
+
+
+def test_nc_cc_rh():
+    """Make sure the netcdf cc data handler operates correctly on
+    relativehumidity_2m lookup"""
+
+    features = [
+        'relativehumidity_2m',
+        'relativehumidity_min_2m',
+        'relativehumidity_max_2m',
+    ]
+    with TemporaryDirectory() as td:
+        tmp_file = os.path.join(td, 'hurs.nc')
+        nc = make_fake_dset(
+            (10, 10, 10), features=['hurs', 'hursmin', 'hursmax']
+        )
+        nc.to_netcdf(tmp_file)
+        dh = DataHandlerNCforCC(tmp_file, features=features)
+        assert all(f in dh.features for f in features)
 
 
 @pytest.mark.parametrize('agg', (1, 4))
