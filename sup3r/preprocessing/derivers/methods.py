@@ -341,8 +341,12 @@ class TempNCforCC(DerivedFeature):
     @classmethod
     def compute(cls, data, height):
         """Method to compute ta in Celsius from ta source in Kelvin"""
-
-        return data[f'ta_{height}m'] - 273.15
+        out = data[f'ta_{height}m']
+        units = out.attrs.get('units', 'K')
+        if units == 'K':
+            out -= 273.15
+            out.attrs['units'] = 'C'
+        return out
 
 
 class Tas(DerivedFeature):
@@ -353,10 +357,11 @@ class Tas(DerivedFeature):
     @classmethod
     def compute(cls, data):
         """Method to compute tas in Celsius from tas source in Kelvin"""
-        units = data[cls.inputs[0]].attrs.get('units', 'K')
         out = data[cls.inputs[0]]
+        units = out.attrs.get('units', 'K')
         if units == 'K':
             out -= 273.15
+            out.attrs['units'] = 'C'
         return out
 
 

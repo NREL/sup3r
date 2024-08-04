@@ -9,9 +9,9 @@ objects."""
 from .base import BaseRasterizer
 from .dual import DualRasterizer
 from .exo import (
+    ExoRasterizer,
+    ExoRasterizerH5,
+    ExoRasterizerNC,
     SzaRasterizer,
-    TopoRasterizer,
-    TopoRasterizerH5,
-    TopoRasterizerNC,
 )
 from .extended import Rasterizer

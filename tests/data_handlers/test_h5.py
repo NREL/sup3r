@@ -55,11 +55,12 @@ def test_solar_spatial_h5(nan_method_kwargs):
         sample_shape=(10, 10, 1),
         s_enhance=s_enhance,
         t_enhance=1,
+        max_workers=2
     )
-    for batch in batch_handler:
+    batches = list(batch_handler)
+    batch_handler.stop()
+    for batch in batches:
         assert not np.isnan(batch.low_res).any()
         assert not np.isnan(batch.high_res).any()
         assert batch.low_res.shape == (8, 2, 2, 1)
         assert batch.high_res.shape == (8, 10, 10, 1)
-
-    batch_handler.stop()

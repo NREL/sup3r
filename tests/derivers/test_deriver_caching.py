@@ -27,6 +27,25 @@ def test_cacher_attrs():
         assert out.data['windspeed_100m'].attrs == {'attrs': 'test'}
 
 
+@pytest.mark.parametrize(
+    ['input_files', 'derive_features', 'ext', 'shape', 'target'],
+    [
+        (
+            pytest.FP_WTK,
+            ['u_100m', 'v_100m'],
+            'h5',
+            (20, 20),
+            (39.01, -105.15),
+        ),
+        (
+            pytest.FP_ERA,
+            ['windspeed_100m', 'winddirection_100m'],
+            'nc',
+            (10, 10),
+            (37.25, -107),
+        ),
+    ],
+)
 def test_derived_data_caching(
     input_files, derive_features, ext, shape, target
 ):

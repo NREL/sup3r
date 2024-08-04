@@ -188,7 +188,15 @@ def test_surf_min_max_vars():
     )
 
     # all of the source hi-res hourly temperature data should be the same
-    assert np.allclose(handler.hourly[..., 0], handler.hourly[..., 2])
-    assert np.allclose(handler.hourly[..., 0], handler.hourly[..., 3])
-    assert np.allclose(handler.hourly[..., 1], handler.hourly[..., 4])
-    assert np.allclose(handler.hourly[..., 1], handler.hourly[..., 5])
+    assert np.allclose(
+        handler.hourly[surf_features[0]], handler.hourly[surf_features[2]]
+    )
+    assert np.allclose(
+        handler.hourly[surf_features[0]], handler.hourly[surf_features[3]]
+    )
+    assert np.allclose(
+        handler.hourly[surf_features[1]], handler.hourly[surf_features[4]]
+    )
+    assert np.allclose(
+        handler.hourly[surf_features[1]], handler.hourly[surf_features[5]]
+    )

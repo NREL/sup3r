@@ -51,10 +51,10 @@ from .loaders import Loader, LoaderH5, LoaderNC
 from .names import COORD_NAMES, DIM_NAMES, FEATURE_NAMES, Dimension
 from .rasterizers import (
     DualRasterizer,
+    ExoRasterizer,
+    ExoRasterizerH5,
+    ExoRasterizerNC,
     Rasterizer,
     SzaRasterizer,
-    TopoRasterizer,
-    TopoRasterizerH5,
-    TopoRasterizerNC,
 )
 from .samplers import DualSampler, DualSamplerCC, Sampler, SamplerDC

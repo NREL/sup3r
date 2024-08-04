@@ -15,7 +15,7 @@ from sup3r.preprocessing.samplers.utilities import (
     uniform_box_sampler,
     uniform_time_sampler,
 )
-from sup3r.preprocessing.utilities import compute_if_dask, log_args, lowered
+from sup3r.preprocessing.utilities import log_args, lowered
 from sup3r.typing import T_Array
 
 logger = logging.getLogger(__name__)
@@ -166,7 +166,23 @@ class Sampler(Container):
         """Reshape samples into batch shapes, with shape = (batch_size,
         *sample_shape, n_features). Samples start out with a time dimension of
         shape = batch_size * sample_shape[2] so we need to split this and
-        reorder the dimensions."""
+        reorder the dimensions.
+
+        Parameters
+        ----------
+        samples : T_Array
+            Selection from `self.data` with shape:
+            (samp_shape[0], samp_shape[1], batch_size * samp_shape[2], n_feats)
+            This is reshaped to:
+            (batch_size, samp_shape[0], samp_shape[1], samp_shape[2], n_feats)
+
+        Returns
+        -------
+        batch: np.ndarray
+            Reshaped sample array, with shape:
+            (batch_size, samp_shape[0], samp_shape[1], samp_shape[2], n_feats)
+
+        """
         new_shape = list(samples.shape)
         new_shape = [
             *new_shape[:2],
@@ -174,10 +190,32 @@ class Sampler(Container):
             new_shape[2] // self.batch_size,
             new_shape[-1],
         ]
+        # (lats, lons, batch_size, times, feats)
         out = samples.reshape(new_shape)
-        return compute_if_dask(out.transpose((2, 0, 1, 3, 4)))
+        # (batch_size, lats, lons, times, feats)
+        return np.asarray(out.transpose((2, 0, 1, 3, 4)))
 
     def _stack_samples(self, samples):
+        """Used to build batch arrays in the case of independent time samples
+        (e.g. slow batching)
+
+        Note
+        ----
+        Tuples are in the case of dual datasets. e.g. This sampler is for a
+        :class:`~sup3r.preprocessing.batch_handlers.DualBatchHandler`
+
+        Parameters
+        ----------
+        samples : Tuple[List[T_Array], List[T_Array]] | List[T_Array]
+            Each list has length = batch_size and each array has shape:
+            (samp_shape[0], samp_shape[1], samp_shape[2], n_feats)
+
+        Returns
+        -------
+        batch: Tuple[np.ndarray, np.ndarray] | np.ndarray
+            Stacked sample array(s), each with shape:
+            (batch_size, samp_shape[0], samp_shape[1], samp_shape[2], n_feats)
+        """
         if isinstance(samples[0], tuple):
             lr = da.stack([s[0] for s in samples], axis=0)
             hr = da.stack([s[1] for s in samples], axis=0)

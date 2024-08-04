@@ -208,7 +208,7 @@ class AbstractBatchQueue(Collection, ABC):
             self.enqueue_pool.shutdown()
         if self.queue_thread.is_alive():
             logger.info(f'Stopping {self._thread_name} queue.')
-            self.queue_thread._delete()
+            self.queue_thread.join()
 
     def __len__(self):
         return self.n_batches
@@ -227,24 +227,29 @@ class AbstractBatchQueue(Collection, ABC):
             return self._build_batch()
         return self.queue.dequeue()
 
+    @property
+    def running(self):
+        """Boolean to check whether to keep enqueueing batches."""
+        return (
+            self._training_flag.is_set()
+            and self.queue_thread.is_alive()
+            and not self.queue.is_closed()
+        )
+
     def enqueue_batches(self) -> None:
         """Callback function for queue thread. While training, the queue is
         checked for empty spots and filled. In the training thread, batches are
         removed from the queue."""
         try:
-            while self._training_flag.is_set():
-                needed = min(
-                    (
-                        self.max_workers,
-                        self.queue_cap - self.queue.size().numpy(),
-                    )
-                )
+            while self.running:
+                needed = self.queue_cap - self.queue.size().numpy()
+                needed = min((self.max_workers, needed))
                 if needed == 1 or self.enqueue_pool is None:
                     self._enqueue_batch()
                 elif needed > 0:
                     futures = [
                         self.enqueue_pool.submit(self._enqueue_batch)
-                        for _ in range(needed)
+                        for _ in np.arange(needed)
                     ]
                     logger.debug('Added %s enqueue futures.', needed)
                     for future in as_completed(futures):
@@ -294,10 +299,7 @@ class AbstractBatchQueue(Collection, ABC):
 
     def _enqueue_batch(self):
         """Build batch and send to queue."""
-        if (
-            self._training_flag.is_set()
-            and self.queue.size().numpy() < self.queue_cap
-        ):
+        if self.running and self.queue.size().numpy() < self.queue_cap:
             self.queue.enqueue(self._build_batch())
             logger.debug(
                 '%s queue length: %s / %s',

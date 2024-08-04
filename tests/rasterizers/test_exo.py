@@ -4,20 +4,20 @@ import os
 import tempfile
 from tempfile import TemporaryDirectory
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
-from rex import Outputs, Resource
+from rex import Resource
 
+from sup3r.postprocessing import RexOutputs
 from sup3r.preprocessing import (
     Dimension,
     ExoData,
     ExoDataHandler,
-    TopoRasterizer,
-    TopoRasterizerH5,
-    TopoRasterizerNC,
+    ExoRasterizer,
+    ExoRasterizerH5,
+    ExoRasterizerNC,
 )
 from sup3r.utilities.utilities import RANDOM_GENERATOR
 
@@ -130,22 +130,53 @@ def make_topo_file(fp, td, N=100, offset=0.1):
     )
 
     fp_temp = os.path.join(td, 'elevation.h5')
-    with Outputs(fp_temp, mode='w') as out:
+    with RexOutputs(fp_temp, mode='w') as out:
         out.meta = meta
 
     return fp_temp
 
 
+def make_srl_file(fp, td, N=100, offset=0.1):
+    """Make a dummy h5 file with high-res srl for testing"""
+
+    if fp.endswith('.h5'):
+        lat_range, lon_range = get_lat_lon_range_h5(fp)
+    else:
+        lat_range, lon_range = get_lat_lon_range_nc(fp)
+
+    lat = np.linspace(lat_range[0] - offset, lat_range[1] + offset, N)
+    lon = np.linspace(lon_range[0] - offset, lon_range[1] + offset, N)
+    idy, idx = np.meshgrid(np.arange(len(lon)), np.arange(len(lat)))
+    lon, lat = np.meshgrid(lon, lat)
+    lon, lat = lon.flatten(), lat.flatten()
+    idy, idx = idy.flatten(), idx.flatten()
+    srl = RANDOM_GENERATOR.uniform(0, 1, len(lat))
+    meta = pd.DataFrame(
+        {
+            Dimension.LATITUDE: lat,
+            Dimension.LONGITUDE: lon,
+        }
+    )
+
+    fp_temp = os.path.join(td, 'srl.h5')
+    with RexOutputs(fp_temp, mode='w') as out:
+        out.meta = meta
+        out.add_dataset(fp_temp, 'srl', srl, dtype=np.float32)
+
+    return fp_temp
+
+
 @pytest.mark.parametrize('s_enhance', [1, 2])
-def test_topo_extraction_h5(s_enhance, plot=False):
+def test_srl_extraction_h5(s_enhance):
     """Test the spatial enhancement of a test grid and then the lookup of the
-    elevation data to a reference WTK file (also the same file for the test)"""
+    srl data. Tests general exo rasterization for new feature"""
     with tempfile.TemporaryDirectory() as td:
-        fp_exo_topo = make_topo_file(pytest.FP_WTK, td)
+        fp_exo_srl = make_srl_file(pytest.FP_WTK, td)
 
         kwargs = {
             'file_paths': pytest.FP_WTK,
-            'source_file': fp_exo_topo,
+            'source_file': fp_exo_srl,
+            'feature': 'srl',
             's_enhance': s_enhance,
             't_enhance': 1,
             'input_handler_kwargs': {
@@ -155,15 +186,71 @@ def test_topo_extraction_h5(s_enhance, plot=False):
             'cache_dir': f'{td}/exo_cache/',
         }
 
-        te = TopoRasterizerH5(**kwargs)
+        te = ExoRasterizerH5(**kwargs)
 
-        te_gen = TopoRasterizer(
+        te_gen = ExoRasterizer(
             **{k: v for k, v in kwargs.items() if k != 'cache_dir'}
         )
 
-        assert np.array_equal(te.data, te_gen.data)
+        assert np.array_equal(te.data.as_array(), te_gen.data.as_array())
 
-        hr_elev = te.data
+        hr_srl = np.asarray(te.data.as_array())
+
+        lat = te.hr_lat_lon[..., 0].flatten()
+        lon = te.hr_lat_lon[..., 1].flatten()
+        hr_wtk_meta = np.vstack((lat, lon)).T
+        hr_wtk_ind = np.arange(len(lat)).reshape(te.hr_shape[:-1])
+        assert te.nn.max() == len(hr_wtk_meta)
+
+        for gid in RANDOM_GENERATOR.choice(
+            len(hr_wtk_meta), 50, replace=False
+        ):
+            idy, idx = np.where(hr_wtk_ind == gid)
+            iloc = np.where(te.nn == gid)[0]
+            exo_coords = te.source_lat_lon[iloc]
+
+            # make sure all mapped high-res exo coordinates are closest to gid
+            # pylint: disable=consider-using-enumerate
+            for i in range(len(exo_coords)):
+                dist = hr_wtk_meta - exo_coords[i]
+                dist = np.hypot(dist[:, 0], dist[:, 1])
+                assert np.argmin(dist) == gid
+
+            # make sure the mean srlation makes sense
+            test_out = hr_srl[idy, idx, 0, 0]
+            true_out = te.source_data[iloc].mean()
+            assert np.allclose(test_out, true_out)
+
+
+@pytest.mark.parametrize('s_enhance', [1, 2])
+def test_topo_extraction_h5(s_enhance):
+    """Test the spatial enhancement of a test grid and then the lookup of the
+    elevation data to a reference WTK file (also the same file for the test)"""
+    with tempfile.TemporaryDirectory() as td:
+        fp_exo_topo = make_topo_file(pytest.FP_WTK, td)
+
+        kwargs = {
+            'file_paths': pytest.FP_WTK,
+            'source_file': fp_exo_topo,
+            'feature': 'topography',
+            's_enhance': s_enhance,
+            't_enhance': 1,
+            'input_handler_kwargs': {
+                'target': (39.01, -105.15),
+                'shape': (20, 20),
+            },
+            'cache_dir': f'{td}/exo_cache/',
+        }
+
+        te = ExoRasterizerH5(**kwargs)
+
+        te_gen = ExoRasterizer(
+            **{k: v for k, v in kwargs.items() if k != 'cache_dir'}
+        )
+
+        assert np.array_equal(te.data.as_array(), te_gen.data.as_array())
+
+        hr_elev = np.asarray(te.data.as_array())
 
         lat = te.hr_lat_lon[..., 0].flatten()
         lon = te.hr_lat_lon[..., 1].flatten()
@@ -186,26 +273,9 @@ def test_topo_extraction_h5(s_enhance, plot=False):
                 assert np.argmin(dist) == gid
 
             # make sure the mean elevation makes sense
-            test_out = hr_elev.compute()[idy, idx, 0, 0]
+            test_out = hr_elev[idy, idx, 0, 0]
             true_out = te.source_data[iloc].mean()
             assert np.allclose(test_out, true_out)
-
-        if plot:
-            a = plt.scatter(
-                te.source_lat_lon[:, 1],
-                te.source_lat_lon[:, 0],
-                c=te.source_data,
-                marker='s',
-                s=5,
-            )
-            plt.colorbar(a)
-            plt.savefig(f'./source_elevation_{s_enhance}.png')
-            plt.close()
-
-            a = plt.imshow(hr_elev[:, :, 0, 0])
-            plt.colorbar(a)
-            plt.savefig(f'./hr_elev_{s_enhance}.png')
-            plt.close()
 
 
 def test_bad_s_enhance(s_enhance=10):
@@ -215,9 +285,10 @@ def test_bad_s_enhance(s_enhance=10):
         fp_exo_topo = make_topo_file(pytest.FP_WTK, td)
 
         with pytest.warns(UserWarning) as warnings:
-            te = TopoRasterizerH5(
+            te = ExoRasterizerH5(
                 pytest.FP_WTK,
                 fp_exo_topo,
+                feature='topography',
                 s_enhance=s_enhance,
                 t_enhance=1,
                 input_handler_kwargs={
@@ -243,20 +314,22 @@ def test_topo_extraction_nc():
     just makes sure that the data can be rasterized from a WRF file.
     """
     with TemporaryDirectory() as td:
-        te = TopoRasterizerNC(
+        te = ExoRasterizerNC(
             pytest.FP_WRF,
             pytest.FP_WRF,
+            feature='topography',
             s_enhance=1,
             t_enhance=1,
             cache_dir=f'{td}/exo_cache/',
         )
-        hr_elev = te.data
+        hr_elev = np.asarray(te.data.as_array())
 
-        te_gen = TopoRasterizer(
+        te_gen = ExoRasterizer(
             pytest.FP_WRF,
             pytest.FP_WRF,
+            feature='topography',
             s_enhance=1,
             t_enhance=1,
         )
-        assert np.array_equal(te.data, te_gen.data)
+        assert np.array_equal(te.data.as_array(), te_gen.data.as_array())
     assert np.allclose(te.source_data.flatten(), hr_elev.flatten())

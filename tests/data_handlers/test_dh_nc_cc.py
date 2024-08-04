@@ -34,7 +34,7 @@ def test_get_just_coords_nc():
         nc_res[Dimension.LONGITUDE].min(),
     )
     assert np.array_equal(
-        handler.lat_lon[-1, 0, :],
+        np.asarray(handler.lat_lon[-1, 0, :]),
         (
             handler.rasterizer.data[Dimension.LATITUDE].min(),
             handler.rasterizer.data[Dimension.LONGITUDE].min(),
@@ -129,17 +129,18 @@ def test_data_handling_nc_cc():
     assert handler.data.shape == (20, 20, 20, 2)
 
     # upper case features warning
+    features = [f'U_{int(plevel)}pa', f'V_{int(plevel)}pa']
     with pytest.warns():
         handler = DataHandlerNCforCC(
             pytest.FPS_GCM,
-            features=[f'U_{int(plevel)}pa', f'V_{int(plevel)}pa'],
+            features=features,
             target=target,
             shape=(20, 20),
         )
 
     assert handler.data.shape == (20, 20, 20, 2)
-    assert np.allclose(ua[::-1], handler.data[..., 0])
-    assert np.allclose(va[::-1], handler.data[..., 1])
+    assert np.allclose(ua[::-1], handler.data[features[0]])
+    assert np.allclose(va[::-1], handler.data[features[1]])
 
 
 def test_nc_cc_temp():
@@ -223,9 +224,9 @@ def test_solar_cc(agg):
         time_slice=slice(0, 1),
     )
 
-    cs_ratio = handler.data[..., 0]
-    ghi = handler.data[..., 1]
-    cs_ghi = handler.data[..., 2]
+    cs_ratio = handler.data['clearsky_ratio']
+    ghi = handler.data['rsds']
+    cs_ghi = handler.data['clearsky_ghi']
     cs_ratio_truth = ghi / cs_ghi
 
     assert cs_ratio.max() < 1

@@ -42,33 +42,44 @@ class Dimension(str, Enum):
 
     @classmethod
     def dims_2d(cls):
-        """Return ordered tuple for 2d spatial coordinates."""
+        """Return ordered tuple for 2d spatial dimensions. Usually
+        (south_north, west_east)"""
         return (cls.SOUTH_NORTH, cls.WEST_EAST)
 
     @classmethod
+    def coords_2d(cls):
+        """Return ordered tuple for 2d spatial coordinates."""
+        return (cls.LATITUDE, cls.LONGITUDE)
+
+    @classmethod
+    def coords_3d(cls):
+        """Return ordered tuple for 3d spatial coordinates."""
+        return (cls.LATITUDE, cls.LONGITUDE, cls.TIME)
+
+    @classmethod
     def dims_3d(cls):
-        """Return ordered tuple for 3d spatiotemporal coordinates."""
+        """Return ordered tuple for 3d spatiotemporal dimensions."""
         return (cls.SOUTH_NORTH, cls.WEST_EAST, cls.TIME)
 
     @classmethod
     def dims_4d(cls):
-        """Return ordered tuple for 4d spatiotemporal coordinates."""
+        """Return ordered tuple for 4d spatiotemporal dimensions."""
         return (cls.SOUTH_NORTH, cls.WEST_EAST, cls.TIME, cls.HEIGHT)
 
     @classmethod
     def dims_4d_pres(cls):
-        """Return ordered tuple for 4d spatiotemporal coordinates with vertical
+        """Return ordered tuple for 4d spatiotemporal dimensions with vertical
         pressure levels"""
         return (cls.SOUTH_NORTH, cls.WEST_EAST, cls.TIME, cls.PRESSURE_LEVEL)
 
     @classmethod
     def dims_3d_bc(cls):
-        """Return ordered tuple for 3d spatiotemporal coordinates."""
+        """Return ordered tuple for 3d spatiotemporal dimensions."""
         return (cls.SOUTH_NORTH, cls.WEST_EAST, cls.TIME)
 
     @classmethod
     def dims_4d_bc(cls):
-        """Return ordered tuple for 4d spatiotemporal coordinates specifically
+        """Return ordered tuple for 4d spatiotemporal dimensions specifically
         for bias correction factor files."""
         return (cls.SOUTH_NORTH, cls.WEST_EAST, cls.TIME, cls.QUANTILE)
 

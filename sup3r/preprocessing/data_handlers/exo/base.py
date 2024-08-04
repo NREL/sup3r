@@ -1,6 +1,4 @@
-"""Base container classes - object that contains data. All objects that
-interact with data are containers. e.g. loaders, rasterizers, data handlers,
-samplers, batch queues, batch handlers.
+"""Base exogenous data wrangling classes.
 """
 
 import logging

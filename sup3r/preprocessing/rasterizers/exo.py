@@ -14,11 +14,12 @@ from warnings import warn
 import dask.array as da
 import numpy as np
 import pandas as pd
+import xarray as xr
 from rex.utilities.solar_position import SolarPosition
 from scipy.spatial import KDTree
 
 from sup3r.postprocessing.writers.base import OutputHandler
-from sup3r.preprocessing.cachers import Cacher
+from sup3r.preprocessing.accessor import Sup3rX
 from sup3r.preprocessing.loaders import Loader
 from sup3r.preprocessing.names import Dimension
 from sup3r.utilities.utilities import generate_random_string, nn_fill_array
@@ -35,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class ExoRasterizer(ABC):
+class BaseExoRasterizer(ABC):
     """Class to extract high-res (4km+) data rasters for new
     spatially-enhanced datasets (e.g. GCM files after spatial enhancement)
     using nearest neighbor mapping and aggregation from NREL datasets
@@ -58,7 +59,9 @@ class ExoRasterizer(ABC):
         significantly higher resolution than file_paths. Warnings will be
         raised if the low-resolution pixels in file_paths do not have unique
         nearest pixels from source_file. File format can be .h5 for
-        TopoRasterizerH5 or .nc for TopoRasterizerNC
+        ExoRasterizerH5 or .nc for ExoRasterizerNC
+    feature : str
+        Name of exogenous feature to rasterize.
     s_enhance : int
         Factor by which the Sup3rGan model will enhance the spatial
         dimensions of low resolution data from file_paths input. For
@@ -86,8 +89,9 @@ class ExoRasterizer(ABC):
         based on the median distance between points in source_file
     """
 
-    file_paths: str
-    source_file: str
+    file_paths: Optional[str] = None
+    source_file: Optional[str] = None
+    feature: Optional[str] = None
     s_enhance: int = 1
     t_enhance: int = 1
     input_handler_name: Optional[str] = None
@@ -115,6 +119,17 @@ class ExoRasterizer(ABC):
     def source_data(self):
         """Get the 1D array of source data from the source_file_h5"""
 
+    @property
+    def source_handler(self):
+        """Get the Loader object that handles the exogenous data file."""
+        msg = f'Getting {self.feature} for full domain from {self.source_file}'
+        if self._source_handler is None:
+            logger.info(msg)
+            self._source_handler = Loader(
+                file_paths=self.source_file, features=[self.feature]
+            )
+        return self._source_handler
+
     def get_cache_file(self, feature):
         """Get cache file name
 
@@ -136,6 +151,16 @@ class ExoRasterizer(ABC):
         if self.cache_dir is not None:
             os.makedirs(self.cache_dir, exist_ok=True)
         return cache_fp
+
+    @property
+    def coords(self):
+        """Get coords dictionary for initializing xr.Dataset."""
+        coords = {
+            coord: (Dimension.dims_2d(), self.hr_lat_lon[..., i])
+            for i, coord in enumerate(Dimension.coords_2d())
+        }
+        coords[Dimension.TIME] = self.hr_time_index
+        return coords
 
     @property
     def source_lat_lon(self):
@@ -227,75 +252,23 @@ class ExoRasterizer(ABC):
         )
         return nn
 
-    def cache_data(self, data, dset_name, cache_fp):
-        """Save rasterized data to cache file."""
-        tmp_fp = cache_fp + f'.{generate_random_string(10)}.tmp'
-        coords = {
-            Dimension.LATITUDE: (
-                (Dimension.SOUTH_NORTH, Dimension.WEST_EAST),
-                self.hr_lat_lon[..., 0],
-            ),
-            Dimension.LONGITUDE: (
-                (Dimension.SOUTH_NORTH, Dimension.WEST_EAST),
-                self.hr_lat_lon[..., 1],
-            ),
-            Dimension.TIME: self.hr_time_index.values,
-        }
-        Cacher.write_netcdf(
-            tmp_fp,
-            feature=dset_name,
-            data=da.broadcast_to(data, self.hr_shape),
-            coords=coords,
-        )
-        shutil.move(tmp_fp, cache_fp)
-
     @property
     def data(self):
         """Get a raster of source values corresponding to the
         high-resolution grid (the file_paths input grid * s_enhance *
-        t_enhance). The shape is (lats, lons, temporal, 1)
-
-        TODO: Get actual feature name for cache file? Write attributes to cache
-        here?
-        """
-        dset_name = self.__class__.__name__.lower()
-        cache_fp = self.get_cache_file(feature=dset_name)
+        t_enhance). The shape is (lats, lons, temporal, 1)"""
+        cache_fp = self.get_cache_file(feature=self.feature)
 
         if os.path.exists(cache_fp):
-            data = Loader(cache_fp)[dset_name, ...]
+            data = Loader(cache_fp)
         else:
             data = self.get_data()
 
         if self.cache_dir is not None and not os.path.exists(cache_fp):
-            self.cache_data(data=data, dset_name=dset_name, cache_fp=cache_fp)
-
-        if data.shape[-1] != self.hr_shape[-1]:
-            data = da.broadcast_to(data, self.hr_shape)
-
-        # add trailing dimension for feature channel
-        return data[..., None]
-
-    @abstractmethod
-    def get_data(self):
-        """Get a raster of source values corresponding to the high-res grid
-        (the file_paths input grid * s_enhance * t_enhance). The shape is
-        (lats, lons, temporal)"""
-
-
-class TopoRasterizerH5(ExoRasterizer):
-    """TopoRasterizer for H5 files"""
-
-    @property
-    def source_data(self):
-        """Get the 1D array of elevation data from the source_file_h5"""
-        if self._source_data is None:
-            with Loader(self.source_file) as res:
-                self._source_data = (
-                    res['topography', ..., None]
-                    if 'time' not in res['topography'].dims
-                    else res['topography', ..., slice(0, 1)]
-                )
-        return self._source_data
+            tmp_fp = cache_fp + f'.{generate_random_string(10)}.tmp'
+            data.to_netcdf(tmp_fp)
+            shutil.move(tmp_fp, cache_fp)
+        return data
 
     def get_data(self):
         """Get a raster of source values corresponding to the
@@ -307,7 +280,7 @@ class TopoRasterizerH5(ExoRasterizer):
         )
 
         df = pd.DataFrame(
-            {'topo': self.source_data.flatten(), 'gid_target': self.nn}
+            {self.feature: self.source_data.flatten(), 'gid_target': self.nn}
         )
         n_target = np.prod(self.hr_shape[:-1])
         df = df[df['gid_target'] != n_target]
@@ -318,55 +291,74 @@ class TopoRasterizerH5(ExoRasterizer):
         if any(missing):
             msg = (
                 f'{len(missing)} target pixels did not have unique '
-                'high-resolution source data to map from. If there are a '
-                'lot of target pixels missing source data this probably '
-                'means the source data is not high enough resolution. '
-                'Filling raster with NN.'
+                f'high-resolution {self.feature} source data to map from. If '
+                'there are a lot of target pixels missing source data this '
+                'probably means the source data is not high enough '
+                'resolution. Filling raster with NN.'
             )
             logger.warning(msg)
             warn(msg)
-            temp_df = pd.DataFrame({'topo': np.nan}, index=sorted(missing))
+            temp_df = pd.DataFrame(
+                {self.feature: np.nan}, index=sorted(missing)
+            )
             df = pd.concat((df, temp_df)).sort_index()
 
-        hr_data = df['topo'].values.reshape(self.hr_shape[:-1])
+        hr_data = df[self.feature].values.reshape(self.hr_shape[:-1])
         if np.isnan(hr_data).any():
             hr_data = nn_fill_array(hr_data)
 
-        logger.info('Finished mapping raster from {}'.format(self.source_file))
-
-        return da.from_array(hr_data[..., None])
-
-
-class TopoRasterizerNC(TopoRasterizerH5):
-    """TopoRasterizer for netCDF files"""
-
-    @property
-    def source_handler(self):
-        """Get the LoaderNC object that handles the .nc source topography
-        data file."""
-        if self._source_handler is None:
-            logger.info(
-                'Getting topography for full domain from '
-                f'{self.source_file}'
+        logger.info(
+            'Finished mapping raster from %s for "%s"',
+            self.source_file,
+            self.feature,
+        )
+        arr = (
+            da.from_array(hr_data)
+            if hr_data.shape == self.hr_shape
+            else da.repeat(
+                da.from_array(hr_data[..., None]),
+                len(self.hr_time_index),
+                axis=-1,
             )
-            self._source_handler = Loader(
-                self.source_file, features=['topography']
-            )
-        return self._source_handler
+        )
+        data_vars = {
+            self.feature: (Dimension.dims_3d(), arr.astype(np.float32))
+        }
+        ds = xr.Dataset(coords=self.coords, data_vars=data_vars)
+        return Sup3rX(ds)
+
+
+class ExoRasterizerH5(BaseExoRasterizer):
+    """ExoRasterizer for H5 files"""
 
     @property
     def source_data(self):
-        """Get the 1D array of elevation data from the source_file_nc"""
-        return self.source_handler['topography'].data.flatten()[..., None]
+        """Get the 1D array of exogenous data from the source_file_h5"""
+        if self._source_data is None:
+            self._source_data = self.source_handler[self.feature]
+            if 'time' not in self.source_handler[self.feature].dims:
+                self._source_data = self._source_data.data[:, None]
+            else:
+                self._source_data = self._source_data.data[..., slice(0, 1)]
+        return self._source_data
+
+
+class ExoRasterizerNC(BaseExoRasterizer):
+    """ExoRasterizer for netCDF files"""
+
+    @property
+    def source_data(self):
+        """Get the 1D array of exogenous data from the source_file_nc"""
+        return self.source_handler[self.feature].data.flatten()[..., None]
 
     @property
     def source_lat_lon(self):
-        """Get the 2D array (n, 2) of lat, lon data from the source_file_nc"""
+        """Get the 2D array (n, 2) of lat, lon data from the source_file"""
         source_lat_lon = self.source_handler.lat_lon.reshape((-1, 2))
         return source_lat_lon
 
 
-class SzaRasterizer(ExoRasterizer):
+class SzaRasterizer(BaseExoRasterizer):
     """SzaRasterizer for H5 files"""
 
     @property
@@ -382,22 +374,35 @@ class SzaRasterizer(ExoRasterizer):
         (lats, lons, temporal)
         """
         hr_data = self.source_data.reshape(self.hr_shape)
-        logger.info('Finished computing SZA data')
-        return hr_data.astype(np.float32)
+        logger.info(f'Finished computing {self.feature} data')
+        data_vars = {
+            self.feature: (Dimension.dims_3d(), da.from_array(hr_data))
+        }
+        ds = xr.Dataset(coords=self.coords, data_vars=data_vars)
+        return Sup3rX(ds)
 
 
-class TopoRasterizer:
-    """Type agnostic `TopoRasterizer` class."""
+class ExoRasterizer:
+    """Type agnostic `ExoRasterizer` class."""
 
     TypeSpecificClasses: ClassVar = {
-        'nc': TopoRasterizerNC,
-        'h5': TopoRasterizerH5,
+        'nc': ExoRasterizerNC,
+        'h5': ExoRasterizerH5,
     }
 
-    def __new__(cls, file_paths, source_file, *args, **kwargs):
+    def __new__(cls, file_paths, source_file, feature, **kwargs):
         """Override parent class to return type specific class based on
         `source_file`"""
-        SpecificClass = cls.TypeSpecificClasses[get_source_type(source_file)]
-        return SpecificClass(file_paths, source_file, *args, **kwargs)
+        kwargs = {
+            'file_paths': file_paths,
+            'source_file': source_file,
+            'feature': feature,
+            **kwargs,
+        }
+        if feature.lower() == 'sza':
+            ExoClass = SzaRasterizer
+        else:
+            ExoClass = cls.TypeSpecificClasses[get_source_type(source_file)]
+        return ExoClass(**kwargs)
 
-    __signature__, __doc__ = composite_info(list(TypeSpecificClasses.values()))
+    __signature__, __doc__ = composite_info(BaseExoRasterizer)

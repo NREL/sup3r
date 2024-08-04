@@ -9,11 +9,11 @@ import logging
 import pathlib
 from dataclasses import dataclass
 from inspect import signature
-from typing import ClassVar, List, Optional, Union
+from typing import List, Optional, Union
 
 import numpy as np
 
-from sup3r.preprocessing.rasterizers import SzaRasterizer, TopoRasterizer
+from sup3r.preprocessing.rasterizers import ExoRasterizer
 from sup3r.preprocessing.utilities import log_args
 
 from .base import SingleExoDataStep
@@ -77,11 +77,6 @@ class ExoDataHandler:
         then no data will be cached.
     """
 
-    AVAILABLE_HANDLERS: ClassVar = {
-        'topography': TopoRasterizer,
-        'sza': SzaRasterizer,
-    }
-
     file_paths: Union[str, list, pathlib.Path]
     feature: str
     steps: List[dict]
@@ -114,11 +109,6 @@ class ExoDataHandler:
         assert not any(s is None for s in self.s_enhancements), msg
         assert not any(t is None for t in self.t_enhancements), msg
 
-        msg = (
-            'No rasterizer available for the requested feature: '
-            f'{self.feature}'
-        )
-        assert self.feature.lower() in self.AVAILABLE_HANDLERS, msg
         self.get_all_step_data()
 
     def get_all_step_data(self):
@@ -136,7 +126,7 @@ class ExoDataHandler:
                 feature=self.feature,
                 s_enhance=s_enhance,
                 t_enhance=t_enhance,
-            )
+            ).as_array()
             step = SingleExoDataStep(
                 self.feature,
                 self.steps[i]['combine_type'],
@@ -235,15 +225,18 @@ class ExoDataHandler:
 
         Returns
         -------
-        data : T_Array
-            2D or 3D array of exo data with shape (lat, lon) or (lat,
-            lon, temporal)
+        data : Sup3rX
+            Sup3rX object containing exogenous data. `data.as_array()` gives
+            an array of shape (lats, lons, times, 1)
         """
 
-        ExoHandler = self.AVAILABLE_HANDLERS[feature.lower()]
-        kwargs = {'s_enhance': s_enhance, 't_enhance': t_enhance}
+        kwargs = {
+            's_enhance': s_enhance,
+            't_enhance': t_enhance,
+            'feature': feature,
+        }
 
-        params = signature(ExoHandler).parameters.values()
+        params = signature(ExoRasterizer).parameters.values()
         kwargs.update(
             {
                 k.name: getattr(self, k.name)
@@ -251,5 +244,4 @@ class ExoDataHandler:
                 if hasattr(self, k.name)
             }
         )
-        data = ExoHandler(**kwargs).data
-        return data
+        return ExoRasterizer(**kwargs).data

@@ -216,22 +216,16 @@ class Sup3rX:
     def as_array(self, features='all', data=None) -> T_Array:
         """Return dask.array for the contained xr.Dataset."""
         data = data if data is not None else self._ds
-        features = parse_to_list(data=data, features=features)
+        if isinstance(data, xr.DataArray):
+            return data.transpose(*ordered_dims(data.dims), ...).data
+        feats = parse_to_list(data=data, features=features)
         arrs = [
             data[f].transpose(*ordered_dims(data[f].dims), ...).data
-            for f in features
+            for f in feats
         ]
         if all(arr.shape == arrs[0].shape for arr in arrs):
             return self._stack_features(arrs)
-        return self.as_darray(features=features, data=data).data
-
-    def as_darray(self, features='all', data=None) -> xr.DataArray:
-        """Return xr.DataArray for the contained xr.Dataset."""
-        data = data if data is not None else self._ds
-        features = parse_to_list(data=data, features=features)
-        features = features if isinstance(features, list) else [features]
-        out = data[features]
-        return out.to_array().transpose(*ordered_dims(out.dims), ...)
+        return data[feats].to_array().transpose(*ordered_dims(data.dims), ...)
 
     def mean(self, **kwargs):
         """Get mean directly from dataset object."""
@@ -264,34 +258,24 @@ class Sup3rX:
         """Use `xr.DataArray.interpolate_na` to fill NaN values with a dask
         compatible method."""
         features = kwargs.pop('features', list(self.data_vars))
-        fill_value = kwargs.pop('fill_value', 'extrapolate')
+        kwargs['fill_value'] = kwargs.get('fill_value', 'extrapolate')
         for feat in features:
             if 'dim' in kwargs:
                 if kwargs['dim'] == Dimension.TIME:
                     kwargs['use_coordinate'] = kwargs.get(
                         'use_coordinate', False
                     )
-                self._ds[feat] = self._ds[feat].interpolate_na(
-                    **kwargs, fill_value=fill_value
-                )
+                self._ds[feat] = self._ds[feat].interpolate_na(**kwargs)
             else:
                 horiz = (
                     self._ds[feat]
                     .chunk({Dimension.WEST_EAST: -1})
-                    .interpolate_na(
-                        dim=Dimension.WEST_EAST,
-                        **kwargs,
-                        fill_value=fill_value,
-                    )
+                    .interpolate_na(dim=Dimension.WEST_EAST, **kwargs)
                 )
                 vert = (
                     self._ds[feat]
                     .chunk({Dimension.SOUTH_NORTH: -1})
-                    .interpolate_na(
-                        dim=Dimension.SOUTH_NORTH,
-                        **kwargs,
-                        fill_value=fill_value,
-                    )
+                    .interpolate_na(dim=Dimension.SOUTH_NORTH, **kwargs)
                 )
                 self._ds[feat] = (
                     self._ds[feat].dims,
@@ -299,34 +283,48 @@ class Sup3rX:
                 )
         return type(self)(self._ds)
 
+    @staticmethod
+    def _needs_fancy_indexing(keys) -> T_Array:
+        """We use `.vindex` if keys require fancy indexing."""
+        where_list = [
+            ind for ind in keys if isinstance(ind, np.ndarray) and ind.ndim > 0
+        ]
+        return len(where_list) > 1
+
     def _parse_keys(self, keys):
         """Return set of features and slices for all dimensions contained in
         dataset that can be passed to isel and transposed to standard dimension
         order."""
-        standard_dims = ordered_dims(self._ds.dims)
         keys = keys if isinstance(keys, tuple) else (keys,)
+        has_feats = _is_strings(keys[0])
+        just_coords = keys[0] == []
         features = (
             list(self.coords)
-            if not keys[0]
+            if just_coords
             else _lowered(keys[0])
-            if _is_strings(keys[0]) and keys[0] != 'all'
+            if has_feats and keys[0] != 'all'
             else self.features
         )
-        dim_keys = () if len(keys) == 1 else keys[1:]
-        slices = _parse_ellipsis(dim_keys, dim_num=len(standard_dims))
-        return features, dict(zip(standard_dims, slices))
+        dim_keys = () if len(keys) == 1 else keys[1:] if has_feats else keys
+        dim_keys = _parse_ellipsis(dim_keys, dim_num=len(self._ds.dims))
+        return features, dict(zip(ordered_dims(self._ds.dims), dim_keys))
 
     def __getitem__(self, keys) -> Union[T_Array, Self]:
         """Method for accessing variables or attributes. keys can optionally
-        include a feature name as the last element of a keys tuple."""
+        include a feature name or list of feature names as the first entry of a
+        keys tuple. When keys take the form of numpy style indexing we return a
+        dask or numpy array, depending on whether contained data has been
+        loaded into memory, otherwise we return xarray or Sup3rX objects"""
         features, slices = self._parse_keys(keys)
         out = self._ds[features]
         slices = {k: v for k, v in slices.items() if k in out.dims}
-        if slices:
-            out = out.isel(**slices)
+        if self._needs_fancy_indexing(slices.values()):
+            out = self.as_array(data=out, features=features)
+            return out.vindex[*slices.values()]
+
+        out = out.isel(**slices)
+        # numpy style indexing requested so we return an array (dask or np)
         if isinstance(keys, (slice, tuple)) or _contains_ellipsis(keys):
-            if isinstance(out, xr.DataArray):
-                return out.transpose(*ordered_dims(out.dims), ...).data
             return self.as_array(data=out, features=features)
         if isinstance(out, xr.Dataset):
             return type(self)(out)
@@ -356,38 +354,38 @@ class Sup3rX:
         """Add dimensions to vals entries if needed. This is used to set values
         of `self._ds` which can require dimensions to be explicitly specified
         for the data being set. e.g. self._ds['u_100m'] = (('south_north',
-        'west_east', 'time'), data). We add attributes if available in vals,
-        as well"""
+        'west_east', 'time'), data). We make guesses on the correct dims if
+        they are missing and give a warning. We add attributes if available in
+        vals, as well
+
+        Parameters
+        ----------
+        vals : Dict[Str, Union]
+            Dictionary of feature names and arrays to use for setting feature
+            data. When arrays are >2 dimensions xarray needs explicit dimension
+            info, so we need to add these if not provided.
+        """
         new_vals = {}
         for k, v in vals.items():
             if isinstance(v, tuple):
                 new_vals[k] = v
-            elif isinstance(v, xr.DataArray):
+            elif isinstance(v, (xr.DataArray, xr.Dataset)):
+                dat = v if isinstance(v, xr.DataArray) else v[k]
                 data = (
-                    ordered_array(v).squeeze(dim='variable').data
-                    if 'variable' in v.dims
-                    else ordered_array(v).data
+                    ordered_array(dat).squeeze(dim='variable').data
+                    if 'variable' in dat.dims
+                    else ordered_array(dat).data
                 )
                 new_vals[k] = (
-                    ordered_dims(v.dims),
+                    ordered_dims(dat.dims),
                     data,
-                    getattr(v, 'attrs', {}),
+                    getattr(dat, 'attrs', {}),
                 )
-            elif isinstance(v, xr.Dataset):
-                data = (
-                    ordered_array(v[k]).squeeze(dim='variable').data
-                    if 'variable' in v[k].dims
-                    else ordered_array(v[k]).data
-                )
-                new_vals[k] = (
-                    ordered_dims(v.dims),
-                    data,
-                    getattr(v[k], 'attrs', {}),
-                )
-            elif k in self._ds.data_vars:
-                new_vals[k] = (self._ds[k].dims, v)
-            elif len(v.shape) > 1:
-                val = dims_array_tuple(v)
+            elif k in self._ds.data_vars or len(v.shape) > 1:
+                if k in self._ds.data_vars:
+                    val = (ordered_dims(self._ds[k].dims), v)
+                else:
+                    val = dims_array_tuple(v)
                 msg = (
                     f'Setting data for variable "{k}" without explicitly '
                     f'providing dimensions. Using dims = {tuple(val[0])}.'
@@ -399,23 +397,9 @@ class Sup3rX:
                 new_vals[k] = v
         return new_vals
 
-    def assign_coords(self, vals: Dict[str, Union[T_Array, tuple]]):
-        """Override :meth:`assign_coords` to enable assignment without
-        explicitly providing dimensions if coordinate already exists.
-
-        Parameters
-        ----------
-        vals : dict
-            Dictionary of coord names and either arrays or tuples of (dims,
-            array). If dims are not provided this will try to use stored dims
-            of the coord, if it exists already.
-        """
-        self._ds = self._ds.assign_coords(self._add_dims_to_data_dict(vals))
-        return type(self)(self._ds)
-
     def assign(self, vals: Dict[str, Union[T_Array, tuple]]):
-        """Override xarray assign method to enable update without explicitly
-        providing dimensions if variable already exists.
+        """Override xarray assign and assign_coords methods to enable update
+        without explicitly providing dimensions if variable already exists.
 
         Parameters
         ----------
@@ -424,7 +408,11 @@ class Sup3rX:
             array). If dims are not provided this will try to use stored dims
             of the variable, if it exists already.
         """
-        self._ds = self._ds.assign(self._add_dims_to_data_dict(vals))
+        data_dict = self._add_dims_to_data_dict(vals)
+        if all(f in self.coords for f in vals):
+            self._ds = self._ds.assign_coords(data_dict)
+        else:
+            self._ds = self._ds.assign(data_dict)
         return type(self)(self._ds)
 
     def __setitem__(self, keys, data):
@@ -439,20 +427,20 @@ class Sup3rX:
             then this is expected to have a trailing dimension with length
             equal to the length of the list.
         """
-        if isinstance(keys, (list, tuple)) and all(
-            isinstance(s, str) for s in keys
-        ):
-            _ = self.assign({v: data[..., i] for i, v in enumerate(keys)})
-        elif isinstance(keys, str) and keys in self.coords:
-            _ = self.assign_coords({keys: data})
-        elif isinstance(keys, str):
-            _ = self.assign({keys.lower(): data})
+        if _is_strings(keys):
+            if isinstance(keys, (list, tuple)):
+                data_dict = {v: data[..., i] for i, v in enumerate(keys)}
+            else:
+                data_dict = {keys.lower(): data}
+            _ = self.assign(data_dict)
         elif isinstance(keys[0], str) and keys[0] not in self.coords:
-            var_array = self._ds[keys[0].lower()].data
-            var_array[keys[1:]] = data
-            _ = self.assign({keys[0].lower(): var_array})
+            feats, slices = self._parse_keys(keys)
+            var_array = self[feats].data
+            var_array[*slices.values()] = data
+            _ = self.assign({feats: var_array})
         else:
             msg = f'Cannot set values for keys {keys}'
+            logger.error(msg)
             raise KeyError(msg)
 
     @property
@@ -495,24 +483,18 @@ class Sup3rX:
     @property
     def time_step(self):
         """Get time step in seconds."""
-        return float(
-            mode(
-                (self.time_index[1:] - self.time_index[:-1]).total_seconds(),
-                keepdims=False,
-            ).mode
-        )
+        sec_diff = (self.time_index[1:] - self.time_index[:-1]).total_seconds()
+        return float(mode(sec_diff, keepdims=False).mode)
 
     @property
     def lat_lon(self) -> T_Array:
         """Base lat lon for contained data."""
-        return self.as_array(
-            features=[Dimension.LATITUDE, Dimension.LONGITUDE]
-        )
+        return self.as_array(features=Dimension.coords_2d())
 
     @lat_lon.setter
     def lat_lon(self, lat_lon):
         """Update the lat_lon attribute with array values."""
-        self[[Dimension.LATITUDE, Dimension.LONGITUDE]] = lat_lon
+        self[Dimension.coords_2d()] = lat_lon
 
     @property
     def target(self):
@@ -528,8 +510,7 @@ class Sup3rX:
     def meta(self):
         """Return dataframe of flattened lat / lon values."""
         return pd.DataFrame(
-            columns=[Dimension.LATITUDE, Dimension.LONGITUDE],
-            data=self.lat_lon.reshape((-1, 2)),
+            columns=Dimension.coords_2d(), data=self.lat_lon.reshape((-1, 2))
         )
 
     def unflatten(self, grid_shape):
@@ -540,7 +521,6 @@ class Sup3rX:
             (np.arange(grid_shape[0]), np.arange(grid_shape[1])),
             names=Dimension.dims_2d(),
         )
-        self._ds = self._ds.assign({Dimension.FLATTENED_SPATIAL: ind}).unstack(
-            Dimension.FLATTENED_SPATIAL
-        )
+        self._ds = self._ds.assign({Dimension.FLATTENED_SPATIAL: ind})
+        self._ds = self._ds.unstack(Dimension.FLATTENED_SPATIAL)
         return type(self)(self._ds)
