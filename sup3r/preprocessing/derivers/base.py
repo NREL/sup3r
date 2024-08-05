@@ -97,12 +97,21 @@ class BaseDeriver(Container):
         if method is not None and hasattr(method, 'inputs'):
             fstruct = parse_feature(feature)
             inputs = [fstruct.map_wildcard(i) for i in method.inputs]
-            if all(f in self.data for f in inputs):
+            missing = [f for f in inputs if f not in self.data]
+            logger.debug('Found compute method (%s) for %s.', method, feature)
+            if any(missing):
                 logger.debug(
-                    f'Found compute method ({method}) for {feature}. '
-                    'Proceeding with derivation.'
+                    'Missing required features %s. '
+                    'Trying to derive these first.',
+                    missing,
                 )
-                return self._run_compute(feature, method)
+                for f in missing:
+                    self.data[f] = self.derive(f)
+            else:
+                logger.debug(
+                    'All required features %s found. Proceeding.', inputs
+                )
+            return self._run_compute(feature, method)
         return None
 
     def _run_compute(self, feature, method):

@@ -106,8 +106,8 @@ class LoaderH5(BaseLoader):
             warn(msg)
             arr_dims = Dimension.dims_4d_bc()
         else:
-            arr_dims = dims
-        return (arr_dims, arr, self.res.h5[dset].attrs)
+            arr_dims = dims[:len(arr.shape)]
+        return (arr_dims, arr, dict(self.res.h5[dset].attrs))
 
     def _get_data_vars(self, dims):
         """Define data_vars dict for xr.Dataset construction."""
@@ -156,8 +156,12 @@ class LoaderH5(BaseLoader):
         """Wrap data in xarray.Dataset(). Handle differences with flattened and
         cached h5."""
         dims = self._get_dims()
-        data_vars = self._get_data_vars(dims)
         coords = self._get_coords(dims)
+        data_vars = {
+            k: v
+            for k, v in self._get_data_vars(dims).items()
+            if k not in coords
+        }
         data_vars = {k: v for k, v in data_vars.items() if k not in coords}
         return xr.Dataset(coords=coords, data_vars=data_vars).astype(
             np.float32

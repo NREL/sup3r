@@ -31,19 +31,14 @@ def test_stats_dual_data():
     """Check accuracy of stats calcs across multiple containers with
     `type(self.data) == type(Sup3rDataset)` (e.g. a dual dataset)."""
 
-    dat = DummyData((10, 10, 100), ['windspeed', 'winddirection'])
+    feats = ['windspeed', 'winddirection']
+    dat = DummyData((10, 10, 100), feats)
     dat.data = Sup3rDataset(
         low_res=Sup3rX(dat.data[0]._ds), high_res=Sup3rX(dat.data[0]._ds)
     )
 
-    og_means = {
-        'windspeed': np.nanmean(dat[..., 0]),
-        'winddirection': np.nanmean(dat[..., 1]),
-    }
-    og_stds = {
-        'windspeed': np.nanstd(dat[..., 0]),
-        'winddirection': np.nanstd(dat[..., 1]),
-    }
+    og_means = {f: np.nanmean(dat[f]) for f in feats}
+    og_stds = {f: np.nanstd(dat[f]) for f in feats}
 
     direct_means = {
         'windspeed': dat.data.mean(
@@ -81,16 +76,11 @@ def test_stats_known():
     """Check accuracy of stats calcs across multiple containers with known
     means / stds."""
 
-    dat = DummyData((10, 10, 100), ['windspeed', 'winddirection'])
+    feats = ['windspeed', 'winddirection']
+    dat = DummyData((10, 10, 100), feats)
 
-    og_means = {
-        'windspeed': np.nanmean(dat[..., 0]),
-        'winddirection': np.nanmean(dat[..., 1]),
-    }
-    og_stds = {
-        'windspeed': np.nanstd(dat[..., 0]),
-        'winddirection': np.nanstd(dat[..., 1]),
-    }
+    og_means = {f: np.nanmean(dat[f]) for f in feats}
+    og_stds = {f: np.nanstd(dat[f]) for f in feats}
 
     with TemporaryDirectory() as td:
         means = os.path.join(td, 'means.json')

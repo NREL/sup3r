@@ -37,7 +37,9 @@ def test_full_docs(obj):
     """Make sure each arg in obj signature has an entry in the doc string."""
 
     sig = signature(obj)
-    doc = NumpyDocString(obj.__init__.__doc__)
+    doc = obj.__init__.__doc__
+    doc = doc if doc else obj.__doc__
+    doc = NumpyDocString(doc)
     params = {p.name for p in sig.parameters.values()}
     doc_params = {p.name for p in doc['Parameters']}
     assert not params - doc_params

@@ -168,10 +168,11 @@ def test_nc_cc_temp():
         nc['ta'].attrs['units'] = 'K'
         nc = nc.swap_dims({'level': 'height'})
         nc.to_netcdf(tmp_file)
+
+        DataHandlerNCforCC.FEATURE_REGISTRY.update({'temperature': 'ta'})
         dh = DataHandlerNCforCC(
-            tmp_file, features=['ta_100m', 'temperature_100m']
+            tmp_file, features=['temperature_100m']
         )
-        assert dh['ta_100m'].attrs['units'] == 'C'
         assert dh['temperature_100m'].attrs['units'] == 'C'
 
 

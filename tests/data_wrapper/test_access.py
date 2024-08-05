@@ -132,7 +132,7 @@ def test_change_values():
 
     rand_u = RANDOM_GENERATOR.uniform(0, 20, data['u', ...].shape)
     data['u'] = rand_u
-    assert np.array_equal(rand_u, data['u', ...].compute())
+    assert np.array_equal(rand_u, np.asarray(data['u', ...]))
 
     rand_v = RANDOM_GENERATOR.uniform(0, 10, data['v', ...].shape)
     data['v'] = rand_v
@@ -140,7 +140,7 @@ def test_change_values():
 
     data[['u', 'v']] = da.stack([rand_u, rand_v], axis=-1)
     assert np.array_equal(
-        data[['u', 'v']].as_array().data.compute(),
+        np.asarray(data[['u', 'v']].as_array()),
         da.stack([rand_u, rand_v], axis=-1).compute(),
     )
     data['u', slice(0, 10)] = 0

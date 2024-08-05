@@ -20,12 +20,12 @@ from scipy.spatial import KDTree
 
 from sup3r.postprocessing.writers.base import OutputHandler
 from sup3r.preprocessing.accessor import Sup3rX
+from sup3r.preprocessing.base import Sup3rMeta
 from sup3r.preprocessing.loaders import Loader
 from sup3r.preprocessing.names import Dimension
 from sup3r.utilities.utilities import generate_random_string, nn_fill_array
 
 from ..utilities import (
-    composite_info,
     get_class_kwargs,
     get_input_handler_class,
     get_source_type,
@@ -39,9 +39,8 @@ logger = logging.getLogger(__name__)
 class BaseExoRasterizer(ABC):
     """Class to extract high-res (4km+) data rasters for new
     spatially-enhanced datasets (e.g. GCM files after spatial enhancement)
-    using nearest neighbor mapping and aggregation from NREL datasets
-    (e.g. WTK or NSRDB)
-
+    using nearest neighbor mapping and aggregation from NREL datasets (e.g. WTK
+    or NSRDB)
 
     Parameters
     ----------
@@ -382,7 +381,7 @@ class SzaRasterizer(BaseExoRasterizer):
         return Sup3rX(ds)
 
 
-class ExoRasterizer:
+class ExoRasterizer(BaseExoRasterizer, metaclass=Sup3rMeta):
     """Type agnostic `ExoRasterizer` class."""
 
     TypeSpecificClasses: ClassVar = {
@@ -405,4 +404,5 @@ class ExoRasterizer:
             ExoClass = cls.TypeSpecificClasses[get_source_type(source_file)]
         return ExoClass(**kwargs)
 
-    __signature__, __doc__ = composite_info(BaseExoRasterizer)
+    _signature_objs = (BaseExoRasterizer,)
+    __doc__ = BaseExoRasterizer.__doc__

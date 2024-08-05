@@ -21,6 +21,15 @@ from sup3r.preprocessing.utilities import composite_info
 logger = logging.getLogger(__name__)
 
 
+def _get_class_info(namespace):
+    sig_objs = namespace.get('_signature_objs', None)
+    skips = namespace.get('_skip_params', None)
+    _sig = _doc = None
+    if sig_objs:
+        _sig, _doc = composite_info(sig_objs, skip_params=skips)
+    return _sig, _doc
+
+
 class Sup3rMeta(ABCMeta, type):
     """Meta class to define __name__, __signature__, and __subclasscheck__ of
     composite and derived classes. This allows us to still resolve a signature
@@ -29,15 +38,13 @@ class Sup3rMeta(ABCMeta, type):
 
     def __new__(mcs, name, bases, namespace, **kwargs):  # noqa: N804
         """Define __name__ and __signature__"""
-        name = namespace.get('__name__', name)
-        sig_objs = namespace.get('_signature_objs', None)
-        skips = namespace.get('_skip_params', None)
-        if sig_objs:
-            _sig, _doc = composite_info(sig_objs, skip_params=skips)
+        _sig, _doc = _get_class_info(namespace)
+        if _sig:
             namespace['__signature__'] = _sig
-            if '__init__' in namespace:
-                namespace['__init__'].__signature__ = _sig
-                namespace['__init__'].__doc__ = _doc
+        if '__init__' in namespace and _sig:
+            namespace['__init__'].__signature__ = _sig
+        if '__init__' in namespace and _doc:
+            namespace['__init__'].__doc__ = _doc
         return super().__new__(mcs, name, bases, namespace, **kwargs)
 
     def __subclasscheck__(cls, subclass):
