@@ -792,13 +792,14 @@ def apply_presrat_bc(data, time_index, base_params, bias_params,
                      bias_fut_params, bias_tau_fut, k_factor,
                      time_window_center, dist='empirical', sampling='invlog',
                      log_base=10, relative=True, no_trend=False,
-                     zero_rate_threshold=1.182033e-07):
+                     zero_rate_threshold=1.182033e-07, out_range=None,
+                     max_workers=1):
     """Run PresRat to bias correct data from input parameters and not from bias
     correction file on disk."""
 
     data_unbiased = np.full_like(data, np.nan)
-    closest_time_idx = abs(time_window_center[:, np.newaxis] -
-                           np.array(time_index.day_of_year))
+    closest_time_idx = abs(time_window_center[:, np.newaxis]
+                           - np.array(time_index.day_of_year))
     closest_time_idx = closest_time_idx.argmin(axis=0)
 
     for nt in set(closest_time_idx):
@@ -826,7 +827,7 @@ def apply_presrat_bc(data, time_index, base_params, bias_params,
         # QDM expects input arr with shape (time, space)
         tmp = subset.reshape(-1, subset.shape[-1]).T
         # Apply QDM correction
-        tmp = QDM(tmp)
+        tmp = QDM(tmp, max_workers=max_workers)
         # Reorgnize array back from  (time, space)
         # to (spatial, spatial, temporal)
         subset = tmp.T.reshape(subset.shape)
@@ -838,6 +839,10 @@ def apply_presrat_bc(data, time_index, base_params, bias_params,
             subset = subset * np.asarray(k_factor[:, :, nt:nt + 1])
 
         data_unbiased[:, :, subset_idx] = subset
+
+    if out_range is not None:
+        data_unbiased = np.maximum(data_unbiased, np.min(out_range))
+        data_unbiased = np.minimum(data_unbiased, np.max(out_range))
 
     return data_unbiased
 
@@ -852,6 +857,7 @@ def local_presrat_bc(data: np.ndarray,
                      threshold=0.1,
                      relative=True,
                      no_trend=False,
+                     out_range=None,
                      max_workers=1,
                      ):
     """Bias correction using PresRat
@@ -906,6 +912,8 @@ def local_presrat_bc(data: np.ndarray,
         :class:`rex.utilities.bc_utils.QuantileDeltaMapping`. Note that this
         assumes that params_mh is the data distribution representative for the
         target data.
+    out_range : None | tuple
+        Option to set floor/ceiling values on the output data.
     max_workers : int | None
         Max number of workers to use for QDM process pool
     """
@@ -943,6 +951,8 @@ def local_presrat_bc(data: np.ndarray,
                                      time_window_center, dist=dist,
                                      sampling=sampling, log_base=log_base,
                                      relative=relative, no_trend=no_trend,
-                                     zero_rate_threshold=zero_rate_threshold)
+                                     zero_rate_threshold=zero_rate_threshold,
+                                     out_range=out_range,
+                                     max_workers=max_workers)
 
     return data_unbiased
