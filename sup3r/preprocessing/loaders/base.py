@@ -22,8 +22,9 @@ class BaseLoader(Container, ABC):
     """Base loader. "Loads" files so that a `.data` attribute provides access
     to the data in the files as a dask array with shape (lats, lons, time,
     features). This object provides a `__getitem__` method that can be used by
-    :class:`Sampler` objects to build batches or by :class:`Rasterizer` objects
-    to derive / extract specific features / regions / time_periods."""
+    :class:`~sup3r.preprocessing.samplers.Sampler` objects to build batches or
+    by :class:`~sup3r.preprocessing.rasterizers.Rasterizer` objects to derive /
+    extract specific features / regions / time_periods."""
 
     BASE_LOADER: Callable = xr.open_mfdataset
 
@@ -44,17 +45,16 @@ class BaseLoader(Container, ABC):
             Features to return in loaded dataset. If 'all' then all available
             features will be returned.
         res_kwargs : dict
-            kwargs for `.res` object
+            kwargs for the `BaseLoader`. BaseLoader is usually
+            xr.open_mfdataset for NETCDF files and MultiFileResourceX for H5
+            files.
         chunks : dict | str
             Dictionary of chunk sizes to use for call to
-            `dask.array.from_array()` or xr.Dataset().chunk(). Will be
+            `dask.array.from_array()` or `xr.Dataset().chunk()`. Will be
             converted to a tuple when used in `from_array().`
         BaseLoader : Callable
-            Optional base loader method update. This is a function which takes
-            `file_paths` and `**kwargs` and returns an initialized base loader
-            with those arguments. The default for h5 is a method which returns
-            MultiFileWindX(file_paths, **kwargs) and for nc the default is
-            xarray.open_mfdataset(file_paths, **kwargs)
+            Optional base loader update. The default for H5 files is
+            MultiFileResourceX and for NETCDF is xarray.open_mfdataset
         """
         super().__init__()
         self._data = None

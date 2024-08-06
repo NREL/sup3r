@@ -23,7 +23,7 @@ from sup3r.preprocessing.accessor import Sup3rX
 from sup3r.preprocessing.base import Sup3rMeta
 from sup3r.preprocessing.loaders import Loader
 from sup3r.preprocessing.names import Dimension
-from sup3r.utilities.utilities import generate_random_string, nn_fill_array
+from sup3r.utilities.utilities import nn_fill_array
 
 from ..utilities import (
     get_class_kwargs,
@@ -80,8 +80,8 @@ class BaseExoRasterizer(ABC):
         properties.
     input_handler_kwargs : dict | None
         Any kwargs for initializing the `input_handler_name` class.
-    cache_dir : str
-        Directory for storing cache data. Default is './exo_cache'
+    cache_dir : str | './exo_cache'
+        Directory to use for caching rasterized data.
     distance_upper_bound : float | None
         Maximum distance to map high-resolution data from source_file to the
         low-resolution file_paths input. None (default) will calculate this
@@ -263,8 +263,8 @@ class BaseExoRasterizer(ABC):
         else:
             data = self.get_data()
 
-        if self.cache_dir is not None and not os.path.exists(cache_fp):
-            tmp_fp = cache_fp + f'.{generate_random_string(10)}.tmp'
+        if not os.path.exists(cache_fp):
+            tmp_fp = cache_fp + '.tmp'
             data.to_netcdf(tmp_fp)
             shutil.move(tmp_fp, cache_fp)
         return data

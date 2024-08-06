@@ -43,7 +43,9 @@ class Rasterizer(BaseRasterizer):
             Features to return in loaded dataset. If 'all' then all
             available features will be returned.
         res_kwargs : dict
-            kwargs for `.res` object
+            kwargs for the `BaseLoader`. BaseLoader is usually
+            xr.open_mfdataset for NETCDF files and MultiFileResourceX for H5
+            files.
         chunks : dict | str
             Dictionary of chunk sizes to use for call to
             `dask.array.from_array()` or xr.Dataset().chunk(). Will be

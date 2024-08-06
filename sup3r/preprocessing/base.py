@@ -39,6 +39,7 @@ class Sup3rMeta(ABCMeta, type):
     def __new__(mcs, name, bases, namespace, **kwargs):  # noqa: N804
         """Define __name__ and __signature__"""
         _sig, _doc = _get_class_info(namespace)
+        name = namespace.get('__name__', name)
         if _sig:
             namespace['__signature__'] = _sig
         if '__init__' in namespace and _sig:
@@ -407,8 +408,8 @@ class Container(metaclass=Sup3rMeta):
         :class:`~sup3r.preprocessing.collections.Collection` object like
         :class:`~sup3r.preprocessing.batch_handlers.BatchHandler`. Otherwise
         this is is :class:`~.Sup3rDataset` objects, which is either a wrapped
-        2-tuple or 1-tuple (e.g. len(data) == 2 or len(data) == 1) depending on
-        whether this container is used for a dual dataset or not.
+        2-tuple or 1-tuple (e.g. `len(data) == 2` or `len(data) == 1`)
+        depending on whether this container is used for a dual dataset or not.
         """
         if isinstance(data, Sup3rDataset):
             return data

@@ -44,15 +44,18 @@ class Sup3rX:
     features and combinations of feature lists with numpy style indexing.
     e.g. `ds.sx['u', slice(0, 10), ...]` or
     `ds.sx[['u', 'v'], ..., slice(0, 10)]`.
+
         (i) If ds[keys] returns an `xr.Dataset` object then ds.sx[keys] will
         return a Sup3rX object. e.g. `ds.sx[['u','v']]`) will return a
         :class:`Sup3rX` instance but ds.sx['u'] will return an `xr.DataArray`
+
         (ii) Combining named feature requests with numpy style indexing will
         return either a dask.array or numpy.array, depending on whether data is
         still on disk or loaded into memory, with a standard dimension order.
         e.g. ds.sx[['u','v'], ...] will return an array with shape (lats, lons,
         times, features), (assuming there is no vertical dimension in the
         underlying data).
+
     (2) The `__getitem__` and `__getattr__` methods will cast back to
     `type(self)` if `self._ds.__getitem__` or `self._ds.__getattr__` returns an
     instance of `type(self._ds)` (e.g. an `xr.Dataset`). This means we do not
@@ -60,10 +63,16 @@ class Sup3rX:
 
     Examples
     --------
+    # To use as an accessor:
     >>> ds = xr.Dataset(...)
     >>> feature_data = ds.sx[features]
     >>> ti = ds.sx.time_index
     >>> lat_lon_array = ds.sx.lat_lon
+
+    # Use as wrapper:
+    >>> ds = Sup3rX(xr.Dataset(data_vars={'windspeed': ...}, ...))
+    >>> np_array = ds['windspeed'].values
+    >>> dask_array = ds['windspeed', ...] == ds['windspeed'].as_array()
     """
 
     def __init__(self, ds: Union[xr.Dataset, Self]):
@@ -295,7 +304,8 @@ class Sup3rX:
         ]
         if all(arr.shape == arrs[0].shape for arr in arrs):
             return self._stack_features(arrs)
-        return data[feats].to_array().transpose(*ordered_dims(data.dims), ...)
+        out = data[feats].to_array().transpose(*ordered_dims(data.dims), ...)
+        return out.data
 
     def mean(self, **kwargs):
         """Get mean directly from dataset object."""

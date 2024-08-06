@@ -8,7 +8,7 @@ factories. These factory generated objects are DataHandlers and BatchHandlers.
 
 If you want to extract a specific spatiotemporal extent from a data file then
 use :class:`.Rasterizer`. If you want to split into a test and validation set
-then use :class:`Rasterizer` to extract different temporal extents separately.
+then use :class:`.Rasterizer` to extract different temporal extents separately.
 If you've already rasterized data and written that to a file and then want to
 sample that data for batches, then use a :class:`.Loader` (or a
 :class:`.DataHandler`), and give that object to a :class:`.BatchHandler`. If

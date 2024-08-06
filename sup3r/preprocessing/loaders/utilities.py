@@ -23,9 +23,7 @@ def lower_names(data):
 def standardize_names(data, standard_names):
     """Standardize fields in the dataset using the `standard_names`
     dictionary."""
-    data = data.rename(
-        {k: v for k, v in standard_names.items() if k in data}
-    )
+    data = data.rename({k: v for k, v in standard_names.items() if k in data})
     return data
 
 
@@ -43,10 +41,13 @@ def standardize_values(data):
             attrs['units'] = 'C'
         data[var].attrs.update(attrs)
 
-    data[Dimension.LONGITUDE] = (
-        data[Dimension.LONGITUDE] + 180.0
-    ) % 360.0 - 180.0
+    lons = (data[Dimension.LONGITUDE] + 180.0) % 360.0 - 180.0
+    data[Dimension.LONGITUDE] = lons
+
     if Dimension.TIME in data.coords:
+        if isinstance(data[Dimension.TIME].values[0], bytes):
+            times = [t.decode('utf-8') for t in data[Dimension.TIME].values]
+            data[Dimension.TIME] = times
         data[Dimension.TIME] = pd.to_datetime(data[Dimension.TIME])
 
     return data

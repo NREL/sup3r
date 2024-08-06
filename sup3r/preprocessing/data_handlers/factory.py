@@ -1,5 +1,8 @@
-"""DataHandler objects, which are built through composition of ``Loader``,
-``Rasterizer``, ``Deriver``, and ``Cacher`` objects"""
+"""DataHandler objects, which are built through composition of
+:class:`~sup3r.preprocessing.rasterizers.Rasterizer`,
+:class:`~sup3r.preprocessing.loaders.Loader`,
+:class:`~sup3r.preprocessing.derivers.Deriver`, and
+:class:`~sup3r.preprocessing.cachers.Cacher` classes."""
 
 import logging
 from typing import Callable, Dict, Optional, Union
@@ -29,10 +32,11 @@ logger = logging.getLogger(__name__)
 
 
 class DataHandler(Deriver):
-    """Base DataHandler. Composes :class:`~sup3r.preprocessing.Rasterizer`,
-    :class:`~sup3r.preprocessing.Loader`,
-    :class:`~sup3r.preprocessing.Deriver`, and
-    :class:`~sup3r.preprocessing.Cacher` classes."""
+    """Base DataHandler. Composes
+    :class:`~sup3r.preprocessing.rasterizers.Rasterizer`,
+    :class:`~sup3r.preprocessing.loaders.Loader`,
+    :class:`~sup3r.preprocessing.derivers.Deriver`, and
+    :class:`~sup3r.preprocessing.cachers.Cacher` classes."""
 
     @log_args
     def __init__(
@@ -64,7 +68,9 @@ class DataHandler(Deriver):
             features will be loaded. Specify explicit feature names for
             derivations.
         res_kwargs : dict
-            kwargs for `.res` object
+            kwargs for the `BaseLoader`. BaseLoader is usually
+            xr.open_mfdataset for NETCDF files and MultiFileResourceX for H5
+            files.
         chunks : dict | str
             Dictionary of chunk sizes to use for call to
             `dask.array.from_array()` or `xr.Dataset().chunk()`. Will be
@@ -91,13 +97,12 @@ class DataHandler(Deriver):
             Keyword arguments for nan handling. If 'mask', time steps with nans
             will be dropped. Otherwise this should be a dict of kwargs which
             will be passed to
-            :py:meth:`sup3r.preprocessing.Sup3rX.interpolate_na`.
+            :py:meth:`sup3r.preprocessing.accessor.Sup3rX.interpolate_na`.
         BaseLoader : Callable
-            Optional base loader method update. This is a function which takes
-            `file_paths` and `**kwargs` and returns an initialized base loader
-            with those arguments. The default for h5 is a method which returns
-            MultiFileWindX(file_paths, **kwargs) and for nc the default is
-            xarray.open_mfdataset(file_paths, **kwargs)
+            Base level file loader wrapped by
+            :class:`~sup3r.preprocessing.loaders.Loader`. This is usually
+            xr.open_mfdataset for NETCDF files and MultiFileResourceX for H5
+            files.
         FeatureRegistry : dict
             Dictionary of
             :class:`~sup3r.preprocessing.derivers.methods.DerivedFeature`
@@ -105,7 +110,7 @@ class DataHandler(Deriver):
         interp_method : str
             Interpolation method to use for height interpolation. e.g. Deriving
             u_20m from u_10m and u_100m. Options are "linear" and "log". See
-            :py:meth:`sup3r.preprocessing.Deriver.do_level_interpolation`
+            :py:meth:`sup3r.preprocessing.derivers.Deriver.do_level_interpolation`
         cache_kwargs : dict | None
             Dictionary with kwargs for caching wrangled data. This should at
             minimum include a `cache_pattern` key, value. This pattern must
@@ -114,9 +119,9 @@ class DataHandler(Deriver):
             of more arguments.
         kwargs : dict
             Dictionary of additional keyword args for
-            :class:`~sup3r.preprocessing.Rasterizer`, used specifically for
-            rasterizing flattended data
-        """
+            :class:`~sup3r.preprocessing.rasterizers.Rasterizer`, used
+            specifically for rasterizing flattened data
+        """  # pylint: disable=line-too-long
         features = parse_to_list(features=features)
         self.loader, self.rasterizer = self.get_data(
             file_paths=file_paths,
@@ -363,10 +368,6 @@ def DataHandlerFactory(cls, BaseLoader=None, FeatureRegistry=None, name=None):
         _skip_params = ('FeatureRegistry', 'BaseLoader')
 
     return FactoryDataHandler
-
-
-def _base_loader(file_paths, **kwargs):
-    return MultiFileNSRDBX(file_paths, **kwargs)
 
 
 DataHandlerH5SolarCC = DataHandlerFactory(

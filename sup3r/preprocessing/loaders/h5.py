@@ -24,12 +24,10 @@ logger = logging.getLogger(__name__)
 class LoaderH5(BaseLoader):
     """Base H5 loader. "Loads" h5 files so that a `.data` attribute
     provides access to the data in the files. This object provides a
-    `__getitem__` method that can be used by :class:`Sampler` objects to build
-    batches or by :class:`Rasterizer` objects to derive / extract specific
-    features / regions / time_periods.
-
-    TODO: Maybe we should use h5py instead of rex resource? Only thing we need
-    is get_raster_index
+    `__getitem__` method that can be used by
+    :class:`~sup3r.preprocessing.samplers.Sampler` objects to build batches or
+    by :class:`~sup3r.preprocessing.rasterizers.Rasterizer` objects to derive /
+    extract specific features / regions / time_periods.
     """
 
     BASE_LOADER = MultiFileWindX

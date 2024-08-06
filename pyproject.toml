@@ -306,8 +306,8 @@ ipython = ">=8.0"
 pytest-xdist = ">=3.0"
 
 [tool.pixi.feature.viz.dependencies]
-jupyter = ">1.0.0"
-hvplot = ">0.10.0"
+jupyter = ">=1.0"
+hvplot = ">=0.10"
 
 [tool.pytest_env]
 CUDA_VISIBLE_DEVICES = "-1"

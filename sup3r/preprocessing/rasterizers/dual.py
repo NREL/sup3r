@@ -24,8 +24,8 @@ class DualRasterizer(Container):
     (Usually ERA5 and WTK, respectively). This essentially just regrids the
     low-res data to the coarsened high-res grid.  This is useful for caching
     prepping data which then can go directly to a
-    :class:`~sup3r.preprocessing.DualSampler` object for a
-    :class:`DualBatchQueue`.
+    :class:`~sup3r.preprocessing.samplers.DualSampler` object for a
+    :class:`~sup3r.preprocessing.batch_queues.DualBatchQueue`.
 
     Note
     ----

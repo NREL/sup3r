@@ -29,7 +29,7 @@ pkg = os.path.dirname(os.path.abspath(os.path.dirname(__file__)))
 pkg = os.path.dirname(pkg)
 sys.path.append(pkg)
 
-from sup3r import __version__ as v
+from sup3r._version import __version__ as v
 
 # The short X.Y version
 version = v
@@ -46,23 +46,23 @@ release = v
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    "sphinx.ext.autodoc",
-    "sphinx.ext.autosummary",
-    "sphinx.ext.doctest",
-    "sphinx.ext.intersphinx",
-    "sphinx.ext.coverage",
-    "sphinx.ext.mathjax",
-    "sphinx.ext.viewcode",
-    "sphinx.ext.githubpages",
-    "sphinx.ext.napoleon",
-    "sphinx_rtd_theme",
+    'sphinx.ext.autodoc',
+    'sphinx.ext.autosummary',
+    'sphinx.ext.doctest',
+    'sphinx.ext.intersphinx',
+    'sphinx.ext.coverage',
+    'sphinx.ext.mathjax',
+    'sphinx.ext.viewcode',
+    'sphinx.ext.githubpages',
+    'sphinx.ext.napoleon',
+    'sphinx_rtd_theme',
     'sphinx_click.ext',
-    "sphinx_tabs.tabs",
-    "sphinx_copybutton",
+    'sphinx_tabs.tabs',
+    'sphinx_copybutton',
 ]
 
 intersphinx_mapping = {
-    "python": ("https://docs.python.org/3/", None),
+    'python': ('https://docs.python.org/3/', None),
 }
 
 # Add any paths that contain templates here, relative to this directory.
@@ -89,11 +89,11 @@ language = 'en'
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path .
 exclude_patterns = [
-    "**.ipynb_checkpoints",
-    "**__pycache__**",
+    '**.ipynb_checkpoints',
+    '**__pycache__**',
     # to ensure that include files (partial pages) aren't built, exclude them
     # https://github.com/sphinx-doc/sphinx/issues/1965#issuecomment-124732907
-    "**/includes/**",
+    '**/includes/**',
 ]
 
 # The name of the Pygments (syntax highlighting) style to use.
@@ -104,22 +104,22 @@ pygments_style = 'sphinx'
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'pydata_sphinx_theme'
+html_theme = 'sphinx_rtd_theme'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
-html_theme_options = {"navigation_depth": 4, "collapse_navigation": False}
-html_css_file = ["custom.css"]
+html_theme_options = {'navigation_depth': 4, 'collapse_navigation': False}
+html_css_file = ['custom.css']
 
 html_context = {
-    "display_github": True,
-    "github_user": "nrel",
-    "github_repo": "sup3r",
-    "github_version": "main",
-    "conf_py_path": "/docs/source/",
-    "source_suffix": source_suffix,
+    'display_github': True,
+    'github_user': 'nrel',
+    'github_repo': 'sup3r',
+    'github_version': 'main',
+    'conf_py_path': '/docs/source/',
+    'source_suffix': source_suffix,
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,
@@ -149,15 +149,12 @@ latex_elements = {
     # The paper size ('letterpaper' or 'a4paper').
     #
     # 'papersize': 'letterpaper',
-
     # The font size ('10pt', '11pt' or '12pt').
     #
     # 'pointsize': '10pt',
-
     # Additional stuff for the LaTeX preamble.
     #
     # 'preamble': '',
-
     # Latex figure (float) alignment
     #
     # 'figure_align': 'htbp',
@@ -167,18 +164,20 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'sup3r.tex', 'sup3r Documentation',
-     'Brandon Benton, Grant Buster, Andrew Glaws, Ryan King', 'manual'),
+    (
+        master_doc,
+        'sup3r.tex',
+        'sup3r Documentation',
+        'Brandon Benton, Grant Buster, Andrew Glaws, Ryan King',
+        'manual',
+    ),
 ]
 
 # -- Options for manual page output ------------------------------------------
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [
-    (master_doc, 'sup3r', 'sup3r Documentation',
-     [author], 1)
-]
+man_pages = [(master_doc, 'sup3r', 'sup3r Documentation', [author], 1)]
 
 # -- Options for Texinfo output ----------------------------------------------
 
@@ -186,15 +185,21 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'sup3r', 'sup3r Documentation',
-     author, 'sup3r', 'One line description of project.',
-     'Miscellaneous'),
+    (
+        master_doc,
+        'sup3r',
+        'sup3r Documentation',
+        author,
+        'sup3r',
+        'One line description of project.',
+        'Miscellaneous',
+    ),
 ]
 
 # -- Extension configuration -------------------------------------------------
 
 autosummary_generate = True  # Turn on sphinx.ext.autosummary
-autoclass_content = "both"  # Add __init__ doc (ie. params) to class summaries
+autoclass_content = 'both'  # Add __init__ doc (ie. params) to class summaries
 autodoc_member_order = 'bysource'
 autodoc_inherit_docstrings = True  # If no docstring, inherit from base class
 add_module_names = False  # Remove namespaces from class/method signatures

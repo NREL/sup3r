@@ -86,6 +86,25 @@ class BaseDeriver(Container):
                 return self.FEATURE_REGISTRY[pattern]
         return None
 
+    def _get_inputs(self, feature):
+        """Get method inputs and map any wildcards to height or pressure
+        (depending on the name of "feature")"""
+        method = self._check_registry(feature)
+        fstruct = parse_feature(feature)
+        return [fstruct.map_wildcard(i) for i in getattr(method, 'inputs', [])]
+
+    def get_inputs(self, feature):
+        """Get inputs for the given feature and inputs for those inputs."""
+        inputs = self._get_inputs(feature)
+        more_inputs = []
+        for inp in inputs:
+            more_inputs.extend(self._get_inputs(inp))
+        return inputs + more_inputs
+
+    def no_overlap(self, feature):
+        """Check if any of the nested inputs for 'feature' contain 'feature'"""
+        return feature not in self.get_inputs(feature)
+
     def check_registry(self, feature) -> Union[T_Array, str, None]:
         """Get compute method from the registry if available. Will check for
         pattern feature match in feature registry. e.g. if u_100m matches a
@@ -94,12 +113,13 @@ class BaseDeriver(Container):
         method = self._check_registry(feature)
         if isinstance(method, str):
             return method
-        if method is not None and hasattr(method, 'inputs'):
+        if hasattr(method, 'inputs'):
             fstruct = parse_feature(feature)
             inputs = [fstruct.map_wildcard(i) for i in method.inputs]
             missing = [f for f in inputs if f not in self.data]
+            can_derive = all(self.no_overlap(m) for m in missing)
             logger.debug('Found compute method (%s) for %s.', method, feature)
-            if any(missing):
+            if any(missing) and can_derive:
                 logger.debug(
                     'Missing required features %s. '
                     'Trying to derive these first.',
@@ -107,11 +127,18 @@ class BaseDeriver(Container):
                 )
                 for f in missing:
                     self.data[f] = self.derive(f)
-            else:
+                return self._run_compute(feature, method)
+            if not missing:
                 logger.debug(
                     'All required features %s found. Proceeding.', inputs
                 )
-            return self._run_compute(feature, method)
+                return self._run_compute(feature, method)
+            if not can_derive:
+                logger.debug(
+                    'Some of the method inputs reference %s itself. '
+                    'We will try height interpolation instead.',
+                    feature,
+                )
         return None
 
     def _run_compute(self, feature, method):
@@ -215,16 +242,9 @@ class BaseDeriver(Container):
             var_array = np.concatenate(
                 [var_array, da.stack(var_list, axis=-1)], axis=-1
             )
-            lev_array = np.concatenate(
-                [
-                    lev_array,
-                    da.broadcast_to(
-                        da.from_array(lev_list),
-                        (*var_array.shape[:-1], len(lev_list)),
-                    ),
-                ],
-                axis=-1,
-            )
+            sl_shape = (*var_array.shape[:-1], len(lev_list))
+            single_levs = da.broadcast_to(da.from_array(lev_list), sl_shape)
+            lev_array = np.concatenate([lev_array, single_levs], axis=-1)
         return lev_array, var_array
 
     def do_level_interpolation(
@@ -248,13 +268,8 @@ class BaseDeriver(Container):
             assert can_calc_height or have_height, msg
 
             if can_calc_height:
-                lev_array = (
-                    self.data['zg', ...]
-                    - da.broadcast_to(
-                        self.data['topography', ...].T,
-                        self.data['zg', ...].T.shape,
-                    ).T
-                )
+                lev_array = self.data[['zg', 'topography']].as_array()
+                lev_array = lev_array[..., 0] - lev_array[..., 1]
             else:
                 lev_array = da.broadcast_to(
                     self.data[Dimension.HEIGHT, ...].astype(np.float32),

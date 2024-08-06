@@ -84,12 +84,15 @@ class Dimension(str, Enum):
         return (cls.SOUTH_NORTH, cls.WEST_EAST, cls.TIME, cls.QUANTILE)
 
 
+# mapping from common feature names to our standard ones
 FEATURE_NAMES = {
     'elevation': 'topography',
     'orog': 'topography',
     'hgt': 'topography',
 }
 
+
+# mapping from common coordinate names to our standard names
 COORD_NAMES = {
     'lat': Dimension.LATITUDE,
     'lon': Dimension.LONGITUDE,
@@ -99,9 +102,12 @@ COORD_NAMES = {
     'isobaricInhPa': Dimension.PRESSURE_LEVEL,
     'pressure_level': Dimension.PRESSURE_LEVEL,
     'xtime': Dimension.TIME,
-    'valid_time': Dimension.TIME
+    'valid_time': Dimension.TIME,
+    'west_east': Dimension.LONGITUDE,
+    'south_north': Dimension.LATITUDE
 }
 
+# mapping from common dimension names to our standard names
 DIM_NAMES = {
     'lat': Dimension.SOUTH_NORTH,
     'lon': Dimension.WEST_EAST,

@@ -34,19 +34,10 @@ class LoaderNC(BaseLoader):
             dset[Dimension.LATITUDE][-1, 0] > dset[Dimension.LATITUDE][0, 0]
         )
         if invert_lats:
-            for var in [
-                Dimension.LATITUDE,
-                Dimension.LONGITUDE,
-                *list(dset.data_vars),
-            ]:
+            for var in [*list(Dimension.coords_2d()), *list(dset.data_vars)]:
                 if Dimension.SOUTH_NORTH in dset[var].dims:
-                    dset.update(
-                        {
-                            var: dset[var].isel(
-                                south_north=slice(None, None, -1)
-                            )
-                        }
-                    )
+                    new_var = dset[var].isel(south_north=slice(None, None, -1))
+                    dset.update({var: new_var})
         return dset
 
     def unstagger_variables(self, dset):
@@ -79,26 +70,24 @@ class LoaderNC(BaseLoader):
     def load(self):
         """Load netcdf xarray.Dataset()."""
         res = lower_names(self.res)
-        res = res.swap_dims(
-            {k: v for k, v in DIM_NAMES.items() if k in res.dims}
-        )
-        res = res.rename({k: v for k, v in COORD_NAMES.items() if k in res})
-        lats = res[Dimension.LATITUDE].data.squeeze()
-        lons = res[Dimension.LONGITUDE].data.squeeze()
+        rename_dims = {k: v for k, v in DIM_NAMES.items() if k in res.dims}
+        rename_coords = {
+            k: v for k, v in COORD_NAMES.items() if k in res and v not in res
+        }
+        res = res.swap_dims(rename_dims).rename(rename_coords)
+        if not all(coord in res for coord in Dimension.coords_2d()):
+            err = 'Could not find valid coordinates in given files: %s'
+            logger.error(err, self.file_paths)
+            raise OSError(err % (self.file_paths))
+        lats = res[Dimension.LATITUDE].data.squeeze().astype(np.float32)
+        lons = res[Dimension.LONGITUDE].data.squeeze().astype(np.float32)
 
         if len(lats.shape) == 1:
             lons, lats = da.meshgrid(lons, lats)
 
-        coords = {
-            Dimension.LATITUDE: (
-                (Dimension.SOUTH_NORTH, Dimension.WEST_EAST),
-                lats.astype(np.float32),
-            ),
-            Dimension.LONGITUDE: (
-                (Dimension.SOUTH_NORTH, Dimension.WEST_EAST),
-                lons.astype(np.float32),
-            ),
-        }
+        lats = ((Dimension.SOUTH_NORTH, Dimension.WEST_EAST), lats)
+        lons = ((Dimension.SOUTH_NORTH, Dimension.WEST_EAST), lons)
+        coords = {Dimension.LATITUDE: lats, Dimension.LONGITUDE: lons}
 
         if Dimension.TIME in res.coords or Dimension.TIME in res.dims:
             times = (

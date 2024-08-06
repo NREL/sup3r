@@ -8,7 +8,6 @@ from typing import List, Optional, Union
 
 import numpy as np
 
-from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.rasterizers import ExoRasterizer
 from sup3r.preprocessing.utilities import log_args
 
@@ -203,13 +202,12 @@ class ExoData(dict):
     def _get_enhanced_slices(lr_slices, input_data_shape, exo_data_shape):
         """Get lr_slices enhanced by the ratio of exo_data_shape to
         input_data_shape. Used to slice exo data for each model step."""
-        return [
-            slice(
-                lr_slices[i].start * exo_data_shape[i] // input_data_shape[i],
-                lr_slices[i].stop * exo_data_shape[i] // input_data_shape[i],
-            )
-            for i in range(len(lr_slices))
-        ]
+        exo_slices = []
+        for i, lr_slice in enumerate(lr_slices):
+            enhance = exo_data_shape[i] // input_data_shape[i]
+            exo_slc = slice(lr_slice.start * enhance, lr_slice.stop * enhance)
+            exo_slices.append(exo_slc)
+        return exo_slices
 
     def get_chunk(self, input_data_shape, lr_slices):
         """Get the data for all model steps corresponding to the low res extent
@@ -234,17 +232,17 @@ class ExoData(dict):
         exo_chunk = {f: {'steps': []} for f in self}
         for feature in self:
             for step in self[feature]['steps']:
-                enhanced_slices = self._get_enhanced_slices(
+                exo_slices = self._get_enhanced_slices(
                     lr_slices=lr_slices,
                     input_data_shape=input_data_shape,
                     exo_data_shape=step['data'].shape,
                 )
-                chunk_step = {
-                    k: step[k]
-                    if k != 'data'
-                    else step[k][tuple(enhanced_slices)]
-                    for k in step
-                }
+                chunk_step = {}
+                for k, v in step.items():
+                    if k == 'data':
+                        chunk_step[k] = v[tuple(exo_slices)]
+                    else:
+                        chunk_step[k] = v
                 exo_chunk[feature]['steps'].append(chunk_step)
         return exo_chunk
 
@@ -345,34 +343,34 @@ class ExoDataHandler:
 
         self.get_all_step_data()
 
-    def get_all_step_data(self):
-        """Get exo data for each model step. We get the maximally enhanced
-        exo data and then coarsen this to get the exo data for each enhancement
-        step. We get coarsen factors by iterating through enhancement factors
-        in reverse.
-        """
-        hr_exo = ExoRasterizer(
+    def get_single_step_data(self, s_enhance, t_enhance):
+        """Get exo data for a single model step, with specific enhancement
+        factors."""
+        return ExoRasterizer(
             file_paths=self.file_paths,
             source_file=self.source_file,
             feature=self.feature,
-            s_enhance=self.s_enhancements[-1],
-            t_enhance=self.t_enhancements[-1],
+            s_enhance=s_enhance,
+            t_enhance=t_enhance,
             input_handler_name=self.input_handler_name,
             input_handler_kwargs=self.input_handler_kwargs,
             cache_dir=self.cache_dir,
             distance_upper_bound=self.distance_upper_bound,
-        )
-        for i, (s_coarsen, t_coarsen) in enumerate(
-            zip(self.s_enhancements[::-1], self.t_enhancements[::-1])
+        ).data
+
+    def get_all_step_data(self):
+        """Get exo data for each model step."""
+        for i, (s_enhance, t_enhance) in enumerate(
+            zip(self.s_enhancements, self.t_enhancements)
         ):
-            coarsen_kwargs = dict(
-                zip(Dimension.dims_3d(), [s_coarsen, s_coarsen, t_coarsen])
+            data = self.get_single_step_data(
+                s_enhance=s_enhance, t_enhance=t_enhance
             )
             step = SingleExoDataStep(
                 self.feature,
                 self.steps[i]['combine_type'],
                 self.steps[i]['model'],
-                data=hr_exo.data.coarsen(**coarsen_kwargs).mean().as_array(),
+                data=data.as_array(),
             )
             self.data[self.feature]['steps'].append(step)
         shapes = [

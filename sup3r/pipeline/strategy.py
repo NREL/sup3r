@@ -415,9 +415,8 @@ class ForwardPassStrategy:
         s_chunk_idx, t_chunk_idx = self.get_chunk_indices(chunk_index)
         lr_pad_slice = self.lr_pad_slices[s_chunk_idx]
         ti_pad_slice = self.ti_pad_slices[t_chunk_idx]
-
         exo_data = (
-            self.timer(self.exo_data.get_chunk, log=True)(
+            self.exo_data.get_chunk(
                 self.input_handler.shape,
                 [lr_pad_slice[0], lr_pad_slice[1], ti_pad_slice],
             )

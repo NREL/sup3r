@@ -35,13 +35,13 @@ def BatchHandlerFactory(
 ):
     """BatchHandler factory. Can build handlers from different queue classes
     and sampler classes. For example, to build a standard
-    :class:`~sup3r.preprocessing.batch_handlers.BatchHandler` use
+    :class:`.BatchHandler` use
     :class:`~sup3r.preprocessing.batch_queues.SingleBatchQueue` and
     :class:`~sup3r.preprocessing.samplers.Sampler`. To build a
-    :class:`~sup3r.preprocessing.batch_handlers.DualBatchHandler` use
+    :class:`~.DualBatchHandler` use
     :class:`~sup3r.preprocessing.batch_queues.DualBatchQueue` and
     :class:`~sup3r.preprocessing.samplers.DualSampler`. To build a
-    :class:`~sup3r.preprocessing.batch_handlers.BatchHandlerDC` use a
+    :class:`~..dc.BatchHandlerDC` use a
     :class:`~sup3r.preprocessing.batch_queues.BatchQueueDC`,
     :class:`~sup3r.preprocessing.batch_queues.ValBatchQueueDC` and
     :class:`~sup3r.preprocessing.samplers.SamplerDC`
@@ -57,13 +57,13 @@ def BatchHandlerFactory(
 
     class BatchHandler(MainQueueClass):
         """BatchHandler object built from two lists of
-        class:`~sup3r.preprocessing.Container` objects, one with training data
-        and one with validation data. These lists will be used to initialize
-        lists of class:`Sampler` objects that will then be used to build
-        batches at run time.
+        :class:`~sup3r.preprocessing.base.Container` objects, one with
+        training data and one with validation data. These lists will be used
+        to initialize lists of class:`Sampler` objects that will then be used
+        to build batches at run time.
 
-        Note
-        ----
+        Notes
+        -----
         These lists of containers can contain data from the same underlying
         data source (e.g. CONUS WTK) (e.g. initialize train / val containers
         with different time period and / or regions, or they can be used to

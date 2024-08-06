@@ -221,10 +221,8 @@ class ForwardPass:
             whether features should be combined at input, a mid network layer,
             or with output. e.g.
             {'topography': {'steps': [
-                {'combine_type': 'input', 'model': 0, 'data': ...,
-                 'resolution': ...},
-                {'combine_type': 'layer', 'model': 0, 'data': ...,
-                 'resolution': ...}]}}
+                {'combine_type': 'input', 'model': 0, 'data': ...},
+                {'combine_type': 'layer', 'model': 0, 'data': ...}]}}
 
         Returns
         -------
