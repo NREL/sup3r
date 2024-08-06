@@ -52,7 +52,7 @@ The Sup3rWind data has versions that coincide with the sup3r software versions. 
 Recommended Citation
 ---------------------
 
-Brandon N. Benton, Grant Buster, Pavlo Pinchuk, Andrew Glaws, Ryan N. King, Galen Maclaurin, Ilya Chernyakhovskiy. "Super-Resolution for Renewable Energy Resource Data with Wind from Reanalysis Data (Sup3rWind)". In Prep.
+Benton, B. N., Buster, G., Pinchuk, P., Glaws, A., King, R. N., Maclaurin, G., & Chernyakhovskiy, I. (2024). Super Resolution for Renewable Energy Resource Data With Wind From Reanalysis Data (Sup3rWind) and Application to Ukraine. arXiv preprint arXiv:2407.19086.
 
 Acknowledgements
 -----------------
