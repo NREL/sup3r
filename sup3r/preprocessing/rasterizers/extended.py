@@ -1,5 +1,4 @@
-"""Basic container object that can perform extractions on the contained H5
-data."""
+"""Extended ``Rasterizer`` that can rasterize flattened data."""
 
 import logging
 import os
@@ -106,14 +105,14 @@ class Rasterizer(BaseRasterizer):
         ):
             self.save_raster_index()
 
-    def extract_data(self):
+    def rasterize_data(self):
         """Get rasterized data."""
         if not self.loader.flattened:
-            return super().extract_data()
-        return self._extract_flat_data()
+            return super().rasterize_data()
+        return self._rasterize_flat_data()
 
-    def _extract_flat_data(self):
-        """Extract data from flattened source data, usually coming from WTK
+    def _rasterize_flat_data(self):
+        """Rasterize data from flattened source data, usually coming from WTK
         or NSRDB data."""
         dims = (Dimension.SOUTH_NORTH, Dimension.WEST_EAST)
         coords = {

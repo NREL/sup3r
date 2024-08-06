@@ -201,6 +201,7 @@ def get_spatial_bc_quantiles(
     ...              [39.649033, -104.765625]])
     >>> params = get_spatial_bc_quantiles(
     ...             lat_lon, "ghi", "rsds", "./dist_params.hdf")
+
     """
     var_names = {
         'base': f'base_{base_dset}_params',
@@ -467,7 +468,7 @@ def local_qdm_bc(
     threshold=0.1,
     relative=True,
     no_trend=False,
-    max_workers=1
+    max_workers=1,
 ):
     """Bias correction using QDM
 
@@ -535,8 +536,8 @@ def local_qdm_bc(
     sup3r.bias.qdm.QuantileDeltaMappingCorrection :
         Estimate probability distributions required by QDM method
 
-    Note
-    ----
+    Notes
+    -----
     Be careful selecting `bias_fp`. Usually, the input `data` used here would
     be related to the dataset used to estimate
     "bias_fut_{feature_name}_params".
@@ -561,6 +562,7 @@ def local_qdm_bc(
     --------
     >>> unbiased = local_qdm_bc(biased_array, lat_lon_array, "ghi", "rsds",
     ...                         "./dist_params.hdf")
+
     """
     # Confirm that the given time matches the expected data size
     time_index = pd.date_range(**date_range_kwargs)
@@ -742,6 +744,7 @@ def get_spatial_bc_presrat(
     ...              [39.649033, -104.765625]])
     >>> params = get_spatial_bc_quantiles(
     ...             lat_lon, "ghi", "rsds", "./dist_params.hdf")
+
     """
     var_names = {
         'base': f'base_{base_dset}_params',
@@ -772,7 +775,7 @@ def local_presrat_bc(
     threshold=0.1,
     relative=True,
     no_trend=False,
-    max_workers=1
+    max_workers=1,
 ):
     """Bias correction using PresRat
 

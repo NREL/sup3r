@@ -1,5 +1,6 @@
-"""Basic objects that can perform spatial / temporal extractions of requested
-features on 3D loaded data."""
+"""Objects that can rasterize 3D spatiotemporal data. Examples include WRF,
+ERA5, and GCM data. Can also work with 3D H5 data, just not flattened H5 data
+like WTK and NSRDB."""
 
 import logging
 from warnings import warn
