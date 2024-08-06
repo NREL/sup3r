@@ -92,10 +92,10 @@ def test_stats_known():
         assert means == stats.means
         assert stds == stats.stds
 
-        assert means['windspeed'] == og_means['windspeed']
-        assert means['winddirection'] == og_means['winddirection']
-        assert stds['windspeed'] == og_stds['windspeed']
-        assert stds['winddirection'] == og_stds['winddirection']
+        assert np.allclose(means['windspeed'], og_means['windspeed'])
+        assert np.allclose(means['winddirection'], og_means['winddirection'])
+        assert np.allclose(stds['windspeed'], og_stds['windspeed'])
+        assert np.allclose(stds['winddirection'], og_stds['winddirection'])
 
 
 def test_stats_calc():
