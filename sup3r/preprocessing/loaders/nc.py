@@ -67,18 +67,9 @@ class LoaderNC(BaseLoader):
             dset.update({Dimension.PRESSURE_LEVEL: new_press})
         return dset
 
-    def load(self):
-        """Load netcdf xarray.Dataset()."""
-        res = lower_names(self.res)
-        rename_dims = {k: v for k, v in DIM_NAMES.items() if k in res.dims}
-        rename_coords = {
-            k: v for k, v in COORD_NAMES.items() if k in res and v not in res
-        }
-        res = res.swap_dims(rename_dims).rename(rename_coords)
-        if not all(coord in res for coord in Dimension.coords_2d()):
-            err = 'Could not find valid coordinates in given files: %s'
-            logger.error(err, self.file_paths)
-            raise OSError(err % (self.file_paths))
+    @staticmethod
+    def get_coords(res):
+        """Get coordinate dictionary to use in xr.Dataset().assign_coords()."""
         lats = res[Dimension.LATITUDE].data.squeeze().astype(np.float32)
         lons = res[Dimension.LONGITUDE].data.squeeze().astype(np.float32)
 
@@ -89,20 +80,36 @@ class LoaderNC(BaseLoader):
         lons = ((Dimension.SOUTH_NORTH, Dimension.WEST_EAST), lons)
         coords = {Dimension.LATITUDE: lats, Dimension.LONGITUDE: lons}
 
-        if Dimension.TIME in res.coords or Dimension.TIME in res.dims:
-            times = (
-                res.indexes[Dimension.TIME]
-                if Dimension.TIME in res.indexes
-                else res[Dimension.TIME]
-            )
+        if Dimension.TIME in res:
+
+            if Dimension.TIME in res.indexes:
+                times = res.indexes[Dimension.TIME]
+            else:
+                times = res[Dimension.TIME]
 
             if hasattr(times, 'to_datetimeindex'):
                 times = times.to_datetimeindex()
 
             coords[Dimension.TIME] = times
+        return coords
 
-        out = res.assign_coords(coords)
+    def load(self):
+        """Load netcdf xarray.Dataset()."""
+        res = lower_names(self.res)
+        rename_coords = {
+            k: v for k, v in COORD_NAMES.items() if k in res and v not in res
+        }
+        res = res.rename(rename_coords)
+        rename_dims = {k: v for k, v in DIM_NAMES.items() if k in res.dims}
+        res = res.swap_dims(rename_dims)
+
+        if not all(coord in res for coord in Dimension.coords_2d()):
+            err = 'Could not find valid coordinates in given files: %s'
+            logger.error(err, self.file_paths)
+            raise OSError(err % (self.file_paths))
+
+        res = res.assign_coords(self.get_coords(res))
         if isinstance(self.chunks, dict):
-            out = out.chunk(self.chunks)
-        out = self.enforce_descending_lats(out)
-        return self.enforce_descending_levels(out).astype(np.float32)
+            res = res.chunk(self.chunks)
+        res = self.enforce_descending_lats(res)
+        return self.enforce_descending_levels(res).astype(np.float32)

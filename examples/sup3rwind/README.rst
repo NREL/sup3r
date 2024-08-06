@@ -14,7 +14,7 @@ The Sup3rWind data is also loaded into `HSDS <https://www.hdfgroup.org/solutions
 Example Sup3rWind Data Usage
 -----------------------------
 
-Sup3rWind data can be used in generally the same way as `Sup3rCC <https://nrel.github.io/sup3r/examples/sup3rcc.html>`_ data, with the condition that Sup3rWind includes only wind data and ancillary variables for modeling wind energy generation. Refer to the Sup3rCC example notebook `here <https://github.com/NREL/sup3r/tree/main/examples/sup3rcc/using_the_data.ipynb>`_ for usage patterns.
+Sup3rWind data can be used in generally the same way as `Sup3rCC <https://nrel.github.io/sup3r/examples/sup3rcc.html>`_ data, with the condition that Sup3rWind includes only wind data and ancillary variables for modeling wind energy generation. Refer to the Sup3rCC `example notebook <https://github.com/NREL/sup3r/tree/main/examples/sup3rcc/using_the_data.ipynb>`_ for usage patterns.
 
 Running Sup3rWind Models
 -------------------------
@@ -27,7 +27,7 @@ The process for running the Sup3rWind models is much the same as for `Sup3rCC <h
 #. Copy this examples directory to your hardware. You're going to be using the folder structure in ``/sup3r/examples/sup3rwind/run_configs`` as your project directories (``/sup3r/`` is a git clone of the sup3r software repo).
 #. Navigate to ``/sup3r/examples/sup3rwind/run_configs/wind/`` and/or ``sup3r/examples/sup3rwind/run_configs/trhp`` and update all of the filepaths in the config files for the source ERA5 data, Sup3rWind models, and exogenous data sources (e.g. the ``topography`` source file).
 #. Update the execution control parameters in the ``config_fwp_spatial.json`` file based on the hardware you're running on.
-#. Run ``sup3r-pipeline`` to run just one job. There are also batch options for running multiple jobs, but we recommend starting with ``sup3r-pipeline`` (more on the sup3r CLIs `here <https://nrel.github.io/sup3r/_cli/sup3r.html>`_).
+#. Run ``sup3r-pipeline`` to run just one job. There are also batch options for running multiple jobs, but we recommend starting with ``sup3r-pipeline`` (more on the sup3r `CLI <https://nrel.github.io/sup3r/_cli/sup3r.html>`_).
 #. To run ``sup3r-pipeline``, make sure you are in the directory with the ``config_pipeline.json`` and ``config_fwp_spatial.json`` files, and then run this command: ``python -m sup3r.cli -c config_pipeline.json pipeline``
 #. If you're running on a slurm cluster, this will kick off a number of jobs that you can see with the ``squeue`` command. If you're running locally, your terminal should now be running the Sup3rWind models. The software will create a ``./logs/`` directory in which you can monitor the progress of your jobs.
 #. The ``sup3r-pipeline`` is designed to run several modules in serial, with each module running multiple chunks in parallel. Once the first module (forward-pass) finishes, you'll want to run ``python -m sup3r.cli -c config_pipeline.json pipeline`` again. This will clean up status files and kick off the next step in the pipeline (if the current step was successful).

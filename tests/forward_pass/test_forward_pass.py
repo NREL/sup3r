@@ -78,12 +78,16 @@ def test_fwp_nc_cc():
         forward_pass.run(strat, node_index=0)
 
         with xr.open_dataset(strat.out_files[0]) as fh:
-            assert fh[FEATURES[0]].shape == (
+            assert fh[FEATURES[0]].transpose(
+                Dimension.TIME, *Dimension.dims_2d()
+            ).shape == (
                 t_enhance * len(strat.input_handler.time_index),
                 s_enhance * fwp_chunk_shape[0],
                 s_enhance * fwp_chunk_shape[1],
             )
-            assert fh[FEATURES[1]].shape == (
+            assert fh[FEATURES[1]].transpose(
+                Dimension.TIME, *Dimension.dims_2d()
+            ).shape == (
                 t_enhance * len(strat.input_handler.time_index),
                 s_enhance * fwp_chunk_shape[0],
                 s_enhance * fwp_chunk_shape[1],
@@ -129,12 +133,16 @@ def test_fwp_spatial_only(input_files):
         forward_pass.run(strat, node_index=0)
 
         with xr.open_dataset(strat.out_files[0]) as fh:
-            assert fh[FEATURES[0]].shape == (
+            assert fh[FEATURES[0]].transpose(
+                Dimension.TIME, *Dimension.dims_2d()
+            ).shape == (
                 len(strat.input_handler.time_index),
                 2 * fwp_chunk_shape[0],
                 2 * fwp_chunk_shape[1],
             )
-            assert fh[FEATURES[1]].shape == (
+            assert fh[FEATURES[1]].transpose(
+                Dimension.TIME, *Dimension.dims_2d()
+            ).shape == (
                 len(strat.input_handler.time_index),
                 2 * fwp_chunk_shape[0],
                 2 * fwp_chunk_shape[1],
@@ -177,12 +185,16 @@ def test_fwp_nc(input_files):
         forward_pass.run(strat, node_index=0)
 
         with xr.open_dataset(strat.out_files[0]) as fh:
-            assert fh[FEATURES[0]].shape == (
+            assert fh[FEATURES[0]].transpose(
+                Dimension.TIME, *Dimension.dims_2d()
+            ).shape == (
                 t_enhance * len(strat.input_handler.time_index),
                 s_enhance * fwp_chunk_shape[0],
                 s_enhance * fwp_chunk_shape[1],
             )
-            assert fh[FEATURES[1]].shape == (
+            assert fh[FEATURES[1]].transpose(
+                Dimension.TIME, *Dimension.dims_2d()
+            ).shape == (
                 t_enhance * len(strat.input_handler.time_index),
                 s_enhance * fwp_chunk_shape[0],
                 s_enhance * fwp_chunk_shape[1],

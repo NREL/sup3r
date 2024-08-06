@@ -59,6 +59,7 @@ extensions = [
     'sphinx_click.ext',
     'sphinx_tabs.tabs',
     'sphinx_copybutton',
+    "sphinx_rtd_dark_mode"
 ]
 
 intersphinx_mapping = {

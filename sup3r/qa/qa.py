@@ -1,6 +1,8 @@
 """sup3r QA module.
 
-TODO: Good initial refactor but can do more cleaning here
+TODO: Good initial refactor but can do more cleaning here. Should use Loaders
+and Sup3rX.unflatten() method (for H5) to make things more agnostic to dim
+ordering.
 """
 
 import logging
@@ -289,8 +291,7 @@ class Sup3rQa:
                 int(self.input_handler.shape[1] * self.s_enhance),
             )
             data = data.reshape(shape)
-
-        # data always needs to be converted from (t, s1, s2) -> (s1, s2, t)
+            # data always needs to be converted from (t, s1, s2) -> (s1, s2, t)
         data = np.transpose(data, axes=(1, 2, 0))
 
         return data
@@ -336,8 +337,7 @@ class Sup3rQa:
         data = temporal_coarsening(
             data, t_enhance=self.t_enhance, method=t_meth
         )
-        data = data[0]
-        data = data[..., 0]
+        data = data.squeeze(axis=(0, 4))
 
         return data
 

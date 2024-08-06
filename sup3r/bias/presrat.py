@@ -33,7 +33,7 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
     * Use the model-predicted change ratio (with the CDFs);
     * The treatment of zero-precipitation days (with the fraction of dry days);
     * The final correction factor (K) to preserve the mean (ratio between both
-      estimated means);
+    estimated means);
 
     To keep consistency with the full sup3r pipeline, PresRat was implemented
     as follows:

@@ -23,7 +23,7 @@ from sup3r.preprocessing.accessor import Sup3rX
 from sup3r.preprocessing.base import Sup3rMeta
 from sup3r.preprocessing.loaders import Loader
 from sup3r.preprocessing.names import Dimension
-from sup3r.utilities.utilities import nn_fill_array
+from sup3r.utilities.utilities import generate_random_string, nn_fill_array
 
 from ..utilities import (
     get_class_kwargs,
@@ -264,7 +264,7 @@ class BaseExoRasterizer(ABC):
             data = self.get_data()
 
         if not os.path.exists(cache_fp):
-            tmp_fp = cache_fp + '.tmp'
+            tmp_fp = cache_fp + f'{generate_random_string(10)}.tmp'
             data.to_netcdf(tmp_fp)
             shutil.move(tmp_fp, cache_fp)
         return data

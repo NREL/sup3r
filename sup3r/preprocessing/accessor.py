@@ -1,4 +1,5 @@
-"""Accessor for xarray."""
+"""Accessor for xarray. This defines the basic data object contained by all
+``Container`` objects."""
 
 import logging
 from typing import Dict, Union
@@ -38,38 +39,44 @@ class Sup3rX:
 
     Note
     ----
-    (1) This is an `xr.Dataset` style object which all `xr.Dataset` methods,
-    plus more. Maybe the most important part of this interface is parsing
-    __getitem__` calls of the form `ds.sx[keys]`. `keys` can be a list of
-    features and combinations of feature lists with numpy style indexing.
-    e.g. `ds.sx['u', slice(0, 10), ...]` or
-    `ds.sx[['u', 'v'], ..., slice(0, 10)]`.
+    (1) This is an ``xr.Dataset`` style object with all ``xr.Dataset``
+    methods, plus more. The way to access these methods is either through
+    appending ``.sx.<method>`` on an ``xr.Dataset`` or by wrapping an
+    ``xr.Dataset`` with ``Sup3rX``, e.g. ``Sup3rX(xr.Dataset(...)).<method>``.
+    Throughout the `sup3r` codebase we prefer to use the latter. Maybe the
+    most important part of this interface is parsing ``__getitem__`` calls of
+    the form ``ds.sx[keys]``. ``keys`` can be a list of features and
+    combinations of feature lists with numpy style indexing. e.g.
+    ``ds.sx['u', slice(0, 10), ...]`` or
+    ``ds.sx[['u', 'v'], ..., slice(0, 10)]``.
 
-        (i) If ds[keys] returns an `xr.Dataset` object then ds.sx[keys] will
-        return a Sup3rX object. e.g. `ds.sx[['u','v']]`) will return a
-        :class:`Sup3rX` instance but ds.sx['u'] will return an `xr.DataArray`
+        (i) If ds[keys] returns an ``xr.Dataset`` object then ds.sx[keys] will
+        return a Sup3rX object. e.g. ``ds.sx[['u','v']]``) will return a
+        :class:`Sup3rX` instance but ``ds.sx['u']`` will return an
+        ``xr.DataArray``
 
         (ii) Combining named feature requests with numpy style indexing will
         return either a dask.array or numpy.array, depending on whether data is
         still on disk or loaded into memory, with a standard dimension order.
-        e.g. ds.sx[['u','v'], ...] will return an array with shape (lats, lons,
-        times, features), (assuming there is no vertical dimension in the
+        e.g. ``ds.sx[['u','v'], ...]`` will return an array with shape (lats,
+        lons, times, features), (assuming there is no vertical dimension in the
         underlying data).
 
-    (2) The `__getitem__` and `__getattr__` methods will cast back to
-    `type(self)` if `self._ds.__getitem__` or `self._ds.__getattr__` returns an
-    instance of `type(self._ds)` (e.g. an `xr.Dataset`). This means we do not
-    have to constantly append `.sx` for successive calls to accessor methods.
+    (2) The ``__getitem__`` and ``__getattr__`` methods will cast back to
+    ``type(self)`` if ``self._ds.__getitem__`` or ``self._ds.__getattr__``
+    returns an instance of ``type(self._ds)`` (e.g. an ``xr.Dataset``). This
+    means we do not have to constantly append ``.sx`` for successive calls to
+    accessor methods.
 
     Examples
     --------
-    # To use as an accessor:
+    >>> # To use as an accessor:
     >>> ds = xr.Dataset(...)
     >>> feature_data = ds.sx[features]
     >>> ti = ds.sx.time_index
     >>> lat_lon_array = ds.sx.lat_lon
 
-    # Use as wrapper:
+    >>> # Use as wrapper:
     >>> ds = Sup3rX(xr.Dataset(data_vars={'windspeed': ...}, ...))
     >>> np_array = ds['windspeed'].values
     >>> dask_array = ds['windspeed', ...] == ds['windspeed'].as_array()

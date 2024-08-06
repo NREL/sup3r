@@ -48,8 +48,6 @@ def main(ctx, config_file, verbose):
 
         $ sup3r -c config.json data-collect --help
 
-        $ sup3r -c config.json data-extract --help
-
     Typically, a good place to start is to set up a sup3r job with a pipeline
     config that points to several sup3r modules that you want to run in serial.
     You would call the sup3r pipeline CLI using either of these equivalent

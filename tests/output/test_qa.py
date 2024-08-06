@@ -31,7 +31,7 @@ FOUT_FEATURES = ['windspeed_100m', 'winddirection_100m']
 TARGET = (19.3, -123.5)
 SHAPE = (8, 8)
 TEMPORAL_SLICE = slice(None, None, 1)
-FWP_CHUNK_SHAPE = (8, 8, int(1e6))
+FWP_CHUNK_SHAPE = (8, 8, 8)
 S_ENHANCE = 3
 T_ENHANCE = 4
 
@@ -97,7 +97,6 @@ def test_qa(input_files, ext):
             'input_handler_kwargs': input_handler_kwargs,
         }
         with Sup3rQa(*args, **kwargs) as qa:
-            data = qa.output_handler[qa.features[0]]
             data = qa.get_dset_out(qa.features[0])
             data = qa.coarsen_data(0, qa.features[0], data)
 
@@ -178,9 +177,7 @@ def test_uv_spectrum_smoke(func):
     _ = func(u, v)
 
 
-@pytest.mark.parametrize(
-    'func', [frequency_spectrum, wavenumber_spectrum]
-)
+@pytest.mark.parametrize('func', [frequency_spectrum, wavenumber_spectrum])
 def test_spectrum_smoke(func):
     """Test QA spectrum functions for basic operations."""
 

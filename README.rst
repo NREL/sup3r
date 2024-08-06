@@ -1,6 +1,6 @@
-*****************
+=================
 Welcome to SUP3R!
-*****************
+=================
 
 |Docs| |Tests| |Linter| |PyPi| |PythonV| |Codecov| |Zenodo|
 
@@ -30,7 +30,7 @@ Welcome to SUP3R!
 The Super Resolution for Renewable Resource Data (sup3r) software uses
 generative adversarial networks to create synthetic high-resolution wind and
 solar spatiotemporal data from coarse low-resolution inputs. To get started,
-check out the sup3r command line interface (CLI) `here
+check out the sup3r command line interface `(CLI)
 <https://nrel.github.io/sup3r/_cli/sup3r.html#sup3r>`_.
 
 Installing sup3r

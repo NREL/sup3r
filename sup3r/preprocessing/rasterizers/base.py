@@ -74,7 +74,7 @@ class BaseRasterizer(Container):
             else None
         )
         self._lat_lon = None
-        self.data = self.extract_data()
+        self.data = self.rasterize_data()
         self.data = self.data[features]
 
     @property
@@ -125,10 +125,10 @@ class BaseRasterizer(Container):
             self._lat_lon = self.get_lat_lon()
         return self._lat_lon
 
-    def extract_data(self):
+    def rasterize_data(self):
         """Get rasterized data."""
         logger.info(
-            'Extracting data for target / shape: %s / %s',
+            'Rasterizing data for target / shape: %s / %s',
             np.asarray(self._target),
             np.asarray(self._grid_shape),
         )

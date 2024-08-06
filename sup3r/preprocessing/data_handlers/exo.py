@@ -1,5 +1,6 @@
-"""Exogenous data handler. This performs exo extraction for one or more model
-steps for requested features."""
+"""Exogenous data handler and related objects. The ExoDataHandler performs
+exogenous data rasterization for one or more model steps for requested
+features."""
 
 import logging
 import pathlib
@@ -23,17 +24,17 @@ class SingleExoDataStep(dict):
         Parameters
         ----------
         feature : str
-            Name of feature corresponding to `data`.
+            Name of feature corresponding to ``data``.
         combine_type : str
             Specifies how the exogenous_data should be used for this step. e.g.
             "input", "layer", "output". For example, if tis equals "input" the
-            `data` will be used as input to the forward pass for the model step
-            given by `model`
+            ``data`` will be used as input to the forward pass for the model
+            step given by ``model``
         model : int
             Specifies the model index which will use the `data`. For example,
-            if `model` == 1 then the `data` will be used according to
+            if ``model`` == 1 then the ``data`` will be used according to
             `combine_type` in the 2nd model step in a MultiStepGan.
-        data : tf.Tensor | np.ndarray
+        data : T_Array
             The data to be used for the given model step.
         """
         step = {'model': model, 'combine_type': combine_type, 'data': data}
@@ -65,10 +66,8 @@ class ExoData(dict):
             features should be combined at input, a mid network layer, or with
             output. e.g.
             {'topography': {'steps': [
-                {'combine_type': 'input', 'model': 0, 'data': ...,
-                 'resolution': ...},
-                {'combine_type': 'layer', 'model': 0, 'data': ...,
-                 'resolution': ...}]}}
+                {'combine_type': 'input', 'model': 0, 'data': ...},
+                {'combine_type': 'layer', 'model': 0, 'data': ...}]}}
             Each array in in 'data' key has 3D or 4D shape:
             (spatial_1, spatial_2, 1)
             (spatial_1, spatial_2, n_temporal, 1)
@@ -118,38 +117,39 @@ class ExoData(dict):
         return [s for s in steps if min_step <= s['model']]
 
     def split(self, split_steps):
-        """Split `self` into multiple `ExoData` objects based on split_steps.
-        The splits are done such that the steps in the ith entry of the
-        returned list all have a `model number < split_steps[i].`
+        """Split ``self`` into multiple ``ExoData`` objects based on
+        ``split_steps``. The splits are done such that the steps in the ith
+        entry of the returned list all have a
+        ``model number < split_steps[i].``
 
         Note
         ----
         This is used for multi-step models to correctly distribute the set of
         all exo data steps to the appropriate models. For example,
-        `TemporalThenSpatial` models or models with some spatial steps followed
-        by some temporal steps. The temporal (spatial) models might take the
-        first N exo data steps and then the spatial (temporal) models will take
-        the remaining exo data steps.
-
-        TODO: lots of nested loops here. simplify the logic.
+        :class:`~sup3r.models.MultiStepGan` models with some
+        temporal (spatial) steps followed by some spatial (temporal) steps. The
+        temporal (spatial) models might take the first N exo data steps and
+        then the spatial (temporal) models will take the remaining exo data
+        steps.
 
         Parameters
         ----------
         split_steps : list
             Step index list to use for splitting. To split this into exo data
             for spatial models and temporal models split_steps should be
-            [len(spatial_models)]. If this is for a TemporalThenSpatial model
-            split_steps should be [len(temporal_models)]. If this is for a
-            multi step model composed of more than two models (e.g.
-            SolarMultiStepGan) split_steps should be
-            [len(spatial_solar_models), len(spatial_solar_models) +
-            len(spatial_wind_models)]
+            ``[len(spatial_models)]``. If this is for a
+            :class:`~sup3r.models.MultiStepGan` model with temporal steps
+            first, ``split_steps`` should be ``[len(temporal_models)]``. If
+            this is for a multi step model composed of more than two models
+            (e.g. :class:`~sup3r.models.SolarMultiStepGan`) ``split_steps``
+            should be ``[len(spatial_solar_models), len(spatial_solar_models) +
+            len(spatial_wind_models)]``
 
         Returns
         -------
         split_list : List[ExoData]
-            List of `ExoData` objects coming from the split of `self`,
-            according to `split_steps`
+            List of ``ExoData`` objects coming from the split of ``self``,
+            according to ``split_steps``
         """
         split_dict = {i: {} for i in range(len(split_steps) + 1)}
         split_steps = [0, *split_steps] if split_steps[0] != 0 else split_steps
@@ -249,23 +249,23 @@ class ExoData(dict):
 
 @dataclass
 class ExoDataHandler:
-    """Class to extract exogenous features for multistep forward passes. e.g.
+    """Class to rasterize exogenous features for multistep forward passes. e.g.
     Multiple topography arrays at different resolutions for multiple spatial
     enhancement steps.
 
-    This takes a list of models and information about model
-    steps and uses that info to compute needed enhancement factors for each
-    step and extract exo data corresponding to those enhancement factors. The
-    list of steps are then updated with the exo data for each step.
+    This takes a list of models and information about model steps and uses that
+    info to compute needed enhancement factors for each step. The requested
+    feature is then retrieved and rasterized according to the requested target
+    coordinate and grid shape, for each step. The list of steps are then
+    updated with the cooresponding exo data.
 
     Parameters
     ----------
     file_paths : str | list
-        A single source h5 file or netcdf file to extract raster data from.
-        The string can be a unix-style file path which will be passed
-        through glob.glob. This is typically low-res WRF output or GCM
-        netcdf data that is source low-resolution data intended to be
-        sup3r resolved.
+        A single source h5 file or netcdf file to extract raster data from. The
+        string can be a unix-style file path which will be passed through
+        glob.glob. This is typically low-res WRF output or GCM netcdf data that
+        is source low-resolution data intended to be sup3r resolved.
     feature : str
         Exogenous feature to extract from file_paths
     models : list
@@ -275,21 +275,21 @@ class ExoDataHandler:
         shape for rasterized exo data. If enhancement factors are provided in
         the steps list the model list is not needed.
     steps : list
-        List of dictionaries containing info on which models to use for a
-        given step index and what type of exo data the step requires. e.g.
+        List of dictionaries containing info on which models to use for a given
+        step index and what type of exo data the step requires. e.g.::
         [{'model': 0, 'combine_type': 'input'},
          {'model': 0, 'combine_type': 'layer'}]
-        Each step entry can also contain enhancement factors. e.g.
+        Each step entry can also contain enhancement factors. e.g.::
         [{'model': 0, 'combine_type': 'input', 's_enhance': 1, 't_enhance': 1},
          {'model': 0, 'combine_type': 'layer', 's_enhance': 3, 't_enhance': 1}]
     source_file : str
-        Filepath to source wtk, nsrdb, or netcdf file to get hi-res data
-        from which will be mapped to the enhanced grid of the file_paths
-        input. Pixels from this file will be mapped to their nearest
-        low-res pixel in the file_paths input. Accordingly, the input
-        should be a significantly higher resolution than file_paths.
-        Warnings will be raised if the low-resolution pixels in file_paths
-        do not have unique nearest pixels from this exo source data.
+        Filepath to source wtk, nsrdb, or netcdf file to get hi-res data from
+        which will be mapped to the enhanced grid of the file_paths input.
+        Pixels from this file will be mapped to their nearest low-res pixel in
+        the file_paths input. Accordingly, the input should be a significantly
+        higher resolution than file_paths. Warnings will be raised if the
+        low-resolution pixels in file_paths do not have unique nearest pixels
+        from this exo source data.
     input_handler_name : str
         data handler class used by the exo handler. Provide a string name to
         match a :class:`~sup3r.preprocessing.rasterizers.Rasterizer`. If None
@@ -297,8 +297,8 @@ class ExoDataHandler:
         properties. This is passed directly to the exo handler, along with
         input_handler_kwargs
     input_handler_kwargs : dict | None
-        Any kwargs for initializing the `input_handler_name` class used by the
-        exo handler.
+        Any kwargs for initializing the ``input_handler_name`` class used by
+        the exo handler.
     cache_dir : str | None
         Directory for storing cache data. Default is './exo_cache'. If None
         then no data will be cached.

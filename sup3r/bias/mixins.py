@@ -105,7 +105,6 @@ class FillAndSmoothMixin:
 class ZeroRateMixin:
     """Estimate zero rate
 
-
     [Pierce2015]_.
 
     References

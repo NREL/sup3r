@@ -1,5 +1,6 @@
-"""Sampler objects. These take in data objects / containers and can them sample
-from them. These samples can be used to build batches."""
+"""Dual Sampler objects. These are used to sample from paired datasets with
+low and high resolution data. These paired datasets are contained in a
+Sup3rDataset object."""
 
 import logging
 from typing import Dict, Optional
@@ -14,9 +15,8 @@ logger = logging.getLogger(__name__)
 
 
 class DualSampler(Sampler):
-    """Pair of sampler objects, one for low resolution and one for high
-    resolution, initialized from a :class:`Container` object with low and high
-    resolution :class:`Data` objects."""
+    """Sampler for sampling from paired (or dual) datasets. Pairs consist of
+    low and high resolution data, which are contained by a Sup3rDataset."""
 
     def __init__(
         self,
@@ -31,8 +31,8 @@ class DualSampler(Sampler):
         Parameters
         ----------
         data : Sup3rDataset
-            A :class:`~sup3r.preprocessing.Sup3rDataset` instance with low-res
-            and high-res data members
+            A :class:`~sup3r.preprocessing.base.Sup3rDataset` instance with
+            low-res and high-res data members
         sample_shape : tuple
             Size of arrays to sample from the high-res data. The sample shape
             for the low-res sampler will be determined from the enhancement

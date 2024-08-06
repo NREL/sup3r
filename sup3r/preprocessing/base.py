@@ -31,10 +31,11 @@ def _get_class_info(namespace):
 
 
 class Sup3rMeta(ABCMeta, type):
-    """Meta class to define __name__, __signature__, and __subclasscheck__ of
-    composite and derived classes. This allows us to still resolve a signature
-    for classes which pass through parent args / kwargs as *args / **kwargs or
-    those built through factory composition, for example."""
+    """Meta class to define ``__name__``, ``__signature__``, and
+    ``__subclasscheck__`` of composite and derived classes. This allows us to
+    still resolve a signature for classes which pass through parent args /
+    kwargs as ``*args`` / ``**kwargs`` or those built through factory
+    composition, for example."""
 
     def __new__(mcs, name, bases, namespace, **kwargs):  # noqa: N804
         """Define __name__ and __signature__"""
@@ -63,10 +64,10 @@ class Sup3rMeta(ABCMeta, type):
 
 
 class Sup3rDataset:
-    """Interface for interacting with one or two ``xr.Dataset`` instances
+    """Interface for interacting with one or two ``xr.Dataset`` instances.
     This is either a simple passthrough for a ``xr.Dataset`` instance or a
     wrapper around two of them so they work well with Dual objects like
-    DualSampler, DualRasterizer, DualBatchHandler, etc...)
+    ``DualSampler``, ``DualRasterizer``, ``DualBatchHandler``, etc...)
 
     Examples
     --------
@@ -84,11 +85,12 @@ class Sup3rDataset:
 
     Note
     ----
-    (1) This may seem similar to :class:`~sup3r.preprocessing.Collection`,
-    which also can contain multiple data members, but members of
-    :class:`~sup3r.preprocessing.Collection` objects are completely independent
-    while here there are at most two members which are related as low / high
-    res versions of the same underlying data.
+    (1) This may seem similar to
+    :class:`~sup3r.preprocessing.collections.base.Collection`, which also can
+    contain multiple data members, but members of
+    :class:`~sup3r.preprocessing.collections.base.Collection` objects are
+    completely independent while here there are at most two members which are
+    related as low / high res versions of the same underlying data.
 
     (2) Here we make an important choice to use high_res members to compute
     means / stds. It would be reasonable to instead use the average of high_res
@@ -127,10 +129,10 @@ class Sup3rDataset:
             will be called "high_res".
 
         dsets : dict[str, Union[xr.Dataset, Sup3rX]]
-            The preferred way to initialize a Sup3rDataset object, as a
-            dictionary with keys used to name a namedtuple of Sup3rX objects.
-            If dsets contains xr.Dataset objects these will be cast to Sup3rX
-            objects first.
+            The preferred way to initialize a ``Sup3rDataset`` object, as a
+            dictionary with keys used to name a namedtuple of ``Sup3rX``
+            objects. If dsets contains xr.Dataset objects these will be cast
+            to ``Sup3rX`` objects first.
 
         """
         if data is not None:
@@ -347,9 +349,8 @@ class Sup3rDataset:
 
 class Container(metaclass=Sup3rMeta):
     """Basic fundamental object used to build preprocessing objects. Contains
-    an xarray-like Dataset (:class:`~sup3r.preprocessing.Sup3rX`), wrapped
-    tuple of `Sup3rX` objects (:class:`.Sup3rDataset`), or a tuple of such
-    objects.
+    an xarray-like Dataset (:class:`~.accessor.Sup3rX`), wrapped tuple of
+    `Sup3rX` objects (:class:`.Sup3rDataset`), or a tuple of such objects.
     """
 
     __slots__ = ['_data']
@@ -365,20 +366,19 @@ class Container(metaclass=Sup3rMeta):
         ----------
         data: Union[Sup3rX, Sup3rDataset, Tuple[Sup3rX, ...],
                     Tuple[Sup3rDataset, ...]
-            Can be an `xr.Dataset`, a :class:`~.accessor.Sup3rX` object, a
+            Can be an ``xr.Dataset``, a :class:`~.accessor.Sup3rX` object, a
             :class:`.Sup3rDataset` object, or a tuple of such objects.
 
             Note
             ----
-            `.data` will return a :class:`~.Sup3rDataset` object or tuple of
+            ``.data`` will return a :class:`~.Sup3rDataset` object or tuple of
             such. This is a tuple when the `.data` attribute belongs to a
-            :class:`~sup3r.preprocessing.collections.Collection` object like
-            :class:`~sup3r.preprocessing.batch_handlers.BatchHandler`.
-            Otherwise this is :class:`~.Sup3rDataset` object, which is either a
-            wrapped 2-tuple or 1-tuple (e.g. len(data) == 2 or len(data) == 1).
-            This is a 2-tuple when `.data` belongs to a dual container object
-            like :class:`~sup3r.preprocessing.samplers.DualSampler` and a
-            1-tuple otherwise.
+            :class:`~.collections.base.Collection` object like
+            :class:`~.batch_handlers.factory.BatchHandler`. Otherwise this is
+            :class:`~.Sup3rDataset` object, which is either a wrapped 2-tuple
+            or 1-tuple (e.g. ``len(data) == 2`` or ``len(data) == 1)``. This is
+            a 2-tuple when ``.data`` belongs to a dual container object like
+            :class:`~.samplers.DualSampler` and a 1-tuple otherwise.
         """
         self.data = data
 
@@ -442,7 +442,14 @@ class Container(metaclass=Sup3rMeta):
         return vals in self.data
 
     def __getitem__(self, keys):
-        """Get item from underlying data."""
+        """Get item from underlying data. ``.data`` is a ``Sup3rX`` or
+        ``Sup3rDataset`` object, so this uses those ``__getitem__`` methods.
+
+        See Also
+        --------
+        :py:meth:`.accessor.Sup3rX.__getitem__`,
+        :py:meth:`.Sup3rDataset.__getitem__`
+        """
         return self.data[keys]
 
     def __setitem__(self, keys, data):
@@ -450,7 +457,7 @@ class Container(metaclass=Sup3rMeta):
         self.data.__setitem__(keys, data)
 
     def __getattr__(self, attr):
-        """Check if attribute is available from `.data`"""
+        """Check if attribute is available from ``.data``"""
         try:
             data = self.__getattribute__('_data')
             return getattr(data, attr)

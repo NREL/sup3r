@@ -7,6 +7,7 @@ import json
 import logging
 from datetime import datetime as dt
 
+import numpy as np
 import xarray as xr
 
 from sup3r.preprocessing.names import Dimension
@@ -55,14 +56,17 @@ class OutputHandlerNC(OutputHandler):
             help with spatial chunk data collection
         """
         coords = {
+            Dimension.TIME: times,
             Dimension.LATITUDE: (Dimension.dims_2d(), lat_lon[:, :, 0]),
             Dimension.LONGITUDE: (Dimension.dims_2d(), lat_lon[:, :, 1]),
-            Dimension.TIME: times,
         }
 
         data_vars = {'gids': (Dimension.dims_2d(), gids)}
         for i, f in enumerate(features):
-            data_vars[f] = (Dimension.dims_3d(), data[..., i])
+            data_vars[f] = (
+                (Dimension.TIME, *Dimension.dims_2d()),
+                np.transpose(data[..., i], axes=(2, 0, 1)),
+            )
 
         attrs = {}
         if meta_data is not None:

@@ -7,7 +7,7 @@ Super-Resolution for Renewable Energy Resource Data with Climate Change Impacts 
 Sup3rCC Data Access
 --------------------
 
-For high level details on accessing the NREL renewable energy resource datasets including Sup3rCC, see the rex docs pages `here <https://nrel.github.io/rex/misc/examples.nrel_data.html>`_
+For high level details on accessing the NREL renewable energy resource datasets including Sup3rCC, see the `rex docs pages <https://nrel.github.io/rex/misc/examples.nrel_data.html>`_
 
 The Sup3rCC data and models are publicly available in a public AWS S3 bucket. The data files and models can be downloaded directly from there to your local machine or an EC2 instance using the `OEDI data explorer <https://data.openei.org/s3_viewer?bucket-nrel-pds-sup3rcc>`_ or the `AWS CLI <https://aws.amazon.com/cli/>`_. A word of caution: there's a lot of data here. The smallest Sup3rCC file for just a single variable is 18 GB, and a full year of data is 216 GB.
 
@@ -16,14 +16,14 @@ The Sup3rCC data is also loaded into `HSDS <https://www.hdfgroup.org/solutions/h
 Directory Structure
 -------------------
 
-The Sup3rCC directory contains downscaled data for multiple projections of future climate change. For example, a file from the initial data release ``sup3rcc_conus_ecearth3_ssp585_r1i1p1f1_wind_2015.h5`` is downscaled from the climate model MRI ESM 2.0 for climate change scenario SSP5 8.5 and variant label r1i1p1f1. The file contains wind variables for the year 2015. Note that this will represent the climate from 2015, but not the actual weather we experienced. 
+The Sup3rCC directory contains downscaled data for multiple projections of future climate change. For example, a file from the initial data release ``sup3rcc_conus_ecearth3_ssp585_r1i1p1f1_wind_2015.h5`` is downscaled from the climate model MRI ESM 2.0 for climate change scenario SSP5 8.5 and variant label r1i1p1f1. The file contains wind variables for the year 2015. Note that this will represent the climate from 2015, but not the actual weather we experienced.
 
 Within the S3 bucket there is also a folder ``models`` providing pre-trained Sup3rCC generative machine learning models.
 
 Example Sup3rCC Data Usage
 --------------------------
 
-The jupyter notebook in this example shows some basic code to access and explore the data. You can walk through the example notebook `here <https://github.com/NREL/sup3r/tree/main/examples/sup3rcc/using_the_data.ipynb>`_. You can also clone this repo, setup a basic python environment with `rex <https://github.com/NREL/rex>`_, and run the notebook on your own.
+The jupyter notebook in this example shows some basic code to access and explore the data. You can walk through the `example notebook <https://github.com/NREL/sup3r/tree/main/examples/sup3rcc/using_the_data.ipynb>`_. You can also clone this repo, setup a basic python environment with `rex <https://github.com/NREL/rex>`_, and run the notebook on your own.
 
 Running Sup3rCC Models
 ----------------------
@@ -39,7 +39,7 @@ To run the Sup3rCC models, follow these instructions:
 #. Copy this examples directory to your hardware. You're going to be using the folder structure in ``/sup3r/examples/sup3rcc/run_configs`` as your project directories (``/sup3r/`` is a git clone of the sup3r software repo).
 #. Navigate to ``/sup3r/examples/sup3rcc/run_configs/trh/`` and update all of the filepaths in the config files for the source GCM data, Sup3rCC models, and exogenous data sources (e.g. the ``nsrdb_clearsky.h5`` file).
 #. Update the execution control parameters in the ``config_fwp.json`` file based on the hardware you're running on.
-#. You can either run ``sup3r-batch`` to setup multiple run years, or ``sup3r-pipeline`` to run just one job. We recommend starting with ``sup3r-pipeline`` (more on the sup3r CLIs `here <https://nrel.github.io/sup3r/_cli/sup3r.html>`_).
+#. You can either run ``sup3r-batch`` to setup multiple run years, or ``sup3r-pipeline`` to run just one job. We recommend starting with ``sup3r-pipeline`` (more on the sup3r `CLI <https://nrel.github.io/sup3r/_cli/sup3r.html>`_).
 #. To run ``sup3r-pipeline``, make sure you are in the directory with the ``config_pipeline.json`` and ``config_fwp.json`` files, and then run this command: ``python -m sup3r.cli -c config_pipeline.json pipeline``
 #. If you're running on a slurm cluster, this will kick off a number of jobs that you can see with the ``squeue`` command. If you're running locally, your terminal should now be running the Sup3rCC models. The software will create a ``./logs/`` directory in which you can monitor the progress of your jobs.
 #. The ``sup3r-pipeline`` is designed to run several modules in serial, with each module running multiple chunks in parallel. Once the first module (forward-pass) finishes, you'll want to run ``python -m sup3r.cli -c config_pipeline.json pipeline`` again. This will clean up status files and kick off the next step in the pipeline (if the current step was successful).
