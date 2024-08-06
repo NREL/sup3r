@@ -20,6 +20,7 @@ from sup3r.postprocessing import OutputHandler
 from sup3r.preprocessing import ExoData, ExoDataHandler
 from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.utilities import (
+    _parse_time_slice,
     expand_paths,
     get_class_kwargs,
     get_date_range_kwargs,
@@ -196,8 +197,8 @@ class ForwardPassStrategy:
         self.output_features = model.hr_out_features
         self.features, self.exo_features = self._init_features(model)
         self.input_handler = self.init_input_handler()
-        self.time_slice = self.input_handler_kwargs.get(
-            'time_slice', slice(None)
+        self.time_slice = _parse_time_slice(
+            self.input_handler_kwargs.get('time_slice', slice(None))
         )
         self.fwp_chunk_shape = self._get_fwp_chunk_shape()
 
