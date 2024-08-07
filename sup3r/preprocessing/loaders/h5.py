@@ -42,6 +42,11 @@ class LoaderH5(BaseLoader):
             return self.res.h5['latitude'].shape
         return self.res.h5['meta']['latitude'].shape
 
+    def _is_spatial_dset(self, data):
+        """Check if given data is spatial only. We compare against the size of
+        the meta."""
+        return len(data.shape) == 1 and len(data) == self._meta_shape()[0]
+
     def _res_shape(self):
         """Get shape of H5 file.
 
@@ -80,10 +85,17 @@ class LoaderH5(BaseLoader):
     def _get_dset_tuple(self, dset, dims, chunks):
         """Get tuple of (dims, array, attrs) for given dataset. Used in
         data_vars entries"""
-        arr = da.asarray(
-            self.res.h5[dset], dtype=np.float32, chunks=chunks
-        ) / self.scale_factor(dset)
-        if len(arr.shape) == 3 and self._time_independent:
+        arr = da.asarray(self.res.h5[dset], dtype=np.float32, chunks=chunks)
+        arr /= self.scale_factor(dset)
+        if len(arr.shape) == 4:
+            msg = (
+                f'{dset} array is 4 dimensional. Assuming this is an array '
+                'of spatiotemporal quantiles.'
+            )
+            logger.warning(msg)
+            warn(msg)
+            arr_dims = Dimension.dims_4d_bc()
+        elif len(arr.shape) == 3 and self._time_independent:
             msg = (
                 f'{dset} array is 3 dimensional but {self.file_paths} has '
                 f'no time index. Assuming this is an array of bias correction '
@@ -95,16 +107,20 @@ class LoaderH5(BaseLoader):
                 arr_dims = (*Dimension.dims_2d(), Dimension.GLOBAL_TIME)
             else:
                 arr_dims = Dimension.dims_3d()
-        elif len(arr.shape) == 4:
+        elif self._is_spatial_dset(arr):
+            arr_dims = (Dimension.FLATTENED_SPATIAL,)
+        elif len(arr.shape) == 1:
             msg = (
-                f'{dset} array is 4 dimensional. Assuming this is an array '
-                'of spatiotemporal quantiles.'
+                f'Received 1D feature "{dset}" with shape that does not '
+                'the length of the meta nor the time_index.'
             )
-            logger.warning(msg)
-            warn(msg)
-            arr_dims = Dimension.dims_4d_bc()
+            assert (
+                not self._time_independent
+                and len(arr) == self.res['time_index']
+            ), msg
+            arr_dims = (Dimension.TIME,)
         else:
-            arr_dims = dims[:len(arr.shape)]
+            arr_dims = dims[: len(arr.shape)]
         return (arr_dims, arr, dict(self.res.h5[dset].attrs))
 
     def _get_data_vars(self, dims):

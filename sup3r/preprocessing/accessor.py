@@ -14,13 +14,14 @@ from typing_extensions import Self
 
 from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.utilities import (
-    _is_strings,
     _lowered,
     _mem_check,
-    _parse_ellipsis,
     dims_array_tuple,
+    is_strings,
     ordered_array,
     ordered_dims,
+    parse_ellipsis,
+    parse_to_list,
 )
 from sup3r.typing import T_Array
 
@@ -92,79 +93,46 @@ class Sup3rX:
         self._features = None
         self.time_slice = None
 
-    def __getattr__(self, attr):
-        """Get attribute and cast to ``type(self)`` if a ``xr.Dataset`` is
-        returned first."""
-        out = getattr(self._ds, attr)
-        return type(self)(out) if isinstance(out, xr.Dataset) else out
-
-    def __mul__(self, other):
-        """Multiply ``Sup3rX`` object by other. Used to compute weighted means
-        and stdevs."""
-        try:
-            return type(self)(other * self._ds)
-        except Exception as e:
-            raise NotImplementedError(
-                f'Multiplication not supported for type {type(other)}.'
-            ) from e
-
-    def __rmul__(self, other):
-        return self.__mul__(other)
-
-    def __pow__(self, other):
-        """Raise ``Sup3rX`` object to an integer power. Used to compute
-        weighted standard deviations."""
-        try:
-            return type(self)(self._ds**other)
-        except Exception as e:
-            raise NotImplementedError(
-                f'Exponentiation not supported for type {type(other)}.'
-            ) from e
-
-    def __setitem__(self, keys, data):
-        """
-        Parameters
-        ----------
-        keys : str | list | tuple
-            keys to set. This can be a string like 'temperature' or a list
-            like ``['u', 'v']``. ``data`` will be iterated over in the latter
-            case.
-        data : T_Array | xr.DataArray
-            array object used to set variable data. If ``variable`` is a list
-            then this is expected to have a trailing dimension with length
-            equal to the length of the list.
-        """
-        if _is_strings(keys):
-            if isinstance(keys, (list, tuple)):
-                data_dict = {v: data[..., i] for i, v in enumerate(keys)}
-            else:
-                data_dict = {keys.lower(): data}
-            _ = self.assign(data_dict)
-        elif isinstance(keys[0], str) and keys[0] not in self.coords:
-            feats, slices = self.parse_keys(keys)
-            var_array = self[feats].data
-            var_array[tuple(slices.values())] = data
-            _ = self.assign({feats: var_array})
-        else:
-            msg = f'Cannot set values for keys {keys}'
-            logger.error(msg)
-            raise KeyError(msg)
+    def parse_keys(self, keys):
+        """Return set of features and slices for all dimensions contained in
+        dataset that can be passed to isel and transposed to standard dimension
+        order."""
+        keys = keys if isinstance(keys, tuple) else (keys,)
+        has_feats = is_strings(keys[0])
+        just_coords = keys[0] == []
+        features = (
+            list(self.coords)
+            if just_coords
+            else _lowered(keys[0])
+            if has_feats and keys[0] != 'all'
+            else self.features
+        )
+        dim_keys = () if len(keys) == 1 else keys[1:] if has_feats else keys
+        dim_keys = parse_ellipsis(dim_keys, dim_num=len(self._ds.dims))
+        return features, dict(zip(ordered_dims(self._ds.dims), dim_keys))
 
     def __getitem__(self, keys) -> Union[T_Array, Self]:
         """Method for accessing variables. keys can optionally include a
         feature name or list of feature names as the first entry of a keys
-        tuple. When keys take the form of numpy style indexing we return a dask
-        or numpy array, depending on whether contained data has been loaded
-        into memory, otherwise we return xarray or Sup3rX objects"""
+        tuple.
+
+        Notes
+        -----
+        This returns a ``Sup3rX`` object when keys is only an iterable of
+        features. e.g. an instance of ``(set, list, tuple)``. When keys is
+        only a single feature (a string) this returns an ``xr.DataArray``.
+        Otherwise keys must have included some sort of numpy style indexing so
+        this returns a np.ndarray or dask.array, depending on whether data is
+        loaded into memory or not.
+        """
 
         features, slices = self.parse_keys(keys)
         single_feat = isinstance(features, str)
         out = self._ds[features]
         out = self.ordered(out) if single_feat else type(self)(out)
         slices = {k: v for k, v in slices.items() if k in out.dims}
-        no_slices = _is_strings(keys)
-        just_coords = single_feat and features in self.coords
-        just_coords = just_coords or all(f in self.coords for f in features)
+        no_slices = is_strings(keys)
+        just_coords = all(f in self.coords for f in parse_to_list(features))
         is_fancy = self._needs_fancy_indexing(slices.values())
 
         if no_slices:
@@ -179,6 +147,43 @@ class Sup3rX:
 
         out = out.isel(**slices)
         return out.data if single_feat else out.as_array()
+
+    def __getattr__(self, attr):
+        """Get attribute and cast to ``type(self)`` if a ``xr.Dataset`` is
+        returned first."""
+        out = getattr(self._ds, attr)
+        return type(self)(out) if isinstance(out, xr.Dataset) else out
+
+    def __setitem__(self, keys, data):
+        """
+        Parameters
+        ----------
+        keys : str | list | tuple
+            keys to set. This can be a string like 'temperature' or a list
+            like ``['u', 'v']``. ``data`` will be iterated over in the latter
+            case.
+        data : T_Array | xr.DataArray
+            array object used to set variable data. If ``variable`` is a list
+            then this is expected to have a trailing dimension with length
+            equal to the length of the list.
+        """
+        if is_strings(keys):
+            if isinstance(keys, (list, tuple)) and hasattr(data, 'data_vars'):
+                data_dict = {v: data[v] for v in keys}
+            elif isinstance(keys, (list, tuple)):
+                data_dict = {v: data[..., i] for i, v in enumerate(keys)}
+            else:
+                data_dict = {keys.lower(): data}
+            _ = self.assign(data_dict)
+        elif isinstance(keys[0], str) and keys[0] not in self.coords:
+            feats, slices = self.parse_keys(keys)
+            var_array = self[feats].data
+            var_array[tuple(slices.values())] = data
+            _ = self.assign({feats: var_array})
+        else:
+            msg = f'Cannot set values for keys {keys}'
+            logger.error(msg)
+            raise KeyError(msg)
 
     def __contains__(self, vals):
         """Check if ``self._ds`` contains ``vals``.
@@ -305,10 +310,10 @@ class Sup3rX:
         names."""
         isel_kwargs = dict(zip(Dimension.dims_3d(), idx[:-1]))
         features = (
-            self.features if not _is_strings(idx[-1]) else _lowered(idx[-1])
+            self.features if not is_strings(idx[-1]) else _lowered(idx[-1])
         )
         out = self._ds[features].isel(**isel_kwargs)
-        return out.to_array().transpose(*ordered_dims(out.dims), ...).data
+        return self.ordered(out.to_array()).data
 
     @name.setter
     def name(self, value):
@@ -382,24 +387,6 @@ class Sup3rX:
                 self._ds[feat] = new_var
         return type(self)(self._ds)
 
-    def parse_keys(self, keys):
-        """Return set of features and slices for all dimensions contained in
-        dataset that can be passed to isel and transposed to standard dimension
-        order."""
-        keys = keys if isinstance(keys, tuple) else (keys,)
-        has_feats = _is_strings(keys[0])
-        just_coords = keys[0] == []
-        features = (
-            list(self.coords)
-            if just_coords
-            else _lowered(keys[0])
-            if has_feats and keys[0] != 'all'
-            else self.features
-        )
-        dim_keys = () if len(keys) == 1 else keys[1:] if has_feats else keys
-        dim_keys = _parse_ellipsis(dim_keys, dim_num=len(self._ds.dims))
-        return features, dict(zip(ordered_dims(self._ds.dims), dim_keys))
-
     @staticmethod
     def _needs_fancy_indexing(keys) -> T_Array:
         """We use `.vindex` if keys require fancy indexing."""
@@ -408,7 +395,7 @@ class Sup3rX:
         ]
         return len(where_list) > 1
 
-    def _add_dims_to_data_dict(self, vals):
+    def add_dims_to_data_vars(self, vals):
         """Add dimensions to vals entries if needed. This is used to set values
         of `self._ds` which can require dimensions to be explicitly specified
         for the data being set. e.g. self._ds['u_100m'] = (('south_north',
@@ -466,11 +453,11 @@ class Sup3rX:
             array). If dims are not provided this will try to use stored dims
             of the variable, if it exists already.
         """
-        data_dict = self._add_dims_to_data_dict(vals)
+        data_vars = self.add_dims_to_data_vars(vals)
         if all(f in self.coords for f in vals):
-            self._ds = self._ds.assign_coords(data_dict)
+            self._ds = self._ds.assign_coords(data_vars)
         else:
-            self._ds = self._ds.assign(data_dict)
+            self._ds = self._ds.assign(data_vars)
         return type(self)(self._ds)
 
     @property
@@ -555,3 +542,26 @@ class Sup3rX:
         self._ds = self._ds.assign({Dimension.FLATTENED_SPATIAL: ind})
         self._ds = self._ds.unstack(Dimension.FLATTENED_SPATIAL)
         return type(self)(self._ds)
+
+    def __mul__(self, other):
+        """Multiply ``Sup3rX`` object by other. Used to compute weighted means
+        and stdevs."""
+        try:
+            return type(self)(other * self._ds)
+        except Exception as e:
+            raise NotImplementedError(
+                f'Multiplication not supported for type {type(other)}.'
+            ) from e
+
+    def __rmul__(self, other):
+        return self.__mul__(other)
+
+    def __pow__(self, other):
+        """Raise ``Sup3rX`` object to an integer power. Used to compute
+        weighted standard deviations."""
+        try:
+            return type(self)(self._ds**other)
+        except Exception as e:
+            raise NotImplementedError(
+                f'Exponentiation not supported for type {type(other)}.'
+            ) from e

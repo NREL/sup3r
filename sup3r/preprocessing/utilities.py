@@ -341,7 +341,7 @@ def parse_to_list(features=None, data=None):
     features = (
         np.array(
             list(features)
-            if isinstance(features, tuple)
+            if isinstance(features, (set, tuple))
             else features
             if isinstance(features, list)
             else [features]
@@ -352,7 +352,7 @@ def parse_to_list(features=None, data=None):
     return parse_features(features=features, data=data)
 
 
-def _parse_ellipsis(vals, dim_num):
+def parse_ellipsis(vals, dim_num):
     """
     Replace ellipsis with N slices where N is dim_num - len(vals) + 1
 
@@ -373,21 +373,24 @@ def _parse_ellipsis(vals, dim_num):
     return new_vals
 
 
-def _contains_ellipsis(vals):
+def contains_ellipsis(vals):
+    """Check if vals contain an ellipse. This is used to correctly parse keys
+    for ``Sup3rX.__getitem__``"""
     return vals is Ellipsis or (
         isinstance(vals, (tuple, list)) and any(v is Ellipsis for v in vals)
     )
 
 
-def _is_strings(vals):
+def is_strings(vals):
+    """Check if vals is a string or iterable of all strings."""
     return isinstance(vals, str) or (
-        isinstance(vals, (tuple, list))
+        isinstance(vals, (set, tuple, list))
         and all(isinstance(v, str) for v in vals)
     )
 
 
 def _get_strings(vals):
-    return [v for v in vals if _is_strings(v)]
+    return [v for v in vals if is_strings(v)]
 
 
 def _is_ints(vals):

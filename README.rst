@@ -29,13 +29,13 @@ The Super Resolution for Renewable Resource Data (sup3r) software uses
 generative adversarial networks to create synthetic high-resolution wind and
 solar spatiotemporal data from coarse low-resolution inputs. To get started,
 check out the sup3r command line interface `(CLI)
-<https://nrel.github.io/sup3r/_cli/sup3r.html#sup3r>`_.
+<https://nrel.github.io/sup3r/_cli/sup3r.html#sup3r>`__.
 
 Installing sup3r
 ================
 
 NOTE: The installation instruction below assume that you have python installed
-on your machine and are using `conda <https://docs.conda.io/en/latest/index.html>`_
+on your machine and are using `conda <https://docs.conda.io/en/latest/index.html>`__
 as your package/environment manager.
 
 Option 1: Install from PIP (recommended for analysts):

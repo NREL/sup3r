@@ -152,15 +152,11 @@ class DualRasterizer(Container):
             logger.warning(msg)
             warn(msg)
 
-            hr_data_new = {
-                f: self.hr_data[
-                    f,
-                    slice(self.hr_required_shape[0]),
-                    slice(self.hr_required_shape[1]),
-                    slice(self.hr_required_shape[2]),
-                ]
-                for f in self.hr_data.features
-            }
+            hr_data_new = {}
+            for f in self.hr_data.features:
+                hr_slices = [f, *[slice(sh) for sh in self.hr_required_shape]]
+                hr_data_new[f] = self.hr_data[tuple(hr_slices)]
+
             hr_coords_new = {
                 Dimension.LATITUDE: self.hr_lat_lon[..., 0],
                 Dimension.LONGITUDE: self.hr_lat_lon[..., 1],
@@ -194,12 +190,12 @@ class DualRasterizer(Container):
             logger.info('Regridding low resolution feature data.')
             regridder = self.get_regridder()
 
-            lr_data_new = {
-                f: regridder(
-                    self.lr_data[f, ..., : self.lr_required_shape[2]]
-                ).reshape(self.lr_required_shape)
-                for f in self.lr_data.features
-            }
+            lr_data_new = {}
+            for f in self.lr_data.features:
+                lr = self.lr_data.to_dataarray().sel(variable=f).data
+                lr = lr[..., : self.lr_required_shape[2]]
+                lr_data_new[f] = regridder(lr).reshape(self.lr_required_shape)
+
             lr_coords_new = {
                 Dimension.LATITUDE: self.lr_lat_lon[..., 0],
                 Dimension.LONGITUDE: self.lr_lat_lon[..., 1],

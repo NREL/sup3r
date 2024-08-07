@@ -191,24 +191,26 @@ class Cacher(Container):
                 zip(
                     [
                         'time_index',
-                        Dimension.LATITUDE,
-                        Dimension.LONGITUDE,
+                        *Dimension.coords_2d(),
                         feature,
                     ],
                     [da.asarray(times), lats, lons, data],
                 )
             )
             for dset, vals in data_dict.items():
-                if dset in (Dimension.LATITUDE, Dimension.LONGITUDE):
+                f_chunks = chunks.get(dset, None)
+                if dset in Dimension.coords_2d():
                     dset = f'meta/{dset}'
                 d = f.require_dataset(
                     f'/{dset}',
                     dtype=vals.dtype,
                     shape=vals.shape,
-                    chunks=chunks.get(dset, None),
+                    chunks=f_chunks,
                 )
                 da.store(vals, d)
-                logger.debug(f'Added {dset} to {out_file}.')
+                logger.debug(
+                    f'Added {dset} to {out_file} with chunks={f_chunks}'
+                )
 
     @classmethod
     def write_netcdf(
