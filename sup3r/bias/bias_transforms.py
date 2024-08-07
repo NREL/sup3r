@@ -9,15 +9,16 @@ Rasterizers so we can use those class methods to match factors with locations
 """
 
 import logging
+from typing import Union
 from warnings import warn
 
+import dask.array as da
 import numpy as np
 import pandas as pd
 from rex.utilities.bc_utils import QuantileDeltaMapping
 from scipy.ndimage import gaussian_filter
 
 from sup3r.preprocessing import Rasterizer
-from sup3r.typing import T_Array
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +115,7 @@ def get_spatial_bc_factors(lat_lon, feature_name, bias_fp, threshold=0.1):
 
 
 def get_spatial_bc_quantiles(
-    lat_lon: T_Array,
+    lat_lon: Union[np.ndarray, da.core.Array],
     base_dset: str,
     feature_name: str,
     bias_fp: str,
@@ -131,7 +132,7 @@ def get_spatial_bc_quantiles(
 
     Parameters
     ----------
-    lat_lon : T_Array
+    lat_lon : Union[np.ndarray, da.core.Array]
         Array of latitudes and longitudes for the domain to bias correct
         (n_lats, n_lons, 2)
     base_dset : str
@@ -480,7 +481,7 @@ def local_qdm_bc(
 
     Parameters
     ----------
-    data : T_Array
+    data : Union[np.ndarray, da.core.Array]
         Sup3r input data to be bias corrected, assumed to be 3D with shape
         (spatial, spatial, temporal) for a single feature.
     lat_lon : np.ndarray

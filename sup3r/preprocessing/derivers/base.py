@@ -17,7 +17,6 @@ from sup3r.preprocessing.utilities import (
     _rechunk_if_dask,
     parse_to_list,
 )
-from sup3r.typing import T_Array
 from sup3r.utilities.interpolation import Interpolator
 
 from .methods import DerivedFeature, RegistryBase
@@ -105,7 +104,9 @@ class BaseDeriver(Container):
         """Check if any of the nested inputs for 'feature' contain 'feature'"""
         return feature not in self.get_inputs(feature)
 
-    def check_registry(self, feature) -> Union[T_Array, str, None]:
+    def check_registry(
+        self, feature
+    ) -> Union[np.ndarray, da.core.Array, str, None]:
         """Get compute method from the registry if available. Will check for
         pattern feature match in feature registry. e.g. if u_100m matches a
         feature registry entry of u_(.*)m
@@ -175,11 +176,14 @@ class BaseDeriver(Container):
             raise RuntimeError(msg)
         logger.debug(
             'Found alternative name "%s" for "%s". Continuing compute method '
-            'search for %s.', feature, new_feature, new_feature
+            'search for %s.',
+            feature,
+            new_feature,
+            new_feature,
         )
         return new_feature
 
-    def derive(self, feature) -> T_Array:
+    def derive(self, feature) -> Union[np.ndarray, da.core.Array]:
         """Routine to derive requested features. Employs a little recursion to
         locate differently named features with a name map in the feature
         registry. i.e. if  `FEATURE_REGISTRY` contains a key, value pair like

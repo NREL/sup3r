@@ -14,7 +14,7 @@ def temporal_simple_enhancing(data, t_enhance=4, mode='constant'):
 
     Parameters
     ----------
-    data : T_Array
+    data : Union[np.ndarray, da.core.Array]
         5D array with dimensions
         (observations, spatial_1, spatial_2, temporal, features)
     t_enhance : int
@@ -24,7 +24,7 @@ def temporal_simple_enhancing(data, t_enhance=4, mode='constant'):
 
     Returns
     -------
-    enhanced_data : T_Array
+    enhanced_data : Union[np.ndarray, da.core.Array]
         5D array with same dimensions as data with new enhanced resolution
     """
 
@@ -59,7 +59,7 @@ def smooth_data(low_res, training_features, smoothing_ignore, smoothing=None):
 
     Parameters
     ----------
-    low_res : T_Array
+    low_res : Union[np.ndarray, da.core.Array]
         4D | 5D array
         (batch_size, spatial_1, spatial_2, features)
         (batch_size, spatial_1, spatial_2, temporal, features)
@@ -77,7 +77,7 @@ def smooth_data(low_res, training_features, smoothing_ignore, smoothing=None):
 
     Returns
     -------
-    low_res : T_Array
+    low_res : Union[np.ndarray, da.core.Array]
         4D | 5D array
         (batch_size, spatial_1, spatial_2, features)
         (batch_size, spatial_1, spatial_2, temporal, features)
@@ -108,7 +108,7 @@ def spatial_simple_enhancing(data, s_enhance=2, obs_axis=True):
 
     Parameters
     ----------
-    data : T_Array
+    data : Union[np.ndarray, da.core.Array]
         5D | 4D | 3D array with dimensions:
         (n_obs, spatial_1, spatial_2, temporal, features) (obs_axis=True)
         (n_obs, spatial_1, spatial_2, features) (obs_axis=True)
@@ -122,7 +122,7 @@ def spatial_simple_enhancing(data, s_enhance=2, obs_axis=True):
 
     Returns
     -------
-    enhanced_data : T_Array
+    enhanced_data : Union[np.ndarray, da.core.Array]
         3D | 4D | 5D array with same dimensions as data with new enhanced
         resolution
     """

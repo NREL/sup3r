@@ -85,7 +85,7 @@ def temporal_coarsening(data, t_enhance=4, method='subsample'):
 
     Parameters
     ----------
-    data : T_Array
+    data : Union[np.ndarray, da.core.Array]
         5D array with dimensions
         (observations, spatial_1, spatial_2, temporal, features)
     t_enhance : int
@@ -97,7 +97,7 @@ def temporal_coarsening(data, t_enhance=4, method='subsample'):
 
     Returns
     -------
-    coarse_data : T_Array
+    coarse_data : Union[np.ndarray, da.core.Array]
         5D array with same dimensions as data with new coarse resolution
     """
 
@@ -189,7 +189,7 @@ def spatial_coarsening(data, s_enhance=2, obs_axis=True):
 
     Parameters
     ----------
-    data : T_Array
+    data : Union[np.ndarray, da.core.Array]
         5D | 4D | 3D | 2D array with dimensions:
         (n_obs, spatial_1, spatial_2, temporal, features) (obs_axis=True)
         (n_obs, spatial_1, spatial_2, features) (obs_axis=True)
@@ -204,7 +204,7 @@ def spatial_coarsening(data, s_enhance=2, obs_axis=True):
 
     Returns
     -------
-    data : T_Array
+    data : Union[np.ndarray, da.core.Array]
         2D, 3D | 4D | 5D array with same dimensions as data with new coarse
         resolution
     """
@@ -309,12 +309,12 @@ def nn_fill_array(array):
 
     Parameters
     ----------
-    array : T_Array
+    array : Union[np.ndarray, da.core.Array]
         Input array with NaN values
 
     Returns
     -------
-    array : T_Array
+    array : Union[np.ndarray, da.core.Array]
         Output array with NaN values filled
     """
 

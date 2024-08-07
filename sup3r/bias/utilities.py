@@ -197,7 +197,7 @@ def bias_correct_feature(
 
     Returns
     -------
-    data : T_Array
+    data : Union[np.ndarray, da.core.Array]
         Data corrected by the bias_correct_method ready for input to the
         forward pass through the generative model.
     """

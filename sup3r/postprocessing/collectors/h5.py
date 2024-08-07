@@ -137,7 +137,7 @@ class CollectorH5(BaseCollector):
 
         Returns
         -------
-        f_data : T_Array
+        f_data : Union[np.ndarray, da.core.Array]
             Data array from the fpath cast as input dtype.
         row_slice : slice
             final_time_index[row_slice] = new_time_index

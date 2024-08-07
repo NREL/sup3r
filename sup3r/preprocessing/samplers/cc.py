@@ -19,13 +19,13 @@ class DualSamplerCC(DualSampler):
 
     Note
     ----
-    This will always give daily / hourly data if `t_enhance != 1`. The number
+    This will always give daily / hourly data if ``t_enhance != 1``. The number
     of days / hours in the samples is determined by t_enhance. For example, if
-    `t_enhance = 8` and `sample_shape = (..., 24)` there will be 3 days in the
-    low res sample: `lr_sample_shape = (..., 3)`. If `t_enhance != 24` and > 1
-    :meth:`reduce_high_res_sub_daily` will be used to reduce a high res sample
-    shape from `(..., sample_shape[2] * 24 // t_enhance)` to `(...,
-    sample_shape[2])`
+    ``t_enhance = 8`` and ``sample_shape = (..., 24)`` there will be 3 days in
+    the low res sample: `lr_sample_shape = (..., 3)`. If
+    ``1 < t_enhance != 24`` :meth:`reduce_high_res_sub_daily` will be used to
+    reduce a high res sample shape from
+    ``(..., sample_shape[2] * 24 // t_enhance)`` to ``(..., sample_shape[2])``
     """
 
     def __init__(
@@ -53,7 +53,7 @@ class DualSamplerCC(DualSampler):
             Temporal enhancement factor
         feature_sets : Optional[dict]
             Optional dictionary describing how the full set of features is
-            split between `lr_only_features` and `hr_exo_features`.
+            split between ``lr_only_features`` and ``hr_exo_features``.
 
             lr_only_features : list | tuple
                 List of feature names or patt*erns that should only be
@@ -71,7 +71,7 @@ class DualSamplerCC(DualSampler):
         """
         msg = (
             f'{self.__class__.__name__} requires a Sup3rDataset object '
-            'with `.daily` and `.hourly` data members, in that order'
+            'with .daily and .hourly data members, in that order'
         )
         assert hasattr(data, 'daily') and hasattr(data, 'hourly'), msg
         lr, hr = data.daily, data.hourly
@@ -96,8 +96,8 @@ class DualSamplerCC(DualSampler):
         )
 
     def check_for_consistent_shapes(self):
-        """Make sure container shapes are compatible with enhancement
-        factors."""
+        """Make sure container shapes and sample shapes are compatible with
+        enhancement factors."""
         enhanced_shape = (
             self.lr_data.shape[0] * self.s_enhance,
             self.lr_data.shape[1] * self.s_enhance,
@@ -118,7 +118,7 @@ class DualSamplerCC(DualSampler):
 
         Parameters
         ----------
-        high_res : T_Array
+        high_res : Union[np.ndarray, da.core.Array]
             5D array with dimensions (n_obs, spatial_1, spatial_2, temporal,
             n_features) where temporal >= 24 (set by the data handler).
         csr_ind : int
@@ -127,7 +127,7 @@ class DualSamplerCC(DualSampler):
 
         Returns
         -------
-        high_res : T_Array
+        high_res : Union[np.ndarray, da.core.Array]
             5D array with dimensions (n_obs, spatial_1, spatial_2, temporal,
             n_features) where temporal has been reduced down to the integer
             lr_sample_shape[2] * t_enhance. For example if hr_sample_shape[2]
@@ -136,11 +136,11 @@ class DualSamplerCC(DualSampler):
 
         Note
         ----
-        This only does something when `1 < t_enhance < 24.` If t_enhance = 24
-        there is no need for reduction since every daily time step will have 24
-        hourly time steps in the high_res batch data. Of course, if t_enhance =
-        1, we are running for a spatial only model so this routine is
-        unnecessary.
+        This only does something when ``1 < t_enhance < 24.`` If
+        ``t_enhance = 24`` there is no need for reduction since every daily
+        time step will have 24 hourly time steps in the high_res batch data.
+        Of course, if ``t_enhance = 1``, we are running for a spatial only
+        model so this routine is unnecessary.
 
         *Needs review from @grantbuster
         """

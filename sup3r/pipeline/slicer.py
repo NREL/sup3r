@@ -326,7 +326,7 @@ class ForwardPassSlicer:
             list has a crop slice for each spatial dimension and temporal
             dimension and then slice(None) for the feature dimension.
             model.generate()[hr_crop_slice] gives the cropped generator output
-            corresponding to output_array[hr_slice]
+            corresponding to outpuUnion[np.ndarray, da.core.Array][hr_slice]
         """
         if self._hr_crop_slices is None:
             self._hr_crop_slices = []

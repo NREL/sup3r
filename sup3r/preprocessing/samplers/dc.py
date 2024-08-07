@@ -4,6 +4,9 @@ which are updated during training based on performance of the model."""
 import logging
 from typing import Dict, List, Optional, Union
 
+import dask.array as da
+import numpy as np
+
 from sup3r.preprocessing.accessor import Sup3rX
 from sup3r.preprocessing.base import Sup3rDataset
 from sup3r.preprocessing.samplers.base import Sampler
@@ -13,7 +16,6 @@ from sup3r.preprocessing.samplers.utilities import (
     weighted_box_sampler,
     weighted_time_sampler,
 )
-from sup3r.typing import T_Array
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +30,12 @@ class SamplerDC(Sampler):
         sample_shape: Optional[tuple] = None,
         batch_size: int = 16,
         feature_sets: Optional[Dict] = None,
-        spatial_weights: Optional[Union[T_Array, List]] = None,
-        temporal_weights: Optional[Union[T_Array, List]] = None,
+        spatial_weights: Optional[
+            Union[np.ndarray, da.core.Array, List]
+        ] = None,
+        temporal_weights: Optional[
+            Union[np.ndarray, da.core.Array, List]
+        ] = None,
     ):
         """
         Parameters
@@ -51,12 +57,12 @@ class SamplerDC(Sampler):
             Optional dictionary describing how the full set of features is
             split between `lr_only_features` and `hr_exo_features`. See
             :class:`~sup3r.preprocessing.Sampler`
-        spatial_weights : T_Array | List | None
+        spatial_weights : Union[np.ndarray, da.core.Array] | List | None
             Set of weights used to initialize the spatial sampling. e.g. If we
             want to start off sampling across 2 spatial bins evenly this should
             be [0.5, 0.5]. During training these weights will be updated based
             only performance across the bins associated with these weights.
-        temporal_weights : T_Array | List | None
+        temporal_weights : Union[np.ndarray, da.core.Array] | List | None
             Set of weights used to initialize the temporal sampling. e.g. If we
             want to start off sampling only the first season of the year this
             should be [1, 0, 0, 0]. During training these weights will be

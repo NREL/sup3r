@@ -10,6 +10,7 @@ import warnings
 from dataclasses import dataclass
 from typing import Dict, Optional, Tuple, Union
 
+import dask.array as da
 import numpy as np
 import pandas as pd
 
@@ -27,7 +28,6 @@ from sup3r.preprocessing.utilities import (
     get_input_handler_class,
     log_args,
 )
-from sup3r.typing import T_Array
 from sup3r.utilities.utilities import Timer
 
 logger = logging.getLogger(__name__)
@@ -38,13 +38,13 @@ class ForwardPassChunk:
     """Structure storing chunk data and attributes for a specific chunk going
     through the generator."""
 
-    input_data: T_Array
+    input_data: Union[np.ndarray, da.core.Array]
     exo_data: Dict
     hr_crop_slice: slice
     lr_pad_slice: slice
-    hr_lat_lon: T_Array
+    hr_lat_lon: Union[np.ndarray, da.core.Array]
     hr_times: pd.DatetimeIndex
-    gids: T_Array
+    gids: Union[np.ndarray, da.core.Array]
     out_file: str
     pad_width: Tuple[tuple, tuple, tuple]
     index: int
@@ -76,14 +76,14 @@ class ForwardPassStrategy:
         string with a unix-style file path which will be passed through
         glob.glob
     model_kwargs : str | list
-        Keyword arguments to send to `model_class.load(**model_kwargs)` to
+        Keyword arguments to send to ``model_class.load(**model_kwargs)`` to
         initialize the GAN. Typically this is just the string path to the
         model directory, but can be multiple models or arguments for more
         complex models.
     fwp_chunk_shape : tuple
         Max shape (spatial_1, spatial_2, temporal) of an unpadded coarse chunk
         to use for a forward pass. The number of nodes that the
-        :class:`ForwardPassStrategy` is set to distribute to is calculated by
+        :class:`.ForwardPassStrategy` is set to distribute to is calculated by
         dividing up the total time index from all file_paths by the temporal
         part of this chunk shape. Each node will then be parallelized across
         parallel processes by the spatial chunk shape.  If temporal_pad /
@@ -100,8 +100,8 @@ class ForwardPassStrategy:
         the fwp_chunk_shape.
     model_class : str
         Name of the sup3r model class for the GAN model to load. The default is
-        the basic spatial / spatiotemporal Sup3rGan model. This will be loaded
-        from sup3r.models
+        the basic spatial / spatiotemporal ``Sup3rGan`` model. This will be
+        loaded from ``sup3r.models``
     out_pattern : str
         Output file pattern. Must include {file_id} format key.  Each output
         file will have a unique file_id filled in and the ext determines the
@@ -109,16 +109,17 @@ class ForwardPassStrategy:
         and not saved.
     input_handler_name : str | None
         Class to use for input data. Provide a string name to match an
-        rasterizer or handler class in `sup3r.preprocessing`
+        rasterizer or handler class in ``sup3r.preprocessing``
     input_handler_kwargs : dict | None
-        Any kwargs for initializing the `input_handler_name` class.
+        Any kwargs for initializing the ``input_handler_name`` class.
     exo_handler_kwargs : dict | None
-        Dictionary of args to pass to :class:`ExoDataHandler` for extracting
-        exogenous features for multistep foward pass. This should be a nested
-        dictionary with keys for each exogenous feature. The dictionaries
-        corresponding to the feature names should include the path to exogenous
-        data source, the resolution of the exogenous data, and how the
-        exogenous data should be used in the model. e.g. {'topography':
+        Dictionary of args to pass to
+        :class:`~sup3r.preprocessing.data_handlers.ExoDataHandler` for
+        extracting exogenous features for multistep foward pass. This should be
+        a nested dictionary with keys for each exogenous feature. The
+        dictionaries corresponding to the feature names should include the path
+        to exogenous data source, the resolution of the exogenous data, and how
+        the exogenous data should be used in the model. e.g. {'topography':
         {'file_paths': 'path to input files', 'source_file': 'path to exo
         data', 'steps': [..]}.
     bias_correct_method : str | None
@@ -153,13 +154,13 @@ class ForwardPassStrategy:
         node. If 1 then all forward passes on chunks distributed to a single
         node will be run serially. pass_workers=2 is the minimum number of
         workers required to run the ForwardPass initialization and
-        :meth:`ForwardPass.run_chunk()` methods concurrently.
+        :meth:`~.forward_pass.ForwardPass.run_chunk()` methods concurrently.
     max_nodes : int | None
         Maximum number of nodes to distribute spatiotemporal chunks across. If
         None then a node will be used for each temporal chunk.
     head_node : bool
         Whether initialization is taking place on the head node of a multi node
-        job launch. When this is true :class:`ForwardPassStrategy` is only
+        job launch. When this is true :class:`.ForwardPassStrategy` is only
         partially initialized to provide the head node enough information for
         how to distribute jobs across nodes. Preflight tasks like bias
         correction will be skipped because they will be performed on the nodes

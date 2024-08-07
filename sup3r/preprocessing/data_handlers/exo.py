@@ -34,7 +34,7 @@ class SingleExoDataStep(dict):
             Specifies the model index which will use the `data`. For example,
             if ``model`` == 1 then the ``data`` will be used according to
             `combine_type` in the 2nd model step in a MultiStepGan.
-        data : T_Array
+        data : Union[np.ndarray, da.core.Array]
             The data to be used for the given model step.
         """
         step = {'model': model, 'combine_type': combine_type, 'data': data}

@@ -75,24 +75,24 @@ def transform_rotate_wind(ws, wd, lat_lon):
 
     Parameters
     ----------
-    ws : T_Array
+    ws : Union[np.ndarray, da.core.Array]
         3D array of high res windspeed data
         (spatial_1, spatial_2, temporal)
-    wd : T_Array
+    wd : Union[np.ndarray, da.core.Array]
         3D array of high res winddirection data. Angle is in degrees and
         measured relative to the south_north direction.
         (spatial_1, spatial_2, temporal)
-    lat_lon : T_Array
+    lat_lon : Union[np.ndarray, da.core.Array]
         3D array of lat lon
         (spatial_1, spatial_2, 2)
         Last dimension has lat / lon in that order
 
     Returns
     -------
-    u : T_Array
+    u : Union[np.ndarray, da.core.Array]
         3D array of high res U data
         (spatial_1, spatial_2, temporal)
-    v : T_Array
+    v : Union[np.ndarray, da.core.Array]
         3D array of high res V data
         (spatial_1, spatial_2, temporal)
     """
@@ -132,23 +132,23 @@ def invert_uv(u, v, lat_lon):
 
     Parameters
     ----------
-    u : T_Array
+    u : Union[np.ndarray, da.core.Array]
         3D array of high res U data
         (spatial_1, spatial_2, temporal)
-    v : T_Array
+    v : Union[np.ndarray, da.core.Array]
         3D array of high res V data
         (spatial_1, spatial_2, temporal)
-    lat_lon : T_Array
+    lat_lon : Union[np.ndarray, da.core.Array]
         3D array of lat lon
         (spatial_1, spatial_2, 2)
         Last dimension has lat / lon in that order
 
     Returns
     -------
-    ws : T_Array
+    ws : Union[np.ndarray, da.core.Array]
         3D array of high res windspeed data
         (spatial_1, spatial_2, temporal)
-    wd : T_Array
+    wd : Union[np.ndarray, da.core.Array]
         3D array of high res winddirection data. Angle is in degrees and
         measured relative to the south_north direction.
         (spatial_1, spatial_2, temporal)

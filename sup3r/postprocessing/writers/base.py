@@ -205,7 +205,7 @@ class OutputMixin:
             Pre-existing H5 file output path
         dset : str
             Dataset name
-        data : T_Array | None
+        data : Union[np.ndarray, da.core.Array] | None
             Optional data to write to dataset if initializing.
         """
 

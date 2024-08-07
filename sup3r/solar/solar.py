@@ -158,7 +158,7 @@ class Solar:
 
         Returns
         -------
-        idnn : T_Array
+        idnn : Union[np.ndarray, da.core.Array]
             2D array of length (n_sup3r_sites, agg_factor) where the values are
             meta data indices from the NSRDB.
         """
@@ -178,7 +178,7 @@ class Solar:
 
         Returns
         -------
-        dist : T_Array
+        dist : Union[np.ndarray, da.core.Array]
             2D array of length (n_sup3r_sites, agg_factor) where the values are
             decimal degree distances from the sup3r sites to the nsrdb nearest
             neighbors.
@@ -204,7 +204,7 @@ class Solar:
 
         Returns
         -------
-        out_of_bounds : T_Array
+        out_of_bounds : Union[np.ndarray, da.core.Array]
             1D boolean array with length == number of sup3r GAN sites. True if
             the site is too far from the NSRDB.
         """
@@ -261,7 +261,7 @@ class Solar:
 
         Returns
         -------
-        clearsky_ratio : T_Array
+        clearsky_ratio : Union[np.ndarray, da.core.Array]
             2D array with shape (time, sites) in UTC.
         """
         if self._cs_ratio is None:
@@ -285,7 +285,7 @@ class Solar:
 
         Returns
         -------
-        solar_zenith_angle : T_Array
+        solar_zenith_angle : Union[np.ndarray, da.core.Array]
             2D array with shape (time, sites) in UTC.
         """
         if self._sza is None:
@@ -299,7 +299,7 @@ class Solar:
 
         Returns
         -------
-        ghi : T_Array
+        ghi : Union[np.ndarray, da.core.Array]
             2D array with shape (time, sites) in UTC.
         """
         if self._ghi is None:
@@ -318,7 +318,7 @@ class Solar:
 
         Returns
         -------
-        dni : T_Array
+        dni : Union[np.ndarray, da.core.Array]
             2D array with shape (time, sites) in UTC.
         """
         if self._dni is None:
@@ -342,7 +342,7 @@ class Solar:
 
         Returns
         -------
-        dhi : T_Array
+        dhi : Union[np.ndarray, da.core.Array]
             2D array with shape (time, sites) in UTC.
         """
         if self._dhi is None:
@@ -361,7 +361,7 @@ class Solar:
 
         Returns
         -------
-        cloud_mask : T_Array
+        cloud_mask : Union[np.ndarray, da.core.Array]
             2D array with shape (time, sites) in UTC.
         """
         return self.clearsky_ratio < self.cloud_threshold
@@ -377,7 +377,7 @@ class Solar:
 
         Returns
         -------
-        out : T_Array
+        out : Union[np.ndarray, da.core.Array]
             Dataset of shape (time, sites) where time and sites correspond to
             the same shape as the sup3r GAN output data and if agg_factor > 1
             the sites is an average across multiple NSRDB sites.

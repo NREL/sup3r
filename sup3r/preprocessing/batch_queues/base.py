@@ -40,7 +40,7 @@ class SingleBatchQueue(AbstractBatchQueue):
 
         Parameters
         ----------
-        samples : T_Array
+        samples : Union[np.ndarray, da.core.Array]
             High resolution batch of samples.
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
@@ -60,11 +60,11 @@ class SingleBatchQueue(AbstractBatchQueue):
 
         Returns
         -------
-        low_res : T_Array
+        low_res : Union[np.ndarray, da.core.Array]
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
-        high_res : T_Array
+        high_res : Union[np.ndarray, da.core.Array]
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)

@@ -1,10 +1,10 @@
-"""Abstract sampler objects. These are containers which also can sample from
-the underlying data. These interface with Batchers so they also have additional
-information about how different features are used by models."""
+"""Basic ``Sampler`` objects. These are containers which also can sample from
+the underlying data. These interface with ``BatchQueues`` so they also have
+additional information about how different features are used by models."""
 
 import logging
 from fnmatch import fnmatch
-from typing import Dict, Optional, Tuple, Union
+from typing import Dict, Optional, Tuple
 from warnings import warn
 
 import dask.array as da
@@ -16,7 +16,6 @@ from sup3r.preprocessing.samplers.utilities import (
     uniform_time_sampler,
 )
 from sup3r.preprocessing.utilities import log_args, lowered
-from sup3r.typing import T_Array
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +36,7 @@ class Sampler(Container):
         Parameters
         ----------
         data: Union[Sup3rX, Sup3rDataset],
-            Object with data that will be sampled from. Usually the `.data`
+            Object with data that will be sampled from. Usually the ``.data``
             attribute of various :class:`~sup3r.preprocessing.base.Container`
             objects.  i.e. :class:`~sup3r.preprocessing.loaders.Loader`,
             :class:`~sup3r.preprocessing.rasterizers.Rasterizer`,
@@ -130,7 +129,8 @@ class Sampler(Container):
             'the raw data. This prevents us from building batches from '
             'a single sample with n_time_steps = sample_shape[2] * batch_size '
             'which is far more performant than building batches n_samples = '
-            'batch_size, each with n_time_steps = sample_shape[2].')
+            'batch_size, each with n_time_steps = sample_shape[2].'
+        )
         if self.data.shape[2] < self.sample_shape[2] * self.batch_size:
             logger.warning(msg)
             warn(msg)
@@ -173,7 +173,7 @@ class Sampler(Container):
 
         Parameters
         ----------
-        samples : T_Array
+        samples : Union[np.ndarray, da.core.Array]
             Selection from `self.data` with shape:
             (samp_shape[0], samp_shape[1], batch_size * samp_shape[2], n_feats)
             This is reshaped to:
@@ -209,7 +209,8 @@ class Sampler(Container):
 
         Parameters
         ----------
-        samples : Tuple[List[T_Array], List[T_Array]] | List[T_Array]
+        samples : Tuple[List[np.ndarray | da.core.Array], ...] |
+                  List[np.ndarray | da.core.Array]
             Each list has length = batch_size and each array has shape:
             (samp_shape[0], samp_shape[1], samp_shape[2], n_feats)
 
@@ -227,9 +228,7 @@ class Sampler(Container):
 
     def _fast_batch(self):
         """Get batch of samples with adjacent time slices."""
-        out = self.data.sample(
-            self.get_sample_index(n_obs=self.batch_size)
-        )
+        out = self.data.sample(self.get_sample_index(n_obs=self.batch_size))
         if isinstance(out, tuple):
             return tuple(self._reshape_samples(o) for o in out)
         return self._reshape_samples(out)
@@ -245,10 +244,18 @@ class Sampler(Container):
     def _fast_batch_possible(self):
         return self.batch_size * self.sample_shape[2] <= self.data.shape[2]
 
-    def __next__(self) -> Union[T_Array, Tuple[T_Array, T_Array]]:
+    def __next__(self):
         """Get next batch of samples. This retrieves n_samples = batch_size
         with shape = sample_shape from the `.data` (a xr.Dataset or
-        Sup3rDataset) through the Sup3rX accessor."""
+        Sup3rDataset) through the Sup3rX accessor.
+
+        Returns
+        -------
+        samples : tuple(np.ndarray | da.core.Array) | np.ndarray | da.core.Array
+            Either a tuple or single array of samples. This is a tuple when
+            this method is sampling from a ``Sup3rDataset`` with two data
+            members
+        """  # pylint: disable=line-too-long # noqa
         if self._fast_batch_possible():
             return self._fast_batch()
         return self._slow_batch()

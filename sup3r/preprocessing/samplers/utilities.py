@@ -169,7 +169,7 @@ def daily_time_sampler(data, shape, time_index):
 
     Parameters
     ----------
-    data : T_Array
+    data : Union[np.ndarray, da.core.Array]
         Data array with dimensions
         (spatial_1, spatial_2, temporal, features)
     shape : int
@@ -260,7 +260,7 @@ def nsrdb_reduce_daily_data(data, shape, csr_ind=0):
 
     Parameters
     ----------
-    data : T_Array
+    data : Union[np.ndarray, da.core.Array]
         5D data array, where [..., csr_ind] is assumed to be clearsky ratio
         with NaN at night.
         (n_obs, spatial_1, spatial_2, temporal, features)
@@ -273,7 +273,7 @@ def nsrdb_reduce_daily_data(data, shape, csr_ind=0):
 
     Returns
     -------
-    data : T_Array
+    data : Union[np.ndarray, da.core.Array]
         Same as input but with axis=3 reduced to dailylight hours with
         requested shape.
     """

@@ -98,14 +98,14 @@ class ConditionalBatchQueue(SingleBatchQueue):
 
         Parameters
         ----------
-        high_res : T_Array
+        high_res : Union[np.ndarray, da.core.Array]
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
 
         Returns
         -------
-        mask: T_Array
+        mask: Union[np.ndarray, da.core.Array]
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
@@ -136,7 +136,7 @@ class ConditionalBatchQueue(SingleBatchQueue):
 
         Parameters
         ----------
-        samples : Tuple[T_Array, T_Array]
+        samples : Tuple[Union[np.ndarray, da.core.Array], ...]
             Tuple of low_res, high_res. Each array is:
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
@@ -144,7 +144,7 @@ class ConditionalBatchQueue(SingleBatchQueue):
 
         Returns
         -------
-        output: T_Array
+        output: Union[np.ndarray, da.core.Array]
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
@@ -187,7 +187,7 @@ class QueueMom1SF(ConditionalBatchQueue):
         """
         Returns
         -------
-        SF: T_Array
+        SF: Union[np.ndarray, da.core.Array]
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
@@ -214,7 +214,7 @@ class QueueMom2(ConditionalBatchQueue):
         """
         Returns
         -------
-        (HR - <HR|LR>)**2: T_Array
+        (HR - <HR|LR>)**2: Union[np.ndarray, da.core.Array]
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
@@ -236,7 +236,7 @@ class QueueMom2Sep(QueueMom1):
         """
         Returns
         -------
-        HR**2: T_Array
+        HR**2: Union[np.ndarray, da.core.Array]
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
@@ -253,7 +253,7 @@ class QueueMom2SF(ConditionalBatchQueue):
         """
         Returns
         -------
-        (SF - <SF|LR>)**2: T_Array
+        (SF - <SF|LR>)**2: Union[np.ndarray, da.core.Array]
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)
@@ -281,7 +281,7 @@ class QueueMom2SepSF(QueueMom1SF):
         """
         Returns
         -------
-        SF**2: T_Array
+        SF**2: Union[np.ndarray, da.core.Array]
             4D | 5D array
             (batch_size, spatial_1, spatial_2, features)
             (batch_size, spatial_1, spatial_2, temporal, features)

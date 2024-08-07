@@ -155,7 +155,7 @@ class DataHandlerNCforCC(BaseNCforCC):
 
         Returns
         -------
-        cs_ghi : T_Array
+        cs_ghi : Union[np.ndarray, da.core.Array]
             Clearsky ghi (W/m2) from the nsrdb_source_fp h5 source file. Data
             shape is (lat, lon, time) where time is daily average values.
         """

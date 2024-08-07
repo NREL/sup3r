@@ -1,6 +1,7 @@
 """Interpolator class with methods for pressure and height interpolation"""
 
 import logging
+from typing import Union
 from warnings import warn
 
 import dask.array as da
@@ -9,7 +10,6 @@ import numpy as np
 from sup3r.preprocessing.utilities import (
     _compute_chunks_if_dask,
 )
-from sup3r.typing import T_Array
 from sup3r.utilities.utilities import RANDOM_GENERATOR
 
 logger = logging.getLogger(__name__)
@@ -25,10 +25,10 @@ class Interpolator:
 
         Parameters
         ----------
-        var_array : T_Array
+        var_array : Union[np.ndarray, da.core.Array]
             Array of variable data, for example u-wind in a 4D array of shape
             (lat, lon, time, level)
-        lev_array : T_Array
+        lev_array : Union[np.ndarray, da.core.Array]
             Height or pressure values for the corresponding entries in
             var_array, in the same shape as var_array. If this is height and
             the requested levels are hub heights above surface, lev_array
@@ -41,11 +41,11 @@ class Interpolator:
 
         Returns
         -------
-        mask1 : T_Array
+        mask1 : Union[np.ndarray, da.core.Array]
             Array of bools selecting the entries with the closest levels to the
             one requested.
             (lat, lon, time, level)
-        mask2 : T_Array
+        mask2 : Union[np.ndarray, da.core.Array]
             Array of bools selecting the entries with the second closest levels
             to the one requested.
             (lat, lon, time, level)
@@ -106,8 +106,8 @@ class Interpolator:
     @classmethod
     def interp_to_level(
         cls,
-        lev_array: T_Array,
-        var_array: T_Array,
+        lev_array: Union[np.ndarray, da.core.Array],
+        var_array: Union[np.ndarray, da.core.Array],
         level,
         interp_method='linear',
     ):
@@ -131,7 +131,7 @@ class Interpolator:
 
         Returns
         -------
-        out : T_Array
+        out : Union[np.ndarray, da.core.Array]
             Interpolated var_array
             (lat, lon, time)
         """
@@ -229,10 +229,10 @@ class Interpolator:
 
         Parameters
         ----------
-        var_array : T_Array
+        var_array : Union[np.ndarray, da.core.Array]
             Array of variable data, for example u-wind in a 4D array of shape
             (time, vertical, lat, lon)
-        lev_array : T_Array
+        lev_array : Union[np.ndarray, da.core.Array]
             Array of height or pressure values corresponding to the wrf source
             data in the same shape as var_array. If this is height and the
             requested levels are hub heights above surface, lev_array should be
@@ -245,7 +245,7 @@ class Interpolator:
 
         Returns
         -------
-        lev_array : T_Array
+        lev_array : Union[np.ndarray, da.core.Array]
             Array of levels with noise added to mask locations.
         levels : list
             List of levels to interpolate to.

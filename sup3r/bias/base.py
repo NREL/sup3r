@@ -541,9 +541,9 @@ class DataRetrievalBase:
 
         Parameters
         ----------
-        bias_data : T_Array
+        bias_data : Union[np.ndarray, da.core.Array]
             1D array of biased data observations.
-        base_data : T_Array
+        base_data : Union[np.ndarray, da.core.Array]
             1D array of base data observations.
 
         Returns

@@ -23,7 +23,6 @@ from sup3r.preprocessing.utilities import (
     parse_ellipsis,
     parse_to_list,
 )
-from sup3r.typing import T_Array
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +110,9 @@ class Sup3rX:
         dim_keys = parse_ellipsis(dim_keys, dim_num=len(self._ds.dims))
         return features, dict(zip(ordered_dims(self._ds.dims), dim_keys))
 
-    def __getitem__(self, keys) -> Union[T_Array, Self]:
+    def __getitem__(
+        self, keys
+    ) -> Union[Union[np.ndarray, da.core.Array], Self]:
         """Method for accessing variables. keys can optionally include a
         feature name or list of feature names as the first entry of a keys
         tuple.
@@ -164,7 +165,7 @@ class Sup3rX:
             keys to set. This can be a string like 'temperature' or a list
             like ``['u', 'v']``. ``data`` will be iterated over in the latter
             case.
-        data : T_Array | xr.DataArray
+        data : Union[np.ndarray, da.core.Array] | xr.DataArray
             array object used to set variable data. If ``variable`` is a list
             then this is expected to have a trailing dimension with length
             equal to the length of the list.
@@ -212,7 +213,7 @@ class Sup3rX:
         ..., features)``"""
         return np.asarray(self.to_array(*args, **kwargs))
 
-    def to_dataarray(self) -> T_Array:
+    def to_dataarray(self) -> Union[np.ndarray, da.core.Array]:
         """Return xr.DataArray for the contained xr.Dataset."""
         if not self.features:
             coords = [self._ds[f] for f in Dimension.coords_2d()]
@@ -390,7 +391,7 @@ class Sup3rX:
         return type(self)(self._ds)
 
     @staticmethod
-    def _needs_fancy_indexing(keys) -> T_Array:
+    def _needs_fancy_indexing(keys) -> Union[np.ndarray, da.core.Array]:
         """We use `.vindex` if keys require fancy indexing."""
         where_list = [
             ind for ind in keys if isinstance(ind, np.ndarray) and ind.ndim > 0
@@ -444,7 +445,9 @@ class Sup3rX:
                 new_vals[k] = v
         return new_vals
 
-    def assign(self, vals: Dict[str, Union[T_Array, tuple]]):
+    def assign(
+        self, vals: Dict[str, Union[Union[np.ndarray, da.core.Array], tuple]]
+    ):
         """Override xarray assign and assign_coords methods to enable update
         without explicitly providing dimensions if variable already exists.
 
@@ -506,7 +509,7 @@ class Sup3rX:
         return float(mode(sec_diff, keepdims=False).mode)
 
     @property
-    def lat_lon(self) -> T_Array:
+    def lat_lon(self) -> Union[np.ndarray, da.core.Array]:
         """Base lat lon for contained data."""
         coords = [self._ds[d] for d in Dimension.coords_2d()]
         return self._stack_features(coords)

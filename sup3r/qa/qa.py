@@ -275,7 +275,7 @@ class Sup3rQa:
 
         Returns
         -------
-        out : T_Array
+        out : Union[np.ndarray, da.core.Array]
             A copy of the high-resolution output data as a numpy
             array of shape (spatial_1, spatial_2, temporal)
         """
@@ -305,13 +305,13 @@ class Sup3rQa:
             Feature index
         feature : str
             Feature name
-        data : T_Array
+        data : Union[np.ndarray, da.core.Array]
             A copy of the high-resolution output data as a numpy
             array of shape (spatial_1, spatial_2, temporal)
 
         Returns
         -------
-        data : T_Array
+        data : Union[np.ndarray, da.core.Array]
             A spatiotemporally coarsened copy of the input dataset, still with
             shape (spatial_1, spatial_2, temporal)
         """
@@ -388,7 +388,7 @@ class Sup3rQa:
         ----------
         qa_fp : str | None
             Optional filepath to output QA file (only .h5 is supported)
-        data : T_Array
+        data : Union[np.ndarray, da.core.Array]
             An array with shape (space1, space2, time) that represents the
             re-coarsened synthetic data minus the source true low-res data, or
             another dataset of the same shape to be written to disk
