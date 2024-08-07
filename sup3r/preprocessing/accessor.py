@@ -14,6 +14,7 @@ from typing_extensions import Self
 
 from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.utilities import (
+    _contains_ellipsis,
     _is_strings,
     _lowered,
     _mem_check,
@@ -163,6 +164,9 @@ class Sup3rX:
         out = self.ordered(out) if single_feat else type(self)(out)
         slices = {k: v for k, v in slices.items() if k in out.dims}
         no_slices = all(s == slice(None) for s in slices)
+
+        if not single_feat and no_slices and _contains_ellipsis(keys):
+            return out.to_dataarray()
 
         if no_slices:
             return out
