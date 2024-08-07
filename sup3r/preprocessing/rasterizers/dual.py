@@ -24,14 +24,14 @@ class DualRasterizer(Container):
     (Usually ERA5 and WTK, respectively). This essentially just regrids the
     low-res data to the coarsened high-res grid.  This is useful for caching
     prepping data which then can go directly to a
-    :class:`~sup3r.preprocessing.samplers.DualSampler` object for a
-    :class:`~sup3r.preprocessing.batch_queues.DualBatchQueue`.
+    :class:`~sup3r.preprocessing.samplers.dual.DualSampler`
+    :class:`~sup3r.preprocessing.batch_queues.dual.DualBatchQueue`.
 
     Note
     ----
     When first extracting the low_res data make sure to extract a region that
     completely overlaps the high_res region. It is easiest to load the full
-    low_res domain and let :class:`DualRasterizer` select the appropriate
+    low_res domain and let :class:`.DualRasterizer` select the appropriate
     region through regridding.
     """
 
@@ -154,8 +154,9 @@ class DualRasterizer(Container):
 
             hr_data_new = {}
             for f in self.hr_data.features:
-                hr_slices = [f, *[slice(sh) for sh in self.hr_required_shape]]
-                hr_data_new[f] = self.hr_data[tuple(hr_slices)]
+                hr_slices = [slice(sh) for sh in self.hr_required_shape]
+                hr = self.hr_data.to_dataarray().sel(variable=f).data
+                hr_data_new[f] = hr[tuple(hr_slices)]
 
             hr_coords_new = {
                 Dimension.LATITUDE: self.hr_lat_lon[..., 0],

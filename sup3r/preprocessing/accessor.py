@@ -138,15 +138,17 @@ class Sup3rX:
         if no_slices:
             return out
 
+        if not just_coords and not is_fancy:
+            out = out.isel(**slices)
+
+        out = out.data if single_feat else out.as_array()
         if just_coords:
-            return out.as_array()[tuple(slices.values())]
+            return out[tuple(slices.values())]
 
         if is_fancy:
-            out = out.data if single_feat else out.as_array()
             return out.vindex[tuple(slices.values())]
 
-        out = out.isel(**slices)
-        return out.data if single_feat else out.as_array()
+        return out
 
     def __getattr__(self, attr):
         """Get attribute and cast to ``type(self)`` if a ``xr.Dataset`` is
