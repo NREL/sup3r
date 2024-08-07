@@ -14,7 +14,6 @@ from typing_extensions import Self
 
 from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.utilities import (
-    _contains_ellipsis,
     _is_strings,
     _lowered,
     _mem_check,
@@ -163,15 +162,18 @@ class Sup3rX:
         out = self._ds[features]
         out = self.ordered(out) if single_feat else type(self)(out)
         slices = {k: v for k, v in slices.items() if k in out.dims}
-        no_slices = all(s == slice(None) for s in slices)
-
-        if not single_feat and no_slices and _contains_ellipsis(keys):
-            return out.to_dataarray()
+        no_slices = _is_strings(keys)
+        just_coords = single_feat and features in self.coords
+        just_coords = just_coords or all(f in self.coords for f in features)
+        is_fancy = self._needs_fancy_indexing(slices.values())
 
         if no_slices:
             return out
 
-        if self._needs_fancy_indexing(slices.values()):
+        if just_coords:
+            return out.as_array()[tuple(slices.values())]
+
+        if is_fancy:
             out = out.data if single_feat else out.as_array()
             return out.vindex[tuple(slices.values())]
 
@@ -198,29 +200,23 @@ class Sup3rX:
             return all(s.lower() in self._ds for s in vals)
         return self._ds.__contains__(vals)
 
-    def to_dataarray(self, *args, **kwargs):
-        """Override self._ds.to_dataarray to return correct order."""
-        return self._ds.to_dataarray(*args, **kwargs).transpose(
-            *ordered_dims(self._ds.dims), ...
-        )
-
-    def to_array(self, *args, **kwargs):
-        """Return ``.data`` attribute of an xarray.DataArray with our standard
-        dimension order ``(lats, lons, time, ..., features)``"""
-        return self.to_dataarray(*args, **kwargs).data
-
     def values(self, *args, **kwargs):
         """Return numpy values in standard dimension order ``(lats, lons, time,
         ..., features)``"""
         return np.asarray(self.to_array(*args, **kwargs))
 
-    def as_array(self) -> T_Array:
-        """Return dask.array for the contained xr.Dataset."""
-        features = self.features or list(self.coords)
-        arrs = [self[f] for f in features]
-        if all(arr.shape == arrs[0].shape for arr in arrs):
-            return self._stack_features(arrs)
-        return self.to_array()
+    def to_dataarray(self) -> T_Array:
+        """Return xr.DataArray for the contained xr.Dataset."""
+        if not self.features:
+            coords = [self._ds[f] for f in Dimension.coords_2d()]
+            return da.stack(coords, axis=-1)
+        return self.ordered(self._ds.to_dataarray())
+
+    def as_array(self, *args, **kwargs):
+        """Return ``.data`` attribute of an xarray.DataArray with our standard
+        dimension order ``(lats, lons, time, ..., features)``"""
+        out = self.to_dataarray(*args, **kwargs)
+        return getattr(out, 'data', out)
 
     def _stack_features(self, arrs):
         if self.loaded:

@@ -61,17 +61,25 @@ class ExoData(dict):
 
         Parameters
         ----------
+
         steps : dict
             Dictionary with feature keys each with entries describing whether
             features should be combined at input, a mid network layer, or with
-            output. e.g.
-            {'topography': {'steps': [
-                {'combine_type': 'input', 'model': 0, 'data': ...},
-                {'combine_type': 'layer', 'model': 0, 'data': ...}]}}
+            output. e.g.::
+
+            \b
+            {
+                'topography': {
+                    'steps': [
+                        {'combine_type': 'input', 'model': 0, 'data': ...},
+                        {'combine_type': 'layer', 'model': 0, 'data': ...}]
+                    }
+            }
+
             Each array in in 'data' key has 3D or 4D shape:
             (spatial_1, spatial_2, 1)
             (spatial_1, spatial_2, n_temporal, 1)
-        """
+        """  # noqa : D301
         if isinstance(steps, dict):
             self.update(steps)
 

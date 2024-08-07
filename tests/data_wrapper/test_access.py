@@ -82,6 +82,10 @@ def test_correct_single_member_access(data):
     out = data.as_array()[..., 0]
     assert out.shape == (20, 20, 100, 3)
     assert np.array_equal(np.asarray(out), np.asarray(data['u', ...]))
+    out = data[
+        ['u', 'v'], np.array([0, 1]), np.array([0, 1]), ..., slice(0, 1)
+    ]
+    assert out.shape == (2, 100, 1, 2)
     data.compute()
     assert data.loaded
 
@@ -121,6 +125,10 @@ def test_correct_multi_member_access():
     ]
     assert out[0].shape == (10, 10, 5, 3, 2)
     assert out[1].shape == (20, 20, 10, 3, 2)
+    out = data[
+        ['u', 'v'], np.array([0, 1]), np.array([0, 1]), ..., slice(0, 1)
+    ]
+    assert all(o.shape == (2, 100, 1, 2) for o in out)
     data.compute()
     assert data.loaded
 
