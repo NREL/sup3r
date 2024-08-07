@@ -15,7 +15,7 @@ from sup3r.utilities.pytest.helpers import (
 from sup3r.utilities.utilities import RANDOM_GENERATOR
 
 
-def test_suffled_dim_order():
+def test_shuffled_dim_order():
     """Make sure when we get arrays from Sup3rX object they come back in
     standard (lats, lons, time, features) order, regardless of internal
     ordering."""
@@ -68,7 +68,7 @@ def test_correct_single_member_access(data):
     out = data[[Dimension.LATITUDE, Dimension.LONGITUDE], :]
     assert ['u', 'v'] in data
     assert out.shape == (20, 20, 2)
-    assert np.array_equal(out.compute(), data.lat_lon.compute())
+    assert np.array_equal(np.asarray(out), np.asarray(data.lat_lon))
     assert len(data.time_index) == 100
     out = data.isel(time=slice(0, 10))
     assert out.sx.as_array().shape == (20, 20, 10, 3, 2)
@@ -81,7 +81,7 @@ def test_correct_single_member_access(data):
     assert out.shape == (10, 20, 100, 1, 2)
     out = data.as_array()[..., 0]
     assert out.shape == (20, 20, 100, 3)
-    assert np.array_equal(out.compute(), data['u', ...].compute())
+    assert np.array_equal(np.asarray(out), np.asarray(data['u', ...]))
     data.compute()
     assert data.loaded
 
@@ -102,7 +102,7 @@ def test_correct_multi_member_access():
     time_index = data.time_index
     assert all(o.shape == (20, 20, 2) for o in out)
     assert all(
-        np.array_equal(o.compute(), ll.compute())
+        np.array_equal(np.asarray(o), np.asarray(ll))
         for o, ll in zip(out, lat_lon)
     )
     assert all(len(ti) == 100 for ti in time_index)

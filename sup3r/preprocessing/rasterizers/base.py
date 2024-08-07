@@ -5,7 +5,6 @@ like WTK and NSRDB."""
 import logging
 from warnings import warn
 
-import dask.array as da
 import numpy as np
 
 from sup3r.preprocessing.base import Container
@@ -210,7 +209,7 @@ class BaseRasterizer(Container):
         dist = np.hypot(
             lat_lon[..., 0] - target[0], lat_lon[..., 1] - target[1]
         )
-        row, col = da.unravel_index(da.argmin(dist, axis=None), dist.shape)
+        row, col = np.unravel_index(np.argmin(dist, axis=None), dist.shape)
         msg = (
             'The distance between the closest coordinate: '
             f'{np.asarray(lat_lon[row, col])} and the requested '

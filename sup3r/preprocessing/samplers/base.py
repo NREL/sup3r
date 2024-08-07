@@ -22,7 +22,8 @@ logger = logging.getLogger(__name__)
 
 
 class Sampler(Container):
-    """Sampler class for iterating through samples of contained data."""
+    """Basic Sampler class for iterating through batches of samples from the
+    contained data."""
 
     @log_args
     def __init__(
@@ -37,20 +38,23 @@ class Sampler(Container):
         ----------
         data: Union[Sup3rX, Sup3rDataset],
             Object with data that will be sampled from. Usually the `.data`
-            attribute of various :class:`Container` objects.  i.e.
-            :class:`Loader`, :class:`Rasterizer`, :class:`Deriver`, as long as
-            the spatial dimensions are not flattened.
+            attribute of various :class:`~sup3r.preprocessing.base.Container`
+            objects.  i.e. :class:`~sup3r.preprocessing.loaders.Loader`,
+            :class:`~sup3r.preprocessing.rasterizers.Rasterizer`,
+            :class:`~sup3r.preprocessing.derivers.Deriver`, as long as the
+            spatial dimensions are not flattened.
         sample_shape : tuple
             Size of arrays to sample from the contained data.
         batch_size : int
             Number of samples to get to build a single batch. A sample of
-            (sample_shape[0], sample_shape[1], batch_size * sample_shape[2])
-            is first selected from underlying dataset and then reshaped into
-            (batch_size, *sample_shape) to get a single batch. This is more
-            efficient than getting N = batch_size samples and then stacking.
+            ``(sample_shape[0], sample_shape[1], batch_size *
+            sample_shape[2])`` is first selected from underlying dataset and
+            then reshaped into ``(batch_size, *sample_shape)`` to get a single
+            batch. This is more efficient than getting ``N = batch_size``
+            samples and then stacking.
         feature_sets : Optional[dict]
             Optional dictionary describing how the full set of features is
-            split between `lr_only_features` and `hr_exo_features`.
+            split between ``lr_only_features`` and ``hr_exo_features``.
 
             features : list | tuple
                 List of full set of features to use for sampling. If no entry
@@ -78,20 +82,19 @@ class Sampler(Container):
     def get_sample_index(self, n_obs=None):
         """Randomly gets spatiotemporal sample index.
 
-        Note
-        ----
-        If n_obs > 1 this will
-        get a time slice with n_obs * self.sample_shape[2] time steps, which
-        will then be reshaped into n_obs samples each with self.sample_shape[2]
-        time steps. This is a much more efficient way of getting batches of
-        samples but only works if there are enough continuous time steps to
-        sample.
+        Notes
+        -----
+        If ``n_obs > 1`` this will get a time slice with ``n_obs *
+        self.sample_shape[2]`` time steps, which will then be reshaped into
+        ``n_obs`` samples each with ``self.sample_shape[2]`` time steps. This
+        is a much more efficient way of getting batches of samples but only
+        works if there are enough continuous time steps to sample.
 
         Returns
         -------
         sample_index : tuple
             Tuple of latitude slice, longitude slice, time slice, and features.
-            Used to get single observation like self.data[sample_index]
+            Used to get single observation like ``self.data[sample_index]``
         """
         n_obs = n_obs or self.batch_size
         spatial_slice = uniform_box_sampler(self.shape, self.sample_shape[:2])
@@ -134,12 +137,12 @@ class Sampler(Container):
 
     @property
     def sample_shape(self) -> Tuple:
-        """Shape of the data sample to select when `__next__()` is called."""
+        """Shape of the data sample to select when ``__next__()`` is called."""
         return self._sample_shape
 
     @sample_shape.setter
     def sample_shape(self, sample_shape):
-        """Set the shape of the data sample to select when `__next__()` is
+        """Set the shape of the data sample to select when ``__next__()`` is
         called."""
         self._sample_shape = sample_shape
         if len(self._sample_shape) == 2:

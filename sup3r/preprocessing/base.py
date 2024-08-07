@@ -115,20 +115,23 @@ class Sup3rDataset:
             ``Sup3rDataset`` will accomodate various types of data inputs,
             which will ultimately be wrapped as a namedtuple of
             :class:`~sup3r.preprocessing.Sup3rX` objects, stored in the
-            self._ds attribute. The preferred way to pass data here is through
-            dsets, as a dictionary with names. If data is given as a tuple of
-            :class:`~sup3r.preprocessing.Sup3rX` objects then great, no prep
-            needed. If given as a tuple of ``xr.Dataset`` objects then each
-            will be cast to ``Sup3rX`` objects. If given as tuple of
-            Sup3rDataset objects then we make sure they contain only a single
-            data member and use those to initialize a new ``Sup3rDataset``.
+            ``self._ds`` attribute. The preferred way to pass data here is
+            through dsets, which is a flexible **kwargs input. e.g. You can
+            provide ``name=data`` or ``name1=data1, name2=data2`` and these
+            names will be stored as attributes which point to that data. If
+            data is given as a tuple of :class:`~sup3r.preprocessing.Sup3rX`
+            objects then great, no prep needed. If given as a tuple of
+            ``xr.Dataset`` objects then each will be cast to ``Sup3rX``
+            objects. If given as tuple of ``Sup3rDataset`` objects then we
+            make sure they contain only a single data member and use those to
+            initialize a new ``Sup3rDataset``.
 
-            If the tuple here is a singleton the namedtuple will use the name
-            "high_res" for the single dataset. If the tuple is a doublet then
+            If the tuple here is a 1-tuple the namedtuple will use the name
+            "high_res" for the single dataset. If the tuple is a 2-tuple then
             the first tuple member will be called "low_res" and the second
             will be called "high_res".
 
-        dsets : dict[str, Union[xr.Dataset, Sup3rX]]
+        dsets : **dict[str, Union[xr.Dataset, Sup3rX]]
             The preferred way to initialize a ``Sup3rDataset`` object, as a
             dictionary with keys used to name a namedtuple of ``Sup3rX``
             objects. If dsets contains xr.Dataset objects these will be cast
@@ -227,15 +230,16 @@ class Sup3rDataset:
 
     def get_dual_item(self, keys):
         """Method for getting items from self._ds when it consists of two
-        datasets. If keys is a `List[Tuple]` or `List[List]` this is
-        interpreted as a request for `self._ds[i][keys[i]] for i in
-        range(len(keys)).` Otherwise we will get keys from each member of
+        datasets. If keys is a ``List[Tuple]`` or ``List[List]`` this is
+        interpreted as a request for ``self._ds[i][keys[i]] for i in
+        range(len(keys))``. Otherwise we will get keys from each member of
         self.dset.
 
         Note
         ----
-        This casts back to `type(self)` before final return if result of get
-        item from each member of `self._ds` is a tuple of `Sup3rX` instances
+        This casts back to ``type(self)`` before final return if result of get
+        item from each member of ``self._ds`` is a tuple of ``Sup3rX``
+        instances
         """
         if isinstance(keys, (tuple, list)) and all(
             isinstance(k, (tuple, list)) for k in keys
@@ -252,7 +256,7 @@ class Sup3rDataset:
         )
 
     def rewrap(self, data):
-        """Rewrap data as Sup3rDataset after calling parent method."""
+        """Rewrap data as ``Sup3rDataset`` after calling parent method."""
         if isinstance(data, type(self)):
             return data
         return (
@@ -262,9 +266,9 @@ class Sup3rDataset:
         )
 
     def sample(self, idx):
-        """Get samples from self._ds members. idx should be either a tuple of
-        slices for the dimensions (south_north, west_east, time) and a list of
-        feature names or a 2-tuple of the same, for dual datasets."""
+        """Get samples from ``self._ds`` members. idx should be either a tuple
+        of slices for the dimensions (south_north, west_east, time) and a list
+        of feature names or a 2-tuple of the same, for dual datasets."""
         if len(self._ds) == 2:
             return tuple(d.sample(idx[i]) for i, d in enumerate(self))
         return self._ds[-1].sample(idx)
@@ -275,9 +279,9 @@ class Sup3rDataset:
 
     def __getitem__(self, keys):
         """If keys is an int this is interpreted as a request for that member
-        of self._ds. If self._ds consists of two members we call
+        of ``self._ds``. If self._ds consists of two members we call
         :py:meth:`~sup3r.preprocesing.Sup3rDataset.get_dual_item`. Otherwise we
-        get the item from the single member of self._ds."""
+        get the item from the single member of ``self._ds``."""
         if isinstance(keys, int):
             return self._ds[keys]
         if len(self._ds) == 1:
@@ -312,7 +316,7 @@ class Sup3rDataset:
     def __setitem__(self, keys, data):
         """Set dset member values. Check if values is a tuple / list and if
         so interpret this as sending a tuple / list element to each dset
-        member. e.g. `vals[0] -> dsets[0]`, `vals[1] -> dsets[1]`, etc"""
+        member. e.g. ``vals[0] -> dsets[0]``, ``vals[1] -> dsets[1]``, etc"""
         if len(self._ds) == 1:
             self._ds[-1].__setitem__(keys, data)
         else:
@@ -350,7 +354,7 @@ class Sup3rDataset:
 class Container(metaclass=Sup3rMeta):
     """Basic fundamental object used to build preprocessing objects. Contains
     an xarray-like Dataset (:class:`~.accessor.Sup3rX`), wrapped tuple of
-    `Sup3rX` objects (:class:`.Sup3rDataset`), or a tuple of such objects.
+    ``Sup3rX`` objects (:class:`.Sup3rDataset`), or a tuple of such objects.
     """
 
     __slots__ = ['_data']
@@ -403,13 +407,15 @@ class Container(metaclass=Sup3rMeta):
 
     @staticmethod
     def wrap(data):
-        """Return a :class:`~.Sup3rDataset` object or tuple of such. This is a
+        """
+        Return a :class:`~.Sup3rDataset` object or tuple of such. This is a
         tuple when the `.data` attribute belongs to a
-        :class:`~sup3r.preprocessing.collections.Collection` object like
-        :class:`~sup3r.preprocessing.batch_handlers.BatchHandler`. Otherwise
-        this is is :class:`~.Sup3rDataset` objects, which is either a wrapped
-        2-tuple or 1-tuple (e.g. `len(data) == 2` or `len(data) == 1`)
-        depending on whether this container is used for a dual dataset or not.
+        :class:`~.collections.base.Collection` object like
+        :class:`~.batch_handlers.factory.BatchHandler`. Otherwise this is
+        :class:`~.Sup3rDataset` object, which is either a wrapped 2-tuple or
+        1-tuple (e.g. ``len(data) == 2`` or ``len(data) == 1)``. This is a
+        2-tuple when ``.data`` belongs to a dual container object like
+        :class:`~.samplers.DualSampler` and a 1-tuple otherwise.
         """
         if isinstance(data, Sup3rDataset):
             return data

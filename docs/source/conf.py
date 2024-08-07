@@ -15,6 +15,7 @@ Documentation config file
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.abspath('../../'))
@@ -32,9 +33,9 @@ sys.path.append(pkg)
 from sup3r._version import __version__ as v
 
 # The short X.Y version
-version = v
+version = re.search(r"^(\d+\.\d+)\.\d+(.dev\d+)?", v).group(0)
 # The full version, including alpha/beta/rc tags
-release = v
+release = re.search(r"^(\d+\.\d+\.\d+(.dev\d+)?)", v).group(0)
 
 # -- General configuration ---------------------------------------------------
 
@@ -112,7 +113,11 @@ html_theme = 'sphinx_rtd_theme'
 # documentation.
 #
 html_theme_options = {'navigation_depth': 4, 'collapse_navigation': False}
-html_css_file = ['custom.css']
+# html_css_file = ['custom.css']
+
+# user starts in light mode
+default_dark_mode = False
+
 
 html_context = {
     'display_github': True,

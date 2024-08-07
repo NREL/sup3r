@@ -1,10 +1,11 @@
 """Sup3r preprocessing module. Here you will find things that have access to
-data, which we call Containers. Loaders, Rasterizers, Samplers, Derivers,
-Handlers, Batchers, etc are subclasses of Containers. Rather than having a
-single object that does everything - extract data, compute features, sample the
-data for batching, split into train and val, etc, we have fundamental objects
-that do one of these things and we build multi-purpose objects with class
-factories. These factory generated objects are DataHandlers and BatchHandlers.
+data, which we call ``Containers``. ``Loaders``, ``Rasterizers``, ``Samplers``,
+``Derivers``, ``Handlers``, ``Batchers``, etc, are all subclasses of
+``Containers.`` Rather than having a single object that does everything -
+extract data, compute features, sample the data for batching, split into train
+and val, etc, we have fundamental objects that do one of these things and we
+build multi-purpose objects with class factories. These factory generated
+objects are DataHandlers and BatchHandlers.
 
 If you want to extract a specific spatiotemporal extent from a data file then
 use :class:`.Rasterizer`. If you want to split into a test and validation set
