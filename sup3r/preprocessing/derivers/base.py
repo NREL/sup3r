@@ -174,9 +174,8 @@ class BaseDeriver(Container):
             logger.error(msg)
             raise RuntimeError(msg)
         logger.debug(
-            f'Found alternative name {new_feature} for '
-            f'feature {feature}. Continuing with search for '
-            f'compute method for {new_feature}.'
+            'Found alternative name "%s" for "%s". Continuing compute method '
+            'search for %s.', feature, new_feature, new_feature
         )
         return new_feature
 

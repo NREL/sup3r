@@ -215,7 +215,7 @@ class Sup3rX:
         if not self.features:
             coords = [self._ds[f] for f in Dimension.coords_2d()]
             return da.stack(coords, axis=-1)
-        return self.ordered(self._ds.to_dataarray())
+        return self.ordered(self._ds.to_array())
 
     def as_array(self, *args, **kwargs):
         """Return ``.data`` attribute of an xarray.DataArray with our standard
