@@ -68,13 +68,15 @@ class DataHandler(Deriver):
             features will be loaded. Specify explicit feature names for
             derivations.
         res_kwargs : dict
-            kwargs for the `BaseLoader`. BaseLoader is usually
-            xr.open_mfdataset for NETCDF files and MultiFileResourceX for H5
-            files.
+            Additional keyword arguments passed through to the ``BaseLoader``.
+            BaseLoader is usually xr.open_mfdataset for NETCDF files and
+            MultiFileResourceX for H5 files.
         chunks : dict | str
-            Dictionary of chunk sizes to use for call to
-            `dask.array.from_array()` or `xr.Dataset().chunk()`. Will be
-            converted to a tuple when used in `from_array().`
+            Dictionary of chunk sizes to pass through to
+            ``dask.array.from_array()`` or ``xr.Dataset().chunk()``. Will be
+            converted to a tuple when used in ``from_array()``. These are the
+            methods for H5 and NETCDF data, respectively. This argument can
+            be "auto" in additional to a dictionary.
         target : tuple
             (lat, lon) lower left corner of raster. Either need target+shape
             or raster_file.

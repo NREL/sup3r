@@ -2,13 +2,17 @@
 object, which just contains dataset objects. All objects that interact with
 data are containers. e.g. loaders, rasterizers, data handlers, samplers, batch
 queues, batch handlers.
+
+TODO: https://github.com/xarray-contrib/datatree might be a better approach
+for Sup3rDataset concept. Consider migrating once datatree has been fully
+integrated into xarray (in progress as of 8/8/2024)
 """
 
 import logging
 import pprint
 from abc import ABCMeta
 from collections import namedtuple
-from typing import Optional, Tuple, Union
+from typing import Mapping, Tuple, Union
 from warnings import warn
 
 import numpy as np
@@ -65,9 +69,9 @@ class Sup3rMeta(ABCMeta, type):
 
 class Sup3rDataset:
     """Interface for interacting with one or two ``xr.Dataset`` instances.
-    This is either a simple passthrough for a ``xr.Dataset`` instance or a
-    wrapper around two of them so they work well with Dual objects like
-    ``DualSampler``, ``DualRasterizer``, ``DualBatchHandler``, etc...)
+    This is a wrapper around one or two ``Sup3rX`` objects so they work well
+    with Dual objects like ``DualSampler``, ``DualRasterizer``,
+    ``DualBatchHandler``, etc...)
 
     Examples
     --------
@@ -103,95 +107,35 @@ class Sup3rDataset:
 
     def __init__(
         self,
-        data: Optional[
-            Union[Tuple[xr.Dataset, ...], Tuple[Sup3rX, ...]]
-        ] = None,
-        **dsets: Union[xr.Dataset, Sup3rX],
+        **dsets: Mapping[str, Union[xr.Dataset, Sup3rX]],
     ):
         """
         Parameters
         ----------
-        data : Tuple[xr.Dataset | Sup3rX | Sup3rDataset]
-            ``Sup3rDataset`` will accomodate various types of data inputs,
-            which will ultimately be wrapped as a namedtuple of
-            :class:`~sup3r.preprocessing.Sup3rX` objects, stored in the
-            ``self._ds`` attribute. The preferred way to pass data here is
-            through dsets, which is a flexible **kwargs input. e.g. You can
-            provide ``name=data`` or ``name1=data1, name2=data2`` and these
-            names will be stored as attributes which point to that data. If
-            data is given as a tuple of :class:`~sup3r.preprocessing.Sup3rX`
-            objects then great, no prep needed. If given as a tuple of
-            ``xr.Dataset`` objects then each will be cast to ``Sup3rX``
-            objects. If given as tuple of ``Sup3rDataset`` objects then we
-            make sure they contain only a single data member and use those to
-            initialize a new ``Sup3rDataset``.
-
-            If the tuple here is a 1-tuple the namedtuple will use the name
-            "high_res" for the single dataset. If the tuple is a 2-tuple then
-            the first tuple member will be called "low_res" and the second
-            will be called "high_res".
-
-        dsets : **dict[str, Union[xr.Dataset, Sup3rX]]
-            The preferred way to initialize a ``Sup3rDataset`` object, as a
-            dictionary with keys used to name a namedtuple of ``Sup3rX``
-            objects. If dsets contains xr.Dataset objects these will be cast
-            to ``Sup3rX`` objects first.
-
+        dsets : Mapping[str, xr.Dataset | Sup3rX | Sup3rDataset]
+            ``Sup3rDataset`` is initialized from a flexible kwargs input. The
+            keys will be used as names in a named tuple and the values will be
+            the dataset members. These names will also be used to define
+            attributes which point to these dataset members. You can provide
+            ``name=data`` or ``name1=data1, name2=data2`` and then access these
+            datasets as ``.name1`` or ``.name2``. If dsets values are
+            xr.Dataset objects these will be cast to ``Sup3rX`` objects first.
+            We also check if dsets values are ``Sup3rDataset`` objects and if
+            they only include one data member we use those to reinitialize a
+            ``Sup3rDataset``
         """
-        if data is not None:
-            data = data if isinstance(data, tuple) else (data,)
-            if all(isinstance(d, type(self)) for d in data):
-                msg = (
-                    'Sup3rDataset received a tuple of Sup3rDataset objects'
-                    ', each with two data members. If you insist on '
-                    'initializing a Sup3rDataset with a tuple of the same, '
-                    'then they have to be singletons.'
-                )
-                assert all(len(d) == 1 for d in data), msg
-                msg = (
-                    'Sup3rDataset received a tuple of Sup3rDataset '
-                    'objects. You got away with it this time because they '
-                    'each contain a single data member, but be careful'
-                )
-                logger.warning(msg)
-                warn(msg)
 
-            if len(data) == 1:
+        for name, dset in dsets.items():
+            if isinstance(dset, xr.Dataset):
+                dsets[name] = Sup3rX(dset)
+            elif isinstance(dset, type(self)):
                 msg = (
-                    f'{self.__class__.__name__} received a single data member '
-                    'without an explicit name. Interpreting this as '
-                    '(high_res,). To be explicit provide keyword arguments '
-                    'like Sup3rDataset(high_res=data[0])'
+                    'Initializing Sup3rDataset with Sup3rDataset objects '
+                    'which contain more than one member is not allowed.'
                 )
-                logger.warning(msg)
-                warn(msg)
-                dsets = {'high_res': data[0]}
-            elif len(data) == 2:
-                msg = (
-                    f'{self.__class__.__name__} received a data tuple. '
-                    'Interpreting this as (low_res, high_res). To be explicit '
-                    'provide keyword arguments like '
-                    'Sup3rDataset(low_res=data[0], high_res=data[1])'
-                )
-                logger.warning(msg)
-                warn(msg)
-                dsets = {'low_res': data[0], 'high_res': data[1]}
-            else:
-                msg = (
-                    f'{self.__class__.__name__} received tuple of length '
-                    f'{len(data)}. Can only handle 1 / 2 - tuples.'
-                )
-                logger.error(msg)
-                raise ValueError(msg)
+                assert len(dset) == 1, msg
+                dsets[name] = dset._ds[0]
 
-        dsets = {
-            k: Sup3rX(v)
-            if isinstance(v, xr.Dataset)
-            else v._ds[0]
-            if isinstance(v, type(self))
-            else v
-            for k, v in dsets.items()
-        }
         self._ds = namedtuple('Dataset', list(dsets))(**dsets)
 
     def __iter__(self):
@@ -218,11 +162,7 @@ class Sup3rDataset:
 
     def _getattr(self, dset, attr):
         """Get attribute from single data member."""
-        return (
-            getattr(dset.sx, attr)
-            if hasattr(dset.sx, attr)
-            else getattr(dset, attr)
-        )
+        return getattr(dset.sx, attr, getattr(dset, attr))
 
     def _getitem(self, dset, item):
         """Get item from single data member."""
@@ -405,8 +345,7 @@ class Container(metaclass=Sup3rMeta):
         :py:meth:`.wrap`"""
         self._data = self.wrap(data)
 
-    @staticmethod
-    def wrap(data):
+    def wrap(self, data):
         """
         Return a :class:`~.Sup3rDataset` object or tuple of such. This is a
         tuple when the `.data` attribute belongs to a
@@ -417,19 +356,27 @@ class Container(metaclass=Sup3rMeta):
         2-tuple when ``.data`` belongs to a dual container object like
         :class:`~.samplers.DualSampler` and a 1-tuple otherwise.
         """
-        if isinstance(data, Sup3rDataset):
+        if data is None:
             return data
-        if isinstance(data, tuple) and all(
-            isinstance(d, Sup3rDataset) for d in data
-        ):
+
+        check_sup3rds = all(isinstance(d, Sup3rDataset) for d in data)
+        check_sup3rds = check_sup3rds or isinstance(data, Sup3rDataset)
+        if check_sup3rds:
             return data
-        return (
-            Sup3rDataset(low_res=data[0], high_res=data[1])
-            if isinstance(data, tuple) and len(data) == 2
-            else Sup3rDataset(high_res=data)
-            if data is not None and not isinstance(data, Sup3rDataset)
-            else data
-        )
+
+        if isinstance(data, tuple) and len(data) == 2:
+            msg = (
+                f'{self.__class__.__name__}.data is being set with a '
+                '2-tuple without explicit dataset names. We will assume '
+                'first tuple member is low-res and second is high-res.'
+            )
+            logger.warning(msg)
+            warn(msg)
+            data = Sup3rDataset(low_res=data[0], high_res=data[1])
+        elif not isinstance(data, Sup3rDataset):
+            name = getattr(data, 'name', None) or 'high_res'
+            data = Sup3rDataset(**{name: data})
+        return data
 
     def post_init_log(self, args_dict=None):
         """Log additional arguments after initialization."""

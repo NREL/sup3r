@@ -93,10 +93,8 @@ def test_correct_single_member_access(data):
 def test_correct_multi_member_access():
     """Make sure Data object works correctly."""
     data = Sup3rDataset(
-        (
-            Sup3rX(make_fake_dset((20, 20, 100, 3), features=['u', 'v'])),
-            Sup3rX(make_fake_dset((20, 20, 100, 3), features=['u', 'v'])),
-        )
+        first=Sup3rX(make_fake_dset((20, 20, 100, 3), features=['u', 'v'])),
+        second=Sup3rX(make_fake_dset((20, 20, 100, 3), features=['u', 'v']))
     )
 
     _ = data['u']

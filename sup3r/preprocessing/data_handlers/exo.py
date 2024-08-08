@@ -31,9 +31,9 @@ class SingleExoDataStep(dict):
             ``data`` will be used as input to the forward pass for the model
             step given by ``model``
         model : int
-            Specifies the model index which will use the `data`. For example,
+            Specifies the model index which will use the ``data``. For example,
             if ``model`` == 1 then the ``data`` will be used according to
-            `combine_type` in the 2nd model step in a MultiStepGan.
+            ``combine_type`` in the 2nd model step in a MultiStepGan.
         data : Union[np.ndarray, da.core.Array]
             The data to be used for the given model step.
         """

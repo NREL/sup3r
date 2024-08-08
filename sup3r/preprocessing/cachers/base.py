@@ -164,8 +164,8 @@ class Cacher(Container):
         feature : str
             Name of feature to write to file.
         data : xr.DataArray
-            Data to write to file. Comes from self.data[feature], so an xarray
-            DataArray with dims and attributes
+            Data to write to file. Comes from ``self.data[feature]``, so an
+            xarray DataArray with dims and attributes
         coords : dict
             Dictionary of coordinate variables
         chunks : dict | None
@@ -187,16 +187,8 @@ class Cacher(Container):
             times = coords[Dimension.TIME].astype(int)
             for k, v in attrs.items():
                 f.attrs[k] = v
-            data_dict = dict(
-                zip(
-                    [
-                        'time_index',
-                        *Dimension.coords_2d(),
-                        feature,
-                    ],
-                    [da.asarray(times), lats, lons, data],
-                )
-            )
+            keys = ['time_index', *Dimension.coords_2d(), feature]
+            data_dict = dict(zip(keys, [da.asarray(times), lats, lons, data]))
             for dset, vals in data_dict.items():
                 f_chunks = chunks.get(dset, None)
                 if dset in Dimension.coords_2d():
@@ -209,7 +201,7 @@ class Cacher(Container):
                 )
                 da.store(vals, d)
                 logger.debug(
-                    f'Added {dset} to {out_file} with chunks={f_chunks}'
+                    'Added %s to %s with chunks=%s', dset, out_file, f_chunks
                 )
 
     @classmethod
@@ -225,13 +217,14 @@ class Cacher(Container):
         feature : str
             Name of feature to write to file.
         data : xr.DataArray
-            Data to write to file. Comes from self.data[feature], so an xarray
-            DataArray with dims and attributes
+            Data to write to file. Comes from ``self.data[feature]``, so an
+            xarray DataArray with dims and attributes
         coords : dict | xr.Dataset.coords
-            Dictionary of coordinate variables or xr.Dataset coords attribute.
+            Dictionary of coordinate variables or ``xr.Dataset`` coords
+            attribute.
         chunks : dict | None
-            Chunk sizes for coordinate dimensions. e.g. {'windspeed':
-            {'south_north': 100, 'west_east': 100, 'time': 10}}
+            Chunk sizes for coordinate dimensions. e.g. ``{'windspeed':
+            {'south_north': 100, 'west_east': 100, 'time': 10}}``
         attrs : dict | None
             Optional attributes to write to file
         """
@@ -243,4 +236,5 @@ class Cacher(Container):
             attrs=attrs,
         )
         out = out.chunk(chunks.get(feature, 'auto'))
-        out.to_netcdf(out_file)
+        out.load().to_netcdf(out_file)
+        del out

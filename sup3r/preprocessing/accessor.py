@@ -308,9 +308,10 @@ class Sup3rX:
         return data.transpose(*ordered_dims(data.dims), ...)
 
     def sample(self, idx):
-        """Get sample from self._ds. The idx should be a tuple of slices for
-        the dimensions (south_north, west_east, time) and a list of feature
-        names."""
+        """Get sample from ``self._ds``. The idx should be a tuple of slices
+        for the dimensions ``(south_north, west_east, time)`` and a list of
+        feature names. e.g.
+        ``(slice(0, 3), slice(1, 10), slice(None), ['u_10m', 'v_10m'])``"""
         isel_kwargs = dict(zip(Dimension.dims_3d(), idx[:-1]))
         features = (
             self.features if not is_strings(idx[-1]) else _lowered(idx[-1])

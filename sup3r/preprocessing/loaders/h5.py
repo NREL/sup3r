@@ -36,6 +36,12 @@ class LoaderH5(BaseLoader):
     def _time_independent(self):
         return 'time_index' not in self.res
 
+    @property
+    def _time_steps(self):
+        return (
+            len(self.res['time_index']) if not self._time_independent else None
+        )
+
     def _meta_shape(self):
         """Get shape of spatial domain only."""
         if 'latitude' in self.res.h5:
@@ -57,7 +63,7 @@ class LoaderH5(BaseLoader):
         return (
             self._meta_shape()
             if self._time_independent
-            else (len(self.res['time_index']), *self._meta_shape())
+            else (self._time_steps, *self._meta_shape())
         )
 
     def _get_coords(self, dims):
@@ -68,18 +74,10 @@ class LoaderH5(BaseLoader):
         coord_base = (
             self.res.h5 if 'latitude' in self.res.h5 else self.res.h5['meta']
         )
-        coords.update(
-            {
-                Dimension.LATITUDE: (
-                    dims[-len(self._meta_shape()) :],
-                    da.from_array(coord_base['latitude']),
-                ),
-                Dimension.LONGITUDE: (
-                    dims[-len(self._meta_shape()) :],
-                    da.from_array(coord_base['longitude']),
-                ),
-            }
-        )
+        coord_dims = dims[-len(self._meta_shape()) :]
+        lats = (coord_dims, da.from_array(coord_base['latitude']))
+        lons = (coord_dims, da.from_array(coord_base['longitude']))
+        coords.update({Dimension.LATITUDE: lats, Dimension.LONGITUDE: lons})
         return coords
 
     def _get_dset_tuple(self, dset, dims, chunks):
@@ -114,10 +112,8 @@ class LoaderH5(BaseLoader):
                 f'Received 1D feature "{dset}" with shape that does not '
                 'the length of the meta nor the time_index.'
             )
-            assert (
-                not self._time_independent
-                and len(arr) == self.res['time_index']
-            ), msg
+            is_ts = not self._time_independent and len(arr) == self._time_steps
+            assert is_ts, msg
             arr_dims = (Dimension.TIME,)
         else:
             arr_dims = dims[: len(arr.shape)]
@@ -125,7 +121,7 @@ class LoaderH5(BaseLoader):
 
     def _get_data_vars(self, dims):
         """Define data_vars dict for xr.Dataset construction."""
-        data_vars: Dict[str, Tuple] = {}
+        data_vars = {}
         logger.debug(f'Rechunking features with chunks: {self.chunks}')
         chunks = (
             tuple(self.chunks[d] for d in dims)
@@ -133,33 +129,26 @@ class LoaderH5(BaseLoader):
             else self.chunks
         )
         if len(self._meta_shape()) == 1 and 'elevation' in self.res.meta:
-            data_vars['elevation'] = da.asarray(
-                self.res.meta['elevation'].values.astype(np.float32)
-            )
+            elev = self.res.meta['elevation'].values.astype(np.float32)
+            elev = da.asarray(elev)
             if not self._time_independent:
-                data_vars['elevation'] = da.repeat(
-                    data_vars['elevation'][None, ...],
-                    len(self.res['time_index']),
-                    axis=0,
-                )
-            data_vars['elevation'] = data_vars['elevation'].rechunk(chunks)
-            data_vars['elevation'] = (dims, data_vars['elevation'])
-        data_vars.update(
-            {
-                f: self._get_dset_tuple(dset=f, dims=dims, chunks=chunks)
-                for f in set(self.res.h5.datasets)
-                - {'meta', 'time_index', 'coordinates'}
-            }
-        )
+                t_steps = len(self.res['time_index'])
+                elev = da.repeat(elev[None, ...], t_steps, axis=0)
+            elev = elev.rechunk(chunks)
+            data_vars['elevation'] = (dims, elev)
+
+        feats = set(self.res.h5.datasets)
+        exclude = {'meta', 'time_index', 'coordinates'}
+        for f in feats - exclude:
+            data_vars[f] = self._get_dset_tuple(
+                dset=f, dims=dims, chunks=chunks
+            )
         return data_vars
 
     def _get_dims(self):
         """Get tuple of named dims for dataset."""
         if len(self._meta_shape()) == 2:
-            dims: Tuple[str, ...] = (
-                Dimension.SOUTH_NORTH,
-                Dimension.WEST_EAST,
-            )
+            dims = Dimension.dims_2d()
         else:
             dims = (Dimension.FLATTENED_SPATIAL,)
         if not self._time_independent:
@@ -176,7 +165,6 @@ class LoaderH5(BaseLoader):
             for k, v in self._get_data_vars(dims).items()
             if k not in coords
         }
-        data_vars = {k: v for k, v in data_vars.items() if k not in coords}
         return xr.Dataset(coords=coords, data_vars=data_vars).astype(
             np.float32
         )
@@ -184,7 +172,7 @@ class LoaderH5(BaseLoader):
     def scale_factor(self, feature):
         """Get scale factor for given feature. Data is stored in scaled form to
         reduce memory."""
-        feat = feature if feature in self.res else feature.lower()
+        feat = feature if feature in self.res.datasets else feature.lower()
         feat = self.res.h5[feat]
         return np.float32(
             1.0

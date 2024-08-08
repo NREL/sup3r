@@ -240,24 +240,19 @@ class AbstractBatchQueue(Collection, ABC):
         """Callback function for queue thread. While training, the queue is
         checked for empty spots and filled. In the training thread, batches are
         removed from the queue."""
-        try:
-            while self.running:
-                needed = self.queue_cap - self.queue.size().numpy()
-                needed = min((self.max_workers, needed))
-                if needed == 1 or self.enqueue_pool is None:
-                    self._enqueue_batch()
-                elif needed > 0:
-                    futures = [
-                        self.enqueue_pool.submit(self._enqueue_batch)
-                        for _ in np.arange(needed)
-                    ]
-                    logger.debug('Added %s enqueue futures.', needed)
-                    for future in as_completed(futures):
-                        _ = future.result()
-
-        except KeyboardInterrupt:
-            logger.info(f'Stopping {self._thread_name.title()} queue.')
-            self.stop()
+        while self.running:
+            needed = self.queue_cap - self.queue.size().numpy()
+            needed = min((self.max_workers, needed))
+            if needed == 1 or self.enqueue_pool is None:
+                self._enqueue_batch()
+            elif needed > 0:
+                futures = [
+                    self.enqueue_pool.submit(self._enqueue_batch)
+                    for _ in np.arange(needed)
+                ]
+                logger.debug('Added %s enqueue futures.', needed)
+                for future in as_completed(futures):
+                    _ = future.result()
 
     def __next__(self) -> Batch:
         """Dequeue batch samples, squeeze if for a spatial only model, perform

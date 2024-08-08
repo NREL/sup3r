@@ -1,4 +1,5 @@
 """NETCDF file collection."""
+
 import logging
 import os
 import time
@@ -6,6 +7,8 @@ import time
 import xarray as xr
 from gaps import Status
 from rex.utilities.loggers import init_logger
+
+from sup3r.preprocessing.utilities import _lowered
 
 from .base import BaseCollector
 
@@ -20,13 +23,13 @@ class CollectorNC(BaseCollector):
         cls,
         file_paths,
         out_file,
-        features,
+        features='all',
         log_level=None,
         log_file=None,
         write_status=False,
         job_name=None,
         overwrite=True,
-        res_kwargs=None
+        res_kwargs=None,
     ):
         """Collect data files from a dir to one output file.
 
@@ -40,8 +43,9 @@ class CollectorNC(BaseCollector):
             or a single string with unix-style /search/patt*ern.nc.
         out_file : str
             File path of final output file.
-        features : list
-            List of dsets to collect
+        features : list | str
+            List of dsets to collect. If 'all' then all ``data_vars`` will be
+            collected.
         log_level : str | None
             Desired log level, None will not initialize logging.
         log_file : str | None
@@ -57,9 +61,7 @@ class CollectorNC(BaseCollector):
         """
         t0 = time.time()
 
-        logger.info(
-            f'Initializing collection for file_paths={file_paths}'
-        )
+        logger.info(f'Initializing collection for file_paths={file_paths}')
 
         if log_level is not None:
             init_logger(
@@ -80,10 +82,13 @@ class CollectorNC(BaseCollector):
         if not os.path.exists(out_file):
             res_kwargs = res_kwargs or {}
             out = xr.open_mfdataset(collector.flist, **res_kwargs)
-            features = [feat for feat in out if feat in features
-                        or feat.lower() in features]
+            features = list(out.data_vars) if features == 'all' else features
+            features = set(features).intersection(_lowered(out.data_vars))
             for feat in features:
-                out[feat].to_netcdf(out_file, mode='a')
+                mode = 'a' if os.path.exists(out_file) else 'w'
+                out[feat].load().to_netcdf(
+                    out_file, mode=mode, engine='h5netcdf', format='NETCDF4'
+                )
                 logger.info(f'Finished writing {feat} to {out_file}.')
 
         if write_status and job_name is not None:

@@ -16,17 +16,20 @@ logger = logging.getLogger(__name__)
 RANDOM_GENERATOR = np.random.default_rng(seed=42)
 
 
+def safe_cast(o):
+    """Cast to type safe for serialization."""
+    if isinstance(o, (float, np.float64, np.float32)):
+        return float(o)
+    if isinstance(o, (int, np.int64, np.int32)):
+        return int(o)
+    if isinstance(o, (tuple, np.ndarray)):
+        return list(o)
+    return str(o)
+
+
 def safe_serialize(obj):
     """json.dumps with non-serializable object handling."""
-    def _default(o):
-        if isinstance(o, (np.float64, np.float32)):
-            return float(o)
-        if isinstance(o, (np.int64, np.int32)):
-            return int(o)
-        if isinstance(o, (tuple, np.ndarray)):
-            return list(o)
-        return str(o)
-    return json.dumps(obj, default=_default)
+    return json.dumps(obj, default=safe_cast)
 
 
 class Timer:

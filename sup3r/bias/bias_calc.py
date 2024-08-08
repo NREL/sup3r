@@ -106,7 +106,7 @@ class LinearCorrection(FillAndSmoothMixin, DataRetrievalBase):
         base_gid,
         base_handler,
         daily_reduction,
-        bias_ti,
+        bias_ti,  # noqa: ARG003
         decimals,
         base_dh_inst=None,
         match_zero_rate=False,

@@ -1,11 +1,29 @@
 """Utilities shared across the `sup3r.models` module"""
 
 import logging
+import sys
 
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 
 logger = logging.getLogger(__name__)
+
+
+def TrainingSession(model):
+    """Wrapper to gracefully exit batch handler thread during training, upon a
+    keyboard interruption."""
+
+    def wrapper(batch_handler, **kwargs):
+        """Wrap model.train()."""
+        try:
+            logger.info('Starting training session.')
+            model.train(batch_handler, **kwargs)
+        except KeyboardInterrupt:
+            logger.info('Ending training session.')
+            batch_handler.stop()
+            sys.exit()
+
+    return wrapper
 
 
 def st_interp(low, s_enhance, t_enhance, t_centered=False):

@@ -265,7 +265,7 @@ class BaseExoRasterizer(ABC):
 
         if not os.path.exists(cache_fp):
             tmp_fp = cache_fp + f'{generate_random_string(10)}.tmp'
-            data.to_netcdf(tmp_fp)
+            data.load().to_netcdf(tmp_fp)
             shutil.move(tmp_fp, cache_fp)
         return data
 

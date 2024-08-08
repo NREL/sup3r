@@ -15,8 +15,9 @@ Documentation config file
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import os
-import re
 import sys
+
+import sphinx_autosummary_accessors
 
 sys.path.insert(0, os.path.abspath('../../'))
 
@@ -30,12 +31,12 @@ pkg = os.path.dirname(os.path.abspath(os.path.dirname(__file__)))
 pkg = os.path.dirname(pkg)
 sys.path.append(pkg)
 
-from sup3r._version import __version__ as v
+import sup3r
 
 # The short X.Y version
-version = re.search(r"^(\d+\.\d+)\.\d+(.dev\d+)?", v).group(0)
+version = sup3r.__version__.split('+')[0]
 # The full version, including alpha/beta/rc tags
-release = re.search(r"^(\d+\.\d+\.\d+(.dev\d+)?)", v).group(0)
+release = sup3r.__version__.split('+')[0]
 
 # -- General configuration ---------------------------------------------------
 
@@ -47,20 +48,21 @@ release = re.search(r"^(\d+\.\d+\.\d+(.dev\d+)?)", v).group(0)
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'sphinx.ext.autodoc',
-    'sphinx.ext.autosummary',
     'sphinx.ext.doctest',
-    'sphinx.ext.intersphinx',
     'sphinx.ext.coverage',
-    'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
     'sphinx.ext.githubpages',
-    'sphinx.ext.napoleon',
-    'sphinx_rtd_theme',
     'sphinx_click.ext',
     'sphinx_tabs.tabs',
-    'sphinx_copybutton',
-    "sphinx_rtd_dark_mode"
+
+    "sphinx.ext.autodoc",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.extlinks",
+    "sphinx.ext.mathjax",
+    "sphinx.ext.napoleon",
+    "sphinx_autosummary_accessors",
+    "sphinx_copybutton",
 ]
 
 intersphinx_mapping = {
@@ -68,7 +70,7 @@ intersphinx_mapping = {
 }
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+templates_path = ["_templates", sphinx_autosummary_accessors.templates_path]
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
@@ -106,14 +108,14 @@ pygments_style = 'sphinx'
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinx_rtd_theme'
+html_theme = 'sphinx_book_theme'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
 html_theme_options = {'navigation_depth': 4, 'collapse_navigation': False}
-# html_css_file = ['custom.css']
+# html_css_files = ['custom.css']
 
 # user starts in light mode
 default_dark_mode = False

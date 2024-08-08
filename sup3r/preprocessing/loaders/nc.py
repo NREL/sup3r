@@ -3,6 +3,7 @@ file_paths and include some sampling ability to interface with batcher
 classes."""
 
 import logging
+from warnings import warn
 
 import dask.array as da
 import numpy as np
@@ -73,6 +74,8 @@ class LoaderNC(BaseLoader):
         lats = res[Dimension.LATITUDE].data.squeeze().astype(np.float32)
         lons = res[Dimension.LONGITUDE].data.squeeze().astype(np.float32)
 
+        res.swap_dims({})
+
         if len(lats.shape) == 1:
             lons, lats = da.meshgrid(lons, lats)
 
@@ -93,6 +96,26 @@ class LoaderNC(BaseLoader):
             coords[Dimension.TIME] = times
         return coords
 
+    @staticmethod
+    def get_dims(res):
+        """Get dimension name map using our standard mappping and the names
+        used for coordinate dimensions."""
+        rename_dims = {k: v for k, v in DIM_NAMES.items() if k in res.dims}
+        lat_dims = res[Dimension.LATITUDE].dims
+        lon_dims = res[Dimension.LONGITUDE].dims
+        if len(lat_dims) == 1 and len(lon_dims) == 1:
+            rename_dims[lat_dims[0]] = Dimension.SOUTH_NORTH
+            rename_dims[lon_dims[0]] = Dimension.WEST_EAST
+        else:
+            msg = ('2D Latitude and Longitude dimension names are different. '
+                   'This is weird.')
+            if lon_dims != lat_dims:
+                logger.warning(msg)
+                warn(msg)
+            else:
+                rename_dims.update(dict(zip(lat_dims, Dimension.dims_2d())))
+        return rename_dims
+
     def load(self):
         """Load netcdf xarray.Dataset()."""
         res = lower_names(self.res)
@@ -100,14 +123,13 @@ class LoaderNC(BaseLoader):
             k: v for k, v in COORD_NAMES.items() if k in res and v not in res
         }
         res = res.rename(rename_coords)
-        rename_dims = {k: v for k, v in DIM_NAMES.items() if k in res.dims}
-        res = res.swap_dims(rename_dims)
 
         if not all(coord in res for coord in Dimension.coords_2d()):
             err = 'Could not find valid coordinates in given files: %s'
             logger.error(err, self.file_paths)
             raise OSError(err % (self.file_paths))
 
+        res = res.swap_dims(self.get_dims(res))
         res = res.assign_coords(self.get_coords(res))
         if isinstance(self.chunks, dict):
             res = res.chunk(self.chunks)

@@ -22,7 +22,7 @@ import sup3r.utilities.loss_metrics
 from sup3r.preprocessing.data_handlers import ExoData
 from sup3r.preprocessing.utilities import numpy_if_tensor
 from sup3r.utilities import VERSION_RECORD
-from sup3r.utilities.utilities import Timer
+from sup3r.utilities.utilities import Timer, safe_cast
 
 logger = logging.getLogger(__name__)
 
@@ -1180,7 +1180,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
 
         if extras is not None:
             for k, v in extras.items():
-                self._history.at[epoch, k] = v
+                self._history.at[epoch, k] = safe_cast(v)
 
         return stop
 
