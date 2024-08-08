@@ -79,17 +79,18 @@ class CollectorNC(BaseCollector):
             logger.info(f'overwrite=True, removing {out_file}.')
             os.remove(out_file)
 
-        if not os.path.exists(out_file):
+        tmp_file = out_file + '.tmp'
+        if not os.path.exists(tmp_file):
             res_kwargs = res_kwargs or {}
             out = xr.open_mfdataset(collector.flist, **res_kwargs)
             features = list(out.data_vars) if features == 'all' else features
             features = set(features).intersection(_lowered(out.data_vars))
             for feat in features:
-                mode = 'a' if os.path.exists(out_file) else 'w'
+                mode = 'a' if os.path.exists(tmp_file) else 'w'
                 out[feat].load().to_netcdf(
-                    out_file, mode=mode, engine='h5netcdf', format='NETCDF4'
+                    tmp_file, mode=mode, engine='h5netcdf', format='NETCDF4'
                 )
-                logger.info(f'Finished writing {feat} to {out_file}.')
+                logger.info(f'Finished writing {feat} to {tmp_file}.')
 
         if write_status and job_name is not None:
             status = {
@@ -102,6 +103,8 @@ class CollectorNC(BaseCollector):
             Status.make_single_job_file(
                 os.path.dirname(out_file), 'collect', job_name, status
             )
+        os.replace(tmp_file, out_file)
+        logger.info('Moved %s to %s.', tmp_file, out_file)
 
         logger.info('Finished file collection.')
 

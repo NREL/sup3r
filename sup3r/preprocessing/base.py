@@ -20,7 +20,7 @@ import xarray as xr
 
 import sup3r.preprocessing.accessor  # noqa: F401 # pylint: disable=W0611
 from sup3r.preprocessing.accessor import Sup3rX
-from sup3r.preprocessing.utilities import composite_info
+from sup3r.preprocessing.utilities import composite_info, is_type_of
 
 logger = logging.getLogger(__name__)
 
@@ -359,9 +359,7 @@ class Container(metaclass=Sup3rMeta):
         if data is None:
             return data
 
-        check_sup3rds = all(isinstance(d, Sup3rDataset) for d in data)
-        check_sup3rds = check_sup3rds or isinstance(data, Sup3rDataset)
-        if check_sup3rds:
+        if is_type_of(data, Sup3rDataset):
             return data
 
         if isinstance(data, tuple) and len(data) == 2:

@@ -17,7 +17,7 @@ from sup3r.preprocessing.utilities import (
     _lowered,
     _mem_check,
     dims_array_tuple,
-    is_strings,
+    is_type_of,
     ordered_array,
     ordered_dims,
     parse_ellipsis,
@@ -97,7 +97,7 @@ class Sup3rX:
         dataset that can be passed to isel and transposed to standard dimension
         order."""
         keys = keys if isinstance(keys, tuple) else (keys,)
-        has_feats = is_strings(keys[0])
+        has_feats = is_type_of(keys[0], str)
         just_coords = keys[0] == []
         features = (
             list(self.coords)
@@ -132,7 +132,7 @@ class Sup3rX:
         out = self._ds[features]
         out = self.ordered(out) if single_feat else type(self)(out)
         slices = {k: v for k, v in slices.items() if k in out.dims}
-        no_slices = is_strings(keys)
+        no_slices = is_type_of(keys, str)
         just_coords = all(f in self.coords for f in parse_to_list(features))
         is_fancy = self._needs_fancy_indexing(slices.values())
 
@@ -170,7 +170,7 @@ class Sup3rX:
             then this is expected to have a trailing dimension with length
             equal to the length of the list.
         """
-        if is_strings(keys):
+        if is_type_of(keys, str):
             if isinstance(keys, (list, tuple)) and hasattr(data, 'data_vars'):
                 data_dict = {v: data[v] for v in keys}
             elif isinstance(keys, (list, tuple)):
@@ -314,8 +314,9 @@ class Sup3rX:
         ``(slice(0, 3), slice(1, 10), slice(None), ['u_10m', 'v_10m'])``"""
         isel_kwargs = dict(zip(Dimension.dims_3d(), idx[:-1]))
         features = (
-            self.features if not is_strings(idx[-1]) else _lowered(idx[-1])
+            _lowered(idx[-1]) if is_type_of(idx[-1], str) else self.features
         )
+
         out = self._ds[features].isel(**isel_kwargs)
         return self.ordered(out.to_array()).data
 

@@ -381,23 +381,16 @@ def contains_ellipsis(vals):
     )
 
 
-def is_strings(vals):
-    """Check if vals is a string or iterable of all strings."""
-    return isinstance(vals, str) or (
+def is_type_of(vals, vtype):
+    """Check if vals is an instance of type or group of that type."""
+    return isinstance(vals, vtype) or (
         isinstance(vals, (set, tuple, list))
-        and all(isinstance(v, str) for v in vals)
+        and all(isinstance(v, vtype) for v in vals)
     )
 
 
 def _get_strings(vals):
-    return [v for v in vals if is_strings(v)]
-
-
-def _is_ints(vals):
-    return isinstance(vals, int) or (
-        isinstance(vals, (list, tuple, np.ndarray))
-        and all(isinstance(v, int) for v in vals)
-    )
+    return [v for v in vals if is_type_of(v, str)]
 
 
 def _lowered(features):
