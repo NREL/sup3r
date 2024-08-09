@@ -10,6 +10,7 @@ import numpy as np
 import xarray as xr
 
 from sup3r.preprocessing.names import COORD_NAMES, DIM_NAMES, Dimension
+from sup3r.preprocessing.utilities import ordered_dims
 
 from .base import BaseLoader
 from .utilities import lower_names
@@ -74,8 +75,6 @@ class LoaderNC(BaseLoader):
         lats = res[Dimension.LATITUDE].data.squeeze().astype(np.float32)
         lons = res[Dimension.LONGITUDE].data.squeeze().astype(np.float32)
 
-        res.swap_dims({})
-
         if len(lats.shape) == 1:
             lons, lats = da.meshgrid(lons, lats)
 
@@ -84,7 +83,6 @@ class LoaderNC(BaseLoader):
         coords = {Dimension.LATITUDE: lats, Dimension.LONGITUDE: lons}
 
         if Dimension.TIME in res:
-
             if Dimension.TIME in res.indexes:
                 times = res.indexes[Dimension.TIME]
             else:
@@ -107,16 +105,20 @@ class LoaderNC(BaseLoader):
             rename_dims[lat_dims[0]] = Dimension.SOUTH_NORTH
             rename_dims[lon_dims[0]] = Dimension.WEST_EAST
         else:
-            msg = ('2D Latitude and Longitude dimension names are different. '
-                   'This is weird.')
+            msg = (
+                'Latitude and Longitude dimension names are different. '
+                'This is weird.'
+            )
             if lon_dims != lat_dims:
                 logger.warning(msg)
                 warn(msg)
             else:
-                rename_dims.update(dict(zip(lat_dims, Dimension.dims_2d())))
+                rename_dims.update(
+                    dict(zip(ordered_dims(lat_dims), Dimension.dims_2d()))
+                )
         return rename_dims
 
-    def load(self):
+    def _load(self):
         """Load netcdf xarray.Dataset()."""
         res = lower_names(self.res)
         rename_coords = {

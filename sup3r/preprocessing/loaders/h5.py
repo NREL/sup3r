@@ -155,7 +155,7 @@ class LoaderH5(BaseLoader):
             dims = (Dimension.TIME, *dims)
         return dims
 
-    def load(self) -> xr.Dataset:
+    def _load(self) -> xr.Dataset:
         """Wrap data in xarray.Dataset(). Handle differences with flattened and
         cached h5."""
         dims = self._get_dims()

@@ -65,7 +65,7 @@ class BaseLoader(Container, ABC):
         self.chunks = chunks
         BASE_LOADER = BaseLoader or self.BASE_LOADER
         self.res = BASE_LOADER(self.file_paths, **self.res_kwargs)
-        data = self.load().astype(np.float32)
+        data = self._load().astype(np.float32)
         data = self.add_attrs(lower_names(data))
         data = standardize_names(standardize_values(data), FEATURE_NAMES)
         features = list(data.dims) if features == [] else features
@@ -117,11 +117,11 @@ class BaseLoader(Container, ABC):
         assert file_paths is not None and len(self._file_paths) > 0, msg
 
     @abstractmethod
-    def load(self):
-        """xarray.DataArray features in last dimension.
+    def _load(self):
+        """'Load' data into this container. Does not actually load from disk
+        into memory. Just wraps data from files in an xarray.Dataset.
 
         Returns
         -------
-        dask.array.core.Array
-            (spatial, time, features) or (spatial_1, spatial_2, time, features)
+        xr.Dataset
         """

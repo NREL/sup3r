@@ -243,6 +243,7 @@ class Sup3rX:
                 logger.debug(f'Loaded {f} into memory. {_mem_check()}')
             logger.debug(f'Loaded dataset into memory: {self._ds}')
             logger.debug(f'Post-loading: {_mem_check()}')
+        return type(self)(self._ds)
 
     @property
     def loaded(self):

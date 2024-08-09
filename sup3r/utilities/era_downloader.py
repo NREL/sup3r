@@ -347,7 +347,7 @@ class EraDownloader:
         ds = self.convert_z(ds, name='orog')
         ds = standardize_names(ds, ERA_NAME_MAP)
         ds = standardize_values(ds)
-        ds.load().to_netcdf(tmp_file)
+        ds.compute().to_netcdf(tmp_file)
         os.replace(tmp_file, self.surface_file)
         logger.info(
             f'Finished processing {self.surface_file}. Moved {tmp_file} to '
@@ -406,7 +406,7 @@ class EraDownloader:
         ds = standardize_names(ds, ERA_NAME_MAP)
         ds = standardize_values(ds)
         ds = self.add_pressure(ds)
-        ds.load().to_netcdf(tmp_file)
+        ds.compute().to_netcdf(tmp_file)
         os.replace(tmp_file, self.level_file)
         logger.info(
             f'Finished processing {self.level_file}. Moved '
@@ -424,7 +424,7 @@ class EraDownloader:
             for f in set(ds.data_vars) - set(added_features):
                 mode = 'w' if not os.path.exists(tmp_file) else 'a'
                 logger.info('Adding %s to %s.', f, tmp_file)
-                ds.load().to_netcdf(tmp_file, mode=mode)
+                ds.data[f].load().to_netcdf(tmp_file, mode=mode)
                 logger.info('Added %s to %s.', f, tmp_file)
                 added_features.append(f)
         logger.info(f'Finished writing {tmp_file}')
