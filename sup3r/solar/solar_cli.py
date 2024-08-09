@@ -1,17 +1,14 @@
-# -*- coding: utf-8 -*-
-"""
-sup3r solar CLI entry points.
-"""
+"""sup3r solar CLI entry points."""
 import copy
-import click
 import logging
 import os
+
+import click
 
 from sup3r import __version__
 from sup3r.solar import Solar
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import AVAILABLE_HARDWARE_OPTIONS, BaseCLI
-
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +37,7 @@ def from_config(ctx, config_file, verbose=False, pipeline_step=None):
                                            verbose)
     exec_kwargs = config.get('execution_control', {})
     hardware_option = exec_kwargs.pop('option', 'local')
-    log_pattern = config['log_pattern']
+    log_pattern = config.get('log_pattern', None)
     fp_pattern = config['fp_pattern']
     basename = config['job_name']
     fp_sets, _, temporal_ids, _, _ = Solar.get_sup3r_fps(fp_pattern)
@@ -60,9 +57,6 @@ def from_config(ctx, config_file, verbose=False, pipeline_step=None):
 
         node_config['temporal_id'] = temporal_id
         cmd = Solar.get_node_cmd(node_config)
-
-        cmd_log = '\n\t'.join(cmd.split('\n'))
-        logger.debug(f'Running command:\n\t{cmd_log}')
 
         if hardware_option.lower() in AVAILABLE_HARDWARE_OPTIONS:
             kickoff_slurm_job(ctx, cmd, pipeline_step, **exec_kwargs)

@@ -1,5 +1,7 @@
 """Content loss metrics for Sup3r"""
 
+from typing import ClassVar
+
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.losses import MeanAbsoluteError, MeanSquaredError
@@ -33,8 +35,11 @@ def gaussian_kernel(x1, x2, sigma=1.0):
     # prior to the expanded dimension to every other entry. So expand_dims with
     # axis=1 will compare every observation along axis=0 to every other
     # observation along axis=0.
-    result = tf.exp(-0.5 * tf.reduce_sum(
-        (tf.expand_dims(x1, axis=1) - x2)**2, axis=-1) / sigma**2)
+    result = tf.exp(
+        -0.5
+        * tf.reduce_sum((tf.expand_dims(x1, axis=1) - x2) ** 2, axis=-1)
+        / sigma**2
+    )
     return result
 
 
@@ -58,7 +63,7 @@ class ExpLoss(tf.keras.losses.Loss):
         tf.tensor
             0D tensor with loss value
         """
-        return tf.reduce_mean(1 - tf.exp(-(x1 - x2)**2))
+        return tf.reduce_mean(1 - tf.exp(-((x1 - x2) ** 2)))
 
 
 class MseExpLoss(tf.keras.losses.Loss):
@@ -84,7 +89,7 @@ class MseExpLoss(tf.keras.losses.Loss):
             0D tensor with loss value
         """
         mse = self.MSE_LOSS(x1, x2)
-        exp = tf.reduce_mean(1 - tf.exp(-(x1 - x2)**2))
+        exp = tf.reduce_mean(1 - tf.exp(-((x1 - x2) ** 2)))
         return mse + exp
 
 
@@ -121,6 +126,9 @@ class MaterialDerivativeLoss(tf.keras.losses.Loss):
     """Loss class for the material derivative. This is the left hand side of
     the Navier-Stokes equation and is equal to internal + external forces
     divided by density.
+
+    References
+    ----------
     https://en.wikipedia.org/wiki/Material_derivative
     """
 
@@ -129,8 +137,9 @@ class MaterialDerivativeLoss(tf.keras.losses.Loss):
     def _derivative(self, x, axis=1):
         """Custom derivative function for compatibility with tensorflow.
 
-        NOTE: Matches np.gradient by using the central difference
-        approximation.
+        Note
+        ----
+        Matches np.gradient by using the central difference approximation.
 
         Parameters
         ----------
@@ -140,24 +149,40 @@ class MaterialDerivativeLoss(tf.keras.losses.Loss):
             Axis to take derivative over
         """
         if axis == 1:
-            return tf.concat([x[:, 1:2] - x[:, 0:1],
-                              (x[:, 2:] - x[:, :-2]) / 2,
-                              x[:, -1:] - x[:, -2:-1]], axis=1)
-        elif axis == 2:
-            return tf.concat([x[..., 1:2, :] - x[..., 0:1, :],
-                              (x[..., 2:, :] - x[..., :-2, :]) / 2,
-                              x[..., -1:, :] - x[..., -2:-1, :]], axis=2)
-        elif axis == 3:
-            return tf.concat([x[..., 1:2] - x[..., 0:1],
-                              (x[..., 2:] - x[..., :-2]) / 2,
-                              x[..., -1:] - x[..., -2:-1]], axis=3)
+            return tf.concat(
+                [
+                    x[:, 1:2] - x[:, 0:1],
+                    (x[:, 2:] - x[:, :-2]) / 2,
+                    x[:, -1:] - x[:, -2:-1],
+                ],
+                axis=1,
+            )
+        if axis == 2:
+            return tf.concat(
+                [
+                    x[..., 1:2, :] - x[..., 0:1, :],
+                    (x[..., 2:, :] - x[..., :-2, :]) / 2,
+                    x[..., -1:, :] - x[..., -2:-1, :],
+                ],
+                axis=2,
+            )
+        if axis == 3:
+            return tf.concat(
+                [
+                    x[..., 1:2] - x[..., 0:1],
+                    (x[..., 2:] - x[..., :-2]) / 2,
+                    x[..., -1:] - x[..., -2:-1],
+                ],
+                axis=3,
+            )
 
-        else:
-            msg = (f'{self.__class__.__name__}._derivative received '
-                   f'axis={axis}. This is meant to compute only temporal '
-                   '(axis=3) or spatial (axis=1/2) derivatives for tensors '
-                   'of shape (n_obs, spatial_1, spatial_2, temporal)')
-            raise ValueError(msg)
+        msg = (
+            f'{self.__class__.__name__}._derivative received '
+            f'axis={axis}. This is meant to compute only temporal '
+            '(axis=3) or spatial (axis=1/2) derivatives for tensors '
+            'of shape (n_obs, spatial_1, spatial_2, temporal)'
+        )
+        raise ValueError(msg)
 
     def _compute_md(self, x, fidx):
         """Compute material derivative the feature given by the index fidx.
@@ -178,10 +203,12 @@ class MaterialDerivativeLoss(tf.keras.losses.Loss):
         x_div = self._derivative(x[..., fidx], axis=3)
         # u * df/dx
         x_div += tf.math.multiply(
-            x[..., uidx], self._derivative(x[..., fidx], axis=1))
+            x[..., uidx], self._derivative(x[..., fidx], axis=1)
+        )
         # v * df/dy
         x_div += tf.math.multiply(
-            x[..., vidx], self._derivative(x[..., fidx], axis=2))
+            x[..., vidx], self._derivative(x[..., fidx], axis=2)
+        )
 
         return x_div
 
@@ -207,16 +234,24 @@ class MaterialDerivativeLoss(tf.keras.losses.Loss):
         """
         hub_heights = x1.shape[-1] // 2
 
-        msg = (f'The {self.__class__.__name__} is meant to be used on '
-               'spatiotemporal data only. Received tensor(s) that are not 5D')
+        msg = (
+            f'The {self.__class__.__name__} is meant to be used on '
+            'spatiotemporal data only. Received tensor(s) that are not 5D'
+        )
         assert len(x1.shape) == 5 and len(x2.shape) == 5, msg
 
         x1_div = tf.stack(
-            [self._compute_md(x1, fidx=i)
-             for i in range(0, 2 * hub_heights, 2)])
+            [
+                self._compute_md(x1, fidx=i)
+                for i in range(0, 2 * hub_heights, 2)
+            ]
+        )
         x2_div = tf.stack(
-            [self._compute_md(x2, fidx=i)
-             for i in range(0, 2 * hub_heights, 2)])
+            [
+                self._compute_md(x2, fidx=i)
+                for i in range(0, 2 * hub_heights, 2)
+            ]
+        )
 
         mae = self.LOSS_METRIC(x1, x2)
         div_mae = self.LOSS_METRIC(x1_div, x2_div)
@@ -479,8 +514,9 @@ class SpatiotemporalExtremesLoss(tf.keras.losses.Loss):
         mae = self.MAE_LOSS(x1, x2)
         s_ex_mae = self.S_EX_LOSS(x1, x2)
         t_ex_mae = self.T_EX_LOSS(x1, x2)
-        return (mae + 2 * self.s_weight * s_ex_mae
-                + 2 * self.t_weight * t_ex_mae) / 5
+        return (
+            mae + 2 * self.s_weight * s_ex_mae + 2 * self.t_weight * t_ex_mae
+        ) / 5
 
 
 class SpatialFftOnlyLoss(tf.keras.losses.Loss):
@@ -580,8 +616,9 @@ class StExtremesFftLoss(tf.keras.losses.Loss):
     """Loss class that encourages accuracy of the min/max values across both
     space and time as well as frequency domain accuracy."""
 
-    def __init__(self, spatial_weight=1.0, temporal_weight=1.0,
-                 fft_weight=1.0):
+    def __init__(
+        self, spatial_weight=1.0, temporal_weight=1.0, fft_weight=1.0
+    ):
         """Initialize the loss with given weight
 
         Parameters
@@ -594,8 +631,9 @@ class StExtremesFftLoss(tf.keras.losses.Loss):
             Weight for the fft loss term.
         """
         super().__init__()
-        self.st_ex_loss = SpatiotemporalExtremesLoss(spatial_weight,
-                                                     temporal_weight)
+        self.st_ex_loss = SpatiotemporalExtremesLoss(
+            spatial_weight, temporal_weight
+        )
         self.fft_loss = SpatiotemporalFftOnlyLoss()
         self.fft_weight = fft_weight
 
@@ -617,8 +655,10 @@ class StExtremesFftLoss(tf.keras.losses.Loss):
         tf.tensor
             0D tensor with loss value
         """
-        return (5 * self.st_ex_loss(x1, x2)
-                + self.fft_weight * self.fft_loss(x1, x2)) / 6
+        return (
+            5 * self.st_ex_loss(x1, x2)
+            + self.fft_weight * self.fft_loss(x1, x2)
+        ) / 6
 
 
 class LowResLoss(tf.keras.losses.Loss):
@@ -626,12 +666,19 @@ class LowResLoss(tf.keras.losses.Loss):
     high-resolution data pairs and then performing the pointwise content loss
     on the low-resolution fields"""
 
-    EX_LOSS_METRICS = {'SpatialExtremesOnlyLoss': SpatialExtremesOnlyLoss,
-                       'TemporalExtremesOnlyLoss': TemporalExtremesOnlyLoss,
-                       }
+    EX_LOSS_METRICS: ClassVar = {
+        'SpatialExtremesOnlyLoss': SpatialExtremesOnlyLoss,
+        'TemporalExtremesOnlyLoss': TemporalExtremesOnlyLoss,
+    }
 
-    def __init__(self, s_enhance=1, t_enhance=1, t_method='average',
-                 tf_loss='MeanSquaredError', ex_loss=None):
+    def __init__(
+        self,
+        s_enhance=1,
+        t_enhance=1,
+        t_method='average',
+        tf_loss='MeanSquaredError',
+        ex_loss=None,
+    ):
         """Initialize the loss with given weight
 
         Parameters
@@ -669,11 +716,17 @@ class LowResLoss(tf.keras.losses.Loss):
         """Perform spatial coarsening on a 4D tensor of shape
         (n_obs, spatial_1, spatial_2, features)"""
         shape = tensor.shape
-        tensor = tf.reshape(tensor,
-                            (shape[0],
-                             shape[1] // self._s_enhance, self._s_enhance,
-                             shape[2] // self._s_enhance, self._s_enhance,
-                             shape[3]))
+        tensor = tf.reshape(
+            tensor,
+            (
+                shape[0],
+                shape[1] // self._s_enhance,
+                self._s_enhance,
+                shape[2] // self._s_enhance,
+                self._s_enhance,
+                shape[3],
+            ),
+        )
         tensor = tf.math.reduce_sum(tensor, axis=(2, 4)) / self._s_enhance**2
         return tensor
 
@@ -681,11 +734,18 @@ class LowResLoss(tf.keras.losses.Loss):
         """Perform spatial coarsening on a 5D tensor of shape
         (n_obs, spatial_1, spatial_2, time, features)"""
         shape = tensor.shape
-        tensor = tf.reshape(tensor,
-                            (shape[0],
-                             shape[1] // self._s_enhance, self._s_enhance,
-                             shape[2] // self._s_enhance, self._s_enhance,
-                             shape[3], shape[4]))
+        tensor = tf.reshape(
+            tensor,
+            (
+                shape[0],
+                shape[1] // self._s_enhance,
+                self._s_enhance,
+                shape[2] // self._s_enhance,
+                self._s_enhance,
+                shape[3],
+                shape[4],
+            ),
+        )
         tensor = tf.math.reduce_sum(tensor, axis=(2, 4)) / self._s_enhance**2
         return tensor
 
@@ -693,7 +753,7 @@ class LowResLoss(tf.keras.losses.Loss):
         """Perform temporal subsampling on a 5D tensor of shape
         (n_obs, spatial_1, spatial_2, time, features)"""
         assert len(tensor.shape) == 5
-        tensor = tensor[:, :, :, ::self._t_enhance, :]
+        tensor = tensor[:, :, :, :: self._t_enhance, :]
         return tensor
 
     def _t_coarsen_avg(self, tensor):
@@ -701,8 +761,10 @@ class LowResLoss(tf.keras.losses.Loss):
         (n_obs, spatial_1, spatial_2, time, features)"""
         shape = tensor.shape
         assert len(shape) == 5
-        tensor = tf.reshape(tensor, (shape[0], shape[1], shape[2], -1,
-                                     self._t_enhance, shape[4]))
+        tensor = tf.reshape(
+            tensor,
+            (shape[0], shape[1], shape[2], -1, self._t_enhance, shape[4]),
+        )
         tensor = tf.math.reduce_sum(tensor, axis=4) / self._t_enhance
         return tensor
 

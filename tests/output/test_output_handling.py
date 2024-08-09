@@ -1,18 +1,19 @@
 """Output method tests"""
-import json
+
 import os
 import tempfile
 
 import numpy as np
 import pandas as pd
-import tensorflow as tf
-from rex import ResourceX, init_logger
+from rex import ResourceX
 
-from sup3r import __version__
-from sup3r.postprocessing.collection import CollectorH5
-from sup3r.postprocessing.file_handling import OutputHandlerH5, OutputHandlerNC
-from sup3r.utilities.pytest import make_fake_h5_chunks
-from sup3r.utilities.utilities import invert_uv, transform_rotate_wind
+from sup3r.postprocessing import CollectorH5, OutputHandlerH5, OutputHandlerNC
+from sup3r.preprocessing.derivers.utilities import (
+    invert_uv,
+    transform_rotate_wind,
+)
+from sup3r.utilities.pytest.helpers import make_fake_h5_chunks
+from sup3r.utilities.utilities import RANDOM_GENERATOR
 
 
 def test_get_lat_lon():
@@ -58,8 +59,8 @@ def test_invert_uv():
     lat_lon = np.concatenate(
         [np.expand_dims(lats, axis=-1), np.expand_dims(lons, axis=-1)], axis=-1
     )
-    windspeed = np.random.rand(lat_lon.shape[0], lat_lon.shape[1], 5)
-    winddirection = 360 * np.random.rand(lat_lon.shape[0], lat_lon.shape[1], 5)
+    windspeed = RANDOM_GENERATOR.random((*lat_lon.shape[:2], 5))
+    winddirection = 360 * RANDOM_GENERATOR.random((*lat_lon.shape[:2], 5))
 
     u, v = transform_rotate_wind(
         np.array(windspeed, dtype=np.float32),
@@ -94,13 +95,13 @@ def test_invert_uv_inplace():
     lat_lon = np.concatenate(
         [np.expand_dims(lats, axis=-1), np.expand_dims(lons, axis=-1)], axis=-1
     )
-    u = np.random.rand(lat_lon.shape[0], lat_lon.shape[1], 5)
-    v = np.random.rand(lat_lon.shape[0], lat_lon.shape[1], 5)
+    u = RANDOM_GENERATOR.random((*lat_lon.shape[:2], 5))
+    v = RANDOM_GENERATOR.random((*lat_lon.shape[:2], 5))
 
     data = np.concatenate(
         [np.expand_dims(u, axis=-1), np.expand_dims(v, axis=-1)], axis=-1
     )
-    OutputHandlerH5.invert_uv_features(data, ['U_100m', 'V_100m'], lat_lon)
+    OutputHandlerH5.invert_uv_features(data, ['u_100m', 'v_100m'], lat_lon)
 
     ws, wd = invert_uv(u, v, lat_lon)
 
@@ -111,7 +112,7 @@ def test_invert_uv_inplace():
     data = np.concatenate(
         [np.expand_dims(u, axis=-1), np.expand_dims(v, axis=-1)], axis=-1
     )
-    OutputHandlerH5.invert_uv_features(data, ['U_100m', 'V_100m'], lat_lon)
+    OutputHandlerH5.invert_uv_features(data, ['u_100m', 'v_100m'], lat_lon)
 
     ws, wd = invert_uv(u, v, lat_lon)
 
@@ -119,85 +120,22 @@ def test_invert_uv_inplace():
     assert np.allclose(data[..., 1], wd)
 
 
-def test_h5_out_and_collect():
+def test_h5_out_and_collect(collect_check):
     """Test h5 file output writing and collection with dummy data"""
 
     with tempfile.TemporaryDirectory() as td:
         fp_out = os.path.join(td, 'out_combined.h5')
 
         out = make_fake_h5_chunks(td)
-        (
-            out_files,
-            data,
-            ws_true,
-            wd_true,
-            features,
-            _,
-            t_slices_hr,
-            _,
-            s_slices_hr,
-            _,
-            low_res_times,
-        ) = out
+        out_files, features = out[0], out[4]
 
         CollectorH5.collect(out_files, fp_out, features=features)
-        with ResourceX(fp_out) as fh:
-            full_ti = fh.time_index
-            combined_ti = []
-            for _, f in enumerate(out_files):
-                tmp = f.replace('.h5', '').split('_')
-                t_idx = int(tmp[-3])
-                s1_idx = int(tmp[-2])
-                s2_idx = int(tmp[-1])
-                t_hr = t_slices_hr[t_idx]
-                s1_hr = s_slices_hr[s1_idx]
-                s2_hr = s_slices_hr[s2_idx]
-                with ResourceX(f) as fh_i:
-                    if s1_idx == s2_idx == 0:
-                        combined_ti += list(fh_i.time_index)
 
-                    ws_i = np.transpose(
-                        data[s1_hr, s2_hr, t_hr, 0], axes=(2, 0, 1)
-                    )
-                    wd_i = np.transpose(
-                        data[s1_hr, s2_hr, t_hr, 1], axes=(2, 0, 1)
-                    )
-                    ws_i = ws_i.reshape(48, 625)
-                    wd_i = wd_i.reshape(48, 625)
-                    assert np.allclose(ws_i, fh_i['windspeed_100m'], atol=0.01)
-                    assert np.allclose(
-                        wd_i, fh_i['winddirection_100m'], atol=0.1
-                    )
-
-                    for k, v in fh_i.global_attrs.items():
-                        assert k in fh.global_attrs, k
-                        assert fh.global_attrs[k] == v, k
-
-            assert len(full_ti) == len(combined_ti)
-            assert len(full_ti) == 2 * len(low_res_times)
-            wd_true = np.transpose(wd_true[..., 0], axes=(2, 0, 1))
-            ws_true = np.transpose(ws_true[..., 0], axes=(2, 0, 1))
-            wd_true = wd_true.reshape(96, 2500)
-            ws_true = ws_true.reshape(96, 2500)
-            assert np.allclose(ws_true, fh['windspeed_100m'], atol=0.01)
-            assert np.allclose(wd_true, fh['winddirection_100m'], atol=0.1)
-
-            assert fh.global_attrs['package'] == 'sup3r'
-            assert fh.global_attrs['version'] == __version__
-            assert 'full_version_record' in fh.global_attrs
-            version_record = json.loads(fh.global_attrs['full_version_record'])
-            assert version_record['tensorflow'] == tf.__version__
-            assert 'foo' in fh.global_attrs
-            gan_meta = fh.global_attrs['foo']
-            assert isinstance(gan_meta, str)
-            assert gan_meta == 'bar'
+        collect_check(out, fp_out)
 
 
-def test_h5_collect_mask(log=False):
+def test_h5_collect_mask():
     """Test h5 file collection with mask meta"""
-
-    if log:
-        init_logger('sup3r', log_level='DEBUG')
 
     with tempfile.TemporaryDirectory() as td:
         fp_out = os.path.join(td, 'out_combined.h5')
@@ -210,9 +148,7 @@ def test_h5_collect_mask(log=False):
         CollectorH5.collect(out_files, fp_out, features=features)
         indices = np.arange(np.prod(data.shape[:2]))
         indices = indices[slice(-len(indices) // 2, None)]
-        removed = []
-        for _ in range(10):
-            removed.append(np.random.choice(indices))
+        removed = [RANDOM_GENERATOR.choice(indices) for _ in range(10)]
         mask_slice = [i for i in indices if i not in removed]
         with ResourceX(fp_out) as fh:
             mask_meta = fh.meta

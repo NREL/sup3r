@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Test the temperature and relative humidity scaling relationships of the
 SurfaceSpatialMetModel"""
 import json

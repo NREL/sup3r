@@ -1,6 +1,6 @@
-# -*- coding: utf-8 -*-
 """Abstract class defining the required interface for Sup3r model subclasses"""
 import json
+import locale
 import logging
 import os
 import pprint
@@ -19,9 +19,10 @@ from rex.utilities.utilities import safe_json_load
 from tensorflow.keras import optimizers
 
 import sup3r.utilities.loss_metrics
-from sup3r.preprocessing.data_handling.exogenous_data_handling import ExoData
+from sup3r.preprocessing.data_handlers import ExoData
+from sup3r.preprocessing.utilities import numpy_if_tensor
 from sup3r.utilities import VERSION_RECORD
-from sup3r.utilities.utilities import Timer
+from sup3r.utilities.utilities import Timer, safe_cast
 
 logger = logging.getLogger(__name__)
 
@@ -162,10 +163,9 @@ class AbstractInterface(ABC):
         # pylint: disable=E1101
         if hasattr(self, '_gen'):
             return self._gen.layers[0].rank
-        elif hasattr(self, 'models'):
+        if hasattr(self, 'models'):
             return self.models[0].input_dims
-        else:
-            return 5
+        return 5
 
     @property
     def is_5d(self):
@@ -203,7 +203,15 @@ class AbstractInterface(ABC):
     def s_enhance(self):
         """Factor by which model will enhance spatial resolution. Used in
         model training during high res coarsening"""
-        s_enhance = self.meta.get('s_enhance', None)
+        if isinstance(self.meta, tuple):
+            s_enhances = [m['s_enhance'] for m in self.meta]
+            s_enhance = (
+                None
+                if any(s is None for s in s_enhances)
+                else np.prod(s_enhances)
+            )
+        else:
+            s_enhance = self.meta.get('s_enhance', None)
         if s_enhance is None:
             s_enhance = self.get_s_enhance_from_layers()
             self.meta['s_enhance'] = s_enhance
@@ -213,7 +221,15 @@ class AbstractInterface(ABC):
     def t_enhance(self):
         """Factor by which model will enhance temporal resolution. Used in
         model training during high res coarsening"""
-        t_enhance = self.meta.get('t_enhance', None)
+        if isinstance(self.meta, tuple):
+            t_enhances = [m['t_enhance'] for m in self.meta]
+            t_enhance = (
+                None
+                if any(t is None for t in t_enhances)
+                else np.prod(t_enhances)
+            )
+        else:
+            t_enhance = self.meta.get('t_enhance', None)
         if t_enhance is None:
             t_enhance = self.get_t_enhance_from_layers()
             self.meta['t_enhance'] = t_enhance
@@ -328,8 +344,8 @@ class AbstractInterface(ABC):
 
         fnum_diff = len(self.lr_features) - low_res.shape[-1]
         exo_feats = [] if fnum_diff <= 0 else self.lr_features[-fnum_diff:]
-        msg = ('Provided exogenous_data is missing some required features '
-               f'({exo_feats})')
+        msg = (f'Provided exogenous_data: {exogenous_data} is missing some '
+               f'required features ({exo_feats})')
         assert all(feature in exogenous_data for feature in exo_feats), msg
         if exogenous_data is not None and fnum_diff > 0:
             for feature in exo_feats:
@@ -467,8 +483,7 @@ class AbstractInterface(ABC):
         -------
         dict
         """
-        model_params = {'meta': self.meta}
-        return model_params
+        return {'meta': self.meta}
 
     @property
     def version_record(self):
@@ -529,7 +544,8 @@ class AbstractInterface(ABC):
             os.makedirs(out_dir, exist_ok=True)
 
         fp_params = os.path.join(out_dir, 'model_params.json')
-        with open(fp_params, 'w') as f:
+        with open(fp_params, 'w',
+                  encoding=locale.getpreferredencoding(False)) as f:
             params = self.model_params
             json.dump(params, f, sort_keys=True, indent=2)
 
@@ -544,7 +560,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
     def __init__(self):
         super().__init__()
         self.gpu_list = tf.config.list_physical_devices('GPU')
-        self.default_device = '/cpu:0'
+        self.default_device = '/cpu:0' if len(self.gpu_list) == 0 else '/gpu:0'
         self._version_record = VERSION_RECORD
         self.name = None
         self._meta = None
@@ -644,10 +660,14 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
 
         if new_means is not None and new_stdevs is not None:
             logger.info('Setting new normalization statistics...')
-            logger.info("Model's previous data mean values: {}".format(
-                self._means))
-            logger.info("Model's previous data stdev values: {}".format(
-                self._stdevs))
+            logger.info(
+                "Model's previous data mean values:\n%s",
+                pprint.pformat(self._means, indent=2),
+            )
+            logger.info(
+                "Model's previous data stdev values:\n%s",
+                pprint.pformat(self._stdevs, indent=2),
+            )
 
             self._means = {k: np.float32(v) for k, v in new_means.items()}
             self._stdevs = {k: np.float32(v) for k, v in new_stdevs.items()}
@@ -670,10 +690,14 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
                 msg = (f'Need means for features "{missing}" but did not find '
                        f'in new means array: {self._means}')
 
-            logger.info('Set data normalization mean values: {}'.format(
-                self._means))
-            logger.info('Set data normalization stdev values: {}'.format(
-                self._stdevs))
+            logger.info(
+                'Set data normalization mean values:\n%s',
+                pprint.pformat(self._means, indent=2),
+            )
+            logger.info(
+                'Set data normalization stdev values:\n%s',
+                pprint.pformat(self._stdevs, indent=2),
+            )
 
     def norm_input(self, low_res):
         """Normalize low resolution data being input to the generator.
@@ -988,7 +1012,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
 
         for k, v in new_data.items():
             key = k if prefix is None else prefix + k
-            new_value = (v if not isinstance(v, tf.Tensor) else v.numpy())
+            new_value = numpy_if_tensor(v)
 
             if key in loss_details:
                 saved_value = loss_details[key]
@@ -1156,7 +1180,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
 
         if extras is not None:
             for k, v in extras.items():
-                self._history.at[epoch, k] = v
+                self._history.at[epoch, k] = safe_cast(v)
 
         return stop
 
@@ -1207,11 +1231,14 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         if optimizer is None:
             optimizer = self.optimizer
 
-        if not multi_gpu or len(self.gpu_list) == 1:
-
-            grad, loss_details = self.get_single_grad(low_res, hi_res_true,
-                                                      training_weights,
-                                                      **calc_loss_kwargs)
+        if not multi_gpu or len(self.gpu_list) < 2:
+            grad, loss_details = self.get_single_grad(
+                low_res,
+                hi_res_true,
+                training_weights,
+                device_name=self.default_device,
+                **calc_loss_kwargs,
+            )
             optimizer.apply_gradients(zip(grad, training_weights))
             t1 = time.time()
             logger.debug(f'Finished single gradient descent step '
@@ -1378,9 +1405,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         if un_norm_out and self._means is not None:
             hi_res = self.un_norm_output(hi_res)
 
-        hi_res = self._combine_fwp_output(hi_res, exogenous_data)
-
-        return hi_res
+        return self._combine_fwp_output(hi_res, exogenous_data)
 
     @tf.function
     def _tf_generate(self, low_res, hi_res_exo=None):
@@ -1470,11 +1495,11 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         """
         with tf.device(device_name), tf.GradientTape(
                 watch_accessed_variables=False) as tape:
-            self.timer(tape.watch, training_weights)
-            hi_res_exo = self.timer(self.get_high_res_exo_input, hi_res_true)
-            hi_res_gen = self.timer(self._tf_generate, low_res, hi_res_exo)
-            loss_out = self.timer(self.calc_loss, hi_res_true, hi_res_gen,
-                                  **calc_loss_kwargs)
+            self.timer(tape.watch)(training_weights)
+            hi_res_exo = self.timer(self.get_high_res_exo_input)(hi_res_true)
+            hi_res_gen = self.timer(self._tf_generate)(low_res, hi_res_exo)
+            loss_out = self.timer(self.calc_loss)(hi_res_true, hi_res_gen,
+                                                  **calc_loss_kwargs)
             loss, loss_details = loss_out
-            grad = self.timer(tape.gradient, loss, training_weights)
+            grad = self.timer(tape.gradient)(loss, training_weights)
         return grad, loss_details

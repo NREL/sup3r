@@ -55,6 +55,8 @@ confidence=
 # no Warning level messages displayed, use"--disable=all --enable=classes
 # --disable=W"
 disable=
+        no-member,
+        attribute-defined-outside-init,
         arguments-renamed,
         unspecified-encoding,
         consider-using-f-string,
@@ -498,4 +500,4 @@ known-third-party=enchant
 
 # Exceptions that will emit a warning when being caught. Defaults to
 # "Exception"
-overgeneral-exceptions=Exception
+overgeneral-exceptions=builtin.Exception
