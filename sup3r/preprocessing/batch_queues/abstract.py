@@ -89,7 +89,6 @@ class AbstractBatchQueue(Collection, ABC):
         self.n_batches = n_batches
         self.queue_cap = n_batches if queue_cap is None else queue_cap
         self.max_workers = max_workers
-        self.enqueue_pool = None
         self.container_index = self.get_container_index()
         self.queue = self.get_queue()
         self.transform_kwargs = transform_kwargs or {
@@ -126,12 +125,6 @@ class AbstractBatchQueue(Collection, ABC):
             f'BatchQueue: {self.batch_size}'
         )
         assert sampler_bs == self.batch_size, msg
-
-        if self.max_workers > 1:
-            logger.info(f'Starting {self._thread_name} enqueue pool.')
-            self.enqueue_pool = ThreadPoolExecutor(
-                max_workers=self.max_workers
-            )
 
         if self.mode == 'eager':
             logger.info('Received mode = "eager".')
@@ -203,9 +196,6 @@ class AbstractBatchQueue(Collection, ABC):
     def stop(self) -> None:
         """Stop loading batches."""
         self._training_flag.clear()
-        if self.enqueue_pool is not None:
-            logger.info(f'Stopping {self._thread_name} enqueue pool.')
-            self.enqueue_pool.shutdown()
         if self.queue_thread.is_alive():
             logger.info(f'Stopping {self._thread_name} queue.')
             self.queue_thread.join()
@@ -243,16 +233,17 @@ class AbstractBatchQueue(Collection, ABC):
         while self.running:
             needed = self.queue_cap - self.queue.size().numpy()
             needed = min((self.max_workers, needed))
-            if needed == 1 or self.enqueue_pool is None:
+            if needed == 1 or self.max_workers == 1:
                 self._enqueue_batch()
             elif needed > 0:
-                futures = [
-                    self.enqueue_pool.submit(self._enqueue_batch)
-                    for _ in np.arange(needed)
-                ]
-                logger.debug('Added %s enqueue futures.', needed)
-                for future in as_completed(futures):
-                    _ = future.result()
+                with ThreadPoolExecutor(max_workers=self.max_workers) as exe:
+                    futures = [
+                        exe.submit(self._enqueue_batch)
+                        for _ in np.arange(needed)
+                    ]
+                    logger.debug('Added %s enqueue futures.', needed)
+                    for future in as_completed(futures):
+                        _ = future.result()
 
     def __next__(self) -> Batch:
         """Dequeue batch samples, squeeze if for a spatial only model, perform

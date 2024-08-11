@@ -32,7 +32,7 @@ def test_cacher_attrs():
     [
         (
             pytest.FP_WTK,
-            ['u_100m', 'v_100m'],
+            ['u_100m', 'v_100m', 'sza'],
             'h5',
             (20, 20),
             (39.01, -105.15),

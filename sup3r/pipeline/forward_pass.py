@@ -1,12 +1,12 @@
 """Sup3r forward pass handling module."""
 
 import logging
+import pprint
 from concurrent.futures import as_completed
 from datetime import datetime as dt
 from typing import ClassVar
 
 import numpy as np
-import psutil
 from rex.utilities.execution import SpawnProcessPool
 from rex.utilities.fun_utils import get_fun_call_str
 
@@ -16,10 +16,7 @@ from sup3r.postprocessing import (
     OutputHandlerH5,
     OutputHandlerNC,
 )
-from sup3r.preprocessing.utilities import (
-    get_source_type,
-    lowered,
-)
+from sup3r.preprocessing.utilities import _mem_check, get_source_type, lowered
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
 
@@ -81,7 +78,7 @@ class ForwardPass:
             'creation_date': dt.now().strftime('%d/%m/%Y %H:%M:%S'),
             'model_meta': self.model.meta,
             'gan_params': self.model.model_params,
-            'strategy_meta': self.strategy.meta
+            'strategy_meta': self.strategy.meta,
         }
         return meta_data
 
@@ -323,9 +320,7 @@ class ForwardPass:
                         out = np.transpose(entry['data'], axes=(2, 0, 1, 3))
                     else:
                         out = np.expand_dims(entry['data'], axis=0)
-                    exo_data[feature]['steps'][i]['data'] = np.asarray(
-                        out
-                    )
+                    exo_data[feature]['steps'][i]['data'] = np.asarray(out)
 
         if model.is_4d:
             i_lr_t = 0
@@ -439,6 +434,10 @@ class ForwardPass:
                 cls._run_serial(strategy, node_index)
             else:
                 cls._run_parallel(strategy, node_index)
+            logger.debug(
+                'Timing report:\n%s',
+                pprint.pformat(strategy.timer.log, indent=2),
+            )
 
     @classmethod
     def _run_serial(cls, strategy, node_index):
@@ -470,14 +469,11 @@ class ForwardPass:
                     output_workers=strategy.output_workers,
                     meta=fwp.meta,
                 )
-                mem = psutil.virtual_memory()
                 logger.info(
                     'Finished forward pass on chunk_index='
                     f'{chunk_index} in {dt.now() - now}. {i + 1} of '
                     f'{len(strategy.node_chunks[node_index])} '
-                    'complete. Current memory usage is '
-                    f'{mem.used / 1e9:.3f} GB out of '
-                    f'{mem.total / 1e9:.3f} GB total.'
+                    f'complete. {_mem_check()}.'
                 )
                 if failed:
                     msg = (
@@ -551,13 +547,10 @@ class ForwardPass:
                             'with constant output.'
                         )
                         raise MemoryError(msg)
-                    mem = psutil.virtual_memory()
                     msg = (
                         'Finished forward pass on chunk_index='
                         f'{chunk_idx} in {dt.now() - start_time}. '
-                        f'{i + 1} of {len(futures)} complete. '
-                        f'Current memory usage is {mem.used / 1e9:.3f} GB '
-                        f'out of {mem.total / 1e9:.3f} GB total.'
+                        f'{i + 1} of {len(futures)} complete. {_mem_check()}'
                     )
                     logger.info(msg)
             except Exception as e:

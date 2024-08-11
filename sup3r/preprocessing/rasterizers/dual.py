@@ -226,9 +226,13 @@ class DualRasterizer(Container):
                     f'{f} data has {np.asarray(nan_perc):.3f}% NaN '
                     'values!'
                 )
-                fill_feats.append(f)
-                logger.warning(msg)
-                warn(msg)
+                if nan_perc < 10:
+                    fill_feats.append(f)
+                    logger.warning(msg)
+                    warn(msg)
+                if nan_perc >= 10:
+                    logger.error(msg)
+                    raise ValueError(msg)
 
         if any(fill_feats):
             msg = (

@@ -4,6 +4,7 @@ import logging
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, Optional, Union
+from warnings import warn
 
 import dask.array as da
 import h5py
@@ -40,12 +41,17 @@ class Cacher(Container):
             based on desired output type.
 
             Can also include a 'max_workers' key and a 'chunks' key, value with
-            a dictionary of tuples for each feature. e.g. {'cache_pattern':
-            ..., 'chunks': {'windspeed_100m': (20, 100, 100)}} where the chunks
-            ordering is (time, lats, lons)
+            a dictionary of tuples for each feature. e.g.
+            ``{'cache_pattern': ...,
+               'chunks': {
+                 'u_10m': {'time': 20, 'south_north': 100, 'west_east': 100}}
+              }``
 
-            Note: This is only for saving cached data. If you want to reload
-            the cached files load them with a Loader object.
+        Note
+        ----
+        This is only for saving cached data. If you want to reload the
+        cached files load them with a ``Loader`` object. ``DataHandler``
+        objects can cache and reload from cache automatically.
         """
         super().__init__(data=data)
         if (
@@ -81,8 +87,7 @@ class Cacher(Container):
             func(
                 tmp_file,
                 feature,
-                data=self[feature],
-                coords=self.coords,
+                data=self.data,
                 chunks=chunks,
                 attrs={k: safe_serialize(v) for k, v in self.attrs.items()},
             )
@@ -151,10 +156,39 @@ class Cacher(Container):
             logger.info('Finished writing %s', missing_files)
         return missing_files + cached_files
 
+    @staticmethod
+    def parse_chunks(feature, chunks, shape):
+        """Parse chunks input to Cacher. Needs to be a dictionary of dimensions
+        and chunk values but parsed to a tuple for H5 caching."""
+        if any(d in chunks for d in Dimension.coords_3d()):
+            fchunks = chunks.copy()
+        else:
+            fchunks = chunks.get(feature, {})
+        if isinstance(fchunks, tuple):
+            msg = (
+                'chunks value should be a dictionary with dimension names '
+                'as keys and values as dimension chunksizes. Will try '
+                'to use this %s for (time, lats, lons)'
+            )
+            logger.warning(msg, fchunks)
+            warn(msg % fchunks)
+            return fchunks
+        fchunks = {} if fchunks == 'auto' else fchunks
+        out = (
+            fchunks.get(Dimension.TIME, None),
+            fchunks.get(Dimension.SOUTH_NORTH, None),
+            fchunks.get(Dimension.WEST_EAST, None),
+        )
+        if len(shape) == 2:
+            out = out[1:]
+        if len(shape) == 1:
+            out = (out[0],)
+        if any(o is None for o in out):
+            return None
+        return out
+
     @classmethod
-    def write_h5(
-        cls, out_file, feature, data, coords, chunks=None, attrs=None
-    ):
+    def write_h5(cls, out_file, feature, data, chunks=None, attrs=None):
         """Cache data to h5 file using user provided chunks value.
 
         Parameters
@@ -163,51 +197,48 @@ class Cacher(Container):
             Name of file to write. Must have a .h5 extension.
         feature : str
             Name of feature to write to file.
-        data : xr.DataArray
-            Data to write to file. Comes from ``self.data[feature]``, so an
-            xarray DataArray with dims and attributes
-        coords : dict
-            Dictionary of coordinate variables
+        data : Sup3rDataset
+            Data to write to file. Comes from ``self.data``, so a Sup3rDataset
+            with coords attributes
         chunks : dict | None
-            Chunk sizes for coordinate dimensions. e.g. {'windspeed': (100,
-            100, 10)}
+            Chunk sizes for coordinate dimensions. e.g.
+            ``{'u_10m': {'time': 10, 'south_north': 100, 'west_east': 100}}``
         attrs : dict | None
             Optional attributes to write to file
         """
         chunks = chunks or {}
         attrs = attrs or {}
-        data = (
-            da.transpose(data.data, axes=(2, 0, 1))
-            if len(data.shape) == 3
-            else data.data
-        )
+        coords = data.coords
+        data = data[feature].data
+        if len(data.shape) == 3:
+            data = da.transpose(data, axes=(2, 0, 1))
+
+        dsets = [f'/meta/{d}' for d in Dimension.coords_2d()]
+        dsets += ['time_index', feature]
+        vals = [
+            coords[Dimension.LATITUDE].data,
+            coords[Dimension.LONGITUDE].data,
+        ]
+        vals += [da.asarray(coords[Dimension.TIME].astype(int)), data]
+
         with h5py.File(out_file, 'w') as f:
-            lats = coords[Dimension.LATITUDE].data
-            lons = coords[Dimension.LONGITUDE].data
-            times = coords[Dimension.TIME].astype(int)
             for k, v in attrs.items():
                 f.attrs[k] = v
-            keys = ['time_index', *Dimension.coords_2d(), feature]
-            data_dict = dict(zip(keys, [da.asarray(times), lats, lons, data]))
-            for dset, vals in data_dict.items():
-                f_chunks = chunks.get(dset, None)
-                if dset in Dimension.coords_2d():
-                    dset = f'meta/{dset}'
-                d = f.require_dataset(
-                    f'/{dset}',
-                    dtype=vals.dtype,
-                    shape=vals.shape,
-                    chunks=f_chunks,
-                )
-                da.store(vals, d)
+            for dset, val in zip(dsets, vals):
+                fchunk = cls.parse_chunks(dset, chunks, val.shape)
                 logger.debug(
-                    'Added %s to %s with chunks=%s', dset, out_file, f_chunks
+                    'Adding %s to %s with chunks=%s', dset, out_file, fchunk
                 )
+                d = f.create_dataset(
+                    f'/{dset}',
+                    dtype=val.dtype,
+                    shape=val.shape,
+                    chunks=fchunk,
+                )
+                da.store(val, d)
 
     @classmethod
-    def write_netcdf(
-        cls, out_file, feature, data, coords, chunks=None, attrs=None
-    ):
+    def write_netcdf(cls, out_file, feature, data, chunks=None, attrs=None):
         """Cache data to a netcdf file.
 
         Parameters
@@ -216,12 +247,9 @@ class Cacher(Container):
             Name of file to write. Must have a .nc extension.
         feature : str
             Name of feature to write to file.
-        data : xr.DataArray
-            Data to write to file. Comes from ``self.data[feature]``, so an
-            xarray DataArray with dims and attributes
-        coords : dict | xr.Dataset.coords
-            Dictionary of coordinate variables or ``xr.Dataset`` coords
-            attribute.
+        data : Sup3rDataset
+            Data to write to file. Comes from ``self.data``, so a Sup3rDataset
+            with coords attributes
         chunks : dict | None
             Chunk sizes for coordinate dimensions. e.g. ``{'windspeed':
             {'south_north': 100, 'west_east': 100, 'time': 10}}``
@@ -231,10 +259,20 @@ class Cacher(Container):
         chunks = chunks or {}
         attrs = attrs or {}
         out = xr.Dataset(
-            data_vars={feature: (data.dims, data.data, data.attrs)},
-            coords=coords,
+            data_vars={
+                feature: (
+                    data[feature].dims,
+                    data[feature].data,
+                    data[feature].attrs,
+                )
+            },
+            coords=data.coords,
             attrs=attrs,
         )
-        out = out.chunk(chunks.get(feature, 'auto'))
-        out.load().to_netcdf(out_file)
+        f_chunks = chunks.get(feature, 'auto')
+        logger.info(
+            'Writing %s to %s with chunks=%s', feature, out_file, f_chunks
+        )
+        out = out.chunk(f_chunks)
+        out[feature].load().to_netcdf(out_file)
         del out

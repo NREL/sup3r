@@ -10,7 +10,7 @@ import numpy as np
 from sup3r.preprocessing.accessor import Sup3rX
 from sup3r.preprocessing.base import Sup3rDataset
 
-from .utilities import invert_uv, transform_rotate_wind
+from .utilities import SolarZenith, invert_uv, transform_rotate_wind
 
 logger = logging.getLogger(__name__)
 
@@ -381,6 +381,18 @@ class TasMax(Tas):
     inputs = ('tasmax',)
 
 
+class Sza(DerivedFeature):
+    """Solar zenith angle derived feature."""
+
+    inputs = ()
+
+    @classmethod
+    def compute(cls, data):
+        """Compute method for sza."""
+        sza = SolarZenith.get_zenith(data.time_index, data.lat_lon)
+        return sza.astype(np.float32)
+
+
 RegistryBase = {
     'u_(.*)': UWind,
     'v_(.*)': VWind,
@@ -389,6 +401,7 @@ RegistryBase = {
     'winddirection_(.*)': Winddirection,
     'cloud_mask': CloudMask,
     'clearsky_ratio': ClearSkyRatio,
+    'sza': Sza,
 }
 
 RegistryH5WindCC = {
@@ -408,19 +421,21 @@ RegistryH5SolarCC = {
 }
 
 RegistryNCforCC = copy.deepcopy(RegistryBase)
-RegistryNCforCC.update({
-    'u_(.*)': 'ua_(.*)',
-    'v_(.*)': 'va_(.*)',
-    'relativehumidity_2m': 'hurs',
-    'relativehumidity_min_2m': 'hursmin',
-    'relativehumidity_max_2m': 'hursmax',
-    'clearsky_ratio': ClearSkyRatioCC,
-    'pressure_(.*)': 'level_(.*)',
-    'temperature_(.*)': TempNCforCC,
-    'temperature_2m': Tas,
-    'temperature_max_2m': TasMax,
-    'temperature_min_2m': TasMin,
-})
+RegistryNCforCC.update(
+    {
+        'u_(.*)': 'ua_(.*)',
+        'v_(.*)': 'va_(.*)',
+        'relativehumidity_2m': 'hurs',
+        'relativehumidity_min_2m': 'hursmin',
+        'relativehumidity_max_2m': 'hursmax',
+        'clearsky_ratio': ClearSkyRatioCC,
+        'pressure_(.*)': 'level_(.*)',
+        'temperature_(.*)': TempNCforCC,
+        'temperature_2m': Tas,
+        'temperature_max_2m': TasMax,
+        'temperature_min_2m': TasMin,
+    }
+)
 
 
 RegistryNCforCCwithPowerLaw = {

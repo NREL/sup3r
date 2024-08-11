@@ -75,8 +75,15 @@ class LoaderH5(BaseLoader):
             self.res.h5 if 'latitude' in self.res.h5 else self.res.h5['meta']
         )
         coord_dims = dims[-len(self._meta_shape()) :]
-        lats = (coord_dims, da.from_array(coord_base['latitude']))
-        lons = (coord_dims, da.from_array(coord_base['longitude']))
+        chunks = self.parse_chunks(coord_dims)
+        lats = da.asarray(
+            coord_base['latitude'], dtype=np.float32, chunks=chunks
+        )
+        lats = (coord_dims, lats)
+        lons = da.from_array(
+            coord_base['longitude'], dtype=np.float32, chunks=chunks
+        )
+        lons = (coord_dims, lons)
         coords.update({Dimension.LATITUDE: lats, Dimension.LONGITUDE: lons})
         return coords
 
@@ -119,15 +126,19 @@ class LoaderH5(BaseLoader):
             arr_dims = dims[: len(arr.shape)]
         return (arr_dims, arr, dict(self.res.h5[dset].attrs))
 
-    def _get_data_vars(self, dims):
-        """Define data_vars dict for xr.Dataset construction."""
-        data_vars = {}
-        logger.debug(f'Rechunking features with chunks: {self.chunks}')
-        chunks = (
+    def parse_chunks(self, dims):
+        """Get chunks for given dimensions from ``self.chunks``."""
+        return (
             tuple(self.chunks[d] for d in dims)
             if isinstance(self.chunks, dict)
             else self.chunks
         )
+
+    def _get_data_vars(self, dims):
+        """Define data_vars dict for xr.Dataset construction."""
+        data_vars = {}
+        logger.debug(f'Rechunking features with chunks: {self.chunks}')
+        chunks = self.parse_chunks(dims)
         if len(self._meta_shape()) == 1 and 'elevation' in self.res.meta:
             elev = self.res.meta['elevation'].values.astype(np.float32)
             elev = da.asarray(elev)

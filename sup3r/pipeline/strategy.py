@@ -418,7 +418,7 @@ class ForwardPassStrategy:
         lr_pad_slice = self.lr_pad_slices[s_chunk_idx]
         ti_pad_slice = self.ti_pad_slices[t_chunk_idx]
         exo_data = (
-            self.exo_data.get_chunk(
+            self.timer(self.exo_data.get_chunk, log=True, call_id=chunk_index)(
                 self.input_handler.shape,
                 [lr_pad_slice[0], lr_pad_slice[1], ti_pad_slice],
             )
@@ -429,14 +429,16 @@ class ForwardPassStrategy:
         kwargs = dict(zip(Dimension.dims_2d(), lr_pad_slice))
         kwargs[Dimension.TIME] = ti_pad_slice
         input_data = self.input_handler.isel(**kwargs)
-        input_data.compute()
+        input_data.load()
 
         if self.bias_correct_kwargs is not None:
             logger.info(
                 f'Bias correcting data for chunk_index={chunk_index}, '
                 f'with shape={input_data.shape}'
             )
-            input_data = self.timer(bias_correct_features, log=True)(
+            input_data = self.timer(
+                bias_correct_features, log=True, call_id=chunk_index
+            )(
                 features=list(self.bias_correct_kwargs),
                 input_handler=input_data,
                 bc_method=self.bias_correct_method,
@@ -484,9 +486,9 @@ class ForwardPassStrategy:
 
         logger.info(f'Getting input data for chunk_index={chunk_index}.')
 
-        input_data, exo_data = self.timer(self.prep_chunk_data, log=True)(
-            chunk_index=chunk_index
-        )
+        input_data, exo_data = self.timer(
+            self.prep_chunk_data, log=True, call_id=chunk_index
+        )(chunk_index=chunk_index)
 
         return ForwardPassChunk(
             input_data=input_data.as_array(),

@@ -3,9 +3,84 @@
 import logging
 import re
 
+import dask.array as da
 import numpy as np
+import pandas as pd
+from rex.utilities.solar_position import SolarPosition
 
 logger = logging.getLogger(__name__)
+
+
+class SolarZenith:
+    """
+    Class to compute solar zenith angle. Use SPA from rex and wrap some of
+    those methods in ``dask.array.map_blocks`` so this can be computed in
+    parallel across chunks.
+    """
+
+    @staticmethod
+    def _get_zenith(n, zulu, lat_lon):
+        """
+        Compute solar zenith angle from days, hours, and location
+
+        Parameters
+        ----------
+        n : da.core.Array
+            Days since Greenwich Noon
+        zulu : da.core.Array
+            Decimal hour in UTC (Zulu Hour)
+        lat_lon : da.core.Array
+            (latitude, longitude, 2) for site(s) of interest
+
+        Returns
+        -------
+        zenith : ndarray
+            Solar zenith angle in degrees
+        """
+        lat, lon = lat_lon[..., 0], lat_lon[..., 1]
+        lat = lat.flatten()[..., None]
+        lon = lon.flatten()[..., None]
+        ra, dec = SolarPosition._calc_sun_pos(n)
+        zen = da.map_blocks(SolarPosition._calc_hour_angle, n, zulu, ra, lon)
+        zen = da.map_blocks(SolarPosition._calc_elevation, dec, zen, lat)
+        zen = da.map_blocks(SolarPosition._atm_correction, zen)
+        zen = np.degrees(np.pi / 2 - zen)
+        return zen
+
+    @staticmethod
+    def get_zenith(time_index, lat_lon, ll_chunks=(10, 10, 1)):
+        """
+        Compute solar zenith angle from time_index and location
+
+        Parameters
+        ----------
+        time_index : ndarray | pandas.DatetimeIndex | str
+            Datetime stamps of interest
+        lat_lon : da.core.Array
+            (latitude, longitude, 2) for site(s) of interest
+        ll_chunks : tuple
+            Chunks for lat_lon array. To run this on a large domain, even with
+            delayed computations through dask, we need to use small chunks for
+            the lat lon array.
+
+        Returns
+        -------
+        zenith : da.core.Array
+            Solar zenith angle in degrees
+        """
+        if not isinstance(time_index, pd.DatetimeIndex):
+            if isinstance(time_index, str):
+                time_index = [time_index]
+
+            time_index = pd.to_datetime(time_index)
+
+        out_shape = (*lat_lon.shape[:-1], len(time_index))
+        lat_lon = lat_lon.rechunk(ll_chunks)
+        n, zulu = SolarPosition._parse_time(time_index)
+        n = da.asarray(n).astype(np.float32)
+        zulu = da.asarray(zulu).astype(np.float32)
+        zen = SolarZenith._get_zenith(n, zulu, lat_lon)
+        return zen.reshape(out_shape)
 
 
 def parse_feature(feature):

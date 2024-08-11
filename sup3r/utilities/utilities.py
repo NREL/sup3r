@@ -39,13 +39,16 @@ class Timer:
         self.log = {}
         self.elapsed = 0
 
-    def __call__(self, func, log=False):
+    def __call__(self, func, call_id=None, log=False):
         """Time function call and store elapsed time in self.log.
 
         Parameters
         ----------
         func : function
             Function to time
+        call_id: int | None
+            ID to distingush calls with the same function name. For example,
+            when runnning forward passes on multiple chunks.
         log : bool
             Whether to write to active logger
 
@@ -67,7 +70,12 @@ class Timer:
             out = func(*args, **kwargs)
             t_elap = time.time() - t0
             self.elapsed = t_elap
-            self.log[f'elapsed:{func.__name__}'] = t_elap
+            if call_id is not None:
+                entry = self.log.get(call_id, {})
+                entry[func.__name__] = t_elap
+                self.log[call_id] = entry
+            else:
+                self.log[func.__name__] = t_elap
             if log:
                 logger.debug(f'Call to {func.__name__} finished in '
                              f'{round(t_elap, 5)} seconds')

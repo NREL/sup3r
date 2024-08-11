@@ -1,6 +1,11 @@
 """Base collection classes. These are objects that contain sets / lists of
 containers like batch handlers. Of course these also contain data so they're
-containers too!"""
+containers too!
+
+TODO: https://github.com/xarray-contrib/datatree could unify Sup3rDataset and
+collections of data. Consider migrating once datatree has been fully
+integrated into xarray (in progress as of 8/8/2024)
+"""
 
 from typing import List, Union
 

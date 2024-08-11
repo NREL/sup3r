@@ -70,16 +70,16 @@ class BaseExoRasterizer(ABC):
     t_enhance : int
         Factor by which the Sup3rGan model will enhance the temporal
         dimension of low resolution data from file_paths input. For
-        example, if getting sza data, file_paths has hourly data, and
-        t_enhance is 4, this class will output a sza raster
-        corresponding to the file_paths temporally enhanced 4x to 15 min
+        example, if getting "sza" data, file_paths has hourly data, and
+        t_enhance is 4, this class will output an "sza" raster
+        corresponding to ``file_paths``, temporally enhanced 4x to 15 min
     input_handler_name : str
         data handler class to use for input data. Provide a string name to
         match a :class:`~sup3r.preprocessing.rasterizers.Rasterizer`. If None
         the correct handler will be guessed based on file type and time series
         properties.
     input_handler_kwargs : dict | None
-        Any kwargs for initializing the `input_handler_name` class.
+        Any kwargs for initializing the ``input_handler_name`` class.
     cache_dir : str | './exo_cache'
         Directory to use for caching rasterized data.
     distance_upper_bound : float | None
@@ -171,7 +171,7 @@ class BaseExoRasterizer(ABC):
 
     @property
     def lr_shape(self):
-        """Get the low-resolution spatial shape tuple"""
+        """Get the low-resolution spatiotemporal shape"""
         return (
             *self.input_handler.lat_lon.shape[:2],
             len(self.input_handler.time_index),
@@ -179,7 +179,7 @@ class BaseExoRasterizer(ABC):
 
     @property
     def hr_shape(self):
-        """Get the high-resolution spatial shape tuple"""
+        """Get the high-resolution spatiotemporal shape"""
         return (
             self.s_enhance * self.input_handler.lat_lon.shape[0],
             self.s_enhance * self.input_handler.lat_lon.shape[1],
