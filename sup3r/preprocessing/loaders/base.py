@@ -12,9 +12,13 @@ import xarray as xr
 
 from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.names import FEATURE_NAMES
-from sup3r.preprocessing.utilities import expand_paths
+from sup3r.preprocessing.utilities import expand_paths, log_args
 
-from .utilities import lower_names, standardize_names, standardize_values
+from .utilities import (
+    lower_names,
+    standardize_names,
+    standardize_values,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +33,7 @@ class BaseLoader(Container, ABC):
 
     BASE_LOADER: Callable = xr.open_mfdataset
 
+    @log_args
     def __init__(
         self,
         file_paths,

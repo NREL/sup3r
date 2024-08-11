@@ -6,7 +6,6 @@ import copy
 import itertools
 import logging
 import os
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, Optional, Union
 
 import netCDF4 as nc4  # noqa
@@ -44,12 +43,14 @@ class Cacher(Container):
             have a {feature} format key and either a h5 or nc file extension,
             based on desired output type.
 
-            Can also include a 'max_workers' key and a 'chunks' key, value with
-            a dictionary of tuples for each feature. e.g.
+            Can also include a ``chunks`` key, value with
+            a dictionary of dictionaries for each feature (or a single
+            dictionary to use for all features). e.g.
             ``{'cache_pattern': ...,
                'chunks': {
                  'u_10m': {'time': 20, 'south_north': 100, 'west_east': 100}}
               }``
+
 
         Note
         ----
@@ -104,13 +105,14 @@ class Cacher(Container):
         Parameters
         ----------
         cache_kwargs : dict
-            Can include 'cache_pattern', 'chunks', and 'max_workers'. 'chunks'
-            is a dictionary of tuples (time, lats, lons) for each feature
-            specifying the chunks for h5 writes. 'cache_pattern' must have a
-            {feature} format key.
+            Can include 'cache_pattern' and 'chunks'. 'chunks' is a dictionary
+            with feature keys and a dictionary of chunks as entries, or a
+            dictionary of chunks to use for all features. e.g. ``{'u_10m':
+            {'time: 5, 'south_north': 10, 'west_east': 10}}`` or ``{'time: 5,
+            'south_north': 10, 'west_east': 10}`` 'cache_pattern' must have a
+            ``{feature}`` format key.
         """
         cache_pattern = cache_kwargs.get('cache_pattern', None)
-        max_workers = cache_kwargs.get('max_workers', 1)
         chunks = cache_kwargs.get('chunks', None)
         msg = 'cache_pattern must have {feature} format key.'
         assert '{feature}' in cache_pattern, msg
@@ -126,36 +128,10 @@ class Cacher(Container):
             )
 
         if any(missing_files):
-            if max_workers == 1:
-                for feature, out_file in zip(missing_features, missing_files):
-                    self._write_single(
-                        feature=feature, out_file=out_file, chunks=chunks
-                    )
-            else:
-                futures = {}
-                with ThreadPoolExecutor(max_workers=max_workers) as exe:
-                    for feature, out_file in zip(
-                        missing_features, missing_files
-                    ):
-                        future = exe.submit(
-                            self._write_single,
-                            feature=feature,
-                            out_file=out_file,
-                            chunks=chunks,
-                        )
-                        futures[future] = (feature, out_file)
-                    logger.info(
-                        f'Submitted cacher futures for {self.features}.'
-                    )
-                for i, future in enumerate(as_completed(futures)):
-                    _ = future.result()
-                    feature, out_file = futures[future]
-                    logger.info(
-                        'Finished writing %s. (%s of %s files).',
-                        out_file,
-                        i + 1,
-                        len(futures),
-                    )
+            for feature, out_file in zip(missing_features, missing_files):
+                self._write_single(
+                    feature=feature, out_file=out_file, chunks=chunks
+                )
             logger.info('Finished writing %s', missing_files)
         return missing_files + cached_files
 
@@ -177,8 +153,8 @@ class Cacher(Container):
 
     @classmethod
     def get_chunksizes(cls, dset, data, chunks):
-        """Get chunksizes after rechunking (could be undetermined if 'auto')
-        and return rechunked data."""
+        """Get chunksizes after rechunking (could be undetermined before hand
+        if ``chunks == 'auto'``) and return rechunked data."""
         data_var = data.coords[dset] if dset in data.coords else data[dset]
         fchunk = cls.parse_chunks(dset, chunks, data_var.dims)
         if fchunk is not None and isinstance(fchunk, dict):
