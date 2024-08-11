@@ -130,7 +130,7 @@ class Sup3rQa:
         self.qa_fp = qa_fp
         self.save_sources = save_sources
         self.output_handler = (
-            xr.open_dataset(self._out_fp)
+            xr.open_dataset(self._out_fp, format='NETCDF4', engine='h5netcdf')
             if self.output_type == 'nc'
             else Resource(self._out_fp)
         )

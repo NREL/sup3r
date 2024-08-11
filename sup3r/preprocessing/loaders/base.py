@@ -1,6 +1,7 @@
 """Abstract Loader class merely for loading data from file paths. This data is
 always loaded lazily."""
 
+import copy
 import logging
 from abc import ABC, abstractmethod
 from datetime import datetime as dt
@@ -70,6 +71,19 @@ class BaseLoader(Container, ABC):
         data = standardize_names(standardize_values(data), FEATURE_NAMES)
         features = list(data.dims) if features == [] else features
         self.data = data[features] if features != 'all' else data
+
+    def parse_chunks(self, dims, feature=None):
+        """Get chunks for given dimensions from ``self.chunks``."""
+        chunks = copy.deepcopy(self.chunks)
+        if (
+            isinstance(chunks, dict)
+            and feature is not None
+            and feature in chunks
+        ):
+            chunks = chunks[feature]
+        if isinstance(chunks, dict):
+            chunks = {k: v for k, v in chunks.items() if k in dims}
+        return chunks
 
     def add_attrs(self, data):
         """Add meta data to dataset."""

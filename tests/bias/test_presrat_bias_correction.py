@@ -44,7 +44,9 @@ from sup3r.preprocessing import DataHandler
 from sup3r.preprocessing.utilities import get_date_range_kwargs
 from sup3r.utilities.utilities import RANDOM_GENERATOR, Timer
 
-CC_LAT_LON = DataHandler(pytest.FP_RSDS, 'rsds').lat_lon
+CC_LAT_LON = DataHandler(
+    pytest.FP_RSDS, 'rsds', format='NETCDF', engine='h5netcdf'
+).lat_lon
 # A reference zero rate threshold that might not make sense physically but for
 # testing purposes only. This might change in the future to force edge cases.
 ZR_THRESHOLD = 0.01

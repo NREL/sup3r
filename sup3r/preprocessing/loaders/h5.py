@@ -80,7 +80,7 @@ class LoaderH5(BaseLoader):
             coord_base['latitude'], dtype=np.float32, chunks=chunks
         )
         lats = (coord_dims, lats)
-        lons = da.from_array(
+        lons = da.asarray(
             coord_base['longitude'], dtype=np.float32, chunks=chunks
         )
         lons = (coord_dims, lons)
@@ -126,13 +126,12 @@ class LoaderH5(BaseLoader):
             arr_dims = dims[: len(arr.shape)]
         return (arr_dims, arr, dict(self.res.h5[dset].attrs))
 
-    def parse_chunks(self, dims):
+    def parse_chunks(self, dims, feature=None):
         """Get chunks for given dimensions from ``self.chunks``."""
-        return (
-            tuple(self.chunks[d] for d in dims)
-            if isinstance(self.chunks, dict)
-            else self.chunks
-        )
+        chunks = super().parse_chunks(dims=dims, feature=feature)
+        if not isinstance(chunks, dict):
+            return chunks
+        return tuple(chunks.get(d, 'auto') for d in dims)
 
     def _get_data_vars(self, dims):
         """Define data_vars dict for xr.Dataset construction."""

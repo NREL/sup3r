@@ -51,6 +51,7 @@ def test_derived_data_caching(
 ):
     """Test feature derivation followed by caching/loading"""
 
+    chunks = {'time': 1000, 'south_north': 5, 'west_east': 5}
     with tempfile.TemporaryDirectory() as td:
         cache_pattern = os.path.join(td, 'cached_{feature}.' + ext)
         deriver = DataHandler(
@@ -58,10 +59,12 @@ def test_derived_data_caching(
             features=derive_features,
             shape=shape,
             target=target,
+            chunks=chunks,
         )
 
         cacher = Cacher(
-            deriver.data, cache_kwargs={'cache_pattern': cache_pattern}
+            deriver.data,
+            cache_kwargs={'cache_pattern': cache_pattern, 'chunks': chunks},
         )
 
         assert deriver.shape[:3] == (shape[0], shape[1], deriver.shape[2])
@@ -72,9 +75,9 @@ def test_derived_data_caching(
         assert deriver.data.dtype == np.dtype(np.float32)
 
         loader = DataHandler(cacher.out_files, features=derive_features)
-        assert np.array_equal(
-            loader.as_array().compute(), deriver.as_array().compute()
-        )
+        loaded = loader.as_array().compute()
+        derived = deriver.as_array().compute()
+        assert np.array_equal(loaded, derived)
 
 
 @pytest.mark.parametrize(

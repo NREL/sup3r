@@ -334,11 +334,6 @@ class Sup3rX:
         """Override xr.Dataset.coarsen to cast back to Sup3rX object."""
         return type(self)(self._ds.coarsen(*args, **kwargs))
 
-    @property
-    def dims(self):
-        """Return dims with our own enforced ordering."""
-        return ordered_dims(self._ds.dims)
-
     def mean(self, **kwargs):
         """Get mean directly from dataset object."""
         features = kwargs.pop('features', None)

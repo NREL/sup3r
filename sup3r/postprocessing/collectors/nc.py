@@ -1,4 +1,7 @@
-"""NETCDF file collection."""
+"""NETCDF file collection.
+
+TODO: Integrate this with Cacher class
+"""
 
 import logging
 import os

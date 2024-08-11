@@ -1,6 +1,6 @@
 """Output handling
 
-TODO: Remove redundant code re. Cachers
+TODO: Integrate this with Cacher class
 """
 
 import json

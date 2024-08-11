@@ -27,7 +27,9 @@ class LoaderNC(BaseLoader):
 
     def BASE_LOADER(self, file_paths, **kwargs):
         """Lowest level interface to data."""
-        return xr.open_mfdataset(file_paths, **kwargs)
+        default_kwargs = {'format': 'NETCDF4', 'engine': 'h5netcdf'}
+        default_kwargs.update(kwargs)
+        return xr.open_mfdataset(file_paths, **default_kwargs)
 
     def enforce_descending_lats(self, dset):
         """Make sure latitudes are in descending order so that min lat / lon is
@@ -118,6 +120,15 @@ class LoaderNC(BaseLoader):
                 )
         return rename_dims
 
+    def rechunk_dsets(self, res):
+        """Apply given chunk values for each field in res.coords and
+        res.data_vars."""
+        for dset in [*list(res.coords), *list(res.data_vars)]:
+            chunks = self.parse_chunks(dims=res[dset].dims, feature=dset)
+            if chunks != 'auto':
+                res[dset] = res[dset].chunk(chunks)
+        return res
+
     def _load(self):
         """Load netcdf xarray.Dataset()."""
         res = lower_names(self.res)
@@ -133,7 +144,6 @@ class LoaderNC(BaseLoader):
 
         res = res.swap_dims(self.get_dims(res))
         res = res.assign_coords(self.get_coords(res))
-        if isinstance(self.chunks, dict):
-            res = res.chunk(self.chunks)
         res = self.enforce_descending_lats(res)
+        res = self.rechunk_dsets(res)
         return self.enforce_descending_levels(res).astype(np.float32)

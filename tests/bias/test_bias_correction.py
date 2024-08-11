@@ -27,7 +27,9 @@ from sup3r.preprocessing.utilities import (
 from sup3r.qa.qa import Sup3rQa
 from sup3r.utilities.utilities import RANDOM_GENERATOR
 
-with xr.open_dataset(pytest.FP_RSDS) as fh:
+with xr.open_dataset(
+    pytest.FP_RSDS, format='NETCDF4', engine='h5netcdf'
+) as fh:
     MIN_LAT = np.min(fh.lat.values.astype(np.float32))
     MIN_LON = np.min(fh.lon.values.astype(np.float32)) - 360
     TARGET = (float(MIN_LAT), float(MIN_LON))

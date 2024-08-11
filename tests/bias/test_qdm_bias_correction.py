@@ -20,7 +20,9 @@ from sup3r.utilities.utilities import RANDOM_GENERATOR
 
 CC_LAT_LON = DataHandler(pytest.FP_RSDS, 'rsds').lat_lon
 
-with xr.open_dataset(pytest.FP_RSDS) as fh:
+with xr.open_dataset(
+    pytest.FP_RSDS, format='NETCDF4', engine='h5netcdf'
+) as fh:
     MIN_LAT = np.min(fh.lat.values.astype(np.float32))
     MIN_LON = np.min(fh.lon.values.astype(np.float32)) - 360
     TARGET = (float(MIN_LAT), float(MIN_LON))
@@ -34,7 +36,7 @@ def fp_fut_cc(tmpdir_factory):
     The same CC but with an offset (75.0) and negligible noise.
     """
     fn = tmpdir_factory.mktemp('data').join('test_mf.nc')
-    ds = xr.open_dataset(pytest.FP_RSDS)
+    ds = xr.open_dataset(pytest.FP_RSDS, format='NETCDF4', engine='h5netcdf')
     # Adding an offset
     ds['rsds'] += 75.0
     # adding a noise
