@@ -15,12 +15,12 @@ import dask.array as da
 import numpy as np
 import pandas as pd
 import xarray as xr
-from rex.utilities.solar_position import SolarPosition
 from scipy.spatial import KDTree
 
 from sup3r.postprocessing.writers.base import OutputHandler
 from sup3r.preprocessing.accessor import Sup3rX
 from sup3r.preprocessing.base import Sup3rMeta
+from sup3r.preprocessing.derivers.utilities import SolarZenith
 from sup3r.preprocessing.loaders import Loader
 from sup3r.preprocessing.names import Dimension
 from sup3r.utilities.utilities import generate_random_string, nn_fill_array
@@ -363,20 +363,15 @@ class SzaRasterizer(BaseExoRasterizer):
     @property
     def source_data(self):
         """Get the 1D array of sza data from the source_file_h5"""
-        return SolarPosition(
-            self.hr_time_index, self.hr_lat_lon.reshape((-1, 2))
-        ).zenith.T
+        return SolarZenith.get_zenith(self.hr_time_index, self.hr_lat_lon)
 
     def get_data(self):
         """Get a raster of source values corresponding to the high-res grid
         (the file_paths input grid * s_enhance * t_enhance). The shape is
         (lats, lons, temporal)
         """
-        hr_data = self.source_data.reshape(self.hr_shape)
         logger.info(f'Finished computing {self.feature} data')
-        data_vars = {
-            self.feature: (Dimension.dims_3d(), da.from_array(hr_data))
-        }
+        data_vars = {self.feature: (Dimension.dims_3d(), self.source_data)}
         ds = xr.Dataset(coords=self.coords, data_vars=data_vars)
         return Sup3rX(ds)
 
