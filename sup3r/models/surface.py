@@ -543,7 +543,11 @@ class SurfaceSpatialMetModel(LinearInterp):
             match spatial_1, spatial_2 from low_res), and the second entry
             includes a 2D (lat, lon) or 4D (n_obs, lat, lon, temporal) array of
             high-resolution surface elevation data in meters. e.g.
-            {'topography': {'steps': [{'data': lr_topo}, {'data': hr_topo'}]}}
+            .. code-block:: JSON
+                {'topography': {
+                    'steps': [{'data': lr_topo}, {'data': hr_topo'}]
+                    }
+                }
 
         Returns
         -------
@@ -598,7 +602,11 @@ class SurfaceSpatialMetModel(LinearInterp):
             meters (must match spatial_1, spatial_2 from low_res), and the
             second entry includes a 2D (lat, lon) array of high-resolution
             surface elevation data in meters. e.g.
-            {'topography': {'steps': [{'data': lr_topo}, {'data': hr_topo'}]}}
+            .. code-block:: JSON
+                {'topography': {
+                    'steps': [{'data': lr_topo}, {'data': hr_topo'}]
+                    }
+                }
 
         Returns
         -------

@@ -19,7 +19,7 @@ RANDOM_GENERATOR = np.random.default_rng(seed=42)
 
 def xr_open_mfdataset(files, **kwargs):
     """Wrapper for xr.open_mfdataset with default opening options."""
-    default_kwargs = {'format': 'NETCDF4', 'engine': 'h5netcdf'}
+    default_kwargs = {'engine': 'h5netcdf'}
     default_kwargs.update(kwargs)
     return xr.open_mfdataset(files, **default_kwargs)
 

@@ -119,9 +119,9 @@ class ForwardPassStrategy:
         a nested dictionary with keys for each exogenous feature. The
         dictionaries corresponding to the feature names should include the path
         to exogenous data source, the resolution of the exogenous data, and how
-        the exogenous data should be used in the model. e.g. {'topography':
+        the exogenous data should be used in the model. e.g. ``{'topography':
         {'file_paths': 'path to input files', 'source_file': 'path to exo
-        data', 'steps': [..]}.
+        data', 'steps': [..]}``.
     bias_correct_method : str | None
         Optional bias correction function name that can be imported from the
         :mod:`sup3r.bias.bias_transforms` module. This will transform the

@@ -52,6 +52,7 @@ def test_derived_data_caching(
     """Test feature derivation followed by caching/loading"""
 
     chunks = {'time': 1000, 'south_north': 5, 'west_east': 5}
+    res_kwargs = {'engine': 'netcdf4'} if ext == 'nc' else {}
     with tempfile.TemporaryDirectory() as td:
         cache_pattern = os.path.join(td, 'cached_{feature}.' + ext)
         deriver = DataHandler(
@@ -60,6 +61,7 @@ def test_derived_data_caching(
             shape=shape,
             target=target,
             chunks=chunks,
+            res_kwargs=res_kwargs
         )
 
         cacher = Cacher(

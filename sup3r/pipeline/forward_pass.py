@@ -88,7 +88,8 @@ class ForwardPass:
         Parameters
         ----------
         step : dict
-            Model step dictionary. e.g. {'model': 0, 'combine_type': 'input'}
+            Model step dictionary. e.g.
+            ``{'model': 0, 'combine_type': 'input'}``
 
         Returns
         -------
@@ -149,7 +150,7 @@ class ForwardPass:
             that dimension. Ordering is spatial_1, spatial_2, temporal.
         exo_data: dict
             Full exo_handler_kwargs dictionary with all feature entries. See
-            :meth:`ForwardPass.run_generator` for more information.
+            :meth:`run_generator` for more information.
         mode : str
             Mode to use for padding. e.g. 'reflect'.
 
@@ -217,9 +218,12 @@ class ForwardPass:
             Dictionary of exogenous feature data with entries describing
             whether features should be combined at input, a mid network layer,
             or with output. e.g.
-            {'topography': {'steps': [
-                {'combine_type': 'input', 'model': 0, 'data': ...},
-                {'combine_type': 'layer', 'model': 0, 'data': ...}]}}
+            .. code-block:: JSON
+                {
+                    'topography': {'steps': [
+                        {'combine_type': 'input', 'model': 0, 'data': ...},
+                        {'combine_type': 'layer', 'model': 0, 'data': ...}]}
+                }
 
         Returns
         -------

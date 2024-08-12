@@ -75,7 +75,7 @@ class LoaderH5(BaseLoader):
             self.res.h5 if 'latitude' in self.res.h5 else self.res.h5['meta']
         )
         coord_dims = dims[-len(self._meta_shape()) :]
-        chunks = self.parse_chunks(coord_dims)
+        chunks = self._parse_chunks(coord_dims)
         lats = da.asarray(
             coord_base['latitude'], dtype=np.float32, chunks=chunks
         )
@@ -126,9 +126,9 @@ class LoaderH5(BaseLoader):
             arr_dims = dims[: len(arr.shape)]
         return (arr_dims, arr, dict(self.res.h5[dset].attrs))
 
-    def parse_chunks(self, dims, feature=None):
+    def _parse_chunks(self, dims, feature=None):
         """Get chunks for given dimensions from ``self.chunks``."""
-        chunks = super().parse_chunks(dims=dims, feature=feature)
+        chunks = super()._parse_chunks(dims=dims, feature=feature)
         if not isinstance(chunks, dict):
             return chunks
         return tuple(chunks.get(d, 'auto') for d in dims)
@@ -137,7 +137,7 @@ class LoaderH5(BaseLoader):
         """Define data_vars dict for xr.Dataset construction."""
         data_vars = {}
         logger.debug(f'Rechunking features with chunks: {self.chunks}')
-        chunks = self.parse_chunks(dims)
+        chunks = self._parse_chunks(dims)
         if len(self._meta_shape()) == 1 and 'elevation' in self.res.meta:
             elev = self.res.meta['elevation'].values.astype(np.float32)
             elev = da.asarray(elev)

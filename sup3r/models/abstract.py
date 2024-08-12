@@ -911,7 +911,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         -------
         exo_data : dict
             Dictionary of exogenous feature data used as input to tf_generate.
-            e.g. {'topography': tf.Tensor(...)}
+            e.g. ``{'topography': tf.Tensor(...)}``
         """
         exo_data = {}
         for feature in self.hr_exo_features:
@@ -1418,10 +1418,10 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             received normalized data with mean=0 stdev=1.
         hi_res_exo : dict
             Dictionary of exogenous_data with same resolution as high_res data
-            e.g. {'topography': np.array}
+            e.g. ``{'topography': np.array}``
             The arrays in this dictionary should be a 4D array for spatial
             enhancement model or 5D array for a spatiotemporal enhancement
-            model (obs, spatial_1, spatial_2, (temporal), features)
+            model ``(obs, spatial_1, spatial_2, (temporal), features)``
             corresponding to the high-resolution spatial_1 and spatial_2. This
             data will be input to the custom phygnn Sup3rAdder or Sup3rConcat
             layer if found in the generative network. This differs from the

@@ -337,10 +337,20 @@ class MultiStepSurfaceMetGan(MultiStepGan):
             meters (must match spatial_1, spatial_2 from low_res), and the
             second entry includes a 2D (lat, lon) array of high-resolution
             surface elevation data in meters. e.g.
-            {'topography': {
-                'steps': [
-                    {'model': 0, 'combine_type': 'input', 'data': lr_topo},
-                    {'model': 0, 'combine_type': 'output', 'data': hr_topo'}]}}
+            .. code-block:: JSON
+                {'topography': {
+                    'steps': [
+                        {'model': 0,
+                         'combine_type':
+                         'input',
+                         'data': lr_topo},
+                        {'model': 0,
+                         'combine_type':
+                         'output',
+                         'data': hr_topo'}
+                        ]
+                    }
+                }
 
         Returns
         -------

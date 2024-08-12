@@ -19,19 +19,19 @@ logger = logging.getLogger(__name__)
 
 
 class LoaderNC(BaseLoader):
-    """Base NETCDF loader. "Loads" netcdf files so that a `.data` attribute
+    """Base NETCDF loader. "Loads" netcdf files so that a ``.data`` attribute
     provides access to the data in the files. This object provides a
-    `__getitem__` method that can be used by Sampler objects to build batches
-    or by Wrangler objects to derive / extract specific features / regions /
+    ``__getitem__`` method that can be used by Sampler objects to build batches
+    or by other objects to derive / extract specific features / regions /
     time_periods."""
 
     def BASE_LOADER(self, file_paths, **kwargs):
         """Lowest level interface to data."""
         return xr_open_mfdataset(file_paths, **kwargs)
 
-    def enforce_descending_lats(self, dset):
+    def _enforce_descending_lats(self, dset):
         """Make sure latitudes are in descending order so that min lat / lon is
-        at lat_lon[-1, 0]."""
+        at ``lat_lon[-1, 0]``."""
         invert_lats = (
             dset[Dimension.LATITUDE][-1, 0] > dset[Dimension.LATITUDE][0, 0]
         )
@@ -42,14 +42,9 @@ class LoaderNC(BaseLoader):
                     dset.update({var: new_var})
         return dset
 
-    def unstagger_variables(self, dset):
-        """Unstagger variables with staggered dimensions. Usually used in WRF
-        output."""
-        raise NotImplementedError
-
-    def enforce_descending_levels(self, dset):
+    def _enforce_descending_levels(self, dset):
         """Make sure levels are in descending order so that max pressure is at
-        level[0]."""
+        ``level[0]``."""
         invert_levels = (
             dset[Dimension.PRESSURE_LEVEL][-1]
             > dset[Dimension.PRESSURE_LEVEL][0]
@@ -71,7 +66,8 @@ class LoaderNC(BaseLoader):
 
     @staticmethod
     def get_coords(res):
-        """Get coordinate dictionary to use in xr.Dataset().assign_coords()."""
+        """Get coordinate dictionary to use in
+        ``xr.Dataset().assign_coords()``."""
         lats = res[Dimension.LATITUDE].data.squeeze().astype(np.float32)
         lons = res[Dimension.LONGITUDE].data.squeeze().astype(np.float32)
 
@@ -118,17 +114,17 @@ class LoaderNC(BaseLoader):
                 )
         return rename_dims
 
-    def rechunk_dsets(self, res):
+    def _rechunk_dsets(self, res):
         """Apply given chunk values for each field in res.coords and
         res.data_vars."""
         for dset in [*list(res.coords), *list(res.data_vars)]:
-            chunks = self.parse_chunks(dims=res[dset].dims, feature=dset)
+            chunks = self._parse_chunks(dims=res[dset].dims, feature=dset)
             if chunks != 'auto':
                 res[dset] = res[dset].chunk(chunks)
         return res
 
     def _load(self):
-        """Load netcdf xarray.Dataset()."""
+        """Load netcdf ``xarray.Dataset()``."""
         res = lower_names(self.res)
         rename_coords = {
             k: v for k, v in COORD_NAMES.items() if k in res and v not in res
@@ -142,6 +138,6 @@ class LoaderNC(BaseLoader):
 
         res = res.swap_dims(self.get_dims(res))
         res = res.assign_coords(self.get_coords(res))
-        res = self.enforce_descending_lats(res)
-        res = self.rechunk_dsets(res)
-        return self.enforce_descending_levels(res).astype(np.float32)
+        res = self._enforce_descending_lats(res)
+        res = self._rechunk_dsets(res)
+        return self._enforce_descending_levels(res).astype(np.float32)

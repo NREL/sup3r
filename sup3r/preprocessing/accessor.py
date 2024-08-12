@@ -537,13 +537,17 @@ class Sup3rX:
     def unflatten(self, grid_shape):
         """Convert flattened dataset into rasterized dataset with the given
         grid shape."""
-        assert self.flattened, 'Dataset is already unflattened'
-        ind = pd.MultiIndex.from_product(
-            (np.arange(grid_shape[0]), np.arange(grid_shape[1])),
-            names=Dimension.dims_2d(),
-        )
-        self._ds = self._ds.assign({Dimension.FLATTENED_SPATIAL: ind})
-        self._ds = self._ds.unstack(Dimension.FLATTENED_SPATIAL)
+        if self.flattened:
+            ind = pd.MultiIndex.from_product(
+                (np.arange(grid_shape[0]), np.arange(grid_shape[1])),
+                names=Dimension.dims_2d(),
+            )
+            self._ds = self._ds.assign({Dimension.FLATTENED_SPATIAL: ind})
+            self._ds = self._ds.unstack(Dimension.FLATTENED_SPATIAL)
+        else:
+            msg = 'Dataset is already unflattened'
+            logger.warning(msg)
+            warn(msg)
         return type(self)(self._ds)
 
     def __mul__(self, other):

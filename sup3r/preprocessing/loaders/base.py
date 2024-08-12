@@ -65,19 +65,18 @@ class BaseLoader(Container, ABC):
             MultiFileResourceX and for NETCDF is xarray.open_mfdataset
         """
         super().__init__()
-        self._data = None
         self.res_kwargs = res_kwargs or {}
         self.file_paths = file_paths
         self.chunks = chunks
         BASE_LOADER = BaseLoader or self.BASE_LOADER
         self.res = BASE_LOADER(self.file_paths, **self.res_kwargs)
         data = self._load().astype(np.float32)
-        data = self.add_attrs(lower_names(data))
+        data = self._add_attrs(lower_names(data))
         data = standardize_names(standardize_values(data), FEATURE_NAMES)
         features = list(data.dims) if features == [] else features
         self.data = data[features] if features != 'all' else data
 
-    def parse_chunks(self, dims, feature=None):
+    def _parse_chunks(self, dims, feature=None):
         """Get chunks for given dimensions from ``self.chunks``."""
         chunks = copy.deepcopy(self.chunks)
         if (
@@ -90,7 +89,7 @@ class BaseLoader(Container, ABC):
             chunks = {k: v for k, v in chunks.items() if k in dims}
         return chunks
 
-    def add_attrs(self, data):
+    def _add_attrs(self, data):
         """Add meta data to dataset."""
         attrs = {
             'source_files': str(self.file_paths),
