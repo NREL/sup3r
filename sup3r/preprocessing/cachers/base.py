@@ -7,7 +7,7 @@ import itertools
 import logging
 import os
 from typing import Dict, Optional, Union
-
+import numpy as np
 import netCDF4 as nc4  # noqa
 import h5py
 import dask
@@ -306,7 +306,6 @@ class Cacher(Container):
                 )
 
                 if dset in data.coords:
-                    data_var = data_var.compute()
-                    ncfile.variables[dset][:] = data_var.data
+                    ncfile.variables[dset][:] = np.asarray(data_var.data)
 
         cls.write_netcdf_chunks(out_file, feature, data, chunks=chunks)

@@ -275,7 +275,7 @@ class Sup3rQa:
 
         Returns
         -------
-        out : Union[np.ndarray, da.core.Array]
+        out : np.ndarray
             A copy of the high-resolution output data as a numpy
             array of shape (spatial_1, spatial_2, temporal)
         """
@@ -294,7 +294,7 @@ class Sup3rQa:
             # data always needs to be converted from (t, s1, s2) -> (s1, s2, t)
         data = np.transpose(data, axes=(1, 2, 0))
 
-        return data
+        return np.asarray(data)
 
     def coarsen_data(self, idf, feature, data):
         """Re-coarsen a high-resolution synthetic output dataset
@@ -421,7 +421,7 @@ class Sup3rQa:
         logger.info('Adding dataset "{}" to output file.'.format(dset_name))
 
         # transpose and flatten to typical h5 (time, space) dimensions
-        data = np.transpose(data, axes=(2, 0, 1)).reshape(shape)
+        data = np.transpose(np.asarray(data), axes=(2, 0, 1)).reshape(shape)
 
         RexOutputs.add_dataset(
             qa_fp,
