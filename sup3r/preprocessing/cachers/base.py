@@ -7,11 +7,11 @@ import itertools
 import logging
 import os
 from typing import Dict, Optional, Union
-import numpy as np
 import netCDF4 as nc4  # noqa
 import h5py
 import dask
 import dask.array as da
+import numpy as np
 
 from sup3r.preprocessing.accessor import Sup3rX
 from sup3r.preprocessing.base import Container, Sup3rDataset
@@ -25,7 +25,10 @@ logger = logging.getLogger(__name__)
 
 
 class Cacher(Container):
-    """Base cacher object. Simply writes given data to H5 or NETCDF files."""
+    """Base cacher object. Simply writes given data to H5 or NETCDF files. By
+    default every feature will be written to a separate file. To write multiple
+    features to the same file call :meth:`write_netcdf` or :meth:`write_h5`
+    directly"""
 
     def __init__(
         self,
@@ -90,9 +93,9 @@ class Cacher(Container):
                 logger.error(msg)
                 raise ValueError(msg)
             func(
-                tmp_file,
-                feature,
+                out_file=tmp_file,
                 data=self.data,
+                features=[feature],
                 chunks=chunks,
             )
             os.replace(tmp_file, out_file)
@@ -167,18 +170,18 @@ class Cacher(Container):
         return data_var, chunksizes
 
     @classmethod
-    def write_h5(cls, out_file, feature, data, chunks=None):
+    def write_h5(cls, out_file, data, features='all', chunks=None):
         """Cache data to h5 file using user provided chunks value.
 
         Parameters
         ----------
         out_file : str
             Name of file to write. Must have a .h5 extension.
-        feature : str
-            Name of feature to write to file.
         data : Sup3rDataset | Sup3rX | xr.Dataset
             Data to write to file. Comes from ``self.data``, so an
             ``xr.Dataset`` like object with ``.dims`` and ``.coords``
+        features : str | list
+            Name of feature(s) to write to file.
         chunks : dict | None
             Chunk sizes for coordinate dimensions. e.g.
             ``{'u_10m': {'time': 10, 'south_north': 100, 'west_east': 100}}``
@@ -187,13 +190,15 @@ class Cacher(Container):
         """
         if len(data.dims) == 3:
             data = data.transpose(Dimension.TIME, *Dimension.dims_2d())
-
+        if features == 'all':
+            features = list(data.data_vars)
+        features = features if isinstance(features, list) else [features]
         chunks = chunks or 'auto'
         attrs = {k: safe_serialize(v) for k, v in data.attrs.items()}
         with h5py.File(out_file, 'w') as f:
             for k, v in attrs.items():
                 f.attrs[k] = v
-            for dset in [*list(data.coords), feature]:
+            for dset in [*list(data.coords), *features]:
                 data_var, chunksizes = cls.get_chunksizes(dset, data, chunks)
 
                 if dset == Dimension.TIME:
@@ -247,6 +252,7 @@ class Cacher(Container):
         tasks = []
         data_var = data[feature]
         data_var, chunksizes = cls.get_chunksizes(feature, data, chunks)
+        chunksizes = data_var.shape if chunksizes is None else chunksizes
         for chunk_slice in cls.get_chunk_slices(chunksizes, data_var.shape):
             chunk = data_var.data[chunk_slice]
             tasks.append(
@@ -254,28 +260,30 @@ class Cacher(Container):
                     out_file, feature, chunk_slice, chunk
                 )
             )
-        dask.compute(*tasks)
+        dask.compute(*tasks, scheduler='threads')
 
     @classmethod
-    def write_netcdf(cls, out_file, feature, data, chunks=None):
+    def write_netcdf(cls, out_file, data, features='all', chunks=None):
         """Cache data to a netcdf file.
 
         Parameters
         ----------
         out_file : str
             Name of file to write. Must have a .nc extension.
-        feature : str
-            Name of feature to write to file.
         data : Sup3rDataset
             Data to write to file. Comes from ``self.data``, so a Sup3rDataset
             with coords attributes
+        features : str | list
+            Names of feature(s) to write to file.
         chunks : dict | None
             Chunk sizes for coordinate dimensions. e.g. ``{'windspeed':
             {'south_north': 100, 'west_east': 100, 'time': 10}}``
         """
         chunks = chunks or 'auto'
         attrs = {k: safe_serialize(v) for k, v in data.attrs.items()}
-
+        if features == 'all':
+            features = list(data.data_vars)
+        features = features if isinstance(features, list) else [features]
         with nc4.Dataset(out_file, 'w', format='NETCDF4') as ncfile:
             for dim_name, dim_size in data.sizes.items():
                 ncfile.createDimension(dim_name, dim_size)
@@ -283,7 +291,7 @@ class Cacher(Container):
             for attr_name, attr_value in attrs.items():
                 setattr(ncfile, attr_name, attr_value)
 
-            for dset in [*list(data.coords), feature]:
+            for dset in [*list(data.coords), *features]:
                 data_var, chunksizes = cls.get_chunksizes(dset, data, chunks)
 
                 if dset == Dimension.TIME:
@@ -308,4 +316,7 @@ class Cacher(Container):
                 if dset in data.coords:
                     ncfile.variables[dset][:] = np.asarray(data_var.data)
 
-        cls.write_netcdf_chunks(out_file, feature, data, chunks=chunks)
+        for feature in features:
+            cls.write_netcdf_chunks(
+                out_file=out_file, feature=feature, data=data, chunks=chunks
+            )

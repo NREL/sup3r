@@ -5,13 +5,13 @@ from tempfile import TemporaryDirectory
 
 import numpy as np
 import pytest
-import xarray as xr
 
 from sup3r.preprocessing import Deriver, Rasterizer
 from sup3r.preprocessing.derivers.utilities import (
     transform_rotate_wind,
 )
 from sup3r.utilities.pytest.helpers import make_fake_nc_file
+from sup3r.utilities.utilities import xr_open_mfdataset
 
 features = ['windspeed_100m', 'winddirection_100m']
 h5_target = (39.01, -105.15)
@@ -29,9 +29,7 @@ def make_5d_nc_file(td, features):
     level_file = os.path.join(td, 'wind_levs.nc')
     make_fake_nc_file(level_file, shape=(60, 60, 100, 3), features=['zg', 'u'])
     out_file = os.path.join(td, 'nc_5d.nc')
-    xr.open_mfdataset([wind_file, level_file]).to_netcdf(
-        out_file, format='NETCDF4', engine='h5netcdf'
-    )
+    xr_open_mfdataset([wind_file, level_file]).to_netcdf(out_file)
     return out_file
 
 

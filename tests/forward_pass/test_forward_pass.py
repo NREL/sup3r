@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 import tensorflow as tf
-import xarray as xr
 from rex import ResourceX
 
 from sup3r import CONFIG_DIR, __version__
@@ -18,6 +17,7 @@ from sup3r.preprocessing import DataHandler, Dimension
 from sup3r.utilities.pytest.helpers import (
     make_fake_nc_file,
 )
+from sup3r.utilities.utilities import xr_open_mfdataset
 
 FEATURES = ['u_100m', 'v_100m']
 target = (19.3, -123.5)
@@ -77,7 +77,7 @@ def test_fwp_nc_cc():
         forward_pass = ForwardPass(strat)
         forward_pass.run(strat, node_index=0)
 
-        with xr.open_dataset(strat.out_files[0]) as fh:
+        with xr_open_mfdataset(strat.out_files[0]) as fh:
             assert fh[FEATURES[0]].transpose(
                 Dimension.TIME, *Dimension.dims_2d()
             ).shape == (
@@ -132,7 +132,7 @@ def test_fwp_spatial_only(input_files):
         assert strat.pass_workers == 1
         forward_pass.run(strat, node_index=0)
 
-        with xr.open_dataset(strat.out_files[0]) as fh:
+        with xr_open_mfdataset(strat.out_files[0]) as fh:
             assert fh[FEATURES[0]].transpose(
                 Dimension.TIME, *Dimension.dims_2d()
             ).shape == (
@@ -184,7 +184,7 @@ def test_fwp_nc(input_files):
         assert forward_pass.strategy.pass_workers == 1
         forward_pass.run(strat, node_index=0)
 
-        with xr.open_dataset(strat.out_files[0]) as fh:
+        with xr_open_mfdataset(strat.out_files[0]) as fh:
             assert fh[FEATURES[0]].transpose(
                 Dimension.TIME, *Dimension.dims_2d()
             ).shape == (
@@ -346,7 +346,7 @@ def test_fwp_handler(input_files):
             meta=fwp.meta,
         )
 
-        raw_tsteps = len(xr.open_dataset(input_files)[Dimension.TIME])
+        raw_tsteps = len(xr_open_mfdataset(input_files)[Dimension.TIME])
         assert data.shape == (
             s_enhance * fwp_chunk_shape[0],
             s_enhance * fwp_chunk_shape[1],
@@ -376,7 +376,7 @@ def test_fwp_chunking(input_files, plot=False):
         model.save(out_dir)
         spatial_pad = 12
         temporal_pad = 12
-        raw_tsteps = len(xr.open_dataset(input_files)[Dimension.TIME])
+        raw_tsteps = len(xr_open_mfdataset(input_files)[Dimension.TIME])
         fwp_shape = (5, 5, raw_tsteps // 2)
         strat = ForwardPassStrategy(
             input_files,
@@ -507,7 +507,7 @@ def test_fwp_nochunking(input_files):
             fwp_chunk_shape=(
                 shape[0],
                 shape[1],
-                len(xr.open_dataset(input_files)[Dimension.TIME]),
+                len(xr_open_mfdataset(input_files)[Dimension.TIME]),
             ),
             spatial_pad=0,
             temporal_pad=0,

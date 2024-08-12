@@ -45,12 +45,13 @@ def test_dim_ordering():
     """Make sure standard reordering works with dimensions not in the standard
     list."""
     loader = LoaderNC(pytest.FPS_GCM)
-    assert tuple(loader.dims) == (
+    assert tuple(loader.to_dataarray().dims) == (
         Dimension.SOUTH_NORTH,
         Dimension.WEST_EAST,
         Dimension.TIME,
         Dimension.PRESSURE_LEVEL,
         'nbnd',
+        Dimension.VARIABLE
     )
 
 
@@ -151,7 +152,7 @@ def test_load_cc():
         if len(loader[f].data.shape) == 3
     )
     assert isinstance(loader.time_index, pd.DatetimeIndex)
-    assert loader.dims[:3] == (
+    assert loader.to_dataarray().dims[:3] == (
         Dimension.SOUTH_NORTH,
         Dimension.WEST_EAST,
         Dimension.TIME,
@@ -170,7 +171,7 @@ def test_load_era5(fp):
         if len(loader[f].data.shape) == 3
     )
     assert isinstance(loader.time_index, pd.DatetimeIndex)
-    assert loader.dims[:3] == (
+    assert loader.to_dataarray().dims[:3] == (
         Dimension.SOUTH_NORTH,
         Dimension.WEST_EAST,
         Dimension.TIME,

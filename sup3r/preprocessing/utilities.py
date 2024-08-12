@@ -423,6 +423,8 @@ def ordered_dims(dims: Tuple):
     'dummy')."""
     standard = [dim for dim in Dimension.order() if dim in dims]
     non_standard = [dim for dim in dims if dim not in standard]
+    if Dimension.VARIABLE in standard:
+        return tuple(standard[:-1] + non_standard + standard[-1:])
     return tuple(standard + non_standard)
 
 

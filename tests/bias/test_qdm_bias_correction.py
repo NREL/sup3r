@@ -7,7 +7,6 @@ import h5py
 import numpy as np
 import pandas as pd
 import pytest
-import xarray as xr
 
 from sup3r import TEST_DATA_DIR
 from sup3r.bias import QuantileDeltaMappingCorrection, local_qdm_bc
@@ -16,13 +15,11 @@ from sup3r.models import Sup3rGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.preprocessing import DataHandler, DataHandlerNCforCC
 from sup3r.preprocessing.utilities import get_date_range_kwargs
-from sup3r.utilities.utilities import RANDOM_GENERATOR
+from sup3r.utilities.utilities import RANDOM_GENERATOR, xr_open_mfdataset
 
 CC_LAT_LON = DataHandler(pytest.FP_RSDS, 'rsds').lat_lon
 
-with xr.open_dataset(
-    pytest.FP_RSDS, format='NETCDF4', engine='h5netcdf'
-) as fh:
+with xr_open_mfdataset(pytest.FP_RSDS) as fh:
     MIN_LAT = np.min(fh.lat.values.astype(np.float32))
     MIN_LON = np.min(fh.lon.values.astype(np.float32)) - 360
     TARGET = (float(MIN_LAT), float(MIN_LON))
@@ -36,7 +33,7 @@ def fp_fut_cc(tmpdir_factory):
     The same CC but with an offset (75.0) and negligible noise.
     """
     fn = tmpdir_factory.mktemp('data').join('test_mf.nc')
-    ds = xr.open_dataset(pytest.FP_RSDS, format='NETCDF4', engine='h5netcdf')
+    ds = xr_open_mfdataset(pytest.FP_RSDS, format='NETCDF4', engine='h5netcdf')
     # Adding an offset
     ds['rsds'] += 75.0
     # adding a noise
@@ -464,17 +461,17 @@ def test_fwp_integration(tmp_path):
     n_samples = 101
     quantiles = np.linspace(0, 1, n_samples)
     params = {}
-    with xr.open_dataset(os.path.join(TEST_DATA_DIR, 'ua_test.nc')) as ds:
+    with xr_open_mfdataset(os.path.join(TEST_DATA_DIR, 'ua_test.nc')) as ds:
         params['bias_U_100m_params'] = (
             np.ones(12)[:, np.newaxis]
-            * ds['ua'].quantile(quantiles).to_numpy()
+            * ds['ua'].compute().quantile(quantiles).to_numpy()
         )
     params['base_Uref_100m_params'] = params['bias_U_100m_params'] - 2.72
     params['bias_fut_U_100m_params'] = params['bias_U_100m_params']
-    with xr.open_dataset(os.path.join(TEST_DATA_DIR, 'va_test.nc')) as ds:
+    with xr_open_mfdataset(os.path.join(TEST_DATA_DIR, 'va_test.nc')) as ds:
         params['bias_V_100m_params'] = (
             np.ones(12)[:, np.newaxis]
-            * ds['va'].quantile(quantiles).to_numpy()
+            * ds['va'].compute().quantile(quantiles).to_numpy()
         )
     params['base_Vref_100m_params'] = params['bias_V_100m_params'] + 2.72
     params['bias_fut_V_100m_params'] = params['bias_V_100m_params']

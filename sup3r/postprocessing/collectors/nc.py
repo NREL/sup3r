@@ -7,11 +7,11 @@ import logging
 import os
 import time
 
-import xarray as xr
 from gaps import Status
 from rex.utilities.loggers import init_logger
 
-from sup3r.preprocessing.utilities import _lowered
+from sup3r.preprocessing.cachers import Cacher
+from sup3r.utilities.utilities import xr_open_mfdataset
 
 from .base import BaseCollector
 
@@ -85,15 +85,8 @@ class CollectorNC(BaseCollector):
         tmp_file = out_file + '.tmp'
         if not os.path.exists(tmp_file):
             res_kwargs = res_kwargs or {}
-            out = xr.open_mfdataset(collector.flist, **res_kwargs)
-            features = list(out.data_vars) if features == 'all' else features
-            features = set(features).intersection(_lowered(out.data_vars))
-            for feat in features:
-                mode = 'a' if os.path.exists(tmp_file) else 'w'
-                out[feat].load().to_netcdf(
-                    tmp_file, mode=mode, engine='h5netcdf', format='NETCDF4'
-                )
-                logger.info(f'Finished writing {feat} to {tmp_file}.')
+            out = xr_open_mfdataset(collector.flist, **res_kwargs)
+            Cacher.write_netcdf(tmp_file, data=out, features=features)
 
         if write_status and job_name is not None:
             status = {

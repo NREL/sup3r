@@ -11,13 +11,16 @@ from warnings import warn
 
 import numpy as np
 import pandas as pd
-import xarray as xr
 from rex.outputs import Outputs as BaseRexOutputs
 from scipy.interpolate import griddata
 
 from sup3r.preprocessing.derivers.utilities import parse_feature
 from sup3r.utilities import VERSION_RECORD
-from sup3r.utilities.utilities import pd_date_range, safe_serialize
+from sup3r.utilities.utilities import (
+    pd_date_range,
+    safe_serialize,
+    xr_open_mfdataset,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -129,7 +132,7 @@ class OutputMixin:
             Name of the time dimension in the given file
         """
 
-        handle = xr.open_dataset(filepath)
+        handle = xr_open_mfdataset(filepath)
         valid_vars = set(handle.dims)
         time_key = list({'time', 'Time'}.intersection(valid_vars))
         if len(time_key) > 0:

@@ -3,11 +3,11 @@
 import os
 
 import numpy as np
-import xarray as xr
 
 from sup3r.preprocessing.names import FEATURE_NAMES
 from sup3r.utilities.era_downloader import EraDownloader
 from sup3r.utilities.pytest.helpers import make_fake_dset
+from sup3r.utilities.utilities import xr_open_mfdataset
 
 
 class EraDownloaderTester(EraDownloader):
@@ -79,7 +79,7 @@ def test_era_dl(tmpdir_factory):
     )
     for v in variables:
         standard_name = FEATURE_NAMES.get(v, v)
-        tmp = xr.open_dataset(
+        tmp = xr_open_mfdataset(
             combined_out_pattern.format(year=2000, month='01', var=v)
         )
         assert standard_name in tmp
@@ -104,7 +104,7 @@ def test_era_dl_year(tmpdir_factory):
         max_workers=1,
     )
 
-    tmp = xr.open_dataset(yearly_file)
+    tmp = xr_open_mfdataset(yearly_file)
     for v in variables:
         standard_name = FEATURE_NAMES.get(v, v)
         assert standard_name in tmp

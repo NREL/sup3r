@@ -9,7 +9,6 @@ import traceback
 import h5py
 import numpy as np
 import pytest
-import xarray as xr
 from click.testing import CliRunner
 from rex import ResourceX
 
@@ -27,7 +26,11 @@ from sup3r.utilities.pytest.helpers import (
     make_fake_h5_chunks,
     make_fake_nc_file,
 )
-from sup3r.utilities.utilities import RANDOM_GENERATOR, pd_date_range
+from sup3r.utilities.utilities import (
+    RANDOM_GENERATOR,
+    pd_date_range,
+    xr_open_mfdataset,
+)
 
 FEATURES = ['u_100m', 'v_100m', 'pressure_0m']
 fwp_chunk_shape = (4, 4, 6)
@@ -460,7 +463,7 @@ def test_pipeline_fwp_qa(runner, input_files):
 def test_cli_bias_calc(runner, bias_calc_class):
     """Test cli for bias correction"""
 
-    with xr.open_dataset(pytest.FP_RSDS) as fh:
+    with xr_open_mfdataset(pytest.FP_RSDS) as fh:
         MIN_LAT = np.min(fh.lat.values.astype(np.float32))
         MIN_LON = np.min(fh.lon.values.astype(np.float32)) - 360
         TARGET = (float(MIN_LAT), float(MIN_LON))

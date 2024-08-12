@@ -12,12 +12,12 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import numpy as np
 import pandas as pd
-import xarray as xr
 from rex import Resource
 from scipy.interpolate import interp1d
 
 from sup3r.postprocessing import OutputHandler, RexOutputs
 from sup3r.utilities import VERSION_RECORD
+from sup3r.utilities.utilities import xr_open_mfdataset
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +114,7 @@ class VortexMeanPrepper:
             os.remove(outfile)
 
         if not os.path.exists(outfile) or self.overwrite:
-            ds = xr.open_dataset(infile)
+            ds = xr_open_mfdataset(infile)
             ds = ds.rename(
                 {
                     'band_data': f'windspeed_{height}m',
@@ -142,7 +142,7 @@ class VortexMeanPrepper:
     def mask(self):
         """Mask coordinates without data"""
         if self._mask is None:
-            with xr.open_mfdataset(self.get_height_files('January')) as res:
+            with xr_open_mfdataset(self.get_height_files('January')) as res:
                 mask = (res[self.in_features[0]] != -999) & (
                     ~np.isnan(res[self.in_features[0]])
                 )
@@ -173,13 +173,13 @@ class VortexMeanPrepper:
 
         if os.path.exists(month_file) and not self.overwrite:
             logger.info(f'Loading month_file {month_file}.')
-            data = xr.open_dataset(month_file)
+            data = xr_open_mfdataset(month_file)
         else:
             logger.info(
                 'Getting mean windspeed for all heights '
                 f'({self.in_heights}) for {month}'
             )
-            data = xr.open_mfdataset(self.get_height_files(month))
+            data = xr_open_mfdataset(self.get_height_files(month))
             logger.info(
                 'Interpolating windspeed for all heights '
                 f'({self.out_heights}) for {month}.'
@@ -239,7 +239,7 @@ class VortexMeanPrepper:
 
     def get_lat_lon(self):
         """Get lat lon grid"""
-        with xr.open_mfdataset(self.get_height_files('January')) as res:
+        with xr_open_mfdataset(self.get_height_files('January')) as res:
             lons, lats = np.meshgrid(
                 res['longitude'].values, res['latitude'].values
             )

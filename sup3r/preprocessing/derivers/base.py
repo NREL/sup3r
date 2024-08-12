@@ -370,8 +370,9 @@ class Deriver(BaseDeriver):
         if nan_method_kwargs is not None:
             if nan_method_kwargs['method'] == 'mask':
                 dim = nan_method_kwargs.get('dim', Dimension.TIME)
-                axes = [i for i in range(4) if i != self.data.dims.index(dim)]
-                mask = np.isnan(self.data.as_array()).any(axes)
+                arr = self.data.to_dataarray()
+                dims = set(arr.dims) - {dim}
+                mask = np.isnan(arr).any(dims).data
                 self.data = self.data.drop_isel(**{dim: mask})
 
             elif np.isnan(self.data.as_array()).any():

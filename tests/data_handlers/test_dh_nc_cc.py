@@ -6,7 +6,6 @@ from tempfile import TemporaryDirectory
 
 import numpy as np
 import pytest
-import xarray as xr
 from rex import Resource
 from scipy.spatial import KDTree
 
@@ -20,6 +19,7 @@ from sup3r.preprocessing import (
 )
 from sup3r.preprocessing.derivers.methods import UWindPowerLaw, VWindPowerLaw
 from sup3r.utilities.pytest.helpers import make_fake_dset
+from sup3r.utilities.utilities import xr_open_mfdataset
 
 
 def test_get_just_coords_nc():
@@ -48,7 +48,7 @@ def test_get_just_coords_nc():
 def test_reload_cache():
     """Test auto reloading of cached data."""
 
-    with xr.open_mfdataset(pytest.FPS_GCM) as fh:
+    with xr_open_mfdataset(pytest.FPS_GCM) as fh:
         min_lat = np.min(fh.lat.values.astype(np.float32))
         min_lon = np.min(fh.lon.values.astype(np.float32))
         target = (min_lat, min_lon)
@@ -90,7 +90,7 @@ def test_reload_cache():
 def test_data_handling_nc_cc_power_law(features, feat_class, src_name):
     """Make sure the power law extrapolation of wind operates correctly"""
 
-    with tempfile.TemporaryDirectory() as td, xr.open_mfdataset(
+    with tempfile.TemporaryDirectory() as td, xr_open_mfdataset(
         pytest.FP_UAS
     ) as fh:
         tmp_file = os.path.join(td, f'{src_name}.nc')
@@ -112,7 +112,7 @@ def test_data_handling_nc_cc_power_law(features, feat_class, src_name):
 def test_data_handling_nc_cc():
     """Make sure the netcdf cc data handler operates correctly"""
 
-    with xr.open_mfdataset(pytest.FPS_GCM) as fh:
+    with xr_open_mfdataset(pytest.FPS_GCM) as fh:
         min_lat = np.min(fh.lat.values.astype(np.float32))
         min_lon = np.min(fh.lon.values.astype(np.float32))
         target = (min_lat, min_lon)
@@ -148,7 +148,7 @@ def test_nc_cc_temp():
     derivations, including unit conversions."""
 
     with TemporaryDirectory() as td:
-        tmp_file = os.path.join(td, 'ta.nc')
+        tmp_file = os.path.join(td, 'tas.nc')
         nc = make_fake_dset((10, 10, 10), features=['tas', 'tasmin', 'tasmax'])
         for f in nc.data_vars:
             nc[f].attrs['units'] = 'K'
@@ -164,6 +164,7 @@ def test_nc_cc_temp():
         for f in dh.features:
             assert dh[f].attrs['units'] == 'C'
 
+        tmp_file = os.path.join(td, 'ta.nc')
         nc = make_fake_dset((10, 10, 10, 10), features=['ta'])
         nc['ta'].attrs['units'] = 'K'
         nc = nc.swap_dims({'level': 'height'})
@@ -174,6 +175,7 @@ def test_nc_cc_temp():
             tmp_file, features=['temperature_100m']
         )
         assert dh['temperature_100m'].attrs['units'] == 'C'
+        nc.close()
 
 
 def test_nc_cc_rh():
@@ -204,7 +206,7 @@ def test_solar_cc(agg):
     input_files = [os.path.join(TEST_DATA_DIR, 'rsds_test.nc')]
     nsrdb_source_fp = os.path.join(TEST_DATA_DIR, 'test_nsrdb_co_2018.h5')
 
-    with xr.open_mfdataset(input_files) as fh:
+    with xr_open_mfdataset(input_files) as fh:
         min_lat = np.min(fh.lat.values.astype(np.float32))
         min_lon = np.min(fh.lon.values.astype(np.float32)) - 360
         target = (min_lat, min_lon)

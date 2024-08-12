@@ -2,10 +2,10 @@
 
 import numpy as np
 import pytest
-import xarray as xr
 from rex import Resource
 
 from sup3r.preprocessing import Dimension, Rasterizer
+from sup3r.utilities.utilities import xr_open_mfdataset
 
 features = ['windspeed_100m', 'winddirection_100m']
 
@@ -14,7 +14,7 @@ def test_get_full_domain_nc():
     """Test data handling without target, shape, or raster_file input"""
 
     rasterizer = Rasterizer(file_paths=pytest.FP_ERA)
-    nc_res = xr.open_mfdataset(pytest.FP_ERA)
+    nc_res = xr_open_mfdataset(pytest.FP_ERA)
     shape = (len(nc_res[Dimension.LATITUDE]), len(nc_res[Dimension.LONGITUDE]))
     target = (
         nc_res[Dimension.LATITUDE].values.min(),
@@ -46,7 +46,7 @@ def test_get_full_domain_nc():
 def test_get_target_nc():
     """Test data handling without target or raster_file input"""
     rasterizer = Rasterizer(file_paths=pytest.FP_ERA, shape=(4, 4))
-    nc_res = xr.open_mfdataset(pytest.FP_ERA)
+    nc_res = xr_open_mfdataset(pytest.FP_ERA)
     target = (
         nc_res[Dimension.LATITUDE].values.min(),
         nc_res[Dimension.LONGITUDE].values.min(),
@@ -77,6 +77,6 @@ def test_topography_h5():
             file_paths=pytest.FP_WTK, target=(39.01, -105.15), shape=(20, 20)
         )
         ri = rasterizer.raster_index
-        topo = res.get_meta_arr('elevation')[(ri.flatten(),)]
+        topo = res.get_meta_arr('elevation')[ri.flatten(),]
         topo = topo.reshape((ri.shape[0], ri.shape[1]))
     assert np.allclose(topo, rasterizer['topography', ..., 0])

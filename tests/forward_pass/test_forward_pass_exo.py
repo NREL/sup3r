@@ -9,7 +9,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 import tensorflow as tf
-import xarray as xr
 from rex import ResourceX
 
 from sup3r import CONFIG_DIR, __version__
@@ -22,7 +21,7 @@ from sup3r.models import (
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.preprocessing import Dimension
 from sup3r.utilities.pytest.helpers import make_fake_nc_file
-from sup3r.utilities.utilities import RANDOM_GENERATOR
+from sup3r.utilities.utilities import RANDOM_GENERATOR, xr_open_mfdataset
 
 target = (19.3, -123.5)
 shape = (8, 8)
@@ -139,7 +138,7 @@ def test_fwp_multi_step_model_topo_exoskip(input_files):
 
         forward_pass = ForwardPass(handler)
         forward_pass.run(handler, node_index=0)
-        t_steps = len(xr.open_dataset(input_files)[Dimension.TIME])
+        t_steps = len(xr_open_mfdataset(input_files)[Dimension.TIME])
 
         with ResourceX(handler.out_files[0]) as fh:
             assert fh.shape == (
@@ -237,7 +236,7 @@ def test_fwp_multi_step_spatial_model_topo_noskip(input_files):
 
         forward_pass = ForwardPass(handler)
         forward_pass.run(handler, node_index=0)
-        t_steps = len(xr.open_dataset(input_files)[Dimension.TIME])
+        t_steps = len(xr_open_mfdataset(input_files)[Dimension.TIME])
 
         with ResourceX(handler.out_files[0]) as fh:
             assert fh.shape == (
@@ -355,7 +354,7 @@ def test_fwp_multi_step_model_topo_noskip(input_files):
 
         forward_pass = ForwardPass(handler)
         forward_pass.run(handler, node_index=0)
-        t_steps = len(xr.open_dataset(input_files)[Dimension.TIME])
+        t_steps = len(xr_open_mfdataset(input_files)[Dimension.TIME])
 
         with ResourceX(handler.out_files[0]) as fh:
             assert fh.shape == (
@@ -890,7 +889,7 @@ def test_fwp_multi_step_model_multi_exo(input_files):
         forward_pass = ForwardPass(handler)
 
         forward_pass.run(handler, node_index=0)
-        t_steps = len(xr.open_dataset(input_files)[Dimension.TIME])
+        t_steps = len(xr_open_mfdataset(input_files)[Dimension.TIME])
         with ResourceX(handler.out_files[0]) as fh:
             assert fh.shape == (
                 t_enhance * t_steps,

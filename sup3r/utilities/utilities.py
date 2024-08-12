@@ -8,12 +8,20 @@ import time
 
 import numpy as np
 import pandas as pd
+import xarray as xr
 from packaging import version
 from scipy import ndimage as nd
 
 logger = logging.getLogger(__name__)
 
 RANDOM_GENERATOR = np.random.default_rng(seed=42)
+
+
+def xr_open_mfdataset(files, **kwargs):
+    """Wrapper for xr.open_mfdataset with default opening options."""
+    default_kwargs = {'format': 'NETCDF4', 'engine': 'h5netcdf'}
+    default_kwargs.update(kwargs)
+    return xr.open_mfdataset(files, **default_kwargs)
 
 
 def safe_cast(o):

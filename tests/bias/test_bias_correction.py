@@ -7,7 +7,6 @@ import tempfile
 import h5py
 import numpy as np
 import pytest
-import xarray as xr
 from scipy import stats
 
 from sup3r import CONFIG_DIR
@@ -25,9 +24,9 @@ from sup3r.preprocessing.utilities import (
     get_date_range_kwargs,
 )
 from sup3r.qa.qa import Sup3rQa
-from sup3r.utilities.utilities import RANDOM_GENERATOR
+from sup3r.utilities.utilities import RANDOM_GENERATOR, xr_open_mfdataset
 
-with xr.open_dataset(
+with xr_open_mfdataset(
     pytest.FP_RSDS, format='NETCDF4', engine='h5netcdf'
 ) as fh:
     MIN_LAT = np.min(fh.lat.values.astype(np.float32))

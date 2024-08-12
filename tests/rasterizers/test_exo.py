@@ -7,7 +7,6 @@ from tempfile import TemporaryDirectory
 import numpy as np
 import pandas as pd
 import pytest
-import xarray as xr
 from rex import Resource
 
 from sup3r.postprocessing import RexOutputs
@@ -19,7 +18,7 @@ from sup3r.preprocessing import (
     ExoRasterizerH5,
     ExoRasterizerNC,
 )
-from sup3r.utilities.utilities import RANDOM_GENERATOR
+from sup3r.utilities.utilities import RANDOM_GENERATOR, xr_open_mfdataset
 
 TARGET = (13.67, 125.0)
 SHAPE = (8, 8)
@@ -99,7 +98,7 @@ def get_lat_lon_range_h5(fp):
 def get_lat_lon_range_nc(fp):
     """Get the min/max lat/lon from a netcdf file"""
 
-    dset = xr.open_dataset(fp)
+    dset = xr_open_mfdataset(fp)
     lat_range = (dset['lat'].values.min(), dset['lat'].values.max())
     lon_range = (dset['lon'].values.min(), dset['lon'].values.max())
     return lat_range, lon_range

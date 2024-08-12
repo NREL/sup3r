@@ -42,7 +42,11 @@ from sup3r.models import Sup3rGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.preprocessing import DataHandler
 from sup3r.preprocessing.utilities import get_date_range_kwargs
-from sup3r.utilities.utilities import RANDOM_GENERATOR, Timer
+from sup3r.utilities.utilities import (
+    RANDOM_GENERATOR,
+    Timer,
+    xr_open_mfdataset,
+)
 
 CC_LAT_LON = DataHandler(
     pytest.FP_RSDS, 'rsds', format='NETCDF', engine='h5netcdf'
@@ -250,7 +254,7 @@ def fut_cc(fp_fut_cc):
       latlon = np.stack(xr.broadcast(da["lat"], da["lon"] - 360),
                         axis=-1).astype('float32')
     """
-    ds = xr.open_dataset(fp_fut_cc)
+    ds = xr_open_mfdataset(fp_fut_cc)
 
     # Operating with numpy arrays impose a fixed dimensions order
     # This compute is required here.
@@ -297,7 +301,7 @@ def fut_cc_notrend(fp_fut_cc_notrend):
     reading it and there are some transformations. This function must provide
     a dataset compatible with the one expected from the standard processing.
     """
-    ds = xr.open_dataset(fp_fut_cc_notrend)
+    ds = xr_open_mfdataset(fp_fut_cc_notrend)
 
     # Although it is the same file, somewhere in the data reading process
     # the longitude is transformed to the standard [-180 to 180] and it is

@@ -9,7 +9,6 @@ import logging
 import os
 
 import numpy as np
-import xarray as xr
 from rex import Resource
 from rex.utilities.fun_utils import get_fun_call_str
 
@@ -24,7 +23,11 @@ from sup3r.preprocessing.utilities import (
 )
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
-from sup3r.utilities.utilities import spatial_coarsening, temporal_coarsening
+from sup3r.utilities.utilities import (
+    spatial_coarsening,
+    temporal_coarsening,
+    xr_open_mfdataset,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -130,7 +133,7 @@ class Sup3rQa:
         self.qa_fp = qa_fp
         self.save_sources = save_sources
         self.output_handler = (
-            xr.open_dataset(self._out_fp, format='NETCDF4', engine='h5netcdf')
+            xr_open_mfdataset(self._out_fp)
             if self.output_type == 'nc'
             else Resource(self._out_fp)
         )
@@ -266,6 +269,9 @@ class Sup3rQa:
 
     def get_dset_out(self, name):
         """Get an output dataset from the forward pass output file.
+
+        TODO: Make this dim order agnostic. If we didnt have the h5 condition
+        we could just do transpose('south_north', 'west_east', 'time')
 
         Parameters
         ----------

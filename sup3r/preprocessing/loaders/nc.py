@@ -7,10 +7,10 @@ from warnings import warn
 
 import dask.array as da
 import numpy as np
-import xarray as xr
 
 from sup3r.preprocessing.names import COORD_NAMES, DIM_NAMES, Dimension
 from sup3r.preprocessing.utilities import ordered_dims
+from sup3r.utilities.utilities import xr_open_mfdataset
 
 from .base import BaseLoader
 from .utilities import lower_names
@@ -27,9 +27,7 @@ class LoaderNC(BaseLoader):
 
     def BASE_LOADER(self, file_paths, **kwargs):
         """Lowest level interface to data."""
-        default_kwargs = {'format': 'NETCDF4', 'engine': 'h5netcdf'}
-        default_kwargs.update(kwargs)
-        return xr.open_mfdataset(file_paths, **default_kwargs)
+        return xr_open_mfdataset(file_paths, **kwargs)
 
     def enforce_descending_lats(self, dset):
         """Make sure latitudes are in descending order so that min lat / lon is
