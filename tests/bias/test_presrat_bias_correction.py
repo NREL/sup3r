@@ -200,7 +200,7 @@ def fp_cc(tmpdir_factory, precip):
     DataHandlerNCforCC requires a file to be opened
     """
     fn = tmpdir_factory.mktemp('data').join('precip_mh.nc')
-    precip.to_netcdf(fn)
+    precip.to_netcdf(fn, format='NETCDF4', engine='h5netcdf')
     # DataHandlerNCforCC requires a string
     fn = str(fn)
     return fn
@@ -228,7 +228,7 @@ def precip_fut(precip):
 def fp_fut_cc(tmpdir_factory, precip_fut):
     """Sample future CC dataset (precipitation) filename"""
     fn = tmpdir_factory.mktemp('data').join('precip_mf.nc')
-    precip_fut.to_netcdf(fn)
+    precip_fut.to_netcdf(fn, format='NETCDF4', engine='h5netcdf')
     # DataHandlerNCforCC requires a string
     fn = str(fn)
     return fn

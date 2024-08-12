@@ -56,7 +56,7 @@ class SolarZenith:
         ----------
         time_index : ndarray | pandas.DatetimeIndex | str
             Datetime stamps of interest
-        lat_lon : da.core.Array
+        lat_lon : ndarray, da.core.Array
             (latitude, longitude, 2) for site(s) of interest
         ll_chunks : tuple
             Chunks for lat_lon array. To run this on a large domain, even with
@@ -75,7 +75,7 @@ class SolarZenith:
             time_index = pd.to_datetime(time_index)
 
         out_shape = (*lat_lon.shape[:-1], len(time_index))
-        lat_lon = lat_lon.rechunk(ll_chunks)
+        lat_lon = da.asarray(lat_lon, chunks=ll_chunks)
         n, zulu = SolarPosition._parse_time(time_index)
         n = da.asarray(n).astype(np.float32)
         zulu = da.asarray(zulu).astype(np.float32)

@@ -28,7 +28,7 @@ def make_fake_tif(shape, outfile):
         )
     }
     nc = xr.Dataset(coords=coords, data_vars=data_vars)
-    nc.to_netcdf(outfile)
+    nc.to_netcdf(outfile, format='NETCDF4', engine='h5netcdf')
 
 
 def make_fake_dset(shape, features, const=None):
@@ -91,7 +91,7 @@ def make_fake_dset(shape, features, const=None):
 def make_fake_nc_file(file_name, shape, features):
     """Make nc file with dummy data for tests."""
     nc = make_fake_dset(shape, features)
-    nc.to_netcdf(file_name)
+    nc.to_netcdf(file_name, format='NETCDF4', engine='h5netcdf')
 
 
 class DummyData(Container):

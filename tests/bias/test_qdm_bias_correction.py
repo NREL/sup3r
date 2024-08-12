@@ -41,7 +41,7 @@ def fp_fut_cc(tmpdir_factory):
     ds['rsds'] += 75.0
     # adding a noise
     ds['rsds'] += RANDOM_GENERATOR.random(ds['rsds'].shape)
-    ds.to_netcdf(fn)
+    ds.to_netcdf(fn, format='NETCDF4', engine='h5netcdf')
     # DataHandlerNCforCC requires a string
     fn = str(fn)
     return fn

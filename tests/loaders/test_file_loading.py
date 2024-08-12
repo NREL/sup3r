@@ -27,7 +27,7 @@ def test_time_independent_loading():
         nc = nc.drop(Dimension.TIME)
         assert Dimension.TIME not in nc.dims
         assert Dimension.TIME not in nc.coords
-        nc.to_netcdf(out_file)
+        nc.to_netcdf(out_file, format='NETCDF4', engine='h5netcdf')
         loader = LoaderNC(out_file)
         assert tuple(loader.dims) == (
             Dimension.SOUTH_NORTH,
@@ -61,7 +61,7 @@ def test_standard_values():
         nc = make_fake_dset((10, 10, 10), features=['ta'])
         old_vals = nc['ta'].values.copy() - 273.15
         nc['ta'].attrs['units'] = 'K'
-        nc.to_netcdf(tmp_file)
+        nc.to_netcdf(tmp_file, format='NETCDF4', engine='h5netcdf')
         loader = Loader(tmp_file)
         assert loader.data['ta'].attrs['units'] == 'C'
         ta_vals = loader.data['ta'].transpose(*nc.dims).values
@@ -79,7 +79,7 @@ def test_lat_inversion():
         )
         nc['u'] = (nc['u'].dims, nc['u'].data[:, :, ::-1, :])
         out_file = os.path.join(td, 'inverted.nc')
-        nc.to_netcdf(out_file)
+        nc.to_netcdf(out_file, format='NETCDF4', engine='h5netcdf')
         loader = LoaderNC(out_file)
         assert nc[Dimension.LATITUDE][0, 0] < nc[Dimension.LATITUDE][-1, 0]
         assert loader.lat_lon[-1, 0, 0] < loader.lat_lon[0, 0, 0]
@@ -107,7 +107,7 @@ def test_lon_range():
             (nc[Dimension.LONGITUDE].data + 360) % 360.0,
         )
         out_file = os.path.join(td, 'bad_lons.nc')
-        nc.to_netcdf(out_file)
+        nc.to_netcdf(out_file, format='NETCDF4', engine='h5netcdf')
         loader = LoaderNC(out_file)
         assert (nc[Dimension.LONGITUDE] > 180).any()
         assert (loader[Dimension.LONGITUDE] <= 180).all()
@@ -130,7 +130,7 @@ def test_level_inversion():
             .data,
         )
         out_file = os.path.join(td, 'inverted.nc')
-        nc.to_netcdf(out_file)
+        nc.to_netcdf(out_file, format='NETCDF4', engine='h5netcdf')
         loader = LoaderNC(out_file, res_kwargs={'chunks': None})
         assert (
             nc[Dimension.PRESSURE_LEVEL][0] < nc[Dimension.PRESSURE_LEVEL][-1]

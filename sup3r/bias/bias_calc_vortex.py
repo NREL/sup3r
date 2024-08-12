@@ -123,7 +123,7 @@ class VortexMeanPrepper:
                 }
             )
             ds = ds.isel(band=0).drop_vars('band')
-            ds.to_netcdf(outfile)
+            ds.to_netcdf(outfile, format='NETCDF4', engine='h5netcdf')
         return outfile
 
     def convert_month_tif(self, month):
@@ -185,7 +185,7 @@ class VortexMeanPrepper:
                 f'({self.out_heights}) for {month}.'
             )
             data = self.interp(data)
-            data.to_netcdf(month_file)
+            data.to_netcdf(month_file, format='NETCDF4', engine='h5netcdf')
             logger.info(
                 'Saved interpolated means for all heights for '
                 f'{month} to {month_file}.'

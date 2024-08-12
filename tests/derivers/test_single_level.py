@@ -29,7 +29,9 @@ def make_5d_nc_file(td, features):
     level_file = os.path.join(td, 'wind_levs.nc')
     make_fake_nc_file(level_file, shape=(60, 60, 100, 3), features=['zg', 'u'])
     out_file = os.path.join(td, 'nc_5d.nc')
-    xr.open_mfdataset([wind_file, level_file]).to_netcdf(out_file)
+    xr.open_mfdataset([wind_file, level_file]).to_netcdf(
+        out_file, format='NETCDF4', engine='h5netcdf'
+    )
     return out_file
 
 

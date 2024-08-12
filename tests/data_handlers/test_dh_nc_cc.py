@@ -60,7 +60,7 @@ def test_reload_cache():
         loader = Loader(pytest.FPS_GCM)
         loader.data['dummy'] = dummy['dummy'].values
         out = loader.data[['dummy']]
-        out.to_netcdf(dummy_file)
+        out.to_netcdf(dummy_file, format='NETCDF4', engine='h5netcdf')
         cache_pattern = os.path.join(td, 'cache_{feature}.nc')
         cache_kwargs = {'cache_pattern': cache_pattern}
         handler = DataHandlerNCforCC(
@@ -96,7 +96,7 @@ def test_data_handling_nc_cc_power_law(features, feat_class, src_name):
         tmp_file = os.path.join(td, f'{src_name}.nc')
         if src_name not in fh:
             fh[src_name] = fh['uas']
-        fh.to_netcdf(tmp_file)
+        fh.to_netcdf(tmp_file, format='NETCDF4', engine='h5netcdf')
 
         scalar = (100 / feat_class.NEAR_SFC_HEIGHT) ** feat_class.ALPHA
         var_hh = fh[src_name].values * scalar
@@ -152,7 +152,7 @@ def test_nc_cc_temp():
         nc = make_fake_dset((10, 10, 10), features=['tas', 'tasmin', 'tasmax'])
         for f in nc.data_vars:
             nc[f].attrs['units'] = 'K'
-        nc.to_netcdf(tmp_file)
+        nc.to_netcdf(tmp_file, format='NETCDF4', engine='h5netcdf')
         dh = DataHandlerNCforCC(
             tmp_file,
             features=[
@@ -167,7 +167,7 @@ def test_nc_cc_temp():
         nc = make_fake_dset((10, 10, 10, 10), features=['ta'])
         nc['ta'].attrs['units'] = 'K'
         nc = nc.swap_dims({'level': 'height'})
-        nc.to_netcdf(tmp_file)
+        nc.to_netcdf(tmp_file, format='NETCDF4', engine='h5netcdf')
 
         DataHandlerNCforCC.FEATURE_REGISTRY.update({'temperature': 'ta'})
         dh = DataHandlerNCforCC(
@@ -190,7 +190,7 @@ def test_nc_cc_rh():
         nc = make_fake_dset(
             (10, 10, 10), features=['hurs', 'hursmin', 'hursmax']
         )
-        nc.to_netcdf(tmp_file)
+        nc.to_netcdf(tmp_file, format='NETCDF4', engine='h5netcdf')
         dh = DataHandlerNCforCC(tmp_file, features=features)
         assert all(f in dh.features for f in features)
 

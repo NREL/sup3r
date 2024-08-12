@@ -126,5 +126,5 @@ class OutputHandlerNC(OutputHandler):
             meta_data=meta_data,
             max_workers=max_workers,
             gids=gids,
-        ).load().to_netcdf(out_file)
+        ).load().to_netcdf(out_file, format='NETCDF4', engine='h5netcdf')
         logger.info(f'Saved output of size {data.shape} to: {out_file}')

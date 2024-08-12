@@ -55,7 +55,7 @@ class EraDownloaderTester(EraDownloader):
                 for i in range(nc['z'].shape[1]):
                     arr[:, i, ...] = i * 100
                 nc['z'] = (nc['z'].dims, arr)
-        nc.to_netcdf(out_file)
+        nc.to_netcdf(out_file, format='NETCDF4', engine='h5netcdf')
 
 
 def test_era_dl(tmpdir_factory):
