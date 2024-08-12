@@ -8,9 +8,9 @@ import logging
 import threading
 from abc import ABC, abstractmethod
 from collections import namedtuple
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Optional, Union
 
+import dask
 import numpy as np
 import tensorflow as tf
 
@@ -236,14 +236,18 @@ class AbstractBatchQueue(Collection, ABC):
             if needed == 1 or self.max_workers == 1:
                 self._enqueue_batch()
             elif needed > 0:
-                with ThreadPoolExecutor(max_workers=self.max_workers) as exe:
-                    futures = [
-                        exe.submit(self._enqueue_batch)
-                        for _ in np.arange(needed)
-                    ]
-                    logger.debug('Added %s enqueue futures.', needed)
-                    for future in as_completed(futures):
-                        _ = future.result()
+                tasks = [
+                    dask.delayed(self._enqueue_batch)()
+                    for _ in np.arange(needed)
+                ]
+                logger.debug(
+                    'Added %s enqueue futures to %s queue.',
+                    needed,
+                    self._thread_name,
+                )
+                dask.compute(
+                    *tasks, scheduler='threads', num_workers=self.max_workers
+                )
 
     def __next__(self) -> Batch:
         """Dequeue batch samples, squeeze if for a spatial only model, perform

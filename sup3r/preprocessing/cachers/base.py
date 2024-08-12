@@ -46,13 +46,16 @@ class Cacher(Container):
             have a {feature} format key and either a h5 or nc file extension,
             based on desired output type.
 
-            Can also include a ``chunks`` key, value with
-            a dictionary of dictionaries for each feature (or a single
-            dictionary to use for all features). e.g.
-            ``{'cache_pattern': ...,
+            Can also include a ``max_workers`` key and ``chunks`` key.
+            ``max_workers`` is an inteeger specifying number of threads to use
+            for writing chunks to output files and ``chunks`` is a dictionary
+            of dictionaries for each feature (or a single dictionary to use
+            for all features). e.g.
+            .. code-block:: JSON
+            {'cache_pattern': ...,
                'chunks': {
                  'u_10m': {'time': 20, 'south_north': 100, 'west_east': 100}}
-              }``
+            }
 
 
         Note
@@ -68,7 +71,7 @@ class Cacher(Container):
         ):
             self.out_files = self.cache_data(cache_kwargs)
 
-    def _write_single(self, feature, out_file, chunks):
+    def _write_single(self, feature, out_file, chunks, max_workers=None):
         """Write single NETCDF or H5 cache file."""
         if os.path.exists(out_file):
             logger.info(
@@ -97,6 +100,7 @@ class Cacher(Container):
                 data=self.data,
                 features=[feature],
                 chunks=chunks,
+                max_workers=max_workers,
             )
             os.replace(tmp_file, out_file)
             logger.info('Moved %s to %s', tmp_file, out_file)
@@ -117,6 +121,7 @@ class Cacher(Container):
         """
         cache_pattern = cache_kwargs.get('cache_pattern', None)
         chunks = cache_kwargs.get('chunks', None)
+        max_workers = cache_kwargs.get('max_workers', None)
         msg = 'cache_pattern must have {feature} format key.'
         assert '{feature}' in cache_pattern, msg
 
@@ -133,7 +138,10 @@ class Cacher(Container):
         if any(missing_files):
             for feature, out_file in zip(missing_features, missing_files):
                 self._write_single(
-                    feature=feature, out_file=out_file, chunks=chunks
+                    feature=feature,
+                    out_file=out_file,
+                    chunks=chunks,
+                    max_workers=max_workers,
                 )
             logger.info('Finished writing %s', missing_files)
         return missing_files + cached_files
@@ -169,8 +177,16 @@ class Cacher(Container):
         chunksizes = chunksizes if chunksizes else None
         return data_var, chunksizes
 
+    # pylint : disable=unused-argument
     @classmethod
-    def write_h5(cls, out_file, data, features='all', chunks=None):
+    def write_h5(
+        cls,
+        out_file,
+        data,
+        features='all',
+        chunks=None,
+        max_workers=None,
+    ):
         """Cache data to h5 file using user provided chunks value.
 
         Parameters
@@ -187,6 +203,8 @@ class Cacher(Container):
             ``{'u_10m': {'time': 10, 'south_north': 100, 'west_east': 100}}``
         attrs : dict | None
             Optional attributes to write to file
+        parallel : bool
+            Whether to write chunks to ``out_file`` in parallel or not.
         """
         if len(data.dims) == 3:
             data = data.transpose(Dimension.TIME, *Dimension.dims_2d())
@@ -225,7 +243,15 @@ class Cacher(Container):
                     shape=data_var.shape,
                     chunks=chunksizes,
                 )
-                da.store(data_var, d)
+                if max_workers == 1:
+                    da.store(data_var, d, scheduler='single-threaded')
+                else:
+                    da.store(
+                        data_var,
+                        d,
+                        scheduler='threads',
+                        num_workers=max_workers,
+                    )
 
     @staticmethod
     def get_chunk_slices(chunks, shape):
@@ -247,37 +273,52 @@ class Cacher(Container):
             var[chunk_slice] = chunk_data
 
     @classmethod
-    def write_netcdf_chunks(cls, out_file, feature, data, chunks=None):
+    def write_netcdf_chunks(
+        cls, out_file, feature, data, chunks=None, max_workers=None
+    ):
         """Write netcdf chunks with delayed dask tasks."""
         tasks = []
         data_var = data[feature]
         data_var, chunksizes = cls.get_chunksizes(feature, data, chunks)
         chunksizes = data_var.shape if chunksizes is None else chunksizes
-        for chunk_slice in cls.get_chunk_slices(chunksizes, data_var.shape):
+        chunk_slices = cls.get_chunk_slices(chunksizes, data_var.shape)
+        logger.info(
+            'Adding %s chunks to %s with max_workers=%s',
+            len(chunk_slices),
+            out_file,
+            max_workers,
+        )
+        for chunk_slice in chunk_slices:
             chunk = data_var.data[chunk_slice]
-            tasks.append(
-                dask.delayed(cls.write_chunk)(
-                    out_file, feature, chunk_slice, chunk
-                )
+            task = dask.delayed(cls.write_chunk)(
+                out_file, feature, chunk_slice, chunk
             )
-        dask.compute(*tasks, scheduler='threads')
+            tasks.append(task)
+        if max_workers == 1:
+            dask.compute(*tasks, scheduler='single-threaded')
+        else:
+            dask.compute(*tasks, scheduler='threads', num_workers=max_workers)
 
     @classmethod
-    def write_netcdf(cls, out_file, data, features='all', chunks=None):
+    def write_netcdf(
+        cls, out_file, data, features='all', chunks=None, max_workers=None
+    ):
         """Cache data to a netcdf file.
 
         Parameters
         ----------
         out_file : str
-            Name of file to write. Must have a .nc extension.
+            Name of file to write. Must have a ``.nc`` extension.
         data : Sup3rDataset
-            Data to write to file. Comes from ``self.data``, so a Sup3rDataset
-            with coords attributes
+            Data to write to file. Comes from ``self.data``, so a
+            ``Sup3rDataset`` with coords attributes
         features : str | list
             Names of feature(s) to write to file.
         chunks : dict | None
             Chunk sizes for coordinate dimensions. e.g. ``{'windspeed':
             {'south_north': 100, 'west_east': 100, 'time': 10}}``
+        parallel : bool
+            Whether to write chunks in parallel or not.
         """
         chunks = chunks or 'auto'
         attrs = {k: safe_serialize(v) for k, v in data.attrs.items()}
@@ -318,5 +359,9 @@ class Cacher(Container):
 
         for feature in features:
             cls.write_netcdf_chunks(
-                out_file=out_file, feature=feature, data=data, chunks=chunks
+                out_file=out_file,
+                feature=feature,
+                data=data,
+                chunks=chunks,
+                max_workers=max_workers,
             )

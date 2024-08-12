@@ -1,18 +1,19 @@
 """H5 file collection."""
+
 import logging
 import os
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from warnings import warn
 
+import dask
 import numpy as np
 import pandas as pd
-import psutil
 from gaps import Status
 from rex.utilities.loggers import init_logger
 from scipy.spatial import KDTree
 
 from sup3r.postprocessing.writers.base import RexOutputs
+from sup3r.preprocessing.utilities import _mem_check
 
 from .base import BaseCollector
 
@@ -188,10 +189,12 @@ class CollectorH5(BaseCollector):
             try:
                 self.data[row_slice, col_slice] = f_data
             except Exception as e:
-                msg = (f'Failed to add data to self.data[{row_slice}, '
-                       f'{col_slice}] for feature={feature}, '
-                       f'file_path={file_path}, time_index={time_index}, '
-                       f'meta={meta}. {e}')
+                msg = (
+                    f'Failed to add data to self.data[{row_slice}, '
+                    f'{col_slice}] for feature={feature}, '
+                    f'file_path={file_path}, time_index={time_index}, '
+                    f'meta={meta}. {e}'
+                )
                 logger.error(msg)
                 raise OSError(msg) from e
 
@@ -254,36 +257,16 @@ class CollectorH5(BaseCollector):
 
         time_index = [None] * len(file_paths)
         meta = [None] * len(file_paths)
-        if max_workers == 1:
-            for i, fn in enumerate(file_paths):
-                meta[i], time_index[i] = self._get_file_attrs(fn)
-                logger.debug(f'{i + 1} / {len(file_paths)} files finished')
-        else:
-            futures = {}
-            with ThreadPoolExecutor(max_workers=max_workers) as exe:
-                for i, fn in enumerate(file_paths):
-                    future = exe.submit(self._get_file_attrs, fn)
-                    futures[future] = i
+        tasks = [dask.delayed(self._get_file_attrs)(fn) for fn in file_paths]
 
-                for i, future in enumerate(as_completed(futures)):
-                    mem = psutil.virtual_memory()
-                    msg = (
-                        f'Meta collection futures completed: {i + 1} out '
-                        f'of {len(futures)}. Current memory usage is '
-                        f'{mem.used / 1e9:.3f} GB out of '
-                        f'{mem.total / 1e9:.3f} GB total.'
-                    )
-                    logger.info(msg)
-                    try:
-                        idx = futures[future]
-                        meta[idx], time_index[idx] = future.result()
-                    except Exception as e:
-                        msg = (
-                            'Falied to get attrs from '
-                            f'{file_paths[futures[future]]}'
-                        )
-                        logger.exception(msg)
-                        raise RuntimeError(msg) from e
+        if max_workers == 1:
+            out = dask.compute(*tasks, scheduler='single-threaded')
+        else:
+            out = dask.compute(
+                *tasks, scheduler='threads', num_workers=max_workers
+            )
+        for i, vals in enumerate(out):
+            meta[i], time_index[i] = vals
         time_index = pd.DatetimeIndex(np.concatenate(time_index))
         time_index = time_index.sort_values()
         time_index = time_index.drop_duplicates()
@@ -525,76 +508,41 @@ class CollectorH5(BaseCollector):
             )
 
             self.data = np.zeros(shape, dtype=final_dtype)
-            mem = psutil.virtual_memory()
             logger.debug(
-                'Initializing output dataset "{}" in-memory with '
-                'shape {} and dtype {}. Current memory usage is '
-                '{:.3f} GB out of {:.3f} GB total.'.format(
-                    feature,
-                    shape,
-                    final_dtype,
-                    mem.used / 1e9,
-                    mem.total / 1e9,
-                )
+                'Initializing output dataset "%s" in-memory with '
+                'shape %s and dtype %s. %s',
+                feature,
+                shape,
+                final_dtype,
+                _mem_check(),
             )
-
+            tasks = []
+            for fname in file_paths:
+                task = dask.delayed(self.get_data)(
+                    fname,
+                    feature,
+                    time_index,
+                    subset_masked_meta,
+                    scale_factor,
+                    final_dtype,
+                )
+                tasks.append(task)
             if max_workers == 1:
-                for i, fname in enumerate(file_paths):
-                    logger.debug(
-                        'Collecting data from file {} out of {}.'.format(
-                            i + 1, len(file_paths)
-                        )
-                    )
-                    self.get_data(
-                        fname,
-                        feature,
-                        time_index,
-                        subset_masked_meta,
-                        scale_factor,
-                        final_dtype,
-                    )
+                logger.info(
+                    'Running serial collection on %s files', len(file_paths)
+                )
+                dask.compute(*tasks, scheduler='single-threaded')
             else:
                 logger.info(
-                    'Running parallel collection on {} workers.'.format(
-                        max_workers
-                    )
+                    'Running parallel collection on %s files with '
+                    'max_workers=%s.',
+                    len(file_paths),
+                    max_workers,
                 )
-
-                futures = {}
-                completed = 0
-                with ThreadPoolExecutor(max_workers=max_workers) as exe:
-                    for fname in file_paths:
-                        future = exe.submit(
-                            self.get_data,
-                            fname,
-                            feature,
-                            time_index,
-                            subset_masked_meta,
-                            scale_factor,
-                            final_dtype,
-                        )
-                        futures[future] = fname
-                    for future in as_completed(futures):
-                        completed += 1
-                        mem = psutil.virtual_memory()
-                        logger.info(
-                            'Collection futures completed: '
-                            '{} out of {}. '
-                            'Current memory usage is '
-                            '{:.3f} GB out of {:.3f} GB total.'.format(
-                                completed,
-                                len(futures),
-                                mem.used / 1e9,
-                                mem.total / 1e9,
-                            )
-                        )
-                        try:
-                            future.result()
-                        except Exception as e:
-                            msg = 'Failed to collect data from '
-                            msg += f'{futures[future]}'
-                            logger.exception(msg)
-                            raise RuntimeError(msg) from e
+                dask.compute(
+                    *tasks, scheduler='threads', num_workers=max_workers
+                )
+            logger.info('Finished collection of %s files.', len(file_paths))
             self._write_flist_data(
                 out_file,
                 feature,

@@ -5,9 +5,8 @@ TODO: Remove redundant code re. Cachers
 
 import logging
 import re
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime as dt
 
+import dask
 import numpy as np
 import pandas as pd
 
@@ -82,50 +81,28 @@ class OutputHandlerH5(OutputHandler):
             if re.match('u_(.*?)m'.lower(), f.lower())
         ]
         if heights:
-            logger.info('Converting u/v to ws/wd for H5 output')
+            logger.info(
+                'Converting u/v to ws/wd for H5 output with max_workers=%s',
+                max_workers,
+            )
             logger.debug(
-                'Found heights {} for output features {}'.format(
-                    heights, features
-                )
+                'Found heights %s for output features %s', heights, features
             )
 
-        futures = {}
-        now = dt.now()
+        tasks = []
+        for height in heights:
+            u_idx = features.index(f'u_{height}m')
+            v_idx = features.index(f'v_{height}m')
+            task = dask.delayed(cls.invert_uv_single_pair)(
+                data, lat_lon, u_idx, v_idx
+            )
+            tasks.append(task)
+            logger.info('Added %s futures to convert u/v to ws/wd', len(tasks))
         if max_workers == 1:
-            for height in heights:
-                u_idx = features.index(f'u_{height}m')
-                v_idx = features.index(f'v_{height}m')
-                cls.invert_uv_single_pair(data, lat_lon, u_idx, v_idx)
-                logger.info(f'u/v pair at height {height}m inverted.')
+            dask.compute(*tasks, scheduler='single-threaded')
         else:
-            with ThreadPoolExecutor(max_workers=max_workers) as exe:
-                for height in heights:
-                    u_idx = features.index(f'u_{height}m')
-                    v_idx = features.index(f'v_{height}m')
-                    future = exe.submit(
-                        cls.invert_uv_single_pair, data, lat_lon, u_idx, v_idx
-                    )
-                    futures[future] = height
-
-                logger.info(
-                    f'Started inverse transforms on {len(heights)} '
-                    f'u/v pairs in {dt.now() - now}. '
-                )
-
-                for i, _ in enumerate(as_completed(futures)):
-                    try:
-                        future.result()
-                    except Exception as e:
-                        msg = (
-                            'Failed to invert the u/v pair for for height '
-                            f'{futures[future]}'
-                        )
-                        logger.exception(msg)
-                        raise RuntimeError(msg) from e
-                    logger.debug(
-                        f'{i + 1} out of {len(futures)} inverse '
-                        'transforms completed.'
-                    )
+            dask.compute(*tasks, scheduler='threads', num_workers=max_workers)
+        logger.info('Finished converting u/v to ws/wd')
 
     @staticmethod
     def invert_uv_single_pair(data, lat_lon, u_idx, v_idx):

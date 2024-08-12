@@ -10,12 +10,9 @@ https://cds.climate.copernicus.eu/api-how-to
 import logging
 import os
 from calendar import monthrange
-from concurrent.futures import (
-    ThreadPoolExecutor,
-    as_completed,
-)
 from warnings import warn
 
+import dask
 import dask.array as da
 import numpy as np
 
@@ -632,51 +629,25 @@ class EraDownloader:
             for key in ('{year}', '{month}', '{var}')
         ), msg
 
-        if max_workers == 1:
-            for month in range(1, 13):
-                for var in variables:
-                    cls.run_month(
-                        year=year,
-                        month=month,
-                        area=area,
-                        levels=levels,
-                        combined_out_pattern=combined_out_pattern,
-                        overwrite=overwrite,
-                        variables=[var],
-                        product_type=product_type,
-                    )
-        else:
-            futures = {}
-            with ThreadPoolExecutor(max_workers=max_workers) as exe:
-                for month in range(1, 13):
-                    for var in variables:
-                        future = exe.submit(
-                            cls.run_month,
-                            year=year,
-                            month=month,
-                            area=area,
-                            levels=levels,
-                            combined_out_pattern=combined_out_pattern,
-                            overwrite=overwrite,
-                            variables=[var],
-                            product_type=product_type,
-                        )
-                        futures[future] = {
-                            'year': year,
-                            'month': month,
-                            'var': var,
-                        }
-                        logger.info(
-                            f'Submitted future for year {year} and '
-                            f'month {month} and variable {var}.'
-                        )
-            for future in as_completed(futures):
-                future.result()
-                v = futures[future]
-                logger.info(
-                    f'Finished future for year {v["year"]} and month '
-                    f'{v["month"]} and variable {v["var"]}.'
+        tasks = []
+        for month in range(1, 13):
+            for var in variables:
+                task = dask.delayed(cls.run_month)(
+                    year=year,
+                    month=month,
+                    area=area,
+                    levels=levels,
+                    combined_out_pattern=combined_out_pattern,
+                    overwrite=overwrite,
+                    variables=[var],
+                    product_type=product_type,
                 )
+                tasks.append(task)
+
+        if max_workers == 1:
+            dask.compute(*tasks, scheduler='single-threaded')
+        else:
+            dask.compute(*tasks, scheduler='threads', num_workers=max_workers)
 
         for month in range(1, 13):
             cls.make_monthly_file(year, month, combined_out_pattern, variables)

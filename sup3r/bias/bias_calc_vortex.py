@@ -8,8 +8,8 @@ https://globalatlas.irena.org/workspace
 import calendar
 import logging
 import os
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
+import dask
 import numpy as np
 import pandas as pd
 from rex import Resource
@@ -457,53 +457,26 @@ class BiasCorrectUpdate:
             )
             OutputHandler._ensure_dset_in_output(tmp_file, dset)
 
+            tasks = []
+            for i in range(1, 13):
+                task = dask.delayed(cls._correct_month)(
+                    fh_in,
+                    month=i,
+                    out_file=tmp_file,
+                    dset=dset,
+                    bc_file=bc_file,
+                    global_scalar=global_scalar,
+                )
+                tasks.append(task)
+
+            logger.info('Added %s bias correction futures', len(tasks))
             if max_workers == 1:
-                for i in range(1, 13):
-                    try:
-                        cls._correct_month(
-                            fh_in,
-                            month=i,
-                            out_file=tmp_file,
-                            dset=dset,
-                            bc_file=bc_file,
-                            global_scalar=global_scalar,
-                        )
-                    except Exception as e:
-                        raise RuntimeError(
-                            f'Bias correction failed for month {i}.'
-                        ) from e
-
-                    logger.info(
-                        f'Added {dset} for month {i} to output file '
-                        f'{tmp_file}.'
-                    )
+                dask.compute(*tasks, scheduler='single-threaded')
             else:
-                futures = {}
-                with ThreadPoolExecutor(max_workers=max_workers) as exe:
-                    for i in range(1, 13):
-                        future = exe.submit(
-                            cls._correct_month,
-                            fh_in=fh_in,
-                            month=i,
-                            out_file=tmp_file,
-                            dset=dset,
-                            bc_file=bc_file,
-                            global_scalar=global_scalar,
-                        )
-                        futures[future] = i
-
-                        logger.info(
-                            f'Submitted bias correction for month {i} '
-                            f'to {tmp_file}.'
-                        )
-
-                    for future in as_completed(futures):
-                        _ = future.result()
-                        i = futures[future]
-                        logger.info(
-                            f'Completed bias correction for month {i} '
-                            f'to {tmp_file}.'
-                        )
+                dask.compute(
+                    *tasks, scheduler='threads', num_workers=max_workers
+                )
+            logger.info('Finished bias correcting %s in %s', dset, in_file)
 
         os.replace(tmp_file, out_file)
         msg = f'Saved bias corrected {dset} to: {out_file}'
