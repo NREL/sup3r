@@ -160,9 +160,8 @@ def test_h5_collect_mask():
             out_files,
             fp_out_mask,
             features=features,
-            target_final_meta_file=mask_file,
+            target_meta_file=mask_file,
             max_workers=1,
-            join_times=False,
         )
         with ResourceX(fp_out_mask) as fh:
             mask_meta = pd.read_csv(mask_file, dtype=np.float32)

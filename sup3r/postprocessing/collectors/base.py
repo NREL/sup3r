@@ -1,6 +1,8 @@
 """H5/NETCDF file collection."""
+
 import glob
 import logging
+import re
 from abc import ABC, abstractmethod
 
 from rex.utilities.fun_utils import get_fun_call_str
@@ -29,6 +31,26 @@ class BaseCollector(OutputMixin, ABC):
         self.flist = sorted(file_paths)
         self.data = None
         self.file_attrs = {}
+        msg = (
+            'File names must end with two zero padded integers, denoting '
+            'the spatial chunk index and the temporal chunk index '
+            'respectively. e.g. sup3r_chunk_000000_000000.h5'
+        )
+
+        assert all(self.get_chunk_indices(file) for file in self.flist), msg
+
+    @staticmethod
+    def get_chunk_indices(file):
+        """Get spatial and temporal chunk indices from the given file name.
+
+        Returns
+        -------
+        temporal_chunk_index : str
+            Zero padded integer for the temporal chunk index
+        spatial_chunk_index : str
+            Zero padded integer for the spatial chunk index
+        """
+        return re.match(r'.*_([0-9]+)_([0-9]+)\.\w+$', file).groups()
 
     @classmethod
     @abstractmethod
@@ -63,10 +85,10 @@ class BaseCollector(OutputMixin, ABC):
 
         cmd = (
             f"python -c '{import_str};\n"
-            "t0 = time.time();\n"
-            f"logger = init_logger({log_arg_str});\n"
-            f"{dc_fun_str};\n"
-            "t_elap = time.time() - t0;\n"
+            't0 = time.time();\n'
+            f'logger = init_logger({log_arg_str});\n'
+            f'{dc_fun_str};\n'
+            't_elap = time.time() - t0;\n'
         )
 
         pipeline_step = config.get('pipeline_step') or ModuleName.DATA_COLLECT

@@ -208,16 +208,16 @@ class BatchHandlerTesterDC(BatchHandlerDC):
         self.space_bin_count[np.digitize(s_idx, self.spatial_bins)] += 1
         self.time_bin_count[np.digitize(t_idx, self.temporal_bins)] += 1
 
-    def _build_batch(self):
+    def sample_batch(self):
         """Override get_samples to track sample indices."""
-        out = super()._build_batch()
+        out = super().sample_batch()
         if len(self.containers[0].index_record) > 0:
             self._update_bin_count(self.containers[0].index_record[-1])
         return out
 
     def __next__(self):
         out = super().__next__()
-        if self._batch_counter == self.n_batches:
+        if self._batch_count == self.n_batches:
             self.update_record()
         return out
 
@@ -249,10 +249,10 @@ def BatchHandlerTesterFactory(BatchHandlerClass, SamplerClass):
             self.sample_count = 0
             super().__init__(*args, **kwargs)
 
-        def _build_batch(self):
+        def sample_batch(self):
             """Override get_samples to track sample count."""
             self.sample_count += 1
-            return super()._build_batch()
+            return super().sample_batch()
 
     return BatchHandlerTester
 
@@ -319,13 +319,13 @@ def make_fake_h5_chunks(td):
     s_slices_lr = [slice(0, 5), slice(5, 10)]
     s_slices_hr = [slice(0, 25), slice(25, 50)]
 
-    out_pattern = os.path.join(td, 'fp_out_{t}_{i}_{j}.h5')
+    out_pattern = os.path.join(td, 'fp_out_{t}_{i}{j}.h5')
     out_files = []
     for t, (slice_lr, slice_hr) in enumerate(zip(t_slices_lr, t_slices_hr)):
         for i, (s1_lr, s1_hr) in enumerate(zip(s_slices_lr, s_slices_hr)):
             for j, (s2_lr, s2_hr) in enumerate(zip(s_slices_lr, s_slices_hr)):
                 out_file = out_pattern.format(
-                    t=str(t).zfill(3),
+                    t=str(t).zfill(6),
                     i=str(i).zfill(3),
                     j=str(j).zfill(3),
                 )

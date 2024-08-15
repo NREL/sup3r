@@ -6,11 +6,12 @@ over multiple nodes.
 
 import logging
 import threading
+import time
 from abc import ABC, abstractmethod
 from collections import namedtuple
+from concurrent.futures import ThreadPoolExecutor
 from typing import List, Optional, Union
 
-import dask
 import numpy as np
 import tensorflow as tf
 
@@ -78,7 +79,8 @@ class AbstractBatchQueue(Collection, ABC):
         )
         assert isinstance(samplers, list), msg
         super().__init__(containers=samplers)
-        self._batch_counter = 0
+        self._batch_count = 0
+        self._queue_count = 0
         self._queue_thread = None
         self._training_flag = threading.Event()
         self._thread_name = thread_name
@@ -91,6 +93,11 @@ class AbstractBatchQueue(Collection, ABC):
         self.max_workers = max_workers
         self.container_index = self.get_container_index()
         self.queue = self.get_queue()
+        self._thread_pool = (
+            None
+            if self.queue_cap == 0
+            else ThreadPoolExecutor(self.max_workers)
+        )
         self.transform_kwargs = transform_kwargs or {
             'smoothing_ignore': [],
             'smoothing': None,
@@ -115,8 +122,8 @@ class AbstractBatchQueue(Collection, ABC):
 
     def preflight(self):
         """Run checks before kicking off the queue."""
-        self.timer(self.check_features, log=True)()
-        self.timer(self.check_enhancement_factors, log=True)()
+        self.check_features()
+        self.check_enhancement_factors()
         _ = self.check_shared_attr('sample_shape')
 
         sampler_bs = self.check_shared_attr('batch_size')
@@ -168,7 +175,7 @@ class AbstractBatchQueue(Collection, ABC):
         high res samples. For a dual dataset queue this will just include
         smoothing."""
 
-    def _post_proc(self, samples) -> Batch:
+    def post_proc(self, samples) -> Batch:
         """Performs some post proc on dequeued samples before sending out for
         training. Post processing can include coarsening on high-res data (if
         :class:`Collection` consists of :class:`Sampler` objects and not
@@ -204,18 +211,28 @@ class AbstractBatchQueue(Collection, ABC):
         return self.n_batches
 
     def __iter__(self):
-        self._batch_counter = 0
+        self._batch_count = 0
+        self._queue_count = 0
         self.start()
         return self
 
-    def _get_batch(self) -> Batch:
+    def enqueue_batch_future(self):
+        """Add ``enqueue_batch`` future to queue thread pool."""
+        if self._thread_pool is not None:
+            self._thread_pool.submit(self.enqueue_batch)
+
+    def get_batch(self) -> Batch:
+        """Get batch from queue or directly from a ``Sampler`` through
+        ``sample_batch``."""
         if (
             self.mode == 'eager'
             or self.queue_cap == 0
             or self.queue.size().numpy() == 0
         ):
-            return self._build_batch()
-        return self.queue.dequeue()
+            return self.sample_batch()
+        batch = self.queue.dequeue()
+        self._queue_count -= 1
+        return batch
 
     @property
     def running(self):
@@ -230,24 +247,23 @@ class AbstractBatchQueue(Collection, ABC):
         """Callback function for queue thread. While training, the queue is
         checked for empty spots and filled. In the training thread, batches are
         removed from the queue."""
+        log_time = time.time()
+        log_rate = 10
         while self.running:
-            needed = self.queue_cap - self.queue.size().numpy()
-            needed = min((self.max_workers, needed))
+            needed = max((0, self.queue_cap - self._queue_count))
             if needed == 1 or self.max_workers == 1:
-                self._enqueue_batch()
+                self.enqueue_batch()
             elif needed > 0:
-                tasks = [
-                    dask.delayed(self._enqueue_batch)()
-                    for _ in np.arange(needed)
-                ]
+                _ = [self.enqueue_batch_future() for _ in range(needed)]
                 logger.debug(
                     'Added %s enqueue futures to %s queue.',
                     needed,
                     self._thread_name,
                 )
-                dask.compute(
-                    *tasks, scheduler='threads', num_workers=self.max_workers
-                )
+            if time.time() > log_time + log_rate:
+                logger.debug(self.log_queue_info())
+                log_time = time.time()
+            self._queue_count += needed
 
     def __next__(self) -> Batch:
         """Dequeue batch samples, squeeze if for a spatial only model, perform
@@ -259,15 +275,22 @@ class AbstractBatchQueue(Collection, ABC):
         batch : Batch
             Batch object with batch.low_res and batch.high_res attributes
         """
-        if self._batch_counter < self.n_batches:
-            samples = self.timer(self._get_batch, log=True)()
+        if self._batch_count < self.n_batches:
+            self.timer.start()
+            samples = self.get_batch()
             if self.sample_shape[2] == 1:
                 if isinstance(samples, (list, tuple)):
                     samples = tuple(s[..., 0, :] for s in samples)
                 else:
                     samples = samples[..., 0, :]
-            batch = self.timer(self._post_proc)(samples)
-            self._batch_counter += 1
+            batch = self.post_proc(samples)
+            self.timer.stop()
+            self._batch_count += 1
+            logger.debug(
+                'Batch step %s finished in %s.',
+                self._batch_count,
+                self.timer.elapsed_str,
+            )
         else:
             raise StopIteration
         return batch
@@ -282,21 +305,26 @@ class AbstractBatchQueue(Collection, ABC):
         self.container_index = self.get_container_index()
         return self.containers[self.container_index]
 
-    def _build_batch(self):
+    def sample_batch(self):
         """Get random sampler from collection and return a batch of samples
         from that sampler."""
         return next(self.get_random_container())
 
-    def _enqueue_batch(self):
+    def log_queue_info(self):
+        """Log info about queue size."""
+        msg = '{} queue length: {} / {}. {} queue with futures: {}'.format(
+            self._thread_name.title(),
+            self.queue.size().numpy(),
+            self.queue_cap,
+            self._thread_name.title(),
+            self._queue_count,
+        )
+        return msg
+
+    def enqueue_batch(self):
         """Build batch and send to queue."""
         if self.running and self.queue.size().numpy() < self.queue_cap:
-            self.queue.enqueue(self._build_batch())
-            logger.debug(
-                '%s queue length: %s / %s',
-                self._thread_name.title(),
-                self.queue.size().numpy(),
-                self.queue_cap,
-            )
+            self.queue.enqueue(self.sample_batch())
 
     @property
     def lr_shape(self):

@@ -2,6 +2,7 @@
 
 import logging
 import sys
+import threading
 
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
@@ -9,21 +10,50 @@ from scipy.interpolate import RegularGridInterpolator
 logger = logging.getLogger(__name__)
 
 
-def TrainingSession(model):
+class TrainingSession:
     """Wrapper to gracefully exit batch handler thread during training, upon a
     keyboard interruption."""
 
-    def wrapper(batch_handler, **kwargs):
+    def __init__(self, batch_handler, model, **kwargs):
+        """
+        Parameters
+        ----------
+        batch_handler: BatchHandler
+            Batch iterator
+        model: Sup3rGan
+            Gan model to run in new thread
+        **kwargs : dict
+            Model keyword args
+        """
+        self.batch_handler = batch_handler
+        self.model = model
+        self.kwargs = kwargs
+
+    def run(self):
         """Wrap model.train()."""
+        model_thread = threading.Thread(
+            target=self.model.train,
+            args=(self.batch_handler,),
+            kwargs=self.kwargs,
+        )
         try:
             logger.info('Starting training session.')
-            model.train(batch_handler, **kwargs)
+            self.batch_handler.start()
+            model_thread.start()
         except KeyboardInterrupt:
             logger.info('Ending training session.')
-            batch_handler.stop()
+            self.batch_handler.stop()
+            model_thread.join()
+            sys.exit()
+        except Exception as e:
+            logger.info('Ending training session. %s', e)
+            self.batch_handler.stop()
+            model_thread.join()
             sys.exit()
 
-    return wrapper
+        logger.info('Finished training')
+        self.batch_handler.stop()
+        model_thread.join()
 
 
 def st_interp(low, s_enhance, t_enhance, t_centered=False):

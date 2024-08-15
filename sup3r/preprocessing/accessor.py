@@ -243,7 +243,7 @@ class Sup3rX:
                 logger.debug(f'Loaded {f} into memory. {_mem_check()}')
             logger.debug(f'Loaded dataset into memory: {self._ds}')
             logger.debug(f'Post-loading: {_mem_check()}')
-        return type(self)(self._ds)
+        return self
 
     @property
     def loaded(self):
@@ -294,7 +294,7 @@ class Sup3rX:
         data_vars.update(new_data)
 
         self._ds = xr.Dataset(coords=coords, data_vars=data_vars, attrs=attrs)
-        return type(self)(self._ds)
+        return self
 
     @property
     def name(self):
@@ -386,7 +386,7 @@ class Sup3rX:
                 )
                 new_var = (self._ds[feat].dims, (horiz.data + vert.data) / 2)
                 self._ds[feat] = new_var
-        return type(self)(self._ds)
+        return self
 
     @staticmethod
     def _needs_fancy_indexing(keys) -> Union[np.ndarray, da.core.Array]:
@@ -461,7 +461,7 @@ class Sup3rX:
             self._ds = self._ds.assign_coords(data_vars)
         else:
             self._ds = self._ds.assign(data_vars)
-        return type(self)(self._ds)
+        return self
 
     @property
     def features(self):
@@ -548,7 +548,7 @@ class Sup3rX:
             msg = 'Dataset is already unflattened'
             logger.warning(msg)
             warn(msg)
-        return type(self)(self._ds)
+        return self
 
     def __mul__(self, other):
         """Multiply ``Sup3rX`` object by other. Used to compute weighted means

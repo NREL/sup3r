@@ -63,11 +63,9 @@ class Collection(Container):
         return self.check_shared_attr(attr)
 
     def check_shared_attr(self, attr):
-        """Check if all containers have the same value for `attr`."""
-        msg = (
-            'Not all containers in the collection have the same value for '
-            f'{attr}'
-        )
+        """Check if all containers have the same value for `attr`. If they do
+        the collection effectively inherits those attributes."""
+        msg = f'Not all collection containers have the same value for {attr}'
         out = getattr(self.containers[0], attr, None)
         if isinstance(out, (np.ndarray, list, tuple)):
             check = all(
@@ -78,8 +76,3 @@ class Collection(Container):
             check = all(getattr(c, attr, None) == out for c in self.containers)
         assert check, msg
         return out
-
-    @property
-    def shape(self):
-        """Return common data shape if this is constant across containers."""
-        return self.check_shared_attr('shape')

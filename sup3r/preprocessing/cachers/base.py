@@ -283,9 +283,10 @@ class Cacher(Container):
         chunksizes = data_var.shape if chunksizes is None else chunksizes
         chunk_slices = cls.get_chunk_slices(chunksizes, data_var.shape)
         logger.info(
-            'Adding %s chunks to %s with max_workers=%s',
-            len(chunk_slices),
+            'Adding %s to %s with %s chunks and max_workers=%s ',
+            feature,
             out_file,
+            len(chunk_slices),
             max_workers,
         )
         for chunk_slice in chunk_slices:
@@ -330,7 +331,7 @@ class Cacher(Container):
                 ncfile.createDimension(dim_name, dim_size)
 
             for attr_name, attr_value in attrs.items():
-                setattr(ncfile, attr_name, attr_value)
+                ncfile.setncattr(attr_name, attr_value)
 
             for dset in [*list(data.coords), *features]:
                 data_var, chunksizes = cls.get_chunksizes(dset, data, chunks)
@@ -343,7 +344,7 @@ class Cacher(Container):
                 )
 
                 for attr_name, attr_value in data_var.attrs.items():
-                    setattr(dout, attr_name, attr_value)
+                    dout.setncattr(attr_name, attr_value)
 
                 dout.coordinates = ' '.join(list(data_var.coords))
 
@@ -365,3 +366,5 @@ class Cacher(Container):
                 chunks=chunks,
                 max_workers=max_workers,
             )
+
+        logger.info('Finished writing %s to %s', features, out_file)

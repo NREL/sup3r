@@ -42,7 +42,7 @@ class BatchQueueDC(SingleBatchQueue):
 
     _signature_objs = (__init__, SingleBatchQueue)
 
-    def _build_batch(self):
+    def sample_batch(self):
         """Update weights and get batch of samples from sampled container."""
         sampler = self.get_random_container()
         sampler.update_weights(self.spatial_weights, self.temporal_weights)
@@ -109,7 +109,7 @@ class ValBatchQueueDC(BatchQueueDC):
         self._spatial_weights = np.eye(
             1,
             self.n_space_bins,
-            self._batch_counter % self.n_space_bins,
+            self._batch_count % self.n_space_bins,
             dtype=np.float32,
         )[0]
         return self._spatial_weights
@@ -121,7 +121,7 @@ class ValBatchQueueDC(BatchQueueDC):
         self._temporal_weights = np.eye(
             1,
             self.n_time_bins,
-            self._batch_counter % self.n_time_bins,
+            self._batch_count % self.n_time_bins,
             dtype=np.float32,
         )[0]
         return self._temporal_weights

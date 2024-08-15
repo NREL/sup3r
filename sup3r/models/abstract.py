@@ -1,4 +1,5 @@
 """Abstract class defining the required interface for Sup3r model subclasses"""
+
 import json
 import locale
 import logging
@@ -81,8 +82,11 @@ class TensorboardMixIn:
         """
         if self._tb_writer is not None and self._write_tb_profile:
             with self._tb_writer.as_default():
-                tf.summary.trace_export(name=name, step=self.total_batches,
-                                        profiler_outdir=self._tb_log_dir)
+                tf.summary.trace_export(
+                    name=name,
+                    step=self.total_batches,
+                    profiler_outdir=self._tb_log_dir,
+                )
 
     def _init_tensorboard_writer(self, out_dir):
         """Initialize the ``tf.summary.SummaryWriter`` to use for writing
@@ -129,11 +133,9 @@ class AbstractInterface(ABC):
         """
 
     @abstractmethod
-    def generate(self,
-                 low_res,
-                 norm_in=True,
-                 un_norm_out=True,
-                 exogenous_data=None):
+    def generate(
+        self, low_res, norm_in=True, un_norm_out=True, exogenous_data=None
+    ):
         """Use the generator model to generate high res data from low res
         input. This is the public generate function."""
 
@@ -183,8 +185,10 @@ class AbstractInterface(ABC):
         layer attributes. Used in model training during high res coarsening"""
         s_enhance = None
         if hasattr(self, '_gen'):
-            s_enhancements = [getattr(layer, '_spatial_mult', 1)
-                              for layer in self._gen.layers]
+            s_enhancements = [
+                getattr(layer, '_spatial_mult', 1)
+                for layer in self._gen.layers
+            ]
             s_enhance = int(np.prod(s_enhancements))
         return s_enhance
 
@@ -194,8 +198,10 @@ class AbstractInterface(ABC):
         layer attributes. Used in model training during high res coarsening"""
         t_enhance = None
         if hasattr(self, '_gen'):
-            t_enhancements = [getattr(layer, '_temporal_mult', 1)
-                              for layer in self._gen.layers]
+            t_enhancements = [
+                getattr(layer, '_temporal_mult', 1)
+                for layer in self._gen.layers
+            ]
             t_enhance = int(np.prod(t_enhancements))
         return t_enhance
 
@@ -251,10 +257,11 @@ class AbstractInterface(ABC):
         """Get the input and output resolutions without units. e.g. for
         {"spatial": "30km", "temporal": "60min"} this returns
         {"spatial": 30, "temporal": 60}"""
-        ires_num = {k: int(re.search(r'\d+', v).group(0))
-                    for k, v in self.input_resolution.items()}
-        enhancements = {'spatial': self.s_enhance,
-                        'temporal': self.t_enhance}
+        ires_num = {
+            k: int(re.search(r'\d+', v).group(0))
+            for k, v in self.input_resolution.items()
+        }
+        enhancements = {'spatial': self.s_enhance, 'temporal': self.t_enhance}
         ores_num = {k: v // enhancements[k] for k, v in ires_num.items()}
         return ires_num, ores_num
 
@@ -269,10 +276,13 @@ class AbstractInterface(ABC):
         t_enhance = self.meta['t_enhance']
         check = (
             ires_num['temporal'] / ores_num['temporal'] == t_enhance
-            and ires_num['spatial'] / ores_num['spatial'] == s_enhance)
-        msg = (f'Enhancement factors (s_enhance={s_enhance}, '
-               f't_enhance={t_enhance}) do not evenly divide '
-               f'input resolution ({self.input_resolution})')
+            and ires_num['spatial'] / ores_num['spatial'] == s_enhance
+        )
+        msg = (
+            f'Enhancement factors (s_enhance={s_enhance}, '
+            f't_enhance={t_enhance}) do not evenly divide '
+            f'input resolution ({self.input_resolution})'
+        )
         if not check:
             logger.error(msg)
             raise RuntimeError(msg)
@@ -289,10 +299,12 @@ class AbstractInterface(ABC):
         layer_te = self.get_t_enhance_from_layers()
         layer_se = layer_se if layer_se is not None else self.meta['s_enhance']
         layer_te = layer_te if layer_te is not None else self.meta['t_enhance']
-        msg = (f'Enhancement factors computed from layer attributes '
-               f'(s_enhance={layer_se}, t_enhance={layer_te}) '
-               f'conflict with user provided values (s_enhance={s_enhance}, '
-               f't_enhance={t_enhance})')
+        msg = (
+            f'Enhancement factors computed from layer attributes '
+            f'(s_enhance={layer_se}, t_enhance={layer_te}) '
+            f'conflict with user provided values (s_enhance={s_enhance}, '
+            f't_enhance={t_enhance})'
+        )
         check = layer_se == s_enhance or layer_te == t_enhance
         if not check:
             logger.error(msg)
@@ -306,8 +318,10 @@ class AbstractInterface(ABC):
         output_res = self.meta.get('output_resolution', None)
         if self.input_resolution is not None and output_res is None:
             ires_num, ores_num = self._get_numerical_resolutions()
-            output_res = {k: v.replace(str(ires_num[k]), str(ores_num[k]))
-                          for k, v in self.input_resolution.items()}
+            output_res = {
+                k: v.replace(str(ires_num[k]), str(ores_num[k]))
+                for k, v in self.input_resolution.items()
+            }
             self.meta['output_resolution'] = output_res
         return output_res
 
@@ -338,19 +352,24 @@ class AbstractInterface(ABC):
         if exogenous_data is None:
             return low_res
 
-        if (not isinstance(exogenous_data, ExoData)
-                and exogenous_data is not None):
+        if (
+            not isinstance(exogenous_data, ExoData)
+            and exogenous_data is not None
+        ):
             exogenous_data = ExoData(exogenous_data)
 
         fnum_diff = len(self.lr_features) - low_res.shape[-1]
         exo_feats = [] if fnum_diff <= 0 else self.lr_features[-fnum_diff:]
-        msg = (f'Provided exogenous_data: {exogenous_data} is missing some '
-               f'required features ({exo_feats})')
+        msg = (
+            f'Provided exogenous_data: {exogenous_data} is missing some '
+            f'required features ({exo_feats})'
+        )
         assert all(feature in exogenous_data for feature in exo_feats), msg
         if exogenous_data is not None and fnum_diff > 0:
             for feature in exo_feats:
                 exo_input = exogenous_data.get_combine_type_data(
-                    feature, 'input')
+                    feature, 'input'
+                )
                 if exo_input is not None:
                     low_res = np.concatenate((low_res, exo_input), axis=-1)
 
@@ -383,20 +402,24 @@ class AbstractInterface(ABC):
         if exogenous_data is None:
             return hi_res
 
-        if (not isinstance(exogenous_data, ExoData)
-                and exogenous_data is not None):
+        if (
+            not isinstance(exogenous_data, ExoData)
+            and exogenous_data is not None
+        ):
             exogenous_data = ExoData(exogenous_data)
 
         fnum_diff = len(self.hr_out_features) - hi_res.shape[-1]
-        exo_feats = ([] if fnum_diff <= 0
-                     else self.hr_out_features[-fnum_diff:])
-        msg = ('Provided exogenous_data is missing some required features '
-               f'({exo_feats})')
+        exo_feats = [] if fnum_diff <= 0 else self.hr_out_features[-fnum_diff:]
+        msg = (
+            'Provided exogenous_data is missing some required features '
+            f'({exo_feats})'
+        )
         assert all(feature in exogenous_data for feature in exo_feats), msg
         if exogenous_data is not None and fnum_diff > 0:
             for feature in exo_feats:
                 exo_output = exogenous_data.get_combine_type_data(
-                    feature, 'output')
+                    feature, 'output'
+                )
                 if exo_output is not None:
                     hi_res = np.concatenate((hi_res, exo_output), axis=-1)
         return hi_res
@@ -423,7 +446,7 @@ class AbstractInterface(ABC):
             for feature in self.hr_exo_features:
                 f_idx = self.hr_exo_features.index(feature)
                 f_idx += len(self.hr_out_features)
-                exo_data = high_res_true[..., f_idx: f_idx + 1]
+                exo_data = high_res_true[..., f_idx : f_idx + 1]
                 high_res_gen = tf.concat((high_res_gen, exo_data), axis=-1)
         return high_res_gen
 
@@ -458,8 +481,11 @@ class AbstractInterface(ABC):
         # pylint: disable=E1101
         features = []
         if hasattr(self, '_gen'):
-            features = [layer.name for layer in self._gen.layers
-                        if isinstance(layer, (Sup3rAdder, Sup3rConcat))]
+            features = [
+                layer.name
+                for layer in self._gen.layers
+                if isinstance(layer, (Sup3rAdder, Sup3rConcat))
+            ]
         return features
 
     @property
@@ -506,15 +532,24 @@ class AbstractInterface(ABC):
             'smoothed_features', 's_enhance', 't_enhance', 'smoothing'
         """
 
-        keys = ('input_resolution', 'lr_features', 'hr_exo_features',
-                'hr_out_features', 'smoothed_features', 's_enhance',
-                't_enhance', 'smoothing')
+        keys = (
+            'input_resolution',
+            'lr_features',
+            'hr_exo_features',
+            'hr_out_features',
+            'smoothed_features',
+            's_enhance',
+            't_enhance',
+            'smoothing',
+        )
         keys = [k for k in keys if k in kwargs]
 
         hr_exo_feat = kwargs.get('hr_exo_features', [])
-        msg = (f'Expected high-res exo features {self.hr_exo_features} '
-               f'based on model architecture but received "hr_exo_features" '
-               f'from data handler: {hr_exo_feat}')
+        msg = (
+            f'Expected high-res exo features {self.hr_exo_features} '
+            f'based on model architecture but received "hr_exo_features" '
+            f'from data handler: {hr_exo_feat}'
+        )
         assert list(self.hr_exo_features) == list(hr_exo_feat), msg
 
         for var in keys:
@@ -522,10 +557,10 @@ class AbstractInterface(ABC):
             if val is None:
                 self.meta[var] = kwargs[var]
             elif val != kwargs[var]:
-                msg = ('Model was previously trained with {var}={} but '
-                       'received new {var}={}'.format(val,
-                                                      kwargs[var],
-                                                      var=var))
+                msg = (
+                    'Model was previously trained with {var}={} but '
+                    'received new {var}={}'.format(val, kwargs[var], var=var)
+                )
                 logger.warning(msg)
                 warn(msg)
 
@@ -544,8 +579,9 @@ class AbstractInterface(ABC):
             os.makedirs(out_dir, exist_ok=True)
 
         fp_params = os.path.join(out_dir, 'model_params.json')
-        with open(fp_params, 'w',
-                  encoding=locale.getpreferredencoding(False)) as f:
+        with open(
+            fp_params, 'w', encoding=locale.getpreferredencoding(False)
+        ) as f:
             params = self.model_params
             json.dump(params, f, sort_keys=True, indent=2)
 
@@ -595,14 +631,19 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             self._meta[f'config_{name}'] = model
             if 'hidden_layers' in model:
                 model = model['hidden_layers']
-            elif ('meta' in model and f'config_{name}' in model['meta']
-                  and 'hidden_layers' in model['meta'][f'config_{name}']):
+            elif (
+                'meta' in model
+                and f'config_{name}' in model['meta']
+                and 'hidden_layers' in model['meta'][f'config_{name}']
+            ):
                 model = model['meta'][f'config_{name}']['hidden_layers']
             else:
-                msg = ('Could not load model from json config, need '
-                       '"hidden_layers" key or '
-                       f'"meta/config_{name}/hidden_layers" '
-                       ' at top level but only found: {}'.format(model.keys()))
+                msg = (
+                    'Could not load model from json config, need '
+                    '"hidden_layers" key or '
+                    f'"meta/config_{name}/hidden_layers" '
+                    ' at top level but only found: {}'.format(model.keys())
+                )
                 logger.error(msg)
                 raise KeyError(msg)
 
@@ -614,9 +655,10 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             model = CustomNetwork(hidden_layers=model, name=name)
 
         if not isinstance(model, CustomNetwork):
-            msg = ('Something went wrong. Tried to load a custom network '
-                   'but ended up with a model of type "{}"'.format(
-                       type(model)))
+            msg = (
+                'Something went wrong. Tried to load a custom network '
+                'but ended up with a model of type "{}"'.format(type(model))
+            )
             logger.error(msg)
             raise TypeError(msg)
 
@@ -672,23 +714,30 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             self._means = {k: np.float32(v) for k, v in new_means.items()}
             self._stdevs = {k: np.float32(v) for k, v in new_stdevs.items()}
 
-            if (not isinstance(self._means, dict)
-                    or not isinstance(self._stdevs, dict)):
-                msg = ('Means and stdevs need to be dictionaries with keys as '
-                       'feature names but received means of type '
-                       f'{type(self._means)} and '
-                       f'stdevs of type {type(self._stdevs)}')
+            if not isinstance(self._means, dict) or not isinstance(
+                self._stdevs, dict
+            ):
+                msg = (
+                    'Means and stdevs need to be dictionaries with keys as '
+                    'feature names but received means of type '
+                    f'{type(self._means)} and '
+                    f'stdevs of type {type(self._stdevs)}'
+                )
                 logger.error(msg)
                 raise TypeError(msg)
 
             missing = [f for f in self.lr_features if f not in self._means]
-            missing += [f for f in self.hr_exo_features
-                        if f not in self._means]
-            missing += [f for f in self.hr_out_features
-                        if f not in self._means]
+            missing += [
+                f for f in self.hr_exo_features if f not in self._means
+            ]
+            missing += [
+                f for f in self.hr_out_features if f not in self._means
+            ]
             if any(missing):
-                msg = (f'Need means for features "{missing}" but did not find '
-                       f'in new means array: {self._means}')
+                msg = (
+                    f'Need means for features "{missing}" but did not find '
+                    f'in new means array: {self._means}'
+                )
 
             logger.info(
                 'Set data normalization mean values:\n%s',
@@ -724,8 +773,10 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
 
             missing = [fn for fn in self.lr_features if fn not in self._means]
             if any(missing):
-                msg = (f'Could not find low-res input features {missing} in '
-                       f'means/stdevs: {self._means}/{self._stdevs}')
+                msg = (
+                    f'Could not find low-res input features {missing} in '
+                    f'means/stdevs: {self._means}/{self._stdevs}'
+                )
                 logger.error(msg)
                 raise KeyError(msg)
 
@@ -757,11 +808,14 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             if isinstance(output, tf.Tensor):
                 output = output.numpy()
 
-            missing = [fn for fn in self.hr_out_features
-                       if fn not in self._means]
+            missing = [
+                fn for fn in self.hr_out_features if fn not in self._means
+            ]
             if any(missing):
-                msg = (f'Could not find high-res output features {missing} in '
-                       f'means/stdevs: {self._means}/{self._stdevs}')
+                msg = (
+                    f'Could not find high-res output features {missing} in '
+                    f'means/stdevs: {self._means}/{self._stdevs}'
+                )
                 logger.error(msg)
                 raise KeyError(msg)
 
@@ -841,8 +895,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             optimizer_class = getattr(optimizers, class_name)
             sig = signature(optimizer_class)
             optimizer_kwargs = {
-                k: v
-                for k, v in optimizer.items() if k in sig.parameters
+                k: v for k, v in optimizer.items() if k in sig.parameters
             }
             optimizer = optimizer_class.from_config(optimizer_kwargs)
         elif optimizer is None:
@@ -884,10 +937,13 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         if 'version_record' in params:
             version_record = params.pop('version_record')
             if verbose:
-                logger.info('Loading model from disk '
-                            'that was created with the '
-                            'following package versions: \n{}'.format(
-                                pprint.pformat(version_record, indent=2)))
+                logger.info(
+                    'Loading model from disk '
+                    'that was created with the '
+                    'following package versions: \n{}'.format(
+                        pprint.pformat(version_record, indent=2)
+                    )
+                )
 
         means = params.get('means', None)
         stdevs = params.get('stdevs', None)
@@ -917,7 +973,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         for feature in self.hr_exo_features:
             f_idx = self.hr_exo_features.index(feature)
             f_idx += len(self.hr_out_features)
-            exo_fdata = high_res[..., f_idx: f_idx + 1]
+            exo_fdata = high_res[..., f_idx : f_idx + 1]
             exo_data[feature] = exo_fdata
         return exo_data
 
@@ -951,9 +1007,10 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             out = getattr(tf.keras.losses, loss, None)
 
         if out is None:
-            msg = ('Could not find requested loss function "{}" in '
-                   'sup3r.utilities.loss_metrics or tf.keras.losses.'.format(
-                       loss))
+            msg = (
+                'Could not find requested loss function "{}" in '
+                'sup3r.utilities.loss_metrics or tf.keras.losses.'.format(loss)
+            )
             logger.error(msg)
             raise KeyError(msg)
 
@@ -1084,10 +1141,13 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             diffs = np.abs(np.diff(history[column]))
             if all(diffs[-n_epoch:] < threshold):
                 stop = True
-                logger.info('Found early stop condition, loss values "{}" '
-                            'have absolute relative differences less than '
-                            'threshold {}: {}'.format(column, threshold,
-                                                      diffs[-n_epoch:]))
+                logger.info(
+                    'Found early stop condition, loss values "{}" '
+                    'have absolute relative differences less than '
+                    'threshold {}: {}'.format(
+                        column, threshold, diffs[-n_epoch:]
+                    )
+                )
 
         return stop
 
@@ -1102,17 +1162,19 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             if it does not already exist.
         """
 
-    def finish_epoch(self,
-                     epoch,
-                     epochs,
-                     t0,
-                     loss_details,
-                     checkpoint_int,
-                     out_dir,
-                     early_stop_on,
-                     early_stop_threshold,
-                     early_stop_n_epoch,
-                     extras=None):
+    def finish_epoch(
+        self,
+        epoch,
+        epochs,
+        t0,
+        loss_details,
+        checkpoint_int,
+        out_dir,
+        early_stop_on,
+        early_stop_threshold,
+        early_stop_n_epoch,
+        extras=None,
+    ):
         """Perform finishing checks after an epoch is done training
 
         Parameters
@@ -1164,17 +1226,21 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         last_epoch = epoch == epochs[-1]
         chp = checkpoint_int is not None and (epoch % checkpoint_int) == 0
         if last_epoch or chp:
-            msg = ('Model output dir for checkpoint models should have '
-                   f'{"{epoch}"} but did not: {out_dir}')
+            msg = (
+                'Model output dir for checkpoint models should have '
+                f'{"{epoch}"} but did not: {out_dir}'
+            )
             assert '{epoch}' in out_dir, msg
             self.save(out_dir.format(epoch=epoch))
 
         stop = False
         if early_stop_on is not None and early_stop_on in self._history:
-            stop = self.early_stop(self._history,
-                                   early_stop_on,
-                                   threshold=early_stop_threshold,
-                                   n_epoch=early_stop_n_epoch)
+            stop = self.early_stop(
+                self._history,
+                early_stop_on,
+                threshold=early_stop_threshold,
+                n_epoch=early_stop_n_epoch,
+            )
             if stop:
                 self.save(out_dir.format(epoch=epoch))
 
@@ -1184,13 +1250,15 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
 
         return stop
 
-    def run_gradient_descent(self,
-                             low_res,
-                             hi_res_true,
-                             training_weights,
-                             optimizer=None,
-                             multi_gpu=False,
-                             **calc_loss_kwargs):
+    def run_gradient_descent(
+        self,
+        low_res,
+        hi_res_true,
+        training_weights,
+        optimizer=None,
+        multi_gpu=False,
+        **calc_loss_kwargs,
+    ):
         # pylint: disable=E0602
         """Run gradient descent for one mini-batch of (low_res, hi_res_true)
         and update weights
@@ -1227,7 +1295,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         loss_details : dict
             Namespace of the breakdown of loss components
         """
-        t0 = time.time()
+        self.timer.start()
         if optimizer is None:
             optimizer = self.optimizer
 
@@ -1240,9 +1308,11 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
                 **calc_loss_kwargs,
             )
             optimizer.apply_gradients(zip(grad, training_weights))
-            t1 = time.time()
-            logger.debug(f'Finished single gradient descent step '
-                         f'in {(t1 - t0):.3f}s')
+            self.timer.stop()
+            logger.debug(
+                'Finished single gradient descent step in %s',
+                self.timer.elapsed_str,
+            )
         else:
             futures = []
             lr_chunks = np.array_split(low_res, len(self.gpu_list))
@@ -1251,27 +1321,35 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             mask_chunks = None
             if 'mask' in calc_loss_kwargs:
                 split_mask = True
-                mask_chunks = np.array_split(calc_loss_kwargs['mask'],
-                                             len(self.gpu_list))
+                mask_chunks = np.array_split(
+                    calc_loss_kwargs['mask'], len(self.gpu_list)
+                )
 
             with ThreadPoolExecutor(max_workers=len(self.gpu_list)) as exe:
                 for i in range(len(self.gpu_list)):
                     if split_mask:
                         calc_loss_kwargs['mask'] = mask_chunks[i]
                     futures.append(
-                        exe.submit(self.get_single_grad,
-                                   lr_chunks[i],
-                                   hr_true_chunks[i],
-                                   training_weights,
-                                   device_name=f'/gpu:{i}',
-                                   **calc_loss_kwargs))
+                        exe.submit(
+                            self.get_single_grad,
+                            lr_chunks[i],
+                            hr_true_chunks[i],
+                            training_weights,
+                            device_name=f'/gpu:{i}',
+                            **calc_loss_kwargs,
+                        )
+                    )
             for _, future in enumerate(futures):
                 grad, loss_details = future.result()
                 optimizer.apply_gradients(zip(grad, training_weights))
 
-            t1 = time.time()
-            logger.debug(f'Finished {len(futures)} gradient descent steps on '
-                         f'{len(self.gpu_list)} GPUs in {(t1 - t0):.3f}s')
+            self.timer.stop()
+            logger.debug(
+                'Finished %s gradient descent steps on %s GPUs in %s',
+                len(futures),
+                len(self.gpu_list),
+                self.timer.elapsed_str,
+            )
         return loss_details
 
     def _reshape_norm_exo(self, hi_res, hi_res_exo, exo_name, norm_in=True):
@@ -1313,8 +1391,9 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             return hi_res_exo
 
         if norm_in and self._means is not None:
-            hi_res_exo = ((hi_res_exo.copy() - self._means[exo_name])
-                          / self._stdevs[exo_name])
+            hi_res_exo = (
+                hi_res_exo.copy() - self._means[exo_name]
+            ) / self._stdevs[exo_name]
 
         if len(hi_res_exo.shape) == 3:
             hi_res_exo = np.expand_dims(hi_res_exo, axis=0)
@@ -1324,18 +1403,18 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             hi_res_exo = np.repeat(hi_res_exo, hi_res.shape[3], axis=3)
 
         if len(hi_res_exo.shape) != len(hi_res.shape):
-            msg = ('hi_res and hi_res_exo arrays are not of the same rank: '
-                   '{} and {}'.format(hi_res.shape, hi_res_exo.shape))
+            msg = (
+                'hi_res and hi_res_exo arrays are not of the same rank: '
+                '{} and {}'.format(hi_res.shape, hi_res_exo.shape)
+            )
             logger.error(msg)
             raise RuntimeError(msg)
 
         return hi_res_exo
 
-    def generate(self,
-                 low_res,
-                 norm_in=True,
-                 un_norm_out=True,
-                 exogenous_data=None):
+    def generate(
+        self, low_res, norm_in=True, un_norm_out=True, exogenous_data=None
+    ):
         """Use the generator model to generate high res data from low res
         input. This is the public generate function.
 
@@ -1367,8 +1446,10 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             (n_obs, spatial_1, spatial_2, n_features)
             (n_obs, spatial_1, spatial_2, n_temporal, n_features)
         """
-        if (not isinstance(exogenous_data, ExoData)
-                and exogenous_data is not None):
+        if (
+            not isinstance(exogenous_data, ExoData)
+            and exogenous_data is not None
+        ):
             exogenous_data = ExoData(exogenous_data)
 
         low_res = self._combine_fwp_input(low_res, exogenous_data)
@@ -1381,22 +1462,25 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             for i, layer in enumerate(self.generator.layers[1:]):
                 layer_num = i + 1
                 if isinstance(layer, (Sup3rAdder, Sup3rConcat)):
-                    msg = (f'layer.name = {layer.name} does not match any '
-                           'features in exogenous_data '
-                           f'({list(exogenous_data)})')
+                    msg = (
+                        f'layer.name = {layer.name} does not match any '
+                        'features in exogenous_data '
+                        f'({list(exogenous_data)})'
+                    )
                     assert layer.name in exogenous_data, msg
                     hi_res_exo = exogenous_data.get_combine_type_data(
-                        layer.name, 'layer')
-                    hi_res_exo = self._reshape_norm_exo(hi_res,
-                                                        hi_res_exo,
-                                                        layer.name,
-                                                        norm_in=norm_in)
+                        layer.name, 'layer'
+                    )
+                    hi_res_exo = self._reshape_norm_exo(
+                        hi_res, hi_res_exo, layer.name, norm_in=norm_in
+                    )
                     hi_res = layer(hi_res, hi_res_exo)
                 else:
                     hi_res = layer(hi_res)
         except Exception as e:
-            msg = ('Could not run layer #{} "{}" on tensor of shape {}'.
-                   format(layer_num, layer, hi_res.shape))
+            msg = 'Could not run layer #{} "{}" on tensor of shape {}'.format(
+                layer_num, layer, hi_res.shape
+            )
             logger.error(msg)
             raise RuntimeError(msg) from e
 
@@ -1439,28 +1523,33 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             for i, layer in enumerate(self.generator.layers[1:]):
                 layer_num = i + 1
                 if isinstance(layer, (Sup3rAdder, Sup3rConcat)):
-                    msg = (f'layer.name = {layer.name} does not match any '
-                           f'features in exogenous_data ({list(hi_res_exo)})')
+                    msg = (
+                        f'layer.name = {layer.name} does not match any '
+                        f'features in exogenous_data ({list(hi_res_exo)})'
+                    )
                     assert layer.name in hi_res_exo, msg
                     hr_exo = hi_res_exo[layer.name]
                     hi_res = layer(hi_res, hr_exo)
                 else:
                     hi_res = layer(hi_res)
         except Exception as e:
-            msg = ('Could not run layer #{} "{}" on tensor of shape {}'.
-                   format(layer_num, layer, hi_res.shape))
+            msg = 'Could not run layer #{} "{}" on tensor of shape {}'.format(
+                layer_num, layer, hi_res.shape
+            )
             logger.error(msg)
             raise RuntimeError(msg) from e
 
         return hi_res
 
     @tf.function
-    def get_single_grad(self,
-                        low_res,
-                        hi_res_true,
-                        training_weights,
-                        device_name=None,
-                        **calc_loss_kwargs):
+    def get_single_grad(
+        self,
+        low_res,
+        hi_res_true,
+        training_weights,
+        device_name=None,
+        **calc_loss_kwargs,
+    ):
         """Run gradient descent for one mini-batch of (low_res, hi_res_true),
         do not update weights, just return gradient details.
 
@@ -1494,12 +1583,14 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             Namespace of the breakdown of loss components
         """
         with tf.device(device_name), tf.GradientTape(
-                watch_accessed_variables=False) as tape:
-            self.timer(tape.watch)(training_weights)
-            hi_res_exo = self.timer(self.get_high_res_exo_input)(hi_res_true)
-            hi_res_gen = self.timer(self._tf_generate)(low_res, hi_res_exo)
-            loss_out = self.timer(self.calc_loss)(hi_res_true, hi_res_gen,
-                                                  **calc_loss_kwargs)
+            watch_accessed_variables=False
+        ) as tape:
+            tape.watch(training_weights)
+            hi_res_exo = self.get_high_res_exo_input(hi_res_true)
+            hi_res_gen = self._tf_generate(low_res, hi_res_exo)
+            loss_out = self.calc_loss(
+                hi_res_true, hi_res_gen, **calc_loss_kwargs
+            )
             loss, loss_details = loss_out
-            grad = self.timer(tape.gradient)(loss, training_weights)
+            grad = tape.gradient(loss, training_weights)
         return grad, loss_details

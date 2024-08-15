@@ -8,6 +8,7 @@ import time
 
 import numpy as np
 import pandas as pd
+import tensorflow as tf
 import xarray as xr
 from packaging import version
 from scipy import ndimage as nd
@@ -19,13 +20,15 @@ RANDOM_GENERATOR = np.random.default_rng(seed=42)
 
 def xr_open_mfdataset(files, **kwargs):
     """Wrapper for xr.open_mfdataset with default opening options."""
-    default_kwargs = {'engine': 'h5netcdf'}
+    default_kwargs = {'engine': 'netcdf4'}
     default_kwargs.update(kwargs)
     return xr.open_mfdataset(files, **default_kwargs)
 
 
 def safe_cast(o):
     """Cast to type safe for serialization."""
+    if isinstance(o, tf.Tensor):
+        o = o.numpy()
     if isinstance(o, (float, np.float64, np.float32)):
         return float(o)
     if isinstance(o, (int, np.int64, np.int32)):
@@ -45,7 +48,27 @@ class Timer:
 
     def __init__(self):
         self.log = {}
-        self.elapsed = 0
+        self._elapsed = 0
+        self._start = None
+        self._stop = None
+
+    def start(self):
+        """Set start of timing period."""
+        self._start = time.time()
+
+    def stop(self):
+        """Set stop time of timing period."""
+        self._stop = time.time()
+
+    @property
+    def elapsed(self):
+        """Elapsed time between start and stop."""
+        return self._stop - self._start
+
+    @property
+    def elapsed_str(self):
+        """Elapsed time in string format."""
+        return f'{round(self.elapsed, 5)} seconds'
 
     def __call__(self, func, call_id=None, log=False):
         """Time function call and store elapsed time in self.log.
@@ -64,6 +87,7 @@ class Timer:
         -------
         output of func
         """
+
         def wrapper(*args, **kwargs):
             """Wrapper with decorator pattern.
 
@@ -74,19 +98,21 @@ class Timer:
             kwargs : dict
                 keyword arguments for fun
             """
-            t0 = time.time()
+            self.start()
             out = func(*args, **kwargs)
-            t_elap = time.time() - t0
-            self.elapsed = t_elap
+            self.stop()
             if call_id is not None:
                 entry = self.log.get(call_id, {})
-                entry[func.__name__] = t_elap
+                entry[func.__name__] = self.elapsed
                 self.log[call_id] = entry
             else:
-                self.log[func.__name__] = t_elap
+                self.log[func.__name__] = self.elapsed
             if log:
-                logger.debug(f'Call to {func.__name__} finished in '
-                             f'{round(t_elap, 5)} seconds')
+                logger.debug(
+                    'Call to %s finished in %s',
+                    func.__name__,
+                    self.elapsed_str,
+                )
             return out
 
         return wrapper

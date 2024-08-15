@@ -1,6 +1,7 @@
 """Global pytest fixtures."""
 
 import os
+import re
 
 import numpy as np
 import pytest
@@ -54,7 +55,7 @@ def set_random_state():
 @pytest.fixture(autouse=True)
 def train_on_cpu():
     """Train on cpu for tests."""
-    os.environ['CUDA_VISIBLE_DEVICES'] = "-1"
+    os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
 
 @pytest.fixture(scope='package')
@@ -119,6 +120,7 @@ def gen_config_with_topo():
             },
             {'class': 'Cropping2D', 'cropping': 4},
         ]
+
     return func
 
 
@@ -145,11 +147,12 @@ def collect_check():
             full_ti = fh.time_index
             combined_ti = []
             for _, f in enumerate(out_files):
-                tmp = f.replace('.h5', '').split('_')
-                t_idx = int(tmp[-3])
-                s1_idx = int(tmp[-2])
-                s2_idx = int(tmp[-1])
-                t_hr = t_slices_hr[t_idx]
+                t_idx, s_idx = re.match(
+                    r'.*_([0-9]+)_([0-9]+)\.\w+$', f
+                ).groups()
+                s1_idx = int(s_idx[:3])
+                s2_idx = int(s_idx[3:])
+                t_hr = t_slices_hr[int(t_idx)]
                 s1_hr = s_slices_hr[s1_idx]
                 s2_hr = s_slices_hr[s2_idx]
                 with ResourceX(f) as fh_i:
