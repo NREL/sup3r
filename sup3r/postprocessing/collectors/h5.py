@@ -227,9 +227,11 @@ class CollectorH5(BaseCollector):
             or a single string with unix-style /search/patt*ern.h5.
         """
         t_chunk, s_chunk = self.get_chunk_indices(file_paths[0])
-        t_files = sorted(glob(file_paths[0].replace(s_chunk, '*')))
+        t_files = file_paths[0].replace(f'{t_chunk}_{s_chunk}', f'*_{s_chunk}')
+        t_files = glob(t_files)
         logger.info('Found %s unique temporal chunks', len(t_files))
-        s_files = sorted(glob(file_paths[0].replace(t_chunk, '*')))
+        s_files = file_paths[0].replace(f'{t_chunk}_{s_chunk}', f'{t_chunk}_*')
+        s_files = glob(s_files)
         logger.info('Found %s unique spatial chunks', len(s_files))
         return s_files + t_files
 
@@ -329,9 +331,7 @@ class CollectorH5(BaseCollector):
             Concatenated full size meta data from the flist that is being
             collected masked against target_meta
         """
-        if target_meta_file is not None and os.path.exists(
-            target_meta_file
-        ):
+        if target_meta_file is not None and os.path.exists(target_meta_file):
             target_meta = pd.read_csv(target_meta_file)
             if 'gid' in target_meta.columns:
                 target_meta = target_meta.drop('gid', axis=1)
@@ -404,8 +404,7 @@ class CollectorH5(BaseCollector):
         logger.info(f'Using target_meta_file={target_meta_file}')
         if isinstance(target_meta_file, str):
             msg = (
-                f'Provided target meta ({target_meta_file}) does not '
-                'exist.'
+                f'Provided target meta ({target_meta_file}) does not ' 'exist.'
             )
             assert os.path.exists(target_meta_file), msg
 

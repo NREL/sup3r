@@ -95,12 +95,8 @@ class BaseLoader(Container, ABC):
             'source_files': str(self.file_paths),
             'date_modified': dt.utcnow().isoformat(),
         }
-        if hasattr(self.res, 'global_attrs'):
-            attrs['global_attrs'] = self.res.global_attrs
-
-        if not hasattr(self.res, 'h5'):
-            attrs.update(self.res.attrs)
-
+        attrs['global_attrs'] = getattr(self.res, 'global_attrs', {})
+        attrs.update(getattr(self.res, 'attrs', {}))
         data.attrs.update(attrs)
         return data
 

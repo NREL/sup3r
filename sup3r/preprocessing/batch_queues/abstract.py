@@ -9,9 +9,9 @@ import threading
 import time
 from abc import ABC, abstractmethod
 from collections import namedtuple
-from concurrent.futures import ThreadPoolExecutor
 from typing import List, Optional, Union
 
+import dask
 import numpy as np
 import tensorflow as tf
 
@@ -80,7 +80,6 @@ class AbstractBatchQueue(Collection, ABC):
         assert isinstance(samplers, list), msg
         super().__init__(containers=samplers)
         self._batch_count = 0
-        self._queue_count = 0
         self._queue_thread = None
         self._training_flag = threading.Event()
         self._thread_name = thread_name
@@ -93,11 +92,6 @@ class AbstractBatchQueue(Collection, ABC):
         self.max_workers = max_workers
         self.container_index = self.get_container_index()
         self.queue = self.get_queue()
-        self._thread_pool = (
-            None
-            if self.queue_cap == 0
-            else ThreadPoolExecutor(self.max_workers)
-        )
         self.transform_kwargs = transform_kwargs or {
             'smoothing_ignore': [],
             'smoothing': None,
@@ -212,14 +206,8 @@ class AbstractBatchQueue(Collection, ABC):
 
     def __iter__(self):
         self._batch_count = 0
-        self._queue_count = 0
         self.start()
         return self
-
-    def enqueue_batch_future(self):
-        """Add ``enqueue_batch`` future to queue thread pool."""
-        if self._thread_pool is not None:
-            self._thread_pool.submit(self.enqueue_batch)
 
     def get_batch(self) -> Batch:
         """Get batch from queue or directly from a ``Sampler`` through
@@ -230,9 +218,7 @@ class AbstractBatchQueue(Collection, ABC):
             or self.queue.size().numpy() == 0
         ):
             return self.sample_batch()
-        batch = self.queue.dequeue()
-        self._queue_count -= 1
-        return batch
+        return self.queue.dequeue()
 
     @property
     def running(self):
@@ -248,22 +234,23 @@ class AbstractBatchQueue(Collection, ABC):
         checked for empty spots and filled. In the training thread, batches are
         removed from the queue."""
         log_time = time.time()
-        log_rate = 10
         while self.running:
-            needed = max((0, self.queue_cap - self._queue_count))
+            needed = self.queue_cap - self.queue.size().numpy()
             if needed == 1 or self.max_workers == 1:
                 self.enqueue_batch()
             elif needed > 0:
-                _ = [self.enqueue_batch_future() for _ in range(needed)]
+                tasks = [
+                    dask.delayed(self.enqueue_batch)() for _ in range(needed)
+                ]
                 logger.debug(
                     'Added %s enqueue futures to %s queue.',
                     needed,
                     self._thread_name,
                 )
-            if time.time() > log_time + log_rate:
+                dask.compute(*tasks)
+            if time.time() > log_time + 10:
                 logger.debug(self.log_queue_info())
                 log_time = time.time()
-            self._queue_count += needed
 
     def __next__(self) -> Batch:
         """Dequeue batch samples, squeeze if for a spatial only model, perform
@@ -312,14 +299,11 @@ class AbstractBatchQueue(Collection, ABC):
 
     def log_queue_info(self):
         """Log info about queue size."""
-        msg = '{} queue length: {} / {}. {} queue with futures: {}'.format(
+        return '{} queue length: {} / {}.'.format(
             self._thread_name.title(),
             self.queue.size().numpy(),
             self.queue_cap,
-            self._thread_name.title(),
-            self._queue_count,
         )
-        return msg
 
     def enqueue_batch(self):
         """Build batch and send to queue."""
