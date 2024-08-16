@@ -95,7 +95,7 @@ class BaseLoader(Container, ABC):
             'source_files': str(self.file_paths),
             'date_modified': dt.utcnow().isoformat(),
         }
-        attrs['global_attrs'] = getattr(self.res, 'global_attrs', {})
+        attrs['global_attrs'] = getattr(self.res, 'global_attrs', ())
         attrs.update(getattr(self.res, 'attrs', {}))
         data.attrs.update(attrs)
         return data

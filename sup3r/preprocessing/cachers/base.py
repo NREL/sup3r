@@ -225,8 +225,6 @@ class Cacher(Container):
                     data_var = data_var.data
 
                 dset_name = dset
-                if dset in Dimension.coords_2d():
-                    dset_name = f'meta/{dset}'
                 if dset == Dimension.TIME:
                     dset_name = 'time_index'
 

@@ -126,10 +126,11 @@ class Sampler(Container):
         msg = (
             f'sample_shape[2] * batch_size ({self.sample_shape[2]} * '
             f'{self.batch_size}) is larger than the number of time steps in '
-            'the raw data. This prevents us from building batches from '
-            'a single sample with n_time_steps = sample_shape[2] * batch_size '
-            'which is far more performant than building batches n_samples = '
-            'batch_size, each with n_time_steps = sample_shape[2].'
+            'the raw data. This prevents us from building batches with '
+            'a single sample with n_time_steps = sample_shape[2] * '
+            'batch_size, which is far more performant than building batches '
+            'with n_samples = batch_size, each with n_time_steps = '
+            'sample_shape[2].'
         )
         if self.data.shape[2] < self.sample_shape[2] * self.batch_size:
             logger.warning(msg)
