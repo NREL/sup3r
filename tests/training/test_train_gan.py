@@ -45,11 +45,11 @@ def _get_handlers():
         (pytest.S_FP_GEN, pytest.S_FP_DISC, 2, 1, (10, 10, 1)),
     ],
 )
-def test_train(fp_gen, fp_disc, s_enhance, t_enhance, sample_shape, n_epoch=3):
+def test_train(fp_gen, fp_disc, s_enhance, t_enhance, sample_shape, n_epoch=8):
     """Test basic model training with only gen content loss. Tests both
     spatiotemporal and spatial models."""
 
-    lr = 1e-4
+    lr = 5e-5
     Sup3rGan.seed()
     model = Sup3rGan(
         fp_gen, fp_disc, learning_rate=lr, loss='MeanAbsoluteError'
@@ -66,7 +66,7 @@ def test_train(fp_gen, fp_disc, s_enhance, t_enhance, sample_shape, n_epoch=3):
             batch_size=15,
             s_enhance=s_enhance,
             t_enhance=t_enhance,
-            n_batches=5,
+            n_batches=10,
             means=None,
             stds=None,
         )
