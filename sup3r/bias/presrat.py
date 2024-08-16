@@ -213,10 +213,6 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
             base_dh_inst=base_dh_inst,
         )
 
-        base_data[base_data <= zero_rate_threshold] = 0
-        bias_data[bias_data <= zero_rate_threshold] = 0
-        bias_fut_data[bias_fut_data <= zero_rate_threshold] = 0
-
         window_size = window_size or 365 / n_time_steps
         window_center = cls._window_center(n_time_steps)
 
