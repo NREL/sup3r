@@ -16,6 +16,7 @@ from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.utilities import (
     _lowered,
     _mem_check,
+    compute_if_dask,
     dims_array_tuple,
     is_type_of,
     ordered_array,
@@ -90,6 +91,7 @@ class Sup3rX:
         """
         self._ds = ds
         self._features = None
+        self._meta = None
         self.time_slice = None
 
     def parse_keys(self, keys):
@@ -529,10 +531,20 @@ class Sup3rX:
 
     @property
     def meta(self):
-        """Return dataframe of flattened lat / lon values."""
-        return pd.DataFrame(
-            columns=Dimension.coords_2d(), data=self.lat_lon.reshape((-1, 2))
-        )
+        """Return dataframe of flattened lat / lon values. Can also be set to
+        include additional data like elevation, country, state, etc"""
+        if self._meta is None:
+            self._meta = pd.DataFrame(
+                columns=Dimension.coords_2d(),
+                data=self.lat_lon.reshape((-1, 2)),
+            )
+        return self._meta
+
+    @meta.setter
+    def meta(self, meta):
+        """Set meta data. Used to update meta with additional info from
+        datasets like WTK and NSRDB."""
+        self._meta = meta
 
     def unflatten(self, grid_shape):
         """Convert flattened dataset into rasterized dataset with the given
@@ -549,6 +561,26 @@ class Sup3rX:
             logger.warning(msg)
             warn(msg)
         return self
+
+    def _qa(self, feature):
+        """Get qa info for given feature."""
+        info = {}
+        logger.info('Running qa on feature: %s', feature)
+        nan_count = 100 * np.isnan(self[feature].data).sum()
+        nan_perc = nan_count / self[feature].size
+        info['nan_perc'] = compute_if_dask(nan_perc)
+        info['std'] = compute_if_dask(self[feature].std().data)
+        info['mean'] = compute_if_dask(self[feature].mean().data)
+        info['min'] = compute_if_dask(self[feature].min().data)
+        info['max'] = compute_if_dask(self[feature].max().data)
+        return info
+
+    def qa(self):
+        """Check NaNs and stats for all features."""
+        qa_info = {}
+        for f in self.features:
+            qa_info[f] = self._qa(f)
+        return qa_info
 
     def __mul__(self, other):
         """Multiply ``Sup3rX`` object by other. Used to compute weighted means

@@ -70,11 +70,15 @@ class BaseLoader(Container, ABC):
         self.chunks = chunks
         BASE_LOADER = BaseLoader or self.BASE_LOADER
         self.res = BASE_LOADER(self.file_paths, **self.res_kwargs)
-        data = self._load().astype(np.float32)
-        data = self._add_attrs(lower_names(data))
-        data = standardize_names(standardize_values(data), FEATURE_NAMES)
+        data = lower_names(self._load())
+        data = self._add_attrs(data)
+        data = standardize_values(data)
+        data = standardize_names(data, FEATURE_NAMES).astype(np.float32)
         features = list(data.dims) if features == [] else features
         self.data = data[features] if features != 'all' else data
+
+        if 'meta' in self.res:
+            self.data.meta = self.res.meta
 
     def _parse_chunks(self, dims, feature=None):
         """Get chunks for given dimensions from ``self.chunks``."""

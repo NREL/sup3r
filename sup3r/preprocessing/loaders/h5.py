@@ -148,7 +148,13 @@ class LoaderH5(BaseLoader):
             data_vars['elevation'] = (dims, elev)
 
         feats = set(self.res.h5.datasets)
-        exclude = {'meta', 'time_index', 'coordinates'}
+        exclude = {
+            'meta',
+            'time_index',
+            'coordinates',
+            'latitude',
+            'longitude',
+        }
         for f in feats - exclude:
             data_vars[f] = self._get_dset_tuple(
                 dset=f, dims=dims, chunks=chunks

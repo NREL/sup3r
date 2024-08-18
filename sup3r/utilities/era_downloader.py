@@ -9,12 +9,14 @@ https://cds.climate.copernicus.eu/api-how-to
 
 import logging
 import os
+import pprint
 from calendar import monthrange
 from warnings import warn
 
 import dask
 import dask.array as da
 import numpy as np
+from rex import init_logger
 
 from sup3r.preprocessing import Loader
 from sup3r.preprocessing.loaders.utilities import (
@@ -43,7 +45,7 @@ class EraDownloader:
         month,
         area,
         levels,
-        combined_out_pattern,
+        monthly_file_pattern,
         overwrite=False,
         variables=None,
         product_type='reanalysis',
@@ -61,7 +63,7 @@ class EraDownloader:
             [max_lat, min_lon, min_lat, max_lon]
         levels : list
             List of pressure levels to download.
-        combined_out_pattern : str
+        monthly_file_pattern : str
             Pattern for combined monthly output file. Must include year and
             month format keys.  e.g. 'era5_{year}_{month}_combined.nc'
         overwrite : bool
@@ -78,8 +80,7 @@ class EraDownloader:
         self.area = area
         self.levels = levels
         self.overwrite = overwrite
-        self.combined_out_pattern = combined_out_pattern
-        self._combined_file = None
+        self.monthly_file_pattern = monthly_file_pattern
         self._variables = variables
         self.sfc_file_variables = []
         self.level_file_variables = []
@@ -112,43 +113,28 @@ class EraDownloader:
         ]
 
     @property
-    def combined_file(self):
-        """Get name of file from combined surface and level files"""
-        if self._combined_file is None:
-            if '{var}' in self.combined_out_pattern:
-                self._combined_file = self.combined_out_pattern.format(
-                    year=self.year,
-                    month=str(self.month).zfill(2),
-                    var='_'.join(self.variables),
-                )
-            else:
-                self._combined_file = self.combined_out_pattern.format(
-                    year=self.year, month=str(self.month).zfill(2)
-                )
-            os.makedirs(os.path.dirname(self._combined_file), exist_ok=True)
-        return self._combined_file
+    def monthly_file(self):
+        """Name of file with all surface and level variables for a given month
+        and year."""
+        monthly_file = self.monthly_file_pattern.replace(
+            '{var}', '_'.join(self.variables)
+        ).format(year=self.year, month=str(self.month).zfill(2))
+        os.makedirs(os.path.dirname(monthly_file), exist_ok=True)
+        return monthly_file
 
     @property
     def surface_file(self):
         """Get name of file with variables from single level download"""
-        basedir = os.path.dirname(self.combined_file)
-        basename = ''
-        if '{var}' in self.combined_out_pattern:
-            basename += '_'.join(self.variables) + '_'
-        basename += f'sfc_{self.year}_'
-        basename += f'{str(self.month).zfill(2)}.nc'
-        return os.path.join(basedir, basename)
+        basedir = os.path.dirname(self.monthly_file)
+        basename = os.path.basename(self.monthly_file)
+        return os.path.join(basedir, f'sfc_{basename}')
 
     @property
     def level_file(self):
         """Get name of file with variables from pressure level download"""
-        basedir = os.path.dirname(self.combined_file)
-        basename = ''
-        if '{var}' in self.combined_out_pattern:
-            basename += '_'.join(self.variables) + '_'
-        basename += f'levels_{self.year}_'
-        basename += f'{str(self.month).zfill(2)}.nc'
-        return os.path.join(basedir, basename)
+        basedir = os.path.dirname(self.monthly_file)
+        basename = os.path.basename(self.monthly_file)
+        return os.path.join(basedir, f'level_{basename}')
 
     @classmethod
     def get_tmp_file(cls, file):
@@ -432,7 +418,7 @@ class EraDownloader:
 
     def process_and_combine(self):
         """Process variables and combine."""
-        if not os.path.exists(self.combined_file) or self.overwrite:
+        if not os.path.exists(self.monthly_file) or self.overwrite:
             files = []
             if os.path.exists(self.level_file):
                 logger.info(f'Processing {self.level_file}.')
@@ -443,31 +429,23 @@ class EraDownloader:
                 self.process_surface_file()
                 files.append(self.surface_file)
 
-            logger.info(f'Combining {files} to {self.combined_file}.')
             kwargs = {'compat': 'override'}
-            try:
-                self._write_dsets(
-                    files, out_file=self.combined_file, kwargs=kwargs
-                )
-            except Exception as e:
-                msg = f'Error combining {files}.'
-                logger.error(msg)
-                raise RuntimeError(msg) from e
+            self._combine_files(files, self.monthly_file, kwargs)
 
             if os.path.exists(self.level_file):
                 os.remove(self.level_file)
             if os.path.exists(self.surface_file):
                 os.remove(self.surface_file)
         else:
-            logger.info(f'{self.combined_file} already exists.')
+            logger.info(f'{self.monthly_file} already exists.')
 
     def get_monthly_file(self):
         """Download level and surface files, process variables, and combine
         processed files. Includes checks for shape and variables."""
-        if os.path.exists(self.combined_file) and self.overwrite:
-            os.remove(self.combined_file)
+        if os.path.exists(self.monthly_file) and self.overwrite:
+            os.remove(self.monthly_file)
 
-        if not os.path.exists(self.combined_file):
+        if not os.path.exists(self.monthly_file):
             self.download_process_combine()
 
     @classmethod
@@ -535,7 +513,7 @@ class EraDownloader:
         month,
         area,
         levels,
-        combined_out_pattern,
+        monthly_file_pattern,
         overwrite=False,
         variables=None,
         product_type='reanalysis',
@@ -553,7 +531,7 @@ class EraDownloader:
             [max_lat, min_lon, min_lat, max_lon]
         levels : list
             List of pressure levels to download.
-        combined_out_pattern : str
+        monthly_file_pattern : str
             Pattern for combined monthly output file. Must include year and
             month format keys.  e.g. 'era5_{year}_{month}_combined.nc'
         overwrite : bool
@@ -572,7 +550,7 @@ class EraDownloader:
                 month=month,
                 area=area,
                 levels=levels,
-                combined_out_pattern=combined_out_pattern,
+                monthly_file_pattern=monthly_file_pattern,
                 overwrite=overwrite,
                 variables=[var],
                 product_type=product_type,
@@ -585,8 +563,8 @@ class EraDownloader:
         year,
         area,
         levels,
-        combined_out_pattern,
-        combined_yearly_file=None,
+        monthly_file_pattern,
+        yearly_file=None,
         overwrite=False,
         max_workers=None,
         variables=None,
@@ -603,10 +581,10 @@ class EraDownloader:
             [max_lat, min_lon, min_lat, max_lon]
         levels : list
             List of pressure levels to download.
-        combined_out_pattern : str
+        monthly_file_pattern : str
             Pattern for combined monthly output file. Must include year and
             month format keys.  e.g. 'era5_{year}_{month}_combined.nc'
-        combined_yearly_file : str
+        yearly_file : str
             Name of yearly file made from monthly combined files.
         overwrite : bool
             Whether to overwrite existing files.
@@ -620,12 +598,18 @@ class EraDownloader:
             Can be 'reanalysis', 'ensemble_mean', 'ensemble_spread',
             'ensemble_members'
         """
+        if (
+            yearly_file is not None
+            and os.path.exists(yearly_file)
+            and not overwrite
+        ):
+            logger.info('%s already exists and overwrite=False.', yearly_file)
         msg = (
-            'combined_out_pattern must have {year}, {month}, and {var} '
+            'monthly_file_pattern must have {year}, {month}, and {var} '
             'format keys'
         )
         assert all(
-            key in combined_out_pattern
+            key in monthly_file_pattern
             for key in ('{year}', '{month}', '{var}')
         ), msg
 
@@ -637,7 +621,7 @@ class EraDownloader:
                     month=month,
                     area=area,
                     levels=levels,
-                    combined_out_pattern=combined_out_pattern,
+                    monthly_file_pattern=monthly_file_pattern,
                     overwrite=overwrite,
                     variables=[var],
                     product_type=product_type,
@@ -650,12 +634,10 @@ class EraDownloader:
             dask.compute(*tasks, scheduler='threads', num_workers=max_workers)
 
         for month in range(1, 13):
-            cls.make_monthly_file(year, month, combined_out_pattern, variables)
+            cls.make_monthly_file(year, month, monthly_file_pattern, variables)
 
-        if combined_yearly_file is not None:
-            cls.make_yearly_file(
-                year, combined_out_pattern, combined_yearly_file
-            )
+        if yearly_file is not None:
+            cls.make_yearly_file(year, monthly_file_pattern, yearly_file)
 
     @classmethod
     def make_monthly_file(cls, year, month, file_pattern, variables):
@@ -687,11 +669,14 @@ class EraDownloader:
         outfile = file_pattern.replace('_{var}', '').format(
             year=year, month=str(month).zfill(2)
         )
+        cls._combine_files(files, outfile)
 
+    @classmethod
+    def _combine_files(cls, files, outfile, kwargs):
         if not os.path.exists(outfile):
             logger.info(f'Combining {files} into {outfile}.')
             try:
-                cls._write_dsets(files, out_file=outfile)
+                cls._write_dsets(files, out_file=outfile, kwargs=kwargs)
             except Exception as e:
                 msg = f'Error combining {files}.'
                 logger.error(msg)
@@ -725,14 +710,15 @@ class EraDownloader:
             )
             for month in range(1, 13)
         ]
+        kwargs = {'combine': 'nested', 'concat_dim': 'time'}
+        cls._combine_files(files, yearly_file, kwargs)
 
-        if not os.path.exists(yearly_file):
-            kwargs = {'combine': 'nested', 'concat_dim': 'time'}
-            try:
-                cls._write_dsets(files, out_file=yearly_file, kwargs=kwargs)
-            except Exception as e:
-                msg = f'Error combining {files}'
-                logger.error(msg)
-                raise RuntimeError(msg) from e
-        else:
-            logger.info(f'{yearly_file} already exists.')
+    @classmethod
+    def run_qa(cls, file, res_kwargs=None, log_file=None):
+        """Check for NaN values and log min / max / mean / stds for all
+        variables."""
+
+        logger = init_logger(__name__, log_level='DEBUG', log_file=log_file)
+        with Loader(file, res_kwargs=res_kwargs) as res:
+            logger.info('Running qa on file: %s', file)
+            logger.info('\n%s', pprint.pformat(res.qa(), indent=2))

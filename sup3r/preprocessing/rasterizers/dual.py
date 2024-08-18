@@ -212,20 +212,12 @@ class DualRasterizer(Container):
     def check_regridded_lr_data(self):
         """Check for NaNs after regridding and do NN fill if needed."""
         fill_feats = []
+        logger.info('Checking for NaNs after regridding')
+        qa_info = self.lr_data.qa()
         for f in self.lr_data.features:
-            logger.info(
-                f'Checking for NaNs after regridding, for feature: {f}'
-            )
-            nan_perc = (
-                100
-                * np.isnan(self.lr_data[f].data).sum()
-                / self.lr_data[f].size
-            )
+            nan_perc = qa_info[f]['nan_perc']
             if nan_perc > 0:
-                msg = (
-                    f'{f} data has {np.asarray(nan_perc):.3f}% NaN '
-                    'values!'
-                )
+                msg = f'{f} data has {nan_perc:.3f}% NaN ' 'values!'
                 if nan_perc < 10:
                     fill_feats.append(f)
                     logger.warning(msg)

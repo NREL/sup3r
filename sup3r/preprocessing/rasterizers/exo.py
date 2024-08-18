@@ -20,6 +20,7 @@ from scipy.spatial import KDTree
 from sup3r.postprocessing.writers.base import OutputHandler
 from sup3r.preprocessing.accessor import Sup3rX
 from sup3r.preprocessing.base import Sup3rMeta
+from sup3r.preprocessing.cachers import Cacher
 from sup3r.preprocessing.derivers.utilities import SolarZenith
 from sup3r.preprocessing.loaders import Loader
 from sup3r.preprocessing.names import Dimension
@@ -158,7 +159,6 @@ class BaseExoRasterizer(ABC):
             coord: (Dimension.dims_2d(), self.hr_lat_lon[..., i])
             for i, coord in enumerate(Dimension.coords_2d())
         }
-        coords[Dimension.TIME] = self.hr_time_index
         return coords
 
     @property
@@ -265,8 +265,13 @@ class BaseExoRasterizer(ABC):
 
         if not os.path.exists(cache_fp):
             tmp_fp = cache_fp + f'{generate_random_string(10)}.tmp'
-            data.load().to_netcdf(tmp_fp, format='NETCDF4', engine='h5netcdf')
+            Cacher.write_netcdf(tmp_fp, data)
             shutil.move(tmp_fp, cache_fp)
+
+        if Dimension.TIME not in data.dims:
+            data = data.expand_dims(**{Dimension.TIME: self.hr_shape[-1]})
+            data = data.reindex({Dimension.TIME: self.hr_time_index})
+            data = Sup3rX(data.ffill(Dimension.TIME))
         return data
 
     def get_data(self):
@@ -311,17 +316,8 @@ class BaseExoRasterizer(ABC):
             self.source_file,
             self.feature,
         )
-        arr = (
-            da.from_array(hr_data)
-            if hr_data.shape == self.hr_shape
-            else da.repeat(
-                da.from_array(hr_data[..., None]),
-                len(self.hr_time_index),
-                axis=-1,
-            )
-        )
         data_vars = {
-            self.feature: (Dimension.dims_3d(), arr.astype(np.float32))
+            self.feature: (Dimension.dims_2d(), hr_data.astype(np.float32))
         }
         ds = xr.Dataset(coords=self.coords, data_vars=data_vars)
         return Sup3rX(ds)

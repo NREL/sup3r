@@ -430,12 +430,12 @@ class ExoDataHandler:
                 s_enhance = 1
                 t_enhance = 1
             else:
-                s_enhance = np.prod(s_enhancements[:model_step])
-                t_enhance = np.prod(t_enhancements[:model_step])
+                s_enhance = int(np.prod(s_enhancements[:model_step]))
+                t_enhance = int(np.prod(t_enhancements[:model_step]))
 
         else:
-            s_enhance = np.prod(s_enhancements[: model_step + 1])
-            t_enhance = np.prod(t_enhancements[: model_step + 1])
+            s_enhance = int(np.prod(s_enhancements[: model_step + 1]))
+            t_enhance = int(np.prod(t_enhancements[: model_step + 1]))
         step.update({'s_enhance': s_enhance, 't_enhance': t_enhance})
         return step
 

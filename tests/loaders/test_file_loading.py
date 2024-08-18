@@ -202,7 +202,7 @@ def test_load_nc():
 def test_load_h5():
     """Test simple h5 file loading. Also checks renaming elevation ->
     topography. Also makes sure that general loader matches type specific
-    loader"""
+    loader. Also checks that meta data is carried into loader object"""
 
     chunks = {'space': 200, 'time': 200}
     loader = LoaderH5(pytest.FP_WTK, chunks=chunks)
@@ -224,6 +224,7 @@ def test_load_h5():
     assert np.array_equal(loader.as_array(), gen_loader.as_array())
     loader_attrs = {f: loader[f].attrs for f in feats}
     resource_attrs = Resource(pytest.FP_WTK).attrs
+    assert np.array_equal(loader.meta, loader.res.meta)
     matching_feats = set(Resource(pytest.FP_WTK).datasets).intersection(feats)
     assert all(loader_attrs[f] == resource_attrs[f] for f in matching_feats)
 
