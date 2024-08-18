@@ -17,12 +17,7 @@ class EraDownloaderTester(EraDownloader):
     # pylint: disable=unused-argument
     @classmethod
     def download_file(
-        cls,
-        variables,
-        out_file,
-        level_type,
-        levels=None,
-        **kwargs
+        cls, variables, out_file, level_type, levels=None, **kwargs
     ):
         """Download either single-level or pressure-level file"""
         shape = (10, 10, 100)
@@ -37,16 +32,14 @@ class EraDownloaderTester(EraDownloader):
             '100m_u_component_of_wind': 'u100',
             '100m_v_component_of_wind': 'v100',
             'u_component_of_wind': 'u',
-            'v_component_of_wind': 'v'}
+            'v_component_of_wind': 'v',
+        }
 
         if 'geopotential' in variables:
             features.append('z')
         features.extend([v for f, v in name_map.items() if f in variables])
 
-        nc = make_fake_dset(
-            shape=shape,
-            features=features
-        )
+        nc = make_fake_dset(shape=shape, features=features)
         if 'z' in nc:
             if level_type == 'single':
                 nc['z'] = (nc['z'].dims, np.zeros(nc['z'].shape))
@@ -62,7 +55,7 @@ def test_era_dl(tmpdir_factory):
     """Test basic post proc for era downloader."""
 
     variables = ['zg', 'orog', 'u', 'v', 'pressure']
-    combined_out_pattern = os.path.join(
+    file_pattern = os.path.join(
         tmpdir_factory.mktemp('tmp'), 'era5_{year}_{month}_{var}.nc'
     )
     year = 2000
@@ -74,13 +67,13 @@ def test_era_dl(tmpdir_factory):
         month=month,
         area=area,
         levels=levels,
-        combined_out_pattern=combined_out_pattern,
+        monthly_file_pattern=file_pattern,
         variables=variables,
     )
     for v in variables:
         standard_name = FEATURE_NAMES.get(v, v)
         tmp = xr_open_mfdataset(
-            combined_out_pattern.format(year=2000, month='01', var=v)
+            file_pattern.format(year=2000, month='01', var=v)
         )
         assert standard_name in tmp
 
@@ -90,7 +83,7 @@ def test_era_dl_year(tmpdir_factory):
     year."""
 
     variables = ['zg', 'orog', 'u', 'v', 'pressure']
-    combined_out_pattern = os.path.join(
+    file_pattern = os.path.join(
         tmpdir_factory.mktemp('tmp'), 'era5_{year}_{month}_{var}.nc'
     )
     yearly_file = os.path.join(tmpdir_factory.mktemp('tmp'), 'era5_final.nc')
@@ -99,8 +92,8 @@ def test_era_dl_year(tmpdir_factory):
         area=[50, -130, 23, -65],
         levels=[1000, 900, 800],
         variables=variables,
-        combined_out_pattern=combined_out_pattern,
-        combined_yearly_file=yearly_file,
+        monthly_file_pattern=file_pattern,
+        yearly_file=yearly_file,
         max_workers=1,
     )
 

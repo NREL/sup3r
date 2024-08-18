@@ -1034,33 +1034,18 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza(
         )
         forward_pass = ForwardPass(handler)
 
-        exo_handler = ExoDataHandler(
-            **{
-                'feature': 'topography',
-                'models': forward_pass.model.models,
-                'file_paths': input_files,
-                'source_file': pytest.FP_WTK,
-                'input_handler_kwargs': {'target': target, 'shape': shape},
-                'cache_dir': td,
-            }
-        )
-        assert exo_handler.get_exo_steps(forward_pass.model.models) == [
+        assert ExoDataHandler.get_exo_steps(
+            'topography', forward_pass.model.models
+        ) == [
             {'model': 0, 'combine_type': 'input'},
             {'model': 0, 'combine_type': 'layer'},
             {'model': 1, 'combine_type': 'input'},
             {'model': 1, 'combine_type': 'layer'},
         ]
 
-        exo_handler = ExoDataHandler(
-            **{
-                'feature': 'sza',
-                'models': forward_pass.model.models,
-                'file_paths': input_files,
-                'input_handler_kwargs': {'target': target, 'shape': shape},
-                'cache_dir': td,
-            }
-        )
-        assert exo_handler.get_exo_steps(forward_pass.model.models) == [
+        assert ExoDataHandler.get_exo_steps(
+            'sza', forward_pass.model.models
+        ) == [
             {'model': 0, 'combine_type': 'input'},
             {'model': 1, 'combine_type': 'input'},
             {'model': 2, 'combine_type': 'input'},

@@ -332,16 +332,17 @@ class ExoDataHandler:
         initialize `self.data`, and update `self.data` for each model step with
         rasterized exo data."""
         self.data = {self.feature: {'steps': []}}
-        en_check = all('s_enhance' in v for v in self.steps)
-        en_check = en_check and all('t_enhance' in v for v in self.steps)
-        en_check = en_check or self.models is not None
-        msg = (
-            f'{self.__class__.__name__} needs s_enhance and t_enhance '
-            'provided in each step in steps list or models'
-        )
-        assert en_check, msg
         if self.steps is None:
-            self.steps = self.get_exo_steps(self.models)
+            self.steps = self.get_exo_steps(self.feature, self.models)
+        else:
+            en_check = all('s_enhance' in v for v in self.steps)
+            en_check = en_check and all('t_enhance' in v for v in self.steps)
+            en_check = en_check or self.models is not None
+            msg = (
+                f'{self.__class__.__name__} needs s_enhance and t_enhance '
+                'provided in each step in steps list or models'
+            )
+            assert en_check, msg
         self.s_enhancements, self.t_enhancements = self._get_all_enhancement()
         msg = (
             'Need to provide s_enhance and t_enhance for each model'
@@ -350,8 +351,9 @@ class ExoDataHandler:
         )
         self.get_all_step_data()
 
-    def get_exo_steps(self, models):
-        """Get list of steps describing how to exogenous data for the given
+    @classmethod
+    def get_exo_steps(cls, feature, models):
+        """Get list of steps describing how to use exogenous data for the given
         feature in the list of given models. This checks the input and
         exo feature lists for each model step and adds that step if the
         given feature is found in the list."""
@@ -359,14 +361,14 @@ class ExoDataHandler:
         for i, model in enumerate(models):
             is_sfc_model = model.__class__.__name__ == 'SurfaceSpatialMetModel'
             if (
-                self.feature.lower() in _lowered(model.lr_features)
+                feature.lower() in _lowered(model.lr_features)
                 or is_sfc_model
             ):
                 steps.append({'model': i, 'combine_type': 'input'})
-            if self.feature.lower() in _lowered(model.hr_exo_features):
+            if feature.lower() in _lowered(model.hr_exo_features):
                 steps.append({'model': i, 'combine_type': 'layer'})
             if (
-                self.feature.lower() in _lowered(model.hr_out_features)
+                feature.lower() in _lowered(model.hr_out_features)
                 or is_sfc_model
             ):
                 steps.append({'model': i, 'combine_type': 'output'})
