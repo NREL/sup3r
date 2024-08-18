@@ -115,13 +115,17 @@ class ForwardPassStrategy:
     exo_handler_kwargs : dict | None
         Dictionary of args to pass to
         :class:`~sup3r.preprocessing.data_handlers.ExoDataHandler` for
-        extracting exogenous features for multistep foward pass. This should be
+        extracting exogenous features for foward passes. This should be
         a nested dictionary with keys for each exogenous feature. The
         dictionaries corresponding to the feature names should include the path
-        to exogenous data source, the resolution of the exogenous data, and how
-        the exogenous data should be used in the model. e.g. ``{'topography':
-        {'file_paths': 'path to input files', 'source_file': 'path to exo
-        data', 'steps': [..]}``.
+        to exogenous data source and the files used for input to the forward
+        passes, at minimum. Can also provide a dictionary of
+        ``input_handler_kwargs`` used for the handler which opens the
+        exogenous data. e.g.::
+            {'topography': {
+                'source_file': ...,
+                'input_files': ...,
+                'input_handler_kwargs': {'target': ..., 'shape': ...}}}
     bias_correct_method : str | None
         Optional bias correction function name that can be imported from the
         :mod:`sup3r.bias.bias_transforms` module. This will transform the

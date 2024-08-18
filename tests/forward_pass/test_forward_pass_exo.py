@@ -19,7 +19,7 @@ from sup3r.models import (
     SurfaceSpatialMetModel,
 )
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
-from sup3r.preprocessing import Dimension
+from sup3r.preprocessing import Dimension, ExoDataHandler
 from sup3r.utilities.pytest.helpers import make_fake_nc_file
 from sup3r.utilities.utilities import RANDOM_GENERATOR, xr_open_mfdataset
 
@@ -107,10 +107,6 @@ def test_fwp_multi_step_model_topo_exoskip(input_files):
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
-                'steps': [
-                    {'model': 0, 'combine_type': 'input'},
-                    {'model': 1, 'combine_type': 'input'},
-                ],
             }
         }
 
@@ -661,39 +657,6 @@ def test_fwp_multi_step_wind_hi_res_topo(input_files, gen_config_with_topo):
             'time_slice': time_slice,
         }
 
-        with pytest.raises(RuntimeError):
-            # should raise error since steps doesn't include
-            # {'model': 2, 'combine_type': 'input'}
-            steps = [
-                {'model': 0, 'combine_type': 'input'},
-                {'model': 0, 'combine_type': 'layer'},
-                {'model': 1, 'combine_type': 'input'},
-                {'model': 1, 'combine_type': 'layer'},
-            ]
-            exo_handler_kwargs['topography']['steps'] = steps
-            handler = ForwardPassStrategy(
-                input_files,
-                model_kwargs=model_kwargs,
-                model_class='MultiStepGan',
-                fwp_chunk_shape=(4, 4, 8),
-                spatial_pad=1,
-                temporal_pad=1,
-                input_handler_kwargs=input_handler_kwargs,
-                out_pattern=out_files,
-                exo_handler_kwargs=exo_handler_kwargs,
-                max_nodes=1,
-            )
-            forward_pass = ForwardPass(handler)
-            forward_pass.run(handler, node_index=0)
-
-        steps = [
-            {'model': 0, 'combine_type': 'input'},
-            {'model': 0, 'combine_type': 'layer'},
-            {'model': 1, 'combine_type': 'input'},
-            {'model': 1, 'combine_type': 'layer'},
-            {'model': 2, 'combine_type': 'input'},
-        ]
-        exo_handler_kwargs['topography']['steps'] = steps
         handler = ForwardPassStrategy(
             input_files,
             model_kwargs=model_kwargs,
@@ -756,10 +719,6 @@ def test_fwp_wind_hi_res_topo_plus_linear(input_files, gen_config_with_topo):
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
-                'steps': [
-                    {'model': 0, 'combine_type': 'input'},
-                    {'model': 0, 'combine_type': 'layer'},
-                ],
             }
         }
 
@@ -851,17 +810,12 @@ def test_fwp_multi_step_model_multi_exo(input_files):
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
-                'steps': [
-                    {'model': 0, 'combine_type': 'input'},
-                    {'model': 1, 'combine_type': 'input'},
-                ],
             },
             'sza': {
                 'file_paths': input_files,
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
-                'steps': [{'model': 2, 'combine_type': 'input'}],
             },
         }
 
@@ -999,7 +953,8 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza(
     _ = s1_model.generate(np.ones((4, 10, 10, 4)), exogenous_data=exo_tmp)
 
     s2_model = Sup3rGan(
-        gen_config_with_topo('Sup3rConcat'), fp_disc, learning_rate=1e-4)
+        gen_config_with_topo('Sup3rConcat'), fp_disc, learning_rate=1e-4
+    )
     s2_model.meta['lr_features'] = ['u_100m', 'v_100m', 'topography', 'sza']
     s2_model.meta['hr_out_features'] = ['u_100m', 'v_100m']
     s2_model.meta['s_enhance'] = 2
@@ -1048,26 +1003,12 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza(
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
-                'steps': [
-                    {'model': 0, 'combine_type': 'input'},
-                    {'model': 0, 'combine_type': 'layer'},
-                    {'model': 1, 'combine_type': 'input'},
-                    {'model': 1, 'combine_type': 'layer'},
-                ],
             },
             'sza': {
                 'file_paths': input_files,
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
-                'steps': [
-                    {'model': 0, 'combine_type': 'input'},
-                    {'model': 0, 'combine_type': 'layer'},
-                    {'model': 1, 'combine_type': 'input'},
-                    {'model': 1, 'combine_type': 'layer'},
-                    {'model': 2, 'combine_type': 'input'},
-                    {'model': 2, 'combine_type': 'layer'},
-                ],
             },
         }
 
@@ -1092,6 +1033,40 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza(
             max_nodes=1,
         )
         forward_pass = ForwardPass(handler)
+
+        exo_handler = ExoDataHandler(
+            **{
+                'feature': 'topography',
+                'models': forward_pass.model.models,
+                'file_paths': input_files,
+                'source_file': pytest.FP_WTK,
+                'input_handler_kwargs': {'target': target, 'shape': shape},
+                'cache_dir': td,
+            }
+        )
+        assert exo_handler.get_exo_steps(forward_pass.model.models) == [
+            {'model': 0, 'combine_type': 'input'},
+            {'model': 0, 'combine_type': 'layer'},
+            {'model': 1, 'combine_type': 'input'},
+            {'model': 1, 'combine_type': 'layer'},
+        ]
+
+        exo_handler = ExoDataHandler(
+            **{
+                'feature': 'sza',
+                'models': forward_pass.model.models,
+                'file_paths': input_files,
+                'input_handler_kwargs': {'target': target, 'shape': shape},
+                'cache_dir': td,
+            }
+        )
+        assert exo_handler.get_exo_steps(forward_pass.model.models) == [
+            {'model': 0, 'combine_type': 'input'},
+            {'model': 1, 'combine_type': 'input'},
+            {'model': 2, 'combine_type': 'input'},
+            {'model': 2, 'combine_type': 'layer'},
+        ]
+
         forward_pass.run(handler, node_index=0)
 
         for fp in handler.out_files:

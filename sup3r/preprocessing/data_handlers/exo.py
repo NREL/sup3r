@@ -5,12 +5,12 @@ features."""
 import logging
 import pathlib
 from dataclasses import dataclass
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 import numpy as np
 
 from sup3r.preprocessing.rasterizers import ExoRasterizer
-from sup3r.preprocessing.utilities import log_args
+from sup3r.preprocessing.utilities import _lowered, log_args
 
 logger = logging.getLogger(__name__)
 
@@ -261,11 +261,9 @@ class ExoDataHandler:
     Multiple topography arrays at different resolutions for multiple spatial
     enhancement steps.
 
-    This takes a list of models and information about model steps and uses that
-    info to compute needed enhancement factors for each step. The requested
-    feature is then retrieved and rasterized according to the requested target
-    coordinate and grid shape, for each step. The list of steps are then
-    updated with the cooresponding exo data.
+    This takes a list of models and uses the different sets of models features
+    to retrieve and rasterize exogenous data according to the requested target
+    coordinate and grid shape, for each model step.
 
     Parameters
     ----------
@@ -277,11 +275,13 @@ class ExoDataHandler:
     feature : str
         Exogenous feature to extract from file_paths
     models : list
-        List of models used with the given steps list. This list of models is
-        used to determine the input and output resolution and enhancement
-        factors for each model step which is then used to determine the target
-        shape for rasterized exo data. If enhancement factors are provided in
-        the steps list the model list is not needed.
+        List of models used to get exogenous data. For each model in the list
+        ``lr_features``, ``hr_exo_features``, and ``hr_out_features`` will be
+        checked and exogenous data will be retrieved based on the resolution
+        required for that type of feature. e.g. If a model has topography as
+        a lr and hr_exo feature, and the model performs 5x spatial enhancement
+        with an input resolution of 30km then topography at 30km and at 6km
+        will be retrieved. Either this or list of steps needs to be provided.
     steps : list
         List of dictionaries containing info on which models to use for a given
         step index and what type of exo data the step requires. e.g.::
@@ -318,8 +318,8 @@ class ExoDataHandler:
 
     file_paths: Union[str, list, pathlib.Path]
     feature: str
-    steps: List[dict]
     models: Optional[list] = None
+    steps: Optional[list] = None
     source_file: Optional[str] = None
     input_handler_name: Optional[str] = None
     input_handler_kwargs: Optional[dict] = None
@@ -328,9 +328,9 @@ class ExoDataHandler:
 
     @log_args
     def __post_init__(self):
-        """Initialize `self.data`, perform checks on enhancement factors, and
-        update `self.data` for each model step with rasterized exo data for the
-        corresponding enhancement factors."""
+        """Get list of steps with types of exogenous data needed for retrieval,
+        initialize `self.data`, and update `self.data` for each model step with
+        rasterized exo data."""
         self.data = {self.feature: {'steps': []}}
         en_check = all('s_enhance' in v for v in self.steps)
         en_check = en_check and all('t_enhance' in v for v in self.steps)
@@ -340,16 +340,37 @@ class ExoDataHandler:
             'provided in each step in steps list or models'
         )
         assert en_check, msg
+        if self.steps is None:
+            self.steps = self.get_exo_steps(self.models)
         self.s_enhancements, self.t_enhancements = self._get_all_enhancement()
         msg = (
             'Need to provide s_enhance and t_enhance for each model'
             'step. If the step is temporal only (spatial only) then '
             's_enhance = 1 (t_enhance = 1).'
         )
-        assert not any(s is None for s in self.s_enhancements), msg
-        assert not any(t is None for t in self.t_enhancements), msg
-
         self.get_all_step_data()
+
+    def get_exo_steps(self, models):
+        """Get list of steps describing how to exogenous data for the given
+        feature in the list of given models. This checks the input and
+        exo feature lists for each model step and adds that step if the
+        given feature is found in the list."""
+        steps = []
+        for i, model in enumerate(models):
+            is_sfc_model = model.__class__.__name__ == 'SurfaceSpatialMetModel'
+            if (
+                self.feature.lower() in _lowered(model.lr_features)
+                or is_sfc_model
+            ):
+                steps.append({'model': i, 'combine_type': 'input'})
+            if self.feature.lower() in _lowered(model.hr_exo_features):
+                steps.append({'model': i, 'combine_type': 'layer'})
+            if (
+                self.feature.lower() in _lowered(model.hr_out_features)
+                or is_sfc_model
+            ):
+                steps.append({'model': i, 'combine_type': 'output'})
+        return steps
 
     def get_single_step_data(self, s_enhance, t_enhance):
         """Get exo data for a single model step, with specific enhancement
@@ -440,7 +461,7 @@ class ExoDataHandler:
         return step
 
     def _get_all_enhancement(self):
-        """Compute enhancement factors for all model steps for all features.
+        """Compute enhancement factors for all model steps.
 
         Returns
         -------
