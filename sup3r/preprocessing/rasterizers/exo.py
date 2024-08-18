@@ -141,8 +141,9 @@ class BaseExoRasterizer(ABC):
         Returns
         -------
         cache_fp : str
-            Name of cache file. This is a netcdf files which will be saved with
-            :class:`Cacher` and loaded with :class:`LoaderNC`
+            Name of cache file. This is a netcdf file which will be saved with
+            :class:`~sup3r.preprocessing.cachers.Cacher` and loaded with
+            :class:`~sup3r.preprocessing.loaders.Loader`
         """
         fn = f'exo_{feature}_{"_".join(map(str, self.input_handler.target))}_'
         fn += f'{"x".join(map(str, self.input_handler.grid_shape))}_'
@@ -271,8 +272,8 @@ class BaseExoRasterizer(ABC):
         if Dimension.TIME not in data.dims:
             data = data.expand_dims(**{Dimension.TIME: self.hr_shape[-1]})
             data = data.reindex({Dimension.TIME: self.hr_time_index})
-            data = Sup3rX(data.ffill(Dimension.TIME))
-        return data
+            data = data.ffill(Dimension.TIME)
+        return Sup3rX(data.chunk('auto'))
 
     def get_data(self):
         """Get a raster of source values corresponding to the
