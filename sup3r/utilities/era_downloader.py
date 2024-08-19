@@ -2,8 +2,8 @@
 
 Note
 ----
-To use this you need to have cdsapi package installed and a ~/.cdsapirc file
-with a url and api key. Follow the instructions here:
+To use this you need to have ``cdsapi`` package installed and a ``~/.cdsapirc``
+file with a url and api key. Follow the instructions here:
 https://cds.climate.copernicus.eu/api-how-to
 """
 
@@ -672,7 +672,7 @@ class EraDownloader:
         cls._combine_files(files, outfile)
 
     @classmethod
-    def _combine_files(cls, files, outfile, kwargs):
+    def _combine_files(cls, files, outfile, kwargs=None):
         if not os.path.exists(outfile):
             logger.info(f'Combining {files} into {outfile}.')
             try:
