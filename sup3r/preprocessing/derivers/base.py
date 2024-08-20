@@ -67,6 +67,7 @@ class BaseDeriver(Container):
         new_features = [f for f in features if f not in self.data]
         for f in new_features:
             self.data[f] = self.derive(f)
+            logger.info('Finished deriving %s', f)
         self.data = (
             self.data[list(self.data.coords)]
             if not features
@@ -168,15 +169,14 @@ class BaseDeriver(Container):
             new_feature = pstruct.basename + f'_{fstruct.pressure}pa'
         else:
             msg = (
-                f'Found matching pattern "{pattern}" for feature '
-                f'"{feature}" but could not construct a valid new feature '
-                'name'
+                'Found matching pattern "%s" for feature "%s" but could not '
+                'construct a valid new feature name'
             )
-            logger.error(msg)
+            logger.error(msg, pattern, feature)
             raise RuntimeError(msg)
         logger.debug(
-            'Found alternative name "%s" for "%s". Continuing compute method '
-            'search for %s.',
+            'Found alternative name "%s" for "%s". Continuing derivation '
+            'for %s.',
             feature,
             new_feature,
             new_feature,
@@ -207,17 +207,20 @@ class BaseDeriver(Container):
                 return compute_check
 
             if fstruct.basename in self.data.features:
-                logger.debug(f'Attempting level interpolation for {feature}.')
+                logger.debug(
+                    'Attempting level interpolation for "%s"', feature
+                )
                 return self.do_level_interpolation(
                     feature, interp_method=self.interp_method
                 )
 
             msg = (
-                f'Could not find "{feature}" in contained data or in the '
-                'available compute methods.'
+                'Could not find "%s" in contained data or in the available '
+                'compute methods.'
             )
-            logger.error(msg)
-            raise RuntimeError(msg)
+            logger.error(msg, feature)
+            raise RuntimeError(msg % feature)
+
         return self.data[feature]
 
     def add_single_level_data(self, feature, lev_array, var_array):
@@ -352,12 +355,12 @@ class Deriver(BaseDeriver):
         )
 
         if time_roll != 0:
-            logger.debug(f'Applying time_roll={time_roll} to data array')
+            logger.debug('Applying time_roll=%s to data array', time_roll)
             self.data = self.data.roll(**{Dimension.TIME: time_roll})
 
         if hr_spatial_coarsen > 1:
             logger.debug(
-                f'Applying hr_spatial_coarsen={hr_spatial_coarsen} to data.'
+                'Applying hr_spatial_coarsen=%s to data.', hr_spatial_coarsen
             )
             self.data = self.data.coarsen(
                 {

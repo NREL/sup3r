@@ -201,7 +201,7 @@ class ForwardPassStrategy:
         self.input_features = model.lr_features
         self.output_features = model.hr_out_features
         self.features, self.exo_features = self._init_features(model)
-        self.input_handler = self.init_input_handler()
+        self.input_handler = self.timer(self.init_input_handler, log=True)()
         self.time_slice = _parse_time_slice(
             self.input_handler_kwargs.get('time_slice', slice(None))
         )
@@ -225,7 +225,7 @@ class ForwardPassStrategy:
             self.hr_lat_lon = self.get_hr_lat_lon()
             hr_shape = self.hr_lat_lon.shape[:-1]
             self.gids = np.arange(np.prod(hr_shape)).reshape(hr_shape)
-            self.exo_data = self.load_exo_data(model)
+            self.exo_data = self.timer(self.load_exo_data, log=True)(model)
             self.preflight()
 
     @property
@@ -553,7 +553,9 @@ class ForwardPassStrategy:
         check = os.path.exists(out_file) and self.incremental
         if check:
             logger.info(
-                f'{out_file} already exists and incremental = True. '
-                f'Skipping forward pass for chunk index {chunk_idx}.'
+                '%s already exists and incremental = True. Skipping forward '
+                'pass for chunk index %s.',
+                out_file,
+                chunk_idx,
             )
         return check

@@ -7,9 +7,6 @@ from warnings import warn
 import dask.array as da
 import numpy as np
 
-from sup3r.preprocessing.utilities import (
-    _compute_chunks_if_dask,
-)
 from sup3r.utilities.utilities import RANDOM_GENERATOR
 
 logger = logging.getLogger(__name__)
@@ -134,18 +131,21 @@ class Interpolator:
         out : Union[np.ndarray, da.core.Array]
             Interpolated var_array
             (lat, lon, time)
+
+        TODO: Remove computes here somehow. This is very slow during forward
+        passes on lots of input data
         """
         cls._check_lev_array(lev_array, levels=[level])
         levs = da.ma.masked_array(lev_array, da.isnan(lev_array))
         mask1, mask2 = cls.get_level_masks(levs, level)
-        lev1 = _compute_chunks_if_dask(lev_array[mask1])
-        lev1 = lev1.reshape(mask1.shape[:-1])
-        lev2 = _compute_chunks_if_dask(lev_array[mask2])
-        lev2 = lev2.reshape(mask2.shape[:-1])
-        var1 = _compute_chunks_if_dask(var_array[mask1])
-        var1 = var1.reshape(mask1.shape[:-1])
-        var2 = _compute_chunks_if_dask(var_array[mask2])
-        var2 = var2.reshape(mask2.shape[:-1])
+        lev1 = da.where(mask1, lev_array, np.nan)
+        lev2 = da.where(mask2, lev_array, np.nan)
+        var1 = da.where(mask1, var_array, np.nan)
+        var2 = da.where(mask2, var_array, np.nan)
+        lev1 = np.nanmean(lev1, axis=-1)
+        lev2 = np.nanmean(lev2, axis=-1)
+        var1 = np.nanmean(var1, axis=-1)
+        var2 = np.nanmean(var2, axis=-1)
 
         if interp_method == 'log':
             out = cls._log_interp(
