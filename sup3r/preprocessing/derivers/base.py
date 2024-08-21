@@ -67,7 +67,7 @@ class BaseDeriver(Container):
         new_features = [f for f in features if f not in self.data]
         for f in new_features:
             self.data[f] = self.derive(f)
-            logger.info('Finished deriving %s', f)
+            logger.info('Finished deriving %s.', f)
         self.data = (
             self.data[list(self.data.coords)]
             if not features

@@ -43,7 +43,8 @@ class DataHandlerNCforCC(BaseNCforCC):
         Parameters
         ----------
         file_paths : str | list | pathlib.Path
-            file_paths input to :class:`Rasterizer`
+            file_paths input to
+            :class:`~sup3r.preprocessing.rasterizers.Rasterizer`
         features : list
             Features to derive from loaded data.
         nsrdb_source_fp : str | None

@@ -53,9 +53,7 @@ class Interpolator:
             if ~over_mask.sum() >= lev_array[..., 0].size
             else lev_array
         )
-        argmin1 = np.asarray(
-            da.argmin(da.abs(under_levs - level), axis=-1, keepdims=True)
-        )
+        argmin1 = da.argmin(da.abs(under_levs - level), axis=-1, keepdims=True)
         lev_indices = da.broadcast_to(
             da.arange(lev_array.shape[-1]), lev_array.shape
         )
@@ -66,9 +64,7 @@ class Interpolator:
             if over_mask.sum() >= lev_array[..., 0].size
             else da.ma.masked_array(lev_array, mask1)
         )
-        argmin2 = np.asarray(
-            da.argmin(da.abs(over_levs - level), axis=-1, keepdims=True)
-        )
+        argmin2 = da.argmin(da.abs(over_levs - level), axis=-1, keepdims=True)
         mask2 = lev_indices == argmin2
         return mask1, mask2
 
@@ -131,9 +127,6 @@ class Interpolator:
         out : Union[np.ndarray, da.core.Array]
             Interpolated var_array
             (lat, lon, time)
-
-        TODO: Remove computes here somehow. This is very slow during forward
-        passes on lots of input data
         """
         cls._check_lev_array(lev_array, levels=[level])
         levs = da.ma.masked_array(lev_array, da.isnan(lev_array))

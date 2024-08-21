@@ -202,10 +202,6 @@ def test_fwp_multi_step_spatial_model_topo_noskip(input_files):
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
-                'steps': [
-                    {'model': 0, 'combine_type': 'input'},
-                    {'model': 1, 'combine_type': 'input'},
-                ],
             }
         }
 
@@ -319,11 +315,6 @@ def test_fwp_multi_step_model_topo_noskip(input_files):
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
-                'steps': [
-                    {'model': 0, 'combine_type': 'input'},
-                    {'model': 1, 'combine_type': 'input'},
-                    {'model': 2, 'combine_type': 'input'},
-                ],
             }
         }
 
@@ -525,10 +516,6 @@ def test_fwp_single_step_wind_hi_res_topo(input_files, plot=False):
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
-                'steps': [
-                    {'model': 0, 'combine_type': 'input'},
-                    {'model': 0, 'combine_type': 'layer'},
-                ],
             }
         }
 
@@ -1147,5 +1134,10 @@ def test_solar_multistep_exo(gen_config_with_topo):
                 ]
             }
         }
+        steps = ExoDataHandler.get_exo_steps('topography', ms_model.models)
+        assert steps == [
+            {'model': 1, 'combine_type': 'input'},
+            {'model': 1, 'combine_type': 'layer'},
+        ]
         out = ms_model.generate(x, exogenous_data=exo_tmp)
         assert out.shape == (1, 20, 20, 24, 1)

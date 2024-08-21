@@ -475,7 +475,13 @@ class SolarMultiStepGan(MultiStepGan):
         temporal_pad : int
             Optional reflected padding of the generated output array.
         """
-
+        super().__init__(
+            models=[
+                *spatial_solar_models.models,
+                *spatial_wind_models.models,
+                *temporal_solar_models.models,
+            ]
+        )
         self._spatial_solar_models = spatial_solar_models
         self._spatial_wind_models = spatial_wind_models
         self._temporal_solar_models = temporal_solar_models
