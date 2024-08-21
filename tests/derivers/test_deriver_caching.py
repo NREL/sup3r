@@ -120,7 +120,8 @@ def test_caching_with_dh_loading(
         )
 
         cacher = Cacher(
-            deriver.data, cache_kwargs={'cache_pattern': cache_pattern}
+            deriver.data,
+            cache_kwargs={'cache_pattern': cache_pattern, 'max_workers': 1},
         )
 
         assert deriver.shape[:3] == (shape[0], shape[1], deriver.shape[2])
