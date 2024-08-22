@@ -38,9 +38,9 @@ def safe_cast(o):
     return str(o)
 
 
-def safe_serialize(obj):
+def safe_serialize(obj, **kwargs):
     """json.dumps with non-serializable object handling."""
-    return json.dumps(obj, default=safe_cast)
+    return json.dumps(obj, default=safe_cast, **kwargs)
 
 
 class Timer:
