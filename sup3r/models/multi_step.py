@@ -448,7 +448,6 @@ class SolarMultiStepGan(MultiStepGan):
         spatial_wind_models,
         temporal_solar_models,
         t_enhance=None,
-        temporal_pad=0,
     ):
         """
         Parameters
@@ -469,11 +468,11 @@ class SolarMultiStepGan(MultiStepGan):
             downscaling methodology.
         t_enhance : int | None
             Optional argument to fix or update the temporal enhancement of the
-            model. This can be used with temporal_pad to manipulate the output
-            shape to match whatever padded shape the sup3r forward pass module
-            expects.
-        temporal_pad : int
-            Optional reflected padding of the generated output array.
+            model. This can be used to manipulate the output shape to match
+            whatever padded shape the sup3r forward pass module expects. If
+            this differs from the t_enhance value based on model layers the
+            output will be padded so that the output shape matches low_res *
+            t_enhance for the time dimension.
         """
 
         # Initializing parent without spatial solar models since this just
@@ -490,7 +489,6 @@ class SolarMultiStepGan(MultiStepGan):
         self._spatial_wind_models = spatial_wind_models
         self._temporal_solar_models = temporal_solar_models
         self._t_enhance = t_enhance
-        self._temporal_pad = temporal_pad
 
         self.preflight()
 
@@ -507,8 +505,8 @@ class SolarMultiStepGan(MultiStepGan):
         """Run some preflight checks to make sure the loaded models can work
         together."""
 
-        s_enh = [model.s_enhance for model in self.spatial_solar_models.models]
-        w_enh = [model.s_enhance for model in self.spatial_wind_models.models]
+        s_enh = self.spatial_solar_models.s_enhancements
+        w_enh = self.spatial_wind_models.s_enhancements
         msg = (
             'Solar and wind spatial enhancements must be equivalent but '
             'received models that do spatial enhancements of '
@@ -662,7 +660,7 @@ class SolarMultiStepGan(MultiStepGan):
         low_res : np.ndarray
             Low-resolution input data to the 1st step spatial GAN, which is a
             4D array of shape: (temporal, spatial_1, spatial_2, n_features).
-            This should include all of the self.lr_features which is a
+            This should include all of the ``self.lr_features`` which is a
             concatenation of both the solar and wind spatial model features.
             The topography feature might be removed from this input and present
             in the exogenous_data input.
@@ -773,7 +771,7 @@ class SolarMultiStepGan(MultiStepGan):
             logger.exception(msg)
             raise RuntimeError(msg) from e
 
-        hi_res = self.temporal_pad(hi_res)
+        hi_res = self.temporal_pad(low_res, hi_res)
 
         logger.debug(
             'Final SolarMultiStepGan output has shape: {}'.format(hi_res.shape)
@@ -781,11 +779,14 @@ class SolarMultiStepGan(MultiStepGan):
 
         return hi_res
 
-    def temporal_pad(self, hi_res, mode='reflect'):
+    def temporal_pad(self, low_res, hi_res, mode='reflect'):
         """Optionally add temporal padding to the 5D generated output array
 
         Parameters
         ----------
+        low_res : np.ndarray
+            Low-resolution input data to the 1st step spatial GAN, which is a
+            4D array of shape: (temporal, spatial_1, spatial_2, n_features).
         hi_res : ndarray
             Synthetically generated high-resolution data output from the 2nd
             step (spatio)temporal GAN with a 5D array shape:
@@ -802,15 +803,10 @@ class SolarMultiStepGan(MultiStepGan):
             With the temporal axis padded with self._temporal_pad on either
             side.
         """
-        if self._temporal_pad > 0:
-            pad_width = (
-                (0, 0),
-                (0, 0),
-                (0, 0),
-                (self._temporal_pad, self._temporal_pad),
-                (0, 0),
-            )
-            hi_res = np.pad(hi_res, pad_width, mode=mode)
+        t_shape = low_res.shape[0] * self.t_enhance
+        t_pad = int((t_shape - hi_res.shape[-2]) / 2)
+        pad_width = ((0, 0), (0, 0), (0, 0), (t_pad, t_pad), (0, 0))
+        hi_res = np.pad(hi_res, pad_width, mode=mode)
         return hi_res
 
     @classmethod
@@ -820,7 +816,6 @@ class SolarMultiStepGan(MultiStepGan):
         spatial_wind_model_dirs,
         temporal_solar_model_dirs,
         t_enhance=None,
-        temporal_pad=0,
         verbose=True,
     ):
         """Load the GANs with its sub-networks from a previously saved-to
@@ -849,8 +844,6 @@ class SolarMultiStepGan(MultiStepGan):
             model. This can be used with temporal_pad to manipulate the output
             shape to match whatever padded shape the sup3r forward pass module
             expects.
-        temporal_pad : int
-            Optional reflected padding of the generated output array.
         verbose : bool
             Flag to log information about the loaded model.
 
@@ -871,6 +864,4 @@ class SolarMultiStepGan(MultiStepGan):
         swm = MultiStepGan.load(spatial_wind_model_dirs, verbose=verbose)
         tsm = MultiStepGan.load(temporal_solar_model_dirs, verbose=verbose)
 
-        return cls(
-            ssm, swm, tsm, t_enhance=t_enhance, temporal_pad=temporal_pad
-        )
+        return cls(ssm, swm, tsm, t_enhance=t_enhance)

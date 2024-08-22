@@ -5,12 +5,15 @@ features."""
 import logging
 import pathlib
 from dataclasses import dataclass
-from typing import Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 import numpy as np
 
 from sup3r.preprocessing.rasterizers import ExoRasterizer
 from sup3r.preprocessing.utilities import _lowered, log_args
+
+if TYPE_CHECKING:
+    from sup3r.models import MultiStepGan, Sup3rGan
 
 logger = logging.getLogger(__name__)
 
@@ -207,25 +210,24 @@ class ExoData(dict):
         return tmp['steps'][combine_types.index(combine_type)]['data']
 
     @staticmethod
-    def _get_enhanced_slices(lr_slices, input_data_shape, exo_data_shape):
+    def _get_enhanced_slices(lr_slices, step):
         """Get lr_slices enhanced by the ratio of exo_data_shape to
         input_data_shape. Used to slice exo data for each model step."""
         exo_slices = []
-        for i, lr_slice in enumerate(lr_slices):
-            enhance = exo_data_shape[i] // input_data_shape[i]
+        for enhance, lr_slice in zip(
+            [step['s_enhance'], step['s_enhance'], step['t_enhance']],
+            lr_slices,
+        ):
             exo_slc = slice(lr_slice.start * enhance, lr_slice.stop * enhance)
             exo_slices.append(exo_slc)
         return exo_slices
 
-    def get_chunk(self, input_data_shape, lr_slices):
+    def get_chunk(self, lr_slices):
         """Get the data for all model steps corresponding to the low res extent
         selected by `lr_slices`
 
         Parameters
         ----------
-        input_data_shape : tuple
-            Spatiotemporal shape of the full low-resolution extent.
-            (lats, lons, time)
         lr_slices : list List of spatiotemporal slices which specify extent of
         the low-resolution input data.
 
@@ -241,9 +243,7 @@ class ExoData(dict):
         for feature in self:
             for step in self[feature]['steps']:
                 exo_slices = self._get_enhanced_slices(
-                    lr_slices=lr_slices,
-                    input_data_shape=input_data_shape,
-                    exo_data_shape=step['data'].shape,
+                    lr_slices=lr_slices, step=step
                 )
                 chunk_step = {}
                 for k, v in step.items():
@@ -274,14 +274,15 @@ class ExoDataHandler:
         is source low-resolution data intended to be sup3r resolved.
     feature : str
         Exogenous feature to extract from file_paths
-    models : list
-        List of models used to get exogenous data. For each model in the list
+    model : Sup3rGan | MultiStepGan
+        Model used to get exogenous data. If a ``MultiStepGan``
         ``lr_features``, ``hr_exo_features``, and ``hr_out_features`` will be
-        checked and exogenous data will be retrieved based on the resolution
-        required for that type of feature. e.g. If a model has topography as
-        a lr and hr_exo feature, and the model performs 5x spatial enhancement
-        with an input resolution of 30km then topography at 30km and at 6km
-        will be retrieved. Either this or list of steps needs to be provided.
+        checked for each model in ``model.models`` and exogenous data will be
+        retrieved based on the resolution required for that type of feature.
+        e.g. If a model has topography as a lr and hr_exo feature, and the
+        model performs 5x spatial enhancement with an input resolution of 30km
+        then topography at 30km and at 6km will be retrieved. Either this or
+        list of steps needs to be provided.
     steps : list
         List of dictionaries containing info on which models to use for a given
         step index and what type of exo data the step requires. e.g.::
@@ -318,7 +319,7 @@ class ExoDataHandler:
 
     file_paths: Union[str, list, pathlib.Path]
     feature: str
-    models: Optional[list] = None
+    model: Optional[Union['Sup3rGan', 'MultiStepGan']] = None
     steps: Optional[list] = None
     source_file: Optional[str] = None
     input_handler_name: Optional[str] = None
@@ -331,6 +332,7 @@ class ExoDataHandler:
         """Get list of steps with types of exogenous data needed for retrieval,
         initialize `self.data`, and update `self.data` for each model step with
         rasterized exo data."""
+        self.models = getattr(self.model, 'models', [self.model])
         if self.steps is None:
             self.steps = self.get_exo_steps(self.feature, self.models)
         else:
@@ -359,10 +361,7 @@ class ExoDataHandler:
         steps = []
         for i, model in enumerate(models):
             is_sfc_model = model.__class__.__name__ == 'SurfaceSpatialMetModel'
-            if (
-                feature.lower() in _lowered(model.lr_features)
-                or is_sfc_model
-            ):
+            if feature.lower() in _lowered(model.lr_features) or is_sfc_model:
                 steps.append({'model': i, 'combine_type': 'input'})
             if feature.lower() in _lowered(model.hr_exo_features):
                 steps.append({'model': i, 'combine_type': 'layer'})
@@ -403,6 +402,8 @@ class ExoDataHandler:
                 self.steps[i]['model'],
                 data=step_data.as_array(),
             )
+            step['s_enhance'] = s_enhance
+            step['t_enhance'] = t_enhance
             data[self.feature]['steps'].append(step)
         shapes = [
             None if step is None else step.shape
@@ -435,31 +436,29 @@ class ExoDataHandler:
         if all(key in step for key in ['s_enhance', 't_enhance']):
             return step
 
-        model_step = step['model']
+        mstep = step['model']
         combine_type = step.get('combine_type', None)
         msg = (
-            f'Model index from exo_kwargs ({model_step} exceeds number '
+            f'Model index from exo_kwargs ({mstep} exceeds number '
             f'of model steps ({len(self.models)})'
         )
-        assert len(self.models) > model_step, msg
+        assert len(self.models) > mstep, msg
         msg = (
             'Received exo_kwargs entry without valid combine_type '
             '(input/layer/output)'
         )
         assert combine_type.lower() in ('input', 'output', 'layer'), msg
-        s_enhancements = [model.s_enhance for model in self.models]
-        t_enhancements = [model.t_enhance for model in self.models]
         if combine_type.lower() == 'input':
-            if model_step == 0:
+            if mstep == 0:
                 s_enhance = 1
                 t_enhance = 1
             else:
-                s_enhance = int(np.prod(s_enhancements[:model_step]))
-                t_enhance = int(np.prod(t_enhancements[:model_step]))
+                s_enhance = int(np.prod(self.model.s_enhancements[:mstep]))
+                t_enhance = int(np.prod(self.model.t_enhancements[:mstep]))
 
         else:
-            s_enhance = int(np.prod(s_enhancements[: model_step + 1]))
-            t_enhance = int(np.prod(t_enhancements[: model_step + 1]))
+            s_enhance = int(np.prod(self.model.s_enhancements[: mstep + 1]))
+            t_enhance = int(np.prod(self.model.t_enhancements[: mstep + 1]))
         step.update({'s_enhance': s_enhance, 't_enhance': t_enhance})
         return step
 

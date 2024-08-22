@@ -50,10 +50,6 @@ class ForwardPass:
         self.model = get_model(strategy.model_class, strategy.model_kwargs)
         self.node_index = node_index
 
-        models = getattr(self.model, 'models', [self.model])
-        self.s_enhancements = [model.s_enhance for model in models]
-        self.t_enhancements = [model.t_enhance for model in models]
-
         output_type = get_source_type(strategy.out_pattern)
         msg = f'Received bad output type {output_type}'
         assert output_type is None or output_type in list(
@@ -107,34 +103,13 @@ class ForwardPass:
                 s_enhance = 1
                 t_enhance = 1
             else:
-                s_enhance = np.prod(self.s_enhancements[:model_step])
-                t_enhance = np.prod(self.t_enhancements[:model_step])
+                s_enhance = np.prod(self.model.s_enhancements[:model_step])
+                t_enhance = np.prod(self.model.t_enhancements[:model_step])
 
         else:
-            s_enhance = np.prod(self.s_enhancements[: model_step + 1])
-            t_enhance = np.prod(self.t_enhancements[: model_step + 1])
+            s_enhance = np.prod(self.model.s_enhancements[: model_step + 1])
+            t_enhance = np.prod(self.model.t_enhancements[: model_step + 1])
         return s_enhance, t_enhance
-
-    def _pad_input_data(self, input_data, pad_width, mode='reflect'):
-        """Pad the edges of the non-exo input data from the data handler."""
-
-        out = np.pad(input_data, (*pad_width, (0, 0)), mode=mode)
-        msg = (
-            f'Using mode="reflect" requires pad_width {pad_width} to be less '
-            f'than half the width of the input_data {input_data.shape}. Use a '
-            'larger chunk size or a different padding mode.'
-        )
-        if mode == 'reflect':
-            assert all(
-                dw / 2 > pw[0] and dw / 2 > pw[1]
-                for dw, pw in zip(input_data.shape[:-1], pad_width)
-            ), msg
-
-        logger.info(
-            f'Padded input data shape from {input_data.shape} to {out.shape} '
-            f'using mode "{mode}" with padding argument: {pad_width}'
-        )
-        return out
 
     def pad_source_data(self, input_data, pad_width, exo_data, mode='reflect'):
         """Pad the edges of the source data from the data handler.
@@ -164,7 +139,14 @@ class ForwardPass:
             step entry for all features
 
         """
-        out = self._pad_input_data(input_data, pad_width, mode=mode)
+        out = np.pad(input_data, (*pad_width, (0, 0)), mode=mode)
+        logger.info(
+            'Padded input data shape from %s to %s using mode "%s" '
+            'with padding argument: {pad_width}',
+            input_data.shape,
+            out.shape,
+            mode,
+        )
 
         if exo_data is not None:
             for feature in exo_data:

@@ -208,46 +208,56 @@ class AbstractInterface(ABC):
     @property
     def s_enhance(self):
         """Factor by which model will enhance spatial resolution. Used in
-        model training during high res coarsening"""
-        if isinstance(self.meta, tuple):
-            s_enhances = [m['s_enhance'] for m in self.meta]
-            s_enhance = (
-                None
-                if any(s is None for s in s_enhances)
-                else np.prod(s_enhances)
-            )
-        else:
-            s_enhance = self.meta.get('s_enhance', None)
-        if s_enhance is None:
-            s_enhance = self.get_s_enhance_from_layers()
-            self.meta['s_enhance'] = s_enhance
+        model training during high res coarsening and also in forward pass
+        routine to determine shape of needed exogenous data"""
+        models = getattr(self, 'models', [self])
+        s_enhances = [m.meta['s_enhance'] for m in models]
+        s_enhance = (
+            self.get_s_enhance_from_layers()
+            if any(s is None for s in s_enhances)
+            else np.prod(s_enhances)
+        )
         return s_enhance
 
     @property
     def t_enhance(self):
         """Factor by which model will enhance temporal resolution. Used in
-        model training during high res coarsening"""
-        if isinstance(self.meta, tuple):
-            t_enhances = [m['t_enhance'] for m in self.meta]
-            t_enhance = (
-                None
-                if any(t is None for t in t_enhances)
-                else np.prod(t_enhances)
-            )
-        else:
-            t_enhance = self.meta.get('t_enhance', None)
-        if t_enhance is None:
-            t_enhance = self.get_t_enhance_from_layers()
-            self.meta['t_enhance'] = t_enhance
+        model training during high res coarsening and also in forward pass
+        routine to determine shape of needed exogenous data"""
+        models = getattr(self, 'models', [self])
+        t_enhances = [m.meta['t_enhance'] for m in models]
+        t_enhance = (
+            self.get_t_enhance_from_layers()
+            if any(t is None for t in t_enhances)
+            else np.prod(t_enhances)
+        )
         return t_enhance
 
     @property
+    def s_enhancements(self):
+        """List of spatial enhancement factors. In the case of a single step
+        model this is just ``[self.s_enhance]``. This is used to determine
+        shapes of needed exogenous data in forward pass routine"""
+        if hasattr(self, 'models'):
+            return [model.s_enhance for model in self.models]
+        return [self.s_enhance]
+
+    @property
+    def t_enhancements(self):
+        """List of temporal enhancement factors. In the case of a single step
+        model this is just ``[self.t_enhance]``. This is used to determine
+        shapes of needed exogenous data in forward pass routine"""
+        if hasattr(self, 'models'):
+            return [model.t_enhance for model in self.models]
+        return [self.t_enhance]
+
+    @property
     def input_resolution(self):
-        """Resolution of input data. Given as a dictionary {'spatial': '...km',
-        'temporal': '...min'}. The numbers are required to be integers in the
-        units specified. The units are not strict as long as the resolution
-        of the exogenous data, when extracting exogenous data, is specified
-        in the same units."""
+        """Resolution of input data. Given as a dictionary
+        ``{'spatial': '...km', 'temporal': '...min'}``. The numbers are
+        required to be integers in the units specified. The units are not
+        strict as long as the resolution of the exogenous data, when extracting
+        exogenous data, is specified in the same units."""
         input_resolution = self.meta.get('input_resolution', None)
         msg = 'model.input_resolution is None. This needs to be set.'
         assert input_resolution is not None, msg
@@ -255,8 +265,8 @@ class AbstractInterface(ABC):
 
     def _get_numerical_resolutions(self):
         """Get the input and output resolutions without units. e.g. for
-        {"spatial": "30km", "temporal": "60min"} this returns
-        {"spatial": 30, "temporal": 60}"""
+        ``{"spatial": "30km", "temporal": "60min"}`` this returns
+        ``{"spatial": 30, "temporal": 60}``"""
         ires_num = {
             k: int(re.search(r'\d+', v).group(0))
             for k, v in self.input_resolution.items()

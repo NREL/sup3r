@@ -197,6 +197,8 @@ class ForwardPassStrategy:
         self.timer = Timer()
 
         model = get_model(self.model_class, self.model_kwargs)
+        self.s_enhancements = model.s_enhancements
+        self.t_enhancements = model.t_enhancements
         self.s_enhance, self.t_enhance = model.s_enhance, model.t_enhance
         self.input_features = model.lr_features
         self.output_features = model.hr_out_features
@@ -416,14 +418,18 @@ class ForwardPassStrategy:
 
     def prep_chunk_data(self, chunk_index=0):
         """Get low res input data and exo data for given chunk index and bias
-        correct low res data if requested."""
+        correct low res data if requested.
+
+        Note
+        ----
+        ``input_data.load()`` is called here to load chunk data into memory
+        """
 
         s_chunk_idx, t_chunk_idx = self.get_chunk_indices(chunk_index)
         lr_pad_slice = self.lr_pad_slices[s_chunk_idx]
         ti_pad_slice = self.ti_pad_slices[t_chunk_idx]
         exo_data = (
             self.timer(self.exo_data.get_chunk, log=True, call_id=chunk_index)(
-                self.input_handler.shape,
                 [lr_pad_slice[0], lr_pad_slice[1], ti_pad_slice],
             )
             if self.exo_data is not None
@@ -528,7 +534,7 @@ class ForwardPassStrategy:
             for feature in self.exo_features:
                 exo_kwargs = copy.deepcopy(self.exo_handler_kwargs[feature])
                 exo_kwargs['feature'] = feature
-                exo_kwargs['models'] = getattr(model, 'models', [model])
+                exo_kwargs['model'] = model
                 input_handler_kwargs = exo_kwargs.get(
                     'input_handler_kwargs', {}
                 )
