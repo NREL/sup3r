@@ -475,9 +475,13 @@ class SolarMultiStepGan(MultiStepGan):
         temporal_pad : int
             Optional reflected padding of the generated output array.
         """
+
+        # Initializing parent without spatial solar models since this just
+        # defines self.models. self.models is used to determine the aggregate
+        # enhancement factors so including both spatial enhancement models
+        # will results in an incorrect calculation.
         super().__init__(
             models=[
-                *spatial_solar_models.models,
                 *spatial_wind_models.models,
                 *temporal_solar_models.models,
             ]
@@ -698,12 +702,8 @@ class SolarMultiStepGan(MultiStepGan):
             exogenous_data = ExoData(exogenous_data)
 
         if exogenous_data is not None:
-            _, s_exo, t_exo = exogenous_data.split(
-                split_steps=[
-                    len(self.spatial_solar_models),
-                    len(self.spatial_wind_models)
-                    + len(self.spatial_solar_models),
-                ]
+            s_exo, t_exo = exogenous_data.split(
+                split_steps=[len(self.spatial_wind_models)]
             )
         else:
             s_exo = t_exo = None

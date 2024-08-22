@@ -331,7 +331,6 @@ class ExoDataHandler:
         """Get list of steps with types of exogenous data needed for retrieval,
         initialize `self.data`, and update `self.data` for each model step with
         rasterized exo data."""
-        self.data = {self.feature: {'steps': []}}
         if self.steps is None:
             self.steps = self.get_exo_steps(self.feature, self.models)
         else:
@@ -349,7 +348,7 @@ class ExoDataHandler:
             'step. If the step is temporal only (spatial only) then '
             's_enhance = 1 (t_enhance = 1).'
         )
-        self.get_all_step_data()
+        self.data = self.get_all_step_data()
 
     @classmethod
     def get_exo_steps(cls, feature, models):
@@ -391,28 +390,30 @@ class ExoDataHandler:
 
     def get_all_step_data(self):
         """Get exo data for each model step."""
+        data = {self.feature: {'steps': []}}
         for i, (s_enhance, t_enhance) in enumerate(
             zip(self.s_enhancements, self.t_enhancements)
         ):
-            data = self.get_single_step_data(
+            step_data = self.get_single_step_data(
                 s_enhance=s_enhance, t_enhance=t_enhance
             )
             step = SingleExoDataStep(
                 self.feature,
                 self.steps[i]['combine_type'],
                 self.steps[i]['model'],
-                data=data.as_array(),
+                data=step_data.as_array(),
             )
-            self.data[self.feature]['steps'].append(step)
+            data[self.feature]['steps'].append(step)
         shapes = [
             None if step is None else step.shape
-            for step in self.data[self.feature]['steps']
+            for step in data[self.feature]['steps']
         ]
         logger.info(
             'Got exogenous_data of length {} with shapes: {}'.format(
-                len(self.data[self.feature]['steps']), shapes
+                len(data[self.feature]['steps']), shapes
             )
         )
+        return data
 
     def _get_single_step_enhance(self, step):
         """Get enhancement factors for exogenous data extraction
