@@ -9,15 +9,17 @@ import threading
 import time
 from abc import ABC, abstractmethod
 from collections import namedtuple
-from typing import List, Optional, Union
+from typing import TYPE_CHECKING, List, Optional, Union
 
 import dask
 import numpy as np
 import tensorflow as tf
 
 from sup3r.preprocessing.collections.base import Collection
-from sup3r.preprocessing.samplers import DualSampler, Sampler
 from sup3r.utilities.utilities import RANDOM_GENERATOR, Timer
+
+if TYPE_CHECKING:
+    from sup3r.preprocessing.samplers import DualSampler, Sampler
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +33,7 @@ class AbstractBatchQueue(Collection, ABC):
 
     def __init__(
         self,
-        samplers: Union[List[Sampler], List[DualSampler]],
+        samplers: Union[List['Sampler'], List['DualSampler']],
         batch_size: int = 16,
         n_batches: int = 64,
         s_enhance: int = 1,

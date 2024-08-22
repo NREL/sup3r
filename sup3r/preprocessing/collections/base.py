@@ -7,13 +7,15 @@ collections of data. Consider migrating once datatree has been fully
 integrated into xarray (in progress as of 8/8/2024)
 """
 
-from typing import List, Union
+from typing import TYPE_CHECKING, List, Union
 
 import numpy as np
 
 from sup3r.preprocessing.base import Container
-from sup3r.preprocessing.samplers.base import Sampler
-from sup3r.preprocessing.samplers.dual import DualSampler
+
+if TYPE_CHECKING:
+    from sup3r.preprocessing.samplers.base import Sampler
+    from sup3r.preprocessing.samplers.dual import DualSampler
 
 
 class Collection(Container):
@@ -26,9 +28,9 @@ class Collection(Container):
     def __init__(
         self,
         containers: Union[
-            List[Container],
-            List[Sampler],
-            List[DualSampler],
+            List['Container'],
+            List['Sampler'],
+            List['DualSampler'],
         ],
     ):
         super().__init__()

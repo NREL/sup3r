@@ -2,11 +2,8 @@
 samplers."""
 
 import logging
-from typing import Dict, List, Optional, Type, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Type, Union
 
-from sup3r.preprocessing.base import (
-    Container,
-)
 from sup3r.preprocessing.batch_queues.base import SingleBatchQueue
 from sup3r.preprocessing.batch_queues.conditional import (
     QueueMom1,
@@ -26,6 +23,9 @@ from sup3r.preprocessing.utilities import (
     get_class_kwargs,
     log_args,
 )
+
+if TYPE_CHECKING:
+    from sup3r.preprocessing.base import Container
 
 logger = logging.getLogger(__name__)
 
@@ -86,8 +86,8 @@ def BatchHandlerFactory(
         @log_args
         def __init__(
             self,
-            train_containers: List[Container],
-            val_containers: Optional[List[Container]] = None,
+            train_containers: List['Container'],
+            val_containers: Optional[List['Container']] = None,
             sample_shape: Optional[tuple] = None,
             batch_size: int = 16,
             n_batches: int = 64,

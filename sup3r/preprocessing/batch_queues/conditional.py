@@ -3,16 +3,18 @@
 import logging
 from abc import abstractmethod
 from collections import namedtuple
-from typing import Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
 import numpy as np
 
 from sup3r.models.conditional import Sup3rCondMom
-from sup3r.preprocessing.samplers import DualSampler, Sampler
 from sup3r.preprocessing.utilities import numpy_if_tensor
 
 from .base import SingleBatchQueue
 from .utilities import spatial_simple_enhancing, temporal_simple_enhancing
+
+if TYPE_CHECKING:
+    from sup3r.preprocessing.samplers import DualSampler, Sampler
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +28,7 @@ class ConditionalBatchQueue(SingleBatchQueue):
 
     def __init__(
         self,
-        samplers: Union[List[Sampler], List[DualSampler]],
+        samplers: Union[List['Sampler'], List['DualSampler']],
         time_enhance_mode: str = 'constant',
         lower_models: Optional[Dict[int, Sup3rCondMom]] = None,
         s_padding: int = 0,

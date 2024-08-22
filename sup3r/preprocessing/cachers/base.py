@@ -6,20 +6,24 @@ import copy
 import itertools
 import logging
 import os
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Union, TYPE_CHECKING
 import netCDF4 as nc4  # noqa
 import h5py
 import dask
 import dask.array as da
 import numpy as np
 
-from sup3r.preprocessing.accessor import Sup3rX
-from sup3r.preprocessing.base import Container, Sup3rDataset
+from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.utilities import _mem_check
 from sup3r.utilities.utilities import safe_serialize
 
 from .utilities import _check_for_cache
+
+if TYPE_CHECKING:
+    from sup3r.preprocessing.accessor import Sup3rX
+    from sup3r.preprocessing.base import Sup3rDataset
+
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +36,7 @@ class Cacher(Container):
 
     def __init__(
         self,
-        data: Union[Sup3rX, Sup3rDataset],
+        data: Union['Sup3rX', 'Sup3rDataset'],
         cache_kwargs: Optional[Dict] = None,
     ):
         """
