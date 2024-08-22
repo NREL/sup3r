@@ -222,7 +222,7 @@ def test_fwd_pass_with_bc_cli(runner, input_files):
         input_handler_kwargs = {
             'target': (19.3, -123.5),
             'shape': shape,
-            'cache_kwargs': {'cache_pattern': cache_pattern},
+            'cache_kwargs': {'cache_pattern': cache_pattern, 'max_workers': 1},
         }
 
         lat_lon = DataHandler(
@@ -319,7 +319,7 @@ def test_fwd_pass_cli(runner, input_files):
         input_handler_kwargs = {
             'target': (19.3, -123.5),
             'shape': shape,
-            'cache_kwargs': {'cache_pattern': cache_pattern},
+            'cache_kwargs': {'cache_pattern': cache_pattern, 'max_workers': 1},
         }
         config = {
             'file_paths': input_files,

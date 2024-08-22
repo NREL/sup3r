@@ -36,6 +36,7 @@ def test_end_to_end():
             **kwargs,
             cache_kwargs={
                 'cache_pattern': train_cache_pattern,
+                'max_workers': 1,
                 'chunks': {'u_100m': (50, 20, 20), 'v_100m': (50, 20, 20)},
             },
         )
@@ -46,6 +47,7 @@ def test_end_to_end():
             **kwargs,
             cache_kwargs={
                 'cache_pattern': val_cache_pattern,
+                'max_workers': 1,
                 'chunks': {'u_100m': (50, 20, 20), 'v_100m': (50, 20, 20)},
             },
         )

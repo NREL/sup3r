@@ -1122,12 +1122,12 @@ def test_solar_multistep_exo(gen_config_with_topo):
             'topography': {
                 'steps': [
                     {
-                        'model': 1,
+                        'model': 0,
                         'combine_type': 'input',
                         'data': RANDOM_GENERATOR.random((3, 10, 10, 1)),
                     },
                     {
-                        'model': 1,
+                        'model': 0,
                         'combine_type': 'layer',
                         'data': RANDOM_GENERATOR.random((3, 20, 20, 1)),
                     },
@@ -1136,8 +1136,8 @@ def test_solar_multistep_exo(gen_config_with_topo):
         }
         steps = ExoDataHandler.get_exo_steps('topography', ms_model.models)
         assert steps == [
-            {'model': 1, 'combine_type': 'input'},
-            {'model': 1, 'combine_type': 'layer'},
+            {'model': 0, 'combine_type': 'input'},
+            {'model': 0, 'combine_type': 'layer'},
         ]
         out = ms_model.generate(x, exogenous_data=exo_tmp)
         assert out.shape == (1, 20, 20, 24, 1)

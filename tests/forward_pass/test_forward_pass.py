@@ -228,7 +228,10 @@ def test_fwp_with_cache_reload(input_files):
                 'target': target,
                 'shape': shape,
                 'time_slice': time_slice,
-                'cache_kwargs': {'cache_pattern': cache_pattern},
+                'cache_kwargs': {
+                    'cache_pattern': cache_pattern,
+                    'max_workers': 1,
+                },
             },
             'input_handler_name': 'DataHandler',
             'out_pattern': out_files,

@@ -21,7 +21,10 @@ def test_cacher_attrs():
         nc['windspeed_100m'].attrs = {'attrs': 'test'}
 
         cache_pattern = os.path.join(td, 'cached_{feature}.nc')
-        Cacher(data=nc, cache_kwargs={'cache_pattern': cache_pattern})
+        Cacher(
+            data=nc,
+            cache_kwargs={'cache_pattern': cache_pattern, 'max_workers': 1},
+        )
 
         out = Loader(cache_pattern.format(feature='windspeed_100m'))
         assert out.data['windspeed_100m'].attrs == {'attrs': 'test'}
