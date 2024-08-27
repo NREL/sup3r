@@ -352,6 +352,11 @@ class EraDownloader:
         if 'pressure' in self.variables and 'pressure' not in ds.data_vars:
             logger.info('Adding pressure variable.')
             pres = 100 * ds[Dimension.PRESSURE_LEVEL].values.astype(np.float32)
+
+            # if trailing dimensions don't match this is for an ensemble
+            # download
+            if len(pres) != ds['zg'].shape[-1]:
+                pres = np.repeat(pres[..., None], ds['zg'].shape[-1], axis=-1)
             ds['pressure'] = (
                 ds['zg'].dims,
                 da.broadcast_to(pres, ds['zg'].shape),
