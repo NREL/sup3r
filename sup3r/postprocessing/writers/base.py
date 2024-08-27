@@ -89,6 +89,14 @@ OUTPUT_ATTRS = {
         'min': 0,
         'max': 1350,
     },
+    'rsds': {
+        'scale_factor': 1.0,
+        'units': 'W/m2',
+        'dtype': 'uint16',
+        'chunks': (2000, 500),
+        'min': 0,
+        'max': 1350,
+    },
     'temperature': {
         'scale_factor': 100.0,
         'units': 'C',
