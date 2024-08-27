@@ -16,7 +16,7 @@ from rex import MultiTimeResource, Resource
 from rex.utilities.fun_utils import get_fun_call_str
 from scipy.spatial import KDTree
 
-from sup3r.postprocessing import H5_ATTRS, RexOutputs
+from sup3r.postprocessing import OUTPUT_ATTRS, RexOutputs
 from sup3r.preprocessing.utilities import expand_paths
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
@@ -554,7 +554,7 @@ class Solar:
             fh.time_index = self.time_index
 
             for feature in features:
-                attrs = H5_ATTRS[feature]
+                attrs = OUTPUT_ATTRS[feature]
                 arr = getattr(self, feature, None)
                 if arr is None:
                     msg = (

@@ -13,7 +13,7 @@ from rex import Resource
 from rex.utilities.fun_utils import get_fun_call_str
 
 from sup3r.bias.utilities import bias_correct_feature
-from sup3r.postprocessing import H5_ATTRS, RexOutputs
+from sup3r.postprocessing import OUTPUT_ATTRS, RexOutputs
 from sup3r.preprocessing.derivers import Deriver
 from sup3r.preprocessing.derivers.utilities import parse_feature
 from sup3r.preprocessing.utilities import (
@@ -415,7 +415,7 @@ class Sup3rQa:
             len(self.input_handler.time_index),
             len(self.input_handler.meta),
         )
-        attrs = H5_ATTRS.get(parse_feature(dset_name).basename, {})
+        attrs = OUTPUT_ATTRS.get(parse_feature(dset_name).basename, {})
 
         # dont scale the re-coarsened data or diffs
         attrs['scale_factor'] = 1

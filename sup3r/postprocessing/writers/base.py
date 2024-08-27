@@ -24,7 +24,23 @@ from sup3r.utilities.utilities import (
 
 logger = logging.getLogger(__name__)
 
-H5_ATTRS = {
+OUTPUT_ATTRS = {
+    'u': {
+        'scale_factor': 100.0,
+        'units': 'm s-1',
+        'dtype': 'uint16',
+        'chunks': (2000, 500),
+        'min': -120,
+        'max': 120,
+    },
+    'v': {
+        'scale_factor': 100.0,
+        'units': 'm s-1',
+        'dtype': 'uint16',
+        'chunks': (2000, 500),
+        'min': -120,
+        'max': 120,
+    },
     'windspeed': {
         'scale_factor': 100.0,
         'units': 'm s-1',
@@ -156,15 +172,15 @@ class OutputMixin:
             Data type for requested dset. Defaults to float32
         """
         feat_base_name = parse_feature(feature).basename
-        if feat_base_name in H5_ATTRS:
-            attrs = H5_ATTRS[feat_base_name]
+        if feat_base_name in OUTPUT_ATTRS:
+            attrs = OUTPUT_ATTRS[feat_base_name]
             dtype = attrs.get('dtype', 'float32')
         else:
             attrs = {}
             dtype = 'float32'
             msg = (
                 'Could not find feature "{}" with base name "{}" in '
-                'H5_ATTRS global variable. Writing with float32 and no '
+                'OUTPUT_ATTRS global variable. Writing with float32 and no '
                 'chunking.'.format(feature, feat_base_name)
             )
             logger.warning(msg)
@@ -332,13 +348,13 @@ class OutputHandler(OutputMixin):
         mins = []
         for fidx, fn in enumerate(features):
             dset_name = parse_feature(fn).basename
-            if dset_name not in H5_ATTRS:
-                msg = f'Could not find "{dset_name}" in H5_ATTRS dict!'
+            if dset_name not in OUTPUT_ATTRS:
+                msg = f'Could not find "{dset_name}" in OUTPUT_ATTRS dict!'
                 logger.error(msg)
                 raise KeyError(msg)
 
-            max_val = H5_ATTRS[dset_name].get('max', np.inf)
-            min_val = H5_ATTRS[dset_name].get('min', -np.inf)
+            max_val = OUTPUT_ATTRS[dset_name].get('max', np.inf)
+            min_val = OUTPUT_ATTRS[dset_name].get('min', -np.inf)
             enforcing_msg = (
                 f'Enforcing range of ({min_val}, {max_val} for "{fn}")'
             )

@@ -7,7 +7,12 @@ import numpy as np
 import pandas as pd
 from rex import ResourceX
 
-from sup3r.postprocessing import CollectorH5, OutputHandlerH5, OutputHandlerNC
+from sup3r.postprocessing import (
+    CollectorH5,
+    OutputHandlerH5,
+    OutputHandlerNC,
+)
+from sup3r.preprocessing import Loader
 from sup3r.preprocessing.derivers.utilities import (
     invert_uv,
     transform_rotate_wind,
@@ -173,3 +178,24 @@ def test_h5_collect_mask():
                 assert np.array_equal(
                     fh_o['windspeed_100m', :, mask_slice], fh['windspeed_100m']
                 )
+
+
+def test_enforce_limits():
+    """Make sure clearsky ratio is capped to [0, 1] by netcdf OutputHandler."""
+
+    data = RANDOM_GENERATOR.uniform(-100, 100, (10, 10, 10, 1))
+    lon, lat = np.meshgrid(np.arange(10), np.arange(10))
+    lat_lon = np.dstack([lat, lon])
+    times = pd.date_range('2021-01-01', '2021-01-10', 10)
+    with tempfile.TemporaryDirectory() as td:
+        fp_out = os.path.join(td, 'out_csr.nc')
+        OutputHandlerNC._write_output(
+            data=data,
+            features=['clearsky_ratio'],
+            lat_lon=lat_lon,
+            times=times,
+            out_file=fp_out,
+        )
+        with Loader(fp_out) as res:
+            assert res.data['clearsky_ratio'].max() <= 1.0
+            assert res.data['clearsky_ratio'].max() >= 0.0

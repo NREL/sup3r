@@ -54,7 +54,6 @@ extensions = [
     'sphinx.ext.githubpages',
     'sphinx_click.ext',
     'sphinx_tabs.tabs',
-
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
     "sphinx.ext.intersphinx",

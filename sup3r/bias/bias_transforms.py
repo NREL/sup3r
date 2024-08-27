@@ -469,6 +469,9 @@ def local_qdm_bc(
     threshold=0.1,
     relative=True,
     no_trend=False,
+    delta_denom_min=None,
+    delta_denom_zero=None,
+    out_range=None,
     max_workers=1,
 ):
     """Bias correction using QDM
@@ -521,6 +524,20 @@ def local_qdm_bc(
         ``params_mf`` of :class:`rex.utilities.bc_utils.QuantileDeltaMapping`.
         Note that this assumes that params_mh is the data distribution
         representative for the target data.
+    delta_denom_min : float | None
+        Option to specify a minimum value for the denominator term in the
+        calculation of a relative delta value. This prevents division by a
+        very small number making delta blow up and resulting in very large
+        output bias corrected values. See equation 4 of Cannon et al., 2015
+        for the delta term.
+    delta_denom_zero : float | None
+        Option to specify a value to replace zeros in the denominator term
+        in the calculation of a relative delta value. This prevents
+        division by a very small number making delta blow up and resulting
+        in very large output bias corrected values. See equation 4 of
+        Cannon et al., 2015 for the delta term.
+    out_range : None | tuple
+        Option to set floor/ceiling values on the output data.
     max_workers: int | None
         Max number of workers to use for QDM process pool
 
@@ -616,6 +633,8 @@ def local_qdm_bc(
             relative=relative,
             sampling=cfg['sampling'],
             log_base=cfg['log_base'],
+            delta_denom_min=delta_denom_min,
+            delta_denom_zero=delta_denom_zero,
         )
 
         subset_idx = nearest_window_idx == window_idx
@@ -630,6 +649,10 @@ def local_qdm_bc(
         tmp = tmp.T.reshape(subset.shape)
         # Position output respecting original time axis sequence
         output[:, :, subset_idx] = tmp
+
+    if out_range is not None:
+        output = np.maximum(output, np.min(out_range))
+        output = np.minimum(output, np.max(out_range))
 
     return output
 

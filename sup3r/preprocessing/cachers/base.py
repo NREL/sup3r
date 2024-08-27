@@ -125,7 +125,7 @@ class Cacher(Container):
         """
         cache_pattern = cache_kwargs.get('cache_pattern', None)
         chunks = cache_kwargs.get('chunks', None)
-        max_workers = cache_kwargs.get('max_workers', 1)
+        max_workers = cache_kwargs.get('max_workers', None)
         msg = 'cache_pattern must have {feature} format key.'
         assert '{feature}' in cache_pattern, msg
 
@@ -233,10 +233,11 @@ class Cacher(Container):
                     dset_name = 'time_index'
 
                 logger.debug(
-                    'Adding %s to %s with chunks=%s',
+                    'Adding %s to %s with chunks=%s and max_workers=%s',
                     dset,
                     out_file,
                     chunksizes,
+                    max_workers
                 )
 
                 d = f.create_dataset(

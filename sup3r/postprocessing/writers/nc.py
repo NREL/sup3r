@@ -56,13 +56,17 @@ class OutputHandlerNC(OutputHandler):
             List of coordinate indices used to label each lat lon pair and to
             help with spatial chunk data collection
         """
+
+        data = cls.enforce_limits(features=features, data=data)
+
         coords = {
             Dimension.TIME: times,
             Dimension.LATITUDE: (Dimension.dims_2d(), lat_lon[:, :, 0]),
             Dimension.LONGITUDE: (Dimension.dims_2d(), lat_lon[:, :, 1]),
         }
-
-        data_vars = {'gids': (Dimension.dims_2d(), gids)}
+        data_vars = {}
+        if gids is not None:
+            data_vars = {'gids': (Dimension.dims_2d(), gids)}
         for i, f in enumerate(features):
             data_vars[f] = (
                 (Dimension.TIME, *Dimension.dims_2d()),

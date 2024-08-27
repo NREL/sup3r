@@ -142,10 +142,11 @@ class ForwardPass:
         out = np.pad(input_data, (*pad_width, (0, 0)), mode=mode)
         logger.info(
             'Padded input data shape from %s to %s using mode "%s" '
-            'with padding argument: {pad_width}',
+            'with padding argument: %s',
             input_data.shape,
             out.shape,
             mode,
+            pad_width
         )
 
         if exo_data is not None:
