@@ -77,9 +77,11 @@ class DataHandlerNCforCC(BaseNCforCC):
         """Rasterizer hook implementation to add 'clearsky_ghi' data to
         rasterized data, which will then be used when the :class:`Deriver` is
         called."""
-        if any(
-            f in self._features for f in ('clearsky_ratio', 'clearsky_ghi')
-        ):
+        cs_feats = ['clearsky_ratio', 'clearsky_ghi']
+        need_ghi = any(
+            f in self._features and f not in self.rasterizer for f in cs_feats
+        )
+        if need_ghi:
             self.rasterizer.data['clearsky_ghi'] = self.get_clearsky_ghi()
 
     def run_input_checks(self):
