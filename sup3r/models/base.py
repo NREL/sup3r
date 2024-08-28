@@ -153,6 +153,41 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         logger.info('Saved GAN to disk in directory: {}'.format(out_dir))
 
     @classmethod
+    def _load(cls, model_dir, verbose=True):
+        """Get gen, disc, and params for given model_dir.
+
+        Parameters
+        ----------
+        model_dir : str
+            Directory to load GAN model files from.
+        verbose : bool
+            Flag to log information about the loaded model.
+
+        Returns
+        -------
+        fp_gen : str
+            Path to generator model
+        fp_disc : str
+            Path to discriminator model
+        params : dict
+            Dictionary of model params to be used in model initialization
+        """
+        if verbose:
+            logger.info(
+                'Loading GAN from disk in directory: {}'.format(model_dir)
+            )
+            msg = 'Active python environment versions: \n{}'.format(
+                pprint.pformat(VERSION_RECORD, indent=4)
+            )
+            logger.info(msg)
+
+        fp_gen = os.path.join(model_dir, 'model_gen.pkl')
+        fp_disc = os.path.join(model_dir, 'model_disc.pkl')
+        params = cls.load_saved_params(model_dir, verbose=verbose)
+
+        return fp_gen, fp_disc, params
+
+    @classmethod
     def load(cls, model_dir, verbose=True):
         """Load the GAN with its sub-networks from a previously saved-to output
         directory.
@@ -169,19 +204,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         out : BaseModel
             Returns a pretrained gan model that was previously saved to out_dir
         """
-        if verbose:
-            logger.info(
-                'Loading GAN from disk in directory: {}'.format(model_dir)
-            )
-            msg = 'Active python environment versions: \n{}'.format(
-                pprint.pformat(VERSION_RECORD, indent=4)
-            )
-            logger.info(msg)
-
-        fp_gen = os.path.join(model_dir, 'model_gen.pkl')
-        fp_disc = os.path.join(model_dir, 'model_disc.pkl')
-        params = cls.load_saved_params(model_dir, verbose=verbose)
-
+        fp_gen, fp_disc, params = cls._load(model_dir, verbose=verbose)
         return cls(fp_gen, fp_disc, **params)
 
     @property
