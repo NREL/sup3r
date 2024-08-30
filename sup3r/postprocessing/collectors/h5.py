@@ -2,14 +2,12 @@
 
 import logging
 import os
-import time
 from glob import glob
 from warnings import warn
 
 import dask
 import numpy as np
 import pandas as pd
-from gaps import Status
 from rex.utilities.loggers import init_logger
 from scipy.spatial import KDTree
 
@@ -210,7 +208,9 @@ class CollectorH5(BaseCollector):
                 time_index = f.time_index
         if file not in self.file_attrs:
             self.file_attrs[file] = {'meta': meta, 'time_index': time_index}
-        logger.debug('Finished getting info for file: %s', file)
+        logger.debug(
+            'Finished getting info for file: %s. %s', file, _mem_check()
+        )
         return meta, time_index
 
     def get_unique_chunk_files(self, file_paths):
@@ -228,12 +228,12 @@ class CollectorH5(BaseCollector):
         """
         t_chunk, s_chunk = self.get_chunk_indices(file_paths[0])
         t_files = file_paths[0].replace(f'{t_chunk}_{s_chunk}', f'*_{s_chunk}')
-        t_files = glob(t_files)
+        t_files = set(glob(t_files)).intersection(file_paths)
         logger.info('Found %s unique temporal chunks', len(t_files))
         s_files = file_paths[0].replace(f'{t_chunk}_{s_chunk}', f'{t_chunk}_*')
-        s_files = glob(s_files)
+        s_files = set(glob(s_files)).intersection(file_paths)
         logger.info('Found %s unique spatial chunks', len(s_files))
-        return s_files + t_files
+        return list(s_files) + list(t_files)
 
     def _get_collection_attrs(
         self, file_paths, sort=True, sort_key=None, max_workers=None
@@ -276,7 +276,7 @@ class CollectorH5(BaseCollector):
 
         logger.info(
             'Getting collection attrs for full dataset with '
-            f'max_workers={max_workers}.'
+            'max_workers=%s. %s', max_workers, _mem_check()
         )
 
         time_index = [None] * len(file_paths)
@@ -289,8 +289,14 @@ class CollectorH5(BaseCollector):
             out = dask.compute(
                 *tasks, scheduler='threads', num_workers=max_workers
             )
+        logger.info(
+            'Finished getting meta and time_index for all unique chunks.'
+        )
         for i, vals in enumerate(out):
             meta[i], time_index[i] = vals
+            logger.debug(
+                'Finished filling arrays for file %s. %s', i, _mem_check()
+            )
         time_index = pd.DatetimeIndex(np.concatenate(time_index))
         time_index = time_index.sort_values()
         time_index = time_index.drop_duplicates()
@@ -300,6 +306,7 @@ class CollectorH5(BaseCollector):
             meta = meta.drop_duplicates(subset=['latitude', 'longitude'])
         meta = meta.sort_values('gid')
 
+        logger.info('Finished building full meta and time index.')
         return time_index, meta
 
     def get_target_and_masked_meta(
@@ -403,21 +410,20 @@ class CollectorH5(BaseCollector):
         """
         logger.info(f'Using target_meta_file={target_meta_file}')
         if isinstance(target_meta_file, str):
-            msg = (
-                f'Provided target meta ({target_meta_file}) does not ' 'exist.'
-            )
+            msg = f'Provided target meta ({target_meta_file}) does not exist.'
             assert os.path.exists(target_meta_file), msg
 
         time_index, meta = self._get_collection_attrs(
             file_paths, sort=sort, sort_key=sort_key, max_workers=max_workers
         )
-
+        logger.info('Getting target and masked meta.')
         target_meta, masked_meta = self.get_target_and_masked_meta(
             meta, target_meta_file, threshold=threshold
         )
 
         shape = (len(time_index), len(target_meta))
 
+        logger.info('Getting global attrs from %s', file_paths[0])
         with RexOutputs(file_paths[0], mode='r') as fin:
             global_attrs = fin.global_attrs
 
@@ -652,9 +658,6 @@ class CollectorH5(BaseCollector):
         max_workers=None,
         log_level=None,
         log_file=None,
-        write_status=False,
-        job_name=None,
-        pipeline_step=None,
         target_meta_file=None,
         n_writes=None,
         overwrite=True,
@@ -709,8 +712,6 @@ class CollectorH5(BaseCollector):
         threshold : float
             Threshold distance for finding target coordinates within full meta
         """
-        t0 = time.time()
-
         logger.info(
             'Initializing collection for file_paths=%s with max_workers=%s',
             file_paths,
@@ -794,18 +795,5 @@ class CollectorH5(BaseCollector):
                         target_masked_meta,
                         max_workers=max_workers,
                     )
-
-        if write_status and job_name is not None:
-            status = {
-                'out_dir': os.path.dirname(out_file),
-                'fout': out_file,
-                'flist': collector.flist,
-                'job_status': 'successful',
-                'runtime': (time.time() - t0) / 60,
-            }
-            pipeline_step = pipeline_step or 'collect'
-            Status.make_single_job_file(
-                os.path.dirname(out_file), pipeline_step, job_name, status
-            )
 
         logger.info('Finished file collection.')
