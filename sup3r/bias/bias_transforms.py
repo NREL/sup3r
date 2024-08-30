@@ -792,10 +792,94 @@ def apply_presrat_bc(data, time_index, base_params, bias_params,
                      bias_fut_params, bias_tau_fut, k_factor,
                      time_window_center, dist='empirical', sampling='invlog',
                      log_base=10, relative=True, no_trend=False,
-                     zero_rate_threshold=1.182033e-07, out_range=None,
+                     zero_rate_threshold=1.157e-7, out_range=None,
                      max_workers=1):
     """Run PresRat to bias correct data from input parameters and not from bias
-    correction file on disk."""
+    correction file on disk.
+
+    Parameters
+    ----------
+    data : np.ndarray
+        Sup3r input data to be bias corrected, assumed to be 3D with shape
+        (spatial, spatial, temporal) for a single feature.
+    time_index : pd.DatetimeIndex
+        A DatetimeIndex object associated with the input data temporal axis
+        (assumed 3rd axis e.g. axis=2).
+    base_params : np.ndarray
+        4D array of **observed historical** distribution parameters created
+        from a multi-year set of data where the shape is
+        (space, space, time, N). This can be the
+        output of a parametric distribution fit like
+        ``scipy.stats.weibull_min.fit()`` where N is the number of parameters
+        for that distribution, or this can define the x-values of N points from
+        an empirical CDF that will be linearly interpolated between. If this is
+        an empirical CDF, this must include the 0th and 100th percentile values
+        and have even percentile spacing between values.
+    bias_params : np.ndarray
+        Same requirements as params_oh. This input arg is for the **modeled
+        historical distribution**.
+    bias_fut_params : np.ndarray | None
+        Same requirements as params_oh. This input arg is for the **modeled
+        future distribution**. If this is None, this defaults to params_mh
+        (no future data, just corrected to modeled historical distribution)
+    bias_tau_fut : np.ndarray
+        Zero precipitation threshold for future data calculated from presrat
+        without temporal dependence with shape (spatial, spatial, 1)
+    k_factor : np.ndarray
+        K factor from the presrat method with shape (spatial, spatial, N) where
+        N is the number of time observations at which the bias correction is
+        calculated
+    time_window_center : np.ndarray
+        Sequence of days of the year equally spaced and shifted by half
+        window size, thus `ntimes`=12 results in approximately [15, 45,
+        ...]. It includes the fraction of a day, thus 15.5 is equivalent
+        to January 15th, 12:00h. Shape is (N,)
+    dist : str
+        Probability distribution name to use to model the data which
+        determines how the param args are used. This can "empirical" or any
+        continuous distribution name from ``scipy.stats``.
+    sampling : str | np.ndarray
+        If dist="empirical", this is an option for how the quantiles were
+        sampled to produce the params inputs, e.g., how to sample the
+        y-axis of the distribution (see sampling functions in
+        ``rex.utilities.bc_utils``). "linear" will do even spacing, "log"
+        will concentrate samples near quantile=0, and "invlog" will
+        concentrate samples near quantile=1. Can also be a 1D array of dist
+        inputs if being used from reV, but they must all be the same
+        option.
+    log_base : int | float | np.ndarray
+        Log base value if sampling is "log" or "invlog". A higher value
+        will concentrate more samples at the extreme sides of the
+        distribution. Can also be a 1D array of dist inputs if being used
+        from reV, but they must all be the same option.
+    relative : bool | np.ndarray
+        Flag to preserve relative rather than absolute changes in
+        quantiles. relative=False (default) will multiply by the change in
+        quantiles while relative=True will add. See Equations 4-6 from
+        Cannon et al., 2015 for more details. Can also be a 1D array of
+        dist inputs if being used from reV, but they must all be the same
+        option.
+    no_trend : bool, default=False
+        An option to ignore the trend component of the correction, thus
+        resulting in an ordinary Quantile Mapping, i.e. corrects the bias by
+        comparing the distributions of the biased dataset with a reference
+        datasets, without reinforcing the zero rate or applying the k-factor.
+        See ``params_mf`` of
+        :class:`rex.utilities.bc_utils.QuantileDeltaMapping`. Note that this
+        assumes that params_mh is the data distribution representative for the
+        target data.
+    zero_rate_threshold : float, default=1.157e-7
+        Threshold value used to determine the zero rate in the observed
+        historical dataset and the minimum value in the denominator in relative
+        QDM. For instance, 0.01 means that anything less than that will be
+        considered negligible, hence equal to zero. Dai 2006 defined this as
+        1mm/day. Pierce 2015 used 0.01mm/day. We recommend 0.01mm/day
+        (1.157e-7 kg/m2/s).
+    out_range : None | tuple
+        Option to set floor/ceiling values on the output data.
+    max_workers : int | None
+        Max number of workers to use for QDM process pool
+    """
 
     data_unbiased = np.full_like(data, np.nan)
     closest_time_idx = abs(time_window_center[:, np.newaxis]

@@ -96,19 +96,39 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
 
     @classmethod
     def calc_tau_fut(cls, base_data, bias_data, bias_fut_data,
-                     corrected_fut_data, zero_rate_threshold=1.182033e-07):
+                     corrected_fut_data, zero_rate_threshold=1.157e-7):
         """Calculate a precipitation threshold (tau) that preserves the
         model-predicted changes in fraction of dry days at a single spatial
         location.
 
+        Parameters
+        ----------
+        base_data : np.ndarray
+            A 1D array of (usually) daily precipitation observations from a
+            historical dataset like Daymet
+        bias_data : np.ndarray
+            A 1D array of (usually) daily precipitation historical climate
+            simulation outputs from a GCM dataset from CMIP6
+        bias_future_data : np.ndarray
+            A 1D array of (usually) daily precipitation future (e.g., ssp245)
+            climate simulation outputs from a GCM dataset from CMIP6
+        corrected_fut_data : np.ndarray
+            Bias corrected bias_future_data usually with relative QDM
+        zero_rate_threshold : float, default=1.157e-7
+            Threshold value used to determine the zero rate in the observed
+            historical dataset. For instance, 0.01 means that anything less
+            than that will be considered negligible, hence equal to zero. Dai
+            2006 defined this as 1mm/day. Pierce 2015 used 0.01mm/day. We
+            recommend 0.01mm/day (1.157e-7 kg/m2/s).
+
         Returns
         -------
-        obs_zero_rate : float
-            Rate of dry days in the observed historical data.
         tau_fut : float
             Precipitation threshold that will preserve the model predicted
             changes in fraction of dry days. Precipitation less than this value
             in the modeled future data can be set to zero.
+        obs_zero_rate : float
+            Rate of dry days in the observed historical data.
         """
 
         # Step 1: Define zero rate from observations
@@ -144,10 +164,48 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         """Calculate the K factor at a single spatial location that will
         preserve the original model-predicted mean change in precipitation
 
+        Parameters
+        ----------
+        base_data : np.ndarray
+            A 1D array of (usually) daily precipitation observations from a
+            historical dataset like Daymet
+        bias_data : np.ndarray
+            A 1D array of (usually) daily precipitation historical climate
+            simulation outputs from a GCM dataset from CMIP6
+        bias_future_data : np.ndarray
+            A 1D array of (usually) daily precipitation future (e.g., ssp245)
+            climate simulation outputs from a GCM dataset from CMIP6
+        corrected_fut_data : np.ndarray
+            Bias corrected bias_future_data usually with relative QDM
+        base_ti : pd.DatetimeIndex
+            Datetime index associated with bias_data and of the same length
+        bias_fut_ti : pd.DatetimeIndex
+            Datetime index associated with bias_fut_data and of the same length
+        window_center : np.ndarray
+            Sequence of days of the year equally spaced and shifted by half
+            window size, thus `ntimes`=12 results in approximately [15, 45,
+            ...]. It includes the fraction of a day, thus 15.5 is equivalent
+            to January 15th, 12:00h. Shape is (N,)
+        window_size : int
+            Total time window period in days to be considered for each time QDM
+            is calculated. For instance, `window_size=30` with
+            `n_time_steps=12` would result in approximately monthly estimates.
+        n_time_steps : int
+            Number of times to calculate QDM parameters equally distributed
+            along a year. For instance, `n_time_steps=1` results in a single
+            set of parameters while `n_time_steps=12` is approximately every
+            month.
+        zero_rate_threshold : float, default=1.157e-7
+            Threshold value used to determine the zero rate in the observed
+            historical dataset. For instance, 0.01 means that anything less
+            than that will be considered negligible, hence equal to zero. Dai
+            2006 defined this as 1mm/day. Pierce 2015 used 0.01mm/day. We
+            recommend 0.01mm/day (1.157e-7 kg/m2/s).
+
         Returns
         -------
         k : np.ndarray
-            K factor from the Pierce 2015 paper with shape (number_of_time,)
+            K factor from the Pierce 2015 paper with shape (n_time_steps,)
             for a single spatial location.
         """
 
@@ -277,7 +335,7 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         fill_extend=True,
         smooth_extend=0,
         smooth_interior=0,
-        zero_rate_threshold=1.182033e-07,
+        zero_rate_threshold=1.157e-7,
     ):
         """Estimate the required information for PresRat correction
 
@@ -307,12 +365,12 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
             extreme values within aggregations over large number of pixels.
             This value is the standard deviation for the gaussian_filter
             kernel.
-        zero_rate_threshold : float, default=1.182033e-07
+        zero_rate_threshold : float, default=1.157e-7
             Threshold value used to determine the zero rate in the observed
             historical dataset. For instance, 0.01 means that anything less
             than that will be considered negligible, hence equal to zero. Dai
             2006 defined this as 1mm/day. Pierce 2015 used 0.01mm/day. We
-            recommend 0.01mm/day (1.182033e-07 kg/m2/s).
+            recommend 0.01mm/day (1.157e-7 kg/m2/s).
 
         Returns
         -------
