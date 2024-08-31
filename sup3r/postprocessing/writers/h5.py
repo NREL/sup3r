@@ -149,7 +149,7 @@ class OutputHandlerH5(OutputHandler):
             data, features, lat_lon, max_workers=max_workers
         )
         features = cls.get_renamed_features(features)
-        data = cls.enforce_limits(features, data)
+        data = cls.enforce_limits(features=features, data=data)
         return data, features
 
     @classmethod

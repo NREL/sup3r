@@ -381,7 +381,7 @@ class OutputHandler(OutputMixin):
             mins.append(min_val)
 
         data = np.maximum(data, mins)
-        return np.minimum(data, maxes)
+        return np.minimum(data, maxes).astype(np.float32)
 
     @staticmethod
     def pad_lat_lon(lat_lon):
