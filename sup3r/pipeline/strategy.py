@@ -8,6 +8,7 @@ import pathlib
 import pprint
 import warnings
 from dataclasses import dataclass
+from functools import cached_property
 from typing import Dict, Optional, Tuple, Union
 
 import dask.array as da
@@ -220,11 +221,8 @@ class ForwardPassStrategy:
             temporal_pad=self.temporal_pad,
         )
         self.n_chunks = self.fwp_slicer.n_chunks
-        self.out_files = self.get_out_files(out_files=self.out_pattern)
-        self.node_chunks = self._get_node_chunks()
 
         if not self.head_node:
-            self.hr_lat_lon = self.get_hr_lat_lon()
             hr_shape = self.hr_lat_lon.shape[:-1]
             self.gids = np.arange(np.prod(hr_shape)).reshape(hr_shape)
             self.exo_data = self.timer(self.load_exo_data, log=True)(model)
@@ -276,25 +274,13 @@ class ForwardPassStrategy:
         features = [f for f in model.lr_features if f not in exo_features]
         return features, exo_features
 
-    def _get_node_chunks(self):
+    @cached_property
+    def node_chunks(self):
         """Get array of lists such that node_chunks[i] is a list of
         indices for the ith node indexing the chunks that will be sent through
         the generator on the ith node."""
-        logger.info('Checking for unfinished chunks.')
-        unfinished_chunks = [
-            n
-            for n in range(self.n_chunks)
-            if not self.chunk_finished(chunk_idx=n, log=False)
-        ]
-        logger.info(
-            '%s of %s chunks are unfinished.',
-            len(unfinished_chunks),
-            self.n_chunks,
-        )
-        node_chunks = min(
-            self.max_nodes or np.inf, max((1, len(unfinished_chunks)))
-        )
-        return np.array_split(unfinished_chunks, node_chunks)
+        node_chunks = min(self.max_nodes or np.inf, self.n_chunks)
+        return np.array_split(np.arange(self.n_chunks), node_chunks)
 
     def _get_fwp_chunk_shape(self):
         """Get fwp_chunk_shape with default shape equal to the input handler
@@ -341,7 +327,8 @@ class ForwardPassStrategy:
             chunk_index // self.fwp_slicer.n_spatial_chunks,
         )
 
-    def get_hr_lat_lon(self):
+    @cached_property
+    def hr_lat_lon(self):
         """Get high resolution lat lons"""
         lr_lat_lon = self.input_handler.lat_lon
         shape = tuple(d * self.s_enhance for d in lr_lat_lon.shape[:-1])
@@ -350,33 +337,22 @@ class ForwardPassStrategy:
         )
         return OutputHandler.get_lat_lon(lr_lat_lon, shape)
 
-    def get_out_files(self, out_files):
-        """Get output file names for each file chunk forward pass
-
-        Parameters
-        ----------
-        out_files : str
-            Output file pattern. Needs to include a {file_id} format key.
-            Each output file will have a unique file_id filled in and the
-            extension determines the output type.
-
-        Returns
-        -------
-        list
-            List of output file paths
-        """
+    @cached_property
+    def out_files(self):
+        """Get list of output file names for each file chunk forward pass."""
         file_ids = [
             f'{str(i).zfill(6)}_{str(j).zfill(6)}'
             for i in range(self.fwp_slicer.n_time_chunks)
             for j in range(self.fwp_slicer.n_spatial_chunks)
         ]
         out_file_list = [None] * len(file_ids)
-        if out_files is not None:
+        if self.out_pattern is not None:
             msg = 'out_pattern must include a {file_id} format key'
-            assert '{file_id}' in out_files, msg
-            os.makedirs(os.path.dirname(out_files), exist_ok=True)
+            assert '{file_id}' in self.out_pattern, msg
+            os.makedirs(os.path.dirname(self.out_pattern), exist_ok=True)
             out_file_list = [
-                out_files.format(file_id=file_id) for file_id in file_ids
+                self.out_pattern.format(file_id=file_id)
+                for file_id in file_ids
             ]
         return out_file_list
 
@@ -569,7 +545,11 @@ class ForwardPassStrategy:
         is False."""
 
         out_file = self.out_files[chunk_idx]
-        check = os.path.exists(out_file) and self.incremental
+        check = (
+            out_file is not None
+            and os.path.exists(out_file)
+            and self.incremental
+        )
         if check and log:
             logger.info(
                 '%s already exists and incremental = True. Skipping forward '
