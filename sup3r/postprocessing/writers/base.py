@@ -28,7 +28,7 @@ OUTPUT_ATTRS = {
     'u': {
         'scale_factor': 100.0,
         'units': 'm s-1',
-        'dtype': 'uint16',
+        'dtype': 'int16',
         'chunks': (2000, 500),
         'min': -120,
         'max': 120,
@@ -36,7 +36,7 @@ OUTPUT_ATTRS = {
     'v': {
         'scale_factor': 100.0,
         'units': 'm s-1',
-        'dtype': 'uint16',
+        'dtype': 'int16',
         'chunks': (2000, 500),
         'min': -120,
         'max': 120,

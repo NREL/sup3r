@@ -17,7 +17,10 @@ from sup3r.preprocessing.derivers.utilities import (
     invert_uv,
     transform_rotate_wind,
 )
-from sup3r.utilities.pytest.helpers import make_fake_h5_chunks
+from sup3r.utilities.pytest.helpers import (
+    make_collect_chunks,
+    make_fake_h5_chunks,
+)
 from sup3r.utilities.utilities import RANDOM_GENERATOR
 
 
@@ -123,6 +126,38 @@ def test_invert_uv_inplace():
 
     assert np.allclose(data[..., 0], ws)
     assert np.allclose(data[..., 1], wd)
+
+
+def test_general_collect():
+    """Make sure general file collection gives complete meta, time_index, and
+    data array."""
+
+    with tempfile.TemporaryDirectory() as td:
+        fp_out = os.path.join(td, 'out_combined.h5')
+
+        out = make_collect_chunks(td)
+        out_files, data, features, hr_lat_lon, hr_times = (
+            out[0],
+            out[1],
+            out[-3],
+            out[-2],
+            out[-1],
+        )
+
+        CollectorH5.collect(out_files, fp_out, features=features)
+
+        with ResourceX(fp_out) as res:
+            lat_lon = res['meta'][['latitude', 'longitude']].values
+            time_index = res['time_index'].values
+            collect_data = np.dstack([res[f, :, :] for f in features])
+            base_data = data.transpose(2, 0, 1, 3).reshape(
+                (len(hr_times), -1, len(features))
+            )
+            base_data = np.around(base_data.astype(np.float32), 2)
+            hr_lat_lon = hr_lat_lon.astype(np.float32)
+            assert np.array_equal(hr_times, time_index)
+            assert np.array_equal(hr_lat_lon.reshape((-1, 2)), lat_lon)
+            assert np.array_equal(base_data, collect_data)
 
 
 def test_h5_out_and_collect(collect_check):
