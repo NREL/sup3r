@@ -1,4 +1,8 @@
-"""sup3r solar CLI entry points."""
+"""sup3r solar CLI entry points.
+
+TODO: This should be modified to enable distribution of file groups across
+nodes instead of requesting a node for a single file
+"""
 import copy
 import logging
 import os

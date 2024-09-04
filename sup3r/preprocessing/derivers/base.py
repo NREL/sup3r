@@ -319,6 +319,7 @@ class Deriver(BaseDeriver):
         data: Union[Sup3rX, Sup3rDataset],
         features,
         time_roll=0,
+        time_shift=None,
         hr_spatial_coarsen=1,
         nan_method_kwargs=None,
         FeatureRegistry=None,
@@ -332,8 +333,13 @@ class Deriver(BaseDeriver):
         features: list
             List of features to derive
         time_roll: int
-            Number of steps to shift the time axis. `Passed to
+            Number of steps to roll along the time axis. `Passed to
             xr.Dataset.roll()`
+        time_shift: int | None
+            Number of minutes to shift time axis. This can be used, for
+            example, to shift the time index for daily data so that the time
+            stamp for a given day starts at the zeroth minute instead of at
+            noon, as is the case for most GCM data.
         hr_spatial_coarsen: int
             Spatial coarsening factor. Passed to `xr.Dataset.coarsen()`
         nan_method_kwargs: str | dict | None
@@ -357,6 +363,12 @@ class Deriver(BaseDeriver):
         if time_roll != 0:
             logger.debug('Applying time_roll=%s to data array', time_roll)
             self.data = self.data.roll(**{Dimension.TIME: time_roll})
+
+        if time_shift is not None:
+            logger.debug('Applying time_shift=%s to time index', time_shift)
+            self.data.time_index = self.data.time_index.shift(
+                time_shift, freq='min'
+            )
 
         if hr_spatial_coarsen > 1:
             logger.debug(
