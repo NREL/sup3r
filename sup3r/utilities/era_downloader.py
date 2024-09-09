@@ -550,32 +550,52 @@ class EraDownloader:
         """
         variables = variables if isinstance(variables, list) else [variables]
         for var in variables:
-            downloader = cls(
-                year=year,
-                month=month,
-                area=area,
-                levels=levels,
-                monthly_file_pattern=monthly_file_pattern,
-                overwrite=overwrite,
-                variables=[var],
-                product_type=product_type,
+            try:
+                downloader = cls(
+                    year=year,
+                    month=month,
+                    area=area,
+                    levels=levels,
+                    monthly_file_pattern=monthly_file_pattern,
+                    overwrite=overwrite,
+                    variables=[var],
+                    product_type=product_type,
+                )
+                downloader.get_monthly_file()
+            except Exception as e:
+                msg = (
+                    'Failed to download monthly data for variable = %s, '
+                    'month = %s, year = %s. This was likely an issue with '
+                    'the CDSAPI. Try again later. %s'
+                )
+                logger.warning(msg, var, month, year, e)
+                warn(msg % (var, month, year, e))
+        try:
+            cls.make_monthly_file(year, month, monthly_file_pattern, variables)
+        except Exception as e:
+            msg = (
+                'Could not make monthly file for month = %s, year = %s. '
+                'This was likely caused by a CDSAPI issue when downloading '
+                'some of the variables. %s'
             )
-            downloader.get_monthly_file()
+            logger.warning(msg, month, year, e)
+            warn(msg % (month, year, e))
 
     @classmethod
-    def run_year(
+    def run(
         cls,
         year,
         area,
         levels,
         monthly_file_pattern,
+        months=None,
         yearly_file=None,
         overwrite=False,
         max_workers=None,
         variables=None,
         product_type='reanalysis',
     ):
-        """Run routine for all months in the requested year.
+        """Run routine for all requested months in the requested year.
 
         Parameters
         ----------
@@ -589,6 +609,9 @@ class EraDownloader:
         monthly_file_pattern : str
             Pattern for combined monthly output file. Must include year and
             month format keys.  e.g. 'era5_{year}_{month}_combined.nc'
+        months : list | None
+            List of months to download data for. If None then all months for
+            the given year will be downloaded.
         yearly_file : str
             Name of yearly file made from monthly combined files.
         overwrite : bool
@@ -619,7 +642,8 @@ class EraDownloader:
         ), msg
 
         tasks = []
-        for month in range(1, 13):
+        months = list(range(1, 13)) if months is None else months
+        for month in months:
             for var in variables:
                 task = dask.delayed(cls.run_month)(
                     year=year,
@@ -638,11 +662,17 @@ class EraDownloader:
         else:
             dask.compute(*tasks, scheduler='threads', num_workers=max_workers)
 
-        for month in range(1, 13):
-            cls.make_monthly_file(year, month, monthly_file_pattern, variables)
-
         if yearly_file is not None:
-            cls.make_yearly_file(year, monthly_file_pattern, yearly_file)
+            try:
+                cls.make_yearly_file(year, monthly_file_pattern, yearly_file)
+            except Exception as e:
+                msg = (
+                    'Could not make yearly file for year = %s. This was '
+                    'likely caused by a CDSAPI issue when downloading '
+                    'some of the variables. %s'
+                )
+                logger.warning(msg, year, e)
+                warn(msg % (year, e))
 
     @classmethod
     def make_monthly_file(cls, year, month, file_pattern, variables):
