@@ -2,7 +2,6 @@
 
 import logging
 import os
-from glob import glob
 from warnings import warn
 
 import dask
@@ -235,14 +234,20 @@ class CollectorH5(BaseCollector):
             Explicit list of str file paths which, when combined, provide the
             entire temporal extent.
         """
-        t_chunk, s_chunk = self.get_chunk_indices(file_paths[0])
-        t_files = file_paths[0].replace(f'{t_chunk}_{s_chunk}', f'*_{s_chunk}')
-        t_files = set(glob(t_files)).intersection(file_paths)
+        t_files = {}
+        s_files = {}
+        for f in file_paths:
+            t_chunk, s_chunk = self.get_chunk_indices(f)
+            if t_chunk not in t_files:
+                t_files[t_chunk] = f
+            if s_chunk not in s_files:
+                s_files[s_chunk] = f
+
+        t_files = list(t_files.values())
+        s_files = list(s_files.values())
         logger.info('Found %s unique temporal chunks', len(t_files))
-        s_files = file_paths[0].replace(f'{t_chunk}_{s_chunk}', f'{t_chunk}_*')
-        s_files = set(glob(s_files)).intersection(file_paths)
         logger.info('Found %s unique spatial chunks', len(s_files))
-        return list(t_files), list(s_files)
+        return t_files, s_files
 
     def _get_collection_attrs(self, file_paths, max_workers=None):
         """Get important dataset attributes from a file list to be collected.

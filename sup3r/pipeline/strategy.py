@@ -75,7 +75,13 @@ class ForwardPassStrategy:
         A list of low-resolution source files to extract raster data from.
         Each file must have the same number of timesteps. Can also pass a
         string with a unix-style file path which will be passed through
-        glob.glob
+        glob.glob.
+
+        Note: These files can also include a "mask" variable which is True for
+        grid points which can be skipped in the forward pass and False
+        otherwise. This will be used to skip running the forward pass for
+        chunks which only include masked points. e.g. chunks covering only
+        ocean.
     model_kwargs : str | list
         Keyword arguments to send to ``model_class.load(**model_kwargs)`` to
         initialize the GAN. Typically this is just the string path to the
@@ -264,7 +270,6 @@ class ForwardPassStrategy:
         features = [] if self.head_node else self.features
         input_handler_kwargs['features'] = features
         input_handler_kwargs['time_slice'] = slice(None)
-
         return InputHandler(**input_handler_kwargs)
 
     def _init_features(self, model):
@@ -430,7 +435,7 @@ class ForwardPassStrategy:
         input_data = self.input_handler.isel(**kwargs)
         input_data.load()
 
-        if self.bias_correct_kwargs is not None:
+        if self.bias_correct_kwargs != {}:
             logger.info(
                 f'Bias correcting data for chunk_index={chunk_index}, '
                 f'with shape={input_data.shape}'
@@ -558,3 +563,36 @@ class ForwardPassStrategy:
                 chunk_idx,
             )
         return check
+
+    @cached_property
+    def fwp_mask(self):
+        """Cached spatial mask which returns whether a given spatial chunk
+        should be skipped by the forward pass or not. This is used to skip
+        running the forward pass for area with just ocean, for example."""
+
+        mask = np.zeros(len(self.lr_pad_slices))
+        InputHandler = get_input_handler_class(self.input_handler_name)
+        input_handler_kwargs = copy.deepcopy(self.input_handler_kwargs)
+        input_handler_kwargs['features'] = 'all'
+        handler = InputHandler(**input_handler_kwargs)
+        if 'mask' in handler:
+            mask_vals = handler['mask'].values
+            for s_chunk_idx, lr_slices in enumerate(self.lr_pad_slices):
+                mask_check = mask_vals[lr_slices[0], lr_slices[1]]
+                mask[s_chunk_idx] = bool(np.prod(mask_check.flatten()))
+        return mask
+
+    def chunk_masked(self, chunk_idx, log=True):
+        """Check if the region for this chunk is masked. This is used to skip
+        running the forward pass for region with just ocean, for example."""
+
+        s_chunk_idx, _ = self.get_chunk_indices(chunk_idx)
+        mask_check = self.fwp_mask[s_chunk_idx]
+        if mask_check and log:
+            logger.info(
+                'Chunk %s has spatial chunk index %s, which corresponds to a '
+                'masked spatial region. Skipping forward pass for this chunk.',
+                chunk_idx,
+                s_chunk_idx,
+            )
+        return mask_check
