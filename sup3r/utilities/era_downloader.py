@@ -412,9 +412,17 @@ class EraDownloader:
             for f in set(ds.data_vars) - set(added_features):
                 mode = 'w' if not os.path.exists(tmp_file) else 'a'
                 logger.info('Adding %s to %s.', f, tmp_file)
-                ds.data[f].load().to_netcdf(
-                    tmp_file, mode=mode, format='NETCDF4', engine='h5netcdf'
-                )
+                try:
+                    ds.data[f].load().to_netcdf(
+                        tmp_file,
+                        mode=mode,
+                        format='NETCDF4',
+                        engine='h5netcdf',
+                    )
+                except Exception as e:
+                    msg = 'Error adding %s from %s to %s. %s'
+                    logger.error(msg, f, file, tmp_file, e)
+                    raise RuntimeError from e
                 logger.info('Added %s to %s.', f, tmp_file)
                 added_features.append(f)
         logger.info(f'Finished writing {tmp_file}')
@@ -561,6 +569,7 @@ class EraDownloader:
                 product_type=product_type,
             )
             downloader.get_monthly_file()
+        cls.make_monthly_file(year, month, monthly_file_pattern, variables)
 
     @classmethod
     def run_year(
@@ -637,9 +646,6 @@ class EraDownloader:
             dask.compute(*tasks, scheduler='single-threaded')
         else:
             dask.compute(*tasks, scheduler='threads', num_workers=max_workers)
-
-        for month in range(1, 13):
-            cls.make_monthly_file(year, month, monthly_file_pattern, variables)
 
         if yearly_file is not None:
             cls.make_yearly_file(year, monthly_file_pattern, yearly_file)

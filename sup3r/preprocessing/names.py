@@ -127,6 +127,7 @@ DIM_NAMES = {
 
 # variables available on a single level (e.g. surface)
 SFC_VARS = [
+    'surface_sensible_heat_flux',
     '10m_u_component_of_wind',
     '10m_v_component_of_wind',
     '100m_u_component_of_wind',

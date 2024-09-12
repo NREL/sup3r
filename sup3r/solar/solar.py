@@ -35,6 +35,7 @@ class Solar:
         nsrdb_fp,
         t_slice=slice(None),
         tz=-6,
+        time_shift=None,
         agg_factor=1,
         nn_threshold=0.5,
         cloud_threshold=0.99,
@@ -66,6 +67,12 @@ class Solar:
             the GAN is trained on data in local time and therefore the output
             in sup3r_fps should be treated as local time. For example, -6 is
             CST which is default for CONUS training data.
+        time_shift : int | None
+            Number of hours to shift time axis. This can be used, for
+            example, to shift the time index for daily data so that the time
+            stamp for a given day starts at hour zero instead of at
+            noon, as is the case for most GCM data. In this case ``time_shift``
+            would be -12
         agg_factor : int
             Spatial aggregation factor for nsrdb-to-GAN-meta e.g. the number of
             NSRDB spatial pixels to average for a single sup3r GAN output site.
@@ -84,6 +91,7 @@ class Solar:
         self.nn_threshold = nn_threshold
         self.cloud_threshold = cloud_threshold
         self.tz = tz
+        self.time_shift = time_shift
         self._nsrdb_fp = nsrdb_fp
         self._sup3r_fps = sup3r_fps
         if isinstance(self._sup3r_fps, str):
@@ -195,7 +203,8 @@ class Solar:
         -------
         pd.DatetimeIndex
         """
-        return self.gan_data.time_index[self.t_slice]
+        ti = self.gan_data.time_index[self.t_slice]
+        return ti.shift(self.time_shift, freq='h')
 
     @property
     def out_of_bounds(self):
@@ -241,7 +250,8 @@ class Solar:
                 .mean()
                 .total_seconds()
             )
-            step = int(3600 // delta)
+
+            step = int(3600 / delta)
             self._nsrdb_tslice = slice(t0, t1, step)
 
             logger.debug(
@@ -608,14 +618,6 @@ class Solar:
         fp_out_suffix : str
             Suffix to add to the input sup3r source files when writing the
             processed solar irradiance data to new data files.
-        t_slice : slice
-            Slicing argument to slice the temporal axis of the sup3r_fps source
-            data after doing the tz roll to UTC but before returning the
-            irradiance variables. This can be used to effectively pad the solar
-            irradiance calculation in UTC time. For example, if sup3r_fps is 3
-            files each with 24 hours of data, t_slice can be slice(24, 48) to
-            only output the middle day of irradiance data, but padded by the
-            other two days for the UTC output.
         tz : int
             The timezone offset for the data in sup3r_fps. It is assumed that
             the GAN is trained on data in local time and therefore the output
