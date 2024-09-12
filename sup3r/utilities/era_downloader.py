@@ -412,9 +412,17 @@ class EraDownloader:
             for f in set(ds.data_vars) - set(added_features):
                 mode = 'w' if not os.path.exists(tmp_file) else 'a'
                 logger.info('Adding %s to %s.', f, tmp_file)
-                ds.data[f].load().to_netcdf(
-                    tmp_file, mode=mode, format='NETCDF4', engine='h5netcdf'
-                )
+                try:
+                    ds.data[f].load().to_netcdf(
+                        tmp_file,
+                        mode=mode,
+                        format='NETCDF4',
+                        engine='h5netcdf',
+                    )
+                except Exception as e:
+                    msg = 'Error adding %s from %s to %s. %s'
+                    logger.error(msg, f, file, tmp_file, e)
+                    raise RuntimeError from e
                 logger.info('Added %s to %s.', f, tmp_file)
                 added_features.append(f)
         logger.info(f'Finished writing {tmp_file}')
@@ -550,36 +558,18 @@ class EraDownloader:
         """
         variables = variables if isinstance(variables, list) else [variables]
         for var in variables:
-            try:
-                downloader = cls(
-                    year=year,
-                    month=month,
-                    area=area,
-                    levels=levels,
-                    monthly_file_pattern=monthly_file_pattern,
-                    overwrite=overwrite,
-                    variables=[var],
-                    product_type=product_type,
-                )
-                downloader.get_monthly_file()
-            except Exception as e:
-                msg = (
-                    'Failed to download monthly data for variable = %s, '
-                    'month = %s, year = %s. This was likely an issue with '
-                    'the CDSAPI. Try again later. %s'
-                )
-                logger.warning(msg, var, month, year, e)
-                warn(msg % (var, month, year, e))
-        try:
-            cls.make_monthly_file(year, month, monthly_file_pattern, variables)
-        except Exception as e:
-            msg = (
-                'Could not make monthly file for month = %s, year = %s. '
-                'This was likely caused by a CDSAPI issue when downloading '
-                'some of the variables. %s'
+            downloader = cls(
+                year=year,
+                month=month,
+                area=area,
+                levels=levels,
+                monthly_file_pattern=monthly_file_pattern,
+                overwrite=overwrite,
+                variables=[var],
+                product_type=product_type,
             )
-            logger.warning(msg, month, year, e)
-            warn(msg % (month, year, e))
+            downloader.get_monthly_file()
+        cls.make_monthly_file(year, month, monthly_file_pattern, variables)
 
     @classmethod
     def run(
@@ -662,17 +652,8 @@ class EraDownloader:
         else:
             dask.compute(*tasks, scheduler='threads', num_workers=max_workers)
 
-        if yearly_file is not None:
-            try:
-                cls.make_yearly_file(year, monthly_file_pattern, yearly_file)
-            except Exception as e:
-                msg = (
-                    'Could not make yearly file for year = %s. This was '
-                    'likely caused by a CDSAPI issue when downloading '
-                    'some of the variables. %s'
-                )
-                logger.warning(msg, year, e)
-                warn(msg % (year, e))
+        if yearly_file is not None and len(months) == 12:
+            cls.make_yearly_file(year, monthly_file_pattern, yearly_file)
 
     @classmethod
     def make_monthly_file(cls, year, month, file_pattern, variables):
