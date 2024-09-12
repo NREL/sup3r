@@ -29,6 +29,7 @@ ATTR_FP = os.path.join(ATTR_DIR, 'output_attrs.json')
 with open(ATTR_FP, 'r') as f:
     OUTPUT_ATTRS = json.load(f)
 
+
 class OutputMixin:
     """Methods used by various Output and Collection classes"""
 
