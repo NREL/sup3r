@@ -24,12 +24,10 @@ from sup3r.utilities.utilities import (
 
 logger = logging.getLogger(__name__)
 
-
 ATTR_DIR = os.path.dirname(os.path.realpath(__file__))
 ATTR_FP = os.path.join(ATTR_DIR, 'output_attrs.json')
 with open(ATTR_FP, 'r') as f:
     OUTPUT_ATTRS = json.load(f)
-
 
 class OutputMixin:
     """Methods used by various Output and Collection classes"""
@@ -274,7 +272,7 @@ class OutputHandler(OutputMixin):
             mins.append(min_val)
 
         data = np.maximum(data, mins)
-        return np.minimum(data, maxes)
+        return np.minimum(data, maxes).astype(np.float32)
 
     @staticmethod
     def pad_lat_lon(lat_lon):

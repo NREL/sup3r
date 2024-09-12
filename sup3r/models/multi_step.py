@@ -1,4 +1,8 @@
-"""Sup3r multi step model frameworks"""
+"""Sup3r multi step model frameworks
+
+TODO: SolarMultiStepGan can be cleaned up a little with the output padding and
+t_enhance argument moved to SolarCC.
+"""
 
 import json
 import logging
@@ -35,7 +39,7 @@ class MultiStepGan(AbstractInterface):
         return len(self._models)
 
     @classmethod
-    def load(cls, model_dirs, verbose=True):
+    def load(cls, model_dirs, model_kwargs=None, verbose=True):
         """Load the GANs with its sub-networks from a previously saved-to
         output directory.
 
@@ -44,6 +48,9 @@ class MultiStepGan(AbstractInterface):
         model_dirs : list | tuple
             An ordered list/tuple of one or more directories containing trained
             + saved Sup3rGan models created using the Sup3rGan.save() method.
+        model_kwargs : list | tuple
+            An ordered list/tuple of one or more dictionaries containing kwargs
+            for the corresponding model in model_dirs
         verbose : bool
             Flag to log information about the loaded model.
 
@@ -55,11 +62,14 @@ class MultiStepGan(AbstractInterface):
         """
 
         models = []
-
         if isinstance(model_dirs, str):
             model_dirs = [model_dirs]
 
-        for model_dir in model_dirs:
+        model_kwargs = model_kwargs or [{}] * len(model_dirs)
+        if isinstance(model_kwargs, dict):
+            model_kwargs = [model_kwargs]
+
+        for model_dir, kwargs in zip(model_dirs, model_kwargs):
             fp_params = os.path.join(model_dir, 'model_params.json')
             assert os.path.exists(fp_params), f'Could not find: {fp_params}'
             with open(fp_params) as f:
@@ -68,7 +78,9 @@ class MultiStepGan(AbstractInterface):
             meta = params.get('meta', {'class': 'Sup3rGan'})
             class_name = meta.get('class', 'Sup3rGan')
             Sup3rClass = getattr(sup3r.models, class_name)
-            models.append(Sup3rClass.load(model_dir, verbose=verbose))
+            models.append(
+                Sup3rClass.load(model_dir, verbose=verbose, **kwargs)
+            )
 
         return cls(models)
 
@@ -841,9 +853,11 @@ class SolarMultiStepGan(MultiStepGan):
             spatial_solar_models and the spatial_wind_models.
         t_enhance : int | None
             Optional argument to fix or update the temporal enhancement of the
-            model. This can be used with temporal_pad to manipulate the output
-            shape to match whatever padded shape the sup3r forward pass module
-            expects.
+            model. This can be used to manipulate the output shape to match
+            whatever padded shape the sup3r forward pass module expects. If
+            this differs from the t_enhance value based on model layers the
+            output will be padded so that the output shape matches low_res *
+            t_enhance for the time dimension.
         verbose : bool
             Flag to log information about the loaded model.
 

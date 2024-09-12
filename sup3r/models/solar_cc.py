@@ -1,6 +1,8 @@
 """Sup3r model software"""
+
 import logging
 
+import numpy as np
 import tensorflow as tf
 
 from sup3r.models.base import Sup3rGan
@@ -20,6 +22,8 @@ class SolarCC(Sup3rGan):
           daily true high res sample.
         - Discriminator sees random n_days of 8-hour samples of the daily
           synthetic high res sample.
+        - Includes padding on high resolution output of :meth:`generate` so
+          that forward pass always outputs a multiple of 24 hours.
     """
 
     # starting hour is the hour that daylight starts at, daylight hours is the
@@ -33,6 +37,27 @@ class SolarCC(Sup3rGan):
     STARTING_HOUR = 8
     DAYLIGHT_HOURS = 8
     STRIDE_LEN = 4
+
+    def __init__(self, *args, t_enhance=None, **kwargs):
+        """Add optional t_enhance adjustment.
+
+        Parameters
+        ----------
+        *args : list
+            List of arguments to parent class
+        t_enhance : int | None
+            Optional argument to fix or update the temporal enhancement of the
+            model. This can be used to manipulate the output shape to match
+            whatever padded shape the sup3r forward pass module expects. If
+            this differs from the t_enhance value based on model layers the
+            output will be padded so that the output shape matches low_res *
+            t_enhance for the time dimension.
+        **kwargs : Mappable
+            Keyword arguments for parent class
+        """
+        super().__init__(*args, **kwargs)
+        self._t_enhance = t_enhance or self.t_enhance
+        self.meta['t_enhance'] = self._t_enhance
 
     def init_weights(self, lr_shape, hr_shape, device=None):
         """Initialize the generator and discriminator weights with device
@@ -61,8 +86,14 @@ class SolarCC(Sup3rGan):
         super().init_weights(lr_shape, hr_shape, device=device)
 
     @tf.function
-    def calc_loss(self, hi_res_true, hi_res_gen, weight_gen_advers=0.001,
-                  train_gen=True, train_disc=False):
+    def calc_loss(
+        self,
+        hi_res_true,
+        hi_res_gen,
+        weight_gen_advers=0.001,
+        train_gen=True,
+        train_disc=False,
+    ):
         """Calculate the GAN loss function using generated and true high
         resolution data.
 
@@ -91,24 +122,33 @@ class SolarCC(Sup3rGan):
         """
 
         if hi_res_gen.shape != hi_res_true.shape:
-            msg = ('The tensor shapes of the synthetic output {} and '
-                   'true high res {} did not have matching shape! '
-                   'Check the spatiotemporal enhancement multipliers in your '
-                   'your model config and data handlers.'
-                   .format(hi_res_gen.shape, hi_res_true.shape))
+            msg = (
+                'The tensor shapes of the synthetic output {} and '
+                'true high res {} did not have matching shape! '
+                'Check the spatiotemporal enhancement multipliers in your '
+                'your model config and data handlers.'.format(
+                    hi_res_gen.shape, hi_res_true.shape
+                )
+            )
             logger.error(msg)
             raise RuntimeError(msg)
 
-        msg = ('Special SolarCC model can only accept multi-day hourly '
-               '(multiple of 24) true / synthetic high res data in the axis=3 '
-               'position but received shape {}'.format(hi_res_true.shape))
+        msg = (
+            'Special SolarCC model can only accept multi-day hourly '
+            '(multiple of 24) true / synthetic high res data in the axis=3 '
+            'position but received shape {}'.format(hi_res_true.shape)
+        )
         assert hi_res_true.shape[3] % 24 == 0
 
         t_len = hi_res_true.shape[3]
         n_days = int(t_len // 24)
-        day_slices = [slice(self.STARTING_HOUR + x,
-                            self.STARTING_HOUR + x + self.DAYLIGHT_HOURS)
-                      for x in range(0, 24 * n_days, 24)]
+        day_slices = [
+            slice(
+                self.STARTING_HOUR + x,
+                self.STARTING_HOUR + x + self.DAYLIGHT_HOURS,
+            )
+            for x in range(0, 24 * n_days, 24)
+        ]
 
         # sample only daylight hours for disc training and gen content loss
         disc_out_true = []
@@ -116,8 +156,9 @@ class SolarCC(Sup3rGan):
         loss_gen_content = 0.0
         for tslice in day_slices:
             disc_t = self._tf_discriminate(hi_res_true[:, :, :, tslice, :])
-            gen_c = self.calc_loss_gen_content(hi_res_true[:, :, :, tslice, :],
-                                               hi_res_gen[:, :, :, tslice, :])
+            gen_c = self.calc_loss_gen_content(
+                hi_res_true[:, :, :, tslice, :], hi_res_gen[:, :, :, tslice, :]
+            )
             disc_out_true.append(disc_t)
             loss_gen_content += gen_c
 
@@ -146,10 +187,84 @@ class SolarCC(Sup3rGan):
         elif train_disc:
             loss = loss_disc
 
-        loss_details = {'loss_gen': loss_gen,
-                        'loss_gen_content': loss_gen_content,
-                        'loss_gen_advers': loss_gen_advers,
-                        'loss_disc': loss_disc,
-                        }
+        loss_details = {
+            'loss_gen': loss_gen,
+            'loss_gen_content': loss_gen_content,
+            'loss_gen_advers': loss_gen_advers,
+            'loss_disc': loss_disc,
+        }
 
         return loss, loss_details
+
+    def temporal_pad(self, low_res, hi_res, mode='reflect'):
+        """Optionally add temporal padding to the 5D generated output array
+
+        Parameters
+        ----------
+        low_res : np.ndarray
+            Low-resolution input data to the spatio(temporal) GAN, which is a
+            5D array of shape: (1, spatial_1, spatial_2, n_temporal,
+            n_features).
+        hi_res : ndarray
+            Synthetically generated high-resolution data output from the
+            (spatio)temporal GAN with a 5D array shape:
+            (1, spatial_1, spatial_2, n_temporal, n_features)
+        mode : str
+            Padding mode for np.pad()
+
+        Returns
+        -------
+        hi_res : ndarray
+            Synthetically generated high-resolution data output from the
+            (spatio)temporal GAN with a 5D array shape:
+            (1, spatial_1, spatial_2, n_temporal, n_features)
+            With the temporal axis padded with self._temporal_pad on either
+            side.
+        """
+        t_shape = low_res.shape[-2] * self._t_enhance
+        t_pad = int((t_shape - hi_res.shape[-2]) / 2)
+        pad_width = ((0, 0), (0, 0), (0, 0), (t_pad, t_pad), (0, 0))
+        prepad_shape = hi_res.shape
+        hi_res = np.pad(hi_res, pad_width, mode=mode)
+        logger.debug(
+            'Padded hi_res output from %s to %s', prepad_shape, hi_res.shape
+        )
+        return hi_res
+
+    def generate(self, low_res, **kwargs):
+        """Override parent method to apply padding on high res output."""
+
+        hi_res = self.temporal_pad(
+            low_res, super().generate(low_res=low_res, **kwargs)
+        )
+
+        logger.debug('Final SolarCC output has shape: {}'.format(hi_res.shape))
+
+        return hi_res
+
+    @classmethod
+    def load(cls, model_dir, t_enhance=None, verbose=True):
+        """Load the GAN with its sub-networks from a previously saved-to output
+        directory.
+
+        Parameters
+        ----------
+        model_dir : str
+            Directory to load GAN model files from.
+        t_enhance : int | None
+            Optional argument to fix or update the temporal enhancement of the
+            model. This can be used to manipulate the output shape to match
+            whatever padded shape the sup3r forward pass module expects. If
+            this differs from the t_enhance value based on model layers the
+            output will be padded so that the output shape matches low_res *
+            t_enhance for the time dimension.
+        verbose : bool
+            Flag to log information about the loaded model.
+
+        Returns
+        -------
+        out : BaseModel
+            Returns a pretrained gan model that was previously saved to out_dir
+        """
+        fp_gen, fp_disc, params = cls._load(model_dir, verbose=verbose)
+        return cls(fp_gen, fp_disc, t_enhance=t_enhance, **params)

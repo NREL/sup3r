@@ -5,9 +5,7 @@ TODO: Integrate this with Cacher class
 
 import logging
 import os
-import time
 
-from gaps import Status
 from rex.utilities.loggers import init_logger
 
 from sup3r.preprocessing.cachers import Cacher
@@ -29,8 +27,6 @@ class CollectorNC(BaseCollector):
         features='all',
         log_level=None,
         log_file=None,
-        write_status=False,
-        job_name=None,
         overwrite=True,
         res_kwargs=None,
     ):
@@ -62,8 +58,6 @@ class CollectorNC(BaseCollector):
         res_kwargs : dict | None
             Dictionary of kwargs to pass to xarray.open_mfdataset.
         """
-        t0 = time.time()
-
         logger.info(f'Initializing collection for file_paths={file_paths}')
 
         if log_level is not None:
@@ -88,17 +82,6 @@ class CollectorNC(BaseCollector):
             out = xr_open_mfdataset(collector.flist, **res_kwargs)
             Cacher.write_netcdf(tmp_file, data=out, features=features)
 
-        if write_status and job_name is not None:
-            status = {
-                'out_dir': os.path.dirname(out_file),
-                'fout': out_file,
-                'flist': collector.flist,
-                'job_status': 'successful',
-                'runtime': (time.time() - t0) / 60,
-            }
-            Status.make_single_job_file(
-                os.path.dirname(out_file), 'collect', job_name, status
-            )
         os.replace(tmp_file, out_file)
         logger.info('Moved %s to %s.', tmp_file, out_file)
 

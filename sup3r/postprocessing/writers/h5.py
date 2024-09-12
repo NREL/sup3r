@@ -80,6 +80,7 @@ class OutputHandlerH5(OutputHandler):
             for f in features
             if re.match('u_(.*?)m'.lower(), f.lower())
         ]
+
         if heights:
             logger.info(
                 'Converting u/v to ws/wd for H5 output with max_workers=%s',
@@ -144,12 +145,16 @@ class OutputHandlerH5(OutputHandler):
             Max workers to use for inverse transform. If None the max_workers
             will be estimated based on memory limits.
         """
-
-        cls.invert_uv_features(
-            data, features, lat_lon, max_workers=max_workers
-        )
+        if any(
+            re.match('u_(.*?)m'.lower(), f.lower())
+            or re.match('v_(.*?)m'.lower(), f.lower())
+            for f in features
+        ):
+            cls.invert_uv_features(
+                data, features, lat_lon, max_workers=max_workers
+            )
         features = cls.get_renamed_features(features)
-        data = cls.enforce_limits(features, data)
+        data = cls.enforce_limits(features=features, data=data)
         return data, features
 
     @classmethod

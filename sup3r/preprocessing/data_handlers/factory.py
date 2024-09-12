@@ -50,6 +50,7 @@ class DataHandler(Deriver):
         time_slice: Union[slice, tuple, list, None] = slice(None),
         threshold: Optional[float] = None,
         time_roll: int = 0,
+        time_shift: Optional[int] = None,
         hr_spatial_coarsen: int = 1,
         nan_method_kwargs: Optional[dict] = None,
         BaseLoader: Optional[Callable] = None,
@@ -91,8 +92,13 @@ class DataHandler(Deriver):
             are more than this value away from the target lat/lon, an error is
             raised.
         time_roll : int
-            Number of steps to shift the time axis. `Passed to
+            Number of steps to roll along the time axis. `Passed to
             xr.Dataset.roll()`
+        time_shift : int | None
+            Number of minutes to shift time axis. This can be used, for
+            example, to shift the time index for daily data so that the time
+            stamp for a given day starts at the zeroth minute instead of at
+            noon, as is the case for most GCM data.
         hr_spatial_coarsen : int
             Spatial coarsening factor. Passed to `xr.Dataset.coarsen()`
         nan_method_kwargs : str | dict | None
@@ -145,6 +151,7 @@ class DataHandler(Deriver):
             data=self.rasterizer.data,
             features=features,
             time_roll=time_roll,
+            time_shift=time_shift,
             hr_spatial_coarsen=hr_spatial_coarsen,
             nan_method_kwargs=nan_method_kwargs,
             FeatureRegistry=FeatureRegistry,

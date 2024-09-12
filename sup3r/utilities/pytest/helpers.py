@@ -1,6 +1,7 @@
 """Testing helpers."""
 
 import os
+from itertools import product
 
 import dask.array as da
 import numpy as np
@@ -257,6 +258,89 @@ def BatchHandlerTesterFactory(BatchHandlerClass, SamplerClass):
     return BatchHandlerTester
 
 
+def make_collect_chunks(td):
+    """Make fake h5 chunked output files for collection tests.
+
+    Parameters
+    ----------
+    td : tempfile.TemporaryDirectory
+        Test TemporaryDirectory
+
+    Returns
+    -------
+    out_files : list
+        List of filepaths to chunked files.
+    data : ndarray
+        (spatial_1, spatial_2, temporal, features)
+        High resolution forward pass output
+    ws_true : ndarray
+        Windspeed between 0 and 20 in shape (spatial_1, spatial_2, temporal, 1)
+    wd_true : ndarray
+        Windir between 0 and 360 in shape (spatial_1, spatial_2, temporal, 1)
+    features : list
+        List of feature names corresponding to the last dimension of data
+        ['windspeed_100m', 'winddirection_100m']
+    hr_lat_lon : ndarray
+        Array of lat/lon for hr data. (spatial_1, spatial_2, 2)
+        Last dimension has ordering (lat, lon)
+    hr_times : list
+        List of np.datetime64 objects for hr data.
+    """
+
+    features = ['windspeed_100m', 'winddirection_100m']
+    model_meta_data = {'foo': 'bar'}
+    shape = (50, 50, 96, 1)
+    ws_true = RANDOM_GENERATOR.uniform(0, 20, shape)
+    wd_true = RANDOM_GENERATOR.uniform(0, 360, shape)
+    data = np.concatenate((ws_true, wd_true), axis=3)
+    lat = np.linspace(90, 0, 50)
+    lon = np.linspace(-180, 0, 50)
+    lon, lat = np.meshgrid(lon, lat)
+    hr_lat_lon = np.dstack((lat, lon))
+
+    gids = np.arange(np.prod(shape[:2]))
+    gids = gids.reshape(shape[:2])
+
+    hr_times = pd_date_range(
+        '20220101', '20220103', freq='1800s', inclusive='left'
+    )
+
+    t_slices_hr = np.array_split(np.arange(len(hr_times)), 4)
+    t_slices_hr = [slice(s[0], s[-1] + 1) for s in t_slices_hr]
+    s_slices_hr = np.array_split(np.arange(shape[0]), 4)
+    s_slices_hr = [slice(s[0], s[-1] + 1) for s in s_slices_hr]
+
+    out_pattern = os.path.join(td, 'fp_out_{t}_{s}.h5')
+    out_files = []
+    for t, slice_hr in enumerate(t_slices_hr):
+        for s, (s1_hr, s2_hr) in enumerate(product(s_slices_hr, s_slices_hr)):
+            out_file = out_pattern.format(
+                t=str(t).zfill(6),
+                s=str(s).zfill(6)
+            )
+            out_files.append(out_file)
+            OutputHandlerH5._write_output(
+                data[s1_hr, s2_hr, slice_hr, :],
+                features,
+                hr_lat_lon[s1_hr, s2_hr],
+                hr_times[slice_hr],
+                out_file,
+                meta_data=model_meta_data,
+                max_workers=1,
+                gids=gids[s1_hr, s2_hr],
+            )
+
+    return (
+        out_files,
+        data,
+        ws_true,
+        wd_true,
+        features,
+        hr_lat_lon,
+        hr_times
+    )
+
+
 def make_fake_h5_chunks(td):
     """Make fake h5 chunked output files for a 5x spatial 2x temporal
     multi-node forward pass output.
@@ -352,7 +436,7 @@ def make_fake_h5_chunks(td):
         s_slices_lr,
         s_slices_hr,
         low_res_lat_lon,
-        low_res_times,
+        low_res_times
     )
 
 
