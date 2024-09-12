@@ -75,7 +75,13 @@ class ForwardPassStrategy:
         A list of low-resolution source files to extract raster data from.
         Each file must have the same number of timesteps. Can also pass a
         string with a unix-style file path which will be passed through
-        glob.glob
+        glob.glob.
+
+        Note: These files can also include a "mask" variable which is True for
+        grid points which can be skipped in the forward pass and False
+        otherwise. This will be used to skip running the forward pass for
+        chunks which only include masked points. e.g. chunks covering only
+        ocean.
     model_kwargs : str | list
         Keyword arguments to send to ``model_class.load(**model_kwargs)`` to
         initialize the GAN. Typically this is just the string path to the
@@ -268,7 +274,6 @@ class ForwardPassStrategy:
             input_handler_kwargs['chunks'] = 'auto'
 
         input_handler_kwargs['time_slice'] = slice(None)
-
         return InputHandler(**input_handler_kwargs)
 
     def _init_features(self, model):
@@ -456,7 +461,7 @@ class ForwardPassStrategy:
         input_data = self.input_handler.isel(**kwargs)
         input_data.load()
 
-        if self.bias_correct_kwargs is not None:
+        if self.bias_correct_kwargs != {}:
             logger.info(
                 f'Bias correcting data for chunk_index={chunk_index}, '
                 f'with shape={input_data.shape}'

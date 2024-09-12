@@ -152,7 +152,7 @@ class ForwardPass:
             input_data.shape,
             out.shape,
             mode,
-            pad_width
+            pad_width,
         )
 
         if exo_data is not None:
