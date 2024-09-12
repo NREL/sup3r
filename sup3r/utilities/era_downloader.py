@@ -554,8 +554,8 @@ class EraDownloader:
                 variables=[var],
                 product_type=product_type,
             )
-            logger.warning(msg, month, year, e)
-            warn(msg % (month, year, e))
+            downloader.get_monthly_file()
+        cls.make_monthly_file(year, month, monthly_file_pattern, variables)
 
     @classmethod
     def run_for_var(
