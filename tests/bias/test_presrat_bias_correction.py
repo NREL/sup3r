@@ -430,6 +430,7 @@ def presrat_nochanges_params(tmpdir_factory, presrat_params):
         f['ghi_zero_rate'][:] *= 0
         f['rsds_tau_fut'][:] *= 0
         f['rsds_k_factor'][:] = 1
+        f.attrs['zero_rate_threshold'] = 0
         f.flush()
 
     return str(fn)

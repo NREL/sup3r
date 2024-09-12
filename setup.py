@@ -41,6 +41,7 @@ setup(
                              "data_collect_cli:main"),
                             ],
     },
+    package_data={'sup3r': ['postprocessing/writers/*.json']},
     test_suite="tests",
     cmdclass={"develop": PostDevelopCommand},
 )

@@ -717,13 +717,13 @@ class DataRetrievalBase:
         if cs_ratio:
             daily_ghi = df.groupby('date').sum()['base_data'].values
             daily_cs_ghi = df.groupby('date').sum()['base_cs_ghi'].values
+            daily_ghi[daily_cs_ghi == 0] = 0
+            daily_cs_ghi[daily_cs_ghi == 0] = 1
             base_data = daily_ghi / daily_cs_ghi
-            msg = (
-                'Could not calculate daily average "clearsky_ratio" with '
-                'base_data and base_cs_ghi inputs: \n{}, \n{}'.format(
-                    base_data, base_cs_ghi
-                )
-            )
+            mask = np.isnan(base_data)
+            msg = ('Could not calculate daily average "clearsky_ratio" with '
+                   'input ghi and cs ghi inputs: \n{}, \n{}'
+                   .format(daily_ghi[mask], daily_cs_ghi[mask]))
             assert not np.isnan(base_data).any(), msg
 
         elif daily_reduction.lower() in ('avg', 'average', 'mean'):
