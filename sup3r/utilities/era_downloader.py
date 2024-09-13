@@ -16,6 +16,7 @@ from warnings import warn
 import dask
 import dask.array as da
 import numpy as np
+import xarray as xr
 from rex import init_logger
 
 from sup3r.preprocessing import Loader
@@ -443,7 +444,7 @@ class EraDownloader:
                 files.append(self.surface_file)
 
             kwargs = {'compat': 'override'}
-            self._combine_files(files, self.monthly_file, kwargs)
+            self._combine_var_files(files, self.monthly_file, kwargs)
 
             if os.path.exists(self.level_file):
                 os.remove(self.level_file)
@@ -676,7 +677,7 @@ class EraDownloader:
                 max_workers=max_workers,
             )
 
-        if cls.all_var_exist(
+        if cls.all_vars_exist(
             year=year, file_pattern=yearly_file_pattern, variables=variables
         ):
             cls.make_yearly_file(year, yearly_file_pattern, variables)
@@ -705,14 +706,29 @@ class EraDownloader:
         ]
 
         outfile = yearly_file_pattern.format(year=year, var=variable)
-        cls._combine_files(files, outfile)
+        cls._combine_time_files(files, outfile)
 
     @classmethod
-    def _combine_files(cls, files, outfile, kwargs=None):
+    def _combine_var_files(cls, files, outfile, kwargs=None):
         if not os.path.exists(outfile):
             logger.info(f'Combining {files} into {outfile}.')
             try:
                 cls._write_dsets(files, out_file=outfile, kwargs=kwargs)
+            except Exception as e:
+                msg = f'Error combining {files}.'
+                logger.error(msg)
+                raise RuntimeError(msg) from e
+        else:
+            logger.info(f'{outfile} already exists.')
+
+    @classmethod
+    def _combine_time_files(cls, files, outfile, kwargs=None):
+        if not os.path.exists(outfile):
+            logger.info(f'Combining {files} into {outfile}.')
+            try:
+                kwargs = kwargs or {}
+                ds = xr.open_mfdataset(files, **kwargs)
+                ds.to_netcdf(outfile)
             except Exception as e:
                 msg = f'Error combining {files}.'
                 logger.error(msg)
@@ -739,14 +755,14 @@ class EraDownloader:
             f'Not all variable files with file_patten {file_pattern} for '
             f'year {year} exist.'
         )
-        assert cls.all_var_exist(
+        assert cls.all_vars_exist(
             year=year, file_pattern=file_pattern, variables=variables
         ), msg
 
         files = [file_pattern.format(year=year, var=var) for var in variables]
         kwargs = {'combine': 'nested', 'concat_dim': 'time'}
         yearly_file = file_pattern.replace('_{var}_', '').replace('_{var}', '')
-        cls._combine_files(files, yearly_file, kwargs)
+        cls._combine_var_files(files, yearly_file, kwargs)
 
     @classmethod
     def run_qa(cls, file, res_kwargs=None, log_file=None):

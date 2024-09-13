@@ -14,6 +14,8 @@ import xarray as xr
 from packaging import version
 from scipy import ndimage as nd
 
+from sup3r.preprocessing.utilities import get_class_kwargs
+
 logger = logging.getLogger(__name__)
 
 RANDOM_GENERATOR = np.random.default_rng(seed=42)
@@ -34,9 +36,16 @@ def xr_open_mfdataset(files, **kwargs):
         warn(msg % (files, e))
         dsets = [xr.open_mfdataset(f, **default_kwargs) for f in files]
         for i, dset in enumerate(dsets):
-            dset['time'] = pd.DatetimeIndex(dset.time)
-            dsets[i] = dset
-        return xr.merge(dsets)
+            if 'time' in dset and dset.time.size > 1:
+                dset['time'] = pd.DatetimeIndex(dset.time)
+                dsets[i] = dset
+            if 'latitude' in dset.dims:
+                dset = dset.swap_dims({'latitude': 'south_north'})
+                dsets[i] = dset
+            if 'longitude' in dset.dims:
+                dset = dset.swap_dims({'longitude': 'west_east'})
+                dsets[i] = dset
+        return xr.merge(dsets, **get_class_kwargs(xr.merge, kwargs))
 
 
 def safe_cast(o):
