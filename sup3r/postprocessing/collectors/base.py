@@ -50,7 +50,7 @@ class BaseCollector(OutputMixin, ABC):
         spatial_chunk_index : str
             Zero padded integer for the spatial chunk index
         """
-        return re.match(r'.*_([0-9]+)_([0-9]+)\.\w+$', file).groups()
+        return re.match(r'.*_([0-9]+)_([0-9]+).*\w+$', file).groups()
 
     @classmethod
     @abstractmethod
