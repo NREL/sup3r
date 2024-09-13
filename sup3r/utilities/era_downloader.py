@@ -555,7 +555,88 @@ class EraDownloader:
                 product_type=product_type,
             )
             downloader.get_monthly_file()
-        cls.make_monthly_file(year, month, monthly_file_pattern, variables)
+
+    @classmethod
+    def run_for_var(
+        cls,
+        year,
+        area,
+        levels,
+        monthly_file_pattern,
+        yearly_file_pattern=None,
+        months=None,
+        overwrite=False,
+        max_workers=None,
+        variable=None,
+        product_type='reanalysis',
+    ):
+        """Run routine for all requested months in the requested year for the
+        given variable.
+
+        Parameters
+        ----------
+        year : int
+            Year of data to download.
+        area : list
+            Domain area of the data to download.
+            [max_lat, min_lon, min_lat, max_lon]
+        levels : list
+            List of pressure levels to download.
+        monthly_file_pattern : str
+            Pattern for monthly output files. Must include year, month, and var
+            format keys.  e.g. 'era5_{year}_{month}_{var}.nc'
+        yearly_file_pattern : str
+            Pattern for yearly output files. Must include year and var format
+            keys.  e.g. 'era5_{year}_{var}.nc'
+        months : list | None
+            List of months to download data for. If None then all months for
+            the given year will be downloaded.
+        overwrite : bool
+            Whether to overwrite existing files.
+        max_workers : int
+            Max number of workers to use for downloading and processing monthly
+            files.
+        variable : str
+            Variable to download.
+        product_type : str
+            Can be 'reanalysis', 'ensemble_mean', 'ensemble_spread',
+            'ensemble_members'
+        """
+        yearly_var_file = yearly_file_pattern.format(year=year, var=variable)
+        if os.path.exists(yearly_var_file) and not overwrite:
+            logger.info(
+                '%s already exists and overwrite=False.', yearly_var_file
+            )
+        msg = 'file_pattern must have {year}, {month}, and {var} format keys'
+        assert all(
+            key in monthly_file_pattern
+            for key in ('{year}', '{month}', '{var}')
+        ), msg
+
+        tasks = []
+        months = list(range(1, 13)) if months is None else months
+        for month in months:
+            task = dask.delayed(cls.run_month)(
+                year=year,
+                month=month,
+                area=area,
+                levels=levels,
+                file_pattern=monthly_file_pattern,
+                overwrite=overwrite,
+                variables=[variable],
+                product_type=product_type,
+            )
+            tasks.append(task)
+
+        if max_workers == 1:
+            dask.compute(*tasks, scheduler='single-threaded')
+        else:
+            dask.compute(*tasks, scheduler='threads', num_workers=max_workers)
+
+        if yearly_file_pattern is not None and len(months) == 12:
+            cls.make_yearly_var_file(
+                year, monthly_file_pattern, yearly_file_pattern, variable
+            )
 
     @classmethod
     def run_for_var(

@@ -35,7 +35,7 @@ class Solar:
         nsrdb_fp,
         t_slice=slice(None),
         tz=-6,
-        time_shift=None,
+        time_shift=-12,
         agg_factor=1,
         nn_threshold=0.5,
         cloud_threshold=0.99,
