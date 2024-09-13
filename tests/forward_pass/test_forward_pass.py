@@ -377,8 +377,8 @@ def test_fwp_chunking(input_files, plot=False):
     with tempfile.TemporaryDirectory() as td:
         out_dir = os.path.join(td, 'test_1')
         model.save(out_dir)
-        spatial_pad = 12
-        temporal_pad = 12
+        spatial_pad = 20
+        temporal_pad = 20
         raw_tsteps = len(xr_open_mfdataset(input_files)[Dimension.TIME])
         fwp_shape = (5, 5, raw_tsteps // 2)
         strat = ForwardPassStrategy(
