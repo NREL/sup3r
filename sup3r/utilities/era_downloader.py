@@ -45,7 +45,7 @@ class EraDownloader:
         month,
         area,
         levels,
-        monthly_file_pattern,
+        file_pattern,
         overwrite=False,
         variables=None,
         product_type='reanalysis',
@@ -63,7 +63,7 @@ class EraDownloader:
             [max_lat, min_lon, min_lat, max_lon]
         levels : list
             List of pressure levels to download.
-        monthly_file_pattern : str
+        file_pattern : str
             Pattern for combined monthly output file. Must include year and
             month format keys.  e.g. 'era5_{year}_{month}_combined.nc'
         overwrite : bool
@@ -80,7 +80,7 @@ class EraDownloader:
         self.area = area
         self.levels = levels
         self.overwrite = overwrite
-        self.monthly_file_pattern = monthly_file_pattern
+        self.file_pattern = file_pattern
         self._variables = variables
         self.sfc_file_variables = []
         self.level_file_variables = []
@@ -116,7 +116,7 @@ class EraDownloader:
     def monthly_file(self):
         """Name of file with all surface and level variables for a given month
         and year."""
-        monthly_file = self.monthly_file_pattern.replace(
+        monthly_file = self.file_pattern.replace(
             '{var}', '_'.join(self.variables)
         ).format(year=self.year, month=str(self.month).zfill(2))
         os.makedirs(os.path.dirname(monthly_file), exist_ok=True)
@@ -462,45 +462,16 @@ class EraDownloader:
             self.download_process_combine()
 
     @classmethod
-    def all_months_exist(cls, year, file_pattern):
-        """Check if all months in the requested year exist.
-
-        Parameters
-        ----------
-        year : int
-            Year of data to download.
-        file_pattern : str
-            Pattern for monthly output file. Must include year and month format
-            keys. e.g. 'era5_{year}_{month}_combined.nc'
-
-        Returns
-        -------
-        bool
-            True if all months in the requested year exist.
-        """
-        return all(
-            os.path.exists(
-                file_pattern.replace('_{var}', '').format(
-                    year=year, month=str(month).zfill(2)
-                )
-            )
-            for month in range(1, 13)
-        )
-
-    @classmethod
-    def all_vars_exist(cls, year, month, file_pattern, variables):
-        """Check if all monthly variable files for the requested year and month
-        exist.
+    def all_vars_exist(cls, year, file_pattern, variables):
+        """Check if all yearly variable files for the requested year exist.
 
         Parameters
         ----------
         year : int
             Year used for data download.
-        month : int
-            Month used for data download
         file_pattern : str
-            Pattern for monthly variable file. Must include year, month, and
-            var format keys. e.g. 'era5_{year}_{month}_{var}_combined.nc'
+            Pattern for variable file. Must include year and
+            var format keys. e.g. 'era5_{year}_{var}_combined.nc'
         variables : list
             Variables that should have been downloaded
 
@@ -511,11 +482,7 @@ class EraDownloader:
             exist.
         """
         return all(
-            os.path.exists(
-                file_pattern.format(
-                    year=year, month=str(month).zfill(2), var=var
-                )
-            )
+            os.path.exists(file_pattern.format(year=year, var=var))
             for var in variables
         )
 
@@ -526,7 +493,7 @@ class EraDownloader:
         month,
         area,
         levels,
-        monthly_file_pattern,
+        file_pattern,
         overwrite=False,
         variables=None,
         product_type='reanalysis',
@@ -544,7 +511,7 @@ class EraDownloader:
             [max_lat, min_lon, min_lat, max_lon]
         levels : list
             List of pressure levels to download.
-        monthly_file_pattern : str
+        file_pattern : str
             Pattern for combined monthly output file. Must include year and
             month format keys.  e.g. 'era5_{year}_{month}_combined.nc'
         overwrite : bool
@@ -563,13 +530,94 @@ class EraDownloader:
                 month=month,
                 area=area,
                 levels=levels,
-                monthly_file_pattern=monthly_file_pattern,
+                file_pattern=file_pattern,
                 overwrite=overwrite,
                 variables=[var],
                 product_type=product_type,
             )
             downloader.get_monthly_file()
-        cls.make_monthly_file(year, month, monthly_file_pattern, variables)
+
+    @classmethod
+    def run_for_var(
+        cls,
+        year,
+        area,
+        levels,
+        monthly_file_pattern,
+        yearly_file_pattern=None,
+        months=None,
+        overwrite=False,
+        max_workers=None,
+        variable=None,
+        product_type='reanalysis',
+    ):
+        """Run routine for all requested months in the requested year for the
+        given variable.
+
+        Parameters
+        ----------
+        year : int
+            Year of data to download.
+        area : list
+            Domain area of the data to download.
+            [max_lat, min_lon, min_lat, max_lon]
+        levels : list
+            List of pressure levels to download.
+        monthly_file_pattern : str
+            Pattern for monthly output files. Must include year, month, and var
+            format keys.  e.g. 'era5_{year}_{month}_{var}.nc'
+        yearly_file_pattern : str
+            Pattern for yearly output files. Must include year and var format
+            keys.  e.g. 'era5_{year}_{var}.nc'
+        months : list | None
+            List of months to download data for. If None then all months for
+            the given year will be downloaded.
+        overwrite : bool
+            Whether to overwrite existing files.
+        max_workers : int
+            Max number of workers to use for downloading and processing monthly
+            files.
+        variable : str
+            Variable to download.
+        product_type : str
+            Can be 'reanalysis', 'ensemble_mean', 'ensemble_spread',
+            'ensemble_members'
+        """
+        yearly_var_file = yearly_file_pattern.format(year=year, var=variable)
+        if os.path.exists(yearly_var_file) and not overwrite:
+            logger.info(
+                '%s already exists and overwrite=False.', yearly_var_file
+            )
+        msg = 'file_pattern must have {year}, {month}, and {var} format keys'
+        assert all(
+            key in monthly_file_pattern
+            for key in ('{year}', '{month}', '{var}')
+        ), msg
+
+        tasks = []
+        months = list(range(1, 13)) if months is None else months
+        for month in months:
+            task = dask.delayed(cls.run_month)(
+                year=year,
+                month=month,
+                area=area,
+                levels=levels,
+                file_pattern=monthly_file_pattern,
+                overwrite=overwrite,
+                variables=[variable],
+                product_type=product_type,
+            )
+            tasks.append(task)
+
+        if max_workers == 1:
+            dask.compute(*tasks, scheduler='single-threaded')
+        else:
+            dask.compute(*tasks, scheduler='threads', num_workers=max_workers)
+
+        if yearly_file_pattern is not None and len(months) == 12:
+            cls.make_yearly_var_file(
+                year, monthly_file_pattern, yearly_file_pattern, variable
+            )
 
     @classmethod
     def run(
@@ -578,8 +626,8 @@ class EraDownloader:
         area,
         levels,
         monthly_file_pattern,
+        yearly_file_pattern=None,
         months=None,
-        yearly_file=None,
         overwrite=False,
         max_workers=None,
         variables=None,
@@ -596,14 +644,12 @@ class EraDownloader:
             [max_lat, min_lon, min_lat, max_lon]
         levels : list
             List of pressure levels to download.
-        monthly_file_pattern : str
+        file_pattern : str
             Pattern for combined monthly output file. Must include year and
             month format keys.  e.g. 'era5_{year}_{month}_combined.nc'
         months : list | None
             List of months to download data for. If None then all months for
             the given year will be downloaded.
-        yearly_file : str
-            Name of yearly file made from monthly combined files.
         overwrite : bool
             Whether to overwrite existing files.
         max_workers : int
@@ -616,75 +662,49 @@ class EraDownloader:
             Can be 'reanalysis', 'ensemble_mean', 'ensemble_spread',
             'ensemble_members'
         """
-        if (
-            yearly_file is not None
-            and os.path.exists(yearly_file)
-            and not overwrite
+        for var in variables:
+            cls.run_for_var(
+                year=year,
+                area=area,
+                levels=levels,
+                months=months,
+                monthly_file_pattern=monthly_file_pattern,
+                yearly_file_pattern=yearly_file_pattern,
+                overwrite=overwrite,
+                variable=var,
+                product_type=product_type,
+                max_workers=max_workers,
+            )
+
+        if cls.all_var_exist(
+            year=year, file_pattern=yearly_file_pattern, variables=variables
         ):
-            logger.info('%s already exists and overwrite=False.', yearly_file)
-        msg = (
-            'monthly_file_pattern must have {year}, {month}, and {var} '
-            'format keys'
-        )
-        assert all(
-            key in monthly_file_pattern
-            for key in ('{year}', '{month}', '{var}')
-        ), msg
-
-        tasks = []
-        months = list(range(1, 13)) if months is None else months
-        for month in months:
-            for var in variables:
-                task = dask.delayed(cls.run_month)(
-                    year=year,
-                    month=month,
-                    area=area,
-                    levels=levels,
-                    monthly_file_pattern=monthly_file_pattern,
-                    overwrite=overwrite,
-                    variables=[var],
-                    product_type=product_type,
-                )
-                tasks.append(task)
-
-        if max_workers == 1:
-            dask.compute(*tasks, scheduler='single-threaded')
-        else:
-            dask.compute(*tasks, scheduler='threads', num_workers=max_workers)
-
-        if yearly_file is not None and len(months) == 12:
-            cls.make_yearly_file(year, monthly_file_pattern, yearly_file)
+            cls.make_yearly_file(year, yearly_file_pattern, variables)
 
     @classmethod
-    def make_monthly_file(cls, year, month, file_pattern, variables):
-        """Combine monthly variable files into a single monthly file.
+    def make_yearly_var_file(
+        cls, year, monthly_file_pattern, yearly_file_pattern, variable
+    ):
+        """Combine monthly variable files into a single yearly variable file.
 
         Parameters
         ----------
         year : int
             Year used to download data
-        month : int
-            Month used to download data
         file_pattern : str
             File pattern for monthly variable files. Must have year, month, and
             var format keys. e.g. './era_{year}_{month}_{var}_combined.nc'
-        variables : list
-            List of variables downloaded.
+        variable : string
+            Variable name for the files to be combined.
         """
-        msg = (
-            f'Not all variable files with file_patten {file_pattern} for '
-            f'year {year} and month {month} exist.'
-        )
-        assert cls.all_vars_exist(year, month, file_pattern, variables), msg
-
         files = [
-            file_pattern.format(year=year, month=str(month).zfill(2), var=var)
-            for var in variables
+            monthly_file_pattern.format(
+                year=year, month=str(month).zfill(2), var=variable
+            )
+            for month in range(1, 13)
         ]
 
-        outfile = file_pattern.replace('_{var}', '').format(
-            year=year, month=str(month).zfill(2)
-        )
+        outfile = yearly_file_pattern.format(year=year, var=variable)
         cls._combine_files(files, outfile)
 
     @classmethod
@@ -701,7 +721,7 @@ class EraDownloader:
             logger.info(f'{outfile} already exists.')
 
     @classmethod
-    def make_yearly_file(cls, year, file_pattern, yearly_file):
+    def make_yearly_file(cls, year, file_pattern, variables):
         """Combine monthly files into a single file.
 
         Parameters
@@ -709,24 +729,23 @@ class EraDownloader:
         year : int
             Year of monthly data to make into a yearly file.
         file_pattern : str
-            File pattern for monthly files. Must have year and month format
-            keys. e.g. './era_uv_{year}_{month}_combined.nc'
-        yearly_file : str
-            Name of yearly file made from monthly files.
+            File pattern for output files. Must have year and var
+            format keys. e.g. './era_{year}_{var}_combined.nc'
+        variables : list
+            List of variables corresponding to the yearly variable files to
+            combine.
         """
         msg = (
-            f'Not all monthly files with file_patten {file_pattern} for '
+            f'Not all variable files with file_patten {file_pattern} for '
             f'year {year} exist.'
         )
-        assert cls.all_months_exist(year, file_pattern), msg
+        assert cls.all_var_exist(
+            year=year, file_pattern=file_pattern, variables=variables
+        ), msg
 
-        files = [
-            file_pattern.replace('_{var}', '').format(
-                year=year, month=str(month).zfill(2)
-            )
-            for month in range(1, 13)
-        ]
+        files = [file_pattern.format(year=year, var=var) for var in variables]
         kwargs = {'combine': 'nested', 'concat_dim': 'time'}
+        yearly_file = file_pattern.replace('_{var}_', '').replace('_{var}', '')
         cls._combine_files(files, yearly_file, kwargs)
 
     @classmethod
