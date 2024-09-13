@@ -459,7 +459,7 @@ class EraDownloader:
                 files.append(self.surface_file)
 
             kwargs = {'compat': 'override'}
-            self._combine_files(files, self.monthly_file, kwargs)
+            self._combine_var_files(files, self.monthly_file, kwargs)
 
             if os.path.exists(self.level_file):
                 os.remove(self.level_file)

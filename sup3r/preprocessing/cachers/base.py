@@ -274,7 +274,8 @@ class Cacher(Container):
         with h5py.File(out_file, mode) as f:
             for k, v in attrs.items():
                 f.attrs[k] = v
-            for dset in [*list(data.coords), *features]:
+            coord_names = set(data.coords).intersection(Dimension.coords_3d())
+            for dset in [*coord_names, *features]:
                 data_var, chunksizes = cls.get_chunksizes(dset, data, chunks)
 
                 if dset == Dimension.TIME:

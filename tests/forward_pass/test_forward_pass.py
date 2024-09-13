@@ -4,7 +4,6 @@ import json
 import os
 import tempfile
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -358,7 +357,7 @@ def test_fwp_handler(input_files):
         )
 
 
-def test_fwp_chunking(input_files, plot=False):
+def test_fwp_chunking(input_files):
     """Test forward pass spatialtemporal chunking. Make sure chunking agrees
     closely with non chunked forward pass.
     """
@@ -443,39 +442,6 @@ def test_fwp_chunking(input_files, plot=False):
 
         err = data_chunked - data_nochunk
         err /= data_nochunk
-        if plot:
-            for ifeature in range(data_nochunk.shape[-1]):
-                fig = plt.figure(figsize=(15, 5))
-                ax1 = fig.add_subplot(131)
-                ax2 = fig.add_subplot(132)
-                ax3 = fig.add_subplot(133)
-                vmin = np.min(data_nochunk)
-                vmax = np.max(data_nochunk)
-                nc = ax1.imshow(
-                    data_nochunk[..., 0, ifeature], vmin=vmin, vmax=vmax
-                )
-                ch = ax2.imshow(
-                    data_chunked[..., 0, ifeature], vmin=vmin, vmax=vmax
-                )
-                diff = ax3.imshow(err[..., 0, ifeature])
-                ax1.set_title('Non chunked output')
-                ax2.set_title('Chunked output')
-                ax3.set_title('Difference')
-                fig.colorbar(
-                    nc,
-                    ax=ax1,
-                    shrink=0.6,
-                    label=f'{model.hr_out_features[ifeature]}',
-                )
-                fig.colorbar(
-                    ch,
-                    ax=ax2,
-                    shrink=0.6,
-                    label=f'{model.hr_out_features[ifeature]}',
-                )
-                fig.colorbar(diff, ax=ax3, shrink=0.6, label='Difference')
-                plt.savefig(f'./chunk_vs_nochunk_{ifeature}.png')
-                plt.close()
 
         assert np.mean(np.abs(err.flatten())) < 0.01
 
