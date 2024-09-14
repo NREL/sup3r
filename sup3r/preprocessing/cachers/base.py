@@ -337,7 +337,8 @@ class Cacher(Container):
             for attr_name, attr_value in attrs.items():
                 ncfile.setncattr(attr_name, attr_value)
 
-            for dset in [*list(data.coords), *features]:
+            coord_names = set(data.coords).intersection(Dimension.coords_3d())
+            for dset in [*coord_names, *features]:
                 data_var, chunksizes = cls.get_chunksizes(dset, data, chunks)
 
                 if dset == Dimension.TIME:

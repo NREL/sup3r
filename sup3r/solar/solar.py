@@ -677,5 +677,7 @@ class Solar:
                 'nn_threshold': nn_threshold,
                 'cloud_threshold': cloud_threshold,
             }
+            tmp_out = fp_out + '.tmp'
             with Solar(fp_set, nsrdb_fp, **kwargs) as solar:
-                solar.write(fp_out, features=features)
+                solar.write(tmp_out, features=features)
+            os.replace(tmp_out, fp_out)

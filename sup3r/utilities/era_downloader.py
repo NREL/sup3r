@@ -761,7 +761,11 @@ class EraDownloader:
 
         files = [file_pattern.format(year=year, var=var) for var in variables]
         kwargs = {'combine': 'nested', 'concat_dim': 'time'}
-        yearly_file = file_pattern.replace('_{var}_', '').replace('_{var}', '')
+        yearly_file = (
+            file_pattern.replace('_{var}_', '')
+            .replace('_{var}', '')
+            .format(year=year)
+        )
         cls._combine_var_files(files, yearly_file, kwargs)
 
     @classmethod
