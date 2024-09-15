@@ -13,7 +13,6 @@ import dask
 import dask.array as da
 import numpy as np
 from warnings import warn
-
 from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.utilities import _mem_check, log_args, _lowered
@@ -202,15 +201,16 @@ class Cacher(Container):
 
     @classmethod
     def get_chunksizes(cls, dset, data, chunks):
-        """Get chunksizes after rechunking (could be undetermined before hand
+        """Get chunksizes after rechunking (could be undetermined beforehand
         if ``chunks == 'auto'``) and return rechunked data."""
         data_var = data.coords[dset] if dset in data.coords else data[dset]
         fchunk = cls.parse_chunks(dset, chunks, data_var.dims)
-        if fchunk is not None and isinstance(fchunk, dict):
+        if isinstance(fchunk, dict):
             fchunk = {k: v for k, v in fchunk.items() if k in data_var.dims}
-            data_var = data_var.chunk(fchunk)
 
+        data_var = data_var.chunk(fchunk)
         data_var = data_var.unify_chunks()
+
         chunksizes = tuple(d[0] for d in data_var.chunksizes.values())
         chunksizes = chunksizes if chunksizes else None
         if chunksizes is not None:
@@ -274,7 +274,9 @@ class Cacher(Container):
         with h5py.File(out_file, mode) as f:
             for k, v in attrs.items():
                 f.attrs[k] = v
-            coord_names = set(data.coords).intersection(Dimension.coords_3d())
+
+            coord_names = Dimension.coords_4d() + Dimension.coords_4d()
+            coord_names = [crd for crd in data.coords if crd in coord_names]
             for dset in [*coord_names, *features]:
                 data_var, chunksizes = cls.get_chunksizes(dset, data, chunks)
 
@@ -326,7 +328,7 @@ class Cacher(Container):
     @staticmethod
     def write_chunk(out_file, dset, chunk_slice, chunk_data):
         """Add chunk to netcdf file."""
-        with nc4.Dataset(out_file, 'a', format='NETCDF4') as ds:
+        with nc4.Dataset(out_file, 'a') as ds:
             var = ds.variables[dset]
             var[chunk_slice] = chunk_data
 
@@ -347,11 +349,12 @@ class Cacher(Container):
         chunksizes = data_var.shape if chunksizes is None else chunksizes
         chunk_slices = cls.get_chunk_slices(chunksizes, data_var.shape)
         logger.info(
-            'Adding %s to %s with %s chunks and max_workers=%s ',
+            'Adding %s to %s with %s chunks and max_workers=%s. %s',
             feature,
             out_file,
             len(chunk_slices),
             max_workers,
+            _mem_check(),
         )
         for i, chunk_slice in enumerate(chunk_slices):
             msg = f'Writing chunk {i} / {len(chunk_slices)} to {out_file}'
@@ -414,9 +417,10 @@ class Cacher(Container):
             for dim_name, dim_size in data.sizes.items():
                 ncfile.createDimension(dim_name, dim_size)
 
-            coord_names = [
-                crd for crd in data.coords if crd in Dimension.coords_4d()
-            ]
+            for attr_name, attr_value in attrs.items():
+                ncfile.setncattr(attr_name, attr_value)
+
+            coord_names = [crd for crd in data.coords if crd in Dimension.coords_4d()]
             for dset in [*coord_names, *features]:
                 data_var, chunksizes = cls.get_chunksizes(dset, data, chunks)
 
@@ -431,7 +435,7 @@ class Cacher(Container):
                 for attr_name, attr_value in var_attrs.items():
                     dout.setncattr(attr_name, safe_cast(attr_value))
 
-                dout.coordinates = ' '.join(list(data_var.coords))
+                dout.coordinates = ' '.join(list(coord_names))
 
                 logger.debug(
                     'Adding %s to %s with chunks=%s',

@@ -52,7 +52,7 @@ def merge_datasets(files, **kwargs):
 
 def xr_open_mfdataset(files, **kwargs):
     """Wrapper for xr.open_mfdataset with default opening options."""
-    default_kwargs = {'engine': 'netcdf4'}
+    default_kwargs = {'engine': 'netcdf4', 'coords': 'minimal'}
     default_kwargs.update(kwargs)
     try:
         return xr.open_mfdataset(files, **default_kwargs)
