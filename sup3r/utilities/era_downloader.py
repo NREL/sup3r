@@ -16,10 +16,9 @@ from warnings import warn
 import dask
 import dask.array as da
 import numpy as np
-import xarray as xr
 from rex import init_logger
 
-from sup3r.preprocessing import Loader
+from sup3r.preprocessing import Cacher, Loader
 from sup3r.preprocessing.loaders.utilities import (
     standardize_names,
     standardize_values,
@@ -31,6 +30,10 @@ from sup3r.preprocessing.names import (
     Dimension,
 )
 from sup3r.preprocessing.utilities import log_args
+
+# these are occasionally included in downloaded files, more often with cds-beta
+IGNORE_VARS = ('number', 'expver')
+
 
 logger = logging.getLogger(__name__)
 
@@ -402,34 +405,6 @@ class EraDownloader:
             f'{tmp_file} to {self.level_file}.'
         )
 
-    @classmethod
-    def _write_dsets(cls, files, out_file, kwargs=None):
-        """Write data vars to out_file one dset at a time."""
-        os.makedirs(os.path.dirname(out_file), exist_ok=True)
-        added_features = []
-        tmp_file = cls.get_tmp_file(out_file)
-        for file in files:
-            ds = Loader(file, res_kwargs=kwargs)
-            for f in set(ds.data_vars) - set(added_features):
-                mode = 'w' if not os.path.exists(tmp_file) else 'a'
-                logger.info('Adding %s to %s.', f, tmp_file)
-                try:
-                    ds.data[f].load().to_netcdf(
-                        tmp_file,
-                        mode=mode,
-                        format='NETCDF4',
-                        engine='h5netcdf',
-                    )
-                except Exception as e:
-                    msg = 'Error adding %s from %s to %s. %s'
-                    logger.error(msg, f, file, tmp_file, e)
-                    raise RuntimeError from e
-                logger.info('Added %s to %s.', f, tmp_file)
-                added_features.append(f)
-        logger.info(f'Finished writing {tmp_file}')
-        os.replace(tmp_file, out_file)
-        logger.info('Moved %s to %s.', tmp_file, out_file)
-
     def process_and_combine(self):
         """Process variables and combine."""
         if not os.path.exists(self.monthly_file) or self.overwrite:
@@ -444,7 +419,7 @@ class EraDownloader:
                 files.append(self.surface_file)
 
             kwargs = {'compat': 'override'}
-            self._combine_var_files(files, self.monthly_file, kwargs)
+            self._combine_files(files, self.monthly_file, kwargs)
 
             if os.path.exists(self.level_file):
                 os.remove(self.level_file)
@@ -706,29 +681,24 @@ class EraDownloader:
         ]
 
         outfile = yearly_file_pattern.format(year=year, var=variable)
-        cls._combine_time_files(files, outfile)
+        cls._combine_files(files, outfile)
 
     @classmethod
-    def _combine_var_files(cls, files, outfile, kwargs=None):
-        if not os.path.exists(outfile):
-            logger.info(f'Combining {files} into {outfile}.')
-            try:
-                cls._write_dsets(files, out_file=outfile, kwargs=kwargs)
-            except Exception as e:
-                msg = f'Error combining {files}.'
-                logger.error(msg)
-                raise RuntimeError(msg) from e
-        else:
-            logger.info(f'{outfile} already exists.')
-
-    @classmethod
-    def _combine_time_files(cls, files, outfile, kwargs=None):
+    def _combine_files(cls, files, outfile, kwargs=None):
         if not os.path.exists(outfile):
             logger.info(f'Combining {files} into {outfile}.')
             try:
                 kwargs = kwargs or {}
-                ds = xr.open_mfdataset(files, **kwargs)
-                ds.to_netcdf(outfile)
+                loader = Loader(files, res_kwargs=kwargs)
+                tmp_file = cls.get_tmp_file(outfile)
+                for ignore_var in IGNORE_VARS:
+                    if ignore_var in loader.coords:
+                        loader.data = loader.data.drop_vars(ignore_var)
+                Cacher.write_netcdf(
+                    data=loader.data, out_file=tmp_file, max_workers=1
+                )
+                os.replace(tmp_file, outfile)
+                logger.info('Moved %s to %s.', tmp_file, outfile)
             except Exception as e:
                 msg = f'Error combining {files}.'
                 logger.error(msg)
@@ -766,7 +736,7 @@ class EraDownloader:
             .replace('_{var}', '')
             .format(year=year)
         )
-        cls._combine_var_files(files, yearly_file, kwargs)
+        cls._combine_files(files, yearly_file, kwargs)
 
     @classmethod
     def run_qa(cls, file, res_kwargs=None, log_file=None):

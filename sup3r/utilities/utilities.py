@@ -21,31 +21,45 @@ logger = logging.getLogger(__name__)
 RANDOM_GENERATOR = np.random.default_rng(seed=42)
 
 
+def merge_datasets(files, **kwargs):
+    """Merge xr.Datasets after some standardization. This useful when
+    xr.open_mfdatasets fails due to different time index formats or coordinate
+    names, for example."""
+    dsets = [xr.open_mfdataset(f, **kwargs) for f in files]
+    time_indices = [dset.time for dset in dsets]
+    for i, dset in enumerate(dsets):
+        if 'time' in dset and dset.time.size > 1:
+            dset['time'] = pd.DatetimeIndex(dset.time)
+            dsets[i] = dset
+        if 'latitude' in dset.dims:
+            dset = dset.swap_dims({'latitude': 'south_north'})
+            dsets[i] = dset
+        if 'longitude' in dset.dims:
+            dset = dset.swap_dims({'longitude': 'west_east'})
+            dsets[i] = dset
+    out = xr.merge(dsets, **get_class_kwargs(xr.merge, kwargs))
+    msg = ('Merged time index does not have the same number of time steps '
+           '(%s) as the sum of the individual time index steps (%s).')
+    merged_size = out.time.size
+    summed_size = pd.concat(time_indices).drop_duplicates().size
+    assert merged_size == summed_size, msg % (merged_size, summed_size)
+    return out
+
+
 def xr_open_mfdataset(files, **kwargs):
     """Wrapper for xr.open_mfdataset with default opening options."""
-    default_kwargs = {'engine': 'netcdf4'}
+    default_kwargs = {'engine': 'netcdf4', 'coords': 'minimal'}
     default_kwargs.update(kwargs)
     try:
         return xr.open_mfdataset(files, **default_kwargs)
     except Exception as e:
-        msg = (
-            'Could not use xr.open_mfdataset to open %s. Trying to open '
-            'them separately and merge. %s'
-        )
+        msg = 'Could not use xr.open_mfdataset to open %s. '
+        if len(files) == 1:
+            raise RuntimeError(msg % files) from e
+        msg += 'Trying to open them separately and merge. %s'
         logger.warning(msg, files, e)
         warn(msg % (files, e))
-        dsets = [xr.open_mfdataset(f, **default_kwargs) for f in files]
-        for i, dset in enumerate(dsets):
-            if 'time' in dset and dset.time.size > 1:
-                dset['time'] = pd.DatetimeIndex(dset.time)
-                dsets[i] = dset
-            if 'latitude' in dset.dims:
-                dset = dset.swap_dims({'latitude': 'south_north'})
-                dsets[i] = dset
-            if 'longitude' in dset.dims:
-                dset = dset.swap_dims({'longitude': 'west_east'})
-                dsets[i] = dset
-        return xr.merge(dsets, **get_class_kwargs(xr.merge, kwargs))
+        return merge_datasets(files, **default_kwargs)
 
 
 def safe_cast(o):
