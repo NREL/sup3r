@@ -13,9 +13,40 @@ import xarray as xr
 from packaging import version
 from scipy import ndimage as nd
 
+from sup3r.preprocessing.utilities import get_class_kwargs
+
 logger = logging.getLogger(__name__)
 
 RANDOM_GENERATOR = np.random.default_rng(seed=42)
+
+
+def merge_datasets(files, **kwargs):
+    """Merge xr.Datasets after some standardization. This useful when
+    xr.open_mfdatasets fails due to different time index formats or coordinate
+    names, for example."""
+    dsets = [xr.open_mfdataset(f, **kwargs) for f in files]
+    time_indices = []
+    for i, dset in enumerate(dsets):
+        if 'time' in dset and dset.time.size > 1:
+            ti = pd.DatetimeIndex(dset.time)
+            dset['time'] = ti
+            dsets[i] = dset
+            time_indices.append(ti.to_series())
+        if 'latitude' in dset.dims:
+            dset = dset.swap_dims({'latitude': 'south_north'})
+            dsets[i] = dset
+        if 'longitude' in dset.dims:
+            dset = dset.swap_dims({'longitude': 'west_east'})
+            dsets[i] = dset
+    out = xr.merge(dsets, **get_class_kwargs(xr.merge, kwargs))
+    msg = (
+        'Merged time index does not have the same number of time steps '
+        '(%s) as the sum of the individual time index steps (%s).'
+    )
+    merged_size = out.time.size
+    summed_size = pd.concat(time_indices).drop_duplicates().size
+    assert merged_size == summed_size, msg % (merged_size, summed_size)
+    return out
 
 
 def xr_open_mfdataset(files, **kwargs):

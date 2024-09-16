@@ -67,7 +67,7 @@ def test_era_dl(tmpdir_factory):
         month=month,
         area=area,
         levels=levels,
-        monthly_file_pattern=file_pattern,
+        file_pattern=file_pattern,
         variables=variables,
     )
     for v in variables:
@@ -86,18 +86,25 @@ def test_era_dl_year(tmpdir_factory):
     file_pattern = os.path.join(
         tmpdir_factory.mktemp('tmp'), 'era5_{year}_{month}_{var}.nc'
     )
-    yearly_file = os.path.join(tmpdir_factory.mktemp('tmp'), 'era5_final.nc')
-    EraDownloaderTester.run_year(
+    yearly_file_pattern = os.path.join(
+        tmpdir_factory.mktemp('tmp'), 'era5_{year}_{var}_final.nc'
+    )
+    EraDownloaderTester.run(
         year=2000,
         area=[50, -130, 23, -65],
         levels=[1000, 900, 800],
         variables=variables,
         monthly_file_pattern=file_pattern,
-        yearly_file=yearly_file,
+        yearly_file_pattern=yearly_file_pattern,
         max_workers=1,
+        combine_all_files=True,
+        res_kwargs={'compat': 'override', 'engine': 'netcdf4'},
     )
 
-    tmp = xr_open_mfdataset(yearly_file)
+    combined_file = yearly_file_pattern.replace('_{var}_', '').format(
+        year=2000
+    )
+    tmp = xr_open_mfdataset(combined_file)
     for v in variables:
         standard_name = FEATURE_NAMES.get(v, v)
         assert standard_name in tmp

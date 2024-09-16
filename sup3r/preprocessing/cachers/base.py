@@ -12,6 +12,7 @@ import h5py
 import dask
 import dask.array as da
 import numpy as np
+from warnings import warn
 
 from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.names import Dimension
@@ -179,9 +180,17 @@ class Cacher(Container):
         data_var = data_var.unify_chunks()
         chunksizes = tuple(d[0] for d in data_var.chunksizes.values())
         chunksizes = chunksizes if chunksizes else None
+        if chunksizes is not None:
+            chunkmem = np.prod(chunksizes) * data_var.dtype.itemsize / 1e9
+            if chunkmem > 4:
+                msg = (
+                    'Chunks cannot be larger than 4GB. Given chunksizes %s '
+                    'result in %sGB. Will use chunksizes = None')
+                logger.warning(msg, chunksizes, chunkmem)
+                warn(msg % (chunksizes, chunkmem))
+                chunksizes = None
         return data_var, chunksizes
 
-    # pylint : disable=unused-argument
     @classmethod
     def write_h5(
         cls,
