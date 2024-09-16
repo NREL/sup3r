@@ -35,7 +35,7 @@ class Solar:
         nsrdb_fp,
         t_slice=slice(None),
         tz=-6,
-        time_shift=None,
+        time_shift=0,
         agg_factor=1,
         nn_threshold=0.5,
         cloud_threshold=0.99,
@@ -67,7 +67,7 @@ class Solar:
             the GAN is trained on data in local time and therefore the output
             in sup3r_fps should be treated as local time. For example, -6 is
             CST which is default for CONUS training data.
-        time_shift : int | None
+        time_shift : int
             Number of hours to shift time axis. This can be used, for
             example, to shift the time index for daily data so that the time
             stamp for a given day starts at hour zero instead of at
@@ -596,7 +596,7 @@ class Solar:
         nsrdb_fp,
         fp_out_suffix='irradiance',
         tz=-6,
-        time_shift=None,
+        time_shift=0,
         agg_factor=1,
         nn_threshold=0.5,
         cloud_threshold=0.99,
