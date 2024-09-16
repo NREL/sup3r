@@ -26,11 +26,13 @@ def merge_datasets(files, **kwargs):
     xr.open_mfdatasets fails due to different time index formats or coordinate
     names, for example."""
     dsets = [xr.open_mfdataset(f, **kwargs) for f in files]
-    time_indices = [dset.time for dset in dsets]
+    time_indices = []
     for i, dset in enumerate(dsets):
         if 'time' in dset and dset.time.size > 1:
-            dset['time'] = pd.DatetimeIndex(dset.time)
+            ti = pd.DatetimeIndex(dset.time)
+            dset['time'] = ti
             dsets[i] = dset
+            time_indices.append(ti.to_series())
         if 'latitude' in dset.dims:
             dset = dset.swap_dims({'latitude': 'south_north'})
             dsets[i] = dset
@@ -48,7 +50,7 @@ def merge_datasets(files, **kwargs):
 
 def xr_open_mfdataset(files, **kwargs):
     """Wrapper for xr.open_mfdataset with default opening options."""
-    default_kwargs = {'engine': 'netcdf4', 'coords': 'minimal'}
+    default_kwargs = {'engine': 'netcdf4'}
     default_kwargs.update(kwargs)
     try:
         return xr.open_mfdataset(files, **default_kwargs)

@@ -526,6 +526,8 @@ class EraDownloader:
         max_workers=None,
         variable=None,
         product_type='reanalysis',
+        chunks='auto',
+        res_kwargs=None,
     ):
         """Run routine for all requested months in the requested year for the
         given variable.
@@ -558,6 +560,9 @@ class EraDownloader:
         product_type : str
             Can be 'reanalysis', 'ensemble_mean', 'ensemble_spread',
             'ensemble_members'
+        chunks : str | dict
+            Dictionary of chunksizes used when writing data to netcdf files.
+            Can also be 'auto'.
         """
         yearly_var_file = yearly_file_pattern.format(year=year, var=variable)
         if os.path.exists(yearly_var_file) and not overwrite:
@@ -592,7 +597,12 @@ class EraDownloader:
 
         if yearly_file_pattern is not None and len(months) == 12:
             cls.make_yearly_var_file(
-                year, monthly_file_pattern, yearly_file_pattern, variable
+                year,
+                monthly_file_pattern,
+                yearly_file_pattern,
+                variable,
+                chunks=chunks,
+                res_kwargs=res_kwargs,
             )
 
     @classmethod
@@ -608,6 +618,9 @@ class EraDownloader:
         max_workers=None,
         variables=None,
         product_type='reanalysis',
+        chunks='auto',
+        combine_all_files=False,
+        res_kwargs=None,
     ):
         """Run routine for all requested months in the requested year.
 
@@ -637,6 +650,12 @@ class EraDownloader:
         product_type : str
             Can be 'reanalysis', 'ensemble_mean', 'ensemble_spread',
             'ensemble_members'
+        chunks : str | dict
+            Dictionary of chunksizes used when writing data to netcdf files.
+            Can also be 'auto'
+        combine_all_files : bool
+            Whether to combine separate yearly variable files into a single
+            yearly file with all variables included
         """
         for var in variables:
             cls.run_for_var(
@@ -650,16 +669,35 @@ class EraDownloader:
                 variable=var,
                 product_type=product_type,
                 max_workers=max_workers,
+                chunks=chunks,
+                res_kwargs=res_kwargs,
             )
 
-        if cls.all_vars_exist(
-            year=year, file_pattern=yearly_file_pattern, variables=variables
+        if (
+            cls.all_vars_exist(
+                year=year,
+                file_pattern=yearly_file_pattern,
+                variables=variables,
+            )
+            and combine_all_files
         ):
-            cls.make_yearly_file(year, yearly_file_pattern, variables)
+            cls.make_yearly_file(
+                year,
+                yearly_file_pattern,
+                variables,
+                chunks=chunks,
+                res_kwargs=res_kwargs,
+            )
 
     @classmethod
     def make_yearly_var_file(
-        cls, year, monthly_file_pattern, yearly_file_pattern, variable
+        cls,
+        year,
+        monthly_file_pattern,
+        yearly_file_pattern,
+        variable,
+        chunks='auto',
+        res_kwargs=None,
     ):
         """Combine monthly variable files into a single yearly variable file.
 
@@ -667,11 +705,21 @@ class EraDownloader:
         ----------
         year : int
             Year used to download data
-        file_pattern : str
+        monthly_file_pattern : str
             File pattern for monthly variable files. Must have year, month, and
             var format keys. e.g. './era_{year}_{month}_{var}_combined.nc'
+        yearly_file_pattern : str
+            File pattern for yearly variable files. Must have year and var
+            format keys. e.g. './era_{year}_{var}_combined.nc'
         variable : string
             Variable name for the files to be combined.
+        chunks : str | dict
+            Dictionary of chunksizes used when writing data to netcdf files.
+            Can also be 'auto'.
+        res_kwargs : None | dict
+            Keyword arguments for base resource handler, like
+            ``xr.open_mfdataset.`` This is passed to a ``Loader`` object and
+            then used in the base loader contained by that obkect.
         """
         files = [
             monthly_file_pattern.format(
@@ -681,21 +729,26 @@ class EraDownloader:
         ]
 
         outfile = yearly_file_pattern.format(year=year, var=variable)
-        cls._combine_files(files, outfile)
+        cls._combine_files(
+            files, outfile, chunks=chunks, res_kwargs=res_kwargs
+        )
 
     @classmethod
-    def _combine_files(cls, files, outfile, kwargs=None):
+    def _combine_files(cls, files, outfile, chunks='auto', res_kwargs=None):
         if not os.path.exists(outfile):
             logger.info(f'Combining {files} into {outfile}.')
             try:
-                kwargs = kwargs or {}
-                loader = Loader(files, res_kwargs=kwargs)
+                res_kwargs = res_kwargs or {}
+                loader = Loader(files, res_kwargs=res_kwargs)
                 tmp_file = cls.get_tmp_file(outfile)
                 for ignore_var in IGNORE_VARS:
                     if ignore_var in loader.coords:
                         loader.data = loader.data.drop_vars(ignore_var)
                 Cacher.write_netcdf(
-                    data=loader.data, out_file=tmp_file, max_workers=1
+                    data=loader.data,
+                    out_file=tmp_file,
+                    max_workers=1,
+                    chunks=chunks,
                 )
                 os.replace(tmp_file, outfile)
                 logger.info('Moved %s to %s.', tmp_file, outfile)
@@ -707,19 +760,28 @@ class EraDownloader:
             logger.info(f'{outfile} already exists.')
 
     @classmethod
-    def make_yearly_file(cls, year, file_pattern, variables):
-        """Combine monthly files into a single file.
+    def make_yearly_file(
+        cls, year, file_pattern, variables, chunks='auto', res_kwargs=None
+    ):
+        """Combine yearly variable files into a single file.
 
         Parameters
         ----------
         year : int
-            Year of monthly data to make into a yearly file.
+            Year for the data to make into a yearly file.
         file_pattern : str
             File pattern for output files. Must have year and var
             format keys. e.g. './era_{year}_{var}_combined.nc'
         variables : list
             List of variables corresponding to the yearly variable files to
             combine.
+        chunks : str | dict
+            Dictionary of chunksizes used when writing data to netcdf files.
+            Can also be 'auto'.
+        res_kwargs : None | dict
+            Keyword arguments for base resource handler, like
+            ``xr.open_mfdataset.`` This is passed to a ``Loader`` object and
+            then used in the base loader contained by that obkect.
         """
         msg = (
             f'Not all variable files with file_patten {file_pattern} for '
@@ -730,13 +792,14 @@ class EraDownloader:
         ), msg
 
         files = [file_pattern.format(year=year, var=var) for var in variables]
-        kwargs = {'combine': 'nested', 'concat_dim': 'time'}
         yearly_file = (
             file_pattern.replace('_{var}_', '')
             .replace('_{var}', '')
             .format(year=year)
         )
-        cls._combine_files(files, yearly_file, kwargs)
+        cls._combine_files(
+            files, yearly_file, res_kwargs=res_kwargs, chunks=chunks
+        )
 
     @classmethod
     def run_qa(cls, file, res_kwargs=None, log_file=None):

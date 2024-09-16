@@ -184,10 +184,10 @@ class Cacher(Container):
             chunkmem = np.prod(chunksizes) * data_var.dtype.itemsize / 1e9
             if chunkmem > 4:
                 msg = (
-                    'Chunks cannot be larger than 4GB. Given chunksizes '
-                    'result in %s. Will use chunksizes = None')
-                logger.warning(msg)
-                warn(msg)
+                    'Chunks cannot be larger than 4GB. Given chunksizes %s '
+                    'result in %sGB. Will use chunksizes = None')
+                logger.warning(msg, chunksizes, chunkmem)
+                warn(msg % (chunksizes, chunkmem))
                 chunksizes = None
         return data_var, chunksizes
 
