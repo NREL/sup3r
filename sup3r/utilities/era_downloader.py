@@ -569,6 +569,8 @@ class EraDownloader:
         max_workers=None,
         variable=None,
         product_type='reanalysis',
+        chunks='auto',
+        res_kwargs=None,
     ):
         """Run routine for all requested months in the requested year for the
         given variable.
@@ -601,6 +603,9 @@ class EraDownloader:
         product_type : str
             Can be 'reanalysis', 'ensemble_mean', 'ensemble_spread',
             'ensemble_members'
+        chunks : str | dict
+            Dictionary of chunksizes used when writing data to netcdf files.
+            Can also be 'auto'.
         """
         yearly_var_file = yearly_file_pattern.format(year=year, var=variable)
         if os.path.exists(yearly_var_file) and not overwrite:
@@ -635,7 +640,12 @@ class EraDownloader:
 
         if yearly_file_pattern is not None and len(months) == 12:
             cls.make_yearly_var_file(
-                year, monthly_file_pattern, yearly_file_pattern, variable
+                year,
+                monthly_file_pattern,
+                yearly_file_pattern,
+                variable,
+                chunks=chunks,
+                res_kwargs=res_kwargs,
             )
 
     @classmethod
