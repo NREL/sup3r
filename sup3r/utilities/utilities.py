@@ -5,6 +5,7 @@ import logging
 import random
 import string
 import time
+from warnings import warn
 
 import numpy as np
 import pandas as pd
@@ -53,7 +54,16 @@ def xr_open_mfdataset(files, **kwargs):
     """Wrapper for xr.open_mfdataset with default opening options."""
     default_kwargs = {'engine': 'netcdf4'}
     default_kwargs.update(kwargs)
-    return xr.open_mfdataset(files, **default_kwargs)
+    try:
+        return xr.open_mfdataset(files, **default_kwargs)
+    except Exception as e:
+        msg = 'Could not use xr.open_mfdataset to open %s. '
+        if len(files) == 1:
+            raise RuntimeError(msg % files) from e
+        msg += 'Trying to open them separately and merge. %s'
+        logger.warning(msg, files, e)
+        warn(msg % (files, e))
+        return merge_datasets(files, **default_kwargs)
 
 
 def safe_cast(o):
