@@ -35,7 +35,6 @@ class Solar:
         nsrdb_fp,
         t_slice=slice(None),
         tz=-6,
-        time_shift=-12,
         agg_factor=1,
         nn_threshold=0.5,
         cloud_threshold=0.99,
@@ -67,12 +66,6 @@ class Solar:
             the GAN is trained on data in local time and therefore the output
             in sup3r_fps should be treated as local time. For example, -6 is
             CST which is default for CONUS training data.
-        time_shift : int | None
-            Number of hours to shift time axis. This can be used, for
-            example, to shift the time index for daily data so that the time
-            stamp for a given day starts at hour zero instead of at
-            noon, as is the case for most GCM data. In this case ``time_shift``
-            would be -12
         agg_factor : int
             Spatial aggregation factor for nsrdb-to-GAN-meta e.g. the number of
             NSRDB spatial pixels to average for a single sup3r GAN output site.
@@ -91,7 +84,6 @@ class Solar:
         self.nn_threshold = nn_threshold
         self.cloud_threshold = cloud_threshold
         self.tz = tz
-        self.time_shift = time_shift
         self._nsrdb_fp = nsrdb_fp
         self._sup3r_fps = sup3r_fps
         if isinstance(self._sup3r_fps, str):
@@ -203,8 +195,7 @@ class Solar:
         -------
         pd.DatetimeIndex
         """
-        ti = self.gan_data.time_index[self.t_slice]
-        return ti.shift(self.time_shift, freq='h')
+        return self.gan_data.time_index[self.t_slice]
 
     @property
     def out_of_bounds(self):
@@ -521,7 +512,7 @@ class Solar:
         import_str += 'from rex import init_logger;\n'
         import_str += f'from sup3r.solar import {cls.__name__}'
 
-        fun_str = get_fun_call_str(cls.run_temporal_chunk, config)
+        fun_str = get_fun_call_str(cls.run_temporal_chunks, config)
 
         log_file = config.get('log_file', None)
         log_level = config.get('log_level', 'INFO')
@@ -590,22 +581,21 @@ class Solar:
         logger.info(f'Finished writing file: {fp_out}')
 
     @classmethod
-    def run_temporal_chunk(
+    def run_temporal_chunks(
         cls,
         fp_pattern,
         nsrdb_fp,
         fp_out_suffix='irradiance',
         tz=-6,
-        time_shift=-12,
         agg_factor=1,
         nn_threshold=0.5,
         cloud_threshold=0.99,
         features=('ghi', 'dni', 'dhi'),
-        temporal_id=None,
+        temporal_ids=None,
     ):
-        """Run the solar module on all spatial chunks for a single temporal
-        chunk corresponding to the fp_pattern. This typically gets run from the
-        CLI.
+        """Run the solar module on all spatial chunks for each temporal
+        chunk corresponding to the fp_pattern and the given list of
+        temporal_ids. This typically gets run from the CLI.
 
         Parameters
         ----------
@@ -623,12 +613,6 @@ class Solar:
             the GAN is trained on data in local time and therefore the output
             in sup3r_fps should be treated as local time. For example, -6 is
             CST which is default for CONUS training data.
-        time_shift : int | None
-            Number of hours to shift time axis. This can be used, for
-            example, to shift the time index for daily data so that the time
-            stamp for a given day starts at hour zero instead of at
-            noon, as is the case for most GCM data. In this case ``time_shift``
-            would be -12
         agg_factor : int
             Spatial aggregation factor for nsrdb-to-GAN-meta e.g. the number of
             NSRDB spatial pixels to average for a single sup3r GAN output site.
@@ -643,10 +627,57 @@ class Solar:
         features : list | tuple
             List of features to write to disk. These have to be attributes of
             the Solar class (ghi, dni, dhi).
-        temporal_id : str | None
-            One of the unique zero-padded temporal id's from the file chunks
-            that match fp_pattern. This input typically gets set from the CLI.
-            If None, this will run all temporal indices.
+        temporal_ids : list | None
+            Lise of zero-padded temporal ids from the file chunks that match
+            fp_pattern. This input typically gets set from the CLI. If None,
+            this will run all temporal indices.
+        """
+        if temporal_ids is None:
+            cls._run_temporal_chunk(
+                fp_pattern=fp_pattern,
+                nsrdb_fp=nsrdb_fp,
+                fp_out_suffix=fp_out_suffix,
+                tz=tz,
+                agg_factor=agg_factor,
+                nn_threshold=nn_threshold,
+                cloud_threshold=cloud_threshold,
+                features=features,
+                temporal_id=temporal_ids,
+            )
+        else:
+            for temporal_id in temporal_ids:
+                cls._run_temporal_chunk(
+                    fp_pattern=fp_pattern,
+                    nsrdb_fp=nsrdb_fp,
+                    fp_out_suffix=fp_out_suffix,
+                    tz=tz,
+                    agg_factor=agg_factor,
+                    nn_threshold=nn_threshold,
+                    cloud_threshold=cloud_threshold,
+                    features=features,
+                    temporal_id=temporal_id,
+                )
+
+    @classmethod
+    def _run_temporal_chunk(
+        cls,
+        fp_pattern,
+        nsrdb_fp,
+        fp_out_suffix='irradiance',
+        tz=-6,
+        agg_factor=1,
+        nn_threshold=0.5,
+        cloud_threshold=0.99,
+        features=('ghi', 'dni', 'dhi'),
+        temporal_id=None,
+    ):
+        """Run the solar module on all spatial chunks for a single temporal
+        chunk corresponding to the fp_pattern. This typically gets run from the
+        CLI.
+
+        See Also
+        --------
+        :meth:`run_temporal_chunks`
         """
 
         temp = cls.get_sup3r_fps(fp_pattern, ignore=f'_{fp_out_suffix}.h5')
@@ -685,7 +716,6 @@ class Solar:
                 kwargs = {
                     't_slice': t_slice,
                     'tz': tz,
-                    'time_shift': time_shift,
                     'agg_factor': agg_factor,
                     'nn_threshold': nn_threshold,
                     'cloud_threshold': cloud_threshold,
