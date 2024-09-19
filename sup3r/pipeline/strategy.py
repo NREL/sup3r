@@ -560,6 +560,7 @@ class ForwardPassStrategy:
                 )
                 input_handler_kwargs['target'] = self.input_handler.target
                 input_handler_kwargs['shape'] = self.input_handler.grid_shape
+                _ = input_handler_kwargs.pop('time_slice', None)
                 exo_kwargs['input_handler_kwargs'] = input_handler_kwargs
                 exo_kwargs = get_class_kwargs(ExoDataHandler, exo_kwargs)
                 data.update(ExoDataHandler(**exo_kwargs).data)
