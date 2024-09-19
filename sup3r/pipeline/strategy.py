@@ -534,6 +534,7 @@ class ForwardPassStrategy:
                 )
                 input_handler_kwargs['target'] = self.input_handler.target
                 input_handler_kwargs['shape'] = self.input_handler.grid_shape
+                _ = input_handler_kwargs.pop('time_slice', None)
                 exo_kwargs['input_handler_kwargs'] = input_handler_kwargs
                 exo_kwargs = get_class_kwargs(ExoDataHandler, exo_kwargs)
                 data.update(ExoDataHandler(**exo_kwargs).data)
@@ -576,6 +577,8 @@ class ForwardPassStrategy:
         input_handler_kwargs['features'] = 'all'
         handler = InputHandler(**input_handler_kwargs)
         if 'mask' in handler:
+            logger.info('Found "mask" in DataHandler. Computing forward pass '
+                        'chunk mask for %s chunks', len(self.lr_pad_slices))
             mask_vals = handler['mask'].values
             for s_chunk_idx, lr_slices in enumerate(self.lr_pad_slices):
                 mask_check = mask_vals[lr_slices[0], lr_slices[1]]
