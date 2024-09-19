@@ -3,11 +3,13 @@
 TODO: This should be modified to enable distribution of file groups across
 nodes instead of requesting a node for a single file
 """
+
 import copy
 import logging
 import os
 
 import click
+import numpy as np
 
 from sup3r import __version__
 from sup3r.solar import Solar
@@ -19,8 +21,12 @@ logger = logging.getLogger(__name__)
 
 @click.group()
 @click.version_option(version=__version__)
-@click.option('-v', '--verbose', is_flag=True,
-              help='Flag to turn on debug logging. Default is not verbose.')
+@click.option(
+    '-v',
+    '--verbose',
+    is_flag=True,
+    help='Flag to turn on debug logging. Default is not verbose.',
+)
 @click.pass_context
 def main(ctx, verbose):
     """Sup3r Solar Command Line Interface"""
@@ -29,37 +35,59 @@ def main(ctx, verbose):
 
 
 @main.command()
-@click.option('--config_file', '-c', required=True,
-              type=click.Path(exists=True),
-              help='sup3r solar configuration .json file.')
-@click.option('-v', '--verbose', is_flag=True,
-              help='Flag to turn on debug logging. Default is not verbose.')
+@click.option(
+    '--config_file',
+    '-c',
+    required=True,
+    type=click.Path(exists=True),
+    help='sup3r solar configuration .json file.',
+)
+@click.option(
+    '-v',
+    '--verbose',
+    is_flag=True,
+    help='Flag to turn on debug logging. Default is not verbose.',
+)
 @click.pass_context
 def from_config(ctx, config_file, verbose=False, pipeline_step=None):
     """Run sup3r solar from a config file."""
-    config = BaseCLI.from_config_preflight(ModuleName.SOLAR, ctx, config_file,
-                                           verbose)
+    config = BaseCLI.from_config_preflight(
+        ModuleName.SOLAR, ctx, config_file, verbose
+    )
     exec_kwargs = config.get('execution_control', {})
     hardware_option = exec_kwargs.pop('option', 'local')
     log_pattern = config.get('log_pattern', None)
     fp_pattern = config['fp_pattern']
     basename = config['job_name']
     fp_sets, _, temporal_ids, _, _ = Solar.get_sup3r_fps(fp_pattern)
-    logger.info('Solar module found {} sets of chunked source files to run '
-                'on. Submitting to {} nodes based on the number of temporal '
-                'chunks'.format(len(fp_sets), len(set(temporal_ids))))
+    temporal_ids = sorted(set(temporal_ids))
+    max_nodes = config.get('max_nodes', len(temporal_ids))
+    max_nodes = min((max_nodes, len(temporal_ids)))
+    logger.info(
+        'Solar module found {} sets of chunked source files to run '
+        'on. Submitting to {} nodes based on the number of temporal '
+        'chunks {} and the requested number of nodes {}'.format(
+            len(fp_sets),
+            max_nodes,
+            len(temporal_ids),
+            config.get('max_nodes', None),
+        )
+    )
 
-    for i_node, temporal_id in enumerate(sorted(set(temporal_ids))):
+    temporal_id_chunks = np.array_split(temporal_ids, max_nodes)
+    for i_node, temporal_ids in enumerate(temporal_id_chunks):
         node_config = copy.deepcopy(config)
         node_config['log_file'] = (
-            log_pattern if log_pattern is None
-            else os.path.normpath(log_pattern.format(node_index=i_node)))
-        name = ('{}_{}'.format(basename, str(i_node).zfill(6)))
+            log_pattern
+            if log_pattern is None
+            else os.path.normpath(log_pattern.format(node_index=i_node))
+        )
+        name = '{}_{}'.format(basename, str(i_node).zfill(6))
         ctx.obj['NAME'] = name
         node_config['job_name'] = name
-        node_config["pipeline_step"] = pipeline_step
+        node_config['pipeline_step'] = pipeline_step
 
-        node_config['temporal_id'] = temporal_id
+        node_config['temporal_ids'] = temporal_ids
         cmd = Solar.get_node_cmd(node_config)
 
         if hardware_option.lower() in AVAILABLE_HARDWARE_OPTIONS:
@@ -68,9 +96,16 @@ def from_config(ctx, config_file, verbose=False, pipeline_step=None):
             kickoff_local_job(ctx, cmd, pipeline_step)
 
 
-def kickoff_slurm_job(ctx, cmd, pipeline_step=None, alloc='sup3r',
-                      memory=None, walltime=4, feature=None,
-                      stdout_path='./stdout/'):
+def kickoff_slurm_job(
+    ctx,
+    cmd,
+    pipeline_step=None,
+    alloc='sup3r',
+    memory=None,
+    walltime=4,
+    feature=None,
+    stdout_path='./stdout/',
+):
     """Run sup3r on HPC via SLURM job submission.
 
     Parameters
@@ -96,8 +131,17 @@ def kickoff_slurm_job(ctx, cmd, pipeline_step=None, alloc='sup3r',
     stdout_path : str
         Path to print .stdout and .stderr files.
     """
-    BaseCLI.kickoff_slurm_job(ModuleName.SOLAR, ctx, cmd, alloc, memory,
-                              walltime, feature, stdout_path, pipeline_step)
+    BaseCLI.kickoff_slurm_job(
+        ModuleName.SOLAR,
+        ctx,
+        cmd,
+        alloc,
+        memory,
+        walltime,
+        feature,
+        stdout_path,
+        pipeline_step,
+    )
 
 
 def kickoff_local_job(ctx, cmd, pipeline_step=None):
