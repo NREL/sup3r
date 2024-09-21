@@ -216,7 +216,7 @@ def test_srl_extraction_h5(s_enhance):
                 assert np.argmin(dist) == gid
 
             # make sure the mean srlation makes sense
-            test_out = hr_srl[idy, idx, 0, 0]
+            test_out = hr_srl[idy, idx, 0]
             true_out = te.source_data[iloc].mean()
             assert np.allclose(test_out, true_out)
 
@@ -272,7 +272,7 @@ def test_topo_extraction_h5(s_enhance):
                 assert np.argmin(dist) == gid
 
             # make sure the mean elevation makes sense
-            test_out = hr_elev[idy, idx, 0, 0]
+            test_out = hr_elev[idy, idx, 0]
             true_out = te.source_data[iloc].mean()
             assert np.allclose(test_out, true_out)
 
