@@ -872,15 +872,12 @@ class EraDownloader:
         ]
 
         outfile = yearly_file_pattern.format(year=year, var=variable)
-        default_kwargs = {
-            'combine': 'nested',
-            'concat_dim': 'time',
-            'coords': 'minimal',
-        }
+
+        default_kwargs = {'combine': 'nested', 'concat_dim': 'time'}
         res_kwargs = res_kwargs or {}
         default_kwargs.update(res_kwargs)
         cls._combine_files(
-            files, outfile, chunks=chunks, res_kwargs=res_kwargs
+            files, outfile, chunks=chunks, res_kwargs=default_kwargs
         )
 
     @classmethod
