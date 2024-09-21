@@ -311,6 +311,11 @@ class ExoDataHandler:
     cache_dir : str | None
         Directory for storing cache data. Default is './exo_cache'. If None
         then no data will be cached.
+    chunks : str | dict
+        Dictionary of dimension chunk sizes for returned exo data. e.g.
+        {'time': 100, 'south_north': 100, 'west_east': 100}. This can also just
+        be "auto". This is passed to ``.chunk()`` before returning exo data
+        through ``.data`` attribute
     distance_upper_bound : float | None
         Maximum distance to map high-resolution data from source_file to the
         low-resolution file_paths input. None (default) will calculate this
@@ -325,6 +330,7 @@ class ExoDataHandler:
     input_handler_name: Optional[str] = None
     input_handler_kwargs: Optional[dict] = None
     cache_dir: str = './exo_cache'
+    chunks: Optional[Union[str, dict]] = 'auto'
     distance_upper_bound: Optional[int] = None
 
     @log_args
@@ -384,6 +390,7 @@ class ExoDataHandler:
             input_handler_name=self.input_handler_name,
             input_handler_kwargs=self.input_handler_kwargs,
             cache_dir=self.cache_dir,
+            chunks=self.chunks,
             distance_upper_bound=self.distance_upper_bound,
         ).data
 
