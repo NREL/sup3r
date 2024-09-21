@@ -245,26 +245,32 @@ class EraDownloader:
             'time': self.hours,
         }
         if sfc_check:
+            tmp_file = self.get_tmp_file(self.surface_file)
             self.download_file(
                 self.sfc_file_variables,
                 time_dict=time_dict,
                 area=self.area,
-                out_file=self.surface_file,
+                out_file=tmp_file,
                 level_type='single',
                 overwrite=self.overwrite,
                 product_type=self.product_type,
             )
+            os.replace(tmp_file, self.surface_file)
+            logger.info('Moved %s to %s', tmp_file, self.surface_file)
         if level_check:
+            tmp_file = self.get_tmp_file(self.level_file)
             self.download_file(
                 self.level_file_variables,
                 time_dict=time_dict,
                 area=self.area,
-                out_file=self.level_file,
+                out_file=tmp_file,
                 level_type='pressure',
                 levels=self.levels,
                 overwrite=self.overwrite,
                 product_type=self.product_type,
             )
+            os.replace(tmp_file, self.level_file)
+            logger.info('Moved %s to %s', tmp_file, self.level_file)
         if sfc_check or level_check:
             self.process_and_combine()
 
@@ -729,8 +735,12 @@ class EraDownloader:
         ]
 
         outfile = yearly_file_pattern.format(year=year, var=variable)
+
+        default_kwargs = {'combine': 'nested', 'concat_dim': 'time'}
+        res_kwargs = res_kwargs or {}
+        default_kwargs.update(res_kwargs)
         cls._combine_files(
-            files, outfile, chunks=chunks, res_kwargs=res_kwargs
+            files, outfile, chunks=chunks, res_kwargs=default_kwargs
         )
 
     @classmethod
