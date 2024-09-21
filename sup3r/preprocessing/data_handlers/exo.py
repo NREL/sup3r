@@ -248,7 +248,9 @@ class ExoData(dict):
                 chunk_step = {}
                 for k, v in step.items():
                     if k == 'data':
-                        chunk_step[k] = v[tuple(exo_slices)]
+                        # last dimension is feature channel, so we use only the
+                        # spatial slices if data is 2d and all slices otherwise
+                        chunk_step[k] = v[tuple(exo_slices)[:len(v.shape) - 1]]
                     else:
                         chunk_step[k] = v
                 exo_chunk[feature]['steps'].append(chunk_step)
