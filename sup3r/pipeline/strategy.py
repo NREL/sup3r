@@ -279,7 +279,9 @@ class ForwardPassStrategy:
     def _init_features(self, model):
         """Initialize feature attributes."""
         self.exo_handler_kwargs = self.exo_handler_kwargs or {}
-        exo_features = list(self.exo_handler_kwargs)
+        possible_exo_feats = set(model.hr_exo_features + model.lr_features)
+        exo_kwargs_feats = list(self.exo_handler_kwargs)
+        exo_features = list(possible_exo_feats.intersection(exo_kwargs_feats))
         features = [f for f in model.lr_features if f not in exo_features]
         return features, exo_features
 
@@ -338,7 +340,7 @@ class ForwardPassStrategy:
         self.lr_slices, self.lr_pad_slices, self.hr_slices = out
 
         non_masked = self.fwp_slicer.n_spatial_chunks - sum(self.fwp_mask)
-        non_masked *= self.fwp_slicer.n_time_chunks
+        non_masked *= int(self.fwp_slicer.n_time_chunks)
         log_dict = {
             'n_nodes': len(self.node_chunks),
             'n_spatial_chunks': self.fwp_slicer.n_spatial_chunks,
@@ -459,6 +461,9 @@ class ForwardPassStrategy:
         kwargs = dict(zip(Dimension.dims_2d(), lr_pad_slice))
         kwargs[Dimension.TIME] = ti_pad_slice
         input_data = self.input_handler.isel(**kwargs)
+        logger.info(
+            'Loading data for chunk_index=%s into memory.', chunk_index
+        )
         input_data.load()
 
         if self.bias_correct_kwargs != {}:

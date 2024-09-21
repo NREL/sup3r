@@ -39,6 +39,11 @@ def merge_datasets(files, **kwargs):
         if 'longitude' in dset.dims:
             dset = dset.swap_dims({'longitude': 'west_east'})
             dsets[i] = dset
+        # temporary to handle downloaded era files
+        if 'expver' in dset:
+            dset.drop_vars('expver')
+        if 'number' in dset:
+            dset.drop_vars('number')
     out = xr.merge(dsets, **get_class_kwargs(xr.merge, kwargs))
     msg = (
         'Merged time index does not have the same number of time steps '
@@ -52,7 +57,7 @@ def merge_datasets(files, **kwargs):
 
 def xr_open_mfdataset(files, **kwargs):
     """Wrapper for xr.open_mfdataset with default opening options."""
-    default_kwargs = {'engine': 'netcdf4'}
+    default_kwargs = {'engine': 'netcdf4', 'chunks': 'auto'}
     default_kwargs.update(kwargs)
     try:
         return xr.open_mfdataset(files, **default_kwargs)
