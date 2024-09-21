@@ -277,10 +277,29 @@ class ForwardPassStrategy:
     @cached_property
     def node_chunks(self):
         """Get array of lists such that node_chunks[i] is a list of
-        indices for the ith node indexing the chunks that will be sent through
-        the generator on the ith node."""
+        indices for the chunks that will be sent through the generator on the
+        ith node."""
         node_chunks = min(self.max_nodes or np.inf, self.n_chunks)
         return np.array_split(np.arange(self.n_chunks), node_chunks)
+
+    @property
+    def unfinished_chunks(self):
+        """List of chunk indices that have not yet been written and are not
+        masked."""
+        return [
+            idx
+            for idx in np.arange(self.n_chunks)
+            if not self.chunk_skippable(idx, log=False)
+        ]
+
+    @property
+    def unfinished_node_chunks(self):
+        """Get node_chunks lists which only include indices for chunks which
+        have not yet been written or are not masked."""
+        node_chunks = min(
+            self.max_nodes or np.inf, len(self.unfinished_chunks)
+        )
+        return np.array_split(self.unfinished_chunks, node_chunks)
 
     def _get_fwp_chunk_shape(self):
         """Get fwp_chunk_shape with default shape equal to the input handler
@@ -292,17 +311,6 @@ class ForwardPassStrategy:
 
     def preflight(self):
         """Prelight logging and sanity checks"""
-
-        log_dict = {
-            'n_nodes': len(self.node_chunks),
-            'n_spatial_chunks': self.fwp_slicer.n_spatial_chunks,
-            'n_time_chunks': self.fwp_slicer.n_time_chunks,
-            'n_total_chunks': self.fwp_slicer.n_chunks,
-        }
-        logger.info(
-            f'Chunk strategy description:\n'
-            f'{pprint.pformat(log_dict, indent=2)}'
-        )
 
         out = self.fwp_slicer.get_time_slices()
         self.ti_slices, self.ti_pad_slices = out
@@ -319,6 +327,20 @@ class ForwardPassStrategy:
             warnings.warn(msg)
         out = self.fwp_slicer.get_spatial_slices()
         self.lr_slices, self.lr_pad_slices, self.hr_slices = out
+
+        non_masked = self.fwp_slicer.n_spatial_chunks - sum(self.fwp_mask)
+        non_masked *= self.fwp_slicer.n_time_chunks
+        log_dict = {
+            'n_nodes': len(self.node_chunks),
+            'n_spatial_chunks': self.fwp_slicer.n_spatial_chunks,
+            'n_time_chunks': self.fwp_slicer.n_time_chunks,
+            'n_total_chunks': self.fwp_slicer.n_chunks,
+            'non_masked_chunks': non_masked,
+        }
+        logger.info(
+            f'Chunk strategy description:\n'
+            f'{pprint.pformat(log_dict, indent=2)}'
+        )
 
     def get_chunk_indices(self, chunk_index):
         """Get (spatial, temporal) indices for the given chunk index"""
@@ -535,6 +557,29 @@ class ForwardPassStrategy:
             exo_data = ExoData(data)
         return exo_data
 
+    @cached_property
+    def fwp_mask(self):
+        """Cached spatial mask which returns whether a given spatial chunk
+        should be skipped by the forward pass or not. This is used to skip
+        running the forward pass for area with just ocean, for example."""
+
+        mask = np.zeros(len(self.lr_pad_slices))
+        InputHandler = get_input_handler_class(self.input_handler_name)
+        input_handler_kwargs = copy.deepcopy(self.input_handler_kwargs)
+        input_handler_kwargs['features'] = 'all'
+        handler = InputHandler(**input_handler_kwargs)
+        if 'mask' in handler:
+            logger.info(
+                'Found "mask" in DataHandler. Computing forward pass '
+                'chunk mask for %s chunks',
+                len(self.lr_pad_slices),
+            )
+            mask_vals = handler['mask'].values
+            for s_chunk_idx, lr_slices in enumerate(self.lr_pad_slices):
+                mask_check = mask_vals[lr_slices[0], lr_slices[1]]
+                mask[s_chunk_idx] = bool(np.prod(mask_check.flatten()))
+        return mask
+
     def node_finished(self, node_idx):
         """Check if all out files for a given node have been saved"""
         return all(self.chunk_finished(i) for i in self.node_chunks[node_idx])
@@ -558,3 +603,24 @@ class ForwardPassStrategy:
                 chunk_idx,
             )
         return check
+
+    def chunk_masked(self, chunk_idx, log=True):
+        """Check if the region for this chunk is masked. This is used to skip
+        running the forward pass for region with just ocean, for example."""
+
+        s_chunk_idx, _ = self.get_chunk_indices(chunk_idx)
+        mask_check = self.fwp_mask[s_chunk_idx]
+        if mask_check and log:
+            logger.info(
+                'Chunk %s has spatial chunk index %s, which corresponds to a '
+                'masked spatial region. Skipping forward pass for this chunk.',
+                chunk_idx,
+                s_chunk_idx,
+            )
+        return mask_check
+
+    def chunk_skippable(self, chunk_idx, log=True):
+        """Check if chunk is already written or masked."""
+        return self.chunk_masked(
+            chunk_idx=chunk_idx, log=log
+        ) or self.chunk_finished(chunk_idx=chunk_idx, log=log)

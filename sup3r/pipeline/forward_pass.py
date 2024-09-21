@@ -16,7 +16,12 @@ from sup3r.postprocessing import (
     OutputHandlerH5,
     OutputHandlerNC,
 )
-from sup3r.preprocessing.utilities import _mem_check, get_source_type, lowered
+from sup3r.preprocessing.utilities import (
+    _mem_check,
+    get_source_type,
+    log_args,
+    lowered,
+)
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
 
@@ -34,6 +39,7 @@ class ForwardPass:
         'h5': OutputHandlerH5,
     }
 
+    @log_args
     def __init__(self, strategy, node_index=0):
         """Initialize ForwardPass with ForwardPassStrategy. The strategy
         provides the data chunks to run forward passes on
@@ -162,7 +168,15 @@ class ForwardPass:
                         ),
                         (0, 0),
                     )
-                    new_exo = np.pad(step['data'], exo_pad_width, mode=mode)
+                    new_exo = step['data']
+                    if len(new_exo.shape) == 3:
+                        new_exo = np.expand_dims(new_exo, axis=2)
+                        new_exo = np.repeat(
+                            new_exo,
+                            step['t_enhance'] * input_data.shape[2],
+                            axis=2,
+                        )
+                    new_exo = np.pad(new_exo, exo_pad_width, mode=mode)
                     exo_data[feature]['steps'][i]['data'] = new_exo
                     logger.info(
                         f'Got exo data for feature: {feature}, model step: {i}'
@@ -446,7 +460,7 @@ class ForwardPass:
         fwp = cls(strategy, node_index=node_index)
         for i, chunk_index in enumerate(strategy.node_chunks[node_index]):
             now = dt.now()
-            if not strategy.chunk_finished(chunk_index):
+            if not strategy.chunk_skippable(chunk_index):
                 chunk = fwp.get_input_chunk(chunk_index=chunk_index)
                 failed, _ = cls.run_chunk(
                     chunk=chunk,
@@ -501,8 +515,8 @@ class ForwardPass:
         fwp = cls(strategy, node_index=node_index)
         with SpawnProcessPool(**pool_kws) as exe:
             now = dt.now()
-            for _i, chunk_index in enumerate(strategy.node_chunks[node_index]):
-                if not strategy.chunk_finished(chunk_index):
+            for _, chunk_index in enumerate(strategy.node_chunks[node_index]):
+                if not strategy.chunk_skippable(chunk_index):
                     chunk = fwp.get_input_chunk(chunk_index=chunk_index)
                     fut = exe.submit(
                         fwp.run_chunk,

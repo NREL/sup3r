@@ -8,7 +8,7 @@ import os
 import shutil
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import ClassVar, Optional
+from typing import ClassVar, Optional, Union
 from warnings import warn
 
 import dask.array as da
@@ -83,6 +83,11 @@ class BaseExoRasterizer(ABC):
         Any kwargs for initializing the ``input_handler_name`` class.
     cache_dir : str | './exo_cache'
         Directory to use for caching rasterized data.
+    chunks : str | dict
+        Dictionary of dimension chunk sizes for returned exo data. e.g.
+        {'time': 100, 'south_north': 100, 'west_east': 100}. This can also just
+        be "auto". This is passed to ``.chunk()`` before returning exo data
+        through ``.data`` attribute
     distance_upper_bound : float | None
         Maximum distance to map high-resolution data from source_file to the
         low-resolution file_paths input. None (default) will calculate this
@@ -97,6 +102,7 @@ class BaseExoRasterizer(ABC):
     input_handler_name: Optional[str] = None
     input_handler_kwargs: Optional[dict] = None
     cache_dir: str = './exo_cache/'
+    chunks: Optional[Union[str, dict]] = 'auto'
     distance_upper_bound: Optional[int] = None
 
     @log_args
@@ -266,14 +272,12 @@ class BaseExoRasterizer(ABC):
 
         if not os.path.exists(cache_fp):
             tmp_fp = cache_fp + f'{generate_random_string(10)}.tmp'
-            Cacher.write_netcdf(tmp_fp, data)
+            Cacher.write_netcdf(
+                tmp_fp, data, max_workers=1, chunks=self.chunks
+            )
             shutil.move(tmp_fp, cache_fp)
 
-        if Dimension.TIME not in data.dims:
-            data = data.expand_dims(**{Dimension.TIME: self.hr_shape[-1]})
-            data = data.reindex({Dimension.TIME: self.hr_time_index})
-            data = data.ffill(Dimension.TIME)
-        return Sup3rX(data.chunk('auto'))
+        return Sup3rX(data.chunk(self.chunks))
 
     def get_data(self):
         """Get a raster of source values corresponding to the
@@ -318,7 +322,10 @@ class BaseExoRasterizer(ABC):
             self.feature,
         )
         data_vars = {
-            self.feature: (Dimension.dims_2d(), hr_data.astype(np.float32))
+            self.feature: (
+                Dimension.dims_2d(),
+                da.asarray(hr_data, dtype=np.float32),
+            )
         }
         ds = xr.Dataset(coords=self.coords, data_vars=data_vars)
         return Sup3rX(ds)
