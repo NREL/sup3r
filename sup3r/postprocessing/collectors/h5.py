@@ -289,7 +289,9 @@ class CollectorH5(BaseCollector):
         )
         time_index = pd.DatetimeIndex(np.concatenate(time_index))
         time_index = time_index.sort_values()
-        time_index = time_index.drop_duplicates()
+        unique_ti = time_index.drop_duplicates()
+        msg = 'Found duplicate time steps from supposedly unique time periods.'
+        assert len(unique_ti) == len(time_index), msg
         meta = pd.concat(meta)
 
         if 'latitude' in meta and 'longitude' in meta:
