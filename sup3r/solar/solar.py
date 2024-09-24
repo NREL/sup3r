@@ -705,7 +705,7 @@ class Solar:
             fp_out = fp_target.replace('.h5', f'_{fp_out_suffix}.h5')
 
             if os.path.exists(fp_out):
-                logger.info('%s already exists. Skipping.')
+                logger.info('%s already exists. Skipping.', fp_out)
 
             else:
                 logger.info(
