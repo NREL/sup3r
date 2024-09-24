@@ -206,7 +206,7 @@ class BaseDeriver(Container):
             if compute_check is not None:
                 return compute_check
 
-            if fstruct.basename in self.data.features:
+            if fstruct.basename in self.data:
                 logger.debug(
                     'Attempting level interpolation for "%s"', feature
                 )

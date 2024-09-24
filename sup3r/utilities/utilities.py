@@ -57,9 +57,9 @@ def xr_open_mfdataset(files, **kwargs):
     try:
         return xr.open_mfdataset(files, **default_kwargs)
     except Exception as e:
-        msg = 'Could not use xr.open_mfdataset to open %s. '
+        msg = 'Could not use xr.open_mfdataset to open %s. %s'
         if len(files) == 1:
-            raise RuntimeError(msg % files) from e
+            raise RuntimeError(msg % (files, e)) from e
         msg += 'Trying to open them separately and merge. %s'
         logger.warning(msg, files, e)
         warn(msg % (files, e))

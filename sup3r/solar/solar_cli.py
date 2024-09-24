@@ -83,7 +83,7 @@ def from_config(ctx, config_file, verbose=False, pipeline_step=None):
         node_config['job_name'] = name
         node_config['pipeline_step'] = pipeline_step
 
-        node_config['temporal_ids'] = temporal_ids
+        node_config['temporal_ids'] = list(temporal_ids)
         cmd = Solar.get_node_cmd(node_config)
 
         if hardware_option.lower() in AVAILABLE_HARDWARE_OPTIONS:

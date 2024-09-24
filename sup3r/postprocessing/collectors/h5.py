@@ -568,9 +568,11 @@ class CollectorH5(BaseCollector):
             logger.warning(msg)
             warn(msg)
 
-    def group_time_chunks(self, file_paths, n_writes=None):
-        """Group files by temporal_chunk_index. Assumes file_paths have a
-        suffix format like ``_{temporal_chunk_index}_{spatial_chunk_index}.h5``
+    def get_flist_chunks(self, file_paths, n_writes=None):
+        """Group files by temporal_chunk_index and then combines these groups
+        if ``n_writes`` is less than the number of time_chunks. Assumes
+        file_paths have a suffix format like
+        ``_{temporal_chunk_index}_{spatial_chunk_index}.h5``
 
         Parameters
         ----------
@@ -582,19 +584,14 @@ class CollectorH5(BaseCollector):
 
         Returns
         -------
-        file_chunks : list
-            List of lists of file paths grouped by ``temporal_chunk_index``
+        flist_chunks : list
+            List of file list chunks. Used to split collection and writing into
+            multiple steps.
         """
-        file_split = {}
+        file_chunks = {}
         for file in file_paths:
             t_chunk, _ = self.get_chunk_indices(file)
-            file_split[t_chunk] = [*file_split.get(t_chunk, []), file]
-        file_chunks = list(file_split.values())
-
-        logger.debug(
-            f'Split file list into {len(file_chunks)} chunks '
-            'according to temporal chunk indices'
-        )
+            file_chunks[t_chunk] = [*file_chunks.get(t_chunk, []), file]
 
         if n_writes is not None:
             msg = (
@@ -602,36 +599,19 @@ class CollectorH5(BaseCollector):
                 f'to the number of temporal chunks ({len(file_chunks)}).'
             )
             assert n_writes <= len(file_chunks), msg
-        return file_chunks
 
-    def get_flist_chunks(self, file_paths, n_writes=None):
-        """Get file list chunks based on n_writes. This first groups files
-        based on time index and then splits those groups into ``n_writes``
+        n_writes = n_writes or len(file_chunks)
+        tc_groups = np.array_split(list(file_chunks.keys()), n_writes)
+        fp_groups = [[file_chunks[tc] for tc in tcs] for tcs in tc_groups]
+        flist_chunks = [np.concatenate(group) for group in fp_groups]
+        logger.debug(
+            'Split file list into %s chunks according to n_writes=%s',
+            len(flist_chunks),
+            n_writes,
+        )
 
-        Parameters
-        ----------
-        file_paths : list
-            List of file paths to collect
-        n_writes : int | None
-            Number of writes to use for collection
+        logger.debug(f'Grouped file list into {len(file_chunks)} time chunks.')
 
-        Returns
-        -------
-        flist_chunks : list
-            List of file list chunks. Used to split collection and writing into
-            multiple steps.
-        """
-        flist_chunks = self.group_time_chunks(file_paths, n_writes=n_writes)
-        if n_writes is not None:
-            flist_chunks = np.array_split(flist_chunks, n_writes)
-            flist_chunks = [
-                np.concatenate(fp_chunk) for fp_chunk in flist_chunks
-            ]
-            logger.debug(
-                'Split file list into %s chunks according to n_writes=%s',
-                len(flist_chunks),
-                n_writes,
-            )
         return flist_chunks
 
     def collect_feature(

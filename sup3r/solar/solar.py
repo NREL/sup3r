@@ -703,19 +703,25 @@ class Solar:
         zip_iter = zip(fp_sets, t_slices, target_fps)
         for i, (fp_set, t_slice, fp_target) in enumerate(zip_iter):
             fp_out = fp_target.replace('.h5', f'_{fp_out_suffix}.h5')
-            logger.info(
-                'Running temporal index {} out of {}.'.format(
-                    i + 1, len(fp_sets)
+
+            if os.path.exists(fp_out):
+                logger.info('%s already exists. Skipping.', fp_out)
+
+            else:
+                logger.info(
+                    'Running temporal index {} out of {}.'.format(
+                        i + 1, len(fp_sets)
+                    )
                 )
-            )
-            kwargs = {
-                't_slice': t_slice,
-                'tz': tz,
-                'agg_factor': agg_factor,
-                'nn_threshold': nn_threshold,
-                'cloud_threshold': cloud_threshold,
-            }
-            tmp_out = fp_out + '.tmp'
-            with Solar(fp_set, nsrdb_fp, **kwargs) as solar:
-                solar.write(tmp_out, features=features)
-            os.replace(tmp_out, fp_out)
+
+                kwargs = {
+                    't_slice': t_slice,
+                    'tz': tz,
+                    'agg_factor': agg_factor,
+                    'nn_threshold': nn_threshold,
+                    'cloud_threshold': cloud_threshold,
+                }
+                tmp_out = fp_out + '.tmp'
+                with Solar(fp_set, nsrdb_fp, **kwargs) as solar:
+                    solar.write(tmp_out, features=features)
+                os.replace(tmp_out, fp_out)

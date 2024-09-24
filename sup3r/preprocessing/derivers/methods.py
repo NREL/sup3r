@@ -159,8 +159,8 @@ class CloudMask(DerivedFeature):
         return cloud_mask.astype(np.float32)
 
 
-class PressureNC(DerivedFeature):
-    """Pressure feature class for NETCDF data. Needed since P is perturbation
+class PressureWRF(DerivedFeature):
+    """Pressure feature class for WRF data. Needed since P is perturbation
     pressure.
     """
 
@@ -402,6 +402,7 @@ RegistryBase = {
     'cloud_mask': CloudMask,
     'clearsky_ratio': ClearSkyRatio,
     'sza': Sza,
+    'pressure_(.*)': 'level_(.*)',
 }
 
 RegistryH5WindCC = {
@@ -429,7 +430,6 @@ RegistryNCforCC.update(
         'relativehumidity_min_2m': 'hursmin',
         'relativehumidity_max_2m': 'hursmax',
         'clearsky_ratio': ClearSkyRatioCC,
-        'pressure_(.*)': 'level_(.*)',
         'temperature_(.*)': TempNCforCC,
         'temperature_2m': Tas,
         'temperature_max_2m': TasMax,
