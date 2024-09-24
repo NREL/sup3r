@@ -732,6 +732,13 @@ class EraDownloader:
         ]
 
         outfile = yearly_file_pattern.format(year=year, var=variable)
+        default_kwargs = {
+            'combine': 'nested',
+            'concat_dim': 'time',
+            'coords': 'minimal',
+        }
+        res_kwargs = res_kwargs or {}
+        default_kwargs.update(res_kwargs)
         cls._combine_files(
             files, outfile, chunks=chunks, res_kwargs=res_kwargs
         )
@@ -756,7 +763,7 @@ class EraDownloader:
                 os.replace(tmp_file, outfile)
                 logger.info('Moved %s to %s.', tmp_file, outfile)
             except Exception as e:
-                msg = f'Error combining {files}.'
+                msg = f'Error combining {files}. {e}'
                 logger.error(msg)
                 raise RuntimeError(msg) from e
         else:
