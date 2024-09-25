@@ -29,7 +29,7 @@ def merge_datasets(files, **kwargs):
     time_indices = []
     for i, dset in enumerate(dsets):
         if 'time' in dset and dset.time.size > 1:
-            ti = pd.DatetimeIndex(dset.time)
+            ti = dset.time.astype(int)
             dset['time'] = ti
             dsets[i] = dset
             time_indices.append(ti.to_series())
@@ -57,7 +57,7 @@ def merge_datasets(files, **kwargs):
 
 def xr_open_mfdataset(files, **kwargs):
     """Wrapper for xr.open_mfdataset with default opening options."""
-    default_kwargs = {'engine': 'netcdf4', 'chunks': 'auto'}
+    default_kwargs = {'engine': 'netcdf4'}
     default_kwargs.update(kwargs)
     try:
         return xr.open_mfdataset(files, **default_kwargs)
