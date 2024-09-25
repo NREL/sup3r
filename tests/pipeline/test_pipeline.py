@@ -362,7 +362,11 @@ def test_fwp_pipeline_with_mask(input_files):
         assert os.path.exists(fp_out)
         with ResourceX(fp_out) as f:
             assert len(f.time_index) == t_enhance * n_tsteps
-            assert len(f.meta) == s_enhance * s_enhance * np.prod(shape)
+
+            # unmasked gives 4 chunks so without chunk index 2 we have just 3
+            assert len(f.meta) == s_enhance * s_enhance * 3 * np.prod(
+                fp_chunk_shape[:2]
+            )
 
         status_fps = glob.glob(f'{td}/.gaps/*status*.json')
         assert len(status_fps) == 1
