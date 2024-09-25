@@ -232,7 +232,8 @@ class ForwardPassStrategy:
             hr_shape = self.hr_lat_lon.shape[:-1]
             self.gids = np.arange(np.prod(hr_shape)).reshape(hr_shape)
             self.exo_data = self.timer(self.load_exo_data, log=True)(model)
-            self.preflight()
+
+        self.preflight()
 
     @property
     def meta(self):
@@ -291,7 +292,7 @@ class ForwardPassStrategy:
         node_chunks = min(
             self.max_nodes or np.inf, len(self.unmasked_chunks)
         )
-        return np.array_split(np.arange(self.unmasked_chunks), node_chunks)
+        return np.array_split(self.unmasked_chunks, node_chunks)
 
     @property
     def unmasked_chunks(self):
