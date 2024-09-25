@@ -309,7 +309,7 @@ class EraDownloader:
         overwrite : bool
             Whether to overwrite existing file
         """
-        if not os.path.exists(out_file) or overwrite:
+        if not cls._can_skip_file(out_file) or overwrite:
             msg = (
                 f'Downloading {variables} to {out_file} with levels '
                 f'= {levels}.'
@@ -413,7 +413,7 @@ class EraDownloader:
 
     def process_and_combine(self):
         """Process variables and combine."""
-        if not os.path.exists(self.monthly_file) or self.overwrite:
+        if not self._can_skip_file(self.monthly_file) or self.overwrite:
             files = []
             if os.path.exists(self.level_file):
                 logger.info(f'Processing {self.level_file}.')
@@ -437,7 +437,9 @@ class EraDownloader:
     def get_monthly_file(self):
         """Download level and surface files, process variables, and combine
         processed files. Includes checks for shape and variables."""
-        if os.path.exists(self.monthly_file) and self.overwrite:
+        if os.path.exists(self.monthly_file) and (
+            not self._can_skip_file(self.monthly_file) or self.overwrite
+        ):
             os.remove(self.monthly_file)
 
         if not os.path.exists(self.monthly_file):
@@ -639,9 +641,12 @@ class EraDownloader:
             [max_lat, min_lon, min_lat, max_lon]
         levels : list
             List of pressure levels to download.
-        file_pattern : str
-            Pattern for combined monthly output file. Must include year and
-            month format keys.  e.g. 'era5_{year}_{month}_combined.nc'
+        monthly_file_pattern : str
+            Pattern for monthly output file. Must include year, month, and var
+            format keys.  e.g. 'era5_{year}_{month}_{var}_combined.nc'
+        yearly_file_pattern : str
+            Pattern for yearly output file. Must include year and var
+            format keys.  e.g. 'era5_{year}_{var}_combined.nc'
         months : list | None
             List of months to download data for. If None then all months for
             the given year will be downloaded.
@@ -735,13 +740,34 @@ class EraDownloader:
         ]
 
         outfile = yearly_file_pattern.format(year=year, var=variable)
-
-        default_kwargs = {'combine': 'nested', 'concat_dim': 'time'}
+        default_kwargs = {
+            'combine': 'nested',
+            'concat_dim': 'time',
+            'coords': 'minimal',
+        }
         res_kwargs = res_kwargs or {}
         default_kwargs.update(res_kwargs)
         cls._combine_files(
-            files, outfile, chunks=chunks, res_kwargs=default_kwargs
+            files, outfile, chunks=chunks, res_kwargs=res_kwargs
         )
+
+    @classmethod
+    def _can_skip_file(cls, file):
+        """Make sure existing file has successfully downloaded and can be
+        opened."""
+        if not os.path.exists(file):
+            return False
+
+        openable = True
+        try:
+            _ = Loader(file)
+        except Exception as e:
+            msg = 'Could not open %s. %s Will redownload.'
+            logger.warning(msg, file, e)
+            warn(msg % (file, e))
+            openable = False
+
+        return openable
 
     @classmethod
     def _combine_files(cls, files, outfile, chunks='auto', res_kwargs=None):
@@ -763,7 +789,7 @@ class EraDownloader:
                 os.replace(tmp_file, outfile)
                 logger.info('Moved %s to %s.', tmp_file, outfile)
             except Exception as e:
-                msg = f'Error combining {files}.'
+                msg = f'Error combining {files}. {e}'
                 logger.error(msg)
                 raise RuntimeError(msg) from e
         else:
