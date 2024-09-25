@@ -1,6 +1,5 @@
 """Output handling"""
 
-import json
 import logging
 from datetime import datetime as dt
 
@@ -18,7 +17,6 @@ logger = logging.getLogger(__name__)
 class OutputHandlerNC(OutputHandler):
     """Forward pass OutputHandler for NETCDF files"""
 
-    # pylint: disable=W0613
     @classmethod
     def _write_output(
         cls,
@@ -28,7 +26,7 @@ class OutputHandlerNC(OutputHandler):
         times,
         out_file,
         meta_data=None,
-        max_workers=None,  # noqa: ARG003
+        max_workers=None,
         gids=None,
     ):
         """Write forward pass output to NETCDF file
@@ -73,16 +71,15 @@ class OutputHandlerNC(OutputHandler):
                 np.transpose(data[..., i], axes=(2, 0, 1)),
             )
 
-        attrs = {}
-        if meta_data is not None:
-            attrs = {
-                k: v if isinstance(v, str) else json.dumps(v)
-                for k, v in meta_data.items()
-            }
-
-        attrs['date_modified'] = dt.utcnow().isoformat()
-        if 'date_created' not in attrs:
-            attrs['date_created'] = attrs['date_modified']
+        attrs = meta_data or {}
+        now = dt.utcnow().isoformat()
+        attrs['date_modified'] = now
+        attrs['date_created'] = attrs.get('date_created', now)
 
         ds = xr.Dataset(data_vars=data_vars, coords=coords, attrs=attrs)
-        Cacher.write_netcdf(out_file=out_file, data=ds, features=features)
+        Cacher.write_netcdf(
+            out_file=out_file,
+            data=ds,
+            features=features,
+            max_workers=max_workers,
+        )
