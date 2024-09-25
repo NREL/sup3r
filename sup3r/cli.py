@@ -156,6 +156,7 @@ def solar(ctx, verbose):
         {
             "fp_pattern": "./chunks/sup3r*.h5",
             "nsrdb_fp": "/datasets/NSRDB/current/nsrdb_2015.h5",
+            "max_nodes": 100,
             "execution_control": {
                 "option": "kestrel",
                 "walltime": 4,

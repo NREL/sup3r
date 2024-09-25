@@ -288,27 +288,20 @@ class ForwardPassStrategy:
         """Get array of lists such that node_chunks[i] is a list of
         indices for the chunks that will be sent through the generator on the
         ith node."""
-        node_chunks = min(self.max_nodes or np.inf, self.n_chunks)
-        return np.array_split(np.arange(self.n_chunks), node_chunks)
+        node_chunks = min(
+            self.max_nodes or np.inf, len(self.unmasked_chunks)
+        )
+        return np.array_split(np.arange(self.unmasked_chunks), node_chunks)
 
     @property
-    def unfinished_chunks(self):
-        """List of chunk indices that have not yet been written and are not
-        masked."""
+    def unmasked_chunks(self):
+        """List of chunk indices that are not masked from the input spatial
+        region."""
         return [
             idx
             for idx in np.arange(self.n_chunks)
-            if not self.chunk_skippable(idx, log=False)
+            if not self.chunk_masked(idx, log=False)
         ]
-
-    @property
-    def unfinished_node_chunks(self):
-        """Get node_chunks lists which only include indices for chunks which
-        have not yet been written or are not masked."""
-        node_chunks = min(
-            self.max_nodes or np.inf, len(self.unfinished_chunks)
-        )
-        return np.array_split(self.unfinished_chunks, node_chunks)
 
     def _get_fwp_chunk_shape(self):
         """Get fwp_chunk_shape with default shape equal to the input handler
@@ -631,9 +624,3 @@ class ForwardPassStrategy:
                 s_chunk_idx,
             )
         return mask_check
-
-    def chunk_skippable(self, chunk_idx, log=True):
-        """Check if chunk is already written or masked."""
-        return self.chunk_masked(
-            chunk_idx=chunk_idx, log=log
-        ) or self.chunk_finished(chunk_idx=chunk_idx, log=log)
