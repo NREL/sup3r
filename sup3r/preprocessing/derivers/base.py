@@ -183,6 +183,25 @@ class BaseDeriver(Container):
         )
         return new_feature
 
+    def has_interp_variables(self, feature):
+        """Check if the given feature can be interpolated from values at nearby
+        heights or from pressure level data. e.g. If ``u_10m`` and ``u_50m``
+        exist then ``u_30m`` can be interpolated from these. If a pressure
+        level array ``u`` is available this can also be used, in conjunction
+        with height data."""
+        fstruct = parse_feature(feature)
+        count = 0
+        for feat in self.data.features:
+            fstruct_check = parse_feature(feat)
+            height = fstruct_check.height
+
+            if (
+                fstruct_check.basename == fstruct.basename
+                and height is not None
+            ):
+                count += 1
+        return count > 1 or fstruct.basename in self.data
+
     def derive(self, feature) -> Union[np.ndarray, da.core.Array]:
         """Routine to derive requested features. Employs a little recursion to
         locate differently named features with a name map in the feature
@@ -195,8 +214,6 @@ class BaseDeriver(Container):
         Features are all saved as lower case names and __contains__ checks will
         use feature.lower()
         """
-
-        fstruct = parse_feature(feature)
         if feature not in self.data:
             compute_check = self.check_registry(feature)
             if compute_check is not None and isinstance(compute_check, str):
@@ -206,7 +223,7 @@ class BaseDeriver(Container):
             if compute_check is not None:
                 return compute_check
 
-            if fstruct.basename in self.data:
+            if self.has_interp_variables(feature):
                 logger.debug(
                     'Attempting level interpolation for "%s"', feature
                 )
@@ -223,7 +240,7 @@ class BaseDeriver(Container):
 
         return self.data[feature]
 
-    def add_single_level_data(self, feature, lev_array, var_array):
+    def get_single_level_data(self, feature):
         """When doing level interpolation we should include the single level
         data available. e.g. If we have u_100m already and want to interpolate
         u_40m from multi-level data U we should add u_100m at height 100m
@@ -233,6 +250,8 @@ class BaseDeriver(Container):
         pattern = fstruct.basename + '_(.*)'
         var_list = []
         lev_list = []
+        lev_array = None
+        var_array = None
         for f in list(self.data.data_vars):
             if re.match(pattern.lower(), f):
                 var_list.append(self.data[f])
@@ -245,22 +264,23 @@ class BaseDeriver(Container):
                 lev_list.append(np.float32(lev))
 
         if len(var_list) > 0:
-            var_array = np.concatenate(
-                [var_array, da.stack(var_list, axis=-1)], axis=-1
-            )
+            var_array = da.stack(var_list, axis=-1)
             sl_shape = (*var_array.shape[:-1], len(lev_list))
-            single_levs = da.broadcast_to(da.from_array(lev_list), sl_shape)
-            lev_array = np.concatenate([lev_array, single_levs], axis=-1)
-        return lev_array, var_array
+            lev_array = da.broadcast_to(da.from_array(lev_list), sl_shape)
 
-    def do_level_interpolation(
-        self, feature, interp_method='linear'
-    ) -> xr.DataArray:
-        """Interpolate over height or pressure to derive the given feature."""
+        return var_array, lev_array
+
+    def get_multi_level_data(self, feature):
+        """Get data stored in multi-level arrays, like u stored on pressure
+        levels."""
         fstruct = parse_feature(feature)
-        var_array = self.data[fstruct.basename, ...]
-        if fstruct.height is not None:
-            level = [fstruct.height]
+        var_array = None
+        lev_array = None
+
+        if fstruct.basename in self.data:
+            var_array = self.data[fstruct.basename, ...]
+
+        if fstruct.height is not None and var_array is not None:
             msg = (
                 f'To interpolate {fstruct.basename} to {feature} the loaded '
                 'data needs to include "zg" and "topography" or have a '
@@ -281,8 +301,7 @@ class BaseDeriver(Container):
                     self.data[Dimension.HEIGHT, ...].astype(np.float32),
                     var_array.shape,
                 )
-        else:
-            level = [fstruct.pressure]
+        elif var_array is not None:
             msg = (
                 f'To interpolate {fstruct.basename} to {feature} the loaded '
                 'data needs to include "level" (a.k.a pressure at multiple '
@@ -293,10 +312,41 @@ class BaseDeriver(Container):
                 self.data[Dimension.PRESSURE_LEVEL, ...].astype(np.float32),
                 var_array.shape,
             )
+        return var_array, lev_array
 
-        lev_array, var_array = self.add_single_level_data(
-            feature, lev_array, var_array
+    def do_level_interpolation(
+        self, feature, interp_method='linear'
+    ) -> xr.DataArray:
+        """Interpolate over height or pressure to derive the given feature."""
+        ml_var, ml_levs = self.get_multi_level_data(feature)
+        sl_var, sl_levs = self.get_single_level_data(feature)
+
+        fstruct = parse_feature(feature)
+        attrs = {}
+        for feat in self.data.features:
+            if parse_feature(feat).basename == fstruct.basename:
+                attrs = self.data[feat].attrs
+
+        level = (
+            [fstruct.height]
+            if fstruct.height is not None
+            else [fstruct.pressure]
         )
+
+        if ml_var is not None:
+            var_array = ml_var
+            lev_array = ml_levs
+        elif sl_var is not None:
+            var_array = sl_var
+            lev_array = sl_levs
+        elif ml_var is not None and sl_var is not None:
+            var_array = np.concatenate([ml_var, sl_var], axis=-1)
+            lev_array = np.concatenate([ml_levs, sl_levs], axis=-1)
+        else:
+            msg = 'Neither single level nor multi level data was found for %s'
+            logger.error(msg, feature)
+            raise RuntimeError(msg % feature)
+
         out = Interpolator.interp_to_level(
             lev_array=lev_array,
             var_array=var_array,
@@ -306,7 +356,7 @@ class BaseDeriver(Container):
         return xr.DataArray(
             data=_rechunk_if_dask(out),
             dims=Dimension.dims_3d(),
-            attrs=self.data[fstruct.basename].attrs,
+            attrs=attrs,
         )
 
 
