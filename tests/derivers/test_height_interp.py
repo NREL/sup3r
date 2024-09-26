@@ -19,9 +19,9 @@ from sup3r.utilities.pytest.helpers import make_fake_nc_file
         ((10, 10), (37.25, -107), 1000),
     ],
 )
-def test_height_interp_nc(shape, target, height):
-    """Test that variables can be interpolated and extrapolated with height
-    correctly"""
+def test_plevel_height_interp_nc(shape, target, height):
+    """Test that variables on pressure levels can be interpolated and
+    extrapolated with height correctly"""
 
     with TemporaryDirectory() as td:
         wind_file = os.path.join(td, 'wind.nc')
@@ -53,7 +53,42 @@ def test_height_interp_nc(shape, target, height):
     assert np.array_equal(out, transform.data[f'u_{height}m'].data)
 
 
-def test_height_interp_with_single_lev_data_nc(
+def test_single_levels_height_interp_nc(shape=(10, 10), target=(37.25, -107)):
+    """Test that features can be interpolated from only single level
+    variables"""
+
+    with TemporaryDirectory() as td:
+        level_file = os.path.join(td, 'wind_levs.nc')
+        make_fake_nc_file(
+            level_file, shape=(10, 10, 20), features=['u_10m', 'u_100m']
+        )
+
+        derive_features = ['u_30m']
+        no_transform = Rasterizer([level_file], target=target, shape=shape)
+
+        transform = Deriver(
+            no_transform.data, derive_features, interp_method='linear'
+        )
+
+    h10 = np.zeros(transform.shape[:3], dtype=np.float32)[..., None]
+    h10[:] = 10
+    h100 = np.zeros(transform.shape[:3], dtype=np.float32)[..., None]
+    h100[:] = 100
+    hgt_array = np.concatenate([h10, h100], axis=-1)
+    u = np.concatenate(
+        [
+            no_transform['u_10m'].data[..., None],
+            no_transform['u_100m'].data[..., None],
+        ],
+        axis=-1,
+    )
+    out = Interpolator.interp_to_level(hgt_array, u, [np.float32(30)])
+
+    assert transform.data['u_30m'].data.dtype == np.float32
+    assert np.array_equal(out, transform.data['u_30m'].data)
+
+
+def test_plevel_height_interp_with_single_lev_data_nc(
     shape=(10, 10), target=(37.25, -107)
 ):
     """Test that variables can be interpolated with height correctly"""
