@@ -77,7 +77,8 @@ class EraDownloader:
             and wind components.
         product_type : str
             Can be 'reanalysis', 'ensemble_mean', 'ensemble_spread',
-            'ensemble_members'
+            'ensemble_members', 'monthly_averaged_reanalysis',
+            'monthly_averaged_ensemble_members'
         """
         self.year = year
         self.month = month
@@ -95,7 +96,15 @@ class EraDownloader:
     def get_hours(self):
         """ERA5 is hourly and EDA is 3-hourly. Check and warn for incompatible
         requests."""
-        if self.product_type == 'reanalysis':
+        if self.product_type in (
+            'monthly_averaged_reanalysis',
+            'monthly_averaged_ensemble_members',
+        ):
+            hours = ['00:00']
+        elif self.product_type in (
+            'reanalysis',
+            'monthly_averaged_reanalysis_by_hour_of_day',
+        ):
             hours = [str(n).zfill(2) + ':00' for n in range(0, 24)]
         else:
             hours = [str(n).zfill(2) + ':00' for n in range(0, 24, 3)]
@@ -241,9 +250,11 @@ class EraDownloader:
         time_dict = {
             'year': self.year,
             'month': self.month,
-            'day': self.days,
             'time': self.hours,
         }
+        if 'monthly' not in self.product_type:
+            time_dict['day'] = self.days
+
         if sfc_check:
             tmp_file = self.get_tmp_file(self.surface_file)
             self.download_file(
@@ -305,16 +316,23 @@ class EraDownloader:
             List of pressure levels to download, if level_type == 'pressure'
         product_type : str
             Can be 'reanalysis', 'ensemble_mean', 'ensemble_spread',
-            'ensemble_members'
+            'ensemble_members', 'monthly_averaged_reanalysis',
+            'monthly_averaged_ensemble_members'
         overwrite : bool
             Whether to overwrite existing file
         """
+        if os.path.exists(out_file) and not cls._can_skip_file(out_file):
+            os.remove(out_file)
+
         if not cls._can_skip_file(out_file) or overwrite:
             msg = (
                 f'Downloading {variables} to {out_file} with levels '
                 f'= {levels}.'
             )
             logger.info(msg)
+            dataset = f'reanalysis-era5-{level_type}-levels'
+            if 'monthly' in product_type:
+                dataset += '-monthly-means'
             entry = {
                 'product_type': product_type,
                 'format': 'netcdf',
@@ -324,11 +342,11 @@ class EraDownloader:
             entry.update(time_dict)
             if level_type == 'pressure':
                 entry['pressure_level'] = levels
-            logger.info(f'Calling CDS-API with {entry}.')
-            cds_api_client = cls.get_cds_client()
-            cds_api_client.retrieve(
-                f'reanalysis-era5-{level_type}-levels', entry, out_file
+            logger.info(
+                'Calling CDS-API with dataset=%s, entry=%s.', dataset, entry
             )
+            cds_api_client = cls.get_cds_client()
+            cds_api_client.retrieve(dataset, entry, out_file)
         else:
             logger.info(f'File already exists: {out_file}.')
 
@@ -413,6 +431,12 @@ class EraDownloader:
 
     def process_and_combine(self):
         """Process variables and combine."""
+
+        if os.path.exists(self.monthly_file) and not self._can_skip_file(
+            self.monthly_file
+        ):
+            os.remove(self.monthly_file)
+
         if not self._can_skip_file(self.monthly_file) or self.overwrite:
             files = []
             if os.path.exists(self.level_file):
@@ -505,7 +529,8 @@ class EraDownloader:
             and wind components.
         product_type : str
             Can be 'reanalysis', 'ensemble_mean', 'ensemble_spread',
-            'ensemble_members'
+            'ensemble_members', 'monthly_averaged_reanalysis',
+            'monthly_averaged_ensemble_members'
         """
         variables = variables if isinstance(variables, list) else [variables]
         for var in variables:
@@ -567,16 +592,20 @@ class EraDownloader:
             Variable to download.
         product_type : str
             Can be 'reanalysis', 'ensemble_mean', 'ensemble_spread',
-            'ensemble_members'
+            'ensemble_members', 'monthly_averaged_reanalysis',
+            'monthly_averaged_ensemble_members'
         chunks : str | dict
             Dictionary of chunksizes used when writing data to netcdf files.
             Can also be 'auto'.
         """
-        yearly_var_file = yearly_file_pattern.format(year=year, var=variable)
-        if os.path.exists(yearly_var_file) and not overwrite:
-            logger.info(
-                '%s already exists and overwrite=False.', yearly_var_file
+        if yearly_file_pattern is not None:
+            yearly_var_file = yearly_file_pattern.format(
+                year=year, var=variable
             )
+            if os.path.exists(yearly_var_file) and not overwrite:
+                logger.info(
+                    '%s already exists and overwrite=False.', yearly_var_file
+                )
         msg = 'file_pattern must have {year}, {month}, and {var} format keys'
         assert all(
             key in monthly_file_pattern
@@ -660,7 +689,8 @@ class EraDownloader:
             and wind components.
         product_type : str
             Can be 'reanalysis', 'ensemble_mean', 'ensemble_spread',
-            'ensemble_members'
+            'ensemble_members', 'monthly_averaged_reanalysis',
+            'monthly_averaged_ensemble_members'
         chunks : str | dict
             Dictionary of chunksizes used when writing data to netcdf files.
             Can also be 'auto'
@@ -684,7 +714,7 @@ class EraDownloader:
                 res_kwargs=res_kwargs,
             )
 
-        if (
+        if yearly_file_pattern is not None and (
             cls.all_vars_exist(
                 year=year,
                 file_pattern=yearly_file_pattern,
@@ -758,6 +788,9 @@ class EraDownloader:
         if not os.path.exists(file):
             return False
 
+        logger.info(
+            '%s already exists. Making sure it downloaded successfully.', file
+        )
         openable = True
         try:
             _ = Loader(file)
