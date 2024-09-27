@@ -333,10 +333,10 @@ class BaseDeriver(Container):
             else [fstruct.pressure]
         )
 
-        if ml_var is not None:
+        if ml_var is not None and sl_var is None:
             var_array = ml_var
             lev_array = ml_levs
-        elif sl_var is not None:
+        elif sl_var is not None and ml_var is None:
             var_array = sl_var
             lev_array = sl_levs
         elif ml_var is not None and sl_var is not None:
