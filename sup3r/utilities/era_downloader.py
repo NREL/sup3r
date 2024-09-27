@@ -602,16 +602,20 @@ class EraDownloader:
             Variable to download.
         product_type : str
             Can be 'reanalysis', 'ensemble_mean', 'ensemble_spread',
-            'ensemble_members'
+            'ensemble_members', 'monthly_averaged_reanalysis',
+            'monthly_averaged_ensemble_members'
         chunks : str | dict
             Dictionary of chunksizes used when writing data to netcdf files.
             Can also be 'auto'.
         """
-        yearly_var_file = yearly_file_pattern.format(year=year, var=variable)
-        if os.path.exists(yearly_var_file) and not overwrite:
-            logger.info(
-                '%s already exists and overwrite=False.', yearly_var_file
+        if yearly_file_pattern is not None:
+            yearly_var_file = yearly_file_pattern.format(
+                year=year, var=variable
             )
+            if os.path.exists(yearly_var_file) and not overwrite:
+                logger.info(
+                    '%s already exists and overwrite=False.', yearly_var_file
+                )
         msg = 'file_pattern must have {year}, {month}, and {var} format keys'
         assert all(
             key in monthly_file_pattern

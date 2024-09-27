@@ -45,13 +45,12 @@ def merge_datasets(files, **kwargs):
         if 'number' in dset:
             dset.drop_vars('number')
     out = xr.merge(dsets, **get_class_kwargs(xr.merge, kwargs))
-    msg = (
-        'Merged time index does not have the same number of time steps '
-        '(%s) as the sum of the individual time index steps (%s).'
-    )
-    merged_size = out.time.size
-    summed_size = pd.concat(time_indices).drop_duplicates().size
-    assert merged_size == summed_size, msg % (merged_size, summed_size)
+    msg = ('Merged time index does not have the same number of time steps '
+           '(%s) as the sum of the individual time index steps (%s).')
+    if hasattr(out, 'time'):
+        merged_size = out.time.size
+        summed_size = pd.concat(time_indices).drop_duplicates().size
+        assert merged_size == summed_size, msg % (merged_size, summed_size)
     return out
 
 

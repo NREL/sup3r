@@ -563,6 +563,26 @@ class Sup3rX:
             warn(msg)
         return self
 
+    def flatten(self):
+        """Flatten rasterized dataset so that there is only a single spatial
+        dimension."""
+        if not self.flattened:
+            self._ds = self._ds.stack(
+                {Dimension.FLATTENED_SPATIAL: Dimension.dims_2d()}
+            )
+            self._ds = self._ds.assign(
+                {
+                    Dimension.FLATTENED_SPATIAL: np.arange(
+                        len(self._ds[Dimension.FLATTENED_SPATIAL])
+                    )
+                }
+            )
+        else:
+            msg = 'Dataset is already flattened'
+            logger.warning(msg)
+            warn(msg)
+        return self
+
     def _qa(self, feature):
         """Get qa info for given feature."""
         info = {}
