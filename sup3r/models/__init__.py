@@ -1,6 +1,5 @@
 """Sup3r Model Software"""
 from .base import Sup3rGan
-from .booster import Sup3rBooster
 from .conditional import Sup3rCondMom
 from .dc import Sup3rGanDC
 from .linear import LinearInterp
