@@ -2,6 +2,7 @@
 
 # netCDF4 has to be imported before h5py
 # isort: skip_file
+import pandas as pd
 import copy
 import itertools
 import logging
@@ -17,6 +18,7 @@ from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.utilities import _mem_check, log_args, _lowered
 from sup3r.utilities.utilities import safe_cast
+from rex.utilities.utilities import to_records_array
 
 from .utilities import _check_for_cache
 
@@ -226,6 +228,21 @@ class Cacher(Container):
         return data_var, chunksizes
 
     @classmethod
+    def add_coord_meta(cls, out_file, data):
+        """Add flattened coordinate meta to out_file. This is used for h5
+        caching."""
+        meta = pd.DataFrame()
+        for coord in Dimension.coords_2d():
+            if coord in data:
+                meta[coord] = data[coord].data.flatten()
+        logger.info('Adding coordinate meta to %s', out_file)
+        with h5py.File(out_file, 'a') as f:
+            meta = to_records_array(meta)
+            f.create_dataset(
+                '/meta', shape=meta.shape, dtype=meta.dtype, data=meta
+            )
+
+    @classmethod
     def write_h5(
         cls,
         out_file,
@@ -312,6 +329,7 @@ class Cacher(Container):
                         scheduler='threads',
                         num_workers=max_workers,
                     )
+        cls.add_coord_meta(out_file=out_file, data=data)
 
     @staticmethod
     def get_chunk_slices(chunks, shape):
