@@ -213,7 +213,7 @@ class Sup3rX:
     def values(self, *args, **kwargs):
         """Return numpy values in standard dimension order ``(lats, lons, time,
         ..., features)``"""
-        return np.asarray(self.to_array(*args, **kwargs))
+        return np.asarray(self.as_array(*args, **kwargs))
 
     def to_dataarray(self) -> Union[np.ndarray, da.core.Array]:
         """Return xr.DataArray for the contained xr.Dataset."""
