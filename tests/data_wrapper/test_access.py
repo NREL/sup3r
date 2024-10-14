@@ -72,6 +72,7 @@ def test_correct_single_member_access(data):
     assert len(data.time_index) == 100
     out = data.isel(time=slice(0, 10))
     assert out.sx.as_array().shape == (20, 20, 10, 3, 2)
+    assert out.sx.values().shape == (20, 20, 10, 3, 2)
     assert hasattr(out.sx, 'time_index')
     out = data[['u', 'v'], slice(0, 10)]
     assert out.shape == (10, 20, 100, 3, 2)
@@ -94,7 +95,7 @@ def test_correct_multi_member_access():
     """Make sure Data object works correctly."""
     data = Sup3rDataset(
         first=Sup3rX(make_fake_dset((20, 20, 100, 3), features=['u', 'v'])),
-        second=Sup3rX(make_fake_dset((20, 20, 100, 3), features=['u', 'v']))
+        second=Sup3rX(make_fake_dset((20, 20, 100, 3), features=['u', 'v'])),
     )
 
     _ = data['u']
@@ -110,16 +111,15 @@ def test_correct_multi_member_access():
     assert all(len(ti) == 100 for ti in time_index)
     out = data.isel(time=slice(0, 10))
     assert (o.as_array().shape == (20, 20, 10, 3, 2) for o in out)
+    assert (o.values().shape == (20, 20, 10, 3, 2) for o in out)
     assert all(hasattr(o.sx, 'time_index') for o in out)
     out = data[['u', 'v'], slice(0, 10)]
     assert all(o.shape == (10, 20, 100, 3, 2) for o in out)
     out = data[['u', 'v'], slice(0, 10), ..., slice(0, 1)]
     assert all(o.shape == (10, 20, 100, 1, 2) for o in out)
     out = data[
-        (
-            (['u', 'v'], slice(0, 10), slice(0, 10), slice(0, 5)),
-            (['u', 'v'], slice(0, 20), slice(0, 20), slice(0, 10)),
-        )
+        (['u', 'v'], slice(0, 10), slice(0, 10), slice(0, 5)),
+        (['u', 'v'], slice(0, 20), slice(0, 20), slice(0, 10)),
     ]
     assert out[0].shape == (10, 10, 5, 3, 2)
     assert out[1].shape == (20, 20, 10, 3, 2)
@@ -146,7 +146,7 @@ def test_change_values():
 
     data[['u', 'v']] = da.stack([rand_u, rand_v], axis=-1)
     assert np.array_equal(
-        np.asarray(data[['u', 'v']].as_array()),
+        data[['u', 'v']].values(),
         da.stack([rand_u, rand_v], axis=-1).compute(),
     )
     data['u', slice(0, 10)] = 0
