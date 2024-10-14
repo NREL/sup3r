@@ -16,6 +16,7 @@ from warnings import warn
 import dask
 import dask.array as da
 import numpy as np
+import pandas as pd
 from rex import init_logger
 
 from sup3r.preprocessing import Cacher, Loader
@@ -358,6 +359,11 @@ class EraDownloader:
         ds = self.convert_z(ds, name='orog')
         ds = standardize_names(ds, ERA_NAME_MAP)
         ds = standardize_values(ds)
+
+        if 'monthly' in self.product_type:
+            ds['time'] = pd.DatetimeIndex(
+                [f'{self.year}-{str(self.month).zfill(2)}-01']
+            )
         ds.compute().to_netcdf(tmp_file, format='NETCDF4', engine='h5netcdf')
         os.replace(tmp_file, self.surface_file)
         logger.info(
@@ -422,6 +428,10 @@ class EraDownloader:
         ds = standardize_names(ds, ERA_NAME_MAP)
         ds = standardize_values(ds)
         ds = self.add_pressure(ds)
+        if 'monthly' in self.product_type:
+            ds['time'] = pd.DatetimeIndex(
+                [f'{self.year}-{str(self.month).zfill(2)}-01']
+            )
         ds.compute().to_netcdf(tmp_file, format='NETCDF4', engine='h5netcdf')
         os.replace(tmp_file, self.level_file)
         logger.info(
