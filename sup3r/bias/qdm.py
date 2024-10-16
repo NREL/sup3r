@@ -218,6 +218,9 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                                              target=self.target,
                                              shape=self.shape,
                                              **self.bias_handler_kwargs)
+        logger.info('Pre loading future biased data into memory...')
+        self.bias_fut_dh.compute()
+        logger.info('Finished pre loading future biased data.')
 
     def _init_out(self):
         """Initialize output arrays `self.out`

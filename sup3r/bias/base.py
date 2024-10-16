@@ -148,6 +148,9 @@ class DataRetrievalBase:
                 'must load cached data!'
             )
             assert self.base_dh.data is not None, msg
+            logger.info('Pre loading baseline unbiased data into memory...')
+            self.base_dh.data.compute()
+            logger.info('Finished pre loading baseline unbiased data.')
         else:
             msg = f'Could not retrieve "{base_handler}" from sup3r or rex!'
             logger.error(msg)
@@ -162,6 +165,9 @@ class DataRetrievalBase:
             shape=self.shape,
             **self.bias_handler_kwargs,
         )
+        logger.info('Pre loading historical biased data into memory...')
+        self.bias_dh.data.compute()
+        logger.info('Finished pre loading historical biased data.')
         lats = self.bias_dh.lat_lon[..., 0].flatten()
         self.bias_meta = self.bias_dh.meta
         self.bias_ti = self.bias_dh.time_index
@@ -258,7 +264,7 @@ class DataRetrievalBase:
         import_str = 'import time;\n'
         import_str += 'from gaps import Status;\n'
         import_str += 'from rex import init_logger;\n'
-        import_str += f'from sup3r.bias.bias_calc import {cls.__name__}'
+        import_str += f'from sup3r.bias import {cls.__name__}'
 
         if not hasattr(cls, 'run'):
             msg = (
