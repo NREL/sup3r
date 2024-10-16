@@ -232,7 +232,7 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
         recommended to improve performance with the new sup3r data handler
         access patterns"""
         super().pre_load()
-        if hasattr(self.bias_fut_dh.data, 'compute'):
+        if hasattr(self.bias_fut_dh, 'compute'):
             logger.info('Pre loading future biased data into memory...')
             self.bias_fut_dh.data.compute()
             logger.info('Finished pre loading future biased data.')

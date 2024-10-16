@@ -195,12 +195,12 @@ class DataRetrievalBase:
         recommended to improve performance with the new sup3r data handler
         access patterns"""
 
-        if hasattr(self.base_dh.data, 'compute'):
+        if hasattr(self.base_dh, 'compute'):
             logger.info('Pre loading baseline unbiased data into memory...')
             self.base_dh.data.compute()
             logger.info('Finished pre loading baseline unbiased data.')
 
-        if hasattr(self.bias_dh.data, 'compute'):
+        if hasattr(self.bias_dh, 'compute'):
             logger.info('Pre loading historical biased data into memory...')
             self.bias_dh.data.compute()
             logger.info('Finished pre loading historical biased data.')
