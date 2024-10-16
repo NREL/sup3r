@@ -68,6 +68,7 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                  log_base=10,
                  n_time_steps=24,
                  window_size=120,
+                 pre_load=True,
                  ):
         """
         Parameters
@@ -155,6 +156,10 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
             Total time window period in days to be considered for each time QDM
             is calculated. For instance, `window_size=30` with
             `n_time_steps=12` would result in approximately monthly estimates.
+        pre_load : bool
+            Flag to preload all data needed for bias correction. This is
+            currently recommended to improve performance with the new sup3r
+            data handler access patterns
 
         See Also
         --------
@@ -207,10 +212,10 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                          bias_handler_kwargs=bias_handler_kwargs,
                          decimals=decimals,
                          match_zero_rate=match_zero_rate,
+                         pre_load=False,
                          )
 
         self.bias_fut_fps = bias_fut_fps
-
         self.bias_fut_fps = expand_paths(self.bias_fut_fps)
 
         self.bias_fut_dh = self.bias_handler(self.bias_fut_fps,
@@ -218,9 +223,19 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                                              target=self.target,
                                              shape=self.shape,
                                              **self.bias_handler_kwargs)
-        logger.info('Pre loading future biased data into memory...')
-        self.bias_fut_dh.compute()
-        logger.info('Finished pre loading future biased data.')
+
+        if pre_load:
+            self.pre_load()
+
+    def pre_load(self):
+        """Preload all data needed for bias correction. This is currently
+        recommended to improve performance with the new sup3r data handler
+        access patterns"""
+        super().pre_load()
+        if hasattr(self.bias_fut_dh.data, 'compute'):
+            logger.info('Pre loading future biased data into memory...')
+            self.bias_fut_dh.data.compute()
+            logger.info('Finished pre loading future biased data.')
 
     def _init_out(self):
         """Initialize output arrays `self.out`
