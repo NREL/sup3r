@@ -151,3 +151,38 @@ def test_change_values():
     )
     data['u', slice(0, 10)] = 0
     assert np.allclose(data['u', ...][slice(0, 10)], [0])
+
+
+@pytest.mark.parametrize('compute', (False, True))
+def test_sup3rdataset_slicing(compute):
+    """Test various slicing operations with Sup3rDataset with and without
+    pre-loading of data via Sup3rDataset.compute()"""
+    xdset = xr.open_dataset(pytest.FP_ERA)
+    supx = Sup3rX(xdset)
+    dset = Sup3rDataset(high_res=supx)
+    if compute:
+        dset.compute()
+
+    # simple slicing
+    arr = dset['zg', :10, :10, :10, 0]
+    assert arr.shape[0] == arr.shape[1] == arr.shape[2] == 10
+    assert arr.ndim == 3
+
+    # np.where to get specific spatial points indexed with np.ndarray's
+    lat = dset['latitude'].values
+    lon = dset['longitude'].values
+    lon, lat = np.meshgrid(lon, lat)
+    idy, idx = np.where((lat > 41) & (lon > -104))
+    arr = dset['zg', :, :, idy, idx]
+    assert arr.shape[:2] == dset['zg'].shape[:2]
+    assert arr.shape[2] == len(idy) == len(idx)
+
+    # np.where mixed with integer indexing
+    arr = dset['zg', 0, 0, idy, idx]
+    assert arr.shape[0] == len(idy) == len(idx)
+
+    # weird spacing of indices
+    idx = np.array([0, 2, 5])
+    arr = dset['zg', 0, 0, :, idx]
+    assert arr.shape[0] == dset['zg'].shape[2]
+    assert arr.shape[1] == len(idx)

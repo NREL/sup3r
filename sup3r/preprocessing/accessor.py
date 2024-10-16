@@ -145,10 +145,13 @@ class Sup3rX:
             out = out.isel(**slices)
 
         out = out.data if single_feat else out.as_array()
-        if just_coords:
+
+        if just_coords or (is_fancy and self.loaded):
+            # DataArray coord or Numpy indexing
             return out[tuple(slices.values())]
 
         if is_fancy:
+            # DataArray + Dask indexing
             return out.vindex[tuple(slices.values())]
 
         return out

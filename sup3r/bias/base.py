@@ -43,6 +43,7 @@ class DataRetrievalBase:
         bias_handler_kwargs=None,
         decimals=None,
         match_zero_rate=False,
+        pre_load=True,
     ):
         """
         Parameters
@@ -100,6 +101,10 @@ class DataRetrievalBase:
             will not be mean-centered. This helps resolve the issue where
             global climate models produce too many days with small
             precipitation totals e.g., the "drizzle problem" [Polade2014]_.
+        pre_load : bool
+            Flag to preload all data needed for bias correction. This is
+            currently recommended to improve performance with the new sup3r
+            data handler access patterns
 
         References
         ----------
@@ -177,9 +182,28 @@ class DataRetrievalBase:
             distance_upper_bound=self.distance_upper_bound,
         )
 
+        if pre_load:
+            self.pre_load()
+
         self.out = None
         self._init_out()
+
         logger.info('Finished initializing DataRetrievalBase.')
+
+    def pre_load(self):
+        """Preload all data needed for bias correction. This is currently
+        recommended to improve performance with the new sup3r data handler
+        access patterns"""
+
+        if hasattr(self.base_dh, 'compute'):
+            logger.info('Pre loading baseline unbiased data into memory...')
+            self.base_dh.data.compute()
+            logger.info('Finished pre loading baseline unbiased data.')
+
+        if hasattr(self.bias_dh, 'compute'):
+            logger.info('Pre loading historical biased data into memory...')
+            self.bias_dh.data.compute()
+            logger.info('Finished pre loading historical biased data.')
 
     @abstractmethod
     def _init_out(self):
@@ -258,7 +282,7 @@ class DataRetrievalBase:
         import_str = 'import time;\n'
         import_str += 'from gaps import Status;\n'
         import_str += 'from rex import init_logger;\n'
-        import_str += f'from sup3r.bias.bias_calc import {cls.__name__}'
+        import_str += f'from sup3r.bias import {cls.__name__}'
 
         if not hasattr(cls, 'run'):
             msg = (
@@ -409,10 +433,9 @@ class DataRetrievalBase:
         # This can be confusing. If the given argument `bias_dh` is None,
         # the default value for dh is `self.bias_dh`.
         dh = bias_dh or self.bias_dh
-        bias_data = dh.data[row[0], col[0], ...]
-        if bias_data.shape[-1] == 1:
-            bias_data = bias_data[:, 0]
-        else:
+        bias_data = dh.data[self.bias_feature, row[0], col[0], ...]
+
+        if bias_data.ndim != 1:
             msg = (
                 'Found a weird number of feature channels for the bias '
                 'data retrieval: {}. Need just one channel'.format(

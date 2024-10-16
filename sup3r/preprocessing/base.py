@@ -75,17 +75,25 @@ class Sup3rDataset:
 
     Examples
     --------
+    >>> # access high_res or low_res:
     >>> hr = xr.Dataset(...)
     >>> lr = xr.Dataset(...)
     >>> ds = Sup3rDataset(low_res=lr, high_res=hr)
-    >>> # access high_res or low_res:
-    >>> ds.high_res; ds.low_res
+    >>> ds.high_res; ds.low_res  # returns Sup3rX objects
+    >>> ds[feature]  # returns a tuple of dataarray (low_res, high_res)
 
+    >>> # access hourly or daily:
     >>> daily = xr.Dataset(...)
     >>> hourly = xr.Dataset(...)
     >>> ds = Sup3rDataset(daily=daily, hourly=hourly)
-    >>> # access hourly or daily:
-    >>> ds.hourly; ds.daily
+    >>> ds.hourly; ds.daily  # returns Sup3rX objects
+    >>> ds[feature]  # returns a tuple of dataarray (daily, hourly)
+
+    >>> # single resolution data access:
+    >>> xds = xr.Dataset(...)
+    >>> ds = Sup3rDataset(hourly=xds)
+    >>> ds.hourly  # returns Sup3rX object
+    >>> ds[feature]  # returns a single dataarray
 
     Note
     ----
@@ -329,6 +337,10 @@ class Container(metaclass=Sup3rMeta):
     @property
     def data(self):
         """Return underlying data.
+
+        Returns
+        -------
+        :class:`.Sup3rDataset`
 
         See Also
         --------
