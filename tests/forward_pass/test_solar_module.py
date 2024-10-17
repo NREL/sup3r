@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Test the custom sup3r solar module that converts GAN clearsky ratio outputs
 to irradiance data."""
 import glob
@@ -16,7 +15,7 @@ from rex import Resource
 from sup3r import TEST_DATA_DIR
 from sup3r.solar import Solar
 from sup3r.solar.solar_cli import from_config as solar_main
-from sup3r.utilities.pytest import make_fake_cs_ratio_files
+from sup3r.utilities.pytest.helpers import make_fake_cs_ratio_files
 from sup3r.utilities.utilities import pd_date_range
 
 NSRDB_FP = os.path.join(TEST_DATA_DIR, 'test_nsrdb_clearsky_2018.h5')
@@ -48,7 +47,7 @@ def test_solar_module(plot=False):
     with tempfile.TemporaryDirectory() as td:
 
         fps, _ = make_fake_cs_ratio_files(td, LOW_RES_TIMES, LOW_RES_LAT_LON,
-                                          gan_meta=GAN_META)
+                                          model_meta=GAN_META)
 
         with Resource(fps[1]) as res:
             meta_base = res.meta
@@ -150,7 +149,7 @@ def test_solar_cli(runner):
     with tempfile.TemporaryDirectory() as td:
         fps, fp_pattern = make_fake_cs_ratio_files(td, LOW_RES_TIMES,
                                                    LOW_RES_LAT_LON,
-                                                   gan_meta=GAN_META)
+                                                   model_meta=GAN_META)
         config = {'fp_pattern': fp_pattern,
                   'nsrdb_fp': NSRDB_FP,
                   'log_level': 'DEBUG',

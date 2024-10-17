@@ -1,18 +1,27 @@
 """Output method tests"""
-import json
+
 import os
 import tempfile
 
 import numpy as np
 import pandas as pd
-import tensorflow as tf
-from rex import ResourceX, init_logger
+from rex import ResourceX
 
-from sup3r import __version__
-from sup3r.postprocessing.collection import CollectorH5
-from sup3r.postprocessing.file_handling import OutputHandlerH5, OutputHandlerNC
-from sup3r.utilities.pytest import make_fake_h5_chunks
-from sup3r.utilities.utilities import invert_uv, transform_rotate_wind
+from sup3r.postprocessing import (
+    CollectorH5,
+    OutputHandlerH5,
+    OutputHandlerNC,
+)
+from sup3r.preprocessing import Loader
+from sup3r.preprocessing.derivers.utilities import (
+    invert_uv,
+    transform_rotate_wind,
+)
+from sup3r.utilities.pytest.helpers import (
+    make_collect_chunks,
+    make_fake_h5_chunks,
+)
+from sup3r.utilities.utilities import RANDOM_GENERATOR
 
 
 def test_get_lat_lon():
@@ -58,8 +67,8 @@ def test_invert_uv():
     lat_lon = np.concatenate(
         [np.expand_dims(lats, axis=-1), np.expand_dims(lons, axis=-1)], axis=-1
     )
-    windspeed = np.random.rand(lat_lon.shape[0], lat_lon.shape[1], 5)
-    winddirection = 360 * np.random.rand(lat_lon.shape[0], lat_lon.shape[1], 5)
+    windspeed = RANDOM_GENERATOR.random((*lat_lon.shape[:2], 5))
+    winddirection = 360 * RANDOM_GENERATOR.random((*lat_lon.shape[:2], 5))
 
     u, v = transform_rotate_wind(
         np.array(windspeed, dtype=np.float32),
@@ -94,13 +103,13 @@ def test_invert_uv_inplace():
     lat_lon = np.concatenate(
         [np.expand_dims(lats, axis=-1), np.expand_dims(lons, axis=-1)], axis=-1
     )
-    u = np.random.rand(lat_lon.shape[0], lat_lon.shape[1], 5)
-    v = np.random.rand(lat_lon.shape[0], lat_lon.shape[1], 5)
+    u = RANDOM_GENERATOR.random((*lat_lon.shape[:2], 5))
+    v = RANDOM_GENERATOR.random((*lat_lon.shape[:2], 5))
 
     data = np.concatenate(
         [np.expand_dims(u, axis=-1), np.expand_dims(v, axis=-1)], axis=-1
     )
-    OutputHandlerH5.invert_uv_features(data, ['U_100m', 'V_100m'], lat_lon)
+    OutputHandlerH5.invert_uv_features(data, ['u_100m', 'v_100m'], lat_lon)
 
     ws, wd = invert_uv(u, v, lat_lon)
 
@@ -111,7 +120,7 @@ def test_invert_uv_inplace():
     data = np.concatenate(
         [np.expand_dims(u, axis=-1), np.expand_dims(v, axis=-1)], axis=-1
     )
-    OutputHandlerH5.invert_uv_features(data, ['U_100m', 'V_100m'], lat_lon)
+    OutputHandlerH5.invert_uv_features(data, ['u_100m', 'v_100m'], lat_lon)
 
     ws, wd = invert_uv(u, v, lat_lon)
 
@@ -119,85 +128,54 @@ def test_invert_uv_inplace():
     assert np.allclose(data[..., 1], wd)
 
 
-def test_h5_out_and_collect():
+def test_general_collect():
+    """Make sure general file collection gives complete meta, time_index, and
+    data array."""
+
+    with tempfile.TemporaryDirectory() as td:
+        fp_out = os.path.join(td, 'out_combined.h5')
+
+        out = make_collect_chunks(td)
+        out_files, data, features, hr_lat_lon, hr_times = (
+            out[0],
+            out[1],
+            out[-3],
+            out[-2],
+            out[-1],
+        )
+
+        CollectorH5.collect(out_files, fp_out, features=features)
+
+        with ResourceX(fp_out) as res:
+            lat_lon = res['meta'][['latitude', 'longitude']].values
+            time_index = res['time_index'].values
+            collect_data = np.dstack([res[f, :, :] for f in features])
+            base_data = data.transpose(2, 0, 1, 3).reshape(
+                (len(hr_times), -1, len(features))
+            )
+            base_data = np.around(base_data.astype(np.float32), 2)
+            hr_lat_lon = hr_lat_lon.astype(np.float32)
+            assert np.array_equal(hr_times, time_index)
+            assert np.array_equal(hr_lat_lon.reshape((-1, 2)), lat_lon)
+            assert np.array_equal(base_data, collect_data)
+
+
+def test_h5_out_and_collect(collect_check):
     """Test h5 file output writing and collection with dummy data"""
 
     with tempfile.TemporaryDirectory() as td:
         fp_out = os.path.join(td, 'out_combined.h5')
 
         out = make_fake_h5_chunks(td)
-        (
-            out_files,
-            data,
-            ws_true,
-            wd_true,
-            features,
-            _,
-            t_slices_hr,
-            _,
-            s_slices_hr,
-            _,
-            low_res_times,
-        ) = out
+        out_files, features = out[0], out[4]
 
         CollectorH5.collect(out_files, fp_out, features=features)
-        with ResourceX(fp_out) as fh:
-            full_ti = fh.time_index
-            combined_ti = []
-            for _, f in enumerate(out_files):
-                tmp = f.replace('.h5', '').split('_')
-                t_idx = int(tmp[-3])
-                s1_idx = int(tmp[-2])
-                s2_idx = int(tmp[-1])
-                t_hr = t_slices_hr[t_idx]
-                s1_hr = s_slices_hr[s1_idx]
-                s2_hr = s_slices_hr[s2_idx]
-                with ResourceX(f) as fh_i:
-                    if s1_idx == s2_idx == 0:
-                        combined_ti += list(fh_i.time_index)
 
-                    ws_i = np.transpose(
-                        data[s1_hr, s2_hr, t_hr, 0], axes=(2, 0, 1)
-                    )
-                    wd_i = np.transpose(
-                        data[s1_hr, s2_hr, t_hr, 1], axes=(2, 0, 1)
-                    )
-                    ws_i = ws_i.reshape(48, 625)
-                    wd_i = wd_i.reshape(48, 625)
-                    assert np.allclose(ws_i, fh_i['windspeed_100m'], atol=0.01)
-                    assert np.allclose(
-                        wd_i, fh_i['winddirection_100m'], atol=0.1
-                    )
-
-                    for k, v in fh_i.global_attrs.items():
-                        assert k in fh.global_attrs, k
-                        assert fh.global_attrs[k] == v, k
-
-            assert len(full_ti) == len(combined_ti)
-            assert len(full_ti) == 2 * len(low_res_times)
-            wd_true = np.transpose(wd_true[..., 0], axes=(2, 0, 1))
-            ws_true = np.transpose(ws_true[..., 0], axes=(2, 0, 1))
-            wd_true = wd_true.reshape(96, 2500)
-            ws_true = ws_true.reshape(96, 2500)
-            assert np.allclose(ws_true, fh['windspeed_100m'], atol=0.01)
-            assert np.allclose(wd_true, fh['winddirection_100m'], atol=0.1)
-
-            assert fh.global_attrs['package'] == 'sup3r'
-            assert fh.global_attrs['version'] == __version__
-            assert 'full_version_record' in fh.global_attrs
-            version_record = json.loads(fh.global_attrs['full_version_record'])
-            assert version_record['tensorflow'] == tf.__version__
-            assert 'foo' in fh.global_attrs
-            gan_meta = fh.global_attrs['foo']
-            assert isinstance(gan_meta, str)
-            assert gan_meta == 'bar'
+        collect_check(out, fp_out)
 
 
-def test_h5_collect_mask(log=False):
+def test_h5_collect_mask():
     """Test h5 file collection with mask meta"""
-
-    if log:
-        init_logger('sup3r', log_level='DEBUG')
 
     with tempfile.TemporaryDirectory() as td:
         fp_out = os.path.join(td, 'out_combined.h5')
@@ -210,9 +188,7 @@ def test_h5_collect_mask(log=False):
         CollectorH5.collect(out_files, fp_out, features=features)
         indices = np.arange(np.prod(data.shape[:2]))
         indices = indices[slice(-len(indices) // 2, None)]
-        removed = []
-        for _ in range(10):
-            removed.append(np.random.choice(indices))
+        removed = [RANDOM_GENERATOR.choice(indices) for _ in range(10)]
         mask_slice = [i for i in indices if i not in removed]
         with ResourceX(fp_out) as fh:
             mask_meta = fh.meta
@@ -224,9 +200,8 @@ def test_h5_collect_mask(log=False):
             out_files,
             fp_out_mask,
             features=features,
-            target_final_meta_file=mask_file,
+            target_meta_file=mask_file,
             max_workers=1,
-            join_times=False,
         )
         with ResourceX(fp_out_mask) as fh:
             mask_meta = pd.read_csv(mask_file, dtype=np.float32)
@@ -238,3 +213,24 @@ def test_h5_collect_mask(log=False):
                 assert np.array_equal(
                     fh_o['windspeed_100m', :, mask_slice], fh['windspeed_100m']
                 )
+
+
+def test_enforce_limits():
+    """Make sure clearsky ratio is capped to [0, 1] by netcdf OutputHandler."""
+
+    data = RANDOM_GENERATOR.uniform(-100, 100, (10, 10, 10, 1))
+    lon, lat = np.meshgrid(np.arange(10), np.arange(10))
+    lat_lon = np.dstack([lat, lon])
+    times = pd.date_range('2021-01-01', '2021-01-10', 10)
+    with tempfile.TemporaryDirectory() as td:
+        fp_out = os.path.join(td, 'out_csr.nc')
+        OutputHandlerNC._write_output(
+            data=data,
+            features=['clearsky_ratio'],
+            lat_lon=lat_lon,
+            times=times,
+            out_file=fp_out,
+        )
+        with Loader(fp_out) as res:
+            assert res.data['clearsky_ratio'].max() <= 1.0
+            assert res.data['clearsky_ratio'].max() >= 0.0
