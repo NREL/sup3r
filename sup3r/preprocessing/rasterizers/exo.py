@@ -92,6 +92,9 @@ class BaseExoRasterizer(ABC):
         Maximum distance to map high-resolution data from source_file to the
         low-resolution file_paths input. None (default) will calculate this
         based on the median distance between points in source_file
+    max_workers : int
+        Number of workers used for writing data to cache files. Gets passed to
+        ``Cacher.write_netcdf.``
     """
 
     file_paths: Optional[str] = None
@@ -104,6 +107,7 @@ class BaseExoRasterizer(ABC):
     cache_dir: str = './exo_cache/'
     chunks: Optional[Union[str, dict]] = 'auto'
     distance_upper_bound: Optional[int] = None
+    max_workers: int = 1
 
     @log_args
     def __post_init__(self):
@@ -153,6 +157,14 @@ class BaseExoRasterizer(ABC):
         """
         fn = f'exo_{feature}_{"_".join(map(str, self.input_handler.target))}_'
         fn += f'{"x".join(map(str, self.input_handler.grid_shape))}_'
+
+        if len(self.source_data.shape) == 3:
+            start = str(self.hr_time_index[0])
+            start = start.replace(':', '').replace('-', '').replace(' ', '')
+            end = str(self.hr_time_index[-1])
+            end = end.replace(':', '').replace('-', '').replace(' ', '')
+            fn += f'{start}_{end}_'
+
         fn += f'{self.s_enhance}x_{self.t_enhance}x.nc'
         cache_fp = os.path.join(self.cache_dir, fn)
         if self.cache_dir is not None:
@@ -273,7 +285,7 @@ class BaseExoRasterizer(ABC):
         if not os.path.exists(cache_fp):
             tmp_fp = cache_fp + f'{generate_random_string(10)}.tmp'
             Cacher.write_netcdf(
-                tmp_fp, data, max_workers=1, chunks=self.chunks
+                tmp_fp, data, max_workers=self.max_workers, chunks=self.chunks
             )
             shutil.move(tmp_fp, cache_fp)
 
