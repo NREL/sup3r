@@ -42,8 +42,7 @@ class DataRetrievalBase:
         base_handler_kwargs=None,
         bias_handler_kwargs=None,
         decimals=None,
-        match_zero_rate=False,
-        pre_load=True,
+        match_zero_rate=False
     ):
         """
         Parameters
@@ -101,10 +100,6 @@ class DataRetrievalBase:
             will not be mean-centered. This helps resolve the issue where
             global climate models produce too many days with small
             precipitation totals e.g., the "drizzle problem" [Polade2014]_.
-        pre_load : bool
-            Flag to preload all data needed for bias correction. This is
-            currently recommended to improve performance with the new sup3r
-            data handler access patterns
 
         References
         ----------
@@ -182,28 +177,10 @@ class DataRetrievalBase:
             distance_upper_bound=self.distance_upper_bound,
         )
 
-        if pre_load:
-            self.pre_load()
-
         self.out = None
         self._init_out()
 
         logger.info('Finished initializing DataRetrievalBase.')
-
-    def pre_load(self):
-        """Preload all data needed for bias correction. This is currently
-        recommended to improve performance with the new sup3r data handler
-        access patterns"""
-
-        if hasattr(self.base_dh, 'compute'):
-            logger.info('Pre loading baseline unbiased data into memory...')
-            self.base_dh.data.compute()
-            logger.info('Finished pre loading baseline unbiased data.')
-
-        if hasattr(self.bias_dh, 'compute'):
-            logger.info('Pre loading historical biased data into memory...')
-            self.bias_dh.data.compute()
-            logger.info('Finished pre loading historical biased data.')
 
     @abstractmethod
     def _init_out(self):
