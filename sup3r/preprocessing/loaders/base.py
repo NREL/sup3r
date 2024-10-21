@@ -54,12 +54,13 @@ class BaseLoader(Container, ABC):
             Additional keyword arguments passed through to the ``BaseLoader``.
             BaseLoader is usually xr.open_mfdataset for NETCDF files and
             MultiFileResourceX for H5 files.
-        chunks : dict | str
+        chunks : dict | str | None
             Dictionary of chunk sizes to pass through to
             ``dask.array.from_array()`` or ``xr.Dataset().chunk()``. Will be
             converted to a tuple when used in ``from_array()``. These are the
             methods for H5 and NETCDF data, respectively. This argument can
-            be "auto" in additional to a dictionary.
+            be "auto" in additional to a dictionary. If this is None then the
+            data will not be chunked and instead loaded directly into memory.
         BaseLoader : Callable
             Optional base loader update. The default for H5 files is
             MultiFileResourceX and for NETCDF is xarray.open_mfdataset
@@ -79,6 +80,9 @@ class BaseLoader(Container, ABC):
 
         if 'meta' in self.res:
             self.data.meta = self.res.meta
+
+        if self.chunks is None:
+            self.data.compute()
 
     def _parse_chunks(self, dims, feature=None):
         """Get chunks for given dimensions from ``self.chunks``."""
