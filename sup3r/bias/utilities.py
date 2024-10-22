@@ -149,24 +149,30 @@ def qdm_bc(
     completed = []
     dr_kwargs = get_date_range_kwargs(handler.time_index)
     for feature in handler.features:
+        dset_bc_hist = f'bias_{feature}_params'
+        dset_bc_fut = f'bias_fut_{feature}_params'
+
         for fp in bc_files:
-            logger.info(
-                'Bias correcting "{}" with QDM ' 'correction from "{}"'.format(
-                    feature, os.path.basename(fp)
+            with Resource(fp) as res:
+                check = dset_bc_hist in res.dsets and dset_bc_fut in res.dsets
+
+            if feature not in completed and check:
+                logger.info(
+                    'Bias correcting "{}" with QDM ' 'correction from "{}"'
+                    .format(feature, os.path.basename(fp))
                 )
-            )
-            handler.data[feature, ...] = local_qdm_bc(
-                handler.data[feature, ...],
-                handler.lat_lon,
-                reference_feature,
-                feature,
-                bias_fp=fp,
-                date_range_kwargs=dr_kwargs,
-                threshold=threshold,
-                relative=relative,
-                no_trend=no_trend,
-            )
-            completed.append(feature)
+                handler.data[feature, ...] = local_qdm_bc(
+                    handler.data[feature, ...],
+                    handler.lat_lon,
+                    reference_feature,
+                    feature,
+                    bias_fp=fp,
+                    date_range_kwargs=dr_kwargs,
+                    threshold=threshold,
+                    relative=relative,
+                    no_trend=no_trend,
+                )
+                completed.append(feature)
 
 
 def bias_correct_feature(
