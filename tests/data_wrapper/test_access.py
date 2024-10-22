@@ -60,11 +60,13 @@ def test_shuffled_dim_order():
 def test_correct_single_member_access(data):
     """Make sure _getitem__ methods work correctly for Sup3rX accessor and
     Sup3rDataset wrapper around single xr.Dataset"""
-    nc = make_fake_dset((20, 20, 100, 3), features=['u', 'v'])
-    data = nc.sx
 
     _ = data['u']
     _ = data[['u', 'v']]
+
+    with pytest.raises(ValueError):  # cannot access features by integer index
+        _ = data[0, 0, 0, 0, 0]
+    assert data['u', 0, 0, 0, 0].shape == ()
     out = data[[Dimension.LATITUDE, Dimension.LONGITUDE], :]
     assert ['u', 'v'] in data
     assert out.shape == (20, 20, 2)

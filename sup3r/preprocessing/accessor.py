@@ -110,6 +110,14 @@ class Sup3rX:
         )
         dim_keys = () if len(keys) == 1 else keys[1:] if has_feats else keys
         dim_keys = parse_ellipsis(dim_keys, dim_num=len(self._ds.dims))
+
+        if len(dim_keys) > len(self._ds.dims):
+            msg = ('Received keys = %s which are incompatible with the '
+                   'dimensions = %s. If trying to access features by integer '
+                   'index instead use feature names.')
+            logger.error(msg, keys, ordered_dims(self._ds.dims))
+            raise ValueError(msg % (keys, ordered_dims(self._ds.dims)))
+
         return features, dict(zip(ordered_dims(self._ds.dims), dim_keys))
 
     def __getitem__(
