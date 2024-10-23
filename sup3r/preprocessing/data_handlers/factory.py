@@ -23,7 +23,6 @@ from sup3r.preprocessing.loaders import Loader
 from sup3r.preprocessing.rasterizers import Rasterizer
 from sup3r.preprocessing.utilities import (
     expand_paths,
-    get_class_kwargs,
     log_args,
     parse_to_list,
 )
@@ -227,8 +226,7 @@ class DataHandler(Deriver):
                 time_slice=time_slice,
                 threshold=threshold,
                 BaseLoader=BaseLoader,
-                **get_class_kwargs(Rasterizer, kwargs),
-            )
+                **kwargs)
             if any(cached_files):
                 rasterizer.data[cached_features] = cache.data[cached_features]
                 rasterizer.file_paths = expand_paths(file_paths) + cached_files

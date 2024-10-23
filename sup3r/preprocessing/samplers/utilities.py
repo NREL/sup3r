@@ -233,7 +233,7 @@ def nsrdb_sub_daily_sampler(data, shape, time_index=None):
     """
     time_index = time_index if time_index is not None else data.time_index
     tslice = daily_time_sampler(data, 24, time_index)
-    night_mask = da.isnan(data['clearsky_ratio', ..., tslice]).any(axis=(0, 1))
+    night_mask = da.isnan(data['clearsky_ratio'][..., tslice]).any(axis=(0, 1))
 
     if shape >= data.shape[2]:
         return tslice

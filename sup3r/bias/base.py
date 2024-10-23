@@ -433,7 +433,7 @@ class DataRetrievalBase:
         # This can be confusing. If the given argument `bias_dh` is None,
         # the default value for dh is `self.bias_dh`.
         dh = bias_dh or self.bias_dh
-        bias_data = dh.data[self.bias_feature, row[0], col[0], ...]
+        bias_data = dh.data[self.bias_feature][row[0], col[0], ...]
 
         if bias_data.ndim != 1:
             msg = (
@@ -621,7 +621,7 @@ class DataRetrievalBase:
         gid_raster = np.arange(len(dh.meta))
         gid_raster = gid_raster.reshape(dh.shape[:2])
         idy, idx = np.where(np.isin(gid_raster, base_gid))
-        base_data = dh.data[base_dset, idy, idx]
+        base_data = dh.data[[base_dset]][idy, idx].squeeze(axis=-1)
         assert base_data.shape[0] == len(base_gid)
         assert base_data.shape[1] == len(dh.time_index)
         return base_data.mean(axis=0)

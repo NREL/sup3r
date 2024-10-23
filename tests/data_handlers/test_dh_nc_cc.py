@@ -104,8 +104,8 @@ def test_data_handling_nc_cc_power_law(features, feat_class, src_name):
         dh = DataHandlerNCforCCwithPowerLaw(tmp_file, features=features)
         if fh['lat'][-1] > fh['lat'][0]:
             var_hh = var_hh[::-1]
-        mask = np.isnan(dh.data[features[0], ...])
-        masked_u = dh.data[features[0], ...][~mask].compute_chunk_sizes()
+        mask = np.isnan(dh.data[features[0]].data)
+        masked_u = dh.data[features[0]].data[~mask].compute_chunk_sizes()
         np.array_equal(masked_u, var_hh[~mask])
 
 

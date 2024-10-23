@@ -20,7 +20,10 @@ import xarray as xr
 
 import sup3r.preprocessing.accessor  # noqa: F401 # pylint: disable=W0611
 from sup3r.preprocessing.accessor import Sup3rX
-from sup3r.preprocessing.utilities import composite_info, is_type_of
+from sup3r.preprocessing.utilities import (
+    composite_info,
+    is_type_of,
+)
 
 logger = logging.getLogger(__name__)
 

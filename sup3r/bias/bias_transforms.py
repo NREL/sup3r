@@ -71,7 +71,7 @@ def _get_factors(target, shape, var_names, bias_fp, threshold=0.1):
     msg = f'Missing {" and ".join(missing)} in resource: {bias_fp}.'
     assert missing == [], msg
     # pylint: disable=E1136
-    out = {k: res[var_names[k].lower(), ...] for k in var_names}
+    out = {k: res[var_names[k].lower()][...] for k in var_names}
     out['cfg'] = res.global_attrs
     return out
 

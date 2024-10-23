@@ -124,8 +124,8 @@ def test_multi_container_normalization():
         max_workers=1,
     )
 
-    dat.data['windspeed', ...] = stored_data[..., 0]
-    dat.data['winddirection', ...] = stored_data[..., 1]
+    dat.data['windspeed'] = stored_data[..., 0]
+    dat.data['winddirection'] = stored_data[..., 1]
 
     batcher2 = BatchHandler(
         train_containers=[dat, dat],
@@ -150,14 +150,18 @@ def test_normalization():
     stds = {'windspeed': 6.5, 'winddirection': 8.2}
 
     dat = DummyData((10, 10, 100), FEATURES)
-    dat.data['windspeed', ...] = 1
-    dat.data['windspeed', 0:4] = np.nan
-    dat.data['winddirection', ...] = 1
-    dat.data['winddirection', 0:4] = np.nan
+    ws_tmp = dat.data['windspeed']
+    ws_tmp[:] = 1
+    ws_tmp[0:4] = np.nan
+    dat.data['windspeed'] = ws_tmp
+    wd_tmp = dat.data['winddirection']
+    wd_tmp[:] = 1
+    wd_tmp[0:4] = np.nan
+    dat.data['winddirection'] = wd_tmp
 
     val_dat = DummyData((10, 10, 100), FEATURES)
-    val_dat.data['windspeed', ...] = dat.data['windspeed', ...]
-    val_dat.data['winddirection', ...] = dat.data['winddirection', ...]
+    val_dat.data['windspeed'] = dat.data['windspeed']
+    val_dat.data['winddirection'] = dat.data['winddirection']
 
     batcher = BatchHandler(
         train_containers=[dat],
