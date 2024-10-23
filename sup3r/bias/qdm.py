@@ -59,6 +59,7 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                  bias_handler='DataHandlerNCforCC',
                  base_handler_kwargs=None,
                  bias_handler_kwargs=None,
+                 bias_fut_handler_kwargs=None,
                  decimals=None,
                  match_zero_rate=False,
                  n_quantiles=101,
@@ -121,7 +122,10 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
             class
         bias_handler_kwargs : dict | None
             Optional kwargs to send to the initialization of the bias_handler
-            class
+            class with the bias_fps
+        bias_fut_handler_kwargs : dict | None
+            Optional kwargs to send to the initialization of the
+            bias_handler class with the bias_fut_fps
         decimals : int | None
             Option to round bias and base data to this number of
             decimals, this gets passed to np.around(). If decimals
@@ -222,7 +226,7 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                                              [self.bias_feature],
                                              target=self.target,
                                              shape=self.shape,
-                                             **self.bias_handler_kwargs)
+                                             **self.bias_fut_handler_kwargs)
 
         if pre_load:
             self.pre_load()
