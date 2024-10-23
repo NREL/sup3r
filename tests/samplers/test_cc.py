@@ -78,18 +78,16 @@ def test_solar_handler_sampling():
         assert obs_low_res[0].shape[2] == 1
 
         obs_ind_low_res, obs_ind_high_res = sampler.index_record[i]
-        *lr_inds, lr_feats = obs_ind_low_res
-        *hr_inds, hr_feats = obs_ind_high_res
         assert obs_ind_high_res[2].start / 24 == obs_ind_low_res[2].start
         assert obs_ind_high_res[2].stop / 24 == obs_ind_low_res[2].stop
 
         assert np.array_equal(
-            obs_low_res[0], handler.data.daily[lr_feats][*lr_inds]
+            obs_low_res[0], handler.data.daily.sample(obs_ind_low_res)
         )
-        mask = np.isnan(handler.data.hourly[hr_feats][*hr_inds].compute())
+        mask = np.isnan(handler.data.hourly.sample(obs_ind_high_res).compute())
         assert np.array_equal(
             obs_high_res[0][~mask],
-            handler.data.hourly[hr_feats][*hr_inds].compute()[~mask],
+            handler.data.hourly.sample(obs_ind_high_res).compute()[~mask],
         )
 
         cs_ratio_profile = handler.data.hourly.as_array()[0, 0, :, 0].compute()
@@ -136,14 +134,15 @@ def test_solar_handler_sampling_spatial_only():
         assert low_res[0].shape[2] == 1
 
         obs_ind_low_res, obs_ind_high_res = sampler.index_record[i]
-        *lr_inds, lr_feats = obs_ind_low_res
         assert obs_ind_high_res[2].start == obs_ind_low_res[2].start
         assert obs_ind_high_res[2].stop == obs_ind_low_res[2].stop
 
         assert np.array_equal(
-            low_res[0], handler.data.daily[lr_feats][*lr_inds]
+            low_res[0], handler.data.daily.sample(obs_ind_low_res)
         )
-        assert np.allclose(high_res[0], handler.data.daily[lr_feats][*lr_inds])
+        assert np.allclose(
+            high_res[0], handler.data.daily.sample(obs_ind_low_res)
+        )
 
 
 def test_solar_handler_w_wind():
