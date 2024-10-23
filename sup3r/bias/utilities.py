@@ -87,8 +87,9 @@ def lin_bc(handler, bc_files, threshold=0.1):
                         feature, os.path.basename(fp)
                     )
                 )
-                handler.data[feature][...] *= scalar
-                handler.data[feature][...] += adder
+                handler.data[feature] = (
+                    scalar * handler.data[feature][...] + adder
+                )
                 completed.append(feature)
 
 
@@ -158,10 +159,12 @@ def qdm_bc(
 
             if feature not in completed and check:
                 logger.info(
-                    'Bias correcting "{}" with QDM ' 'correction from "{}"'
-                    .format(feature, os.path.basename(fp))
+                    'Bias correcting "{}" with QDM '
+                    'correction from "{}"'.format(
+                        feature, os.path.basename(fp)
+                    )
                 )
-                handler.data[feature][...] = local_qdm_bc(
+                handler.data[feature] = local_qdm_bc(
                     handler.data[feature][...],
                     handler.lat_lon,
                     reference_feature,

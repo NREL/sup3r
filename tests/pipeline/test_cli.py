@@ -507,9 +507,9 @@ def test_cli_bias_calc(runner, bias_calc_class):
         handler = DataHandler(
             pytest.FP_RSDS, features=['rsds'], target=TARGET, shape=SHAPE
         )
-        og_data = handler['rsds', ...].copy()
+        og_data = handler['rsds'][...].copy()
         lin_bc(handler, bc_files=[fp_out])
-        bc_data = handler['rsds', ...]
+        bc_data = handler['rsds'][...].copy()
 
         assert not np.array_equal(bc_data, og_data)
 
