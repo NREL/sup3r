@@ -222,6 +222,7 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
         self.bias_fut_fps = bias_fut_fps
         self.bias_fut_fps = expand_paths(self.bias_fut_fps)
 
+        self.bias_fut_handler_kwargs = bias_fut_handler_kwargs or {}
         self.bias_fut_dh = self.bias_handler(self.bias_fut_fps,
                                              [self.bias_feature],
                                              target=self.target,
