@@ -293,7 +293,7 @@ test = "pytest --pdb --durations=10 tests"
 
 [tool.pixi.feature.doc.dependencies]
 sphinx = ">=7.0"
-sphinx_book_theme = ">=1.1.3"
+sphinx-book-theme = ">=1.1.3,<2"
 
 [tool.pixi.feature.test.dependencies]
 pytest = ">=5.2"
