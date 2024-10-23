@@ -116,8 +116,9 @@ def test_qa(input_files, ext):
                     qa_syn = qa_out[dset + '_synthetic'].flatten()
                     qa_diff = qa_out[dset + '_error'].flatten()
 
-                    wtk_source = qa.input_handler.data[dset, ...]
-                    wtk_source = np.transpose(wtk_source, axes=(2, 0, 1))
+                    wtk_source = qa.input_handler.data[dset][...]
+                    wtk_source = np.asarray(wtk_source).transpose(2, 0, 1)
+
                     wtk_source = wtk_source.flatten()
 
                     fwp_data = (

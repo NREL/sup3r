@@ -14,7 +14,10 @@ from sup3r.bias.utilities import qdm_bc
 from sup3r.models import Sup3rGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
 from sup3r.preprocessing import DataHandler, DataHandlerNCforCC
-from sup3r.preprocessing.utilities import get_date_range_kwargs
+from sup3r.preprocessing.utilities import (
+    compute_if_dask,
+    get_date_range_kwargs,
+)
 from sup3r.utilities.utilities import RANDOM_GENERATOR, xr_open_mfdataset
 
 CC_LAT_LON = DataHandler(pytest.FP_RSDS, 'rsds').lat_lon
@@ -323,7 +326,9 @@ def test_handler_qdm_bc(fp_fut_cc, dist_params):
 
     idx = ~(np.isnan(original) | np.isnan(corrected))
     # Where it is not NaN, it must have differences.
-    assert not np.allclose(original[idx], corrected[idx])
+    assert not np.allclose(
+        compute_if_dask(original)[idx], compute_if_dask(corrected)[idx]
+    )
 
 
 def test_bc_identity(tmp_path, fp_fut_cc, dist_params):
@@ -347,7 +352,8 @@ def test_bc_identity(tmp_path, fp_fut_cc, dist_params):
     assert not np.isnan(corrected).all(), "Can't compare if only NaN"
 
     idx = ~(np.isnan(original) | np.isnan(corrected))
-    assert np.allclose(original[idx], corrected[idx])
+    assert np.allclose(
+        compute_if_dask(original)[idx], compute_if_dask(corrected)[idx])
 
 
 def test_bc_identity_absolute(tmp_path, fp_fut_cc, dist_params):
@@ -371,7 +377,8 @@ def test_bc_identity_absolute(tmp_path, fp_fut_cc, dist_params):
     assert not np.isnan(corrected).all(), "Can't compare if only NaN"
 
     idx = ~(np.isnan(original) | np.isnan(corrected))
-    assert np.allclose(original[idx], corrected[idx])
+    assert np.allclose(
+        compute_if_dask(original)[idx], compute_if_dask(corrected)[idx])
 
 
 def test_bc_model_constant(tmp_path, fp_fut_cc, dist_params):
@@ -395,7 +402,8 @@ def test_bc_model_constant(tmp_path, fp_fut_cc, dist_params):
     assert not np.isnan(corrected).all(), "Can't compare if only NaN"
 
     idx = ~(np.isnan(original) | np.isnan(corrected))
-    assert np.allclose(corrected[idx] - original[idx], -10)
+    assert np.allclose(
+        compute_if_dask(corrected)[idx] - compute_if_dask(original)[idx], -10)
 
 
 def test_bc_trend(tmp_path, fp_fut_cc, dist_params):
@@ -419,7 +427,8 @@ def test_bc_trend(tmp_path, fp_fut_cc, dist_params):
     assert not np.isnan(corrected).all(), "Can't compare if only NaN"
 
     idx = ~(np.isnan(original) | np.isnan(corrected))
-    assert np.allclose(corrected[idx].compute() - original[idx].compute(), 10)
+    assert np.allclose(
+        compute_if_dask(corrected)[idx] - compute_if_dask(original)[idx], 10)
 
 
 def test_bc_trend_same_hist(tmp_path, fp_fut_cc, dist_params):
@@ -442,7 +451,8 @@ def test_bc_trend_same_hist(tmp_path, fp_fut_cc, dist_params):
     assert not np.isnan(corrected).all(), "Can't compare if only NaN"
 
     idx = ~(np.isnan(original) | np.isnan(corrected))
-    assert np.allclose(corrected[idx], original[idx])
+    assert np.allclose(
+        compute_if_dask(original)[idx], compute_if_dask(corrected)[idx])
 
 
 def test_fwp_integration(tmp_path):
