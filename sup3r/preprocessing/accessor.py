@@ -21,8 +21,7 @@ from sup3r.preprocessing.utilities import (
     is_type_of,
     ordered_array,
     ordered_dims,
-    parse_ellipsis,
-    parse_to_list,
+    parse_keys,
 )
 
 logger = logging.getLogger(__name__)
@@ -42,24 +41,25 @@ class Sup3rX:
     methods, plus more. The way to access these methods is either through
     appending ``.sx.<method>`` on an ``xr.Dataset`` or by wrapping an
     ``xr.Dataset`` with ``Sup3rX``, e.g. ``Sup3rX(xr.Dataset(...)).<method>``.
-    Throughout the `sup3r` codebase we prefer to use the latter. Maybe the
+    Throughout the `sup3r` codebase we prefer to use the latter. The
     most important part of this interface is parsing ``__getitem__`` calls of
-    the form ``ds.sx[keys]``. ``keys`` can be a list of features and
-    combinations of feature lists with numpy style indexing. e.g.
-    ``ds.sx['u', slice(0, 10), ...]`` or
-    ``ds.sx[['u', 'v'], ..., slice(0, 10)]``.
+    the form ``ds.sx[keys]``.
 
-        (i) If ``ds[keys]`` returns an ``xr.Dataset`` object then
-        ``ds.sx[keys]`` will return a ``Sup3rX`` object. e.g.
-        ``ds.sx[['u','v']]``) will return a :class:`Sup3rX` instance but
-        ``ds.sx['u']`` will return an ``xr.DataArray``
+        (i) ``keys`` can be a single feature name, list of features, or numpy
+            style indexing for dimensions. e.g. ``ds.sx['u'][slice(0, 10),
+            ...]`` or ``ds.sx[['u', 'v']][..., slice(0, 10)]``.
 
-        (ii) Combining named feature requests with numpy style indexing will
-        return either a dask.array or numpy.array, depending on whether data is
-        still on disk or loaded into memory, with a standard dimension order.
-        e.g. ``ds.sx[['u','v'], ...]`` will return an array with shape (lats,
-        lons, times, features), (assuming there is no vertical dimension in the
-        underlying data).
+        (ii) If ``ds[keys]`` returns an ``xr.Dataset`` object then
+             ``ds.sx[keys]`` will return a ``Sup3rX`` object. e.g.
+            ``ds.sx[['u','v']]``) will return a :class:`Sup3rX` instance but
+            ``ds.sx['u']`` will return an ``xr.DataArray``
+
+        (ii) Providing only numpy style indexing without features will return
+            an array with all contained features in the last dimension with a
+            spatiotemporal shape corresponding to the indices. e.g.
+            ``ds[slice(0, 10), 0, 1]`` will return an array of shape ``(10, 1,
+            1, n_features)``. This array will be a dask.array or numpy.array,
+            depending on whether data is still on disk or loaded into memory.
 
     (2) The ``__getitem__`` and ``__getattr__`` methods will cast back to
     ``type(self)`` if ``self._ds.__getitem__`` or ``self._ds.__getattr__``
@@ -78,7 +78,7 @@ class Sup3rX:
     >>> # Use as wrapper:
     >>> ds = Sup3rX(xr.Dataset(data_vars={'windspeed': ...}, ...))
     >>> np_array = ds['windspeed'].values
-    >>> dask_array = ds['windspeed', ...] == ds['windspeed'].as_array()
+    >>> dask_array = ds['windspeed'][...] == ds['windspeed'].as_array()
     """
 
     def __init__(self, ds: Union[xr.Dataset, Self]):
@@ -97,20 +97,15 @@ class Sup3rX:
     def parse_keys(self, keys):
         """Return set of features and slices for all dimensions contained in
         dataset that can be passed to isel and transposed to standard dimension
-        order."""
-        keys = keys if isinstance(keys, tuple) else (keys,)
-        has_feats = is_type_of(keys[0], str)
-        just_coords = keys[0] == []
-        features = (
-            list(self.coords)
-            if just_coords
-            else _lowered(keys[0])
-            if has_feats and keys[0] != 'all'
-            else self.features
+        order. If keys is empty then we just want to return the coordinate
+        data, so features will be set to just the coordinate names."""
+
+        return parse_keys(
+            keys,
+            default_coords=self.coords,
+            default_dims=self._ds.dims,
+            default_features=self.features,
         )
-        dim_keys = () if len(keys) == 1 else keys[1:] if has_feats else keys
-        dim_keys = parse_ellipsis(dim_keys, dim_num=len(self._ds.dims))
-        return features, dict(zip(ordered_dims(self._ds.dims), dim_keys))
 
     def __getitem__(
         self, keys
@@ -124,29 +119,30 @@ class Sup3rX:
         This returns a ``Sup3rX`` object when keys is only an iterable of
         features. e.g. an instance of ``(set, list, tuple)``. When keys is
         only a single feature (a string) this returns an ``xr.DataArray``.
-        Otherwise keys must have included some sort of numpy style indexing so
-        this returns a np.ndarray or dask.array, depending on whether data is
-        loaded into memory or not.
+        Otherwise keys must be dimension indices or slices and this will return
+        an np.ndarray or dask.array, depending on whether data is loaded into
+        memory or not. This array will have features stacked over the last
+        dimension.
         """
 
         features, slices = self.parse_keys(keys)
         single_feat = isinstance(features, str)
-        out = self._ds[features]
-        out = self.ordered(out) if single_feat else type(self)(out)
-        slices = {k: v for k, v in slices.items() if k in out.dims}
-        no_slices = is_type_of(keys, str)
-        just_coords = all(f in self.coords for f in parse_to_list(features))
-        is_fancy = self._needs_fancy_indexing(slices.values())
 
-        if no_slices:
+        out = self._ds[features] if len(features) > 0 else self._ds
+        out = self.ordered(out) if single_feat else type(self)(out)
+
+        if len(features) > 0:
             return out
 
-        if not just_coords and not is_fancy:
+        slices = {k: v for k, v in slices.items() if k in out.dims}
+        is_fancy = self._needs_fancy_indexing(slices.values())
+
+        if not is_fancy:
             out = out.isel(**slices)
 
-        out = out.data if single_feat else out.as_array()
+        out = out.as_array()
 
-        if just_coords or (is_fancy and self.loaded):
+        if is_fancy and self.loaded:
             # DataArray coord or Numpy indexing
             return out[tuple(slices.values())]
 
@@ -157,7 +153,7 @@ class Sup3rX:
         return out
 
     def __getattr__(self, attr):
-        """Get attribute and cast to ``type(self)`` if a ``xr.Dataset`` is
+        """Get attribute and cast to ``type(self)`` if an ``xr.Dataset`` is
         returned first."""
         out = getattr(self._ds, attr)
         return type(self)(out) if isinstance(out, xr.Dataset) else out
@@ -183,11 +179,6 @@ class Sup3rX:
             else:
                 data_dict = {keys.lower(): data}
             _ = self.assign(data_dict)
-        elif isinstance(keys[0], str) and keys[0] not in self.coords:
-            feats, slices = self.parse_keys(keys)
-            var_array = self[feats].data
-            var_array[tuple(slices.values())] = data
-            _ = self.assign({feats: var_array})
         else:
             msg = f'Cannot set values for keys {keys}'
             logger.error(msg)
@@ -213,10 +204,11 @@ class Sup3rX:
             return all(s.lower() in self._ds for s in vals)
         return self._ds.__contains__(vals)
 
-    def values(self, *args, **kwargs):
+    @property
+    def values(self):
         """Return numpy values in standard dimension order ``(lats, lons, time,
         ..., features)``"""
-        return np.asarray(self.as_array(*args, **kwargs))
+        return np.asarray(self.as_array())
 
     def to_dataarray(self) -> Union[np.ndarray, da.core.Array]:
         """Return xr.DataArray for the contained xr.Dataset."""
@@ -225,10 +217,10 @@ class Sup3rX:
             return da.stack(coords, axis=-1)
         return self.ordered(self._ds.to_array())
 
-    def as_array(self, *args, **kwargs):
+    def as_array(self):
         """Return ``.data`` attribute of an xarray.DataArray with our standard
         dimension order ``(lats, lons, time, ..., features)``"""
-        out = self.to_dataarray(*args, **kwargs)
+        out = self.to_dataarray()
         return getattr(out, 'data', out)
 
     def _stack_features(self, arrs):

@@ -119,8 +119,8 @@ def test_solar_batch_nan_stats():
     NaN data present"""
     handler = DataHandlerH5SolarCC(pytest.FP_NSRDB, FEATURES_S, **dh_kwargs)
 
-    true_csr_mean = np.nanmean(handler.data.hourly['clearsky_ratio', ...])
-    true_csr_stdev = np.nanstd(handler.data.hourly['clearsky_ratio', ...])
+    true_csr_mean = np.nanmean(handler.data.hourly['clearsky_ratio'][...])
+    true_csr_stdev = np.nanstd(handler.data.hourly['clearsky_ratio'][...])
 
     batcher = BatchHandlerTesterCC(
         [handler],

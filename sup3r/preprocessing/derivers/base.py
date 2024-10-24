@@ -278,7 +278,7 @@ class BaseDeriver(Container):
         lev_array = None
 
         if fstruct.basename in self.data:
-            var_array = self.data[fstruct.basename, ...]
+            var_array = self.data[fstruct.basename][...]
 
         if fstruct.height is not None and var_array is not None:
             msg = (
@@ -298,7 +298,7 @@ class BaseDeriver(Container):
                 lev_array = lev_array[..., 0] - lev_array[..., 1]
             else:
                 lev_array = da.broadcast_to(
-                    self.data[Dimension.HEIGHT, ...].astype(np.float32),
+                    self.data[Dimension.HEIGHT][...].astype(np.float32),
                     var_array.shape,
                 )
         elif var_array is not None:
@@ -309,7 +309,7 @@ class BaseDeriver(Container):
             )
             assert Dimension.PRESSURE_LEVEL in self.data, msg
             lev_array = da.broadcast_to(
-                self.data[Dimension.PRESSURE_LEVEL, ...].astype(np.float32),
+                self.data[Dimension.PRESSURE_LEVEL][...].astype(np.float32),
                 var_array.shape,
             )
         return var_array, lev_array

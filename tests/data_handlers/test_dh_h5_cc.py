@@ -115,17 +115,17 @@ def test_solar_ancillary_vars():
     ]
     handler = DataHandlerH5SolarCC(pytest.FP_NSRDB, features, **dh_kwargs)
 
-    assert np.allclose(np.min(handler.hourly['U', ...]), -6.1, atol=1)
-    assert np.allclose(np.max(handler.hourly['U', ...]), 9.7, atol=1)
+    assert np.allclose(np.min(handler.hourly['U'][...]), -6.1, atol=1)
+    assert np.allclose(np.max(handler.hourly['U'][...]), 9.7, atol=1)
 
-    assert np.allclose(np.min(handler.hourly['V', ...]), -9.8, atol=1)
-    assert np.allclose(np.max(handler.hourly['V', ...]), 9.3, atol=1)
+    assert np.allclose(np.min(handler.hourly['V'][...]), -9.8, atol=1)
+    assert np.allclose(np.max(handler.hourly['V'][...]), 9.3, atol=1)
 
     assert np.allclose(
-        np.min(handler.hourly['air_temperature', ...]), -18.3, atol=1
+        np.min(handler.hourly['air_temperature'][...]), -18.3, atol=1
     )
     assert np.allclose(
-        np.max(handler.hourly['air_temperature', ...]), 22.9, atol=1
+        np.max(handler.hourly['air_temperature'][...]), 22.9, atol=1
     )
 
     with Resource(pytest.FP_NSRDB) as res:
@@ -133,14 +133,14 @@ def test_solar_ancillary_vars():
 
     ws_true = np.roll(ws_source[::2, 0], -7, axis=0)
     ws_test = np.sqrt(
-        handler.hourly['U', 0, 0] ** 2 + handler.hourly['V', 0, 0] ** 2
+        handler.hourly['U'][0, 0] ** 2 + handler.hourly['V'][0, 0] ** 2
     )
     assert np.allclose(ws_true, ws_test)
 
     ws_true = np.roll(ws_source[::2], -7, axis=0)
     ws_true = np.mean(ws_true, axis=1)
     ws_test = np.sqrt(
-        handler.hourly['U', ...] ** 2 + handler.hourly['V', ...] ** 2
+        handler.hourly['U'][...] ** 2 + handler.hourly['V'][...] ** 2
     )
     ws_test = np.mean(ws_test, axis=(0, 1))
     assert np.allclose(ws_true, ws_test)

@@ -49,7 +49,9 @@ from sup3r.utilities.utilities import (
 )
 
 CC_LAT_LON = DataHandler(
-    pytest.FP_RSDS, 'rsds', format='NETCDF', engine='h5netcdf'
+    pytest.FP_RSDS,
+    features='rsds',
+    res_kwargs={'format': 'NETCDF', 'engine': 'netcdf4'},
 ).lat_lon
 # A reference zero rate threshold that might not make sense physically but for
 # testing purposes only. This might change in the future to force edge cases.

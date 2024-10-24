@@ -62,13 +62,13 @@ def test_data_caching(input_files, ext, shape, target, features):
         assert rasterizer.data.dtype == np.dtype(np.float32)
         loader = Loader(cacher.out_files)
         assert np.array_equal(
-            loader.data[features, ...].compute(),
-            rasterizer.data[features, ...].compute(),
+            loader.data[features][...].compute(),
+            rasterizer.data[features][...].compute(),
         )
 
         # make sure full domain can be loaded with rasterizers
         rasterizer = Rasterizer(cacher.out_files)
         assert np.array_equal(
-            loader.data[features, ...].compute(),
-            rasterizer.data[features, ...].compute(),
+            loader.data[features][...].compute(),
+            rasterizer.data[features][...].compute(),
         )

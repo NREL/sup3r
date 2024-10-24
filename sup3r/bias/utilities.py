@@ -87,8 +87,9 @@ def lin_bc(handler, bc_files, threshold=0.1):
                         feature, os.path.basename(fp)
                     )
                 )
-                handler.data[feature, ...] *= scalar
-                handler.data[feature, ...] += adder
+                handler.data[feature] = (
+                    scalar * handler.data[feature][...] + adder
+                )
                 completed.append(feature)
 
 
@@ -158,11 +159,13 @@ def qdm_bc(
 
             if feature not in completed and check:
                 logger.info(
-                    'Bias correcting "{}" with QDM ' 'correction from "{}"'
-                    .format(feature, os.path.basename(fp))
+                    'Bias correcting "{}" with QDM '
+                    'correction from "{}"'.format(
+                        feature, os.path.basename(fp)
+                    )
                 )
-                handler.data[feature, ...] = local_qdm_bc(
-                    handler.data[feature, ...],
+                handler.data[feature] = local_qdm_bc(
+                    handler.data[feature][...],
                     handler.lat_lon,
                     reference_feature,
                     feature,
@@ -208,7 +211,7 @@ def bias_correct_feature(
         forward pass through the generative model.
     """
     time_slice = _parse_time_slice(time_slice)
-    data = input_handler[source_feature, ..., time_slice]
+    data = input_handler[source_feature][..., time_slice]
     lat_lon = input_handler.lat_lon
     if bc_method is not None:
         bc_method = getattr(sup3r.bias.bias_transforms, bc_method)
@@ -265,7 +268,7 @@ def bias_correct_features(
 
     time_slice = _parse_time_slice(time_slice)
     for feat in features:
-        input_handler[feat, ..., time_slice] = bias_correct_feature(
+        input_handler[feat][..., time_slice] = bias_correct_feature(
             source_feature=feat,
             input_handler=input_handler,
             time_slice=time_slice,

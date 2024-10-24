@@ -460,7 +460,7 @@ class Sup3rQa:
             )
             data_syn = self.get_dset_out(feature)
             data_syn = self.coarsen_data(idf, feature, data_syn)
-            data_true = self.input_handler[feature, ...]
+            data_true = self.input_handler[feature][...]
 
             if data_syn.shape != data_true.shape:
                 msg = (

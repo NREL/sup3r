@@ -601,10 +601,10 @@ def test_qa_integration():
 
         for feature in features:
             with Sup3rQa(pytest.FPS_GCM, out_file_path, **qa_kw) as qa:
-                data_base = qa.input_handler[feature, ...]
+                data_base = qa.input_handler[feature][...]
                 data_truth = np.asarray(data_base * scalar + adder)
             with Sup3rQa(pytest.FPS_GCM, out_file_path, **bc_qa_kw) as qa:
-                data_bc = np.asarray(qa.input_handler[feature, ...])
+                data_bc = np.asarray(qa.input_handler[feature][...])
 
             assert np.allclose(
                 data_bc,

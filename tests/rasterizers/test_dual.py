@@ -57,8 +57,9 @@ def test_dual_nan_fill(full_shape=(20, 20)):
         shape=full_shape,
         time_slice=slice(0, 5),
     )
-    lr_container.data[FEATURES[0], slice(5, 10), slice(5, 10), 2] = np.nan
 
+    assert not np.isnan(lr_container.data.as_array()).any()
+    lr_container.data[FEATURES[0]][slice(5, 10), slice(5, 10), 2] = np.nan
     assert np.isnan(lr_container.data.as_array()).any()
 
     pair_rasterizer = DualRasterizer(
@@ -104,10 +105,10 @@ def test_regrid_caching(full_shape=(20, 20)):
         )
 
         assert np.array_equal(
-            lr_container_new.data[FEATURES, ...],
-            pair_rasterizer.lr_data[FEATURES, ...],
+            lr_container_new.data[FEATURES][...],
+            pair_rasterizer.lr_data[FEATURES][...],
         )
         assert np.array_equal(
-            hr_container_new.data[FEATURES, ...],
-            pair_rasterizer.hr_data[FEATURES, ...],
+            hr_container_new.data[FEATURES][...],
+            pair_rasterizer.hr_data[FEATURES][...],
         )

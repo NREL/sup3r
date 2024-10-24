@@ -336,6 +336,58 @@ def parse_features(features: Optional[Union[str, list]] = None, data=None):
     return features
 
 
+def parse_keys(
+    keys, default_coords=None, default_dims=None, default_features=None
+):
+    """Return set of features and slices for all dimensions contained in
+    dataset that can be passed to isel and transposed to standard dimension
+    order. If keys is empty then we just want to return the coordinate
+    data, so features will be set to just the coordinate names."""
+
+    keys = keys if isinstance(keys, tuple) else (keys,)
+    has_feats = is_type_of(keys[0], str)
+
+    # return just coords if an empty feature set is requested
+    just_coords = (
+        isinstance(keys[0], (tuple, list, np.ndarray)) and len(keys[0]) == 0
+    )
+
+    if just_coords:
+        features = list(default_coords)
+    elif has_feats:
+        features = _lowered(keys[0]) if keys[0] != 'all' else default_features
+    else:
+        features = []
+
+    if len(features) > 0:
+        dim_keys = () if len(keys) == 1 else keys[1:]
+    else:
+        dim_keys = keys
+
+    dim_keys = parse_ellipsis(dim_keys, dim_num=len(default_dims))
+    ordd = ordered_dims(default_dims)
+
+    if len(dim_keys) > len(default_dims):
+        msg = (
+            'Received keys = %s which are incompatible with the '
+            'dimensions = %s. If trying to access features by integer '
+            'index instead use feature names.'
+        )
+        logger.error(msg, keys, ordd)
+        raise ValueError(msg % (str(keys), ordd))
+
+    if len(features) > 0 and len(dim_keys) > 0:
+        msg = (
+            'Received keys = %s which includes both features and '
+            'dimension indexing. The correct access pattern is '
+            'ds[features][indices]'
+        )
+        logger.error(msg, keys)
+        raise ValueError(msg % str(keys))
+
+    return features, dict(zip(ordd, dim_keys))
+
+
 def parse_to_list(features=None, data=None):
     """Parse features and return as a list, even if features is a string."""
     features = (

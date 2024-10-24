@@ -675,9 +675,7 @@ def test_slicing_no_pad(input_files):
             lr_data_slice = (
                 s_slices[0],
                 s_slices[1],
-                fwp.strategy.ti_pad_slices[t_idx],
-                slice(None),
-            )
+                fwp.strategy.ti_pad_slices[t_idx])
 
             truth = handler.data[lr_data_slice]
             assert np.allclose(chunk.input_data, truth)
@@ -747,8 +745,7 @@ def test_slicing_pad(input_files):
             lr_data_slice = (
                 s_slices[0],
                 s_slices[1],
-                fwp.strategy.ti_pad_slices[t_idx],
-                slice(None),
+                fwp.strategy.ti_pad_slices[t_idx]
             )
 
             # do a manual calculation of what the padding should be.
