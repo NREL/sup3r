@@ -226,12 +226,26 @@ def test_wind_batching():
         assert batch.high_res.shape[-1] == len(FEATURES_W)
         assert batch.low_res.shape[-1] == len(FEATURES_W)
 
+        # make sure all of the hours correspond to their daily averages
         slices = [slice(0, 24), slice(24, 48), slice(48, 72)]
         for i, islice in enumerate(slices):
             hourly = batch.high_res[:, :, :, islice, :]
             truth = np.mean(hourly, axis=3)
             daily = batch.low_res[:, :, :, i, :]
             assert np.allclose(daily, truth, atol=1e-6)
+
+    # make sure that each daily/hourly time slices corresponds to each other,
+    # and that each hourly time slice starts/ends at daily 24-hour boundaries
+    index_record = batcher.containers[0].index_record
+    for idx in index_record:
+        idx_lr, idx_hr = idx
+        idt_lr = idx_lr[2]
+        idt_hr = idx_hr[2]
+        assert idt_lr.start * 24 == idt_hr.start
+        assert idt_lr.stop * 24 == idt_hr.stop
+        assert idt_hr.start % 24 == 0
+        assert idt_hr.stop % 24 == 0
+
     batcher.stop()
 
 
