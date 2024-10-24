@@ -1,15 +1,12 @@
-# -*- coding: utf-8 -*-
-"""
-sup3r bias correction calculation CLI entry points.
-"""
+"""sup3r bias correction calculation CLI entry points."""
 import copy
 import logging
 import os
 
 import click
 
+import sup3r.bias
 from sup3r import __version__
-import sup3r.bias.bias_calc
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import AVAILABLE_HARDWARE_OPTIONS, BaseCLI
 

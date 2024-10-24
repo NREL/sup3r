@@ -33,7 +33,7 @@
     "input_handler_kwargs": {
         "target": [23.2, -129],
         "shape": [26, 59],
-        "temporal_slice": [null, null, null],
+        "time_slice": [null, null, null],
         "nsrdb_source_fp": "/scratch/gbuster/sup3r/source_gcm_data/nsrdb_clearsky.h5",
         "nsrdb_agg": 625,
         "nsrdb_smoothing": 0,
