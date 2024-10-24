@@ -593,12 +593,12 @@ class CollectorH5(BaseCollector):
             t_chunk, _ = self.get_chunk_indices(file)
             file_chunks[t_chunk] = [*file_chunks.get(t_chunk, []), file]
 
-        if n_writes is not None:
-            msg = (
-                f'n_writes ({n_writes}) must be less than or equal '
-                f'to the number of temporal chunks ({len(file_chunks)}).'
+        if n_writes is not None and n_writes > len(file_chunks):
+            logger.info(
+                f'n_writes ({n_writes}) too big, setting to the number '
+                f'of temporal chunks ({len(file_chunks)}).'
             )
-            assert n_writes <= len(file_chunks), msg
+            n_writes = len(file_chunks)
 
         n_writes = n_writes or len(file_chunks)
         tc_groups = np.array_split(list(file_chunks.keys()), n_writes)
