@@ -179,33 +179,6 @@ class Sup3rDataset:
         """Get item from single data member."""
         return dset.sx[item] if hasattr(dset, 'sx') else dset[item]
 
-    def get_dual_item(self, keys):
-        """Method for getting items from self._ds when it consists of two
-        datasets. If keys is a ``List[Tuple]`` or ``List[List]`` this is
-        interpreted as a request for ``self._ds[i][keys[i]] for i in
-        range(len(keys))``. Otherwise we will get keys from each member of
-        self.dset.
-
-        Note
-        ----
-        This casts back to ``type(self)`` before final return if result of get
-        item from each member of ``self._ds`` is a tuple of ``Sup3rX``
-        instances
-        """
-        if isinstance(keys, (tuple, list)) and all(
-            isinstance(k, (tuple, list)) for k in keys
-        ):
-            out = tuple(
-                self._getitem(d, key) for d, key in zip(self._ds, keys)
-            )
-        else:
-            out = tuple(self._getitem(d, keys) for d in self._ds)
-        return (
-            type(self)(**dict(zip(self._ds._fields, out)))
-            if all(isinstance(o, Sup3rX) for o in out)
-            else out
-        )
-
     def rewrap(self, data):
         """Rewrap data as ``Sup3rDataset`` after calling parent method."""
         if isinstance(data, type(self)):
@@ -230,14 +203,20 @@ class Sup3rDataset:
 
     def __getitem__(self, keys):
         """If keys is an int this is interpreted as a request for that member
-        of ``self._ds``. If self._ds consists of two members we call
-        :py:meth:`~sup3r.preprocesing.Sup3rDataset.get_dual_item`. Otherwise we
-        get the item from the single member of ``self._ds``."""
+        of ``self._ds``. Otherwise, if there's only a single member of
+        ``self._ds`` we get self._ds[-1][keys]. If there's two members we get
+        ``(self._ds[0][keys], self._ds[1][keys])`` and cast this back to a
+        ``Sup3rDataset`` if each of ``self._ds[i][keys]`` is a ``Sup3rX``
+        object"""
         if isinstance(keys, int):
             return self._ds[keys]
+
+        out = tuple(self._getitem(d, keys) for d in self._ds)
         if len(self._ds) == 1:
-            return self._ds[-1][keys]
-        return self.get_dual_item(keys)
+            return out[-1]
+        if all(isinstance(o, Sup3rX) for o in out):
+            return type(self)(**dict(zip(self._ds._fields, out)))
+        return out
 
     @property
     def shape(self):

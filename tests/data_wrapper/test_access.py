@@ -144,7 +144,7 @@ def test_change_values():
 
     data[['u', 'v']] = da.stack([rand_u, rand_v], axis=-1)
     assert np.array_equal(
-        data[['u', 'v']].values(),
+        data[['u', 'v']].values,
         da.stack([rand_u, rand_v], axis=-1).compute(),
     )
     assert ~np.allclose(data['u'][slice(0, 10)], [0])

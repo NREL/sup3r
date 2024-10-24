@@ -179,11 +179,6 @@ class Sup3rX:
             else:
                 data_dict = {keys.lower(): data}
             _ = self.assign(data_dict)
-        elif isinstance(keys[0], str) and keys[0] not in self.coords:
-            feats, slices = self.parse_keys(keys)
-            var_array = self[feats].data
-            var_array[tuple(slices.values())] = data
-            _ = self.assign({feats: var_array})
         else:
             msg = f'Cannot set values for keys {keys}'
             logger.error(msg)
@@ -209,10 +204,11 @@ class Sup3rX:
             return all(s.lower() in self._ds for s in vals)
         return self._ds.__contains__(vals)
 
-    def values(self, *args, **kwargs):
+    @property
+    def values(self):
         """Return numpy values in standard dimension order ``(lats, lons, time,
         ..., features)``"""
-        return np.asarray(self.as_array(*args, **kwargs))
+        return np.asarray(self.as_array())
 
     def to_dataarray(self) -> Union[np.ndarray, da.core.Array]:
         """Return xr.DataArray for the contained xr.Dataset."""
@@ -221,10 +217,10 @@ class Sup3rX:
             return da.stack(coords, axis=-1)
         return self.ordered(self._ds.to_array())
 
-    def as_array(self, *args, **kwargs):
+    def as_array(self):
         """Return ``.data`` attribute of an xarray.DataArray with our standard
         dimension order ``(lats, lons, time, ..., features)``"""
-        out = self.to_dataarray(*args, **kwargs)
+        out = self.to_dataarray()
         return getattr(out, 'data', out)
 
     def _stack_features(self, arrs):
