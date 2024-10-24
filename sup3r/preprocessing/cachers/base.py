@@ -16,7 +16,7 @@ from warnings import warn
 
 from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.names import Dimension
-from sup3r.preprocessing.utilities import _mem_check
+from sup3r.preprocessing.utilities import _mem_check, log_args, _lowered
 from sup3r.utilities.utilities import safe_serialize
 
 from .utilities import _check_for_cache
@@ -35,6 +35,7 @@ class Cacher(Container):
     features to the same file call :meth:`write_netcdf` or :meth:`write_h5`
     directly"""
 
+    @log_args
     def __init__(
         self,
         data: Union['Sup3rX', 'Sup3rDataset'],
@@ -155,7 +156,9 @@ class Cacher(Container):
     def parse_chunks(feature, chunks, dims):
         """Parse chunks input to Cacher. Needs to be a dictionary of dimensions
         and chunk values but parsed to a tuple for H5 caching."""
-        if isinstance(chunks, dict) and feature in chunks:
+
+        if isinstance(chunks, dict) and feature.lower() in _lowered(chunks):
+            chunks = {k.lower(): v for k, v in chunks.items()}
             fchunks = chunks.get(feature, {})
         else:
             fchunks = copy.deepcopy(chunks)
@@ -185,7 +188,8 @@ class Cacher(Container):
             if chunkmem > 4:
                 msg = (
                     'Chunks cannot be larger than 4GB. Given chunksizes %s '
-                    'result in %sGB. Will use chunksizes = None')
+                    'result in %sGB. Will use chunksizes = None'
+                )
                 logger.warning(msg, chunksizes, chunkmem)
                 warn(msg % (chunksizes, chunkmem))
                 chunksizes = None
@@ -246,7 +250,7 @@ class Cacher(Container):
                     dset,
                     out_file,
                     chunksizes,
-                    max_workers
+                    max_workers,
                 )
 
                 d = f.create_dataset(

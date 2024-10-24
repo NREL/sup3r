@@ -2,7 +2,12 @@
 :class:`~sup3r.preprocessing.rasterizers.Rasterizer`,
 :class:`~sup3r.preprocessing.loaders.Loader`,
 :class:`~sup3r.preprocessing.derivers.Deriver`, and
-:class:`~sup3r.preprocessing.cachers.Cacher` classes."""
+:class:`~sup3r.preprocessing.cachers.Cacher` classes.
+
+TODO: If ``.data`` is a ``Sup3rDataset`` with more than one member only the
+high resolution data is cached. We could extend caching and loading to write /
+load both with groups
+"""
 
 import logging
 from typing import Callable, Dict, Optional, Union
@@ -158,7 +163,10 @@ class DataHandler(Deriver):
         )
         self._deriver_hook()
         if cache_kwargs is not None and 'cache_pattern' in cache_kwargs:
-            _ = Cacher(data=self.data, cache_kwargs=cache_kwargs)
+            if hasattr(self.data, 'hourly') and hasattr(self.data, 'daily'):
+                _ = Cacher(data=self.data.hourly, cache_kwargs=cache_kwargs)
+            else:
+                _ = Cacher(data=self.data, cache_kwargs=cache_kwargs)
 
     def _rasterizer_hook(self):
         """Hook in after rasterizer initialization. Implement this to
@@ -223,6 +231,7 @@ class DataHandler(Deriver):
                 chunks=chunks,
                 target=target,
                 shape=shape,
+
                 time_slice=time_slice,
                 threshold=threshold,
                 BaseLoader=BaseLoader,

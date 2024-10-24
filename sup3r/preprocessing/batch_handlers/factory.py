@@ -181,7 +181,27 @@ def BatchHandlerFactory(
             """  # pylint: disable=line-too-long
 
             check_signatures((self.TRAIN_QUEUE, self.VAL_QUEUE, self.SAMPLER))
-            kwargs = {'s_enhance': s_enhance, 't_enhance': t_enhance, **kwargs}
+
+            add_kwargs = {
+                's_enhance': s_enhance,
+                't_enhance': t_enhance,
+                **kwargs,
+            }
+
+            sampler_kwargs = get_class_kwargs(SamplerClass, add_kwargs)
+            val_kwargs = get_class_kwargs(self.VAL_QUEUE, add_kwargs)
+            main_kwargs = get_class_kwargs(MainQueueClass, add_kwargs)
+
+            check_kwargs = set(
+                list[*sampler_kwargs, *val_kwargs, *main_kwargs]
+            )
+            bad_kwargs = set(kwargs) - check_kwargs
+
+            msg = (
+                f'{self.__class__.__name__} received bad '
+                f'kwargs = {bad_kwargs}.'
+            )
+            assert not bad_kwargs, msg
 
             train_samplers, val_samplers = self.init_samplers(
                 train_containers,
@@ -189,8 +209,9 @@ def BatchHandlerFactory(
                 sample_shape=sample_shape,
                 feature_sets=feature_sets,
                 batch_size=batch_size,
-                sampler_kwargs=get_class_kwargs(SamplerClass, kwargs),
+                sampler_kwargs=sampler_kwargs,
             )
+
             logger.info('Normalizing training samplers')
             stats = StatsCollection(
                 containers=train_samplers,
@@ -214,7 +235,7 @@ def BatchHandlerFactory(
                     transform_kwargs=transform_kwargs,
                     max_workers=max_workers,
                     mode=mode,
-                    **get_class_kwargs(self.VAL_QUEUE, kwargs),
+                    **val_kwargs,
                 )
             super().__init__(
                 samplers=train_samplers,
@@ -224,7 +245,7 @@ def BatchHandlerFactory(
                 transform_kwargs=transform_kwargs,
                 max_workers=max_workers,
                 mode=mode,
-                **get_class_kwargs(MainQueueClass, kwargs),
+                **main_kwargs,
             )
 
         _skip_params = ('samplers', 'data', 'containers', 'thread_name')

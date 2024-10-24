@@ -31,7 +31,7 @@ class Rasterizer(BaseRasterizer):
         threshold=None,
         raster_file=None,
         max_delta=20,
-        BaseLoader=None
+        BaseLoader=None,
     ):
         """
         Parameters
@@ -93,7 +93,7 @@ class Rasterizer(BaseRasterizer):
             features=features,
             res_kwargs=res_kwargs,
             chunks=chunks,
-            BaseLoader=BaseLoader
+            BaseLoader=BaseLoader,
         )
         super().__init__(
             loader=self.loader,
@@ -101,7 +101,7 @@ class Rasterizer(BaseRasterizer):
             target=target,
             shape=shape,
             time_slice=time_slice,
-            threshold=threshold
+            threshold=threshold,
         )
         if self.raster_file is not None and not os.path.exists(
             self.raster_file
@@ -165,6 +165,11 @@ class Rasterizer(BaseRasterizer):
                 f'Calculating raster_index for target={self._target}, '
                 f'shape={self._grid_shape}.'
             )
+            msg = ('Either shape + target or a raster_file must be provided '
+                   'for flattened data rasterization.')
+            assert (
+                self._target is not None and self._grid_shape is not None
+            ), msg
             raster_index = self.loader.res.get_raster_index(
                 self._target, self._grid_shape, max_delta=self.max_delta
             )
