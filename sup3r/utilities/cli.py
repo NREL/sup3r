@@ -1,21 +1,16 @@
-# -*- coding: utf-8 -*-
-"""
-Sup3r base CLI class.
-"""
-import json
+"""Sup3r base CLI class."""
 import logging
 import os
 
+import click
 from gaps import Status
 from gaps.config import load_config
-
-import click
 from rex.utilities.execution import SubprocessManager
 from rex.utilities.hpc import SLURM
 from rex.utilities.loggers import init_mult
 
-from sup3r.utilities import ModuleName
-
+from . import ModuleName
+from .utilities import safe_serialize
 
 logger = logging.getLogger(__name__)
 AVAILABLE_HARDWARE_OPTIONS = ('kestrel', 'eagle', 'slurm')
@@ -76,9 +71,6 @@ class BaseCLI:
         hardware_option = exec_kwargs.pop('option', 'local')
 
         cmd = module_class.get_node_cmd(config)
-
-        cmd_log = '\n\t'.join(cmd.split('\n'))
-        logger.debug(f'Running command:\n\t{cmd_log}')
 
         if hardware_option.lower() in AVAILABLE_HARDWARE_OPTIONS:
             cls.kickoff_slurm_job(module_name, ctx, pipeline_step, cmd,
@@ -364,7 +356,7 @@ class BaseCLI:
             status_file_arg_str += 'attrs=job_attrs'
 
             cmd += 'job_attrs = {};\n'.format(
-                json.dumps(config)
+                safe_serialize(config)
                 .replace("null", "None")
                 .replace("false", "False")
                 .replace("true", "True")
@@ -372,5 +364,8 @@ class BaseCLI:
             cmd += 'job_attrs.update({"job_status": "successful"});\n'
             cmd += 'job_attrs.update({"time": t_elap});\n'
             cmd += f"Status.make_single_job_file({status_file_arg_str})"
+
+        cmd_log = '\n\t'.join(cmd.split('\n'))
+        logger.debug(f'Running command:\n\t{cmd_log}')
 
         return cmd

@@ -1,42 +1,45 @@
-# -*- coding: utf-8 -*-
-"""pytests for data handling"""
+"""pytests for forward pass module"""
+
 import json
 import os
 import tempfile
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 import tensorflow as tf
-import xarray as xr
-from rex import ResourceX, init_logger
+from rex import ResourceX
 
-from sup3r import CONFIG_DIR, TEST_DATA_DIR, __version__
+from sup3r import CONFIG_DIR, __version__
 from sup3r.models import Sup3rGan
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
-from sup3r.preprocessing.data_handling import DataHandlerNC
-from sup3r.utilities.pytest import (
-    make_fake_multi_time_nc_files,
-    make_fake_nc_files,
+from sup3r.preprocessing import DataHandler, Dimension
+from sup3r.utilities.pytest.helpers import (
+    make_fake_nc_file,
 )
+from sup3r.utilities.utilities import xr_open_mfdataset
 
-FP_WTK = os.path.join(TEST_DATA_DIR, 'test_wtk_co_2012.h5')
-TARGET_COORD = (39.01, -105.15)
-FEATURES = ['U_100m', 'V_100m', 'BVF2_200m']
-INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_wrf_2014-10-01_00_00_00')
+FEATURES = ['u_100m', 'v_100m']
 target = (19.3, -123.5)
 shape = (8, 8)
-sample_shape = (8, 8, 6)
-temporal_slice = slice(None, None, 1)
-list_chunk_size = 10
+time_slice = slice(None, None, 1)
 fwp_chunk_shape = (4, 4, 150)
 s_enhance = 3
 t_enhance = 4
 
 
-def test_fwp_nc_cc(log=False):
-    """Test forward pass handler output for netcdf write with cc data."""
-    if log:
-        init_logger('sup3r', log_level='DEBUG')
+@pytest.fixture(scope='module')
+def input_files(tmpdir_factory):
+    """Dummy netcdf input files for :class:`ForwardPass`"""
+
+    input_file = str(tmpdir_factory.mktemp('data').join('fwp_input.nc'))
+    make_fake_nc_file(input_file, shape=(100, 100, 50), features=FEATURES)
+    return input_file
+
+
+def test_fwp_nc_cc():
+    """Test forward pass handler output for netcdf write with cc data. Also
+    tests default fwp_chunk_shape"""
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
@@ -44,13 +47,7 @@ def test_fwp_nc_cc(log=False):
     Sup3rGan.seed()
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
 
-    input_files = [
-        os.path.join(TEST_DATA_DIR, 'ua_test.nc'),
-        os.path.join(TEST_DATA_DIR, 'va_test.nc'),
-        os.path.join(TEST_DATA_DIR, 'orog_test.nc'),
-        os.path.join(TEST_DATA_DIR, 'zg_test.nc')
-    ]
-    features = ['U_100m', 'V_100m']
+    features = ['u_100m', 'v_100m']
     target = (13.67, 125.0)
     _ = model.generate(np.ones((4, 10, 10, 6, len(features))))
     model.meta['lr_features'] = features
@@ -61,123 +58,43 @@ def test_fwp_nc_cc(log=False):
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
 
-        cache_pattern = os.path.join(td, 'cache')
         out_files = os.path.join(td, 'out_{file_id}.nc')
         # 1st forward pass
-        max_workers = 1
-        input_handler_kwargs = dict(
-            target=target,
-            shape=shape,
-            temporal_slice=temporal_slice,
-            cache_pattern=cache_pattern,
-            overwrite_cache=True,
-            worker_kwargs=dict(max_workers=max_workers))
-        handler = ForwardPassStrategy(
-            input_files,
-            model_kwargs={'model_dir': out_dir},
-            fwp_chunk_shape=fwp_chunk_shape,
+        strat = ForwardPassStrategy(
+            pytest.FPS_GCM,
+            fwp_chunk_shape=(*fwp_chunk_shape[:-1], None),
             spatial_pad=1,
-            temporal_pad=1,
-            input_handler_kwargs=input_handler_kwargs,
-            out_pattern=out_files,
-            worker_kwargs=dict(max_workers=max_workers),
-            input_handler='DataHandlerNCforCC')
-        forward_pass = ForwardPass(handler)
-        assert forward_pass.output_workers == max_workers
-        assert forward_pass.data_handler.compute_workers == max_workers
-        assert forward_pass.data_handler.load_workers == max_workers
-        assert forward_pass.data_handler.norm_workers == max_workers
-        assert forward_pass.data_handler.extract_workers == max_workers
-        forward_pass.run(handler, node_index=0)
-
-        with xr.open_dataset(handler.out_files[0]) as fh:
-            assert fh[FEATURES[0]].shape == (t_enhance
-                                             * len(handler.time_index),
-                                             s_enhance * fwp_chunk_shape[0],
-                                             s_enhance * fwp_chunk_shape[1])
-            assert fh[FEATURES[1]].shape == (t_enhance
-                                             * len(handler.time_index),
-                                             s_enhance * fwp_chunk_shape[0],
-                                             s_enhance * fwp_chunk_shape[1])
-
-
-def test_fwp_single_ts_vs_multi_ts_input_files():
-    """Test forward pass with single timestep files and multi-timestep files as
-    input with both sets of files containing the same data."""
-
-    fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
-    fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
-
-    Sup3rGan.seed()
-    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-    _ = model.generate(np.ones((4, 10, 10, len(FEATURES))))
-    model.meta['lr_features'] = FEATURES
-    model.meta['hr_out_features'] = ['U_100m', 'V_100m']
-    model.meta['s_enhance'] = 2
-    model.meta['t_enhance'] = 1
-    with tempfile.TemporaryDirectory() as td:
-        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
-        out_dir = os.path.join(td, 's_gan')
-        model.save(out_dir)
-
-        cache_pattern = os.path.join(td, 'cache')
-        out_files = os.path.join(td, 'out_{file_id}_single_ts.nc')
-
-        max_workers = 1
-        input_handler_kwargs = dict(
-            target=target,
-            shape=shape,
-            temporal_slice=temporal_slice,
-            worker_kwargs=dict(max_workers=max_workers),
-            cache_pattern=cache_pattern,
-            overwrite_cache=True)
-        single_ts_handler = ForwardPassStrategy(
-            input_files,
             model_kwargs={'model_dir': out_dir},
-            fwp_chunk_shape=fwp_chunk_shape,
-            spatial_pad=1,
-            temporal_pad=1,
-            input_handler_kwargs=input_handler_kwargs,
+            input_handler_kwargs={
+                'target': target,
+                'shape': shape,
+                'time_slice': time_slice,
+            },
             out_pattern=out_files,
-            worker_kwargs=dict(max_workers=max_workers))
-        single_ts_forward_pass = ForwardPass(single_ts_handler)
-        single_ts_forward_pass.run(single_ts_handler, node_index=0)
+            input_handler_name='DataHandlerNCforCC',
+            pass_workers=None,
+        )
+        forward_pass = ForwardPass(strat)
+        forward_pass.run(strat, node_index=0)
 
-        input_files = make_fake_multi_time_nc_files(td, INPUT_FILE, 8, 2)
-
-        cache_pattern = os.path.join(td, 'cache')
-        out_files = os.path.join(td, 'out_{file_id}_multi_ts.nc')
-
-        max_workers = 1
-        input_handler_kwargs = dict(
-            target=target,
-            shape=shape,
-            temporal_slice=temporal_slice,
-            worker_kwargs=dict(max_workers=max_workers),
-            cache_pattern=cache_pattern,
-            overwrite_cache=True)
-        multi_ts_handler = ForwardPassStrategy(
-            input_files,
-            model_kwargs={'model_dir': out_dir},
-            fwp_chunk_shape=fwp_chunk_shape,
-            spatial_pad=1,
-            temporal_pad=1,
-            input_handler_kwargs=input_handler_kwargs,
-            out_pattern=out_files,
-            worker_kwargs=dict(max_workers=max_workers))
-        multi_ts_forward_pass = ForwardPass(multi_ts_handler)
-        multi_ts_forward_pass.run(multi_ts_handler, node_index=0)
-
-        for sf, mf in zip(single_ts_handler.out_files,
-                          multi_ts_handler.out_files):
-
-            with xr.open_dataset(sf) as s_res, xr.open_dataset(mf) as m_res:
-                for feat in model.meta['hr_out_features']:
-                    assert np.allclose(s_res[feat].values,
-                                       m_res[feat].values)
+        with xr_open_mfdataset(strat.out_files[0]) as fh:
+            assert fh[FEATURES[0]].transpose(
+                Dimension.TIME, *Dimension.dims_2d()
+            ).shape == (
+                t_enhance * len(strat.input_handler.time_index),
+                s_enhance * fwp_chunk_shape[0],
+                s_enhance * fwp_chunk_shape[1],
+            )
+            assert fh[FEATURES[1]].transpose(
+                Dimension.TIME, *Dimension.dims_2d()
+            ).shape == (
+                t_enhance * len(strat.input_handler.time_index),
+                s_enhance * fwp_chunk_shape[0],
+                s_enhance * fwp_chunk_shape[1],
+            )
 
 
-def test_fwp_spatial_only():
+def test_fwp_spatial_only(input_files):
     """Test forward pass handler output for spatial only model."""
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
@@ -187,52 +104,52 @@ def test_fwp_spatial_only():
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
     _ = model.generate(np.ones((4, 10, 10, len(FEATURES))))
     model.meta['lr_features'] = FEATURES
-    model.meta['hr_out_features'] = ['U_100m', 'V_100m']
+    model.meta['hr_out_features'] = ['u_100m', 'v_100m']
     model.meta['s_enhance'] = 2
     model.meta['t_enhance'] = 1
     with tempfile.TemporaryDirectory() as td:
-        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
         out_dir = os.path.join(td, 's_gan')
         model.save(out_dir)
-
-        cache_pattern = os.path.join(td, 'cache')
         out_files = os.path.join(td, 'out_{file_id}.nc')
-
-        max_workers = 1
-        input_handler_kwargs = dict(
-            target=target,
-            shape=shape,
-            temporal_slice=temporal_slice,
-            worker_kwargs=dict(max_workers=max_workers),
-            cache_pattern=cache_pattern,
-            overwrite_cache=True)
-        handler = ForwardPassStrategy(
+        strat = ForwardPassStrategy(
             input_files,
             model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=1,
             temporal_pad=1,
-            input_handler_kwargs=input_handler_kwargs,
+            input_handler_name='Rasterizer',
+            input_handler_kwargs={
+                'target': target,
+                'shape': shape,
+                'time_slice': time_slice,
+            },
             out_pattern=out_files,
-            worker_kwargs=dict(max_workers=max_workers))
-        forward_pass = ForwardPass(handler)
-        assert forward_pass.output_workers == max_workers
-        assert forward_pass.data_handler.compute_workers == max_workers
-        assert forward_pass.data_handler.load_workers == max_workers
-        assert forward_pass.data_handler.norm_workers == max_workers
-        assert forward_pass.data_handler.extract_workers == max_workers
-        forward_pass.run(handler, node_index=0)
+            pass_workers=1,
+            output_workers=1,
+        )
+        forward_pass = ForwardPass(strat)
+        assert strat.output_workers == 1
+        assert strat.pass_workers == 1
+        forward_pass.run(strat, node_index=0)
 
-        with xr.open_dataset(handler.out_files[0]) as fh:
-            assert fh[FEATURES[0]].shape == (len(handler.time_index),
-                                             2 * fwp_chunk_shape[0],
-                                             2 * fwp_chunk_shape[1])
-            assert fh[FEATURES[1]].shape == (len(handler.time_index),
-                                             2 * fwp_chunk_shape[0],
-                                             2 * fwp_chunk_shape[1])
+        with xr_open_mfdataset(strat.out_files[0]) as fh:
+            assert fh[FEATURES[0]].transpose(
+                Dimension.TIME, *Dimension.dims_2d()
+            ).shape == (
+                len(strat.input_handler.time_index),
+                2 * fwp_chunk_shape[0],
+                2 * fwp_chunk_shape[1],
+            )
+            assert fh[FEATURES[1]].transpose(
+                Dimension.TIME, *Dimension.dims_2d()
+            ).shape == (
+                len(strat.input_handler.time_index),
+                2 * fwp_chunk_shape[0],
+                2 * fwp_chunk_shape[1],
+            )
 
 
-def test_fwp_nc():
+def test_fwp_nc(input_files):
     """Test forward pass handler output for netcdf write."""
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
@@ -242,54 +159,98 @@ def test_fwp_nc():
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
     _ = model.generate(np.ones((4, 10, 10, 6, len(FEATURES))))
     model.meta['lr_features'] = FEATURES
-    model.meta['hr_out_features'] = ['U_100m', 'V_100m']
+    model.meta['hr_out_features'] = ['u_100m', 'v_100m']
     model.meta['s_enhance'] = 3
     model.meta['t_enhance'] = 4
     with tempfile.TemporaryDirectory() as td:
-        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
-
-        cache_pattern = os.path.join(td, 'cache')
         out_files = os.path.join(td, 'out_{file_id}.nc')
-
-        max_workers = 1
-        input_handler_kwargs = dict(
-            target=target,
-            shape=shape,
-            temporal_slice=temporal_slice,
-            worker_kwargs=dict(max_workers=max_workers),
-            cache_pattern=cache_pattern,
-            overwrite_cache=True)
-        handler = ForwardPassStrategy(
+        strat = ForwardPassStrategy(
             input_files,
             model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=1,
             temporal_pad=1,
-            input_handler_kwargs=input_handler_kwargs,
+            input_handler_kwargs={
+                'target': target,
+                'shape': shape,
+                'time_slice': time_slice,
+            },
             out_pattern=out_files,
-            worker_kwargs=dict(max_workers=max_workers))
-        forward_pass = ForwardPass(handler)
-        assert forward_pass.output_workers == max_workers
-        assert forward_pass.data_handler.compute_workers == max_workers
-        assert forward_pass.data_handler.load_workers == max_workers
-        assert forward_pass.data_handler.norm_workers == max_workers
-        assert forward_pass.data_handler.extract_workers == max_workers
-        forward_pass.run(handler, node_index=0)
+            pass_workers=1,
+        )
+        forward_pass = ForwardPass(strat)
+        assert forward_pass.strategy.pass_workers == 1
+        forward_pass.run(strat, node_index=0)
 
-        with xr.open_dataset(handler.out_files[0]) as fh:
-            assert fh[FEATURES[0]].shape == (t_enhance
-                                             * len(handler.time_index),
-                                             s_enhance * fwp_chunk_shape[0],
-                                             s_enhance * fwp_chunk_shape[1])
-            assert fh[FEATURES[1]].shape == (t_enhance
-                                             * len(handler.time_index),
-                                             s_enhance * fwp_chunk_shape[0],
-                                             s_enhance * fwp_chunk_shape[1])
+        with xr_open_mfdataset(strat.out_files[0]) as fh:
+            assert fh[FEATURES[0]].transpose(
+                Dimension.TIME, *Dimension.dims_2d()
+            ).shape == (
+                t_enhance * len(strat.input_handler.time_index),
+                s_enhance * fwp_chunk_shape[0],
+                s_enhance * fwp_chunk_shape[1],
+            )
+            assert fh[FEATURES[1]].transpose(
+                Dimension.TIME, *Dimension.dims_2d()
+            ).shape == (
+                t_enhance * len(strat.input_handler.time_index),
+                s_enhance * fwp_chunk_shape[0],
+                s_enhance * fwp_chunk_shape[1],
+            )
 
 
-def test_fwp_temporal_slice():
+def test_fwp_with_cache_reload(input_files):
+    """Test forward pass handler output with cache loading"""
+
+    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
+
+    Sup3rGan.seed()
+    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+    _ = model.generate(np.ones((4, 10, 10, 6, len(FEATURES))))
+    model.meta['lr_features'] = FEATURES
+    model.meta['hr_out_features'] = ['u_100m', 'v_100m']
+    model.meta['s_enhance'] = 3
+    model.meta['t_enhance'] = 4
+    with tempfile.TemporaryDirectory() as td:
+        out_dir = os.path.join(td, 'st_gan')
+        model.save(out_dir)
+        out_files = os.path.join(td, 'out_{file_id}.nc')
+        cache_pattern = os.path.join(td, 'cache_{feature}.nc')
+        kwargs = {
+            'model_kwargs': {'model_dir': out_dir},
+            'fwp_chunk_shape': fwp_chunk_shape,
+            'spatial_pad': 1,
+            'temporal_pad': 1,
+            'input_handler_kwargs': {
+                'target': target,
+                'shape': shape,
+                'time_slice': time_slice,
+                'cache_kwargs': {
+                    'cache_pattern': cache_pattern,
+                    'max_workers': 1,
+                },
+            },
+            'input_handler_name': 'DataHandler',
+            'out_pattern': out_files,
+            'pass_workers': 1,
+        }
+        strat = ForwardPassStrategy(input_files, **kwargs)
+        forward_pass = ForwardPass(strat)
+        forward_pass.run(strat, node_index=0)
+
+        assert all(
+            os.path.exists(cache_pattern.format(feature=f)) for f in FEATURES
+        )
+
+        strat = ForwardPassStrategy(input_files, **kwargs)
+        forward_pass = ForwardPass(strat)
+        forward_pass.run(strat, node_index=0)
+
+
+def test_fwp_time_slice(input_files):
     """Test forward pass handler output to h5 file. Includes temporal
     slicing."""
 
@@ -299,64 +260,55 @@ def test_fwp_temporal_slice():
     Sup3rGan.seed()
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
     _ = model.generate(np.ones((4, 10, 10, 6, 2)))
-    model.meta['lr_features'] = ['U_100m', 'V_100m']
-    model.meta['hr_out_features'] = ['U_100m', 'V_100m']
+    model.meta['lr_features'] = ['u_100m', 'v_100m']
+    model.meta['hr_out_features'] = ['u_100m', 'v_100m']
     model.meta['s_enhance'] = 3
     model.meta['t_enhance'] = 4
     with tempfile.TemporaryDirectory() as td:
-        input_files = make_fake_nc_files(td, INPUT_FILE, 20)
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
-
-        cache_pattern = os.path.join(td, 'cache')
         out_files = os.path.join(td, 'out_{file_id}.h5')
-
-        max_workers = 1
-        temporal_slice = slice(5, 17, 3)
+        time_slice = slice(5, 17, 3)
         raw_time_index = np.arange(20)
-        n_tsteps = len(raw_time_index[temporal_slice])
-        input_handler_kwargs = dict(
-            target=target,
-            shape=shape,
-            temporal_slice=temporal_slice,
-            worker_kwargs=dict(max_workers=max_workers),
-            cache_pattern=cache_pattern,
-            overwrite_cache=True)
-        handler = ForwardPassStrategy(
+        n_tsteps = len(raw_time_index[time_slice])
+        strat = ForwardPassStrategy(
             input_files,
             model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=1,
             temporal_pad=1,
-            input_handler_kwargs=input_handler_kwargs,
+            input_handler_kwargs={
+                'target': target,
+                'shape': shape,
+                'time_slice': time_slice,
+            },
             out_pattern=out_files,
-            worker_kwargs=dict(max_workers=max_workers))
-        forward_pass = ForwardPass(handler)
-        assert forward_pass.output_workers == max_workers
-        assert forward_pass.data_handler.compute_workers == max_workers
-        assert forward_pass.data_handler.load_workers == max_workers
-        assert forward_pass.data_handler.norm_workers == max_workers
-        assert forward_pass.data_handler.extract_workers == max_workers
-        forward_pass.run(handler, node_index=0)
+            pass_workers=1,
+        )
+        forward_pass = ForwardPass(strat)
+        forward_pass.run(strat, node_index=0)
 
-        with ResourceX(handler.out_files[0]) as fh:
-            assert fh.shape == (t_enhance * n_tsteps, s_enhance**2
-                                * fwp_chunk_shape[0] * fwp_chunk_shape[1])
-            assert all(f in fh.attrs
-                       for f in ('windspeed_100m', 'winddirection_100m'))
+        with ResourceX(strat.out_files[0]) as fh:
+            assert fh.shape == (
+                t_enhance * n_tsteps,
+                s_enhance**2 * fwp_chunk_shape[0] * fwp_chunk_shape[1],
+            )
+            assert all(
+                f in fh.attrs for f in ('windspeed_100m', 'winddirection_100m')
+            )
 
             assert fh.global_attrs['package'] == 'sup3r'
             assert fh.global_attrs['version'] == __version__
             assert 'full_version_record' in fh.global_attrs
             version_record = json.loads(fh.global_attrs['full_version_record'])
             assert version_record['tensorflow'] == tf.__version__
-            assert 'gan_meta' in fh.global_attrs
-            gan_meta = json.loads(fh.global_attrs['gan_meta'])
-            assert isinstance(gan_meta, dict)
-            assert gan_meta['lr_features'] == ['U_100m', 'V_100m']
+            assert 'model_meta' in fh.global_attrs
+            model_meta = json.loads(fh.global_attrs['model_meta'])
+            assert isinstance(model_meta, dict)
+            assert model_meta['lr_features'] == ['u_100m', 'v_100m']
 
 
-def test_fwp_handler():
+def test_fwp_handler(input_files):
     """Test forward pass handler. Make sure it is
     returning the correct data shape"""
 
@@ -369,49 +321,47 @@ def test_fwp_handler():
     model.meta['hr_out_features'] = FEATURES[:-1]
     model.meta['s_enhance'] = s_enhance
     model.meta['t_enhance'] = t_enhance
-    _ = model.generate(np.ones((4, 10, 10, 12, 3)))
+    _ = model.generate(np.ones((4, 10, 10, 12, len(FEATURES))))
 
     with tempfile.TemporaryDirectory() as td:
-        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
-
-        max_workers = 1
-        cache_pattern = os.path.join(td, 'cache')
-        input_handler_kwargs = dict(
-            target=target,
-            shape=shape,
-            temporal_slice=temporal_slice,
-            worker_kwargs=dict(max_workers=max_workers),
-            cache_pattern=cache_pattern,
-            overwrite_cache=True)
-        handler = ForwardPassStrategy(
+        strat = ForwardPassStrategy(
             input_files,
             model_kwargs={'model_dir': out_dir},
             fwp_chunk_shape=fwp_chunk_shape,
             spatial_pad=1,
             temporal_pad=1,
-            input_handler_kwargs=input_handler_kwargs,
-            worker_kwargs=dict(max_workers=max_workers))
-        forward_pass = ForwardPass(handler)
-        assert forward_pass.data_handler.compute_workers == max_workers
-        assert forward_pass.data_handler.load_workers == max_workers
-        assert forward_pass.data_handler.norm_workers == max_workers
-        assert forward_pass.data_handler.extract_workers == max_workers
-        data = forward_pass.run_chunk()
+            input_handler_kwargs={
+                'target': target,
+                'shape': shape,
+                'time_slice': time_slice,
+            },
+        )
+        fwp = ForwardPass(strat)
 
-        assert data.shape == (s_enhance * fwp_chunk_shape[0],
-                              s_enhance * fwp_chunk_shape[1],
-                              t_enhance * len(input_files), 2)
+        _, data = fwp.run_chunk(
+            chunk=fwp.get_input_chunk(chunk_index=0),
+            model_kwargs=strat.model_kwargs,
+            model_class=strat.model_class,
+            allowed_const=strat.allowed_const,
+            output_workers=strat.output_workers,
+            meta=fwp.meta,
+        )
+
+        raw_tsteps = len(xr_open_mfdataset(input_files)[Dimension.TIME])
+        assert data.shape == (
+            s_enhance * fwp_chunk_shape[0],
+            s_enhance * fwp_chunk_shape[1],
+            t_enhance * raw_tsteps,
+            2,
+        )
 
 
-def test_fwp_chunking(log=False, plot=False):
+def test_fwp_chunking(input_files, plot=False):
     """Test forward pass spatialtemporal chunking. Make sure chunking agrees
-    closely with non chunking forward pass.
+    closely with non chunked forward pass.
     """
-
-    if log:
-        init_logger('sup3r', log_level='DEBUG')
 
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
@@ -419,58 +369,77 @@ def test_fwp_chunking(log=False, plot=False):
     Sup3rGan.seed()
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
     model.meta['lr_features'] = FEATURES
-    model.meta['hr_out_features'] = FEATURES[:-1]
+    model.meta['hr_out_features'] = FEATURES
     model.meta['s_enhance'] = s_enhance
     model.meta['t_enhance'] = t_enhance
-    _ = model.generate(np.ones((4, 10, 10, 12, 3)))
+    _ = model.generate(np.ones((4, 10, 10, 12, len(FEATURES))))
 
     with tempfile.TemporaryDirectory() as td:
-        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
         out_dir = os.path.join(td, 'test_1')
         model.save(out_dir)
         spatial_pad = 20
         temporal_pad = 20
-        cache_pattern = os.path.join(td, 'cache')
-        fwp_shape = (4, 4, len(input_files) // 2)
-        handler = ForwardPassStrategy(input_files,
-                                      model_kwargs={'model_dir': out_dir},
-                                      fwp_chunk_shape=fwp_shape,
-                                      worker_kwargs=dict(max_workers=1),
-                                      spatial_pad=spatial_pad,
-                                      temporal_pad=temporal_pad,
-                                      input_handler_kwargs=dict(
-                                          target=target,
-                                          shape=shape,
-                                          temporal_slice=temporal_slice,
-                                          cache_pattern=cache_pattern,
-                                          overwrite_cache=True,
-                                          worker_kwargs=dict(max_workers=1)))
+        raw_tsteps = len(xr_open_mfdataset(input_files)[Dimension.TIME])
+        fwp_shape = (5, 5, raw_tsteps // 2)
+        strat = ForwardPassStrategy(
+            input_files,
+            model_kwargs={'model_dir': out_dir},
+            fwp_chunk_shape=fwp_shape,
+            spatial_pad=spatial_pad,
+            temporal_pad=temporal_pad,
+            input_handler_kwargs={
+                'target': target,
+                'shape': shape,
+                'time_slice': time_slice,
+            },
+        )
         data_chunked = np.zeros(
-            (shape[0] * s_enhance, shape[1] * s_enhance,
-             len(input_files) * t_enhance, len(model.hr_out_features)))
-        handlerNC = DataHandlerNC(input_files,
-                                  FEATURES,
-                                  target=target,
-                                  val_split=0.0,
-                                  shape=shape,
-                                  worker_kwargs=dict(ti_workers=1))
-        pad_width = ((spatial_pad, spatial_pad), (spatial_pad, spatial_pad),
-                     (temporal_pad, temporal_pad), (0, 0))
-        hr_crop = (slice(s_enhance * spatial_pad, -s_enhance * spatial_pad),
-                   slice(s_enhance * spatial_pad, -s_enhance * spatial_pad),
-                   slice(t_enhance * temporal_pad,
-                         -t_enhance * temporal_pad), slice(None))
-        input_data = np.pad(handlerNC.data,
-                            pad_width=pad_width,
-                            mode='reflect')
-        data_nochunk = model.generate(np.expand_dims(input_data,
-                                                     axis=0))[0][hr_crop]
-        for i in range(handler.chunks):
-            fwp = ForwardPass(handler, chunk_index=i)
-            out = fwp.run_chunk()
-            t_hr_slice = slice(fwp.ti_slice.start * t_enhance,
-                               fwp.ti_slice.stop * t_enhance)
-            data_chunked[fwp.hr_slice][..., t_hr_slice, :] = out
+            (
+                shape[0] * s_enhance,
+                shape[1] * s_enhance,
+                raw_tsteps * t_enhance,
+                len(model.hr_out_features),
+            )
+        )
+        handlerNC = DataHandler(
+            input_files, FEATURES, target=target, shape=shape
+        )
+        pad_width = (
+            (spatial_pad, spatial_pad),
+            (spatial_pad, spatial_pad),
+            (temporal_pad, temporal_pad),
+            (0, 0),
+        )
+        hr_crop = (
+            slice(s_enhance * spatial_pad, -s_enhance * spatial_pad),
+            slice(s_enhance * spatial_pad, -s_enhance * spatial_pad),
+            slice(t_enhance * temporal_pad, -t_enhance * temporal_pad),
+            slice(None),
+        )
+        input_data = np.pad(
+            handlerNC.data.as_array(), pad_width=pad_width, mode='constant'
+        )
+        data_nochunk = model.generate(np.expand_dims(input_data, axis=0))[0][
+            hr_crop
+        ]
+        fwp = ForwardPass(strat)
+        for i in range(strat.n_chunks):
+            _, out = fwp.run_chunk(
+                fwp.get_input_chunk(i, mode='constant'),
+                model_kwargs=strat.model_kwargs,
+                model_class=strat.model_class,
+                allowed_const=strat.allowed_const,
+                output_workers=strat.output_workers,
+                meta=fwp.meta,
+            )
+            s_chunk_idx, t_chunk_idx = fwp.strategy.get_chunk_indices(i)
+            ti_slice = fwp.strategy.ti_slices[t_chunk_idx]
+            hr_slice = fwp.strategy.hr_slices[s_chunk_idx]
+
+            t_hr_slice = slice(
+                ti_slice.start * t_enhance, ti_slice.stop * t_enhance
+            )
+            data_chunked[hr_slice][..., t_hr_slice, :] = out
 
         err = data_chunked - data_nochunk
         err /= data_nochunk
@@ -482,24 +451,28 @@ def test_fwp_chunking(log=False, plot=False):
                 ax3 = fig.add_subplot(133)
                 vmin = np.min(data_nochunk)
                 vmax = np.max(data_nochunk)
-                nc = ax1.imshow(data_nochunk[..., 0, ifeature],
-                                vmin=vmin,
-                                vmax=vmax)
-                ch = ax2.imshow(data_chunked[..., 0, ifeature],
-                                vmin=vmin,
-                                vmax=vmax)
+                nc = ax1.imshow(
+                    data_nochunk[..., 0, ifeature], vmin=vmin, vmax=vmax
+                )
+                ch = ax2.imshow(
+                    data_chunked[..., 0, ifeature], vmin=vmin, vmax=vmax
+                )
                 diff = ax3.imshow(err[..., 0, ifeature])
                 ax1.set_title('Non chunked output')
                 ax2.set_title('Chunked output')
                 ax3.set_title('Difference')
-                fig.colorbar(nc,
-                             ax=ax1,
-                             shrink=0.6,
-                             label=f'{model.hr_out_features[ifeature]}')
-                fig.colorbar(ch,
-                             ax=ax2,
-                             shrink=0.6,
-                             label=f'{model.hr_out_features[ifeature]}')
+                fig.colorbar(
+                    nc,
+                    ax=ax1,
+                    shrink=0.6,
+                    label=f'{model.hr_out_features[ifeature]}',
+                )
+                fig.colorbar(
+                    ch,
+                    ax=ax2,
+                    shrink=0.6,
+                    label=f'{model.hr_out_features[ifeature]}',
+                )
                 fig.colorbar(diff, ax=ax3, shrink=0.6, label='Difference')
                 plt.savefig(f'./chunk_vs_nochunk_{ifeature}.png')
                 plt.close()
@@ -507,7 +480,7 @@ def test_fwp_chunking(log=False, plot=False):
         assert np.mean(np.abs(err.flatten())) < 0.01
 
 
-def test_fwp_nochunking():
+def test_fwp_nochunking(input_files):
     """Test forward pass without chunking. Make sure using a single chunk
     (a.k.a nochunking) matches direct forward pass of full dataset.
     """
@@ -521,56 +494,61 @@ def test_fwp_nochunking():
     model.meta['hr_out_features'] = FEATURES[:-1]
     model.meta['s_enhance'] = s_enhance
     model.meta['t_enhance'] = t_enhance
-    _ = model.generate(np.ones((4, 10, 10, 12, 3)))
+    _ = model.generate(np.ones((4, 10, 10, 12, len(FEATURES))))
 
     with tempfile.TemporaryDirectory() as td:
-        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
-
-        cache_pattern = os.path.join(td, 'cache')
-        input_handler_kwargs = dict(target=target,
-                                    shape=shape,
-                                    temporal_slice=temporal_slice,
-                                    worker_kwargs=dict(max_workers=1),
-                                    cache_pattern=cache_pattern,
-                                    overwrite_cache=True)
-        handler = ForwardPassStrategy(
+        input_handler_kwargs = {
+            'target': target,
+            'shape': shape,
+            'time_slice': time_slice,
+        }
+        strat = ForwardPassStrategy(
             input_files,
             model_kwargs={'model_dir': out_dir},
-            fwp_chunk_shape=(shape[0], shape[1], list_chunk_size),
+            fwp_chunk_shape=(
+                shape[0],
+                shape[1],
+                len(xr_open_mfdataset(input_files)[Dimension.TIME]),
+            ),
             spatial_pad=0,
             temporal_pad=0,
             input_handler_kwargs=input_handler_kwargs,
-            worker_kwargs=dict(max_workers=1))
-        forward_pass = ForwardPass(handler)
-        data_chunked = forward_pass.run_chunk()
+        )
+        fwp = ForwardPass(strat)
+        _, data_chunked = fwp.run_chunk(
+            fwp.get_input_chunk(chunk_index=0),
+            model_kwargs=strat.model_kwargs,
+            model_class=strat.model_class,
+            allowed_const=strat.allowed_const,
+            output_workers=strat.output_workers,
+            meta=fwp.meta,
+        )
 
-        handlerNC = DataHandlerNC(input_files,
-                                  FEATURES,
-                                  target=target,
-                                  shape=shape,
-                                  temporal_slice=temporal_slice,
-                                  cache_pattern=None,
-                                  time_chunk_size=100,
-                                  overwrite_cache=True,
-                                  val_split=0.0,
-                                  worker_kwargs=dict(max_workers=1))
+        handlerNC = DataHandler(
+            input_files,
+            FEATURES,
+            target=target,
+            shape=shape,
+            time_slice=time_slice,
+        )
 
-        data_nochunk = model.generate(np.expand_dims(handlerNC.data,
-                                                     axis=0))[0]
+        data_nochunk = model.generate(
+            np.expand_dims(handlerNC.data.as_array(), axis=0)
+        )[0]
 
         assert np.array_equal(data_chunked, data_nochunk)
 
 
-def test_fwp_multi_step_model():
+def test_fwp_multi_step_model(input_files):
     """Test the forward pass with a multi step model class"""
     Sup3rGan.seed()
     fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_2x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
     s_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-    s_model.meta['lr_features'] = ['U_100m', 'V_100m']
-    s_model.meta['hr_out_features'] = ['U_100m', 'V_100m']
+    s_model.meta['lr_features'] = ['u_100m', 'v_100m']
+    s_model.meta['hr_out_features'] = ['u_100m', 'v_100m']
     assert s_model.s_enhance == 2
     assert s_model.t_enhance == 1
     _ = s_model.generate(np.ones((4, 10, 10, 2)))
@@ -578,15 +556,13 @@ def test_fwp_multi_step_model():
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
     st_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-    st_model.meta['lr_features'] = ['U_100m', 'V_100m']
-    st_model.meta['hr_out_features'] = ['U_100m', 'V_100m']
+    st_model.meta['lr_features'] = ['u_100m', 'v_100m']
+    st_model.meta['hr_out_features'] = ['u_100m', 'v_100m']
     assert st_model.s_enhance == 3
     assert st_model.t_enhance == 4
     _ = st_model.generate(np.ones((4, 10, 10, 6, 2)))
 
     with tempfile.TemporaryDirectory() as td:
-        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
-
         st_out_dir = os.path.join(td, 'st_gan')
         s_out_dir = os.path.join(td, 's_gan')
         st_model.save(st_out_dir)
@@ -594,22 +570,18 @@ def test_fwp_multi_step_model():
 
         out_files = os.path.join(td, 'out_{file_id}.h5')
 
-        max_workers = 1
         fwp_chunk_shape = (4, 4, 8)
         s_enhance = 6
         t_enhance = 4
 
-        model_kwargs = {
-            'model_dirs': [s_out_dir, st_out_dir]
-        }
+        model_kwargs = {'model_dirs': [s_out_dir, st_out_dir]}
 
-        input_handler_kwargs = dict(
-            target=target,
-            shape=shape,
-            temporal_slice=temporal_slice,
-            worker_kwargs=dict(max_workers=max_workers),
-            overwrite_cache=True)
-        handler = ForwardPassStrategy(
+        input_handler_kwargs = {
+            'target': target,
+            'shape': shape,
+            'time_slice': time_slice,
+        }
+        strat = ForwardPassStrategy(
             input_files,
             model_kwargs=model_kwargs,
             model_class='MultiStepGan',
@@ -618,47 +590,43 @@ def test_fwp_multi_step_model():
             temporal_pad=0,
             input_handler_kwargs=input_handler_kwargs,
             out_pattern=out_files,
-            worker_kwargs=dict(max_workers=max_workers),
-            max_nodes=1)
+            max_nodes=1,
+        )
+        fwp = ForwardPass(strat)
 
-        forward_pass = ForwardPass(handler)
-        ones = np.ones(
-            (fwp_chunk_shape[2], fwp_chunk_shape[0], fwp_chunk_shape[1], 2))
-        out = forward_pass.model.generate(ones)
-        assert out.shape == (1, 24, 24, 32, 2)
+        _, _ = fwp.run_chunk(
+            fwp.get_input_chunk(chunk_index=0),
+            model_kwargs=strat.model_kwargs,
+            model_class=strat.model_class,
+            allowed_const=strat.allowed_const,
+            output_workers=strat.output_workers,
+            meta=fwp.meta,
+        )
 
-        assert forward_pass.output_workers == max_workers
-        assert forward_pass.data_handler.compute_workers == max_workers
-        assert forward_pass.data_handler.load_workers == max_workers
-        assert forward_pass.data_handler.norm_workers == max_workers
-        assert forward_pass.data_handler.extract_workers == max_workers
-
-        forward_pass.run(handler, node_index=0)
-
-        with ResourceX(handler.out_files[0]) as fh:
-            assert fh.shape == (t_enhance * len(input_files), s_enhance**2
-                                * fwp_chunk_shape[0] * fwp_chunk_shape[1])
-            assert all(f in fh.attrs
-                       for f in ('windspeed_100m', 'winddirection_100m'))
+        with ResourceX(strat.out_files[0]) as fh:
+            assert fh.shape == (
+                t_enhance * fwp_chunk_shape[2],
+                s_enhance**2 * fwp_chunk_shape[0] * fwp_chunk_shape[1],
+            )
+            assert all(
+                f in fh.attrs for f in ('windspeed_100m', 'winddirection_100m')
+            )
 
             assert fh.global_attrs['package'] == 'sup3r'
             assert fh.global_attrs['version'] == __version__
             assert 'full_version_record' in fh.global_attrs
             version_record = json.loads(fh.global_attrs['full_version_record'])
             assert version_record['tensorflow'] == tf.__version__
-            assert 'gan_meta' in fh.global_attrs
-            gan_meta = json.loads(fh.global_attrs['gan_meta'])
-            assert len(gan_meta) == 2  # two step model
-            assert gan_meta[0]['lr_features'] == ['U_100m', 'V_100m']
+            assert 'model_meta' in fh.global_attrs
+            model_meta = json.loads(fh.global_attrs['model_meta'])
+            assert len(model_meta) == 2  # two step model
+            assert model_meta[0]['lr_features'] == ['u_100m', 'v_100m']
 
 
-def test_slicing_no_pad(log=False):
+def test_slicing_no_pad(input_files):
     """Test the slicing of input data via the ForwardPassStrategy +
     ForwardPassSlicer vs. the actual source data. Does not include any
     reflected padding at the edges."""
-
-    if log:
-        init_logger('sup3r', log_level='DEBUG')
 
     Sup3rGan.seed()
     s_enhance = 3
@@ -666,7 +634,7 @@ def test_slicing_no_pad(log=False):
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
     st_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-    features = ['U_100m', 'V_100m']
+    features = ['u_100m', 'v_100m']
     st_model.meta['lr_features'] = features
     st_model.meta['hr_out_features'] = features
     st_model.meta['s_enhance'] = s_enhance
@@ -674,24 +642,19 @@ def test_slicing_no_pad(log=False):
     _ = st_model.generate(np.ones((4, 10, 10, 6, 2)))
 
     with tempfile.TemporaryDirectory() as td:
-        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
         out_files = os.path.join(td, 'out_{file_id}.h5')
         st_out_dir = os.path.join(td, 'st_gan')
         st_model.save(st_out_dir)
 
-        handler = DataHandlerNC(input_files,
-                                features,
-                                target=target,
-                                shape=shape,
-                                sample_shape=(1, 1, 1),
-                                val_split=0.0,
-                                worker_kwargs=dict(max_workers=1))
+        handler = DataHandler(
+            input_files, features, target=target, shape=shape
+        )
 
-        input_handler_kwargs = dict(target=target,
-                                    shape=shape,
-                                    temporal_slice=temporal_slice,
-                                    worker_kwargs=dict(max_workers=1),
-                                    overwrite_cache=True)
+        input_handler_kwargs = {
+            'target': target,
+            'shape': shape,
+            'time_slice': time_slice,
+        }
         strategy = ForwardPassStrategy(
             input_files,
             model_kwargs={'model_dir': st_out_dir},
@@ -701,26 +664,27 @@ def test_slicing_no_pad(log=False):
             temporal_pad=0,
             input_handler_kwargs=input_handler_kwargs,
             out_pattern=out_files,
-            worker_kwargs=dict(max_workers=1),
-            max_nodes=1)
+            max_nodes=1,
+        )
 
-        for ichunk in range(strategy.chunks):
-            forward_pass = ForwardPass(strategy, chunk_index=ichunk)
-            s_slices = strategy.lr_pad_slices[forward_pass.spatial_chunk_index]
-            lr_data_slice = (s_slices[0], s_slices[1],
-                             forward_pass.ti_pad_slice, slice(None))
+        fwp = ForwardPass(strategy)
+        for i in range(len(strategy.node_chunks)):
+            chunk = fwp.get_input_chunk(i)
+            s_idx, t_idx = strategy.get_chunk_indices(i)
+            s_slices = strategy.lr_pad_slices[s_idx]
+            lr_data_slice = (
+                s_slices[0],
+                s_slices[1],
+                fwp.strategy.ti_pad_slices[t_idx])
 
             truth = handler.data[lr_data_slice]
-            assert np.allclose(forward_pass.input_data, truth)
+            assert np.allclose(chunk.input_data, truth)
 
 
-def test_slicing_pad(log=False):
+def test_slicing_pad(input_files):
     """Test the slicing of input data via the ForwardPassStrategy +
     ForwardPassSlicer vs. the actual source data. Includes reflected padding
     at the edges."""
-
-    if log:
-        init_logger('sup3r', log_level='DEBUG')
 
     Sup3rGan.seed()
     s_enhance = 3
@@ -728,7 +692,7 @@ def test_slicing_pad(log=False):
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
     st_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
-    features = ['U_100m', 'V_100m']
+    features = ['u_100m', 'v_100m']
     st_model.meta['lr_features'] = features
     st_model.meta['hr_out_features'] = features
     st_model.meta['s_enhance'] = s_enhance
@@ -736,24 +700,17 @@ def test_slicing_pad(log=False):
     _ = st_model.generate(np.ones((4, 10, 10, 6, 2)))
 
     with tempfile.TemporaryDirectory() as td:
-        input_files = make_fake_nc_files(td, INPUT_FILE, 8)
         out_files = os.path.join(td, 'out_{file_id}.h5')
         st_out_dir = os.path.join(td, 'st_gan')
         st_model.save(st_out_dir)
-
-        handler = DataHandlerNC(input_files,
-                                features,
-                                target=target,
-                                shape=shape,
-                                sample_shape=(1, 1, 1),
-                                val_split=0.0,
-                                worker_kwargs=dict(max_workers=1))
-
-        input_handler_kwargs = dict(target=target,
-                                    shape=shape,
-                                    temporal_slice=temporal_slice,
-                                    worker_kwargs=dict(max_workers=1),
-                                    overwrite_cache=True)
+        handler = DataHandler(
+            input_files, features, target=target, shape=shape
+        )
+        input_handler_kwargs = {
+            'target': target,
+            'shape': shape,
+            'time_slice': time_slice,
+        }
         strategy = ForwardPassStrategy(
             input_files,
             model_kwargs={'model_dir': st_out_dir},
@@ -763,8 +720,8 @@ def test_slicing_pad(log=False):
             spatial_pad=2,
             temporal_pad=2,
             out_pattern=out_files,
-            worker_kwargs=dict(max_workers=1),
-            max_nodes=1)
+            max_nodes=1,
+        )
 
         chunk_lookup = strategy.fwp_slicer.chunk_lookup
         n_s1 = len(strategy.fwp_slicer.s1_lr_slices)
@@ -780,19 +737,23 @@ def test_slicing_pad(log=False):
         assert chunk_lookup[0, 0, 1] == n_s1 * n_s2
         assert chunk_lookup[0, 1, 1] == n_s1 * n_s2 + 1
 
-        for ichunk in range(strategy.chunks):
-            forward_pass = ForwardPass(strategy, chunk_index=ichunk)
-
-            s_slices = strategy.lr_pad_slices[forward_pass.spatial_chunk_index]
-            lr_data_slice = (s_slices[0], s_slices[1],
-                             forward_pass.ti_pad_slice, slice(None))
+        fwp = ForwardPass(strategy)
+        for i in range(len(strategy.node_chunks)):
+            chunk = fwp.get_input_chunk(i, mode='constant')
+            s_idx, t_idx = strategy.get_chunk_indices(i)
+            s_slices = strategy.lr_pad_slices[s_idx]
+            lr_data_slice = (
+                s_slices[0],
+                s_slices[1],
+                fwp.strategy.ti_pad_slices[t_idx]
+            )
 
             # do a manual calculation of what the padding should be.
             # s1 and t axes should have padding of 2 and the borders and
             # padding of 1 when 1 index away from the borders (chunk shape is 1
             # in those axes). s2 should have padding of 2 at the
             # borders and 0 everywhere else.
-            ids1, ids2, idt = np.where(chunk_lookup == ichunk)
+            ids1, ids2, idt = np.where(chunk_lookup == i)
             ids1, ids2, idt = ids1[0], ids2[0], idt[0]
 
             start_s1_pad_lookup = {0: 2}
@@ -809,12 +770,15 @@ def test_slicing_pad(log=False):
             pad_s2_end = end_s2_pad_lookup.get(ids2, 0)
             pad_t_end = end_t_pad_lookup.get(idt, 0)
 
-            pad_width = ((pad_s1_start, pad_s1_end),
-                         (pad_s2_start, pad_s2_end), (pad_t_start,
-                                                      pad_t_end), (0, 0))
+            pad_width = (
+                (pad_s1_start, pad_s1_end),
+                (pad_s2_start, pad_s2_end),
+                (pad_t_start, pad_t_end),
+                (0, 0),
+            )
 
             truth = handler.data[lr_data_slice]
-            padded_truth = np.pad(truth, pad_width, mode='reflect')
+            padded_truth = np.pad(truth, pad_width, mode='constant')
 
-            assert forward_pass.input_data.shape == padded_truth.shape
-            assert np.allclose(forward_pass.input_data, padded_truth)
+            assert chunk.input_data.shape == padded_truth.shape
+            assert np.allclose(chunk.input_data, padded_truth)

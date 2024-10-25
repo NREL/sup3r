@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """sup3r data collection CLI entry points."""
 import copy
 import logging
@@ -6,10 +5,10 @@ import logging
 import click
 
 from sup3r import __version__
-from sup3r.postprocessing.collection import CollectorH5, CollectorNC
+from sup3r.postprocessing.collectors import CollectorH5, CollectorNC
+from sup3r.preprocessing.utilities import get_source_type
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import AVAILABLE_HARDWARE_OPTIONS, BaseCLI
-from sup3r.utilities.utilities import get_source_type
 
 logger = logging.getLogger(__name__)
 
@@ -67,9 +66,6 @@ def from_config(ctx, config_file, verbose=False, pipeline_step=None):
         ctx.obj['NAME'] = config['job_name']
         config['pipeline_step'] = pipeline_step
         cmd = Collector.get_node_cmd(config)
-
-        cmd_log = '\n\t'.join(cmd.split('\n'))
-        logger.debug(f'Running command:\n\t{cmd_log}')
 
         if hardware_option.lower() in AVAILABLE_HARDWARE_OPTIONS:
             kickoff_slurm_job(ctx, cmd, pipeline_step, **exec_kwargs)
