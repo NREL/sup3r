@@ -192,10 +192,12 @@ def BatchHandlerFactory(
             val_kwargs = get_class_kwargs(self.VAL_QUEUE, add_kwargs)
             main_kwargs = get_class_kwargs(MainQueueClass, add_kwargs)
 
-            check_kwargs = set(
-                list[*sampler_kwargs, *val_kwargs, *main_kwargs]
+            bad_kwargs = (
+                set(kwargs)
+                - set(sampler_kwargs)
+                - set(val_kwargs)
+                - set(main_kwargs)
             )
-            bad_kwargs = set(kwargs) - check_kwargs
 
             msg = (
                 f'{self.__class__.__name__} received bad '
