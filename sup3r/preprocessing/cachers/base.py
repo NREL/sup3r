@@ -293,8 +293,9 @@ class Cacher(Container):
             for k, v in attrs.items():
                 f.attrs[k] = v
 
-            coord_names = Dimension.coords_4d() + Dimension.coords_4d()
-            coord_names = [crd for crd in data.coords if crd in coord_names]
+            coord_names = [
+                crd for crd in data.coords if crd in Dimension.coords_4d()
+            ]
             for dset in [*coord_names, *features]:
                 data_var, chunksizes = cls.get_chunksizes(dset, data, chunks)
 
@@ -439,7 +440,9 @@ class Cacher(Container):
             for attr_name, attr_value in attrs.items():
                 ncfile.setncattr(attr_name, attr_value)
 
-            coord_names = [crd for crd in data.coords if crd in Dimension.coords_4d()]
+            coord_names = [
+                crd for crd in data.coords if crd in Dimension.coords_4d()
+            ]
             for dset in [*coord_names, *features]:
                 data_var, chunksizes = cls.get_chunksizes(dset, data, chunks)
 
