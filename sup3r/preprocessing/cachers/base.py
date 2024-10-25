@@ -217,6 +217,7 @@ class Cacher(Container):
         chunksizes = chunksizes if chunksizes else None
         if chunksizes is not None:
             chunkmem = np.prod(chunksizes) * data_var.dtype.itemsize / 1e9
+            chunkmem = round(chunkmem, 3)
             if chunkmem > 4:
                 msg = (
                     'Chunks cannot be larger than 4GB. Given chunksizes %s '
