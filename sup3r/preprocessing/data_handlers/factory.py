@@ -134,39 +134,66 @@ class DataHandler(Deriver):
             :class:`~sup3r.preprocessing.rasterizers.Rasterizer`, used
             specifically for rasterizing flattened data
         """  # pylint: disable=line-too-long
+
         features = parse_to_list(features=features)
-        self.loader, self.rasterizer = self.get_data(
-            file_paths=file_paths,
-            features=features,
-            res_kwargs=res_kwargs,
-            chunks=chunks,
-            target=target,
-            shape=shape,
-            time_slice=time_slice,
-            threshold=threshold,
-            cache_kwargs=cache_kwargs,
-            BaseLoader=BaseLoader,
-            **kwargs,
+        cached_files, cached_features, _, missing_features = _check_for_cache(
+            features=features, cache_kwargs=cache_kwargs
         )
+
+        just_coords = not features
+        raster_feats = 'all' if any(missing_features) else []
+        self.rasterizer = self.loader = self.cache = None
+
+        if any(cached_features):
+            self.cache = Loader(
+                file_paths=cached_files,
+                res_kwargs=res_kwargs,
+                chunks=chunks,
+                BaseLoader=BaseLoader,
+            )
+            self.rasterizer = self.loader = self.cache
+
+        if any(missing_features) or just_coords:
+            self.rasterizer = Rasterizer(
+                file_paths=file_paths,
+                res_kwargs=res_kwargs,
+                features=raster_feats,
+                chunks=chunks,
+                target=target,
+                shape=shape,
+                time_slice=time_slice,
+                threshold=threshold,
+                BaseLoader=BaseLoader,
+                **kwargs,
+            )
+            self.loader = self.rasterizer.loader
+
         self.time_slice = self.rasterizer.time_slice
         self.lat_lon = self.rasterizer.lat_lon
         self._rasterizer_hook()
-        super().__init__(
-            data=self.rasterizer.data,
-            features=features,
-            time_roll=time_roll,
-            time_shift=time_shift,
-            hr_spatial_coarsen=hr_spatial_coarsen,
-            nan_method_kwargs=nan_method_kwargs,
-            FeatureRegistry=FeatureRegistry,
-            interp_method=interp_method,
-        )
-        self._deriver_hook()
+        self.data = self.rasterizer
+
+        if missing_features:
+            super().__init__(
+                data=self.data,
+                features=features,
+                time_roll=time_roll,
+                time_shift=time_shift,
+                hr_spatial_coarsen=hr_spatial_coarsen,
+                nan_method_kwargs=nan_method_kwargs,
+                FeatureRegistry=FeatureRegistry,
+                interp_method=interp_method,
+            )
+
+        if self.cache is not None:
+            self.data[cached_features] = self.cache.data[cached_features]
+            self.rasterizer.file_paths = (
+                expand_paths(file_paths) + cached_files
+            )
+
         if cache_kwargs is not None and 'cache_pattern' in cache_kwargs:
-            if hasattr(self.data, 'hourly') and hasattr(self.data, 'daily'):
-                _ = Cacher(data=self.data.hourly, cache_kwargs=cache_kwargs)
-            else:
-                _ = Cacher(data=self.data, cache_kwargs=cache_kwargs)
+            _ = Cacher(data=self.data, cache_kwargs=cache_kwargs)
+        self._deriver_hook()
 
     def _rasterizer_hook(self):
         """Hook in after rasterizer initialization. Implement this to
@@ -189,58 +216,6 @@ class DataHandler(Deriver):
         initialization. e.g. If special methods are required to derive
         additional features which might depend on non-standard inputs (e.g.
         other source files than those used by the loader)."""
-
-    def get_data(
-        self,
-        file_paths,
-        features='all',
-        res_kwargs=None,
-        chunks='auto',
-        target=None,
-        shape=None,
-        time_slice=slice(None),
-        threshold=None,
-        BaseLoader=None,
-        cache_kwargs=None,
-        **kwargs,
-    ):
-        """Fill rasterizer data with cached data if available. If no features
-        requested then we just return coordinates. Otherwise we load and
-        rasterize all contained features. We rasterize all available features
-        because they might be used in future derivations."""
-        cached_files, cached_features, _, missing_features = _check_for_cache(
-            features=features, cache_kwargs=cache_kwargs
-        )
-        just_coords = not features
-        raster_feats = 'all' if any(missing_features) else []
-        rasterizer = loader = cache = None
-        if any(cached_features):
-            cache = Loader(
-                file_paths=cached_files,
-                res_kwargs=res_kwargs,
-                chunks=chunks,
-                BaseLoader=BaseLoader,
-            )
-            rasterizer = loader = cache
-
-        if any(missing_features) or just_coords:
-            rasterizer = Rasterizer(
-                file_paths=file_paths,
-                res_kwargs=res_kwargs,
-                features=raster_feats,
-                chunks=chunks,
-                target=target,
-                shape=shape,
-
-                time_slice=time_slice,
-                threshold=threshold,
-                BaseLoader=BaseLoader,
-                **kwargs)
-            if any(cached_files):
-                rasterizer.data[cached_features] = cache.data[cached_features]
-                rasterizer.file_paths = expand_paths(file_paths) + cached_files
-            loader = rasterizer.loader
-        return loader, rasterizer
 
 
 class DailyDataHandler(DataHandler):
