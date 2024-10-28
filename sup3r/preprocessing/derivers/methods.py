@@ -402,7 +402,6 @@ RegistryBase = {
     'cloud_mask': CloudMask,
     'clearsky_ratio': ClearSkyRatio,
     'sza': Sza,
-    'pressure_(.*)': 'level_(.*)',
 }
 
 RegistryH5WindCC = {
@@ -434,6 +433,7 @@ RegistryNCforCC.update(
         'temperature_2m': Tas,
         'temperature_max_2m': TasMax,
         'temperature_min_2m': TasMin,
+        'pressure_(.*)': 'level_(.*)',
     }
 )
 
