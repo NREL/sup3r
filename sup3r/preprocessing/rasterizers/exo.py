@@ -288,6 +288,7 @@ class BaseExoRasterizer(ABC):
                 tmp_fp, data, max_workers=self.max_workers, chunks=self.chunks
             )
             shutil.move(tmp_fp, cache_fp)
+            logger.info('Moved %s to %s', tmp_fp, cache_fp)
 
         return Sup3rX(data.chunk(self.chunks))
 

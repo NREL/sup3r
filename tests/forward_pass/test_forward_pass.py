@@ -1,8 +1,8 @@
 """pytests for forward pass module"""
-
 import json
 import os
 import tempfile
+from glob import glob
 
 import numpy as np
 import pytest
@@ -91,6 +91,52 @@ def test_fwp_nc_cc():
                 s_enhance * fwp_chunk_shape[0],
                 s_enhance * fwp_chunk_shape[1],
             )
+
+
+def test_fwp_nc_cc_with_cache():
+    """Test forward pass handler with input caching"""
+
+    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
+
+    Sup3rGan.seed()
+    model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+
+    features = ['u_100m', 'v_100m']
+    target = (13.67, 125.0)
+    _ = model.generate(np.ones((4, 10, 10, 6, len(features))))
+    model.meta['lr_features'] = features
+    model.meta['hr_out_features'] = features
+    model.meta['s_enhance'] = 3
+    model.meta['t_enhance'] = 4
+    with tempfile.TemporaryDirectory() as td:
+        out_dir = os.path.join(td, 'st_gan')
+        model.save(out_dir)
+        cache_pattern = os.path.join(td, 'cache_{feature}.nc')
+        out_files = os.path.join(td, 'out_{file_id}.nc')
+        # 1st forward pass
+        strat = ForwardPassStrategy(
+            pytest.FPS_GCM,
+            fwp_chunk_shape=(*fwp_chunk_shape[:-1], None),
+            spatial_pad=1,
+            model_kwargs={'model_dir': out_dir},
+            input_handler_kwargs={
+                'target': target,
+                'shape': shape,
+                'time_slice': time_slice,
+                'cache_kwargs': {'cache_pattern': cache_pattern},
+            },
+            out_pattern=out_files,
+            input_handler_name='DataHandlerNCforCC',
+            pass_workers=None,
+        )
+        forward_pass = ForwardPass(strat)
+        forward_pass.run(strat, node_index=0)
+
+        cache_files = [cache_pattern.format(feature=f) for f in features]
+        assert sorted(glob(cache_pattern.format(feature='*'))) == sorted(
+            cache_files
+        )
 
 
 def test_fwp_spatial_only(input_files):
@@ -240,8 +286,9 @@ def test_fwp_with_cache_reload(input_files):
         forward_pass = ForwardPass(strat)
         forward_pass.run(strat, node_index=0)
 
-        assert all(
-            os.path.exists(cache_pattern.format(feature=f)) for f in FEATURES
+        cache_files = [cache_pattern.format(feature=f) for f in FEATURES]
+        assert sorted(glob(cache_pattern.format(feature='*'))) == sorted(
+            cache_files
         )
 
         strat = ForwardPassStrategy(input_files, **kwargs)
@@ -641,7 +688,8 @@ def test_slicing_no_pad(input_files):
             lr_data_slice = (
                 s_slices[0],
                 s_slices[1],
-                fwp.strategy.ti_pad_slices[t_idx])
+                fwp.strategy.ti_pad_slices[t_idx],
+            )
 
             truth = handler.data[lr_data_slice]
             assert np.allclose(chunk.input_data, truth)
@@ -711,7 +759,7 @@ def test_slicing_pad(input_files):
             lr_data_slice = (
                 s_slices[0],
                 s_slices[1],
-                fwp.strategy.ti_pad_slices[t_idx]
+                fwp.strategy.ti_pad_slices[t_idx],
             )
 
             # do a manual calculation of what the padding should be.

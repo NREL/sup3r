@@ -19,7 +19,7 @@ from sup3r.bias.utilities import bias_correct_features
 from sup3r.pipeline.slicer import ForwardPassSlicer
 from sup3r.pipeline.utilities import get_model
 from sup3r.postprocessing import OutputHandler
-from sup3r.preprocessing import ExoData, ExoDataHandler
+from sup3r.preprocessing import ExoData, ExoDataHandler, Loader
 from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.utilities import (
     _parse_time_slice,
@@ -289,9 +289,7 @@ class ForwardPassStrategy:
         """Get array of lists such that node_chunks[i] is a list of
         indices for the chunks that will be sent through the generator on the
         ith node."""
-        node_chunks = min(
-            self.max_nodes or np.inf, len(self.unmasked_chunks)
-        )
+        node_chunks = min(self.max_nodes or np.inf, len(self.unmasked_chunks))
         return np.array_split(self.unmasked_chunks, node_chunks)
 
     @property
@@ -571,17 +569,19 @@ class ForwardPassStrategy:
         running the forward pass for area with just ocean, for example."""
 
         mask = np.zeros(len(self.lr_pad_slices))
-        InputHandler = get_input_handler_class(self.input_handler_name)
         input_handler_kwargs = copy.deepcopy(self.input_handler_kwargs)
         input_handler_kwargs['features'] = 'all'
-        handler = InputHandler(**input_handler_kwargs)
-        if 'mask' in handler:
+        handler = Loader(
+            file_paths=self.file_paths,
+            **get_class_kwargs(Loader, input_handler_kwargs),
+        )
+        if 'mask' in handler.data:
             logger.info(
                 'Found "mask" in DataHandler. Computing forward pass '
                 'chunk mask for %s chunks',
                 len(self.lr_pad_slices),
             )
-            mask_vals = handler['mask'].values
+            mask_vals = handler.data['mask'].values
             for s_chunk_idx, lr_slices in enumerate(self.lr_pad_slices):
                 mask_check = mask_vals[lr_slices[0], lr_slices[1]]
                 mask[s_chunk_idx] = bool(np.prod(mask_check.flatten()))

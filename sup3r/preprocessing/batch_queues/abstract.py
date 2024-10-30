@@ -1,7 +1,10 @@
 """Abstract batch queue class used for multi-threaded batching / training.
 
-TODO: Setup distributed data handling so this can work with data distributed
-over multiple nodes.
+TODO:
+    (1) Figure out apparent "blocking" issue with threaded enqueue batches.
+        max_workers=1 is the fastest?
+    (2) Setup distributed data handling so this can work with data distributed
+    over multiple nodes.
 """
 
 import logging
@@ -296,7 +299,13 @@ class AbstractBatchQueue(Collection, ABC):
 
     def sample_batch(self):
         """Get random sampler from collection and return a batch of samples
-        from that sampler."""
+        from that sampler.
+
+        Notes
+        -----
+        These samples are wrapped in an ``np.asarray`` call, so they have been
+        loaded into memory.
+        """
         return next(self.get_random_container())
 
     def log_queue_info(self):

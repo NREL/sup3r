@@ -335,8 +335,9 @@ class EraDownloader:
             if 'monthly' in product_type:
                 dataset += '-monthly-means'
             entry = {
-                'product_type': product_type,
-                'format': 'netcdf',
+                'product_type': [product_type],
+                'data_format': 'netcdf',
+                'download_format': 'unarchived',
                 'variable': variables,
                 'area': area,
             }
@@ -347,6 +348,7 @@ class EraDownloader:
                 'Calling CDS-API with dataset=%s, entry=%s.', dataset, entry
             )
             cds_api_client = cls.get_cds_client()
+
             cds_api_client.retrieve(dataset, entry, out_file)
         else:
             logger.info(f'File already exists: {out_file}.')
