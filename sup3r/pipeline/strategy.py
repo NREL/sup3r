@@ -19,7 +19,7 @@ from sup3r.bias.utilities import bias_correct_features
 from sup3r.pipeline.slicer import ForwardPassSlicer
 from sup3r.pipeline.utilities import get_model
 from sup3r.postprocessing import OutputHandler
-from sup3r.preprocessing import ExoData, ExoDataHandler, Loader
+from sup3r.preprocessing import ExoData, ExoDataHandler, Rasterizer
 from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.utilities import (
     _parse_time_slice,
@@ -571,9 +571,8 @@ class ForwardPassStrategy:
         mask = np.zeros(len(self.lr_pad_slices))
         input_handler_kwargs = copy.deepcopy(self.input_handler_kwargs)
         input_handler_kwargs['features'] = 'all'
-        handler = Loader(
-            file_paths=self.file_paths,
-            **get_class_kwargs(Loader, input_handler_kwargs),
+        handler = Rasterizer(
+            **get_class_kwargs(Rasterizer, input_handler_kwargs)
         )
         if 'mask' in handler.data:
             logger.info(
