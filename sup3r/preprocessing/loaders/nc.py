@@ -68,8 +68,13 @@ class LoaderNC(BaseLoader):
     def get_coords(res):
         """Get coordinate dictionary to use in
         ``xr.Dataset().assign_coords()``."""
-        lats = res[Dimension.LATITUDE].data.squeeze().astype(np.float32)
-        lons = res[Dimension.LONGITUDE].data.squeeze().astype(np.float32)
+        lats = res[Dimension.LATITUDE].data.astype(np.float32)
+        lons = res[Dimension.LONGITUDE].data.astype(np.float32)
+
+        if lats.shape != (1, 1):
+            lats = lats.squeeze()
+        if lons.shape != (1, 1):
+            lons = lons.squeeze()
 
         # remove time dimension if there's a single time step
         if lats.ndim == 3:

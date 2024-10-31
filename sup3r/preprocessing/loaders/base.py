@@ -12,10 +12,7 @@ import xarray as xr
 
 from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.names import FEATURE_NAMES
-from sup3r.preprocessing.utilities import (
-    expand_paths,
-    log_args,
-)
+from sup3r.preprocessing.utilities import expand_paths, log_args, ordered_dims
 
 from .utilities import (
     lower_names,
@@ -78,6 +75,7 @@ class BaseLoader(Container, ABC):
         data = self._add_attrs(data)
         data = standardize_values(data)
         data = standardize_names(data, FEATURE_NAMES).astype(np.float32)
+        data = data.transpose(*ordered_dims(data.dims), ...)
         features = list(data.dims) if features == [] else features
         self.data = data[features] if features != 'all' else data
 

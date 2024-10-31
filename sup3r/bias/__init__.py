@@ -4,6 +4,7 @@ from .bias_calc import (
     LinearCorrection,
     MonthlyLinearCorrection,
     MonthlyScalarCorrection,
+    ScalarCorrection,
     SkillAssessment,
 )
 from .bias_calc_vortex import VortexMeanPrepper
@@ -23,6 +24,7 @@ __all__ = [
     'MonthlyScalarCorrection',
     'PresRat',
     'QuantileDeltaMappingCorrection',
+    'ScalarCorrection',
     'SkillAssessment',
     'VortexMeanPrepper',
     'global_linear_bc',

@@ -345,8 +345,10 @@ class Cacher(Container):
         return list(itertools.product(*slices))
 
     @staticmethod
-    def write_chunk(out_file, dset, chunk_slice, chunk_data):
+    def write_chunk(out_file, dset, chunk_slice, chunk_data, msg=None):
         """Add chunk to netcdf file."""
+        if msg is not None:
+            logger.debug(msg)
         with nc4.Dataset(out_file, 'a') as ds:
             var = ds.variables[dset]
             var[chunk_slice] = chunk_data
@@ -380,7 +382,7 @@ class Cacher(Container):
             msg = None if not verbose else msg
             chunk = data_var.data[chunk_slice]
             task = dask.delayed(cls.write_chunk)(
-                out_file, feature, chunk_slice, chunk
+                out_file, feature, chunk_slice, chunk, msg
             )
             tasks.append(task)
         if max_workers == 1:
