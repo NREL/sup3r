@@ -9,7 +9,7 @@ import numpy as np
 from rex import Resource
 
 import sup3r.bias.bias_transforms
-from sup3r.bias.bias_transforms import get_spatial_bc_factors, local_qdm_bc
+from sup3r.bias.bias_transforms import _get_spatial_bc_factors, local_qdm_bc
 from sup3r.preprocessing.utilities import (
     _parse_time_slice,
     get_date_range_kwargs,
@@ -56,7 +56,7 @@ def lin_bc(handler, bc_files, threshold=0.1):
                     and dset_adder.lower() in dsets
                 )
             if feature not in completed and check:
-                out = get_spatial_bc_factors(
+                out = _get_spatial_bc_factors(
                     lat_lon=handler.lat_lon,
                     feature_name=feature,
                     bias_fp=fp,

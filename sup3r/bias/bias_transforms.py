@@ -27,7 +27,7 @@ def _get_factors(target, shape, var_names, bias_fp, threshold=0.1):
     """Get bias correction factors from sup3r's standard resource
 
     This was stripped without any change from original
-    `get_spatial_bc_factors` to allow re-use in other `*_bc_factors`
+    `_get_spatial_bc_factors` to allow re-use in other `*_bc_factors`
     functions.
 
     Parameters
@@ -76,7 +76,7 @@ def _get_factors(target, shape, var_names, bias_fp, threshold=0.1):
     return out
 
 
-def get_spatial_bc_factors(lat_lon, feature_name, bias_fp, threshold=0.1):
+def _get_spatial_bc_factors(lat_lon, feature_name, bias_fp, threshold=0.1):
     """Get bc factors (scalar/adder) for the given feature for the given
     domain (specified by lat_lon).
 
@@ -114,7 +114,7 @@ def get_spatial_bc_factors(lat_lon, feature_name, bias_fp, threshold=0.1):
     )
 
 
-def get_spatial_bc_quantiles(
+def _get_spatial_bc_quantiles(
     lat_lon: Union[np.ndarray, da.core.Array],
     base_dset: str,
     feature_name: str,
@@ -200,7 +200,7 @@ def get_spatial_bc_quantiles(
     >>> lat_lon = np.array([
     ...              [39.649033, -105.46875 ],
     ...              [39.649033, -104.765625]])
-    >>> params = get_spatial_bc_quantiles(
+    >>> params = _get_spatial_bc_quantiles(
     ...             lat_lon, "ghi", "rsds", "./dist_params.hdf")
 
     """
@@ -297,7 +297,7 @@ def local_linear_bc(
         out = data * scalar + adder
     """
 
-    out = get_spatial_bc_factors(lat_lon, feature_name, bias_fp)
+    out = _get_spatial_bc_factors(lat_lon, feature_name, bias_fp)
     scalar, adder = out['scalar'], out['adder']
     # 3D bias correction factors have seasonal/monthly correction in last axis
     if len(scalar.shape) == 3 and len(adder.shape) == 3:
@@ -403,7 +403,7 @@ def monthly_local_linear_bc(
         out = data * scalar + adder
     """
     time_index = pd.date_range(**date_range_kwargs)
-    out = get_spatial_bc_factors(lat_lon, feature_name, bias_fp)
+    out = _get_spatial_bc_factors(lat_lon, feature_name, bias_fp)
     scalar, adder = out['scalar'], out['adder']
 
     assert len(scalar.shape) == 3, 'Monthly bias correct needs 3D scalars'
@@ -588,7 +588,7 @@ def local_qdm_bc(
         data.shape[2] == time_index.size
     ), 'Time should align with data 3rd dimension'
 
-    params = get_spatial_bc_quantiles(
+    params = _get_spatial_bc_quantiles(
         lat_lon=lat_lon,
         base_dset=base_dset,
         feature_name=feature_name,
@@ -657,7 +657,7 @@ def local_qdm_bc(
     return output
 
 
-def get_spatial_bc_presrat(
+def _get_spatial_bc_presrat(
     lat_lon: np.array,
     base_dset: str,
     feature_name: str,
@@ -766,7 +766,7 @@ def get_spatial_bc_presrat(
     >>> lat_lon = np.array([
     ...              [39.649033, -105.46875 ],
     ...              [39.649033, -104.765625]])
-    >>> params = get_spatial_bc_quantiles(
+    >>> params = _get_spatial_bc_quantiles(
     ...             lat_lon, "ghi", "rsds", "./dist_params.hdf")
 
     """
@@ -788,12 +788,11 @@ def get_spatial_bc_presrat(
     )
 
 
-def apply_presrat_bc(data, time_index, base_params, bias_params,
-                     bias_fut_params, bias_tau_fut, k_factor,
-                     time_window_center, dist='empirical', sampling='invlog',
-                     log_base=10, relative=True, no_trend=False,
-                     zero_rate_threshold=1.157e-7, out_range=None,
-                     max_workers=1):
+def _apply_presrat_bc(data, time_index, base_params, bias_params,
+                      bias_fut_params, bias_tau_fut, k_factor,
+                      time_window_center, dist='empirical', sampling='invlog',
+                      log_base=10, relative=True, no_trend=False,
+                      delta_denom_min=None, out_range=None, max_workers=1):
     """Run PresRat to bias correct data from input parameters and not from bias
     correction file on disk.
 
@@ -868,13 +867,13 @@ def apply_presrat_bc(data, time_index, base_params, bias_params,
         :class:`rex.utilities.bc_utils.QuantileDeltaMapping`. Note that this
         assumes that params_mh is the data distribution representative for the
         target data.
-    zero_rate_threshold : float, default=1.157e-7
-        Threshold value used to determine the zero rate in the observed
-        historical dataset and the minimum value in the denominator in relative
-        QDM. For instance, 0.01 means that anything less than that will be
-        considered negligible, hence equal to zero. Dai 2006 defined this as
-        1mm/day. Pierce 2015 used 0.01mm/day. We recommend 0.01mm/day
-        (1.157e-7 kg/m2/s).
+    delta_denom_min : float | None
+        Option to specify a minimum value for the denominator term in the
+        calculation of a relative delta value. This prevents division by a
+        very small number making delta blow up and resulting in very large
+        output bias corrected values. See equation 4 of Cannon et al., 2015
+        for the delta term. If this is not set, the ``zero_rate_threshold``
+        calculated as part of the presrat bias calculation will be used
     out_range : None | tuple
         Option to set floor/ceiling values on the output data.
     max_workers : int | None
@@ -904,7 +903,7 @@ def apply_presrat_bc(data, time_index, base_params, bias_params,
                                    relative=relative,
                                    sampling=sampling,
                                    log_base=log_base,
-                                   delta_denom_min=zero_rate_threshold,
+                                   delta_denom_min=delta_denom_min,
                                    )
 
         # input 3D shape (spatial, spatial, temporal)
@@ -941,6 +940,8 @@ def local_presrat_bc(data: np.ndarray,
                      threshold=0.1,
                      relative=True,
                      no_trend=False,
+                     delta_denom_min=None,
+                     k_range=None,
                      out_range=None,
                      max_workers=1,
                      ):
@@ -996,6 +997,15 @@ def local_presrat_bc(data: np.ndarray,
         :class:`rex.utilities.bc_utils.QuantileDeltaMapping`. Note that this
         assumes that params_mh is the data distribution representative for the
         target data.
+    delta_denom_min : float | None
+        Option to specify a minimum value for the denominator term in the
+        calculation of a relative delta value. This prevents division by a
+        very small number making delta blow up and resulting in very large
+        output bias corrected values. See equation 4 of Cannon et al., 2015
+        for the delta term. If this is not set, the ``zero_rate_threshold``
+        calculated as part of the presrat bias calculation will be used
+    k_range : tuple | None
+        Option to set a (min, max) value for the k-factor multiplier
     out_range : None | tuple
         Option to set floor/ceiling values on the output data.
     max_workers : int | None
@@ -1007,7 +1017,7 @@ def local_presrat_bc(data: np.ndarray,
         data.shape[-1] == time_index.size
     ), 'The last dimension of data should be time'
 
-    params = get_spatial_bc_presrat(
+    params = _get_spatial_bc_presrat(
         lat_lon, base_dset, feature_name, bias_fp, threshold
     )
     cfg = params['cfg']
@@ -1022,6 +1032,11 @@ def local_presrat_bc(data: np.ndarray,
     sampling = cfg['sampling']
     log_base = cfg['log_base']
     zero_rate_threshold = cfg['zero_rate_threshold']
+    delta_denom_min = delta_denom_min or zero_rate_threshold
+
+    if k_range is not None:
+        k_factor = np.maximum(k_factor, np.min(k_range))
+        k_factor = np.minimum(k_factor, np.max(k_range))
 
     if lr_padded_slice is not None:
         spatial_slice = (lr_padded_slice[0], lr_padded_slice[1])
@@ -1029,14 +1044,14 @@ def local_presrat_bc(data: np.ndarray,
         bias_params = bias_params[spatial_slice]
         bias_fut_params = bias_fut_params[spatial_slice]
 
-    data_unbiased = apply_presrat_bc(data, time_index, base_params,
-                                     bias_params, bias_fut_params,
-                                     bias_tau_fut, k_factor,
-                                     time_window_center, dist=dist,
-                                     sampling=sampling, log_base=log_base,
-                                     relative=relative, no_trend=no_trend,
-                                     zero_rate_threshold=zero_rate_threshold,
-                                     out_range=out_range,
-                                     max_workers=max_workers)
+    data_unbiased = _apply_presrat_bc(data, time_index, base_params,
+                                      bias_params, bias_fut_params,
+                                      bias_tau_fut, k_factor,
+                                      time_window_center, dist=dist,
+                                      sampling=sampling, log_base=log_base,
+                                      relative=relative, no_trend=no_trend,
+                                      delta_denom_min=delta_denom_min,
+                                      out_range=out_range,
+                                      max_workers=max_workers)
 
     return data_unbiased
