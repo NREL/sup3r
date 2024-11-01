@@ -208,7 +208,10 @@ class Sup3rX:
     def values(self):
         """Return numpy values in standard dimension order ``(lats, lons, time,
         ..., features)``"""
-        return np.asarray(self.as_array())
+        out = self.as_array()
+        if not self.loaded:
+            return np.asarray(out)
+        return out
 
     def to_dataarray(self) -> Union[np.ndarray, da.core.Array]:
         """Return xr.DataArray for the contained xr.Dataset."""
@@ -303,7 +306,9 @@ class Sup3rX:
     def ordered(self, data):
         """Return data with dimensions in standard order ``(lats, lons, time,
         ..., features)``"""
-        return data.transpose(*ordered_dims(data.dims), ...)
+        if data.dims != ordered_dims(data.dims):
+            return data.transpose(*ordered_dims(data.dims), ...)
+        return data
 
     def sample(self, idx):
         """Get sample from ``self._ds``. The idx should be a tuple of slices

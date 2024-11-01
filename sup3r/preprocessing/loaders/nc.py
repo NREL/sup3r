@@ -71,6 +71,11 @@ class LoaderNC(BaseLoader):
         lats = res[Dimension.LATITUDE].data.squeeze().astype(np.float32)
         lons = res[Dimension.LONGITUDE].data.squeeze().astype(np.float32)
 
+        if lats.ndim == 3:
+            lats = lats.squeeze()
+        if lons.ndim == 3:
+            lons = lons.squeeze()
+
         if len(lats.shape) == 1:
             lons, lats = da.meshgrid(lons, lats)
 
