@@ -12,16 +12,22 @@ from sup3r.utilities.pytest.helpers import make_fake_nc_file
 
 
 @pytest.mark.parametrize(
-    ['shape', 'target', 'height'],
+    ['shape', 'target', 'height', 'chunks'],
     [
-        ((10, 10), (37.25, -107), 20),
-        ((10, 10), (37.25, -107), 2),
-        ((10, 10), (37.25, -107), 1000),
+        ((10, 10), (37.25, -107), 20, 'auto'),
+        ((10, 10), (37.25, -107), 2, 'auto'),
+        ((10, 10), (37.25, -107), 1000, 'auto'),
+        ((10, 10), (37.25, -107), 0, 'auto'),
+        ((10, 10), (37.25, -107), 20, None),
+        ((10, 10), (37.25, -107), 2, None),
+        ((10, 10), (37.25, -107), 1000, None),
+        ((10, 10), (37.25, -107), 0, None),
     ],
 )
-def test_plevel_height_interp_nc(shape, target, height):
+def test_plevel_height_interp_nc(shape, target, height, chunks):
     """Test that variables on pressure levels can be interpolated and
-    extrapolated with height correctly"""
+    extrapolated with height correctly. Also check that chunks=None works with
+    height interpolation"""
 
     with TemporaryDirectory() as td:
         wind_file = os.path.join(td, 'wind.nc')
@@ -33,8 +39,11 @@ def test_plevel_height_interp_nc(shape, target, height):
 
         derive_features = [f'U_{height}m']
         no_transform = Rasterizer(
-            [wind_file, level_file], target=target, shape=shape
+            [wind_file, level_file], target=target, shape=shape, chunks=chunks
         )
+
+        if chunks is None:
+            assert no_transform.loaded
 
         # warning about upper case features
         with pytest.warns():

@@ -81,7 +81,8 @@ class DataHandler(Deriver):
             ``dask.array.from_array()`` or ``xr.Dataset().chunk()``. Will be
             converted to a tuple when used in ``from_array()``. These are the
             methods for H5 and NETCDF data, respectively. This argument can
-            be "auto" in additional to a dictionary.
+            be "auto" or None in addition to a dictionary. None will not do
+            any chunking and load data into memory as ``np.array``
         target : tuple
             (lat, lon) lower left corner of raster. Either need target+shape
             or raster_file.
