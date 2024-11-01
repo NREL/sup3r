@@ -92,12 +92,12 @@ def parse_feature(feature):
 
         def __init__(self):
             height = re.findall(r'_\d+m', feature)
-            pressure = re.findall(r'_\d+pa', feature)
+            press = re.findall(r'_\d+pa', feature)
             self.basename = (
                 feature.replace(height[0], '')
                 if height
-                else feature.replace(pressure[0], '')
-                if pressure
+                else feature.replace(press[0], '')
+                if press
                 else feature.split('_(.*)')[0]
                 if '_(.*)' in feature
                 else feature
@@ -106,7 +106,7 @@ def parse_feature(feature):
                 int(round(float(height[0][1:-1]))) if height else None
             )
             self.pressure = (
-                int(round(float(pressure[0][1:-2]))) if pressure else None
+                int(round(float(press[0][1:-2]))) if press else None
             )
 
         def map_wildcard(self, pattern):

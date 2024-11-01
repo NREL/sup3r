@@ -71,11 +71,6 @@ class LoaderNC(BaseLoader):
         lats = res[Dimension.LATITUDE].data.astype(np.float32)
         lons = res[Dimension.LONGITUDE].data.astype(np.float32)
 
-        if lats.shape != (1, 1):
-            lats = lats.squeeze()
-        if lons.shape != (1, 1):
-            lons = lons.squeeze()
-
         # remove time dimension if there's a single time step
         if lats.ndim == 3:
             lats = lats.squeeze()

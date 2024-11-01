@@ -366,12 +366,6 @@ class ScalarCorrection(LinearCorrection):
         return out
 
 
-class MonthlyScalarCorrection(ScalarCorrection):
-    """Calculate linear correction *scalar factors for each month"""
-
-    NT = 12
-
-
 class MonthlyLinearCorrection(LinearCorrection):
     """Calculate linear correction *scalar +adder factors to bias correct data
 
@@ -432,6 +426,12 @@ class MonthlyLinearCorrection(LinearCorrection):
                     out[k][month - 1] = v
 
         return out
+
+
+class MonthlyScalarCorrection(MonthlyLinearCorrection, ScalarCorrection):
+    """Calculate linear correction *scalar factors for each month"""
+
+    NT = 12
 
 
 class SkillAssessment(MonthlyLinearCorrection):
