@@ -1038,6 +1038,9 @@ def local_presrat_bc(data: np.ndarray,
         k_factor = np.maximum(k_factor, np.min(k_range))
         k_factor = np.minimum(k_factor, np.max(k_range))
 
+    logger.debug(f'Presrat K Factor has shape {k_factor.shape} and ranges '
+                 f'from {k_factor.min()} to {k_factor.max()}')
+
     if lr_padded_slice is not None:
         spatial_slice = (lr_padded_slice[0], lr_padded_slice[1])
         base_params = base_params[spatial_slice]
