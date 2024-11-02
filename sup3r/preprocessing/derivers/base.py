@@ -36,7 +36,7 @@ class BaseDeriver(Container):
         data: Union[Sup3rX, Sup3rDataset],
         features,
         FeatureRegistry=None,
-        interp_method='linear',
+        interp_kwargs=None,
     ):
         """
         Parameters
@@ -54,15 +54,18 @@ class BaseDeriver(Container):
             lookups. When the :class:`Deriver` is asked to derive a feature
             that is not found in the :class:`Rasterizer` data it will look for
             a method to derive the feature in the registry.
-        interp_method : str
-            Interpolation method to use for height interpolation. e.g. Deriving
-            u_20m from u_10m and u_100m. Options are "linear" and "log"
-        """
+        interp_kwargs : dict | None
+            Dictionary of kwargs for level interpolation. Can include "method"
+            and "run_level_check" keys. Method specifies how to perform height
+            interpolation. e.g. Deriving u_20m from u_10m and u_100m. Options
+            are "linear" and "log". See
+            :py:meth:`sup3r.preprocessing.derivers.Deriver.do_level_interpolation`
+        """  # pylint: disable=line-too-long
         if FeatureRegistry is not None:
             self.FEATURE_REGISTRY = FeatureRegistry
 
         super().__init__(data=data)
-        self.interp_method = interp_method
+        self.interp_kwargs = interp_kwargs
         features = parse_to_list(data=data, features=features)
         new_features = [f for f in features if f not in self.data]
         for f in new_features:
@@ -228,7 +231,7 @@ class BaseDeriver(Container):
                     'Attempting level interpolation for "%s"', feature
                 )
                 return self.do_level_interpolation(
-                    feature, interp_method=self.interp_method
+                    feature, interp_kwargs=self.interp_kwargs
                 )
 
             msg = (
@@ -278,7 +281,7 @@ class BaseDeriver(Container):
         lev_array = None
 
         if fstruct.basename in self.data:
-            var_array = self.data[fstruct.basename][...]
+            var_array = self.data[fstruct.basename].data.astype(np.float32)
 
         if fstruct.height is not None and var_array is not None:
             msg = (
@@ -298,7 +301,7 @@ class BaseDeriver(Container):
                 lev_array = lev_array[..., 0] - lev_array[..., 1]
             else:
                 lev_array = da.broadcast_to(
-                    self.data[Dimension.HEIGHT][...].astype(np.float32),
+                    self.data[Dimension.HEIGHT].astype(np.float32),
                     var_array.shape,
                 )
         elif var_array is not None:
@@ -309,13 +312,13 @@ class BaseDeriver(Container):
             )
             assert Dimension.PRESSURE_LEVEL in self.data, msg
             lev_array = da.broadcast_to(
-                self.data[Dimension.PRESSURE_LEVEL][...].astype(np.float32),
+                self.data[Dimension.PRESSURE_LEVEL].astype(np.float32),
                 var_array.shape,
             )
         return var_array, lev_array
 
     def do_level_interpolation(
-        self, feature, interp_method='linear'
+        self, feature, interp_kwargs=None
     ) -> xr.DataArray:
         """Interpolate over height or pressure to derive the given feature."""
         ml_var, ml_levs = self.get_multi_level_data(feature)
@@ -351,7 +354,7 @@ class BaseDeriver(Container):
             lev_array=lev_array,
             var_array=var_array,
             level=np.float32(level),
-            interp_method=interp_method,
+            interp_kwargs=interp_kwargs,
         )
         return xr.DataArray(
             data=_rechunk_if_dask(out),
@@ -373,7 +376,7 @@ class Deriver(BaseDeriver):
         hr_spatial_coarsen=1,
         nan_method_kwargs=None,
         FeatureRegistry=None,
-        interp_method='linear',
+        interp_kwargs=None,
     ):
         """
         Parameters
@@ -398,16 +401,19 @@ class Deriver(BaseDeriver):
             will be passed to :meth:`Sup3rX.interpolate_na`.
         FeatureRegistry : dict
             Dictionary of :class:`DerivedFeature` objects used for derivations
-        interp_method : str
-            Interpolation method to use for height interpolation. e.g. Deriving
-            u_20m from u_10m and u_100m. Options are "linear" and "log"
-        """
+        interp_kwargs : dict | None
+            Dictionary of kwargs for level interpolation. Can include "method"
+            and "run_level_check" keys. Method specifies how to perform height
+            interpolation. e.g. Deriving u_20m from u_10m and u_100m. Options
+            are "linear" and "log". See
+            :py:meth:`sup3r.preprocessing.derivers.Deriver.do_level_interpolation`
+        """  # pylint: disable=line-too-long
 
         super().__init__(
             data=data,
             features=features,
             FeatureRegistry=FeatureRegistry,
-            interp_method=interp_method,
+            interp_kwargs=interp_kwargs,
         )
 
         if time_roll != 0:

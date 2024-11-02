@@ -59,7 +59,7 @@ class DataHandler(Deriver):
         nan_method_kwargs: Optional[dict] = None,
         BaseLoader: Optional[Callable] = None,
         FeatureRegistry: Optional[dict] = None,
-        interp_method: str = 'linear',
+        interp_kwargs: Optional[dict] = None,
         cache_kwargs: Optional[dict] = None,
         **kwargs,
     ):
@@ -120,9 +120,11 @@ class DataHandler(Deriver):
             Dictionary of
             :class:`~sup3r.preprocessing.derivers.methods.DerivedFeature`
             objects used for derivations
-        interp_method : str
-            Interpolation method to use for height interpolation. e.g. Deriving
-            u_20m from u_10m and u_100m. Options are "linear" and "log". See
+        interp_kwargs : dict | None
+            Dictionary of kwargs for level interpolation. Can include "method"
+            and "run_level_check" keys. Method specifies how to perform height
+            interpolation. e.g. Deriving u_20m from u_10m and u_100m. Options
+            are "linear" and "log". See
             :py:meth:`sup3r.preprocessing.derivers.Deriver.do_level_interpolation`
         cache_kwargs : dict | None
             Dictionary with kwargs for caching wrangled data. This should at
@@ -183,7 +185,7 @@ class DataHandler(Deriver):
                 hr_spatial_coarsen=hr_spatial_coarsen,
                 nan_method_kwargs=nan_method_kwargs,
                 FeatureRegistry=FeatureRegistry,
-                interp_method=interp_method,
+                interp_kwargs=interp_kwargs,
             )
 
         if self.cache is not None:

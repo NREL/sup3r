@@ -64,7 +64,7 @@ def test_h5_solar_sig():
         'time_roll',
         'hr_spatial_coarsen',
         'nan_method_kwargs',
-        'interp_method',
+        'interp_kwargs',
         'cache_kwargs',
     ]
     sig = signature(DataHandlerH5SolarCC)
@@ -113,7 +113,7 @@ def test_nc_for_cc_sig():
         'res_kwargs',
         'cache_kwargs',
         'chunks',
-        'interp_method',
+        'interp_kwargs',
         'nan_method_kwargs',
     ]
     sig = signature(DataHandlerNCforCC)
@@ -140,7 +140,7 @@ def test_dh_signature():
         'BaseLoader',
         'FeatureRegistry',
         'chunks',
-        'interp_method',
+        'interp_kwargs',
         'nan_method_kwargs'
     ]
     sig = signature(DataHandler)

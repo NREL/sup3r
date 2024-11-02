@@ -36,7 +36,9 @@ def test_log_interp():
         axis=-1,
     )
     u = da.stack([lower, upper], axis=-1)
-    out = Interpolator.interp_to_level(hgt_array, u, [40], interp_method='log')
+    out = Interpolator.interp_to_level(
+        hgt_array, u, [40], interp_kwargs={'method': 'log'}
+    )
 
     def between_check(first, mid, second):
         return (first <= mid <= second) or (second <= mid <= first)

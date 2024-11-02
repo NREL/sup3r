@@ -7,8 +7,6 @@ from warnings import warn
 import dask.array as da
 import numpy as np
 
-from sup3r.utilities.utilities import RANDOM_GENERATOR
-
 logger = logging.getLogger(__name__)
 
 
@@ -47,34 +45,29 @@ class Interpolator:
             to the one requested.
             (lat, lon, time, level)
         """
-        over_mask = lev_array > level
-        under_levs = (
-            da.ma.masked_array(lev_array, over_mask)
-            if ~over_mask.sum() >= lev_array[..., 0].size
-            else lev_array
-        )
-        argmin1 = da.argmin(da.abs(under_levs - level), axis=-1, keepdims=True)
+        argmin1 = da.argmin(da.abs(lev_array - level), axis=-1, keepdims=True)
         lev_indices = da.broadcast_to(
             da.arange(lev_array.shape[-1]), lev_array.shape
         )
         mask1 = lev_indices == argmin1
 
-        over_levs = (
-            da.ma.masked_array(lev_array, ~over_mask)
-            if over_mask.sum() >= lev_array[..., 0].size
-            else da.ma.masked_array(lev_array, mask1)
-        )
-        argmin2 = da.argmin(da.abs(over_levs - level), axis=-1, keepdims=True)
+        other_levs = da.ma.masked_array(lev_array, mask1)
+        argmin2 = da.argmin(da.abs(other_levs - level), axis=-1, keepdims=True)
         mask2 = lev_indices == argmin2
         return mask1, mask2
 
     @classmethod
     def _lin_interp(cls, lev_samps, var_samps, level):
         """Linearly interpolate between levels."""
-        diff = lev_samps[1] - lev_samps[0]
-        alpha = (level - lev_samps[0]) / diff
+        diff = da.map_blocks(lambda x, y: x - y, lev_samps[1], lev_samps[0])
+        alpha = da.map_blocks(lambda x, d: (level - x) / d, lev_samps[0], diff)
         alpha = da.where(diff == 0, 0, alpha)
-        return var_samps[0] * (1 - alpha) + var_samps[1] * alpha
+        return da.map_blocks(
+            lambda x, y, a: x * (1 - a) + y * a,
+            var_samps[0],
+            var_samps[1],
+            alpha,
+        )
 
     @classmethod
     def _log_interp(cls, lev_samps, var_samps, level):
@@ -102,7 +95,7 @@ class Interpolator:
         lev_array: Union[np.ndarray, da.core.Array],
         var_array: Union[np.ndarray, da.core.Array],
         level,
-        interp_method='linear',
+        interp_kwargs=None,
     ):
         """Interpolate var_array to the given level.
 
@@ -121,14 +114,21 @@ class Interpolator:
         level : float
             level or levels to interpolate to (e.g. final desired hub height
             above surface elevation)
+        interp_kwargs: dict | None
+            Dictionary of kwargs for level interpolation. Can include "method"
+            and "run_level_check" keys
 
         Returns
         -------
         out : Union[np.ndarray, da.core.Array]
-            Interpolated var_array
-            (lat, lon, time)
+            Interpolated var_array (lat, lon, time)
         """
-        cls._check_lev_array(lev_array, levels=[level])
+        interp_kwargs = interp_kwargs or {}
+        interp_method = interp_kwargs.get('method', 'linear')
+        run_level_check = interp_kwargs.get('run_level_check', False)
+
+        if run_level_check:
+            cls._check_lev_array(lev_array, levels=[level])
         levs = da.ma.masked_array(lev_array, da.isnan(lev_array))
         mask1, mask2 = cls.get_level_masks(levs, level)
         lev1 = da.where(mask1, lev_array, np.nan)
@@ -148,7 +148,6 @@ class Interpolator:
             out = cls._lin_interp(
                 lev_samps=[lev1, lev2], var_samps=[var1, var2], level=level
             )
-
         return out
 
     @classmethod
@@ -214,60 +213,3 @@ class Interpolator:
             )
             logger.warning(msg)
             warn(msg)
-
-    @classmethod
-    def prep_level_interp(cls, var_array, lev_array, levels):
-        """Prepare var_array interpolation. Check level ranges and add noise to
-        mask locations.
-
-        Parameters
-        ----------
-        var_array : Union[np.ndarray, da.core.Array]
-            Array of variable data, for example u-wind in a 4D array of shape
-            (time, vertical, lat, lon)
-        lev_array : Union[np.ndarray, da.core.Array]
-            Array of height or pressure values corresponding to the wrf source
-            data in the same shape as var_array. If this is height and the
-            requested levels are hub heights above surface, lev_array should be
-            the geopotential height corresponding to every var_array index
-            relative to the surface elevation (subtract the elevation at the
-            surface from the geopotential height)
-        levels : float | list
-            level or levels to interpolate to (e.g. final desired hub heights
-            above surface elevation)
-
-        Returns
-        -------
-        lev_array : Union[np.ndarray, da.core.Array]
-            Array of levels with noise added to mask locations.
-        levels : list
-            List of levels to interpolate to.
-        """
-
-        msg = (
-            'Input arrays must be the same shape.'
-            f'\nvar_array: {var_array.shape}'
-            f'\nh_array: {lev_array.shape}'
-        )
-        assert var_array.shape == lev_array.shape, msg
-
-        levels = (
-            [levels]
-            if isinstance(levels, (int, float, np.float32))
-            else levels
-        )
-
-        cls._check_lev_array(lev_array, levels)
-
-        # if multiple vertical levels have identical heights at the desired
-        # interpolation level, interpolation to that value will fail because
-        # linear slope will be NaN. This is most common if you have multiple
-        # pressure levels at zero height at the surface in the case that the
-        # data didnt provide underground data.
-        for level in levels:
-            mask = lev_array == level
-            random = RANDOM_GENERATOR.uniform(-1e-5, 0, size=mask.sum())
-            lev_array = da.ma.masked_array(lev_array, mask)
-            lev_array = da.ma.filled(lev_array, random)
-
-        return lev_array, levels
