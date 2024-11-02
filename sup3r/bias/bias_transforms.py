@@ -471,6 +471,7 @@ def local_qdm_bc(
     no_trend=False,
     delta_denom_min=None,
     delta_denom_zero=None,
+    delta_range=None,
     out_range=None,
     max_workers=1,
 ):
@@ -536,6 +537,11 @@ def local_qdm_bc(
         division by a very small number making delta blow up and resulting
         in very large output bias corrected values. See equation 4 of
         Cannon et al., 2015 for the delta term.
+    delta_range : tuple | None
+        Option to set a (min, max) on the delta term in QDM. This can help
+        prevent QDM from making non-realistic increases/decreases in
+        otherwise physical values. See equation 4 of Cannon et al., 2015 for
+        the delta term.
     out_range : None | tuple
         Option to set floor/ceiling values on the output data.
     max_workers: int | None
@@ -635,6 +641,7 @@ def local_qdm_bc(
             log_base=cfg['log_base'],
             delta_denom_min=delta_denom_min,
             delta_denom_zero=delta_denom_zero,
+            delta_range=delta_range,
         )
 
         subset_idx = nearest_window_idx == window_idx
@@ -792,7 +799,8 @@ def _apply_presrat_bc(data, time_index, base_params, bias_params,
                       bias_fut_params, bias_tau_fut, k_factor,
                       time_window_center, dist='empirical', sampling='invlog',
                       log_base=10, relative=True, no_trend=False,
-                      delta_denom_min=None, out_range=None, max_workers=1):
+                      delta_denom_min=None, delta_range=None, out_range=None,
+                      max_workers=1):
     """Run PresRat to bias correct data from input parameters and not from bias
     correction file on disk.
 
@@ -874,6 +882,11 @@ def _apply_presrat_bc(data, time_index, base_params, bias_params,
         output bias corrected values. See equation 4 of Cannon et al., 2015
         for the delta term. If this is not set, the ``zero_rate_threshold``
         calculated as part of the presrat bias calculation will be used
+    delta_range : tuple | None
+        Option to set a (min, max) on the delta term in QDM. This can help
+        prevent QDM from making non-realistic increases/decreases in
+        otherwise physical values. See equation 4 of Cannon et al., 2015 for
+        the delta term.
     out_range : None | tuple
         Option to set floor/ceiling values on the output data.
     max_workers : int | None
@@ -904,6 +917,7 @@ def _apply_presrat_bc(data, time_index, base_params, bias_params,
                                    sampling=sampling,
                                    log_base=log_base,
                                    delta_denom_min=delta_denom_min,
+                                   delta_range=delta_range,
                                    )
 
         # input 3D shape (spatial, spatial, temporal)
@@ -941,6 +955,7 @@ def local_presrat_bc(data: np.ndarray,
                      relative=True,
                      no_trend=False,
                      delta_denom_min=None,
+                     delta_range=None,
                      k_range=None,
                      out_range=None,
                      max_workers=1,
@@ -1004,6 +1019,11 @@ def local_presrat_bc(data: np.ndarray,
         output bias corrected values. See equation 4 of Cannon et al., 2015
         for the delta term. If this is not set, the ``zero_rate_threshold``
         calculated as part of the presrat bias calculation will be used
+    delta_range : tuple | None
+        Option to set a (min, max) on the delta term in QDM. This can help
+        prevent QDM from making non-realistic increases/decreases in
+        otherwise physical values. See equation 4 of Cannon et al., 2015 for
+        the delta term.
     k_range : tuple | None
         Option to set a (min, max) value for the k-factor multiplier
     out_range : None | tuple
@@ -1054,6 +1074,7 @@ def local_presrat_bc(data: np.ndarray,
                                       sampling=sampling, log_base=log_base,
                                       relative=relative, no_trend=no_trend,
                                       delta_denom_min=delta_denom_min,
+                                      delta_range=delta_range,
                                       out_range=out_range,
                                       max_workers=max_workers)
 
