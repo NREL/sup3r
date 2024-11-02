@@ -60,8 +60,7 @@ class Interpolator:
     def _lin_interp(cls, lev_samps, var_samps, level):
         """Linearly interpolate between levels."""
         diff = lev_samps[1] - lev_samps[0]
-        alpha = (level - lev_samps[0]) / diff
-        alpha = da.where(diff == 0, 0, alpha)
+        alpha = da.where(diff == 0, 0, (level - lev_samps[0]) / diff)
         return var_samps[0] * (1 - alpha) + var_samps[1] * alpha
 
     @classmethod
