@@ -102,8 +102,12 @@ def parse_feature(feature):
                 if '_(.*)' in feature
                 else feature
             )
-            self.height = int(height[0][1:-1]) if height else None
-            self.pressure = int(pressure[0][1:-2]) if pressure else None
+            self.height = (
+                int(round(float(height[0][1:-1]))) if height else None
+            )
+            self.pressure = (
+                int(round(float(pressure[0][1:-2]))) if pressure else None
+            )
 
         def map_wildcard(self, pattern):
             """Return given pattern with wildcard replaced with height if
