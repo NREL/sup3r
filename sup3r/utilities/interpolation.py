@@ -59,9 +59,22 @@ class Interpolator:
     @classmethod
     def _lin_interp(cls, lev_samps, var_samps, level):
         """Linearly interpolate between levels."""
-        diff = lev_samps[1] - lev_samps[0]
-        alpha = da.where(diff == 0, 0, (level - lev_samps[0]) / diff)
-        return var_samps[0] * (1 - alpha) + var_samps[1] * alpha
+        diff = da.map_blocks(lambda x, y: x - y, lev_samps[1], lev_samps[0])
+        alpha = da.where(
+            diff == 0,
+            0,
+            da.map_blocks(lambda x, y: x / y, (level - lev_samps[0]), diff),
+        )
+        return da.blockwise(
+            lambda x, y, a: x * (1 - a) + y * a,
+            'ijk',
+            var_samps[0],
+            'ijk',
+            var_samps[1],
+            'ijk',
+            alpha,
+            'ijk',
+        )
 
     @classmethod
     def _log_interp(cls, lev_samps, var_samps, level):
