@@ -116,9 +116,9 @@ def parse_feature(feature):
                 return pattern
             return (
                 f"{pattern.split('_(.*)')[0]}_{self.height}m"
-                if self.height
+                if self.height is not None
                 else f"{pattern.split('_(.*)')[0]}_{self.pressure}pa"
-                if self.pressure
+                if self.pressure is not None
                 else f"{pattern.split('_(.*)')[0]}"
             )
 
