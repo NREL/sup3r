@@ -88,11 +88,12 @@ class Rasterizer(BaseRasterizer):
         """
         self.raster_file = raster_file
         self.max_delta = max_delta
+        preload = chunks is None
         self.loader = Loader(
             file_paths,
             features=features,
             res_kwargs=res_kwargs,
-            chunks=chunks,
+            chunks='auto' if preload else chunks,
             BaseLoader=BaseLoader,
         )
         super().__init__(
@@ -107,6 +108,9 @@ class Rasterizer(BaseRasterizer):
             self.raster_file
         ):
             self.save_raster_index()
+
+        if preload:
+            self.data.compute()
 
     def rasterize_data(self):
         """Get rasterized data."""
