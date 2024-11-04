@@ -24,15 +24,34 @@ def test_cacher_attrs():
     with tempfile.TemporaryDirectory() as td:
         nc = make_fake_dset(shape=(10, 10, 10), features=['windspeed_100m'])
         nc['windspeed_100m'].attrs = {'attrs': 'test'}
-
+        other_attrs = {
+            'GRIB_centre': 'ecmf',
+            'Description': 'European Centre for Medium-Range Weather...',
+            'GRIB_subCentre': 0,
+            'Conventions': 'CF-1.7',
+            'date_modified': '2024-10-20T22:02:04.598215',
+            'global_attrs': [],
+        }
+        nc.attrs.update(other_attrs)
+        tmp_file = td + '/test.nc'
+        nc.to_netcdf(tmp_file)
         cache_pattern = os.path.join(td, 'cached_{feature}.nc')
-        Cacher(
-            data=nc,
-            cache_kwargs={'cache_pattern': cache_pattern, 'max_workers': 1},
+        DataHandler(
+            tmp_file,
+            features=['windspeed_100m'],
+            cache_kwargs={
+                'cache_pattern': cache_pattern,
+                'max_workers': 1,
+                'attrs': {'windspeed_100m': {'units': 'm/s'}},
+            },
         )
 
         out = Loader(cache_pattern.format(feature='windspeed_100m'))
-        assert out.data['windspeed_100m'].attrs == {'attrs': 'test'}
+        assert out.data['windspeed_100m'].attrs == {
+            'attrs': 'test',
+            'units': 'm/s',
+        }
+        assert out.attrs == {**other_attrs, 'source_files': tmp_file}
 
 
 @pytest.mark.parametrize(

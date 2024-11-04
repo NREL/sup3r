@@ -76,6 +76,8 @@ def safe_cast(o):
         return int(o)
     if isinstance(o, (tuple, np.ndarray)):
         return list(o)
+    if isinstance(o, (str, list)):
+        return o
     return str(o)
 
 

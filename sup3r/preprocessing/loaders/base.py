@@ -12,7 +12,11 @@ import xarray as xr
 
 from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.names import FEATURE_NAMES
-from sup3r.preprocessing.utilities import expand_paths, log_args
+from sup3r.preprocessing.utilities import (
+    expand_paths,
+    log_args,
+)
+from sup3r.utilities.utilities import safe_cast
 
 from .utilities import (
     lower_names,
@@ -99,13 +103,13 @@ class BaseLoader(Container, ABC):
 
     def _add_attrs(self, data):
         """Add meta data to dataset."""
-        attrs = {
-            'source_files': str(self.file_paths),
-            'date_modified': dt.utcnow().isoformat(),
-        }
-        attrs['global_attrs'] = getattr(self.res, 'global_attrs', ())
+        attrs = {'source_files': self.file_paths}
+        attrs['global_attrs'] = getattr(self.res, 'global_attrs', [])
         attrs.update(getattr(self.res, 'attrs', {}))
-        data.attrs.update(attrs)
+        attrs['date_modified'] = attrs.get(
+            'date_modified', dt.utcnow().isoformat()
+        )
+        data.attrs.update({k: safe_cast(v) for k, v in attrs.items()})
         return data
 
     def __enter__(self):

@@ -4,7 +4,7 @@ Note
 ----
 To use this you need to have ``cdsapi`` package installed and a ``~/.cdsapirc``
 file with a url and api key. Follow the instructions here:
-https://cds.climate.copernicus.eu/api-how-to
+https://cds.climate.copernicus.eu/how-to-api
 """
 
 import logging
@@ -224,7 +224,7 @@ class EraDownloader:
         msg = (
             'To download ERA5 data you need to have a ~/.cdsapirc file '
             'with a valid url and api key. Follow the instructions here: '
-            'https://cds.climate.copernicus.eu/api-how-to'
+            'https://cds.climate.copernicus.eu/how-to-api'
         )
         req_file = os.path.join(os.path.expanduser('~'), '.cdsapirc')
         assert os.path.exists(req_file), msg
