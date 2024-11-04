@@ -30,7 +30,7 @@ def test_cacher_attrs():
             'GRIB_subCentre': 0,
             'Conventions': 'CF-1.7',
             'date_modified': '2024-10-20T22:02:04.598215',
-            'global_attrs': [],
+            'global_attrs': '',
         }
         nc.attrs.update(other_attrs)
         tmp_file = td + '/test.nc'

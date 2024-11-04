@@ -513,7 +513,7 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         return copy.deepcopy(self.out)
 
     def write_outputs(self, fp_out: str,
-                      out: dict = None,
+                      out: Optional[dict] = None,
                       extra_attrs: Optional[dict] = None):
         """Write outputs to an .h5 file.
 

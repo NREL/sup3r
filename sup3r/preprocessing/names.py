@@ -67,6 +67,16 @@ class Dimension(str, Enum):
         return (cls.SOUTH_NORTH, cls.WEST_EAST, cls.TIME, cls.HEIGHT)
 
     @classmethod
+    def coords_4d_pres(cls):
+        """Return ordered tuple for 4d coordinates, with a pressure level."""
+        return (cls.LATITUDE, cls.LONGITUDE, cls.TIME, cls.PRESSURE_LEVEL)
+
+    @classmethod
+    def coords_4d(cls):
+        """Return ordered tuple for 4d coordinates, with a height level."""
+        return (cls.LATITUDE, cls.LONGITUDE, cls.TIME, cls.HEIGHT)
+
+    @classmethod
     def dims_4d_pres(cls):
         """Return ordered tuple for 4d spatiotemporal dimensions with vertical
         pressure levels"""

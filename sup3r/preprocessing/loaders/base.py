@@ -16,7 +16,6 @@ from sup3r.preprocessing.utilities import (
     expand_paths,
     log_args,
 )
-from sup3r.utilities.utilities import safe_cast
 
 from .utilities import (
     lower_names,
@@ -109,7 +108,7 @@ class BaseLoader(Container, ABC):
         attrs['date_modified'] = attrs.get(
             'date_modified', dt.utcnow().isoformat()
         )
-        data.attrs.update({k: safe_cast(v) for k, v in attrs.items()})
+        data.attrs.update(attrs)
         return data
 
     def __enter__(self):
