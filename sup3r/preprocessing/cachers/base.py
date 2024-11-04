@@ -438,9 +438,6 @@ class Cacher(Container):
             for dim_name, dim_size in data.sizes.items():
                 ncfile.createDimension(dim_name, dim_size)
 
-            for attr_name, attr_value in attrs.items():
-                ncfile.setncattr(attr_name, attr_value)
-
             coord_names = [
                 crd for crd in data.coords if crd in Dimension.coords_4d()
             ]

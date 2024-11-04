@@ -12,7 +12,11 @@ import xarray as xr
 
 from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.names import FEATURE_NAMES
-from sup3r.preprocessing.utilities import expand_paths, log_args, ordered_dims
+from sup3r.preprocessing.utilities import (
+    expand_paths,
+    log_args,
+    ordered_dims,
+)
 
 from .utilities import (
     lower_names,
