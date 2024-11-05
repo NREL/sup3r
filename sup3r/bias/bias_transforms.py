@@ -664,6 +664,13 @@ def local_qdm_bc(
         output = np.maximum(output, np.min(out_range))
         output = np.minimum(output, np.max(out_range))
 
+    if np.isnan(output).any():
+        msg = ('Presrat bias correction resulted in NaN values! If this is a '
+               'relative QDM, you may try setting ``delta_denom_min`` or '
+               '``delta_denom_zero``')
+        logger.error(msg)
+        raise RuntimeError(msg)
+
     return output
 
 
@@ -943,6 +950,13 @@ def _apply_presrat_bc(data, time_index, base_params, bias_params,
     if out_range is not None:
         data_unbiased = np.maximum(data_unbiased, np.min(out_range))
         data_unbiased = np.minimum(data_unbiased, np.max(out_range))
+
+    if np.isnan(data_unbiased).any():
+        msg = ('Presrat bias correction resulted in NaN values! If this is a '
+               'relative QDM, you may try setting ``delta_denom_min`` or '
+               '``delta_denom_zero``')
+        logger.error(msg)
+        raise RuntimeError(msg)
 
     return data_unbiased
 
