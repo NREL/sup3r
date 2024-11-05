@@ -240,7 +240,8 @@ class Sup3rX:
 
             for f in self._ds.data_vars:
                 self._ds[f] = self._ds[f].compute(**kwargs)
-                logger.debug(f'Loaded {f} into memory. {_mem_check()}')
+                logger.debug(f'Loaded {f} into memory with shape '
+                             f'{self._ds[f].shape}. {_mem_check()}')
             logger.debug(f'Loaded dataset into memory: {self._ds}')
             logger.debug(f'Post-loading: {_mem_check()}')
         return self

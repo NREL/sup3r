@@ -261,8 +261,12 @@ class ForwardPassStrategy:
 
         InputHandler = get_input_handler_class(self.input_handler_name)
         input_handler_kwargs = copy.deepcopy(self.input_handler_kwargs)
-        features = [] if self.head_node else self.features
-        input_handler_kwargs['features'] = features
+
+        input_handler_kwargs['features'] = self.features
+        if self.head_node:
+            input_handler_kwargs['features'] = []
+            input_handler_kwargs['chunks'] = 'auto'
+
         input_handler_kwargs['time_slice'] = slice(None)
 
         return InputHandler(**input_handler_kwargs)

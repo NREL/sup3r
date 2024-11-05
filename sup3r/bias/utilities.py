@@ -9,7 +9,7 @@ import numpy as np
 from rex import Resource
 
 import sup3r.bias.bias_transforms
-from sup3r.bias.bias_transforms import get_spatial_bc_factors, local_qdm_bc
+from sup3r.bias.bias_transforms import _get_spatial_bc_factors, local_qdm_bc
 from sup3r.preprocessing.utilities import (
     _parse_time_slice,
     get_date_range_kwargs,
@@ -56,7 +56,7 @@ def lin_bc(handler, bc_files, threshold=0.1):
                     and dset_adder.lower() in dsets
                 )
             if feature not in completed and check:
-                out = get_spatial_bc_factors(
+                out = _get_spatial_bc_factors(
                     lat_lon=handler.lat_lon,
                     feature_name=feature,
                     bias_fp=fp,
@@ -268,11 +268,19 @@ def bias_correct_features(
 
     time_slice = _parse_time_slice(time_slice)
     for feat in features:
-        input_handler[feat][..., time_slice] = bias_correct_feature(
-            source_feature=feat,
-            input_handler=input_handler,
-            time_slice=time_slice,
-            bc_method=bc_method,
-            bc_kwargs=bc_kwargs,
-        )
+        try:
+            input_handler[feat][..., time_slice] = bias_correct_feature(
+                source_feature=feat,
+                input_handler=input_handler,
+                time_slice=time_slice,
+                bc_method=bc_method,
+                bc_kwargs=bc_kwargs,
+            )
+        except Exception as e:
+            msg = (f'Could not run bias correction method {bc_method} on '
+                   f'feature {feat} time slice {time_slice} with input '
+                   f'handler of class {type(input_handler)} with shape '
+                   f'{input_handler.shape}. Received error: {e}')
+            logger.exception(msg)
+            raise RuntimeError(msg) from e
     return input_handler

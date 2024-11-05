@@ -621,7 +621,12 @@ class DataRetrievalBase:
         gid_raster = np.arange(len(dh.meta))
         gid_raster = gid_raster.reshape(dh.shape[:2])
         idy, idx = np.where(np.isin(gid_raster, base_gid))
-        base_data = dh.data[[base_dset]][idy, idx].squeeze(axis=-1)
+        if dh.data.loaded:
+            # faster direct access of numpy array if loaded
+            base_data = dh.data[base_dset].data[idy, idx]
+        else:
+            base_data = dh.data[base_dset].data.vindex[idy, idx]
+
         assert base_data.shape[0] == len(base_gid)
         assert base_data.shape[1] == len(dh.time_index)
         return base_data.mean(axis=0)
