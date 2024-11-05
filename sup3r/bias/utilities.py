@@ -268,11 +268,19 @@ def bias_correct_features(
 
     time_slice = _parse_time_slice(time_slice)
     for feat in features:
-        input_handler[feat][..., time_slice] = bias_correct_feature(
-            source_feature=feat,
-            input_handler=input_handler,
-            time_slice=time_slice,
-            bc_method=bc_method,
-            bc_kwargs=bc_kwargs,
-        )
+        try:
+            input_handler[feat][..., time_slice] = bias_correct_feature(
+                source_feature=feat,
+                input_handler=input_handler,
+                time_slice=time_slice,
+                bc_method=bc_method,
+                bc_kwargs=bc_kwargs,
+            )
+        except Exception as e:
+            msg = (f'Could not run bias correction method {bc_method} on '
+                   f'feature {feat} time slice {time_slice} with input '
+                   f'handler of class {type(input_handler)} with shape '
+                   f'{input_handler.shape}. Received error: {e}')
+            logger.exception(msg)
+            raise RuntimeError(msg) from e
     return input_handler

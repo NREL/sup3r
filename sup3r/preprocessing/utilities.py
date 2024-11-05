@@ -128,17 +128,68 @@ def log_args(func):
 def get_date_range_kwargs(time_index):
     """Get kwargs for pd.date_range from a DatetimeIndex. This is used to
     provide a concise time_index representation which can be passed through
-    the cli and avoid logging lengthly time indices."""
+    the cli and avoid logging lengthly time indices.
+
+    Parameters
+    ----------
+    time_index : pd.DatetimeIndex
+        Output time index.
+
+    Returns
+    -------
+    kwargs : dict
+        Dictionary to pass to pd.date_range(). Can also include kwarg
+        ``drop_leap``
+    """
     freq = (
         f'{(time_index[-1] - time_index[0]).total_seconds() / 60}min'
         if len(time_index) == 2
         else pd.infer_freq(time_index)
     )
-    return {
+
+    kwargs = {
         'start': time_index[0].strftime('%Y-%m-%d %H:%M:%S'),
         'end': time_index[-1].strftime('%Y-%m-%d %H:%M:%S'),
         'freq': freq,
     }
+
+    nominal_ti = pd.date_range(**kwargs)
+    uneven_freq = len(set(np.diff(time_index))) > 1
+
+    if uneven_freq and len(nominal_ti) > len(time_index):
+        kwargs['drop_leap'] = True
+
+    elif uneven_freq:
+        msg = (f'Got uneven frequency for time index: {time_index}')
+        warn(msg)
+        logger.warning(msg)
+
+    return kwargs
+
+
+def make_time_index_from_kws(date_range_kwargs):
+    """Function to make a pandas DatetimeIndex from the
+    ``get_date_range_kwargs`` outputs
+
+    Parameters
+    ----------
+    date_range_kwargs : dict
+        Dictionary to pass to pd.date_range(), typically produced from
+        ``get_date_range_kwargs()``. Can also include kwarg ``drop_leap``
+
+    Returns
+    -------
+    time_index : pd.DatetimeIndex
+        Output time index.
+    """
+    drop_leap = date_range_kwargs.pop('drop_leap', False)
+    time_index = pd.date_range(**date_range_kwargs)
+
+    if drop_leap:
+        leap_mask = (time_index.month == 2) & (time_index.day == 29)
+        time_index = time_index[~leap_mask]
+
+    return time_index
 
 
 def _compute_chunks_if_dask(arr):

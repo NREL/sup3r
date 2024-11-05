@@ -14,11 +14,11 @@ from warnings import warn
 
 import dask.array as da
 import numpy as np
-import pandas as pd
 from rex.utilities.bc_utils import QuantileDeltaMapping
 from scipy.ndimage import gaussian_filter
 
 from sup3r.preprocessing import Rasterizer
+from sup3r.preprocessing.utilities import make_time_index_from_kws
 
 logger = logging.getLogger(__name__)
 
@@ -402,7 +402,7 @@ def monthly_local_linear_bc(
     out : np.ndarray
         out = data * scalar + adder
     """
-    time_index = pd.date_range(**date_range_kwargs)
+    time_index = make_time_index_from_kws(date_range_kwargs)
     out = _get_spatial_bc_factors(lat_lon, feature_name, bias_fp)
     scalar, adder = out['scalar'], out['adder']
 
@@ -589,10 +589,13 @@ def local_qdm_bc(
 
     """
     # Confirm that the given time matches the expected data size
-    time_index = pd.date_range(**date_range_kwargs)
-    assert (
-        data.shape[2] == time_index.size
-    ), 'Time should align with data 3rd dimension'
+    msg = f'data was expected to be a 3D array but got shape {data.shape}'
+    assert data.ndim == 3, msg
+    time_index = make_time_index_from_kws(date_range_kwargs)
+    msg = (f'Time should align with data 3rd dimension but got data '
+           f'{data.shape} and time_index length '
+           f'{time_index.size}: {time_index}')
+    assert data.shape[-1] == time_index.size, msg
 
     params = _get_spatial_bc_quantiles(
         lat_lon=lat_lon,
@@ -1031,11 +1034,13 @@ def local_presrat_bc(data: np.ndarray,
     max_workers : int | None
         Max number of workers to use for QDM process pool
     """
-    time_index = pd.date_range(**date_range_kwargs)
-    assert data.ndim == 3, 'data was expected to be a 3D array'
-    assert (
-        data.shape[-1] == time_index.size
-    ), 'The last dimension of data should be time'
+    time_index = make_time_index_from_kws(date_range_kwargs)
+    msg = f'data was expected to be a 3D array but got shape {data.shape}'
+    assert data.ndim == 3, msg
+    msg = (f'Time should align with data 3rd dimension but got data '
+           f'{data.shape} and time_index length '
+           f'{time_index.size}: {time_index}')
+    assert data.shape[-1] == time_index.size, msg
 
     params = _get_spatial_bc_presrat(
         lat_lon, base_dset, feature_name, bias_fp, threshold
