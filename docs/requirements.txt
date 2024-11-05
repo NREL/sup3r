@@ -2,3 +2,4 @@ ghp-import
 sphinx
 sphinx-click
 sphinx_rtd_theme
+sphinx_autosummary_accessors
