@@ -89,8 +89,20 @@ class LoaderH5(BaseLoader):
 
     def _get_dset_tuple(self, dset, dims, chunks):
         """Get tuple of (dims, array, attrs) for given dataset. Used in
-        data_vars entries"""
-        arr = da.asarray(self.res.h5[dset], dtype=np.float32, chunks=chunks)
+        data_vars entries. This accounts for multiple data shapes and
+        dimensions. e.g. Data can be 2D spatial only, 2D flattened
+        spatiotemporal, 3D spatiotemporal, 4D spatiotemporal (with presssure
+        levels), etc
+        """
+        # if self.res includes time-dependent and time-independent variables
+        # and chunks is 3-tuple we only use the spatial chunk for
+        # time-indepdent variables
+        dset_chunks = chunks
+        if len(chunks) == 3 and len(self.res.h5[dset].shape) == 2:
+            dset_chunks = chunks[-len(self.res.h5[dset].shape)]
+        arr = da.asarray(
+            self.res.h5[dset], dtype=np.float32, chunks=dset_chunks
+        )
         arr /= self.scale_factor(dset)
         if len(arr.shape) == 4:
             msg = (
@@ -114,6 +126,8 @@ class LoaderH5(BaseLoader):
                 arr_dims = Dimension.dims_3d()
         elif self._is_spatial_dset(arr):
             arr_dims = (Dimension.FLATTENED_SPATIAL,)
+        elif len(arr.shape) == 2:
+            arr_dims = dims[-len(arr.shape) :]
         elif len(arr.shape) == 1:
             msg = (
                 f'Received 1D feature "{dset}" with shape that does not '
@@ -133,12 +147,16 @@ class LoaderH5(BaseLoader):
             return chunks
         return tuple(chunks.get(d, 'auto') for d in dims)
 
-    def _get_data_vars(self, dims):
-        """Define data_vars dict for xr.Dataset construction."""
-        data_vars = {}
-        logger.debug(f'Rechunking features with chunks: {self.chunks}')
-        chunks = self._parse_chunks(dims)
-        if len(self._meta_shape()) == 1 and 'elevation' in self.res.meta:
+    def _check_for_elevation(self, data_vars, dims, chunks):
+        """Check if this is a flattened h5 file with elevation data and add
+        elevation to data_vars if it is."""
+
+        flattened_with_elevation = (
+            len(self._meta_shape()) == 1
+            and hasattr(self.res, 'meta')
+            and 'elevation' in self.res.meta
+        )
+        if flattened_with_elevation:
             elev = self.res.meta['elevation'].values.astype(np.float32)
             elev = da.asarray(elev)
             if not self._time_independent:
@@ -146,6 +164,16 @@ class LoaderH5(BaseLoader):
                 elev = da.repeat(elev[None, ...], t_steps, axis=0)
             elev = elev.rechunk(chunks)
             data_vars['elevation'] = (dims, elev)
+        return data_vars
+
+    def _get_data_vars(self, dims):
+        """Define data_vars dict for xr.Dataset construction."""
+        data_vars = {}
+        logger.debug(f'Rechunking features with chunks: {self.chunks}')
+        chunks = self._parse_chunks(dims)
+        data_vars = self._check_for_elevation(
+            data_vars, dims=dims, chunks=chunks
+        )
 
         feats = set(self.res.h5.datasets)
         exclude = {
