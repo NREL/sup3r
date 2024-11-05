@@ -1,31 +1,42 @@
-# -*- coding: utf-8 -*-
-"""Bias correction transformation functions."""
+"""Bias correction transformation functions.
+
+TODO: These methods need to be refactored to use lazy calculations. They
+currently slow down the forward pass runs when operating on full input data
+volume.
+
+We should write bc factor files in a format compatible with Loaders /
+Rasterizers so we can use those class methods to match factors with locations
+"""
 
 import logging
-import os
+from typing import Union
 from warnings import warn
 
+import dask.array as da
 import numpy as np
-import pandas as pd
-from rex import Resource
 from rex.utilities.bc_utils import QuantileDeltaMapping
 from scipy.ndimage import gaussian_filter
+
+from sup3r.preprocessing import Rasterizer
+from sup3r.preprocessing.utilities import make_time_index_from_kws
 
 logger = logging.getLogger(__name__)
 
 
-def _get_factors(lat_lon, var_names, bias_fp, threshold=0.1):
+def _get_factors(target, shape, var_names, bias_fp, threshold=0.1):
     """Get bias correction factors from sup3r's standard resource
 
     This was stripped without any change from original
-    `get_spatial_bc_factors` to allow re-use in other `*_bc_factors`
+    `_get_spatial_bc_factors` to allow re-use in other `*_bc_factors`
     functions.
 
     Parameters
     ----------
-    lat_lon : np.ndarray
-        Array of latitudes and longitudes for the domain to bias correct
-        (n_lats, n_lons, 2)
+    target : tuple
+        (lat, lon) lower left corner of raster. Either need target+shape or
+        raster_file.
+    shape : tuple
+        (rows, cols) grid size. Either need target+shape or raster_file.
     var_names : dict
         A dictionary mapping the expected variable name in the `Resource`
         and the desired name to output. For instance the dictionary
@@ -48,49 +59,24 @@ def _get_factors(lat_lon, var_names, bias_fp, threshold=0.1):
     dict :
         A dictionary with the content from `bias_fp` as mapped by `var_names`,
         therefore, the keys here are the same keys in `var_names`.
+        Also includes 'global_attrs' from Rasterizer.
     """
-    with Resource(bias_fp) as res:
-        lat = np.expand_dims(res['latitude'], axis=-1)
-        lon = np.expand_dims(res['longitude'], axis=-1)
-        assert (
-            np.diff(lat[:, :, 0], axis=0) <= 0
-        ).all(), 'Require latitude in decreasing order'
-        assert (
-            np.diff(lon[:, :, 0], axis=1) >= 0
-        ).all(), 'Require longitude in increasing order'
-        lat_lon_bc = np.dstack((lat, lon))
-        diff = lat_lon_bc - lat_lon[:1, :1]
-        diff = np.hypot(diff[..., 0], diff[..., 1])
-        idy, idx = np.where(diff == diff.min())
-        slice_y = slice(idy[0], idy[0] + lat_lon.shape[0])
-        slice_x = slice(idx[0], idx[0] + lat_lon.shape[1])
-
-        if diff.min() > threshold:
-            msg = ('The DataHandler top left coordinate of {} '
-                   'appears to be {} away from the nearest '
-                   'bias correction coordinate of {} from {}. '
-                   'Cannot apply bias correction.'.format(
-                       lat_lon, diff.min(), lat_lon_bc[idy, idx],
-                       os.path.basename(bias_fp),
-                   ))
-            logger.error(msg)
-            raise RuntimeError(msg)
-
-        res_names = [r.lower() for r in res.dsets]
-        missing = [d for d in var_names.values() if d.lower() not in res_names]
-        msg = f'Missing {" and ".join(missing)} in resource: {bias_fp}.'
-        assert missing == [], msg
-
-        varnames = {
-            k: res.dsets[res_names.index(var_names[k].lower())]
-            for k in var_names
-        }
-        out = {k: res[varnames[k], slice_y, slice_x] for k in var_names}
-
+    res = Rasterizer(
+        file_paths=bias_fp,
+        target=np.asarray(target),
+        shape=shape,
+        threshold=threshold,
+    )
+    missing = [d for d in var_names.values() if d.lower() not in res.features]
+    msg = f'Missing {" and ".join(missing)} in resource: {bias_fp}.'
+    assert missing == [], msg
+    # pylint: disable=E1136
+    out = {k: res[var_names[k].lower()][...] for k in var_names}
+    out['cfg'] = res.global_attrs
     return out
 
 
-def get_spatial_bc_factors(lat_lon, feature_name, bias_fp, threshold=0.1):
+def _get_spatial_bc_factors(lat_lon, feature_name, bias_fp, threshold=0.1):
     """Get bc factors (scalar/adder) for the given feature for the given
     domain (specified by lat_lon).
 
@@ -113,19 +99,28 @@ def get_spatial_bc_factors(lat_lon, feature_name, bias_fp, threshold=0.1):
         more than this value away from the bias correction lat/lon, an error is
         raised.
     """
-    var_names = {'scalar': f'{feature_name}_scalar',
-                 'adder': f'{feature_name}_adder',
-                 }
-    out = _get_factors(lat_lon, var_names, bias_fp, threshold)
+    var_names = {
+        'scalar': f'{feature_name}_scalar',
+        'adder': f'{feature_name}_adder',
+    }
+    target = lat_lon[-1, 0, :]
+    shape = lat_lon.shape[:-1]
+    return _get_factors(
+        target=target,
+        shape=shape,
+        var_names=var_names,
+        bias_fp=bias_fp,
+        threshold=threshold,
+    )
 
-    return out['scalar'], out['adder']
 
-
-def get_spatial_bc_quantiles(lat_lon: np.array,
-                             base_dset: str,
-                             feature_name: str,
-                             bias_fp: str,
-                             threshold: float = 0.1):
+def _get_spatial_bc_quantiles(
+    lat_lon: Union[np.ndarray, da.core.Array],
+    base_dset: str,
+    feature_name: str,
+    bias_fp: str,
+    threshold: float = 0.1,
+):
     """Statistical distributions previously estimated for given lat/lon points
 
     Recover the parameters that describe the statistical distribution
@@ -137,7 +132,7 @@ def get_spatial_bc_quantiles(lat_lon: np.array,
 
     Parameters
     ----------
-    lat_lon : ndarray
+    lat_lon : Union[np.ndarray, da.core.Array]
         Array of latitudes and longitudes for the domain to bias correct
         (n_lats, n_lons, 2)
     base_dset : str
@@ -182,12 +177,12 @@ def get_spatial_bc_quantiles(lat_lon: np.array,
           number of parameters used and depends on the type of distribution.
           See :class:`~sup3r.bias.qdm.QuantileDeltaMappingCorrection` for more
           details.
-    cfg : dict
-        Metadata used to guide how to use of the previous parameters on
-        reconstructing the statistical distributions. For instance,
-        `cfg['dist']` defines the type of distribution. See
-        :class:`~sup3r.bias.qdm.QuantileDeltaMappingCorrection` for more
-        details, including which metadata is saved.
+        - global_attrs : dict
+          Metadata used to guide how to use of the previous parameters on
+          reconstructing the statistical distributions. For instance,
+          `cfg['dist']` defines the type of distribution. See
+          :class:`~sup3r.bias.qdm.QuantileDeltaMappingCorrection` for more
+          details, including which metadata is saved.
 
     Warnings
     --------
@@ -205,27 +200,32 @@ def get_spatial_bc_quantiles(lat_lon: np.array,
     >>> lat_lon = np.array([
     ...              [39.649033, -105.46875 ],
     ...              [39.649033, -104.765625]])
-    >>> params, cfg = get_spatial_bc_quantiles(
-    ...                 lat_lon, "ghi", "rsds", "./dist_params.hdf")
+    >>> params = _get_spatial_bc_quantiles(
+    ...             lat_lon, "ghi", "rsds", "./dist_params.hdf")
+
     """
-    var_names = {'base': f'base_{base_dset}_params',
-                 'bias': f'bias_{feature_name}_params',
-                 'bias_fut': f'bias_fut_{feature_name}_params',
-                 }
-    params = _get_factors(lat_lon, var_names, bias_fp, threshold)
+    var_names = {
+        'base': f'base_{base_dset}_params',
+        'bias': f'bias_{feature_name}_params',
+        'bias_fut': f'bias_fut_{feature_name}_params',
+    }
+    target = lat_lon[-1, 0, :]
+    shape = lat_lon.shape[:-1]
+    return _get_factors(
+        target=target,
+        shape=shape,
+        var_names=var_names,
+        bias_fp=bias_fp,
+        threshold=threshold,
+    )
 
-    with Resource(bias_fp) as res:
-        cfg = res.global_attrs
 
-    return params, cfg
-
-
-def global_linear_bc(input, scalar, adder, out_range=None):
+def global_linear_bc(data, scalar, adder, out_range=None):
     """Bias correct data using a simple global *scalar +adder method.
 
     Parameters
     ----------
-    input : np.ndarray
+    data : np.ndarray
         Sup3r input data to be bias corrected, assumed to be 3D with shape
         (spatial, spatial, temporal) for a single feature.
     scalar : float
@@ -238,29 +238,30 @@ def global_linear_bc(input, scalar, adder, out_range=None):
     Returns
     -------
     out : np.ndarray
-        out = input * scalar + adder
+        out = data * scalar + adder
     """
-    out = input * scalar + adder
+    out = data * scalar + adder
     if out_range is not None:
         out = np.maximum(out, np.min(out_range))
         out = np.minimum(out, np.max(out_range))
     return out
 
 
-def local_linear_bc(input,
-                    lat_lon,
-                    feature_name,
-                    bias_fp,
-                    lr_padded_slice=None,
-                    out_range=None,
-                    smoothing=0,
-                    ):
+def local_linear_bc(
+    data,
+    lat_lon,
+    feature_name,
+    bias_fp,
+    lr_padded_slice=None,
+    out_range=None,
+    smoothing=0,
+):
     """Bias correct data using a simple annual (or multi-year) *scalar +adder
     method on a site-by-site basis.
 
     Parameters
     ----------
-    input : np.ndarray
+    data : np.ndarray
         Sup3r input data to be bias corrected, assumed to be 3D with shape
         (spatial, spatial, temporal) for a single feature.
     lat_lon : ndarray
@@ -293,10 +294,11 @@ def local_linear_bc(input,
     Returns
     -------
     out : np.ndarray
-        out = input * scalar + adder
+        out = data * scalar + adder
     """
 
-    scalar, adder = get_spatial_bc_factors(lat_lon, feature_name, bias_fp)
+    out = _get_spatial_bc_factors(lat_lon, feature_name, bias_fp)
+    scalar, adder = out['scalar'], out['adder']
     # 3D bias correction factors have seasonal/monthly correction in last axis
     if len(scalar.shape) == 3 and len(adder.shape) == 3:
         scalar = scalar.mean(axis=-1)
@@ -308,27 +310,29 @@ def local_linear_bc(input,
         adder = adder[spatial_slice]
 
     if np.isnan(scalar).any() or np.isnan(adder).any():
-        msg = ('Bias correction scalar/adder values had NaNs for '
-               f'"{feature_name}" from: {bias_fp}')
+        msg = (
+            'Bias correction scalar/adder values had NaNs for '
+            f'"{feature_name}" from: {bias_fp}'
+        )
         logger.warning(msg)
         warn(msg)
 
     scalar = np.expand_dims(scalar, axis=-1)
     adder = np.expand_dims(adder, axis=-1)
 
-    scalar = np.repeat(scalar, input.shape[-1], axis=-1)
-    adder = np.repeat(adder, input.shape[-1], axis=-1)
+    scalar = np.repeat(scalar, data.shape[-1], axis=-1)
+    adder = np.repeat(adder, data.shape[-1], axis=-1)
 
     if smoothing > 0:
         for idt in range(scalar.shape[-1]):
-            scalar[..., idt] = gaussian_filter(scalar[..., idt],
-                                               smoothing,
-                                               mode='nearest')
-            adder[..., idt] = gaussian_filter(adder[..., idt],
-                                              smoothing,
-                                              mode='nearest')
+            scalar[..., idt] = gaussian_filter(
+                scalar[..., idt], smoothing, mode='nearest'
+            )
+            adder[..., idt] = gaussian_filter(
+                adder[..., idt], smoothing, mode='nearest'
+            )
 
-    out = input * scalar + adder
+    out = data * scalar + adder
     if out_range is not None:
         out = np.maximum(out, np.min(out_range))
         out = np.minimum(out, np.max(out_range))
@@ -336,22 +340,23 @@ def local_linear_bc(input,
     return out
 
 
-def monthly_local_linear_bc(input,
-                            lat_lon,
-                            feature_name,
-                            bias_fp,
-                            time_index,
-                            lr_padded_slice=None,
-                            temporal_avg=True,
-                            out_range=None,
-                            smoothing=0,
-                            ):
+def monthly_local_linear_bc(
+    data,
+    lat_lon,
+    feature_name,
+    bias_fp,
+    date_range_kwargs,
+    lr_padded_slice=None,
+    temporal_avg=True,
+    out_range=None,
+    smoothing=0,
+):
     """Bias correct data using a simple monthly *scalar +adder method on a
     site-by-site basis.
 
     Parameters
     ----------
-    input : np.ndarray
+    data : np.ndarray
         Sup3r input data to be bias corrected, assumed to be 3D with shape
         (spatial, spatial, temporal) for a single feature.
     lat_lon : ndarray
@@ -366,11 +371,12 @@ def monthly_local_linear_bc(input,
         datasets "{feature_name}_scalar" and "{feature_name}_adder" that are
         the full low-resolution shape of the forward pass input that will be
         sliced using lr_padded_slice for the current chunk.
-    time_index : pd.DatetimeIndex
-        DatetimeIndex object associated with the input data temporal axis
-        (assumed 3rd axis e.g. axis=2). Note that if this method is called as
-        part of a sup3r resolution forward pass, the time_index will be
-        included automatically for the current chunk.
+    date_range_kwargs : dict
+        Keyword args for pd.date_range to produce a DatetimeIndex object
+        associated with the input data temporal axis (assumed 3rd axis e.g.
+        axis=2). Note that if this method is called as part of a sup3r
+        resolution forward pass, the date_range_kwargs will be included
+        automatically for the current chunk.
     lr_padded_slice : tuple | None
         Tuple of length four that slices (spatial_1, spatial_2, temporal,
         features) where each tuple entry is a slice object for that axes.
@@ -394,9 +400,11 @@ def monthly_local_linear_bc(input,
     Returns
     -------
     out : np.ndarray
-        out = input * scalar + adder
+        out = data * scalar + adder
     """
-    scalar, adder = get_spatial_bc_factors(lat_lon, feature_name, bias_fp)
+    time_index = make_time_index_from_kws(date_range_kwargs)
+    out = _get_spatial_bc_factors(lat_lon, feature_name, bias_fp)
+    scalar, adder = out['scalar'], out['adder']
 
     assert len(scalar.shape) == 3, 'Monthly bias correct needs 3D scalars'
     assert len(adder.shape) == 3, 'Monthly bias correct needs 3D adders'
@@ -415,30 +423,34 @@ def monthly_local_linear_bc(input,
         adder = adder.mean(axis=-1)
         scalar = np.expand_dims(scalar, axis=-1)
         adder = np.expand_dims(adder, axis=-1)
-        scalar = np.repeat(scalar, input.shape[-1], axis=-1)
-        adder = np.repeat(adder, input.shape[-1], axis=-1)
+        scalar = np.repeat(scalar, data.shape[-1], axis=-1)
+        adder = np.repeat(adder, data.shape[-1], axis=-1)
         if len(time_index.month.unique()) > 2:
-            msg = ('Bias correction method "monthly_local_linear_bc" was used '
-                   'with temporal averaging over a time index with >2 months.')
+            msg = (
+                'Bias correction method "monthly_local_linear_bc" was used '
+                'with temporal averaging over a time index with >2 months.'
+            )
             warn(msg)
             logger.warning(msg)
 
     if np.isnan(scalar).any() or np.isnan(adder).any():
-        msg = ('Bias correction scalar/adder values had NaNs for '
-               f'"{feature_name}" from: {bias_fp}')
+        msg = (
+            'Bias correction scalar/adder values had NaNs for '
+            f'"{feature_name}" from: {bias_fp}'
+        )
         logger.warning(msg)
         warn(msg)
 
     if smoothing > 0:
         for idt in range(scalar.shape[-1]):
-            scalar[..., idt] = gaussian_filter(scalar[..., idt],
-                                               smoothing,
-                                               mode='nearest')
-            adder[..., idt] = gaussian_filter(adder[..., idt],
-                                              smoothing,
-                                              mode='nearest')
+            scalar[..., idt] = gaussian_filter(
+                scalar[..., idt], smoothing, mode='nearest'
+            )
+            adder[..., idt] = gaussian_filter(
+                adder[..., idt], smoothing, mode='nearest'
+            )
 
-    out = input * scalar + adder
+    out = data * scalar + adder
     if out_range is not None:
         out = np.maximum(out, np.min(out_range))
         out = np.minimum(out, np.max(out_range))
@@ -446,17 +458,23 @@ def monthly_local_linear_bc(input,
     return out
 
 
-def local_qdm_bc(data: np.ndarray,
-                 lat_lon: np.ndarray,
-                 base_dset: str,
-                 feature_name: str,
-                 bias_fp,
-                 time_index: pd.DatetimeIndex,
-                 lr_padded_slice=None,
-                 threshold=0.1,
-                 relative=True,
-                 no_trend=False,
-                 ):
+def local_qdm_bc(
+    data: np.ndarray,
+    lat_lon: np.ndarray,
+    base_dset: str,
+    feature_name: str,
+    bias_fp,
+    date_range_kwargs: dict,
+    lr_padded_slice=None,
+    threshold=0.1,
+    relative=True,
+    no_trend=False,
+    delta_denom_min=None,
+    delta_denom_zero=None,
+    delta_range=None,
+    out_range=None,
+    max_workers=1,
+):
     """Bias correction using QDM
 
     Apply QDM to correct bias on the given data. It assumes that the required
@@ -467,7 +485,7 @@ def local_qdm_bc(data: np.ndarray,
 
     Parameters
     ----------
-    data : np.ndarray
+    data : Union[np.ndarray, da.core.Array]
         Sup3r input data to be bias corrected, assumed to be 3D with shape
         (spatial, spatial, temporal) for a single feature.
     lat_lon : np.ndarray
@@ -480,11 +498,12 @@ def local_qdm_bc(data: np.ndarray,
         Name of feature that is being corrected. Datasets with names
         "bias_{feature_name}_params" and "bias_fut_{feature_name}_params" will
         be retrieved.
-    time_index : pd.DatetimeIndex
-        DatetimeIndex object associated with the input data temporal axis
-        (assumed 3rd axis e.g. axis=2). Note that if this method is called as
-        part of a sup3r resolution forward pass, the time_index will be
-        included automatically for the current chunk.
+    date_range_kwargs : dict
+        Keyword args for pd.date_range to produce a DatetimeIndex object
+        associated with the input data temporal axis (assumed 3rd axis e.g.
+        axis=2). Note that if this method is called as part of a sup3r
+        resolution forward pass, the date_range_kwargs will be included
+        automatically for the current chunk.
     bias_fp : str
         Filepath to statistical distributions file from the bias calc module.
         Must have datasets "bias_{feature_name}_params",
@@ -506,6 +525,27 @@ def local_qdm_bc(data: np.ndarray,
         ``params_mf`` of :class:`rex.utilities.bc_utils.QuantileDeltaMapping`.
         Note that this assumes that params_mh is the data distribution
         representative for the target data.
+    delta_denom_min : float | None
+        Option to specify a minimum value for the denominator term in the
+        calculation of a relative delta value. This prevents division by a
+        very small number making delta blow up and resulting in very large
+        output bias corrected values. See equation 4 of Cannon et al., 2015
+        for the delta term.
+    delta_denom_zero : float | None
+        Option to specify a value to replace zeros in the denominator term
+        in the calculation of a relative delta value. This prevents
+        division by a very small number making delta blow up and resulting
+        in very large output bias corrected values. See equation 4 of
+        Cannon et al., 2015 for the delta term.
+    delta_range : tuple | None
+        Option to set a (min, max) on the delta term in QDM. This can help
+        prevent QDM from making non-realistic increases/decreases in
+        otherwise physical values. See equation 4 of Cannon et al., 2015 for
+        the delta term.
+    out_range : None | tuple
+        Option to set floor/ceiling values on the output data.
+    max_workers: int | None
+        Max number of workers to use for QDM process pool
 
     Returns
     -------
@@ -546,20 +586,29 @@ def local_qdm_bc(data: np.ndarray,
     --------
     >>> unbiased = local_qdm_bc(biased_array, lat_lon_array, "ghi", "rsds",
     ...                         "./dist_params.hdf")
+
     """
     # Confirm that the given time matches the expected data size
-    assert (
-        data.shape[2] == time_index.size
-    ), 'Time should align with data 3rd dimension'
+    msg = f'data was expected to be a 3D array but got shape {data.shape}'
+    assert data.ndim == 3, msg
+    time_index = make_time_index_from_kws(date_range_kwargs)
+    msg = (f'Time should align with data 3rd dimension but got data '
+           f'{data.shape} and time_index length '
+           f'{time_index.size}: {time_index}')
+    assert data.shape[-1] == time_index.size, msg
 
-    params, cfg = get_spatial_bc_quantiles(lat_lon,
-                                           base_dset,
-                                           feature_name,
-                                           bias_fp,
-                                           threshold)
-    base = params['base']
-    bias = params['bias']
-    bias_fut = params['bias_fut']
+    params = _get_spatial_bc_quantiles(
+        lat_lon=lat_lon,
+        base_dset=base_dset,
+        feature_name=feature_name,
+        bias_fp=bias_fp,
+        threshold=threshold,
+    )
+    data = np.asarray(data)
+    base = np.asarray(params['base'])
+    bias = np.asarray(params['bias'])
+    bias_fut = np.asarray(params['bias_fut'])
+    cfg = params['cfg']
 
     if lr_padded_slice is not None:
         spatial_slice = (lr_padded_slice[0], lr_padded_slice[1])
@@ -581,21 +630,22 @@ def local_qdm_bc(data: np.ndarray,
         mf = bias_fut[:, :, window_idx]
 
         # This satisfies the rex's QDM design
-        if no_trend:
-            mf = None
-        else:
-            mf = mf.reshape(-1, mf.shape[-1])
+        mf = None if no_trend else mf.reshape(-1, mf.shape[-1])
         # The distributions at this point, after selected the respective
         # time window with `window_idx`, are 3D (space, space, N-params)
         # Collapse 3D (space, space, N) into 2D (space**2, N)
-        QDM = QuantileDeltaMapping(oh.reshape(-1, oh.shape[-1]),
-                                   mh.reshape(-1, mh.shape[-1]),
-                                   mf,
-                                   dist=cfg['dist'],
-                                   relative=relative,
-                                   sampling=cfg['sampling'],
-                                   log_base=cfg['log_base'],
-                                   )
+        QDM = QuantileDeltaMapping(
+            oh.reshape(-1, oh.shape[-1]),
+            mh.reshape(-1, mh.shape[-1]),
+            mf,
+            dist=cfg['dist'],
+            relative=relative,
+            sampling=cfg['sampling'],
+            log_base=cfg['log_base'],
+            delta_denom_min=delta_denom_min,
+            delta_denom_zero=delta_denom_zero,
+            delta_range=delta_range,
+        )
 
         subset_idx = nearest_window_idx == window_idx
         subset = data[:, :, subset_idx]
@@ -603,21 +653,34 @@ def local_qdm_bc(data: np.ndarray,
         # QDM expects input arr with shape (time, space)
         tmp = subset.reshape(-1, subset.shape[-1]).T
         # Apply QDM correction
-        tmp = QDM(tmp)
+        tmp = QDM(tmp, max_workers=max_workers)
         # Reorgnize array back from  (time, space)
         # to (spatial, spatial, temporal)
         tmp = tmp.T.reshape(subset.shape)
         # Position output respecting original time axis sequence
         output[:, :, subset_idx] = tmp
 
+    if out_range is not None:
+        output = np.maximum(output, np.min(out_range))
+        output = np.minimum(output, np.max(out_range))
+
+    if np.isnan(output).any():
+        msg = ('Presrat bias correction resulted in NaN values! If this is a '
+               'relative QDM, you may try setting ``delta_denom_min`` or '
+               '``delta_denom_zero``')
+        logger.error(msg)
+        raise RuntimeError(msg)
+
     return output
 
 
-def get_spatial_bc_presrat(lat_lon: np.array,
-                           base_dset: str,
-                           feature_name: str,
-                           bias_fp: str,
-                           threshold: float = 0.1):
+def _get_spatial_bc_presrat(
+    lat_lon: np.array,
+    base_dset: str,
+    feature_name: str,
+    bias_fp: str,
+    threshold: float = 0.1,
+):
     """Statistical distributions previously estimated for given lat/lon points
 
     Recover the parameters that describe the statistical distribution
@@ -688,14 +751,14 @@ def get_spatial_bc_presrat(lat_lon: np.array,
           the same first two dimensions of the given `lat_lon`; T is time in
           intervals equally spaced along a year. Check
           `cfg['time_window_center']` to map each T to a day of the year.
-    cfg : dict
-        Metadata used to guide how to use of the previous parameters on
-        reconstructing the statistical distributions. For instance,
-        `cfg['dist']` defines the type of distribution, and
-        `cfg['time_window_center']` maps the dimension T in days of the
-        year for the dimension T of the parameters above. See
-        :class:`~sup3r.bias.PresRat` for more details, including which
-        metadata is saved.
+        - cfg
+          Metadata used to guide how to use of the previous parameters on
+          reconstructing the statistical distributions. For instance,
+          `cfg['dist']` defines the type of distribution, and
+          `cfg['time_window_center']` maps the dimension T in days of the
+          year for the dimension T of the parameters above. See
+          :class:`~sup3r.bias.PresRat` for more details, including which
+          metadata is saved.
 
     Warnings
     --------
@@ -720,21 +783,182 @@ def get_spatial_bc_presrat(lat_lon: np.array,
     >>> lat_lon = np.array([
     ...              [39.649033, -105.46875 ],
     ...              [39.649033, -104.765625]])
-    >>> params, cfg = get_spatial_bc_quantiles(
-    ...                 lat_lon, "ghi", "rsds", "./dist_params.hdf")
+    >>> params = _get_spatial_bc_quantiles(
+    ...             lat_lon, "ghi", "rsds", "./dist_params.hdf")
+
     """
-    ds = {'base': f'base_{base_dset}_params',
-          'bias': f'bias_{feature_name}_params',
-          'bias_fut': f'bias_fut_{feature_name}_params',
-          'bias_tau_fut': f'{feature_name}_tau_fut',
-          'k_factor': f'{feature_name}_k_factor',
-          }
-    params = _get_factors(lat_lon, ds, bias_fp, threshold)
+    var_names = {
+        'base': f'base_{base_dset}_params',
+        'bias': f'bias_{feature_name}_params',
+        'bias_fut': f'bias_fut_{feature_name}_params',
+        'bias_tau_fut': f'{feature_name}_tau_fut',
+        'k_factor': f'{feature_name}_k_factor',
+    }
+    target = lat_lon[-1, 0, :]
+    shape = lat_lon.shape[:-1]
+    return _get_factors(
+        target=target,
+        shape=shape,
+        var_names=var_names,
+        bias_fp=bias_fp,
+        threshold=threshold,
+    )
 
-    with Resource(bias_fp) as res:
-        cfg = res.global_attrs
 
-    return params, cfg
+def _apply_presrat_bc(data, time_index, base_params, bias_params,
+                      bias_fut_params, bias_tau_fut, k_factor,
+                      time_window_center, dist='empirical', sampling='invlog',
+                      log_base=10, relative=True, no_trend=False,
+                      delta_denom_min=None, delta_range=None, out_range=None,
+                      max_workers=1):
+    """Run PresRat to bias correct data from input parameters and not from bias
+    correction file on disk.
+
+    Parameters
+    ----------
+    data : np.ndarray
+        Sup3r input data to be bias corrected, assumed to be 3D with shape
+        (spatial, spatial, temporal) for a single feature.
+    time_index : pd.DatetimeIndex
+        A DatetimeIndex object associated with the input data temporal axis
+        (assumed 3rd axis e.g. axis=2).
+    base_params : np.ndarray
+        4D array of **observed historical** distribution parameters created
+        from a multi-year set of data where the shape is
+        (space, space, time, N). This can be the
+        output of a parametric distribution fit like
+        ``scipy.stats.weibull_min.fit()`` where N is the number of parameters
+        for that distribution, or this can define the x-values of N points from
+        an empirical CDF that will be linearly interpolated between. If this is
+        an empirical CDF, this must include the 0th and 100th percentile values
+        and have even percentile spacing between values.
+    bias_params : np.ndarray
+        Same requirements as params_oh. This input arg is for the **modeled
+        historical distribution**.
+    bias_fut_params : np.ndarray | None
+        Same requirements as params_oh. This input arg is for the **modeled
+        future distribution**. If this is None, this defaults to params_mh
+        (no future data, just corrected to modeled historical distribution)
+    bias_tau_fut : np.ndarray
+        Zero precipitation threshold for future data calculated from presrat
+        without temporal dependence with shape (spatial, spatial, 1)
+    k_factor : np.ndarray
+        K factor from the presrat method with shape (spatial, spatial, N) where
+        N is the number of time observations at which the bias correction is
+        calculated
+    time_window_center : np.ndarray
+        Sequence of days of the year equally spaced and shifted by half
+        window size, thus `ntimes`=12 results in approximately [15, 45,
+        ...]. It includes the fraction of a day, thus 15.5 is equivalent
+        to January 15th, 12:00h. Shape is (N,)
+    dist : str
+        Probability distribution name to use to model the data which
+        determines how the param args are used. This can "empirical" or any
+        continuous distribution name from ``scipy.stats``.
+    sampling : str | np.ndarray
+        If dist="empirical", this is an option for how the quantiles were
+        sampled to produce the params inputs, e.g., how to sample the
+        y-axis of the distribution (see sampling functions in
+        ``rex.utilities.bc_utils``). "linear" will do even spacing, "log"
+        will concentrate samples near quantile=0, and "invlog" will
+        concentrate samples near quantile=1. Can also be a 1D array of dist
+        inputs if being used from reV, but they must all be the same
+        option.
+    log_base : int | float | np.ndarray
+        Log base value if sampling is "log" or "invlog". A higher value
+        will concentrate more samples at the extreme sides of the
+        distribution. Can also be a 1D array of dist inputs if being used
+        from reV, but they must all be the same option.
+    relative : bool | np.ndarray
+        Flag to preserve relative rather than absolute changes in
+        quantiles. relative=False (default) will multiply by the change in
+        quantiles while relative=True will add. See Equations 4-6 from
+        Cannon et al., 2015 for more details. Can also be a 1D array of
+        dist inputs if being used from reV, but they must all be the same
+        option.
+    no_trend : bool, default=False
+        An option to ignore the trend component of the correction, thus
+        resulting in an ordinary Quantile Mapping, i.e. corrects the bias by
+        comparing the distributions of the biased dataset with a reference
+        datasets, without reinforcing the zero rate or applying the k-factor.
+        See ``params_mf`` of
+        :class:`rex.utilities.bc_utils.QuantileDeltaMapping`. Note that this
+        assumes that params_mh is the data distribution representative for the
+        target data.
+    delta_denom_min : float | None
+        Option to specify a minimum value for the denominator term in the
+        calculation of a relative delta value. This prevents division by a
+        very small number making delta blow up and resulting in very large
+        output bias corrected values. See equation 4 of Cannon et al., 2015
+        for the delta term. If this is not set, the ``zero_rate_threshold``
+        calculated as part of the presrat bias calculation will be used
+    delta_range : tuple | None
+        Option to set a (min, max) on the delta term in QDM. This can help
+        prevent QDM from making non-realistic increases/decreases in
+        otherwise physical values. See equation 4 of Cannon et al., 2015 for
+        the delta term.
+    out_range : None | tuple
+        Option to set floor/ceiling values on the output data.
+    max_workers : int | None
+        Max number of workers to use for QDM process pool
+    """
+
+    data_unbiased = np.full_like(data, np.nan)
+    closest_time_idx = abs(time_window_center[:, np.newaxis]
+                           - np.array(time_index.day_of_year))
+    closest_time_idx = closest_time_idx.argmin(axis=0)
+
+    for nt in set(closest_time_idx):
+        subset_idx = closest_time_idx == nt
+        subset = data[:, :, subset_idx]
+        oh = base_params[:, :, nt]
+        mh = bias_params[:, :, nt]
+        mf = bias_fut_params[:, :, nt]
+
+        mf = None if no_trend else mf.reshape(-1, mf.shape[-1])
+
+        # The distributions are 3D (space, space, N-params)
+        # Collapse 3D (space, space, N) into 2D (space**2, N)
+        QDM = QuantileDeltaMapping(oh.reshape(-1, oh.shape[-1]),
+                                   mh.reshape(-1, mh.shape[-1]),
+                                   mf,
+                                   dist=dist,
+                                   relative=relative,
+                                   sampling=sampling,
+                                   log_base=log_base,
+                                   delta_denom_min=delta_denom_min,
+                                   delta_range=delta_range,
+                                   )
+
+        # input 3D shape (spatial, spatial, temporal)
+        # QDM expects input arr with shape (time, space)
+        tmp = subset.reshape(-1, subset.shape[-1]).T
+        # Apply QDM correction
+        tmp = QDM(tmp, max_workers=max_workers)
+        # Reorgnize array back from  (time, space)
+        # to (spatial, spatial, temporal)
+        subset = tmp.T.reshape(subset.shape)
+
+        # If no trend, it doesn't make sense to correct for zero rate or
+        # apply the k-factor, but limit to QDM only.
+        if not no_trend:
+            subset = np.where(subset < bias_tau_fut, 0, subset)
+            subset = subset * np.asarray(k_factor[:, :, nt:nt + 1])
+
+        data_unbiased[:, :, subset_idx] = subset
+
+    if out_range is not None:
+        data_unbiased = np.maximum(data_unbiased, np.min(out_range))
+        data_unbiased = np.minimum(data_unbiased, np.max(out_range))
+
+    if np.isnan(data_unbiased).any():
+        msg = ('Presrat bias correction resulted in NaN values! If this is a '
+               'relative QDM, you may try setting ``delta_denom_min`` or '
+               '``delta_denom_zero``')
+        logger.error(msg)
+        raise RuntimeError(msg)
+
+    return data_unbiased
 
 
 def local_presrat_bc(data: np.ndarray,
@@ -742,11 +966,16 @@ def local_presrat_bc(data: np.ndarray,
                      base_dset: str,
                      feature_name: str,
                      bias_fp,
-                     time_index: np.ndarray,
+                     date_range_kwargs: dict,
                      lr_padded_slice=None,
                      threshold=0.1,
                      relative=True,
                      no_trend=False,
+                     delta_denom_min=None,
+                     delta_range=None,
+                     k_range=None,
+                     out_range=None,
+                     max_workers=1,
                      ):
     """Bias correction using PresRat
 
@@ -771,11 +1000,12 @@ def local_presrat_bc(data: np.ndarray,
         "bias_fut_{feature_name}_params", and "base_{base_dset}_params" that
         are the parameters to define the statistical distributions to be used
         to correct the given `data`.
-    time_index : pd.DatetimeIndex
-        DatetimeIndex object associated with the input data temporal axis
-        (assumed 3rd axis e.g. axis=2). Note that if this method is called as
-        part of a sup3r resolution forward pass, the time_index will be
-        included automatically for the current chunk.
+    date_range_kwargs : dict
+        Keyword args for pd.date_range to produce a DatetimeIndex object
+        associated with the input data temporal axis (assumed 3rd axis e.g.
+        axis=2). Note that if this method is called as part of a sup3r
+        resolution forward pass, the date_range_kwargs will be included
+        automatically for the current chunk.
     lr_padded_slice : tuple | None
         Tuple of length four that slices (spatial_1, spatial_2, temporal,
         features) where each tuple entry is a slice object for that axes.
@@ -790,7 +1020,7 @@ def local_presrat_bc(data: np.ndarray,
     relative : bool
         Apply QDM correction as a relative factor (product), otherwise, it is
         applied as an offset (sum).
-    no_trend: bool, default=False
+    no_trend : bool, default=False
         An option to ignore the trend component of the correction, thus
         resulting in an ordinary Quantile Mapping, i.e. corrects the bias by
         comparing the distributions of the biased dataset with a reference
@@ -799,70 +1029,72 @@ def local_presrat_bc(data: np.ndarray,
         :class:`rex.utilities.bc_utils.QuantileDeltaMapping`. Note that this
         assumes that params_mh is the data distribution representative for the
         target data.
+    delta_denom_min : float | None
+        Option to specify a minimum value for the denominator term in the
+        calculation of a relative delta value. This prevents division by a
+        very small number making delta blow up and resulting in very large
+        output bias corrected values. See equation 4 of Cannon et al., 2015
+        for the delta term. If this is not set, the ``zero_rate_threshold``
+        calculated as part of the presrat bias calculation will be used
+    delta_range : tuple | None
+        Option to set a (min, max) on the delta term in QDM. This can help
+        prevent QDM from making non-realistic increases/decreases in
+        otherwise physical values. See equation 4 of Cannon et al., 2015 for
+        the delta term.
+    k_range : tuple | None
+        Option to set a (min, max) value for the k-factor multiplier
+    out_range : None | tuple
+        Option to set floor/ceiling values on the output data.
+    max_workers : int | None
+        Max number of workers to use for QDM process pool
     """
-    assert data.ndim == 3, 'data was expected to be a 3D array'
-    assert (
-        data.shape[-1] == time_index.size
-    ), 'The last dimension of data should be time'
+    time_index = make_time_index_from_kws(date_range_kwargs)
+    msg = f'data was expected to be a 3D array but got shape {data.shape}'
+    assert data.ndim == 3, msg
+    msg = (f'Time should align with data 3rd dimension but got data '
+           f'{data.shape} and time_index length '
+           f'{time_index.size}: {time_index}')
+    assert data.shape[-1] == time_index.size, msg
 
-    params, cfg = get_spatial_bc_presrat(
+    params = _get_spatial_bc_presrat(
         lat_lon, base_dset, feature_name, bias_fp, threshold
     )
+    cfg = params['cfg']
     time_window_center = cfg['time_window_center']
-    base = params['base']
-    bias = params['bias']
-    bias_fut = params['bias_fut']
-    bias_tau_fut = params['bias_tau_fut']
+    data = np.asarray(data)
+    base_params = np.asarray(params['base'])
+    bias_params = np.asarray(params['bias'])
+    bias_fut_params = np.asarray(params['bias_fut'])
+    bias_tau_fut = np.asarray(params['bias_tau_fut'])
+    k_factor = params['k_factor']
+    dist = cfg['dist']
+    sampling = cfg['sampling']
+    log_base = cfg['log_base']
+    zero_rate_threshold = cfg['zero_rate_threshold']
+    delta_denom_min = delta_denom_min or zero_rate_threshold
+
+    if k_range is not None:
+        k_factor = np.maximum(k_factor, np.min(k_range))
+        k_factor = np.minimum(k_factor, np.max(k_range))
+
+    logger.debug(f'Presrat K Factor has shape {k_factor.shape} and ranges '
+                 f'from {k_factor.min()} to {k_factor.max()}')
 
     if lr_padded_slice is not None:
         spatial_slice = (lr_padded_slice[0], lr_padded_slice[1])
-        base = base[spatial_slice]
-        bias = bias[spatial_slice]
-        bias_fut = bias_fut[spatial_slice]
+        base_params = base_params[spatial_slice]
+        bias_params = bias_params[spatial_slice]
+        bias_fut_params = bias_fut_params[spatial_slice]
 
-    data_unbiased = np.full_like(data, np.nan)
-    closest_time_idx = abs(
-        time_window_center[:, np.newaxis] - np.array(time_index.day_of_year)
-    ).argmin(axis=0)
-    for nt in set(closest_time_idx):
-        subset_idx = closest_time_idx == nt
-        subset = data[:, :, subset_idx]
-        oh = base[:, :, nt]
-        mh = bias[:, :, nt]
-        mf = bias_fut[:, :, nt]
-
-        if no_trend:
-            mf = None
-        else:
-            mf = mf.reshape(-1, mf.shape[-1])
-        # The distributions are 3D (space, space, N-params)
-        # Collapse 3D (space, space, N) into 2D (space**2, N)
-        QDM = QuantileDeltaMapping(oh.reshape(-1, oh.shape[-1]),
-                                   mh.reshape(-1, mh.shape[-1]),
-                                   mf,
-                                   dist=cfg['dist'],
-                                   relative=relative,
-                                   sampling=cfg['sampling'],
-                                   log_base=cfg['log_base'],
-                                   )
-
-        # input 3D shape (spatial, spatial, temporal)
-        # QDM expects input arr with shape (time, space)
-        tmp = subset.reshape(-1, subset.shape[-1]).T
-        # Apply QDM correction
-        tmp = QDM(tmp)
-        # Reorgnize array back from  (time, space)
-        # to (spatial, spatial, temporal)
-        subset = tmp.T.reshape(subset.shape)
-
-        # If no trend, it doesn't make sense to correct for zero rate or
-        # apply the k-factor, but limit to QDM only.
-        if not no_trend:
-            subset = np.where(subset < bias_tau_fut, 0, subset)
-
-            k_factor = params['k_factor'][:, :, nt]
-            subset = subset * k_factor[:, :, np.newaxis]
-
-        data_unbiased[:, :, subset_idx] = subset
+    data_unbiased = _apply_presrat_bc(data, time_index, base_params,
+                                      bias_params, bias_fut_params,
+                                      bias_tau_fut, k_factor,
+                                      time_window_center, dist=dist,
+                                      sampling=sampling, log_base=log_base,
+                                      relative=relative, no_trend=no_trend,
+                                      delta_denom_min=delta_denom_min,
+                                      delta_range=delta_range,
+                                      out_range=out_range,
+                                      max_workers=max_workers)
 
     return data_unbiased

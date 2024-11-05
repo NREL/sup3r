@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Test forward passes through multi-step GAN models"""
 import os
 import tempfile
@@ -14,7 +13,7 @@ from sup3r.models import (
     Sup3rGan,
 )
 
-FEATURES = ['U_100m', 'V_100m']
+FEATURES = ['u_100m', 'v_100m']
 
 
 def test_multi_step_model():
@@ -60,20 +59,20 @@ def test_multi_step_norm(norm_option):
 
     if norm_option == 'diff_stats':
         # models have different norm stats
-        model1.set_norm_stats({'U_100m': 0.1, 'V_100m': 0.2},
-                              {'U_100m': 0.04, 'V_100m': 0.02})
-        model2.set_norm_stats({'U_100m': 0.1, 'V_100m': 0.2},
-                              {'U_100m': 0.04, 'V_100m': 0.02})
-        model3.set_norm_stats({'U_100m': 0.3, 'V_100m': 0.9},
-                              {'U_100m': 0.02, 'V_100m': 0.07})
+        model1.set_norm_stats({'u_100m': 0.1, 'v_100m': 0.2},
+                              {'u_100m': 0.04, 'v_100m': 0.02})
+        model2.set_norm_stats({'u_100m': 0.1, 'v_100m': 0.2},
+                              {'u_100m': 0.04, 'v_100m': 0.02})
+        model3.set_norm_stats({'u_100m': 0.3, 'v_100m': 0.9},
+                              {'u_100m': 0.02, 'v_100m': 0.07})
     else:
         # all models have the same norm stats
-        model1.set_norm_stats({'U_100m': 0.1, 'V_100m': 0.8},
-                              {'U_100m': 0.04, 'V_100m': 0.02})
-        model2.set_norm_stats({'U_100m': 0.1, 'V_100m': 0.8},
-                              {'U_100m': 0.04, 'V_100m': 0.02})
-        model3.set_norm_stats({'U_100m': 0.1, 'V_100m': 0.8},
-                              {'U_100m': 0.04, 'V_100m': 0.02})
+        model1.set_norm_stats({'u_100m': 0.1, 'v_100m': 0.8},
+                              {'u_100m': 0.04, 'v_100m': 0.02})
+        model2.set_norm_stats({'u_100m': 0.1, 'v_100m': 0.8},
+                              {'u_100m': 0.04, 'v_100m': 0.02})
+        model3.set_norm_stats({'u_100m': 0.1, 'v_100m': 0.8},
+                              {'u_100m': 0.04, 'v_100m': 0.02})
 
     model1.meta['input_resolution'] = {'spatial': '27km', 'temporal': '64min'}
     model2.meta['input_resolution'] = {'spatial': '9km', 'temporal': '16min'}
@@ -124,10 +123,10 @@ def test_spatial_then_temporal_gan():
     model2 = Sup3rGan(fp_gen, fp_disc)
     _ = model2.generate(np.ones((4, 10, 10, 6, len(FEATURES))))
 
-    model1.set_norm_stats({'U_100m': 0.1, 'V_100m': 0.2},
-                          {'U_100m': 0.04, 'V_100m': 0.02})
-    model2.set_norm_stats({'U_100m': 0.3, 'V_100m': 0.9},
-                          {'U_100m': 0.02, 'V_100m': 0.07})
+    model1.set_norm_stats({'u_100m': 0.1, 'v_100m': 0.2},
+                          {'u_100m': 0.04, 'v_100m': 0.02})
+    model2.set_norm_stats({'u_100m': 0.3, 'v_100m': 0.9},
+                          {'u_100m': 0.02, 'v_100m': 0.07})
 
     model1.meta['input_resolution'] = {'spatial': '12km', 'temporal': '40min'}
     model2.meta['input_resolution'] = {'spatial': '6km', 'temporal': '40min'}
@@ -162,10 +161,10 @@ def test_temporal_then_spatial_gan():
     model2 = Sup3rGan(fp_gen, fp_disc)
     _ = model2.generate(np.ones((4, 10, 10, 6, len(FEATURES))))
 
-    model1.set_norm_stats({'U_100m': 0.1, 'V_100m': 0.2},
-                          {'U_100m': 0.04, 'V_100m': 0.02})
-    model2.set_norm_stats({'U_100m': 0.3, 'V_100m': 0.9},
-                          {'U_100m': 0.02, 'V_100m': 0.07})
+    model1.set_norm_stats({'u_100m': 0.1, 'v_100m': 0.2},
+                          {'u_100m': 0.04, 'v_100m': 0.02})
+    model2.set_norm_stats({'u_100m': 0.3, 'v_100m': 0.9},
+                          {'u_100m': 0.02, 'v_100m': 0.07})
 
     model1.meta['input_resolution'] = {'spatial': '12km', 'temporal': '40min'}
     model2.meta['input_resolution'] = {'spatial': '6km', 'temporal': '40min'}
@@ -197,8 +196,8 @@ def test_spatial_gan_then_linear_interp():
 
     model2 = LinearInterp(lr_features=FEATURES, s_enhance=3, t_enhance=4)
 
-    model1.set_norm_stats({'U_100m': 0.1, 'V_100m': 0.2},
-                          {'U_100m': 0.04, 'V_100m': 0.02})
+    model1.set_norm_stats({'u_100m': 0.1, 'v_100m': 0.2},
+                          {'u_100m': 0.04, 'v_100m': 0.02})
     model1.meta['input_resolution'] = {'spatial': '12km', 'temporal': '60min'}
     model1.set_model_params(lr_features=FEATURES,
                             hr_out_features=FEATURES)

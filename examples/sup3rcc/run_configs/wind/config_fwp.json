@@ -25,7 +25,7 @@
     "input_handler_kwargs": {
         "target": [23.2, -129],
         "shape": [26, 59],
-        "temporal_slice": [null, null, null],
+        "time_slice": [null, null, null],
         "worker_kwargs": {
             "max_workers": 1
         }

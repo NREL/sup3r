@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
 """Custom sup3r solar module. This primarily converts GAN output clearsky ratio
 to GHI, DNI, and DHI using NSRDB data and utility modules like DISC
 
 Note that clearsky_ratio is assumed to be clearsky ghi ratio and is calculated
 as daily average GHI / daily average clearsky GHI.
 """
-import glob
-import json
+
 import logging
 import os
 
@@ -18,8 +16,10 @@ from rex import MultiTimeResource, Resource
 from rex.utilities.fun_utils import get_fun_call_str
 from scipy.spatial import KDTree
 
-from sup3r.postprocessing.file_handling import H5_ATTRS, RexOutputs
+from sup3r.postprocessing import OUTPUT_ATTRS, RexOutputs
+from sup3r.preprocessing.utilities import expand_paths
 from sup3r.utilities import ModuleName
+from sup3r.utilities.cli import BaseCLI
 
 logger = logging.getLogger(__name__)
 
@@ -123,9 +123,9 @@ class Solar:
     def __enter__(self):
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, exc_type, exc_value, traceback):
         self.close()
-        if type is not None:
+        if exc_type is not None:
             raise
 
     def preflight(self):
@@ -139,8 +139,7 @@ class Solar:
         assert isinstance(self.nsrdb_tslice, slice)
 
         ti_gan = self.gan_data.time_index
-        ti_gan_1 = np.roll(ti_gan, 1)
-        delta = pd.Series(ti_gan - ti_gan_1)[1:].mean().total_seconds()
+        delta = pd.Series(ti_gan[1:] - ti_gan[:-1]).mean().total_seconds()
         msg = (
             'Its assumed that the sup3r GAN output solar data will be '
             'hourly but received time index: {}'.format(ti_gan)
@@ -159,7 +158,7 @@ class Solar:
 
         Returns
         -------
-        idnn : np.ndarray
+        idnn : Union[np.ndarray, da.core.Array]
             2D array of length (n_sup3r_sites, agg_factor) where the values are
             meta data indices from the NSRDB.
         """
@@ -179,7 +178,7 @@ class Solar:
 
         Returns
         -------
-        dist : np.ndarray
+        dist : Union[np.ndarray, da.core.Array]
             2D array of length (n_sup3r_sites, agg_factor) where the values are
             decimal degree distances from the sup3r sites to the nsrdb nearest
             neighbors.
@@ -205,7 +204,7 @@ class Solar:
 
         Returns
         -------
-        out_of_bounds : np.ndarray
+        out_of_bounds : Union[np.ndarray, da.core.Array]
             1D boolean array with length == number of sup3r GAN sites. True if
             the site is too far from the NSRDB.
         """
@@ -237,9 +236,13 @@ class Solar:
             t0, t1 = ilocs[0], ilocs[-1] + 1
 
             ti_nsrdb = self.nsrdb.time_index
-            ti_nsrdb_1 = np.roll(ti_nsrdb, 1)
-            delta = pd.Series(ti_nsrdb - ti_nsrdb_1)[1:].mean().total_seconds()
-            step = int(3600 // delta)
+            delta = (
+                pd.Series(ti_nsrdb[1:] - ti_nsrdb[:-1])[1:]
+                .mean()
+                .total_seconds()
+            )
+
+            step = int(3600 / delta)
             self._nsrdb_tslice = slice(t0, t1, step)
 
             logger.debug(
@@ -259,7 +262,7 @@ class Solar:
 
         Returns
         -------
-        clearsky_ratio : np.ndarray
+        clearsky_ratio : Union[np.ndarray, da.core.Array]
             2D array with shape (time, sites) in UTC.
         """
         if self._cs_ratio is None:
@@ -283,7 +286,7 @@ class Solar:
 
         Returns
         -------
-        solar_zenith_angle : np.ndarray
+        solar_zenith_angle : Union[np.ndarray, da.core.Array]
             2D array with shape (time, sites) in UTC.
         """
         if self._sza is None:
@@ -297,7 +300,7 @@ class Solar:
 
         Returns
         -------
-        ghi : np.ndarray
+        ghi : Union[np.ndarray, da.core.Array]
             2D array with shape (time, sites) in UTC.
         """
         if self._ghi is None:
@@ -316,7 +319,7 @@ class Solar:
 
         Returns
         -------
-        dni : np.ndarray
+        dni : Union[np.ndarray, da.core.Array]
             2D array with shape (time, sites) in UTC.
         """
         if self._dni is None:
@@ -340,7 +343,7 @@ class Solar:
 
         Returns
         -------
-        dhi : np.ndarray
+        dhi : Union[np.ndarray, da.core.Array]
             2D array with shape (time, sites) in UTC.
         """
         if self._dhi is None:
@@ -359,7 +362,7 @@ class Solar:
 
         Returns
         -------
-        cloud_mask : np.ndarray
+        cloud_mask : Union[np.ndarray, da.core.Array]
             2D array with shape (time, sites) in UTC.
         """
         return self.clearsky_ratio < self.cloud_threshold
@@ -375,7 +378,7 @@ class Solar:
 
         Returns
         -------
-        out : np.ndarray
+        out : Union[np.ndarray, da.core.Array]
             Dataset of shape (time, sites) where time and sites correspond to
             the same shape as the sup3r GAN output data and if agg_factor > 1
             the sites is an average across multiple NSRDB sites.
@@ -401,13 +404,15 @@ class Solar:
     def get_sup3r_fps(fp_pattern, ignore=None):
         """Get a list of file chunks to run in parallel based on a file pattern
 
-        NOTE: it's assumed that all source files have the pattern
-        sup3r_file_TTTTTT_SSSSSS.h5 where TTTTTT is the zero-padded temporal
+        Note
+        ----
+        It's assumed that all source files have the pattern
+        `sup3r_file_TTTTTT_SSSSSS.h5` where TTTTTT is the zero-padded temporal
         chunk index and SSSSSS is the zero-padded spatial chunk index.
 
         Parameters
         ----------
-        fp_pattern : str
+        fp_pattern : str | list
             Unix-style file*pattern that matches a set of spatiotemporally
             chunked sup3r forward pass output files.
         ignore : str | None
@@ -435,7 +440,7 @@ class Solar:
             to process target_fps[10]
         """
 
-        all_fps = [fp for fp in glob.glob(fp_pattern) if fp.endswith('.h5')]
+        all_fps = [fp for fp in expand_paths(fp_pattern) if fp.endswith('.h5')]
         if ignore is not None:
             all_fps = [
                 fp for fp in all_fps if ignore not in os.path.basename(fp)
@@ -454,8 +459,8 @@ class Solar:
             fp.replace('.h5', '').split('_')[-2] for fp in all_fps
         ]
 
-        all_id_spatial = sorted(list(set(all_id_spatial)))
-        all_id_temporal = sorted(list(set(all_id_temporal)))
+        all_id_spatial = sorted(set(all_id_spatial))
+        all_id_temporal = sorted(set(all_id_temporal))
 
         fp_sets = []
         t_slices = []
@@ -505,9 +510,9 @@ class Solar:
         import_str = 'import time;\n'
         import_str += 'from gaps import Status;\n'
         import_str += 'from rex import init_logger;\n'
-        import_str += f'from sup3r.solar import {cls.__name__};\n'
+        import_str += f'from sup3r.solar import {cls.__name__}'
 
-        fun_str = get_fun_call_str(cls.run_temporal_chunk, config)
+        fun_str = get_fun_call_str(cls.run_temporal_chunks, config)
 
         log_file = config.get('log_file', None)
         log_level = config.get('log_level', 'INFO')
@@ -516,33 +521,16 @@ class Solar:
             log_arg_str += f', log_file="{log_file}"'
 
         cmd = (
-            f"python -c \'{import_str}\n"
-            "t0 = time.time();\n"
-            f"logger = init_logger({log_arg_str});\n"
-            f"{fun_str};\n"
-            "t_elap = time.time() - t0;\n"
+            f"python -c '{import_str};\n"
+            't0 = time.time();\n'
+            f'logger = init_logger({log_arg_str});\n'
+            f'{fun_str};\n'
+            't_elap = time.time() - t0;\n'
         )
 
-        job_name = config.get('job_name', None)
         pipeline_step = config.get('pipeline_step') or ModuleName.SOLAR
-        if job_name is not None:
-            status_dir = config.get('status_dir', None)
-            status_file_arg_str = f'"{status_dir}", '
-            status_file_arg_str += f'pipeline_step="{pipeline_step}", '
-            status_file_arg_str += f'job_name="{job_name}", '
-            status_file_arg_str += 'attrs=job_attrs'
-
-            cmd += 'job_attrs = {};\n'.format(
-                json.dumps(config)
-                .replace("null", "None")
-                .replace("false", "False")
-                .replace("true", "True")
-            )
-            cmd += 'job_attrs.update({"job_status": "successful"});\n'
-            cmd += 'job_attrs.update({"time": t_elap});\n'
-            cmd += f'Status.make_single_job_file({status_file_arg_str})'
-
-        cmd += ";\'\n"
+        cmd = BaseCLI.add_status_cmd(config, pipeline_step, cmd)
+        cmd += ";'\n"
 
         return cmd.replace('\\', '/')
 
@@ -567,7 +555,7 @@ class Solar:
             fh.time_index = self.time_index
 
             for feature in features:
-                attrs = H5_ATTRS[feature]
+                attrs = OUTPUT_ATTRS[feature]
                 arr = getattr(self, feature, None)
                 if arr is None:
                     msg = (
@@ -593,7 +581,7 @@ class Solar:
         logger.info(f'Finished writing file: {fp_out}')
 
     @classmethod
-    def run_temporal_chunk(
+    def run_temporal_chunks(
         cls,
         fp_pattern,
         nsrdb_fp,
@@ -603,11 +591,11 @@ class Solar:
         nn_threshold=0.5,
         cloud_threshold=0.99,
         features=('ghi', 'dni', 'dhi'),
-        temporal_id=None,
+        temporal_ids=None,
     ):
-        """Run the solar module on all spatial chunks for a single temporal
-        chunk corresponding to the fp_pattern. This typically gets run from the
-        CLI.
+        """Run the solar module on all spatial chunks for each temporal
+        chunk corresponding to the fp_pattern and the given list of
+        temporal_ids. This typically gets run from the CLI.
 
         Parameters
         ----------
@@ -620,14 +608,6 @@ class Solar:
         fp_out_suffix : str
             Suffix to add to the input sup3r source files when writing the
             processed solar irradiance data to new data files.
-        t_slice : slice
-            Slicing argument to slice the temporal axis of the sup3r_fps source
-            data after doing the tz roll to UTC but before returning the
-            irradiance variables. This can be used to effectively pad the solar
-            irradiance calculation in UTC time. For example, if sup3r_fps is 3
-            files each with 24 hours of data, t_slice can be slice(24, 48) to
-            only output the middle day of irradiance data, but padded by the
-            other two days for the UTC output.
         tz : int
             The timezone offset for the data in sup3r_fps. It is assumed that
             the GAN is trained on data in local time and therefore the output
@@ -647,10 +627,57 @@ class Solar:
         features : list | tuple
             List of features to write to disk. These have to be attributes of
             the Solar class (ghi, dni, dhi).
-        temporal_id : str | None
-            One of the unique zero-padded temporal id's from the file chunks
-            that match fp_pattern. This input typically gets set from the CLI.
-            If None, this will run all temporal indices.
+        temporal_ids : list | None
+            Lise of zero-padded temporal ids from the file chunks that match
+            fp_pattern. This input typically gets set from the CLI. If None,
+            this will run all temporal indices.
+        """
+        if temporal_ids is None:
+            cls._run_temporal_chunk(
+                fp_pattern=fp_pattern,
+                nsrdb_fp=nsrdb_fp,
+                fp_out_suffix=fp_out_suffix,
+                tz=tz,
+                agg_factor=agg_factor,
+                nn_threshold=nn_threshold,
+                cloud_threshold=cloud_threshold,
+                features=features,
+                temporal_id=temporal_ids,
+            )
+        else:
+            for temporal_id in temporal_ids:
+                cls._run_temporal_chunk(
+                    fp_pattern=fp_pattern,
+                    nsrdb_fp=nsrdb_fp,
+                    fp_out_suffix=fp_out_suffix,
+                    tz=tz,
+                    agg_factor=agg_factor,
+                    nn_threshold=nn_threshold,
+                    cloud_threshold=cloud_threshold,
+                    features=features,
+                    temporal_id=temporal_id,
+                )
+
+    @classmethod
+    def _run_temporal_chunk(
+        cls,
+        fp_pattern,
+        nsrdb_fp,
+        fp_out_suffix='irradiance',
+        tz=-6,
+        agg_factor=1,
+        nn_threshold=0.5,
+        cloud_threshold=0.99,
+        features=('ghi', 'dni', 'dhi'),
+        temporal_id=None,
+    ):
+        """Run the solar module on all spatial chunks for a single temporal
+        chunk corresponding to the fp_pattern. This typically gets run from the
+        CLI.
+
+        See Also
+        --------
+        :meth:`run_temporal_chunks`
         """
 
         temp = cls.get_sup3r_fps(fp_pattern, ignore=f'_{fp_out_suffix}.h5')
@@ -676,17 +703,25 @@ class Solar:
         zip_iter = zip(fp_sets, t_slices, target_fps)
         for i, (fp_set, t_slice, fp_target) in enumerate(zip_iter):
             fp_out = fp_target.replace('.h5', f'_{fp_out_suffix}.h5')
-            logger.info(
-                'Running temporal index {} out of {}.'.format(
-                    i + 1, len(fp_sets)
+
+            if os.path.exists(fp_out):
+                logger.info('%s already exists. Skipping.', fp_out)
+
+            else:
+                logger.info(
+                    'Running temporal index {} out of {}.'.format(
+                        i + 1, len(fp_sets)
+                    )
                 )
-            )
-            kwargs = dict(
-                t_slice=t_slice,
-                tz=tz,
-                agg_factor=agg_factor,
-                nn_threshold=nn_threshold,
-                cloud_threshold=cloud_threshold,
-            )
-            with Solar(fp_set, nsrdb_fp, **kwargs) as solar:
-                solar.write(fp_out, features=features)
+
+                kwargs = {
+                    't_slice': t_slice,
+                    'tz': tz,
+                    'agg_factor': agg_factor,
+                    'nn_threshold': nn_threshold,
+                    'cloud_threshold': cloud_threshold,
+                }
+                tmp_out = fp_out + '.tmp'
+                with Solar(fp_set, nsrdb_fp, **kwargs) as solar:
+                    solar.write(tmp_out, features=features)
+                os.replace(tmp_out, fp_out)

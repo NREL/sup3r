@@ -1,15 +1,12 @@
-# -*- coding: utf-8 -*-
-"""
-sup3r QA module CLI entry points.
-"""
-import click
+"""sup3r QA module CLI entry points."""
 import logging
 
-from sup3r import __version__
-from sup3r.utilities import ModuleName
-from sup3r.qa.qa import Sup3rQa
-from sup3r.utilities.cli import BaseCLI
+import click
 
+from sup3r import __version__
+from sup3r.qa.qa import Sup3rQa
+from sup3r.utilities import ModuleName
+from sup3r.utilities.cli import BaseCLI
 
 logger = logging.getLogger(__name__)
 

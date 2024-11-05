@@ -20,30 +20,39 @@ Relevant resources used in the tests:
     zero_rate are zero percent, i.e. no values should be forced to be zero.
 """
 
+import math
 import os
 import shutil
 
 import h5py
-import math
 import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
 from rex import Outputs
 
-from sup3r import CONFIG_DIR, TEST_DATA_DIR
-from sup3r.models import Sup3rGan
-from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
+from sup3r import CONFIG_DIR
 from sup3r.bias import (
-    local_qdm_bc,
-    local_presrat_bc,
     PresRat,
+    local_presrat_bc,
+    local_qdm_bc,
 )
 from sup3r.bias.mixins import ZeroRateMixin
-from sup3r.preprocessing.data_handling import DataHandlerNC
+from sup3r.models import Sup3rGan
+from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
+from sup3r.preprocessing import DataHandler
+from sup3r.preprocessing.utilities import get_date_range_kwargs
+from sup3r.utilities.utilities import (
+    RANDOM_GENERATOR,
+    Timer,
+    xr_open_mfdataset,
+)
 
-FP_CC = os.path.join(TEST_DATA_DIR, 'rsds_test.nc')
-FP_CC_LAT_LON = DataHandlerNC(FP_CC, 'rsds').lat_lon
+CC_LAT_LON = DataHandler(
+    pytest.FP_RSDS,
+    features='rsds',
+    res_kwargs={'format': 'NETCDF', 'engine': 'netcdf4'},
+).lat_lon
 # A reference zero rate threshold that might not make sense physically but for
 # testing purposes only. This might change in the future to force edge cases.
 ZR_THRESHOLD = 0.01
@@ -197,7 +206,7 @@ def fp_cc(tmpdir_factory, precip):
     DataHandlerNCforCC requires a file to be opened
     """
     fn = tmpdir_factory.mktemp('data').join('precip_mh.nc')
-    precip.to_netcdf(fn)
+    precip.to_netcdf(fn, format='NETCDF4', engine='h5netcdf')
     # DataHandlerNCforCC requires a string
     fn = str(fn)
     return fn
@@ -216,7 +225,7 @@ def precip_fut(precip):
     offset = 3 * float(da.quantile(0.75) - da.quantile(0.25))
     da += offset
     # adding a small noise
-    da += 1e-6 * np.random.randn(*da.shape)
+    da += 1e-6 * RANDOM_GENERATOR.random(da.shape)
 
     return da
 
@@ -225,7 +234,7 @@ def precip_fut(precip):
 def fp_fut_cc(tmpdir_factory, precip_fut):
     """Sample future CC dataset (precipitation) filename"""
     fn = tmpdir_factory.mktemp('data').join('precip_mf.nc')
-    precip_fut.to_netcdf(fn)
+    precip_fut.to_netcdf(fn, format='NETCDF4', engine='h5netcdf')
     # DataHandlerNCforCC requires a string
     fn = str(fn)
     return fn
@@ -247,7 +256,7 @@ def fut_cc(fp_fut_cc):
       latlon = np.stack(xr.broadcast(da["lat"], da["lon"] - 360),
                         axis=-1).astype('float32')
     """
-    ds = xr.open_dataset(fp_fut_cc)
+    ds = xr_open_mfdataset(fp_fut_cc)
 
     # Operating with numpy arrays impose a fixed dimensions order
     # This compute is required here.
@@ -260,9 +269,9 @@ def fut_cc(fp_fut_cc):
     latlon = np.stack(xr.broadcast(da['lat'], da['lon'] - 360), axis=-1)
     # Confirm that dataset order is consistent
     # Somewhere in pipeline latlon are downgraded to f32
-    assert np.allclose(latlon.astype('float32'), FP_CC_LAT_LON)
+    assert np.allclose(latlon.astype('float32'), CC_LAT_LON)
 
-    # Verify data alignment in comparison with expected for FP_CC
+    # Verify data alignment in comparison with expected for FP_RSDS
     for ii in range(ds.lat.size):
         for jj in range(ds.lon.size):
             assert np.allclose(
@@ -294,10 +303,10 @@ def fut_cc_notrend(fp_fut_cc_notrend):
     reading it and there are some transformations. This function must provide
     a dataset compatible with the one expected from the standard processing.
     """
-    ds = xr.open_dataset(fp_fut_cc_notrend)
+    ds = xr_open_mfdataset(fp_fut_cc_notrend)
 
     # Although it is the same file, somewhere in the data reading process
-    # the longitude is tranformed to the standard [-180 to 180] and it is
+    # the longitude is transformed to the standard [-180 to 180] and it is
     # expected to be like that everywhere.
     ds['lon'] = ds['lon'] - 360
 
@@ -312,9 +321,9 @@ def fut_cc_notrend(fp_fut_cc_notrend):
     latlon = np.stack(xr.broadcast(da['lat'], da['lon']), axis=-1)
     # Confirm that dataset order is consistent
     # Somewhere in pipeline latlon are downgraded to f32
-    assert np.allclose(latlon.astype('float32'), FP_CC_LAT_LON)
+    assert np.allclose(latlon.astype('float32'), CC_LAT_LON)
 
-    # Verify data alignment in comparison with expected for FP_CC
+    # Verify data alignment in comparison with expected for FP_RSDS
     for ii in range(ds.lat.size):
         for jj in range(ds.lon.size):
             np.allclose(
@@ -346,7 +355,7 @@ def presrat_params(tmpdir_factory, fp_resource, fp_cc, fp_fut_cc):
     fn = tmpdir_factory.mktemp('params').join('presrat.h5')
     # Physically non-sense threshold choosed to result in gridpoints with and
     # without zero rate correction for the given testing dataset.
-    _ = calc.run(zero_rate_threshold=ZR_THRESHOLD, fp_out=fn)
+    _ = calc.run(zero_rate_threshold=ZR_THRESHOLD, fp_out=fn, max_workers=1)
 
     # DataHandlerNCforCC requires a string
     fn = str(fn)
@@ -423,6 +432,7 @@ def presrat_nochanges_params(tmpdir_factory, presrat_params):
         f['ghi_zero_rate'][:] *= 0
         f['rsds_tau_fut'][:] *= 0
         f['rsds_k_factor'][:] = 1
+        f.attrs['zero_rate_threshold'] = 0
         f.flush()
 
     return str(fn)
@@ -453,7 +463,7 @@ def presrat_nozeros_params(tmpdir_factory, presrat_params):
 def test_zero_precipitation_rate():
     """Zero rate estimate using median"""
     f = ZeroRateMixin().zero_precipitation_rate
-    arr = np.random.randn(100)
+    arr = RANDOM_GENERATOR.random(100)
 
     rate = f(arr, threshold=np.median(arr))
     assert rate == 0.5
@@ -521,7 +531,7 @@ def test_presrat_calc(fp_resource, fp_cc, fp_fut_cc):
         bias_handler='DataHandlerNCforCC',
     )
 
-    out = calc.run()
+    out = calc.run(max_workers=2)
 
     expected_vars = [
         'bias_rsds_params',
@@ -578,7 +588,7 @@ def test_parallel(fp_resource, fp_cc, fp_fut_cc, threshold):
 
     out_p = p.run(max_workers=2, zero_rate_threshold=threshold)
 
-    for k in out_s.keys():
+    for k in out_s:
         assert k in out_p, f'Missing {k} in parallel run'
         assert np.allclose(
             out_s[k], out_p[k], equal_nan=True
@@ -639,7 +649,12 @@ def test_presrat_transform(presrat_params, precip_fut):
     ).astype('float32')
 
     unbiased = local_presrat_bc(
-        data, latlon, 'ghi', 'rsds', presrat_params, time
+        data,
+        latlon,
+        'ghi',
+        'rsds',
+        bias_fp=presrat_params,
+        date_range_kwargs=get_date_range_kwargs(time),
     )
 
     assert np.isfinite(unbiased).any(), "Can't compare if only NaN"
@@ -673,7 +688,12 @@ def test_presrat_transform_nochanges(presrat_nochanges_params, fut_cc_notrend):
     ).astype('float32')
 
     unbiased = local_presrat_bc(
-        data, latlon, 'ghi', 'rsds', presrat_nochanges_params, time
+        data,
+        latlon,
+        'ghi',
+        'rsds',
+        presrat_nochanges_params,
+        get_date_range_kwargs(time),
     )
 
     assert np.isfinite(unbiased).any(), "Can't compare if only NaN"
@@ -702,7 +722,7 @@ def test_presrat_transform_nozerochanges(presrat_nozeros_params, fut_cc):
         'ghi',
         'rsds',
         presrat_nozeros_params,
-        time,
+        get_date_range_kwargs(time),
     )
 
     assert np.isfinite(data).any(), "Can't compare if only NaN"
@@ -730,7 +750,7 @@ def test_compare_qdm_vs_presrat(presrat_params, precip_fut):
         'ghi',
         'rsds',
         presrat_params,
-        time,
+        get_date_range_kwargs(time),
     )
     unbiased_presrat = local_presrat_bc(
         data,
@@ -738,7 +758,7 @@ def test_compare_qdm_vs_presrat(presrat_params, precip_fut):
         'ghi',
         'rsds',
         presrat_params,
-        time,
+        get_date_range_kwargs(time),
     )
 
     assert (
@@ -756,8 +776,10 @@ def test_fwp_integration(tmp_path, presrat_params, fp_fut_cc):
     """Integration of the bias correction method into the forward pass
 
     Validate two aspects:
-    - We should be able to run a forward pass with unbiased data.
-    - The bias trend should be observed in the predicted output.
+        (1) We should be able to run a forward pass with unbiased data.
+        (2) The bias trend should be observed in the predicted output.
+
+    TODO: This still needs to do (2)
     """
     fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
     fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
@@ -793,15 +815,13 @@ def test_fwp_integration(tmp_path, presrat_params, fp_fut_cc):
         fwp_chunk_shape=fwp_chunk_shape,
         spatial_pad=0,
         temporal_pad=0,
-        input_handler_kwargs=dict(
-            target=target,
-            shape=shape,
-            temporal_slice=temporal_slice,
-            worker_kwargs=dict(max_workers=1),
-        ),
+        input_handler_kwargs={
+            'target': target,
+            'shape': shape,
+            'time_slice': temporal_slice,
+        },
         out_pattern=os.path.join(tmp_path, 'out_{file_id}.nc'),
-        worker_kwargs=dict(max_workers=1),
-        input_handler='DataHandlerNCforCC',
+        input_handler_name='DataHandlerNCforCC',
     )
     bc_strat = ForwardPassStrategy(
         input_files,
@@ -809,22 +829,33 @@ def test_fwp_integration(tmp_path, presrat_params, fp_fut_cc):
         fwp_chunk_shape=fwp_chunk_shape,
         spatial_pad=0,
         temporal_pad=0,
-        input_handler_kwargs=dict(
-            target=target,
-            shape=shape,
-            temporal_slice=temporal_slice,
-            worker_kwargs=dict(max_workers=1),
-        ),
+        input_handler_kwargs={
+            'target': target,
+            'shape': shape,
+            'time_slice': temporal_slice,
+        },
         out_pattern=os.path.join(tmp_path, 'out_{file_id}.nc'),
-        worker_kwargs=dict(max_workers=1),
-        input_handler='DataHandlerNCforCC',
+        input_handler_name='DataHandlerNCforCC',
         bias_correct_method='local_presrat_bc',
         bias_correct_kwargs=bias_correct_kwargs,
     )
 
-    for ichunk in range(strat.chunks):
-        fwp = ForwardPass(strat, chunk_index=ichunk)
-        bc_fwp = ForwardPass(bc_strat, chunk_index=ichunk)
+    timer = Timer()
+    fwp = timer(ForwardPass, log=True)(strat)
+    bc_fwp = timer(ForwardPass, log=True)(bc_strat)
 
-        _delta = bc_fwp.input_data - fwp.input_data
-        _delta = bc_fwp.run_chunk() - fwp.run_chunk()
+    for ichunk in range(len(strat.node_chunks)):
+        bc_chunk = bc_fwp.get_input_chunk(ichunk)
+        chunk = fwp.get_input_chunk(ichunk)
+
+        _delta = bc_chunk.input_data - chunk.input_data
+        kwargs = {
+            'model_kwargs': strat.model_kwargs,
+            'model_class': strat.model_class,
+            'allowed_const': strat.allowed_const,
+            'output_workers': strat.output_workers,
+        }
+        _, data = fwp.run_chunk(chunk, meta=fwp.meta, **kwargs)
+        _, bc_data = bc_fwp.run_chunk(bc_chunk, meta=bc_fwp.meta, **kwargs)
+
+        _delta = bc_data - data

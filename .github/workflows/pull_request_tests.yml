@@ -1,6 +1,6 @@
 name: Pytests
 
-on: 
+on:
   pull_request:
   workflow_dispatch:
 

@@ -1,13 +1,24 @@
-# -*- coding: utf-8 -*-
-"""Test the basic training of super resolution GAN"""
-import numpy as np
-import tensorflow as tf
-import pytest
+"""Tests for GAN loss functions"""
 
-from sup3r.utilities.loss_metrics import (MmdMseLoss, CoarseMseLoss,
-                                          TemporalExtremesLoss, LowResLoss,
-                                          MaterialDerivativeLoss)
-from sup3r.utilities.utilities import spatial_coarsening, temporal_coarsening
+import numpy as np
+import pytest
+import tensorflow as tf
+
+from sup3r.utilities.loss_metrics import (
+    CoarseMseLoss,
+    LowResLoss,
+    MaterialDerivativeLoss,
+    MmdMseLoss,
+    SpatialExtremesLoss,
+    SpatiotemporalExtremesLoss,
+    StExtremesFftLoss,
+    TemporalExtremesLoss,
+)
+from sup3r.utilities.utilities import (
+    RANDOM_GENERATOR,
+    spatial_coarsening,
+    temporal_coarsening,
+)
 
 
 def test_mmd_loss():
@@ -28,9 +39,9 @@ def test_mmd_loss():
 
     assert mmd_plus_mse > mse
 
-    x = np.random.rand(6, 10, 10, 8, 3)
+    x = RANDOM_GENERATOR.random((6, 10, 10, 8, 3))
     x /= np.max(x)
-    y = np.random.rand(6, 10, 10, 8, 3)
+    y = RANDOM_GENERATOR.random((6, 10, 10, 8, 3))
     y /= np.max(y)
 
     # scaling the same distribution should give high mse and smaller mmd
@@ -42,8 +53,8 @@ def test_mmd_loss():
 
 def test_coarse_mse_loss():
     """Test the coarse MSE loss on spatial average data"""
-    x = np.random.uniform(0, 1, (6, 10, 10, 8, 3))
-    y = np.random.uniform(0, 1, (6, 10, 10, 8, 3))
+    x = RANDOM_GENERATOR.uniform(0, 1, (6, 10, 10, 8, 3))
+    y = RANDOM_GENERATOR.uniform(0, 1, (6, 10, 10, 8, 3))
 
     mse_fun = tf.keras.losses.MeanSquaredError()
     cmse_fun = CoarseMseLoss()
@@ -79,16 +90,85 @@ def test_tex_loss():
     assert loss.numpy() > 1.5
 
 
+def test_spex_loss():
+    """Test custom SpatialExtremesLoss function that looks at min/max values
+    in the timeseries."""
+    loss_obj = SpatialExtremesLoss()
+
+    x = np.zeros((1, 10, 10, 2, 1))
+    y = np.zeros((1, 10, 10, 2, 1))
+
+    # loss should be dominated by special min/max values
+    x[:, 5, 5, :, 0] = 20
+    y[:, 5, 5, :, 0] = 25
+    loss = loss_obj(x, y)
+    assert loss.numpy() > 1.5
+
+    # loss should be dominated by special min/max values
+    x[:, 5, 5, :, 0] = -20
+    y[:, 5, 5, :, 0] = -25
+    loss = loss_obj(x, y)
+    assert loss.numpy() > 1.5
+
+
+def test_stex_loss():
+    """Test custom SpatioTemporalExtremesLoss function that looks at min/max
+    values in the timeseries."""
+    loss_obj = SpatiotemporalExtremesLoss(
+        spatial_weight=1, temporal_weight=1
+    )
+
+    x = np.zeros((1, 10, 10, 5, 1))
+    y = np.zeros((1, 10, 10, 5, 1))
+
+    # loss should be dominated by special min/max values
+    x[:, 5, 5, 2, 0] = 100
+    y[:, 5, 5, 2, 0] = 150
+    loss = loss_obj(x, y)
+    assert loss.numpy() > 1.5
+
+    # loss should be dominated by special min/max values
+    x[:, 5, 5, 2, 0] = -100
+    y[:, 5, 5, 2, 0] = -150
+    loss = loss_obj(x, y)
+    assert loss.numpy() > 1.5
+
+
+def test_st_fft_loss():
+    """Test custom StExtremesFftLoss function that looks at min/max
+    values in the timeseries and also encourages accuracy of the frequency
+    spectrum"""
+    loss_obj = StExtremesFftLoss(
+        spatial_weight=1.0, temporal_weight=1.0, fft_weight=1.0
+    )
+
+    x = np.zeros((1, 10, 10, 5, 1))
+    y = np.zeros((1, 10, 10, 5, 1))
+
+    # loss should be dominated by special min/max values
+    x[:, 5, 5, 2, 0] = 100
+    y[:, 5, 5, 2, 0] = 150
+    loss = loss_obj(x, y)
+    assert loss.numpy() > 1.5
+
+    # loss should be dominated by special min/max values
+    x[:, 5, 5, 2, 0] = -100
+    y[:, 5, 5, 2, 0] = -150
+    loss = loss_obj(x, y)
+    assert loss.numpy() > 1.5
+
+
 def test_lr_loss():
     """Test custom LowResLoss that re-coarsens synthetic and true high-res
     fields and calculates pointwise loss on the low-res fields"""
 
     # test w/o enhance
     t_meth = 'average'
-    loss_obj = LowResLoss(s_enhance=1, t_enhance=1, t_method=t_meth,
-                          tf_loss='MeanSquaredError')
-    xarr = np.random.uniform(-1, 1, (3, 10, 10, 48, 2))
-    yarr = np.random.uniform(-1, 1, (3, 10, 10, 48, 2))
+    loss_obj = LowResLoss(
+        s_enhance=1, t_enhance=1, t_method=t_meth, tf_loss='MeanSquaredError'
+    )
+    xarr = RANDOM_GENERATOR.uniform(-1, 1, (3, 10, 10, 48, 2))
+    yarr = RANDOM_GENERATOR.uniform(-1, 1, (3, 10, 10, 48, 2))
     xtensor = tf.convert_to_tensor(xarr)
     ytensor = tf.convert_to_tensor(yarr)
     loss = loss_obj(xtensor, ytensor)
@@ -96,8 +176,12 @@ def test_lr_loss():
 
     # test 5D with s_enhance
     s_enhance = 5
-    loss_obj = LowResLoss(s_enhance=s_enhance, t_enhance=1, t_method=t_meth,
-                          tf_loss='MeanSquaredError')
+    loss_obj = LowResLoss(
+        s_enhance=s_enhance,
+        t_enhance=1,
+        t_method=t_meth,
+        tf_loss='MeanSquaredError',
+    )
     xarr_lr = spatial_coarsening(xarr, s_enhance=s_enhance, obs_axis=True)
     yarr_lr = spatial_coarsening(yarr, s_enhance=s_enhance, obs_axis=True)
     loss = loss_obj(xtensor, ytensor)
@@ -106,8 +190,12 @@ def test_lr_loss():
     # test 5D with s/t enhance
     s_enhance = 5
     t_enhance = 12
-    loss_obj = LowResLoss(s_enhance=s_enhance, t_enhance=t_enhance,
-                          t_method=t_meth, tf_loss='MeanSquaredError')
+    loss_obj = LowResLoss(
+        s_enhance=s_enhance,
+        t_enhance=t_enhance,
+        t_method=t_meth,
+        tf_loss='MeanSquaredError',
+    )
     xarr_lr = spatial_coarsening(xarr, s_enhance=s_enhance, obs_axis=True)
     yarr_lr = spatial_coarsening(yarr, s_enhance=s_enhance, obs_axis=True)
     xarr_lr = temporal_coarsening(xarr_lr, t_enhance=t_enhance, method=t_meth)
@@ -117,8 +205,12 @@ def test_lr_loss():
 
     # test 5D with subsample
     t_meth = 'subsample'
-    loss_obj = LowResLoss(s_enhance=s_enhance, t_enhance=t_enhance,
-                          t_method=t_meth, tf_loss='MeanSquaredError')
+    loss_obj = LowResLoss(
+        s_enhance=s_enhance,
+        t_enhance=t_enhance,
+        t_method=t_meth,
+        tf_loss='MeanSquaredError',
+    )
     xarr_lr = spatial_coarsening(xarr, s_enhance=s_enhance, obs_axis=True)
     yarr_lr = spatial_coarsening(yarr, s_enhance=s_enhance, obs_axis=True)
     xarr_lr = temporal_coarsening(xarr_lr, t_enhance=t_enhance, method=t_meth)
@@ -127,22 +219,30 @@ def test_lr_loss():
     assert np.allclose(loss, loss_obj._tf_loss(xarr_lr, yarr_lr))
 
     # test 4D spatial only
-    xarr = np.random.uniform(-1, 1, (3, 10, 10, 2))
-    yarr = np.random.uniform(-1, 1, (3, 10, 10, 2))
+    xarr = RANDOM_GENERATOR.uniform(-1, 1, (3, 10, 10, 2))
+    yarr = RANDOM_GENERATOR.uniform(-1, 1, (3, 10, 10, 2))
     xtensor = tf.convert_to_tensor(xarr)
     ytensor = tf.convert_to_tensor(yarr)
     s_enhance = 5
-    loss_obj = LowResLoss(s_enhance=s_enhance, t_enhance=1, t_method=t_meth,
-                          tf_loss='MeanSquaredError')
+    loss_obj = LowResLoss(
+        s_enhance=s_enhance,
+        t_enhance=1,
+        t_method=t_meth,
+        tf_loss='MeanSquaredError',
+    )
     xarr_lr = spatial_coarsening(xarr, s_enhance=s_enhance, obs_axis=True)
     yarr_lr = spatial_coarsening(yarr, s_enhance=s_enhance, obs_axis=True)
     loss = loss_obj(xtensor, ytensor)
     assert np.allclose(loss, loss_obj._tf_loss(xarr_lr, yarr_lr))
 
     # test 4D spatial only with spatial extremes
-    loss_obj = LowResLoss(s_enhance=s_enhance, t_enhance=1, t_method=t_meth,
-                          tf_loss='MeanSquaredError',
-                          ex_loss='SpatialExtremesOnlyLoss')
+    loss_obj = LowResLoss(
+        s_enhance=s_enhance,
+        t_enhance=1,
+        t_method=t_meth,
+        tf_loss='MeanSquaredError',
+        ex_loss='SpatialExtremesOnlyLoss',
+    )
     ex_loss = loss_obj(xtensor, ytensor)
     assert ex_loss > loss
 
@@ -151,7 +251,7 @@ def test_md_loss():
     """Test the material derivative calculation in the material derivative
     content loss class."""
 
-    x = np.random.rand(6, 10, 10, 8, 3)
+    x = RANDOM_GENERATOR.random((6, 10, 10, 8, 3))
     y = x.copy()
 
     md_loss = MaterialDerivativeLoss()
@@ -169,7 +269,7 @@ def test_md_loss():
     with pytest.raises(ValueError):
         md_loss._derivative(x, axis=0)
 
-    with pytest.raises(Exception):
+    with pytest.raises(AssertionError):
         md_loss(x[..., 0], y[..., 0])
 
     assert np.allclose(u_div, u_div_np)

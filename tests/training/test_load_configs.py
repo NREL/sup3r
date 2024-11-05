@@ -1,6 +1,6 @@
-# -*- coding: utf-8 -*-
 """Test the sample super resolution GAN configs"""
 import os
+
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -16,9 +16,8 @@ GEN_CONFIGS = [fn for fn in os.listdir(ST_CONFIG_DIR) if fn.startswith('gen')]
 def test_load_spatial(spatial_len):
     """Test the loading of a sample the spatial gan model."""
     fp_gen = os.path.join(CONFIG_DIR, 'spatial/gen_10x_2f.json')
-    fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
 
-    model = Sup3rGan(fp_gen, fp_disc)
+    model = Sup3rGan(fp_gen, pytest.S_FP_DISC)
 
     coarse_shapes = [(32, spatial_len, spatial_len, 2),
                      (16, 2 * spatial_len, 2 * spatial_len, 2)]
@@ -41,10 +40,9 @@ def test_load_spatial(spatial_len):
 
 def test_load_all_spatial_generators():
     """Test all generator configs in the spatial config dir"""
-    st_config_dir = os.path.join(CONFIG_DIR, 'spatial/')
-    fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
+    s_config_dir = os.path.join(CONFIG_DIR, 'spatial/')
 
-    gen_configs = [fn for fn in os.listdir(st_config_dir)
+    gen_configs = [fn for fn in os.listdir(s_config_dir)
                    if fn.startswith('gen')]
 
     for fn in gen_configs:
@@ -58,8 +56,8 @@ def test_load_all_spatial_generators():
         assert len(n_features) == 1
         n_features = int(n_features[0].strip('f'))
 
-        fp_gen = os.path.join(st_config_dir, fn)
-        model = Sup3rGan(fp_gen, fp_disc)
+        fp_gen = os.path.join(s_config_dir, fn)
+        model = Sup3rGan(fp_gen, pytest.S_FP_DISC)
 
         coarse_shape = (1, 5, 5, 2)
         x = np.ones(coarse_shape)
@@ -76,10 +74,8 @@ def test_load_all_spatial_generators():
 
 def test_load_spatiotemporal():
     """Test loading of a sample spatiotemporal gan model"""
-    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
-    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
 
-    model = Sup3rGan(fp_gen, fp_disc)
+    model = Sup3rGan(pytest.ST_FP_GEN, pytest.ST_FP_DISC)
 
     coarse_shape = (32, 5, 5, 4, 2)
     x = np.ones(coarse_shape)
@@ -112,7 +108,6 @@ def test_load_spatiotemporal():
 def test_load_all_st_generators(fn_gen, coarse_shape):
     """Test all generator configs in the spatiotemporal config dir"""
     fp_gen = os.path.join(ST_CONFIG_DIR, fn_gen)
-    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
 
     enhancements = [s for s in fn_gen.replace('.json', '').split('_')
                     if s.endswith('x')]
@@ -125,7 +120,7 @@ def test_load_all_st_generators(fn_gen, coarse_shape):
     assert len(n_features) == 1
     n_features = int(n_features[0].strip('f'))
 
-    model = Sup3rGan(fp_gen, fp_disc)
+    model = Sup3rGan(fp_gen, pytest.ST_FP_DISC)
 
     x = np.ones(coarse_shape)
     for layer in model.generator:

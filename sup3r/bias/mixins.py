@@ -11,12 +11,14 @@ logger = logging.getLogger(__name__)
 
 
 class FillAndSmoothMixin:
-    """Fill and extend parameters for calibration on missing positions"""
-    def fill_and_smooth(self,
-                        out,
-                        fill_extend=True,
-                        smooth_extend=0,
-                        smooth_interior=0):
+    """Fill and extend parameters for calibration on missing positions
+
+    TODO: replace nn_fill_array call with `Sup3rX.interpolate_na` method
+    """
+
+    def fill_and_smooth(
+        self, out, fill_extend=True, smooth_extend=0, smooth_interior=0
+    ):
         """For a given set of parameters, fill and extend missing positions
 
         Fill data extending beyond the base meta data extent by doing a
@@ -58,35 +60,41 @@ class FillAndSmoothMixin:
             (lat, lon, time).
         """
         if len(self.bad_bias_gids) > 0:
-            logger.info('Found {} bias gids that are out of bounds: {}'
-                        .format(len(self.bad_bias_gids), self.bad_bias_gids))
+            logger.info(
+                'Found {} bias gids that are out of bounds: {}'.format(
+                    len(self.bad_bias_gids), self.bad_bias_gids
+                )
+            )
 
         for key, arr in out.items():
             nan_mask = np.isnan(arr[..., 0])
             for idt in range(arr.shape[-1]):
-
                 arr_smooth = arr[..., idt]
 
-                needs_fill = (np.isnan(arr_smooth).any()
-                              and fill_extend) or smooth_interior > 0
+                needs_fill = (
+                    np.isnan(arr_smooth).any() and fill_extend
+                ) or smooth_interior > 0
 
                 if needs_fill:
-                    logger.info('Filling NaN values outside of valid spatial '
-                                'extent for dataset "{}" for timestep {}'
-                                .format(key, idt))
+                    logger.info(
+                        'Filling NaN values outside of valid spatial '
+                        'extent for dataset "{}" for timestep {}'.format(
+                            key, idt
+                        )
+                    )
                     arr_smooth = nn_fill_array(arr_smooth)
 
                 arr_smooth_int = arr_smooth_ext = arr_smooth
 
                 if smooth_extend > 0:
-                    arr_smooth_ext = gaussian_filter(arr_smooth_ext,
-                                                     smooth_extend,
-                                                     mode='nearest')
+                    arr_smooth_ext = gaussian_filter(
+                        arr_smooth_ext, smooth_extend, mode='nearest'
+                    )
 
                 if smooth_interior > 0:
-                    arr_smooth_int = gaussian_filter(arr_smooth_int,
-                                                     smooth_interior,
-                                                     mode='nearest')
+                    arr_smooth_int = gaussian_filter(
+                        arr_smooth_int, smooth_interior, mode='nearest'
+                    )
 
                 out[key][nan_mask, idt] = arr_smooth_ext[nan_mask]
                 out[key][~nan_mask, idt] = arr_smooth_int[~nan_mask]
@@ -97,7 +105,6 @@ class FillAndSmoothMixin:
 class ZeroRateMixin:
     """Estimate zero rate
 
-
     [Pierce2015]_.
 
     References
@@ -107,6 +114,7 @@ class ZeroRateMixin:
        hydrological simulations of climate change. Journal of Hydrometeorology,
        16(6), 2421-2442.
     """
+
     @staticmethod
     def zero_precipitation_rate(arr: np.ndarray, threshold: float = 0.0):
         """Rate of (nearly) zero precipitation days
