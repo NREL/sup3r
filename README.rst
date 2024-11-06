@@ -11,10 +11,10 @@ Welcome to SUP3R!
 .. |Linter| image:: https://github.com/NREL/sup3r/workflows/Lint%20Code%20Base/badge.svg
     :target: https://github.com/NREL/sup3r/actions?query=workflow%3A%22Lint+Code+Base%22
 
-.. |PyPi| image:: https://img.shields.io/pypi/pyversions/NREL-sup3r.svg&kill_cache=1
+.. |PyPi| image:: https://img.shields.io/pypi/pyversions/NREL-sup3r.svg
     :target: https://pypi.org/project/NREL-sup3r/
 
-.. |PythonV| image:: https://badge.fury.io/py/NREL-sup3r.svg&kill_cache=1
+.. |PythonV| image:: https://badge.fury.io/py/NREL-sup3r.svg
     :target: https://badge.fury.io/py/NREL-sup3r
 
 .. |Codecov| image:: https://codecov.io/gh/nrel/sup3r/branch/main/graph/badge.svg
