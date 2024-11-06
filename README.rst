@@ -73,7 +73,7 @@ Recommended Citation
 
 Update with current version and DOI:
 
-Brandon Benton, Grant Buster, Andrew Glaws, Ryan King. Super Resolution for Renewable Resource Data (sup3r). https://github.com/NREL/sup3r (version v0.0.3), 2022. DOI: 10.5281/zenodo.6808547
+Brandon Benton, Grant Buster, Andrew Glaws, Ryan King. Super Resolution for Renewable Resource Data (sup3r). https://github.com/NREL/sup3r (version v0.2.0), 2024. DOI: 10.5281/zenodo.14042894
 
 Acknowledgments
 ===============
