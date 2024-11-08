@@ -143,13 +143,9 @@ class BaseExoRasterizer(ABC):
             )
         return self._source_handler
 
-    def get_cache_file(self, feature):
+    @property
+    def cache_file(self):
         """Get cache file name
-
-        Parameters
-        ----------
-        feature : str
-            Name of feature to get cache file for
 
         Returns
         -------
@@ -158,7 +154,8 @@ class BaseExoRasterizer(ABC):
             :class:`~sup3r.preprocessing.cachers.Cacher` and loaded with
             :class:`~sup3r.preprocessing.loaders.Loader`
         """
-        fn = f'exo_{feature}_{"_".join(map(str, self.input_handler.target))}_'
+        fn = f'exo_{self.feature}_'
+        fn += f'{"_".join(map(str, self.input_handler.target))}_'
         fn += f'{"x".join(map(str, self.input_handler.grid_shape))}_'
 
         if len(self.source_data.shape) == 3:
@@ -278,8 +275,8 @@ class BaseExoRasterizer(ABC):
         """Get a raster of source values corresponding to the
         high-resolution grid (the file_paths input grid * s_enhance *
         t_enhance). The shape is (lats, lons, temporal, 1)"""
-        cache_fp = self.get_cache_file(feature=self.feature)
 
+        cache_fp = self.cache_file
         if os.path.exists(cache_fp):
             data = Loader(cache_fp)
         else:

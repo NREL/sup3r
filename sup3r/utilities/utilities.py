@@ -58,6 +58,8 @@ def xr_open_mfdataset(files, **kwargs):
     """Wrapper for xr.open_mfdataset with default opening options."""
     default_kwargs = {'engine': 'netcdf4'}
     default_kwargs.update(kwargs)
+    if isinstance(files, str):
+        files = [files]
     try:
         return xr.open_mfdataset(files, **default_kwargs)
     except Exception as e:

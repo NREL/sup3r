@@ -10,6 +10,7 @@ import warnings
 from dataclasses import dataclass
 from functools import cached_property
 from typing import Dict, Optional, Tuple, Union
+from warnings import warn
 
 import dask.array as da
 import numpy as np
@@ -227,6 +228,18 @@ class ForwardPassStrategy:
             temporal_pad=self.temporal_pad,
         )
         self.n_chunks = self.fwp_slicer.n_chunks
+
+        msg = (
+            'The same exogenous data is used by all nodes, so it will be '
+            'cached on the head_node. This can take a long time and might be '
+            'worth doing as an independent preprocessing step instead.'
+        )
+        if self.head_node and not all(
+            os.path.exists(fp) for fp in self.get_exo_cache_files(model)
+        ):
+            logger.warning(msg)
+            warn(msg)
+            _ = self.timer(self.load_exo_data, log=True)(model)
 
         if not self.head_node:
             hr_shape = self.hr_lat_lon.shape[:-1]
@@ -532,19 +545,9 @@ class ForwardPassStrategy:
             index=chunk_index,
         )
 
-    def load_exo_data(self, model):
-        """Extract exogenous data for each exo feature and store data in
-        dictionary with key for each exo feature
-
-        Returns
-        -------
-        exo_data : ExoData
-           :class:`ExoData` object composed of multiple
-           :class:`SingleExoDataStep` objects. This is the exo data for the
-           full spatiotemporal extent.
-        """
-        data = {}
-        exo_data = None
+    def get_exo_kwargs(self, model):
+        """Get list of exo kwargs for all exo features."""
+        exo_kwargs_list = []
         if self.exo_handler_kwargs:
             for feature in self.exo_features:
                 exo_kwargs = copy.deepcopy(self.exo_handler_kwargs[feature])
@@ -558,8 +561,32 @@ class ForwardPassStrategy:
                 _ = input_handler_kwargs.pop('time_slice', None)
                 exo_kwargs['input_handler_kwargs'] = input_handler_kwargs
                 exo_kwargs = get_class_kwargs(ExoDataHandler, exo_kwargs)
-                data.update(ExoDataHandler(**exo_kwargs).data)
-            exo_data = ExoData(data)
+                exo_kwargs_list.append(exo_kwargs)
+        return exo_kwargs_list
+
+    def get_exo_cache_files(self, model):
+        """Get list of exo cache files so we can check if they exist or not."""
+        cache_files = []
+        for exo_kwargs in self.get_exo_kwargs(model):
+            cache_files.extend(ExoDataHandler(**exo_kwargs).cache_files)
+        return cache_files
+
+    def load_exo_data(self, model):
+        """Extract exogenous data for each exo feature and store data in
+        dictionary with key for each exo feature
+
+        Returns
+        -------
+        exo_data : ExoData
+           :class:`ExoData` object composed of multiple
+           :class:`SingleExoDataStep` objects. This is the exo data for the
+           full spatiotemporal extent.
+        """
+        data = {}
+        exo_data = None
+        for exo_kwargs in self.get_exo_kwargs(model):
+            data.update(ExoDataHandler(**exo_kwargs).data)
+        exo_data = ExoData(data)
         return exo_data
 
     @cached_property

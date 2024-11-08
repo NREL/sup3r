@@ -12,9 +12,9 @@ import threading
 import time
 from abc import ABC, abstractmethod
 from collections import namedtuple
+from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING, List, Optional, Union
 
-import dask
 import numpy as np
 import tensorflow as tf
 
@@ -244,15 +244,13 @@ class AbstractBatchQueue(Collection, ABC):
             if needed == 1 or self.max_workers == 1:
                 self.enqueue_batch()
             elif needed > 0:
-                tasks = [
-                    dask.delayed(self.enqueue_batch)() for _ in range(needed)
-                ]
+                with ThreadPoolExecutor(self.max_workers) as exe:
+                    _ = [exe.submit(self.enqueue_batch) for _ in range(needed)]
                 logger.debug(
                     'Added %s enqueue futures to %s queue.',
                     needed,
                     self._thread_name,
                 )
-                dask.compute(*tasks)
             if time.time() > log_time + 10:
                 logger.debug(self.log_queue_info())
                 log_time = time.time()

@@ -250,7 +250,9 @@ class ExoData(dict):
                     if k == 'data':
                         # last dimension is feature channel, so we use only the
                         # spatial slices if data is 2d and all slices otherwise
-                        chunk_step[k] = v[tuple(exo_slices)[:len(v.shape) - 1]]
+                        chunk_step[k] = v[
+                            tuple(exo_slices)[: len(v.shape) - 1]
+                        ]
                     else:
                         chunk_step[k] = v
                 exo_chunk[feature]['steps'].append(chunk_step)
@@ -380,9 +382,8 @@ class ExoDataHandler:
                 steps.append({'model': i, 'combine_type': 'output'})
         return steps
 
-    def get_single_step_data(self, s_enhance, t_enhance):
-        """Get exo data for a single model step, with specific enhancement
-        factors."""
+    def get_exo_rasterizer(self, s_enhance, t_enhance):
+        """Get exo rasterizer instance for given enhancement factors"""
         return ExoRasterizer(
             file_paths=self.file_paths,
             source_file=self.source_file,
@@ -394,7 +395,20 @@ class ExoDataHandler:
             cache_dir=self.cache_dir,
             chunks=self.chunks,
             distance_upper_bound=self.distance_upper_bound,
-        ).data
+        )
+
+    def get_single_step_data(self, s_enhance, t_enhance):
+        """Get exo data for a single model step, with specific enhancement
+        factors."""
+        return self.get_exo_rasterizer(s_enhance, t_enhance).data
+
+    @property
+    def cache_files(self):
+        """Get exo data cache file for all enhancement factors"""
+        return [
+            self.get_exo_rasterizer(s_en, t_en).cache_file
+            for s_en, t_en in zip(self.s_enhancements, self.t_enhancements)
+        ]
 
     def get_all_step_data(self):
         """Get exo data for each model step."""

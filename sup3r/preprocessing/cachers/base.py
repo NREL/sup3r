@@ -59,10 +59,15 @@ class Cacher(Container):
             of dictionaries for each feature (or a single dictionary to use
             for all features). e.g.
             .. code-block:: JSON
-            {'cache_pattern': ...,
-               'chunks': {
-                 'u_10m': {'time': 20, 'south_north': 100, 'west_east': 100}}
-            }
+                {'cache_pattern': ...,
+                    'chunks': {
+                        'u_10m': {
+                            'time': 20,
+                            'south_north': 100,
+                            'west_east': 100
+                        }
+                    }
+                }
 
         Note
         ----
@@ -414,8 +419,10 @@ class Cacher(Container):
         features : str | list
             Names of feature(s) to write to file.
         chunks : dict | None
-            Chunk sizes for coordinate dimensions. e.g. ``{'windspeed':
-            {'south_north': 100, 'west_east': 100, 'time': 10}}``
+            Chunk sizes for coordinate dimensions. e.g. ``{'south_north': 100,
+            'west_east': 100, 'time': 10}`` Can also include dataset specific
+            values. e.g. ``{'windspeed': {'south_north': 100, 'west_east': 100,
+            'time': 10}}``
         max_workers : int | None
             Number of workers to use for parallel writing of chunks
         mode : str

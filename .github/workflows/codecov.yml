@@ -2,7 +2,8 @@ name: Codecov
 
 on:
   push:
-    branches: [main, master]
+    branches: [main]
+  workflow_dispatch:
 
 jobs:
   run:

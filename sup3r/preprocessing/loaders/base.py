@@ -8,7 +8,6 @@ from datetime import datetime as dt
 from typing import Callable
 
 import numpy as np
-import xarray as xr
 
 from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.names import FEATURE_NAMES
@@ -17,6 +16,7 @@ from sup3r.preprocessing.utilities import (
     log_args,
     ordered_dims,
 )
+from sup3r.utilities.utilities import xr_open_mfdataset
 
 from .utilities import (
     lower_names,
@@ -35,7 +35,7 @@ class BaseLoader(Container, ABC):
     by :class:`~sup3r.preprocessing.rasterizers.Rasterizer` objects to derive /
     extract specific features / regions / time_periods."""
 
-    BASE_LOADER: Callable = xr.open_mfdataset
+    BASE_LOADER: Callable = xr_open_mfdataset
 
     @log_args
     def __init__(
