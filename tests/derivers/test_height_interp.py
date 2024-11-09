@@ -47,7 +47,7 @@ def test_plevel_height_interp_nc(shape, target, height, chunks):
             assert no_transform.loaded
 
         # warning about upper case features
-        with pytest.warns():
+        with pytest.warns(match='Received some upper case features'):
             transform = Deriver(
                 no_transform.data,
                 derive_features,

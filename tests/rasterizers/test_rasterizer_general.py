@@ -27,10 +27,10 @@ def test_get_full_domain_nc():
             rasterizer.loader[Dimension.LONGITUDE].min(),
         ),
     )
-    dim_order = (Dimension.LATITUDE, Dimension.LONGITUDE, Dimension.TIME)
+    dim_order = (Dimension.SOUTH_NORTH, Dimension.WEST_EAST, Dimension.TIME)
 
     # raise warning about upper case features
-    with pytest.warns():
+    with pytest.warns(match='Received some upper case features'):
         assert np.array_equal(
             rasterizer['U_100m'],
             nc_res['u_100m'].transpose(*dim_order).data.astype(np.float32),
