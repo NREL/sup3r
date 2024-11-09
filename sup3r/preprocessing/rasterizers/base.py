@@ -51,10 +51,11 @@ class BaseRasterizer(Container):
             raster_file.
         shape : tuple
             (rows, cols) grid size. Either need target+shape or raster_file.
-        time_slice : slice
+        time_slice : slice | list
             Slice specifying extent and step of temporal extraction. e.g.
             slice(start, stop, step). If equal to slice(None, None, 1) the full
-            time dimension is selected.
+            time dimension is selected. Can be also be a list ``[start, stop,
+            step]``
         threshold : float
             Nearest neighbor euclidean distance threshold. If the coordinates
             are more than this value away from the target lat/lon, an error is
