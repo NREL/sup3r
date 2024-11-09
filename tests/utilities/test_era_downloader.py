@@ -98,7 +98,11 @@ def test_era_dl_year(tmpdir_factory):
         yearly_file_pattern=yearly_file_pattern,
         max_workers=1,
         combine_all_files=True,
-        res_kwargs={'compat': 'override', 'engine': 'netcdf4'},
+        res_kwargs={
+            'compat': 'override',
+            'engine': 'netcdf4',
+            'concat_dim': 'time',
+        },
     )
 
     combined_file = yearly_file_pattern.replace('_{var}_', '').format(

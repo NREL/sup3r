@@ -22,7 +22,11 @@ def preprocess_datasets(dset):
     """Standardization preprocessing applied before datasets are concatenated
     by ``xr.open_mfdataset``"""
     if 'time' in dset and dset.time.size > 1:
-        ti = dset.time.astype(int)
+        if 'time' in dset.indexes and hasattr(
+            dset.indexes['time'], 'to_datetimeindex'
+        ):
+            dset['time'] = dset.indexes['time'].to_datetimeindex()
+        ti = dset['time'].astype(int)
         dset['time'] = ti
     if 'latitude' in dset.dims:
         dset = dset.swap_dims({'latitude': 'south_north'})
