@@ -99,8 +99,8 @@ def test_era_dl_year(tmpdir_factory):
         max_workers=1,
         combine_all_files=True,
         res_kwargs={
-            'compat': 'override',
             'engine': 'netcdf4',
+            'combine': 'nested',
             'concat_dim': 'time',
         },
     )

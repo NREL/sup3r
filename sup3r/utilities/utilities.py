@@ -175,73 +175,30 @@ def temporal_coarsening(data, t_enhance=4, method='subsample'):
     """
 
     if t_enhance is not None and len(data.shape) == 5:
+        new_shape = (
+            data.shape[0],
+            data.shape[1],
+            data.shape[2],
+            -1,
+            t_enhance,
+            data.shape[4],
+        )
+
         if method == 'subsample':
             coarse_data = data[:, :, :, ::t_enhance, :]
 
         elif method == 'average':
-            coarse_data = np.nansum(
-                np.reshape(
-                    data,
-                    (
-                        data.shape[0],
-                        data.shape[1],
-                        data.shape[2],
-                        -1,
-                        t_enhance,
-                        data.shape[4],
-                    ),
-                ),
-                axis=4,
-            )
+            coarse_data = np.nansum(np.reshape(data, new_shape), axis=4)
             coarse_data /= t_enhance
 
         elif method == 'max':
-            coarse_data = np.max(
-                np.reshape(
-                    data,
-                    (
-                        data.shape[0],
-                        data.shape[1],
-                        data.shape[2],
-                        -1,
-                        t_enhance,
-                        data.shape[4],
-                    ),
-                ),
-                axis=4,
-            )
+            coarse_data = np.max(np.reshape(data, new_shape), axis=4)
 
         elif method == 'min':
-            coarse_data = np.min(
-                np.reshape(
-                    data,
-                    (
-                        data.shape[0],
-                        data.shape[1],
-                        data.shape[2],
-                        -1,
-                        t_enhance,
-                        data.shape[4],
-                    ),
-                ),
-                axis=4,
-            )
+            coarse_data = np.min(np.reshape(data, new_shape), axis=4)
 
         elif method == 'total':
-            coarse_data = np.nansum(
-                np.reshape(
-                    data,
-                    (
-                        data.shape[0],
-                        data.shape[1],
-                        data.shape[2],
-                        -1,
-                        t_enhance,
-                        data.shape[4],
-                    ),
-                ),
-                axis=4,
-            )
+            coarse_data = np.nansum(np.reshape(data, new_shape), axis=4)
 
         else:
             msg = (
