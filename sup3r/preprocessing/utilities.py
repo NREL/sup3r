@@ -21,6 +21,21 @@ from .names import Dimension
 logger = logging.getLogger(__name__)
 
 
+def lower_names(data):
+    """Set all fields / coords / dims to lower case."""
+    return data.rename(
+        {
+            f: f.lower()
+            for f in [
+                *list(data.data_vars),
+                *list(data.dims),
+                *list(data.coords),
+            ]
+            if f != f.lower()
+        }
+    )
+
+
 def get_input_handler_class(input_handler_name: Optional[str] = None):
     """Get the :class:`~sup3r.preprocessing.data_handlers.DataHandler` or
     :class:`~sup3r.preprocessing.rasterizers.Rasterizer` object.

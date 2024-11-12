@@ -14,12 +14,12 @@ from sup3r.preprocessing.names import FEATURE_NAMES
 from sup3r.preprocessing.utilities import (
     expand_paths,
     log_args,
+    lower_names,
     ordered_dims,
 )
 from sup3r.utilities.utilities import xr_open_mfdataset
 
 from .utilities import (
-    lower_names,
     standardize_names,
     standardize_values,
 )

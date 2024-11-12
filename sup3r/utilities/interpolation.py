@@ -65,16 +65,7 @@ class Interpolator:
             0,
             da.map_blocks(lambda x, y: x / y, (level - lev_samps[0]), diff),
         )
-        return da.blockwise(
-            lambda x, y, a: x * (1 - a) + y * a,
-            'ijk',
-            var_samps[0],
-            'ijk',
-            var_samps[1],
-            'ijk',
-            alpha,
-            'ijk',
-        )
+        return (1 - alpha) * var_samps[0] + alpha * var_samps[1]
 
     @classmethod
     def _log_interp(cls, lev_samps, var_samps, level):

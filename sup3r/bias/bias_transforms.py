@@ -677,7 +677,7 @@ def local_qdm_bc(
         output = np.minimum(output, np.max(out_range))
 
     if np.isnan(output).any():
-        msg = ('Presrat bias correction resulted in NaN values! If this is a '
+        msg = ('QDM bias correction resulted in NaN values! If this is a '
                'relative QDM, you may try setting ``delta_denom_min`` or '
                '``delta_denom_zero``')
         logger.error(msg)

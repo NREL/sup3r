@@ -9,11 +9,10 @@ import dask.array as da
 import numpy as np
 
 from sup3r.preprocessing.names import COORD_NAMES, DIM_NAMES, Dimension
-from sup3r.preprocessing.utilities import ordered_dims
+from sup3r.preprocessing.utilities import lower_names, ordered_dims
 from sup3r.utilities.utilities import xr_open_mfdataset
 
 from .base import BaseLoader
-from .utilities import lower_names
 
 logger = logging.getLogger(__name__)
 
