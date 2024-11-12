@@ -747,15 +747,9 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             b_loss_details['gen_trained_frac'] = float(trained_gen)
             b_loss_details['disc_trained_frac'] = float(trained_disc)
 
-            opt_g = self.get_optimizer_state(self.optimizer)
-            opt_d = self.get_optimizer_state(self.optimizer_disc)
-            opt_g = {f'Gen/{key}': val for key, val in opt_g.items()}
-            opt_d = {f'Disc/{key}': val for key, val in opt_g.items()}
-            b_loss_details.update(opt_g)
-            b_loss_details.update(opt_d)
-
             self.dict_to_tensorboard(b_loss_details)
             self.dict_to_tensorboard(self.timer.log)
+
             loss_details = self.update_loss_details(
                 loss_details,
                 b_loss_details,
@@ -1008,10 +1002,9 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
                 loss_details['train_loss_gen'], loss_details['train_loss_disc']
             )
 
-            if all(
-                loss in loss_details
-                for loss in ('val_loss_gen', 'val_loss_disc')
-            ):
+            check1 = 'val_loss_gen' in loss_details
+            check2 = 'val_loss_disc' in loss_details
+            if check1 and check2:
                 msg += 'gen/disc val loss: {:.2e}/{:.2e} '.format(
                     loss_details['val_loss_gen'], loss_details['val_loss_disc']
                 )
@@ -1028,8 +1021,8 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
 
             opt_g = self.get_optimizer_state(self.optimizer)
             opt_d = self.get_optimizer_state(self.optimizer_disc)
-            opt_g = {f'Gen/{key}': val for key, val in opt_g.items()}
-            opt_d = {f'Disc/{key}': val for key, val in opt_g.items()}
+            opt_g = {f'OptmGen/{key}': val for key, val in opt_g.items()}
+            opt_d = {f'OptmDisc/{key}': val for key, val in opt_d.items()}
             extras.update(opt_g)
             extras.update(opt_d)
 
