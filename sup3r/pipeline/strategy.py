@@ -308,7 +308,8 @@ class ForwardPassStrategy:
     @property
     def unmasked_chunks(self):
         """List of chunk indices that are not masked from the input spatial
-        region."""
+        region. These chunks are those that will go through the forward pass.
+        Masked chunks will be skipped."""
         return [
             idx
             for idx in np.arange(self.n_chunks)
@@ -593,7 +594,15 @@ class ForwardPassStrategy:
     def fwp_mask(self):
         """Cached spatial mask which returns whether a given spatial chunk
         should be skipped by the forward pass or not. This is used to skip
-        running the forward pass for area with just ocean, for example."""
+        running the forward pass for area with just ocean, for example.
+
+        Note: This is True for grid points which can be skipped in the
+        forward pass and False otherwise.
+
+        See Also
+        --------
+        sup3r.pipeline.strategy.ForwardPassStrategy
+        """
 
         mask = np.zeros(len(self.lr_pad_slices))
         input_handler_kwargs = copy.deepcopy(self.input_handler_kwargs)

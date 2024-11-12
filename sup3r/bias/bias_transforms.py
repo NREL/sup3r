@@ -350,7 +350,8 @@ def monthly_local_linear_bc(
     temporal_avg=True,
     out_range=None,
     smoothing=0,
-    range_kwargs=None
+    scalar_range=None,
+    adder_range=None,
 ):
     """Bias correct data using a simple monthly *scalar +adder method on a
     site-by-site basis.
@@ -397,9 +398,10 @@ def monthly_local_linear_bc(
         effect of extreme values within aggregations over large number of
         pixels.  This value is the standard deviation for the gaussian_filter
         kernel.
-    range_kwargs : dict | None
-        Dictionary of ranges for scalar and adder values. e.g. {'scalar': (0,
-        3), 'adder': (-2, 2)}
+    scalar_range : tuple | None
+        Allowed range for the scalar term in the linear bias correction.
+    adder_range : tuple | None
+        Allowed range for the adder term in the linear bias correction.
 
     Returns
     -------
@@ -454,11 +456,11 @@ def monthly_local_linear_bc(
                 adder[..., idt], smoothing, mode='nearest'
             )
 
-    if range_kwargs is not None:
-        scalar_range = range_kwargs.get('scalar', (-np.inf, np.inf))
-        adder_range = range_kwargs.get('adder', (-np.inf, np.inf))
+    if scalar_range is not None:
         scalar = np.minimum(scalar, np.max(scalar_range))
         scalar = np.maximum(scalar, np.min(scalar_range))
+
+    if adder_range is not None:
         adder = np.minimum(adder, np.max(adder_range))
         adder = np.maximum(adder, np.min(adder_range))
 
