@@ -746,6 +746,14 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
 
             b_loss_details['gen_trained_frac'] = float(trained_gen)
             b_loss_details['disc_trained_frac'] = float(trained_disc)
+
+            opt_g = self.get_optimizer_state(self.optimizer)
+            opt_d = self.get_optimizer_state(self.optimizer_disc)
+            opt_g = {f'Gen/{key}': val for key, val in opt_g.items()}
+            opt_d = {f'Disc/{key}': val for key, val in opt_g.items()}
+            b_loss_details.update(opt_g)
+            b_loss_details.update(opt_d)
+
             self.dict_to_tensorboard(b_loss_details)
             self.dict_to_tensorboard(self.timer.log)
             loss_details = self.update_loss_details(
@@ -1016,13 +1024,14 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
                 'weight_gen_advers': weight_gen_advers,
                 'disc_loss_bound_0': disc_loss_bounds[0],
                 'disc_loss_bound_1': disc_loss_bounds[1],
-                'learning_rate_gen': self.get_optimizer_config(self.optimizer)[
-                    'learning_rate'
-                ],
-                'learning_rate_disc': self.get_optimizer_config(
-                    self.optimizer_disc
-                )['learning_rate'],
             }
+
+            opt_g = self.get_optimizer_state(self.optimizer)
+            opt_d = self.get_optimizer_state(self.optimizer_disc)
+            opt_g = {f'Gen/{key}': val for key, val in opt_g.items()}
+            opt_d = {f'Disc/{key}': val for key, val in opt_g.items()}
+            extras.update(opt_g)
+            extras.update(opt_d)
 
             weight_gen_advers = self.update_adversarial_weights(
                 loss_details,
