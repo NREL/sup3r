@@ -23,17 +23,16 @@ logger = logging.getLogger(__name__)
 
 def lower_names(data):
     """Set all fields / coords / dims to lower case."""
-    return data.rename(
-        {
-            f: f.lower()
-            for f in [
-                *list(data.data_vars),
-                *list(data.dims),
-                *list(data.coords),
-            ]
-            if f != f.lower()
-        }
-    )
+    rename_map = {
+        f: f.lower()
+        for f in [
+            *list(data.data_vars),
+            *list(data.dims),
+            *list(data.coords),
+        ]
+        if f != f.lower()
+    }
+    return data.rename(rename_map)
 
 
 def get_input_handler_class(input_handler_name: Optional[str] = None):

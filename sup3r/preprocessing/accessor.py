@@ -19,7 +19,6 @@ from sup3r.preprocessing.utilities import (
     compute_if_dask,
     dims_array_tuple,
     is_type_of,
-    lower_names,
     ordered_array,
     ordered_dims,
     parse_keys,
@@ -90,7 +89,7 @@ class Sup3rX:
         ds : xr.Dataset | xr.DataArray
             xarray Dataset instance to access with the following methods
         """
-        self._ds = lower_names(ds)
+        self._ds = ds
         self._features = None
         self._meta = None
         self.time_slice = None
