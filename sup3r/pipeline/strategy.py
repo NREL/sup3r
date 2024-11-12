@@ -78,11 +78,12 @@ class ForwardPassStrategy:
         string with a unix-style file path which will be passed through
         glob.glob.
 
-        Note: These files can also include a "mask" variable which is True for
-        grid points which can be skipped in the forward pass and False
-        otherwise. This will be used to skip running the forward pass for
-        chunks which only include masked points. e.g. chunks covering only
-        ocean.
+        Note: These files can also include a 2D (lat, lon) "mask" variable
+        which is True for grid points which can be skipped in the forward pass
+        and False otherwise. This will be used to skip running the forward pass
+        for chunks which only include masked points. e.g. chunks covering only
+        ocean. Chunks with even a single unmasked point will still be sent
+        through the forward pass.
     model_kwargs : str | list
         Keyword arguments to send to ``model_class.load(**model_kwargs)`` to
         initialize the GAN. Typically this is just the string path to the

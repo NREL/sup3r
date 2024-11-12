@@ -351,14 +351,14 @@ class ScalarCorrection(LinearCorrection):
         if bias_std == 0:
             bias_std = np.nanstd(base_data)
 
-        scalar = np.nanmean(base_data) / np.nanmean(bias_data)
+        base_mean = np.nanmean(base_data)
+        bias_mean = np.nanmean(bias_data)
+        scalar = base_mean / bias_mean
         adder = np.zeros(scalar.shape)
 
         out = {
-            f'bias_{bias_feature}_mean': np.nanmean(bias_data),
-            f'bias_{bias_feature}_std': bias_std,
-            f'base_{base_dset}_mean': np.nanmean(base_data),
-            f'base_{base_dset}_std': np.nanstd(base_data),
+            f'bias_{bias_feature}_mean': bias_mean,
+            f'base_{base_dset}_mean': base_mean,
             f'{bias_feature}_scalar': scalar,
             f'{bias_feature}_adder': adder,
         }
