@@ -1071,7 +1071,8 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         state = {'learning_rate': lr}
         for var in optimizer.variables:
             name = var.name
-            var = var.numpy().flatten().mean()  # collapse ndarrays
+            var = var.numpy().flatten()
+            var = np.abs(var).mean()  # collapse ndarrays into mean absolute
             state[name] = float(var)
         return state
 
