@@ -163,7 +163,7 @@ class ForwardPassStrategy:
     output_workers : int | None
         Max number of workers to use for writing forward pass output.
     invert_uv : bool | None
-        Wether to convert u and v wind components to windspeed and direction
+        Whether to convert u and v wind components to windspeed and direction
         for writing to output. This defaults to True for H5 output and False
         for NETCDF output.
     pass_workers : int | None

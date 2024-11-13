@@ -602,7 +602,7 @@ class ForwardPass:
             constant outputs. See :class:`ForwardPassStrategy` for more
             information on this argument.
         invert_uv : bool
-            Wether to convert uv to windspeed and winddirection for writing
+            Whether to convert uv to windspeed and winddirection for writing
             output. This defaults to True for H5 output and False for NETCDF
             output.
         meta : dict | None
