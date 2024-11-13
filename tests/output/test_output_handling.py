@@ -12,7 +12,7 @@ from sup3r.postprocessing import (
     OutputHandlerH5,
     OutputHandlerNC,
 )
-from sup3r.preprocessing import Loader
+from sup3r.preprocessing import DataHandler, Loader
 from sup3r.preprocessing.derivers.utilities import (
     invert_uv,
     transform_rotate_wind,
@@ -234,3 +234,30 @@ def test_enforce_limits():
         with Loader(fp_out) as res:
             assert res.data['clearsky_ratio'].max() <= 1.0
             assert res.data['clearsky_ratio'].max() >= 0.0
+
+
+def test_netcdf_uv_invert():
+    """Make windspeed and direction are inverted and written correctly to
+    netcdf files."""
+
+    data = RANDOM_GENERATOR.uniform(-10, 10, (10, 10, 5, 2))
+    lon, lat = np.meshgrid(np.arange(10), np.arange(10)[::-1])
+    lat_lon = np.dstack([lat, lon])
+    times = pd.date_range('2021-01-01', '2021-01-05', 5)
+    with tempfile.TemporaryDirectory() as td:
+        fp_out = os.path.join(td, 'out_ws.nc')
+        OutputHandlerNC._write_output(
+            data=data.copy(),
+            features=['u_10m', 'v_10m'],
+            lat_lon=lat_lon,
+            times=times,
+            out_file=fp_out,
+            invert_uv=True,
+        )
+        dh = DataHandler(
+            fp_out, features=['windspeed_10m', 'winddirection_10m']
+        )
+        uvals = dh.derive('u_10m').values
+        vvals = dh.derive('v_10m').values
+        assert np.allclose(data[..., 0], uvals, atol=1e-5)
+        assert np.allclose(data[..., 1], vvals, atol=1e-5)

@@ -27,6 +27,7 @@ class OutputHandlerNC(OutputHandler):
         out_file,
         meta_data=None,
         max_workers=None,
+        invert_uv=None,
         gids=None,
     ):
         """Write forward pass output to NETCDF file
@@ -49,13 +50,23 @@ class OutputHandlerNC(OutputHandler):
         meta_data : dict | None
             Dictionary of meta data from model
         max_workers : int | None
-            Has no effect. For compliance with H5 output handler
+            Max workers to use for inverse transform.
+        invert_uv : bool | None
+            Whether to convert u and v wind components to windspeed and
+            direction
         gids : list
             List of coordinate indices used to label each lat lon pair and to
             help with spatial chunk data collection
         """
 
-        data = cls.enforce_limits(features=features, data=data)
+        invert_uv = False if invert_uv is None else invert_uv
+        data, features = cls._transform_output(
+            data=data,
+            features=features,
+            lat_lon=lat_lon,
+            invert_uv=invert_uv,
+            max_workers=max_workers,
+        )
 
         coords = {
             Dimension.TIME: times,

@@ -6,15 +6,20 @@ TODO: OutputHandlers should be combined with Cacher objects.
 import json
 import logging
 import os
+import re
 from abc import abstractmethod
 from warnings import warn
 
+import dask
 import numpy as np
 import pandas as pd
 from rex.outputs import Outputs as BaseRexOutputs
 from scipy.interpolate import griddata
 
-from sup3r.preprocessing.derivers.utilities import parse_feature
+from sup3r.preprocessing.derivers.utilities import (
+    invert_uv,
+    parse_feature,
+)
 from sup3r.utilities import VERSION_RECORD
 from sup3r.utilities.utilities import (
     pd_date_range,
@@ -26,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 ATTR_DIR = os.path.dirname(os.path.realpath(__file__))
 ATTR_FP = os.path.join(ATTR_DIR, 'output_attrs.json')
-with open(ATTR_FP, 'r') as f:
+with open(ATTR_FP) as f:
     OUTPUT_ATTRS = json.load(f)
 
 
@@ -226,6 +231,145 @@ class OutputHandler(OutputMixin):
     """Class to handle forward pass output. This includes transforming features
     back to their original form and outputting to the correct file format.
     """
+
+    @classmethod
+    def get_renamed_features(cls, features):
+        """Rename features based on transformation from u/v to
+        windspeed/winddirection
+
+        Parameters
+        ----------
+        features : list
+            List of output features
+
+        Returns
+        -------
+        list
+            List of renamed features u/v -> windspeed/winddirection for each
+            height
+        """
+        heights = [
+            parse_feature(f).height
+            for f in features
+            if re.match('u_(.*?)m'.lower(), f.lower())
+        ]
+        renamed_features = features.copy()
+
+        for height in heights:
+            u_idx = features.index(f'u_{height}m')
+            v_idx = features.index(f'v_{height}m')
+
+            renamed_features[u_idx] = f'windspeed_{height}m'
+            renamed_features[v_idx] = f'winddirection_{height}m'
+
+        return renamed_features
+
+    @classmethod
+    def invert_uv_features(cls, data, features, lat_lon, max_workers=None):
+        """Invert U/V to windspeed and winddirection. Performed in place.
+
+        Parameters
+        ----------
+        data : ndarray
+            High res data from forward pass
+            (spatial_1, spatial_2, temporal, features)
+        features : list
+            List of output features. If this doesn't contain any names matching
+            u_*m, this method will do nothing.
+        lat_lon : ndarray
+            High res lat/lon array
+            (spatial_1, spatial_2, 2)
+        max_workers : int | None
+            Max workers to use for inverse transform. If None the maximum
+            possible will be used
+        """
+
+        heights = [
+            parse_feature(f).height
+            for f in features
+            if re.match('u_(.*?)m'.lower(), f.lower())
+        ]
+
+        if heights:
+            logger.info(
+                'Converting u/v to ws/wd for H5 output with max_workers=%s',
+                max_workers,
+            )
+            logger.debug(
+                'Found heights %s for output features %s', heights, features
+            )
+
+        tasks = []
+        for height in heights:
+            u_idx = features.index(f'u_{height}m')
+            v_idx = features.index(f'v_{height}m')
+            task = dask.delayed(cls.invert_uv_single_pair)(
+                data, lat_lon, u_idx, v_idx
+            )
+            tasks.append(task)
+            logger.info('Added %s futures to convert u/v to ws/wd', len(tasks))
+        if max_workers == 1:
+            dask.compute(*tasks, scheduler='single-threaded')
+        else:
+            dask.compute(*tasks, scheduler='threads', num_workers=max_workers)
+        logger.info('Finished converting u/v to ws/wd')
+
+    @staticmethod
+    def invert_uv_single_pair(data, lat_lon, u_idx, v_idx):
+        """Perform inverse transform in place on a single u/v pair.
+
+        Parameters
+        ----------
+        data : ndarray
+            High res data from forward pass
+            (spatial_1, spatial_2, temporal, features)
+        lat_lon : ndarray
+            High res lat/lon array
+            (spatial_1, spatial_2, 2)
+        u_idx : int
+            Index in data for U component to transform
+        v_idx : int
+            Index in data for V component to transform
+        """
+        ws, wd = invert_uv(data[..., u_idx], data[..., v_idx], lat_lon)
+        data[..., u_idx] = ws
+        data[..., v_idx] = wd
+
+    @classmethod
+    def _transform_output(
+        cls, data, features, lat_lon, invert_uv=True, max_workers=None
+    ):
+        """Transform output data before writing to H5 file
+
+        Parameters
+        ----------
+        data : ndarray
+            (spatial_1, spatial_2, temporal, features)
+            High resolution forward pass output
+        features : list
+            List of feature names corresponding to the last dimension of data
+        lat_lon : ndarray
+            Array of high res lat/lon for output data.
+            (spatial_1, spatial_2, 2)
+            Last dimension has ordering (lat, lon)
+        invert_uv : bool
+            Whether to convert u and v wind components to windspeed and
+            direction
+        max_workers : int | None
+            Max workers to use for inverse transform. If None the max_workers
+            will be estimated based on memory limits.
+        """
+        if invert_uv and any(
+            re.match('u_(.*?)m'.lower(), f.lower())
+            or re.match('v_(.*?)m'.lower(), f.lower())
+            for f in features
+        ):
+            cls.invert_uv_features(
+                data, features, lat_lon, max_workers=max_workers
+            )
+        features = cls.get_renamed_features(features)
+        data = cls.enforce_limits(features=features, data=data)
+        return data, features
 
     @staticmethod
     def enforce_limits(features, data):
@@ -481,6 +625,7 @@ class OutputHandler(OutputMixin):
         times,
         out_file,
         meta_data,
+        invert_uv=True,
         max_workers=None,
         gids=None,
     ):
@@ -495,6 +640,7 @@ class OutputHandler(OutputMixin):
         low_res_times,
         out_file,
         meta_data=None,
+        invert_uv=None,
         max_workers=None,
         gids=None,
     ):
@@ -516,6 +662,9 @@ class OutputHandler(OutputMixin):
             Output file path
         meta_data : dict | None
             Dictionary of meta data from model
+        invert_uv : bool | None
+            Whether to convert u and v wind components to windspeed and
+            direction
         max_workers : int | None
             Max workers to use for inverse uv transform. If None the
             max_workers will be estimated based on memory limits.
@@ -532,6 +681,7 @@ class OutputHandler(OutputMixin):
             times,
             out_file,
             meta_data=meta_data,
+            invert_uv=invert_uv,
             max_workers=max_workers,
             gids=gids,
         )
