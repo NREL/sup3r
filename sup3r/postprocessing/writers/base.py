@@ -337,7 +337,7 @@ class OutputHandler(OutputMixin):
 
     @classmethod
     def _transform_output(
-        cls, data, features, lat_lon, invert_uv=True, max_workers=None
+        cls, data, features, lat_lon, invert_uv=None, max_workers=None
     ):
         """Transform output data before writing to H5 file
 
@@ -352,7 +352,7 @@ class OutputHandler(OutputMixin):
             Array of high res lat/lon for output data.
             (spatial_1, spatial_2, 2)
             Last dimension has ordering (lat, lon)
-        invert_uv : bool
+        invert_uv : bool | None
             Whether to convert u and v wind components to windspeed and
             direction
         max_workers : int | None
@@ -367,7 +367,7 @@ class OutputHandler(OutputMixin):
             cls.invert_uv_features(
                 data, features, lat_lon, max_workers=max_workers
             )
-        features = cls.get_renamed_features(features)
+            features = cls.get_renamed_features(features)
         data = cls.enforce_limits(features=features, data=data)
         return data, features
 
