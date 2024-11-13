@@ -110,8 +110,14 @@ def test_train(fp_gen, fp_disc, s_enhance, t_enhance, sample_shape, n_epoch=8):
 
         assert np.allclose(model_params['optimizer']['learning_rate'], lr)
         assert np.allclose(model_params['optimizer_disc']['learning_rate'], lr)
-        assert 'learning_rate_gen' in model.history
-        assert 'learning_rate_disc' in model.history
+        assert 'OptmGen/learning_rate' in model.history
+        assert 'OptmDisc/learning_rate' in model.history
+
+        msg = ('Could not find OptmGen states in columns: '
+               f'{sorted(model.history.columns)}')
+        check = [col.startswith('OptmGen/Adam/v')
+                 for col in model.history.columns]
+        assert any(check), msg
 
         assert 'config_generator' in loaded.meta
         assert 'config_discriminator' in loaded.meta
