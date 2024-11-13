@@ -24,7 +24,7 @@ from sup3r.preprocessing.cachers import Cacher
 from sup3r.preprocessing.derivers.utilities import SolarZenith
 from sup3r.preprocessing.loaders import Loader
 from sup3r.preprocessing.names import Dimension
-from sup3r.utilities.utilities import generate_random_string, nn_fill_array
+from sup3r.utilities.utilities import nn_fill_array
 
 from ..utilities import (
     get_class_kwargs,
@@ -95,6 +95,8 @@ class BaseExoRasterizer(ABC):
     max_workers : int
         Number of workers used for writing data to cache files. Gets passed to
         ``Cacher.write_netcdf.``
+    verbose : bool
+        Whether to log output as each chunk is written to cache file.
     """
 
     file_paths: Optional[str] = None
@@ -108,6 +110,7 @@ class BaseExoRasterizer(ABC):
     chunks: Optional[Union[str, dict]] = 'auto'
     distance_upper_bound: Optional[int] = None
     max_workers: int = 1
+    verbose: bool = False
 
     @log_args
     def __post_init__(self):
@@ -140,13 +143,9 @@ class BaseExoRasterizer(ABC):
             )
         return self._source_handler
 
-    def get_cache_file(self, feature):
+    @property
+    def cache_file(self):
         """Get cache file name
-
-        Parameters
-        ----------
-        feature : str
-            Name of feature to get cache file for
 
         Returns
         -------
@@ -155,7 +154,8 @@ class BaseExoRasterizer(ABC):
             :class:`~sup3r.preprocessing.cachers.Cacher` and loaded with
             :class:`~sup3r.preprocessing.loaders.Loader`
         """
-        fn = f'exo_{feature}_{"_".join(map(str, self.input_handler.target))}_'
+        fn = f'exo_{self.feature}_'
+        fn += f'{"_".join(map(str, self.input_handler.target))}_'
         fn += f'{"x".join(map(str, self.input_handler.grid_shape))}_'
 
         if len(self.source_data.shape) == 3:
@@ -275,19 +275,21 @@ class BaseExoRasterizer(ABC):
         """Get a raster of source values corresponding to the
         high-resolution grid (the file_paths input grid * s_enhance *
         t_enhance). The shape is (lats, lons, temporal, 1)"""
-        cache_fp = self.get_cache_file(feature=self.feature)
 
+        cache_fp = self.cache_file
         if os.path.exists(cache_fp):
             data = Loader(cache_fp)
         else:
             data = self.get_data()
 
         if not os.path.exists(cache_fp):
-            tmp_fp = cache_fp + f'{generate_random_string(10)}.tmp'
+            tmp_fp = cache_fp + '.tmp'
             Cacher.write_netcdf(
-                tmp_fp, data, max_workers=self.max_workers, chunks=self.chunks
+                tmp_fp, data, max_workers=self.max_workers, chunks=self.chunks,
+                verbose=self.verbose
             )
             shutil.move(tmp_fp, cache_fp)
+            logger.info('Moved %s to %s', tmp_fp, cache_fp)
 
         return Sup3rX(data.chunk(self.chunks))
 

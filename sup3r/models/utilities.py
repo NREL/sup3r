@@ -6,6 +6,7 @@ import threading
 
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
+from tensorflow.keras import optimizers
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +55,17 @@ class TrainingSession:
         logger.info('Finished training')
         self.batch_handler.stop()
         model_thread.join()
+
+
+def get_optimizer_class(conf):
+    """Get optimizer class from keras"""
+    if hasattr(optimizers, conf['name']):
+        optimizer_class = getattr(optimizers, conf['name'])
+    else:
+        msg = '%s not found in keras optimizers.'
+        logger.error(msg, conf['name'])
+        raise ValueError(msg)
+    return optimizer_class
 
 
 def st_interp(low, s_enhance, t_enhance, t_centered=False):

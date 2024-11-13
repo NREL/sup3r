@@ -17,6 +17,7 @@ from rex import Resource
 from scipy.interpolate import interp1d
 
 from sup3r.postprocessing import OutputHandler, RexOutputs
+from sup3r.preprocessing.utilities import log_args
 from sup3r.utilities import VERSION_RECORD
 
 logger = logging.getLogger(__name__)
@@ -28,6 +29,7 @@ class VortexMeanPrepper:
     heights.
     """
 
+    @log_args
     def __init__(self, path_pattern, in_heights, out_heights, overwrite=False):
         """
         Parameters

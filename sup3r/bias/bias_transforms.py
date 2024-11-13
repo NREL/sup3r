@@ -350,6 +350,8 @@ def monthly_local_linear_bc(
     temporal_avg=True,
     out_range=None,
     smoothing=0,
+    scalar_range=None,
+    adder_range=None,
 ):
     """Bias correct data using a simple monthly *scalar +adder method on a
     site-by-site basis.
@@ -396,6 +398,10 @@ def monthly_local_linear_bc(
         effect of extreme values within aggregations over large number of
         pixels.  This value is the standard deviation for the gaussian_filter
         kernel.
+    scalar_range : tuple | None
+        Allowed range for the scalar term in the linear bias correction.
+    adder_range : tuple | None
+        Allowed range for the adder term in the linear bias correction.
 
     Returns
     -------
@@ -449,6 +455,14 @@ def monthly_local_linear_bc(
             adder[..., idt] = gaussian_filter(
                 adder[..., idt], smoothing, mode='nearest'
             )
+
+    if scalar_range is not None:
+        scalar = np.minimum(scalar, np.max(scalar_range))
+        scalar = np.maximum(scalar, np.min(scalar_range))
+
+    if adder_range is not None:
+        adder = np.minimum(adder, np.max(adder_range))
+        adder = np.maximum(adder, np.min(adder_range))
 
     out = data * scalar + adder
     if out_range is not None:
@@ -665,7 +679,7 @@ def local_qdm_bc(
         output = np.minimum(output, np.max(out_range))
 
     if np.isnan(output).any():
-        msg = ('Presrat bias correction resulted in NaN values! If this is a '
+        msg = ('QDM bias correction resulted in NaN values! If this is a '
                'relative QDM, you may try setting ``delta_denom_min`` or '
                '``delta_denom_zero``')
         logger.error(msg)

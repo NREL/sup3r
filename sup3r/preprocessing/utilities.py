@@ -21,6 +21,20 @@ from .names import Dimension
 logger = logging.getLogger(__name__)
 
 
+def lower_names(data):
+    """Set all fields / coords / dims to lower case."""
+    rename_map = {
+        f: f.lower()
+        for f in [
+            *list(data.data_vars),
+            *list(data.dims),
+            *list(data.coords),
+        ]
+        if f != f.lower()
+    }
+    return data.rename(rename_map)
+
+
 def get_input_handler_class(input_handler_name: Optional[str] = None):
     """Get the :class:`~sup3r.preprocessing.data_handlers.DataHandler` or
     :class:`~sup3r.preprocessing.rasterizers.Rasterizer` object.
@@ -160,7 +174,7 @@ def get_date_range_kwargs(time_index):
         kwargs['drop_leap'] = True
 
     elif uneven_freq:
-        msg = (f'Got uneven frequency for time index: {time_index}')
+        msg = f'Got uneven frequency for time index: {time_index}'
         warn(msg)
         logger.warning(msg)
 
@@ -406,7 +420,7 @@ def parse_keys(
     if just_coords:
         features = list(default_coords)
     elif has_feats:
-        features = _lowered(keys[0]) if keys[0] != 'all' else default_features
+        features = lowered(keys[0]) if keys[0] != 'all' else default_features
     else:
         features = []
 
@@ -493,6 +507,7 @@ def is_type_of(vals, vtype):
 
 
 def _get_strings(vals):
+    vals = [vals] if isinstance(vals, str) else vals
     return [v for v in vals if is_type_of(v, str)]
 
 

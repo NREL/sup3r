@@ -47,7 +47,7 @@ def test_plevel_height_interp_nc(shape, target, height, chunks):
             assert no_transform.loaded
 
         # warning about upper case features
-        with pytest.warns():
+        with pytest.warns(match='Received some upper case features'):
             transform = Deriver(
                 no_transform.data,
                 derive_features,
@@ -63,6 +63,35 @@ def test_plevel_height_interp_nc(shape, target, height, chunks):
         )
     assert transform.data[f'u_{height}m'].data.dtype == np.float32
     assert np.array_equal(out, transform.data[f'u_{height}m'].data)
+
+
+def test_plevel_height_interp_and_derivation():
+    """Test that u and v can be interpolated and then used to derive ws"""
+
+    with TemporaryDirectory() as td:
+        wind_file = os.path.join(td, 'wind.nc')
+        make_fake_nc_file(wind_file, shape=(10, 10, 20), features=['orog'])
+        level_file = os.path.join(td, 'wind_levs.nc')
+        make_fake_nc_file(
+            level_file, shape=(10, 10, 20, 3), features=['zg', 'u', 'v']
+        )
+
+        cache_pattern = td + '/{feature}.nc'
+        derive_features = ['windspeed_20m']
+        ws = DataHandler(
+            [wind_file, level_file],
+            cache_kwargs={'cache_pattern': cache_pattern},
+            features=derive_features,
+        )
+        derive_features = ['u_20m', 'v_20m']
+        uv = DataHandler(
+            [wind_file, level_file],
+            cache_kwargs={'cache_pattern': cache_pattern},
+            features=derive_features,
+        )
+        ws = ws['windspeed_20m'].values
+        ws_uv = np.hypot(uv['u_20m'].values, uv['v_20m'].values)
+        assert np.allclose(ws, ws_uv, atol=1e-4)
 
 
 def test_plevel_height_interp_nc_with_cache():

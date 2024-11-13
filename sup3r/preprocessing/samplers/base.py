@@ -15,7 +15,7 @@ from sup3r.preprocessing.samplers.utilities import (
     uniform_box_sampler,
     uniform_time_sampler,
 )
-from sup3r.preprocessing.utilities import log_args, lowered
+from sup3r.preprocessing.utilities import compute_if_dask, log_args, lowered
 
 logger = logging.getLogger(__name__)
 
@@ -195,9 +195,9 @@ class Sampler(Container):
             new_shape[-1],
         ]
         # (lats, lons, batch_size, times, feats)
-        out = samples.reshape(new_shape)
+        out = np.reshape(samples, new_shape)
         # (batch_size, lats, lons, times, feats)
-        return np.asarray(out.transpose((2, 0, 1, 3, 4)))
+        return compute_if_dask(np.transpose(out, axes=(2, 0, 1, 3, 4)))
 
     def _stack_samples(self, samples):
         """Used to build batch arrays in the case of independent time samples

@@ -458,7 +458,12 @@ def test_pipeline_fwp_qa(runner, input_files):
 
 @pytest.mark.parametrize(
     'bias_calc_class',
-    ['LinearCorrection', 'MonthlyLinearCorrection', 'MonthlyScalarCorrection'],
+    [
+        'LinearCorrection',
+        'ScalarCorrection',
+        'MonthlyLinearCorrection',
+        'MonthlyScalarCorrection',
+    ],
 )
 def test_cli_bias_calc(runner, bias_calc_class):
     """Test cli for bias correction"""

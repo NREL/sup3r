@@ -130,7 +130,7 @@ def test_data_handling_nc_cc():
 
     # upper case features warning
     features = [f'U_{int(plevel)}pa', f'V_{int(plevel)}pa']
-    with pytest.warns():
+    with pytest.warns(match='Received some upper case features'):
         handler = DataHandlerNCforCC(
             pytest.FPS_GCM,
             features=features,

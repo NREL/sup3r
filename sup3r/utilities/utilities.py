@@ -5,7 +5,6 @@ import logging
 import random
 import string
 import time
-from warnings import warn
 
 import numpy as np
 import pandas as pd
@@ -14,56 +13,42 @@ import xarray as xr
 from packaging import version
 from scipy import ndimage as nd
 
-from sup3r.preprocessing.utilities import get_class_kwargs
-
 logger = logging.getLogger(__name__)
 
 RANDOM_GENERATOR = np.random.default_rng(seed=42)
 
 
-def merge_datasets(files, **kwargs):
-    """Merge xr.Datasets after some standardization. This useful when
-    xr.open_mfdatasets fails due to different time index formats or coordinate
-    names, for example."""
-    dsets = [xr.open_mfdataset(f, **kwargs) for f in files]
-    time_indices = []
-    for i, dset in enumerate(dsets):
-        if 'time' in dset and dset.time.size > 1:
-            ti = pd.DatetimeIndex(dset.time)
-            dset['time'] = ti
-            dsets[i] = dset
-            time_indices.append(ti.to_series())
-        if 'latitude' in dset.dims:
-            dset = dset.swap_dims({'latitude': 'south_north'})
-            dsets[i] = dset
-        if 'longitude' in dset.dims:
-            dset = dset.swap_dims({'longitude': 'west_east'})
-            dsets[i] = dset
-    out = xr.merge(dsets, **get_class_kwargs(xr.merge, kwargs))
-    msg = (
-        'Merged time index does not have the same number of time steps '
-        '(%s) as the sum of the individual time index steps (%s).'
-    )
-    merged_size = out.time.size
-    summed_size = pd.concat(time_indices).drop_duplicates().size
-    assert merged_size == summed_size, msg % (merged_size, summed_size)
-    return out
+def preprocess_datasets(dset):
+    """Standardization preprocessing applied before datasets are concatenated
+    by ``xr.open_mfdataset``"""
+    if 'time' in dset and dset.time.size > 1:
+        if 'time' in dset.indexes and hasattr(
+            dset.indexes['time'], 'to_datetimeindex'
+        ):
+            dset['time'] = dset.indexes['time'].to_datetimeindex()
+        ti = dset['time'].astype(int)
+        dset['time'] = ti
+    if 'latitude' in dset.dims:
+        dset = dset.swap_dims({'latitude': 'south_north'})
+    if 'longitude' in dset.dims:
+        dset = dset.swap_dims({'longitude': 'west_east'})
+    # temporary to handle downloaded era files
+    if 'expver' in dset:
+        dset = dset.drop_vars('expver')
+    if 'number' in dset:
+        dset = dset.drop_vars('number')
+    return dset
 
 
 def xr_open_mfdataset(files, **kwargs):
     """Wrapper for xr.open_mfdataset with default opening options."""
     default_kwargs = {'engine': 'netcdf4'}
     default_kwargs.update(kwargs)
-    try:
-        return xr.open_mfdataset(files, **default_kwargs)
-    except Exception as e:
-        msg = 'Could not use xr.open_mfdataset to open %s. %s'
-        if len(files) == 1:
-            raise RuntimeError(msg % (files, e)) from e
-        msg += ' Trying to open them separately and merge.'
-        logger.warning(msg, files, e)
-        warn(msg % (files, e))
-        return merge_datasets(files, **default_kwargs)
+    if isinstance(files, str):
+        files = [files]
+    return xr.open_mfdataset(
+        files, preprocess=preprocess_datasets, **default_kwargs
+    )
 
 
 def safe_cast(o):
@@ -190,73 +175,30 @@ def temporal_coarsening(data, t_enhance=4, method='subsample'):
     """
 
     if t_enhance is not None and len(data.shape) == 5:
+        new_shape = (
+            data.shape[0],
+            data.shape[1],
+            data.shape[2],
+            -1,
+            t_enhance,
+            data.shape[4],
+        )
+
         if method == 'subsample':
             coarse_data = data[:, :, :, ::t_enhance, :]
 
         elif method == 'average':
-            coarse_data = np.nansum(
-                np.reshape(
-                    data,
-                    (
-                        data.shape[0],
-                        data.shape[1],
-                        data.shape[2],
-                        -1,
-                        t_enhance,
-                        data.shape[4],
-                    ),
-                ),
-                axis=4,
-            )
+            coarse_data = np.nansum(np.reshape(data, new_shape), axis=4)
             coarse_data /= t_enhance
 
         elif method == 'max':
-            coarse_data = np.max(
-                np.reshape(
-                    data,
-                    (
-                        data.shape[0],
-                        data.shape[1],
-                        data.shape[2],
-                        -1,
-                        t_enhance,
-                        data.shape[4],
-                    ),
-                ),
-                axis=4,
-            )
+            coarse_data = np.max(np.reshape(data, new_shape), axis=4)
 
         elif method == 'min':
-            coarse_data = np.min(
-                np.reshape(
-                    data,
-                    (
-                        data.shape[0],
-                        data.shape[1],
-                        data.shape[2],
-                        -1,
-                        t_enhance,
-                        data.shape[4],
-                    ),
-                ),
-                axis=4,
-            )
+            coarse_data = np.min(np.reshape(data, new_shape), axis=4)
 
         elif method == 'total':
-            coarse_data = np.nansum(
-                np.reshape(
-                    data,
-                    (
-                        data.shape[0],
-                        data.shape[1],
-                        data.shape[2],
-                        -1,
-                        t_enhance,
-                        data.shape[4],
-                    ),
-                ),
-                axis=4,
-            )
+            coarse_data = np.nansum(np.reshape(data, new_shape), axis=4)
 
         else:
             msg = (

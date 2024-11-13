@@ -62,6 +62,7 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx_autosummary_accessors",
     "sphinx_copybutton",
+    "pygments_lexer"
 ]
 
 intersphinx_mapping = {

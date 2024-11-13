@@ -122,28 +122,25 @@ class BaseDeriver(Container):
             fstruct = parse_feature(feature)
             inputs = [fstruct.map_wildcard(i) for i in method.inputs]
             missing = [f for f in inputs if f not in self.data]
-            can_derive = all(self.no_overlap(m) for m in missing)
+            can_derive = all(
+                (self.no_overlap(m) or self.has_interp_variables(m))
+                for m in missing
+            )
             logger.debug('Found compute method (%s) for %s.', method, feature)
+            msg = 'Missing required features %s. Trying to derive these first.'
             if any(missing) and can_derive:
-                logger.debug(
-                    'Missing required features %s. '
-                    'Trying to derive these first.',
-                    missing,
-                )
+                logger.debug(msg, missing)
                 for f in missing:
                     self.data[f] = self.derive(f)
                 return self._run_compute(feature, method)
+            msg = 'All required features %s found. Proceeding.'
             if not missing:
-                logger.debug(
-                    'All required features %s found. Proceeding.', inputs
-                )
+                logger.debug(msg, inputs)
                 return self._run_compute(feature, method)
+            msg = ('Some of the method inputs reference %s itself. We will '
+                   'try height interpolation instead.')
             if not can_derive:
-                logger.debug(
-                    'Some of the method inputs reference %s itself. '
-                    'We will try height interpolation instead.',
-                    feature,
-                )
+                logger.debug(msg, feature)
         return None
 
     def _run_compute(self, feature, method):
@@ -358,7 +355,7 @@ class BaseDeriver(Container):
         )
         return xr.DataArray(
             data=_rechunk_if_dask(out),
-            dims=Dimension.dims_3d(),
+            dims=Dimension.dims_3d()[: len(out.shape)],
             attrs=attrs,
         )
 

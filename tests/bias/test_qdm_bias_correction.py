@@ -517,9 +517,7 @@ def test_fwp_integration(tmp_path):
         f.attrs['log_base'] = 10
         f.attrs['time_window_center'] = [182.5]
 
-    date_range_kwargs = get_date_range_kwargs(
-        pd.DatetimeIndex([np.datetime64(t) for t in ds.time.values])
-    )
+    date_range_kwargs = get_date_range_kwargs(pd.DatetimeIndex(ds.time.values))
     bias_correct_kwargs = {
         'u_100m': {
             'feature_name': 'u_100m',

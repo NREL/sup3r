@@ -10,11 +10,12 @@ from warnings import warn
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from tensorflow.keras import optimizers
 
+from sup3r.preprocessing.utilities import get_class_kwargs
 from sup3r.utilities import VERSION_RECORD
 
 from .abstract import AbstractInterface, AbstractSingleModel
+from .utilities import get_optimizer_class
 
 logger = logging.getLogger(__name__)
 
@@ -332,14 +333,18 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         if 'gen' in option.lower() or 'all' in option.lower():
             conf = self.get_optimizer_config(self.optimizer)
             conf.update(**kwargs)
-            optimizer_class = getattr(optimizers, conf['name'])
-            self._optimizer = optimizer_class.from_config(conf)
+            optimizer_class = get_optimizer_class(conf)
+            self._optimizer = optimizer_class.from_config(
+                get_class_kwargs(optimizer_class, conf)
+            )
 
         if 'disc' in option.lower() or 'all' in option.lower():
             conf = self.get_optimizer_config(self.optimizer_disc)
             conf.update(**kwargs)
-            optimizer_class = getattr(optimizers, conf['name'])
-            self._optimizer_disc = optimizer_class.from_config(conf)
+            optimizer_class = get_optimizer_class(conf)
+            self._optimizer_disc = optimizer_class.from_config(
+                get_class_kwargs(optimizer_class, conf)
+            )
 
     @property
     def meta(self):

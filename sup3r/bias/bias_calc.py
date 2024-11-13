@@ -311,6 +311,61 @@ class LinearCorrection(FillAndSmoothMixin, DataRetrievalBase):
         return copy.deepcopy(self.out)
 
 
+class ScalarCorrection(LinearCorrection):
+    """Calculate annual linear correction *scalar factors to bias correct data.
+    This typically used when base data is just monthly or annual means and
+    standard deviations cannot be computed. This is case for vortex data, for
+    example. Thus, just scalar factors are computed as mean(base_data) /
+    mean(bias_data). Adder factors are still written but are exactly zero.
+
+    This calculation operates on single bias sites on a monthly basis
+    """
+
+    @staticmethod
+    def get_linear_correction(bias_data, base_data, bias_feature, base_dset):
+        """Get the linear correction factors based on 1D bias and base datasets
+
+        Parameters
+        ----------
+        bias_data : np.ndarray
+            1D array of biased data observations.
+        base_data : np.ndarray
+            1D array of base data observations.
+        bias_feature : str
+            This is the biased feature from bias_fps to retrieve. This should
+            be a single feature name corresponding to base_dset
+        base_dset : str
+            A single dataset from the base_fps to retrieve. In the case of wind
+            components, this can be u_100m or v_100m which will retrieve
+            windspeed and winddirection and derive the U/V component.
+
+        Returns
+        -------
+        out : dict
+            Dictionary of values defining the mean/std of the bias + base
+            data and the scalar + adder factors to correct the biased data
+            like: bias_data * scalar + adder
+        """
+
+        bias_std = np.nanstd(bias_data)
+        if bias_std == 0:
+            bias_std = np.nanstd(base_data)
+
+        base_mean = np.nanmean(base_data)
+        bias_mean = np.nanmean(bias_data)
+        scalar = base_mean / bias_mean
+        adder = np.zeros(scalar.shape)
+
+        out = {
+            f'bias_{bias_feature}_mean': bias_mean,
+            f'base_{base_dset}_mean': base_mean,
+            f'{bias_feature}_scalar': scalar,
+            f'{bias_feature}_adder': adder,
+        }
+
+        return out
+
+
 class MonthlyLinearCorrection(LinearCorrection):
     """Calculate linear correction *scalar +adder factors to bias correct data
 
@@ -373,59 +428,10 @@ class MonthlyLinearCorrection(LinearCorrection):
         return out
 
 
-class MonthlyScalarCorrection(MonthlyLinearCorrection):
-    """Calculate linear correction *scalar factors to bias correct data. This
-    typically used when base data is just monthly means and standard deviations
-    cannot be computed. This is case for vortex data, for example. Thus, just
-    scalar factors are computed as mean(base_data) / mean(bias_data). Adder
-    factors are still written but are exactly zero.
+class MonthlyScalarCorrection(MonthlyLinearCorrection, ScalarCorrection):
+    """Calculate linear correction *scalar factors for each month"""
 
-    This calculation operates on single bias sites on a monthly basis
-    """
-
-    @staticmethod
-    def get_linear_correction(bias_data, base_data, bias_feature, base_dset):
-        """Get the linear correction factors based on 1D bias and base datasets
-
-        Parameters
-        ----------
-        bias_data : np.ndarray
-            1D array of biased data observations.
-        base_data : np.ndarray
-            1D array of base data observations.
-        bias_feature : str
-            This is the biased feature from bias_fps to retrieve. This should
-            be a single feature name corresponding to base_dset
-        base_dset : str
-            A single dataset from the base_fps to retrieve. In the case of wind
-            components, this can be u_100m or v_100m which will retrieve
-            windspeed and winddirection and derive the U/V component.
-
-        Returns
-        -------
-        out : dict
-            Dictionary of values defining the mean/std of the bias + base
-            data and the scalar + adder factors to correct the biased data
-            like: bias_data * scalar + adder
-        """
-
-        bias_std = np.nanstd(bias_data)
-        if bias_std == 0:
-            bias_std = np.nanstd(base_data)
-
-        scalar = np.nanmean(base_data) / np.nanmean(bias_data)
-        adder = np.zeros(scalar.shape)
-
-        out = {
-            f'bias_{bias_feature}_mean': np.nanmean(bias_data),
-            f'bias_{bias_feature}_std': bias_std,
-            f'base_{base_dset}_mean': np.nanmean(base_data),
-            f'base_{base_dset}_std': np.nanstd(base_data),
-            f'{bias_feature}_scalar': scalar,
-            f'{bias_feature}_adder': adder,
-        }
-
-        return out
+    NT = 12
 
 
 class SkillAssessment(MonthlyLinearCorrection):

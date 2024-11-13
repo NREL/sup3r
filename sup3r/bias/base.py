@@ -43,7 +43,7 @@ class DataRetrievalBase:
         bias_handler_kwargs=None,
         decimals=None,
         match_zero_rate=False,
-        pre_load=True,
+        pre_load=True
     ):
         """
         Parameters
@@ -128,11 +128,10 @@ class DataRetrievalBase:
         self.base_handler_kwargs = base_handler_kwargs or {}
         self.bias_handler_kwargs = bias_handler_kwargs or {}
         self.bad_bias_gids = []
-        self._distance_upper_bound = distance_upper_bound
         self.match_zero_rate = match_zero_rate
-
         self.base_fps = expand_paths(self.base_fps)
         self.bias_fps = expand_paths(self.bias_fps)
+        self._distance_upper_bound = distance_upper_bound
 
         base_sup3r_handler = getattr(sup3r.preprocessing, base_handler, None)
         base_rex_handler = getattr(rex, base_handler, None)
@@ -179,7 +178,7 @@ class DataRetrievalBase:
 
         self.nn_dist, self.nn_ind = self.bias_tree.query(
             self.base_meta[['latitude', 'longitude']],
-            distance_upper_bound=self.distance_upper_bound,
+            distance_upper_bound=self.distance_upper_bound
         )
 
         if pre_load:
@@ -749,9 +748,12 @@ class DataRetrievalBase:
             daily_cs_ghi[daily_cs_ghi == 0] = 1
             base_data = daily_ghi / daily_cs_ghi
             mask = np.isnan(base_data)
-            msg = ('Could not calculate daily average "clearsky_ratio" with '
-                   'input ghi and cs ghi inputs: \n{}, \n{}'
-                   .format(daily_ghi[mask], daily_cs_ghi[mask]))
+            msg = (
+                'Could not calculate daily average "clearsky_ratio" with '
+                'input ghi and cs ghi inputs: \n{}, \n{}'.format(
+                    daily_ghi[mask], daily_cs_ghi[mask]
+                )
+            )
             assert not np.isnan(base_data).any(), msg
 
         elif daily_reduction.lower() in ('avg', 'average', 'mean'):

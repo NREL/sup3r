@@ -18,7 +18,7 @@ from sup3r.preprocessing.utilities import (
 logger = logging.getLogger(__name__)
 
 
-def lin_bc(handler, bc_files, threshold=0.1):
+def lin_bc(handler, bc_files, bias_feature=None, threshold=0.1):
     """Bias correct the data in this DataHandler in place using linear bias
     correction factors from files output by MonthlyLinearCorrection or
     LinearCorrection from sup3r.bias.bias_calc
@@ -35,6 +35,10 @@ def lin_bc(handler, bc_files, threshold=0.1):
         {feature} is one of the features contained by this DataHandler and
         the data is a 3D array of shape (lat, lon, time) where time is
         length 1 for annual correction or 12 for monthly correction.
+    bias_feature : str | None
+        Name of the feature used as a reference. Dataset with
+        name "base_{bias_feature}_scalar" and
+        "base_{bias_feature}_adder" will be retrieved from ``bc_files``.
     threshold : float
         Nearest neighbor euclidean distance threshold. If the DataHandler
         coordinates are more than this value away from the bias correction
@@ -47,8 +51,11 @@ def lin_bc(handler, bc_files, threshold=0.1):
     completed = []
     for feature in handler.features:
         for fp in bc_files:
-            dset_scalar = f'{feature}_scalar'
-            dset_adder = f'{feature}_adder'
+            ref_feature = (
+                feature if bias_feature is None else bias_feature
+            )
+            dset_scalar = f'{ref_feature}_scalar'
+            dset_adder = f'{ref_feature}_adder'
             with Resource(fp) as res:
                 dsets = [dset.lower() for dset in res.dsets]
                 check = (
@@ -58,7 +65,7 @@ def lin_bc(handler, bc_files, threshold=0.1):
             if feature not in completed and check:
                 out = _get_spatial_bc_factors(
                     lat_lon=handler.lat_lon,
-                    feature_name=feature,
+                    feature_name=ref_feature,
                     bias_fp=fp,
                     threshold=threshold,
                 )
@@ -96,7 +103,7 @@ def lin_bc(handler, bc_files, threshold=0.1):
 def qdm_bc(
     handler,
     bc_files,
-    reference_feature,
+    bias_feature,
     relative=True,
     threshold=0.1,
     no_trend=False,
@@ -118,13 +125,13 @@ def qdm_bc(
     bc_files : list | tuple | str
         One or more filepaths to .h5 files output by
         :class:`bias_calc.QuantileDeltaMappingCorrection`. These should
-        contain datasets named "base_{reference_feature}_params",
+        contain datasets named "base_{bias_feature}_params",
         "bias_{feature}_params", and "bias_fut_{feature}_params" where
         {feature} is one of the features contained by this DataHandler and
         the data is a 3D array of shape (lat, lon, time) where time.
-    reference_feature : str
+    bias_feature : str
         Name of the feature used as (historical) reference. Dataset with
-        name "base_{reference_feature}_params" will be retrieved from
+        name "base_{bias_feature}_params" will be retrieved from
         ``bc_files``.
     relative : bool, default=True
         Switcher to apply QDM as a relative (use True) or absolute (use
@@ -167,7 +174,7 @@ def qdm_bc(
                 handler.data[feature] = local_qdm_bc(
                     handler.data[feature][...],
                     handler.lat_lon,
-                    reference_feature,
+                    bias_feature,
                     feature,
                     bias_fp=fp,
                     date_range_kwargs=dr_kwargs,
@@ -277,10 +284,12 @@ def bias_correct_features(
                 bc_kwargs=bc_kwargs,
             )
         except Exception as e:
-            msg = (f'Could not run bias correction method {bc_method} on '
-                   f'feature {feat} time slice {time_slice} with input '
-                   f'handler of class {type(input_handler)} with shape '
-                   f'{input_handler.shape}. Received error: {e}')
+            msg = (
+                f'Could not run bias correction method {bc_method} on '
+                f'feature {feat} time slice {time_slice} with input '
+                f'handler of class {type(input_handler)} with shape '
+                f'{input_handler.shape}. Received error: {e}'
+            )
             logger.exception(msg)
             raise RuntimeError(msg) from e
     return input_handler

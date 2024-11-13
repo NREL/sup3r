@@ -25,8 +25,9 @@ class ForwardPassSlicer:
     time_steps : int
         Number of time steps for full temporal domain of low res data. This
         is used to construct a dummy_time_index from np.arange(time_steps)
-    time_slice : slice
-        Slice to use to extract range from time_index
+    time_slice : slice | list
+        Slice to use to extract range from time_index. Can be a ``slice(start,
+        stop, step)`` or list ``[start, stop, step]``
     chunk_shape : tuple
         Max shape (spatial_1, spatial_2, temporal) of an unpadded coarse
         chunk to use for a forward pass. The number of nodes that the

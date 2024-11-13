@@ -47,7 +47,7 @@ def test_unneeded_uv_transform(input_files, shape, target):
         rasterizer = Rasterizer(input_files[0], target=target, shape=shape)
 
     # upper case features warning
-    with pytest.warns():
+    with pytest.warns(match='Received some upper case features'):
         deriver = Deriver(rasterizer.data, features=derive_features)
 
         assert np.array_equal(
@@ -80,7 +80,7 @@ def test_uv_transform(input_files, shape, target):
         )
 
     # warning about upper case features
-    with pytest.warns():
+    with pytest.warns(match='Received some upper case features'):
         deriver = Deriver(rasterizer.data, features=derive_features)
     u, v = transform_rotate_wind(
         rasterizer['windspeed_100m'],

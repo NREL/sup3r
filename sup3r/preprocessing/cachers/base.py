@@ -2,6 +2,7 @@
 
 # netCDF4 has to be imported before h5py
 # isort: skip_file
+import pandas as pd
 import copy
 import itertools
 import logging
@@ -13,11 +14,11 @@ import dask
 import dask.array as da
 import numpy as np
 from warnings import warn
-
 from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.utilities import _mem_check, log_args, _lowered
 from sup3r.utilities.utilities import safe_cast
+from rex.utilities.utilities import to_records_array
 
 from .utilities import _check_for_cache
 
@@ -58,11 +59,15 @@ class Cacher(Container):
             of dictionaries for each feature (or a single dictionary to use
             for all features). e.g.
             .. code-block:: JSON
-            {'cache_pattern': ...,
-               'chunks': {
-                 'u_10m': {'time': 20, 'south_north': 100, 'west_east': 100}}
-            }
-
+                {'cache_pattern': ...,
+                    'chunks': {
+                        'u_10m': {
+                            'time': 20,
+                            'south_north': 100,
+                            'west_east': 100
+                        }
+                    }
+                }
 
         Note
         ----
@@ -202,19 +207,21 @@ class Cacher(Container):
 
     @classmethod
     def get_chunksizes(cls, dset, data, chunks):
-        """Get chunksizes after rechunking (could be undetermined before hand
+        """Get chunksizes after rechunking (could be undetermined beforehand
         if ``chunks == 'auto'``) and return rechunked data."""
         data_var = data.coords[dset] if dset in data.coords else data[dset]
         fchunk = cls.parse_chunks(dset, chunks, data_var.dims)
-        if fchunk is not None and isinstance(fchunk, dict):
+        if isinstance(fchunk, dict):
             fchunk = {k: v for k, v in fchunk.items() if k in data_var.dims}
-            data_var = data_var.chunk(fchunk)
 
+        data_var = data_var.chunk(fchunk)
         data_var = data_var.unify_chunks()
+
         chunksizes = tuple(d[0] for d in data_var.chunksizes.values())
         chunksizes = chunksizes if chunksizes else None
         if chunksizes is not None:
             chunkmem = np.prod(chunksizes) * data_var.dtype.itemsize / 1e9
+            chunkmem = round(chunkmem, 3)
             if chunkmem > 4:
                 msg = (
                     'Chunks cannot be larger than 4GB. Given chunksizes %s '
@@ -224,6 +231,21 @@ class Cacher(Container):
                 warn(msg % (chunksizes, chunkmem))
                 chunksizes = None
         return data_var, chunksizes
+
+    @classmethod
+    def add_coord_meta(cls, out_file, data):
+        """Add flattened coordinate meta to out_file. This is used for h5
+        caching."""
+        meta = pd.DataFrame()
+        for coord in Dimension.coords_2d():
+            if coord in data:
+                meta[coord] = data[coord].data.flatten()
+        logger.info('Adding coordinate meta to %s', out_file)
+        with h5py.File(out_file, 'a') as f:
+            meta = to_records_array(meta)
+            f.create_dataset(
+                '/meta', shape=meta.shape, dtype=meta.dtype, data=meta
+            )
 
     @classmethod
     def write_h5(
@@ -274,7 +296,11 @@ class Cacher(Container):
         with h5py.File(out_file, mode) as f:
             for k, v in attrs.items():
                 f.attrs[k] = v
-            for dset in [*list(data.coords), *features]:
+
+            coord_names = [
+                crd for crd in data.coords if crd in Dimension.coords_4d()
+            ]
+            for dset in [*coord_names, *features]:
                 data_var, chunksizes = cls.get_chunksizes(dset, data, chunks)
 
                 if dset == Dimension.TIME:
@@ -309,6 +335,7 @@ class Cacher(Container):
                         scheduler='threads',
                         num_workers=max_workers,
                     )
+        cls.add_coord_meta(out_file=out_file, data=data)
 
     @staticmethod
     def get_chunk_slices(chunks, shape):
@@ -323,9 +350,11 @@ class Cacher(Container):
         return list(itertools.product(*slices))
 
     @staticmethod
-    def write_chunk(out_file, dset, chunk_slice, chunk_data):
+    def write_chunk(out_file, dset, chunk_slice, chunk_data, msg=None):
         """Add chunk to netcdf file."""
-        with nc4.Dataset(out_file, 'a', format='NETCDF4') as ds:
+        if msg is not None:
+            logger.debug(msg)
+        with nc4.Dataset(out_file, 'a') as ds:
             var = ds.variables[dset]
             var[chunk_slice] = chunk_data
 
@@ -346,18 +375,19 @@ class Cacher(Container):
         chunksizes = data_var.shape if chunksizes is None else chunksizes
         chunk_slices = cls.get_chunk_slices(chunksizes, data_var.shape)
         logger.info(
-            'Adding %s to %s with %s chunks and max_workers=%s ',
+            'Adding %s to %s with %s chunks and max_workers=%s. %s',
             feature,
             out_file,
             len(chunk_slices),
             max_workers,
+            _mem_check(),
         )
         for i, chunk_slice in enumerate(chunk_slices):
             msg = f'Writing chunk {i} / {len(chunk_slices)} to {out_file}'
             msg = None if not verbose else msg
             chunk = data_var.data[chunk_slice]
             task = dask.delayed(cls.write_chunk)(
-                out_file, feature, chunk_slice, chunk
+                out_file, feature, chunk_slice, chunk, msg
             )
             tasks.append(task)
         if max_workers == 1:
@@ -389,8 +419,10 @@ class Cacher(Container):
         features : str | list
             Names of feature(s) to write to file.
         chunks : dict | None
-            Chunk sizes for coordinate dimensions. e.g. ``{'windspeed':
-            {'south_north': 100, 'west_east': 100, 'time': 10}}``
+            Chunk sizes for coordinate dimensions. e.g. ``{'south_north': 100,
+            'west_east': 100, 'time': 10}`` Can also include dataset specific
+            values. e.g. ``{'windspeed': {'south_north': 100, 'west_east': 100,
+            'time': 10}}``
         max_workers : int | None
             Number of workers to use for parallel writing of chunks
         mode : str
@@ -430,7 +462,7 @@ class Cacher(Container):
                 for attr_name, attr_value in var_attrs.items():
                     dout.setncattr(attr_name, safe_cast(attr_value))
 
-                dout.coordinates = ' '.join(list(data_var.coords))
+                dout.coordinates = ' '.join(list(coord_names))
 
                 logger.debug(
                     'Adding %s to %s with chunks=%s',

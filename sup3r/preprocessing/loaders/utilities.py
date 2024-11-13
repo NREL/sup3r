@@ -5,21 +5,6 @@ import pandas as pd
 from sup3r.preprocessing.names import Dimension
 
 
-def lower_names(data):
-    """Set all fields / coords / dims to lower case."""
-    return data.rename(
-        {
-            f: f.lower()
-            for f in [
-                *list(data.data_vars),
-                *list(data.dims),
-                *list(data.coords),
-            ]
-            if f != f.lower()
-        }
-    )
-
-
 def standardize_names(data, standard_names):
     """Standardize fields in the dataset using the `standard_names`
     dictionary."""

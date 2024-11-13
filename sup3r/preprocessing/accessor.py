@@ -41,7 +41,7 @@ class Sup3rX:
     methods, plus more. The way to access these methods is either through
     appending ``.sx.<method>`` on an ``xr.Dataset`` or by wrapping an
     ``xr.Dataset`` with ``Sup3rX``, e.g. ``Sup3rX(xr.Dataset(...)).<method>``.
-    Throughout the `sup3r` codebase we prefer to use the latter. The
+    Throughout the ``sup3r`` codebase we prefer to use the latter. The
     most important part of this interface is parsing ``__getitem__`` calls of
     the form ``ds.sx[keys]``.
 
@@ -94,19 +94,6 @@ class Sup3rX:
         self._meta = None
         self.time_slice = None
 
-    def parse_keys(self, keys):
-        """Return set of features and slices for all dimensions contained in
-        dataset that can be passed to isel and transposed to standard dimension
-        order. If keys is empty then we just want to return the coordinate
-        data, so features will be set to just the coordinate names."""
-
-        return parse_keys(
-            keys,
-            default_coords=self.coords,
-            default_dims=self._ds.dims,
-            default_features=self.features,
-        )
-
     def __getitem__(
         self, keys
     ) -> Union[Union[np.ndarray, da.core.Array], Self]:
@@ -125,7 +112,12 @@ class Sup3rX:
         dimension.
         """
 
-        features, slices = self.parse_keys(keys)
+        features, slices = parse_keys(
+            keys,
+            default_coords=self.coords,
+            default_dims=self._ds.dims,
+            default_features=self.features,
+        )
         single_feat = isinstance(features, str)
 
         out = self._ds[features] if len(features) > 0 else self._ds
@@ -240,8 +232,10 @@ class Sup3rX:
 
             for f in self._ds.data_vars:
                 self._ds[f] = self._ds[f].compute(**kwargs)
-                logger.debug(f'Loaded {f} into memory with shape '
-                             f'{self._ds[f].shape}. {_mem_check()}')
+                logger.debug(
+                    f'Loaded {f} into memory with shape '
+                    f'{self._ds[f].shape}. {_mem_check()}'
+                )
             logger.debug(f'Loaded dataset into memory: {self._ds}')
             logger.debug(f'Post-loading: {_mem_check()}')
         return self
@@ -559,6 +553,26 @@ class Sup3rX:
             self._ds = self._ds.unstack(Dimension.FLATTENED_SPATIAL)
         else:
             msg = 'Dataset is already unflattened'
+            logger.warning(msg)
+            warn(msg)
+        return self
+
+    def flatten(self):
+        """Flatten rasterized dataset so that there is only a single spatial
+        dimension."""
+        if not self.flattened:
+            self._ds = self._ds.stack(
+                {Dimension.FLATTENED_SPATIAL: Dimension.dims_2d()}
+            )
+            self._ds = self._ds.assign(
+                {
+                    Dimension.FLATTENED_SPATIAL: np.arange(
+                        len(self._ds[Dimension.FLATTENED_SPATIAL])
+                    )
+                }
+            )
+        else:
+            msg = 'Dataset is already flattened'
             logger.warning(msg)
             warn(msg)
         return self

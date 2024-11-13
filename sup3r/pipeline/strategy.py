@@ -10,6 +10,7 @@ import warnings
 from dataclasses import dataclass
 from functools import cached_property
 from typing import Dict, Optional, Tuple, Union
+from warnings import warn
 
 import dask.array as da
 import numpy as np
@@ -19,7 +20,7 @@ from sup3r.bias.utilities import bias_correct_features
 from sup3r.pipeline.slicer import ForwardPassSlicer
 from sup3r.pipeline.utilities import get_model
 from sup3r.postprocessing import OutputHandler
-from sup3r.preprocessing import ExoData, ExoDataHandler
+from sup3r.preprocessing import ExoData, ExoDataHandler, Rasterizer
 from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.utilities import (
     _parse_time_slice,
@@ -75,7 +76,14 @@ class ForwardPassStrategy:
         A list of low-resolution source files to extract raster data from.
         Each file must have the same number of timesteps. Can also pass a
         string with a unix-style file path which will be passed through
-        glob.glob
+        glob.glob.
+
+        Note: These files can also include a 2D (lat, lon) "mask" variable
+        which is True for grid points which can be skipped in the forward pass
+        and False otherwise. This will be used to skip running the forward pass
+        for chunks which only include masked points. e.g. chunks covering only
+        ocean. Chunks with even a single unmasked point will still be sent
+        through the forward pass.
     model_kwargs : str | list
         Keyword arguments to send to ``model_class.load(**model_kwargs)`` to
         initialize the GAN. Typically this is just the string path to the
@@ -222,11 +230,24 @@ class ForwardPassStrategy:
         )
         self.n_chunks = self.fwp_slicer.n_chunks
 
+        msg = (
+            'The same exogenous data is used by all nodes, so it will be '
+            'cached on the head_node. This can take a long time and might be '
+            'worth doing as an independent preprocessing step instead.'
+        )
+        if self.head_node and not all(
+            os.path.exists(fp) for fp in self.get_exo_cache_files(model)
+        ):
+            logger.warning(msg)
+            warn(msg)
+            _ = self.timer(self.load_exo_data, log=True)(model)
+
         if not self.head_node:
             hr_shape = self.hr_lat_lon.shape[:-1]
             self.gids = np.arange(np.prod(hr_shape)).reshape(hr_shape)
             self.exo_data = self.timer(self.load_exo_data, log=True)(model)
-            self.preflight()
+
+        self.preflight()
 
     @property
     def meta(self):
@@ -268,7 +289,6 @@ class ForwardPassStrategy:
             input_handler_kwargs['chunks'] = 'auto'
 
         input_handler_kwargs['time_slice'] = slice(None)
-
         return InputHandler(**input_handler_kwargs)
 
     def _init_features(self, model):
@@ -283,27 +303,19 @@ class ForwardPassStrategy:
         """Get array of lists such that node_chunks[i] is a list of
         indices for the chunks that will be sent through the generator on the
         ith node."""
-        node_chunks = min(self.max_nodes or np.inf, self.n_chunks)
-        return np.array_split(np.arange(self.n_chunks), node_chunks)
+        node_chunks = min(self.max_nodes or np.inf, len(self.unmasked_chunks))
+        return np.array_split(self.unmasked_chunks, node_chunks)
 
     @property
-    def unfinished_chunks(self):
-        """List of chunk indices that have not yet been written and are not
-        masked."""
+    def unmasked_chunks(self):
+        """List of chunk indices that are not masked from the input spatial
+        region. These chunks are those that will go through the forward pass.
+        Masked chunks will be skipped."""
         return [
             idx
             for idx in np.arange(self.n_chunks)
-            if not self.chunk_skippable(idx, log=False)
+            if not self.chunk_masked(idx, log=False)
         ]
-
-    @property
-    def unfinished_node_chunks(self):
-        """Get node_chunks lists which only include indices for chunks which
-        have not yet been written or are not masked."""
-        node_chunks = min(
-            self.max_nodes or np.inf, len(self.unfinished_chunks)
-        )
-        return np.array_split(self.unfinished_chunks, node_chunks)
 
     def _get_fwp_chunk_shape(self):
         """Get fwp_chunk_shape with default shape equal to the input handler
@@ -333,7 +345,7 @@ class ForwardPassStrategy:
         self.lr_slices, self.lr_pad_slices, self.hr_slices = out
 
         non_masked = self.fwp_slicer.n_spatial_chunks - sum(self.fwp_mask)
-        non_masked *= self.fwp_slicer.n_time_chunks
+        non_masked *= int(self.fwp_slicer.n_time_chunks)
         log_dict = {
             'n_nodes': len(self.node_chunks),
             'n_spatial_chunks': self.fwp_slicer.n_spatial_chunks,
@@ -454,9 +466,12 @@ class ForwardPassStrategy:
         kwargs = dict(zip(Dimension.dims_2d(), lr_pad_slice))
         kwargs[Dimension.TIME] = ti_pad_slice
         input_data = self.input_handler.isel(**kwargs)
+        logger.info(
+            'Loading data for chunk_index=%s into memory.', chunk_index
+        )
         input_data.load()
 
-        if self.bias_correct_kwargs is not None:
+        if self.bias_correct_kwargs != {}:
             logger.info(
                 f'Bias correcting data for chunk_index={chunk_index}, '
                 f'with shape={input_data.shape}'
@@ -532,6 +547,32 @@ class ForwardPassStrategy:
             index=chunk_index,
         )
 
+    def get_exo_kwargs(self, model):
+        """Get list of exo kwargs for all exo features."""
+        exo_kwargs_list = []
+        if self.exo_handler_kwargs:
+            for feature in self.exo_features:
+                exo_kwargs = copy.deepcopy(self.exo_handler_kwargs[feature])
+                exo_kwargs['feature'] = feature
+                exo_kwargs['model'] = model
+                input_handler_kwargs = exo_kwargs.get(
+                    'input_handler_kwargs', {}
+                )
+                input_handler_kwargs['target'] = self.input_handler.target
+                input_handler_kwargs['shape'] = self.input_handler.grid_shape
+                _ = input_handler_kwargs.pop('time_slice', None)
+                exo_kwargs['input_handler_kwargs'] = input_handler_kwargs
+                exo_kwargs = get_class_kwargs(ExoDataHandler, exo_kwargs)
+                exo_kwargs_list.append(exo_kwargs)
+        return exo_kwargs_list
+
+    def get_exo_cache_files(self, model):
+        """Get list of exo cache files so we can check if they exist or not."""
+        cache_files = []
+        for exo_kwargs in self.get_exo_kwargs(model):
+            cache_files.extend(ExoDataHandler(**exo_kwargs).cache_files)
+        return cache_files
+
     def load_exo_data(self, model):
         """Extract exogenous data for each exo feature and store data in
         dictionary with key for each exo feature
@@ -545,40 +586,38 @@ class ForwardPassStrategy:
         """
         data = {}
         exo_data = None
-        if self.exo_handler_kwargs:
-            for feature in self.exo_features:
-                exo_kwargs = copy.deepcopy(self.exo_handler_kwargs[feature])
-                exo_kwargs['feature'] = feature
-                exo_kwargs['model'] = model
-                input_handler_kwargs = exo_kwargs.get(
-                    'input_handler_kwargs', {}
-                )
-                input_handler_kwargs['target'] = self.input_handler.target
-                input_handler_kwargs['shape'] = self.input_handler.grid_shape
-                exo_kwargs['input_handler_kwargs'] = input_handler_kwargs
-                exo_kwargs = get_class_kwargs(ExoDataHandler, exo_kwargs)
-                data.update(ExoDataHandler(**exo_kwargs).data)
-            exo_data = ExoData(data)
+        for exo_kwargs in self.get_exo_kwargs(model):
+            data.update(ExoDataHandler(**exo_kwargs).data)
+        exo_data = ExoData(data)
         return exo_data
 
     @cached_property
     def fwp_mask(self):
         """Cached spatial mask which returns whether a given spatial chunk
         should be skipped by the forward pass or not. This is used to skip
-        running the forward pass for area with just ocean, for example."""
+        running the forward pass for area with just ocean, for example.
+
+        Note: This is True for grid points which can be skipped in the
+        forward pass and False otherwise.
+
+        See Also
+        --------
+        sup3r.pipeline.strategy.ForwardPassStrategy
+        """
 
         mask = np.zeros(len(self.lr_pad_slices))
-        InputHandler = get_input_handler_class(self.input_handler_name)
         input_handler_kwargs = copy.deepcopy(self.input_handler_kwargs)
         input_handler_kwargs['features'] = 'all'
-        handler = InputHandler(**input_handler_kwargs)
-        if 'mask' in handler:
+        handler = Rasterizer(
+            **get_class_kwargs(Rasterizer, input_handler_kwargs)
+        )
+        if 'mask' in handler.data:
             logger.info(
                 'Found "mask" in DataHandler. Computing forward pass '
                 'chunk mask for %s chunks',
                 len(self.lr_pad_slices),
             )
-            mask_vals = handler['mask'].values
+            mask_vals = handler.data['mask'].values
             for s_chunk_idx, lr_slices in enumerate(self.lr_pad_slices):
                 mask_check = mask_vals[lr_slices[0], lr_slices[1]]
                 mask[s_chunk_idx] = bool(np.prod(mask_check.flatten()))
@@ -622,9 +661,3 @@ class ForwardPassStrategy:
                 s_chunk_idx,
             )
         return mask_check
-
-    def chunk_skippable(self, chunk_idx, log=True):
-        """Check if chunk is already written or masked."""
-        return self.chunk_masked(
-            chunk_idx=chunk_idx, log=log
-        ) or self.chunk_finished(chunk_idx=chunk_idx, log=log)

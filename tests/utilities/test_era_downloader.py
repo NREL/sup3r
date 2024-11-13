@@ -3,6 +3,7 @@
 import os
 
 import numpy as np
+import pandas as pd
 
 from sup3r.preprocessing.names import FEATURE_NAMES
 from sup3r.utilities.era_downloader import EraDownloader
@@ -17,10 +18,25 @@ class EraDownloaderTester(EraDownloader):
     # pylint: disable=unused-argument
     @classmethod
     def download_file(
-        cls, variables, out_file, level_type, levels=None, **kwargs
+        cls,
+        variables,
+        time_dict,
+        area,  # noqa
+        out_file,
+        level_type,
+        levels=None,
+        **kwargs,  # noqa
     ):
         """Download either single-level or pressure-level file"""
-        shape = (10, 10, 100)
+        n_days = pd.Period(
+            f'{time_dict["year"]}-{time_dict["month"]}-01'
+        ).days_in_month
+        ti = pd.date_range(
+            f'{time_dict["year"]}-{time_dict["month"]}-01',
+            f'{time_dict["year"]}-{time_dict["month"]}-{n_days}',
+            freq='D',
+        )
+        shape = (10, 10, len(ti))
         if levels is not None:
             shape = (*shape, len(levels))
 
@@ -40,6 +56,7 @@ class EraDownloaderTester(EraDownloader):
         features.extend([v for f, v in name_map.items() if f in variables])
 
         nc = make_fake_dset(shape=shape, features=features)
+        nc['time'] = ti
         if 'z' in nc:
             if level_type == 'single':
                 nc['z'] = (nc['z'].dims, np.zeros(nc['z'].shape))
@@ -48,7 +65,7 @@ class EraDownloaderTester(EraDownloader):
                 for i in range(nc['z'].shape[1]):
                     arr[:, i, ...] = i * 100
                 nc['z'] = (nc['z'].dims, arr)
-        nc.to_netcdf(out_file, format='NETCDF4', engine='h5netcdf')
+        nc.to_netcdf(out_file)
 
 
 def test_era_dl(tmpdir_factory):
@@ -98,7 +115,6 @@ def test_era_dl_year(tmpdir_factory):
         yearly_file_pattern=yearly_file_pattern,
         max_workers=1,
         combine_all_files=True,
-        res_kwargs={'compat': 'override', 'engine': 'netcdf4'},
     )
 
     combined_file = yearly_file_pattern.replace('_{var}_', '').format(

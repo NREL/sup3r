@@ -152,7 +152,7 @@ class ForwardPass:
             input_data.shape,
             out.shape,
             mode,
-            pad_width
+            pad_width,
         )
 
         if exo_data is not None:
@@ -460,7 +460,7 @@ class ForwardPass:
         fwp = cls(strategy, node_index=node_index)
         for i, chunk_index in enumerate(strategy.node_chunks[node_index]):
             now = dt.now()
-            if not strategy.chunk_skippable(chunk_index):
+            if not strategy.chunk_finished(chunk_index):
                 chunk = fwp.get_input_chunk(chunk_index=chunk_index)
                 failed, _ = cls.run_chunk(
                     chunk=chunk,
@@ -516,7 +516,7 @@ class ForwardPass:
         with SpawnProcessPool(**pool_kws) as exe:
             now = dt.now()
             for _, chunk_index in enumerate(strategy.node_chunks[node_index]):
-                if not strategy.chunk_skippable(chunk_index):
+                if not strategy.chunk_finished(chunk_index):
                     chunk = fwp.get_input_chunk(chunk_index=chunk_index)
                     fut = exe.submit(
                         fwp.run_chunk,

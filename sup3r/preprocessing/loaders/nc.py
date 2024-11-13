@@ -9,11 +9,10 @@ import dask.array as da
 import numpy as np
 
 from sup3r.preprocessing.names import COORD_NAMES, DIM_NAMES, Dimension
-from sup3r.preprocessing.utilities import ordered_dims
+from sup3r.preprocessing.utilities import lower_names, ordered_dims
 from sup3r.utilities.utilities import xr_open_mfdataset
 
 from .base import BaseLoader
-from .utilities import lower_names
 
 logger = logging.getLogger(__name__)
 
@@ -68,8 +67,8 @@ class LoaderNC(BaseLoader):
     def get_coords(res):
         """Get coordinate dictionary to use in
         ``xr.Dataset().assign_coords()``."""
-        lats = res[Dimension.LATITUDE].data.squeeze().astype(np.float32)
-        lons = res[Dimension.LONGITUDE].data.squeeze().astype(np.float32)
+        lats = res[Dimension.LATITUDE].data.astype(np.float32)
+        lons = res[Dimension.LONGITUDE].data.astype(np.float32)
 
         # remove time dimension if there's a single time step
         if lats.ndim == 3:
