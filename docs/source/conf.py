@@ -61,8 +61,7 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
     "sphinx_autosummary_accessors",
-    "sphinx_copybutton",
-    "pygments_lexer"
+    "sphinx_copybutton"
 ]
 
 intersphinx_mapping = {
