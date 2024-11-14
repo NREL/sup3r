@@ -1321,9 +1321,9 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             Flag to break up the batch for parallel gradient descent
             calculations on multiple gpus. If True and multiple GPUs are
             present, each batch from the batch_handler will be divided up
-            between the GPUs and the resulting gradient from each GPU will
-            constitute a single gradient descent step with the nominal learning
-            rate that the model was initialized with.
+            between the GPUs and resulting gradients from each GPU will be
+            summed and then applied once per batch at the nominal learning
+            rate that the model and optimizer were initialized with.
         calc_loss_kwargs : dict
             Kwargs to pass to the self.calc_loss() method
 
@@ -1376,9 +1376,19 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
                             **calc_loss_kwargs,
                         )
                     )
-            for _, future in enumerate(futures):
+
+            # sum the gradients from each gpu to weight equally in
+            # optimizer momentum calculation
+            total_grad = None
+            for future in futures:
                 grad, loss_details = future.result()
-                optimizer.apply_gradients(zip(grad, training_weights))
+                if total_grad is None:
+                    total_grad = grad
+                else:
+                    for i, igrad in enumerate(grad):
+                        total_grad[i] += igrad
+
+            optimizer.apply_gradients(zip(total_grad, training_weights))
 
             self.timer.stop()
             logger.debug(
