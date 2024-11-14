@@ -17,7 +17,7 @@ from warnings import warn
 from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.utilities import _mem_check, log_args, _lowered
-from sup3r.utilities.utilities import safe_cast
+from sup3r.utilities.utilities import safe_cast, safe_serialize
 from rex.utilities.utilities import to_records_array
 
 from .utilities import _check_for_cache
@@ -475,7 +475,16 @@ class Cacher(Container):
                     ncfile.variables[dset][:] = np.asarray(data_var.data)
 
             for attr_name, attr_value in attrs.items():
-                ncfile.setncattr(attr_name, safe_cast(attr_value))
+                attr_value = safe_cast(attr_value)
+                try:
+                    ncfile.setncattr(attr_name, attr_value)
+                except Exception as e:
+                    msg = (f'Could not write {attr_name} as attribute, '
+                           f'serializing with json dumps, '
+                           f'received error: "{e}"')
+                    logger.warning(msg)
+                    warn(msg)
+                    ncfile.setncattr(attr_name, safe_serialize(attr_value))
 
         for feature in features:
             cls.write_netcdf_chunks(

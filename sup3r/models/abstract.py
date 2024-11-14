@@ -1037,7 +1037,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         Parameters
         ----------
         optimizer : tf.keras.optimizers.Optimizer
-            TF-Keras optimizer object
+            TF-Keras optimizer object (e.g., Adam)
 
         Returns
         -------
@@ -1052,6 +1052,29 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             elif np.issubdtype(type(v), np.integer):
                 conf[k] = int(v)
         return conf
+
+    @classmethod
+    def get_optimizer_state(cls, optimizer):
+        """Get a set of state variables for the optimizer
+
+        Parameters
+        ----------
+        optimizer : tf.keras.optimizers.Optimizer
+            TF-Keras optimizer object (e.g., Adam)
+
+        Returns
+        -------
+        state : dict
+            Optimizer state variables
+        """
+        lr = cls.get_optimizer_config(optimizer)['learning_rate']
+        state = {'learning_rate': lr}
+        for var in optimizer.variables:
+            name = var.name
+            var = var.numpy().flatten()
+            var = np.abs(var).mean()  # collapse ndarrays into mean absolute
+            state[name] = float(var)
+        return state
 
     @staticmethod
     def update_loss_details(loss_details, new_data, batch_len, prefix=None):
