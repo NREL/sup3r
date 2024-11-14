@@ -89,10 +89,10 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         default_device : str | None
             Option for default device placement of model weights. If None and a
             single GPU exists, that GPU will be the default device. If None and
-            multiple GPUs exist, the CPU will be the default device (this was
-            tested as most efficient given the custom multi-gpu strategy
-            developed in self.run_gradient_descent()). Examples: "/gpu:0" or
-            "/cpu:0"
+            multiple GPUs exist, the first GPU will be the default device
+            (this was tested as most efficient given the custom multi-gpu
+             strategy developed in self.run_gradient_descent()). Examples:
+            "/gpu:0" or "/cpu:0"
         name : str | None
             Optional name for the GAN.
         """
@@ -685,10 +685,11 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             Flag to break up the batch for parallel gradient descent
             calculations on multiple gpus. If True and multiple GPUs are
             present, each batch from the batch_handler will be divided up
-            between the GPUs and the resulting gradient from each GPU will
-            constitute a single gradient descent step with the nominal learning
-            rate that the model was initialized with. If true and multiple gpus
-            are found, default_device device should be set to /cpu:0
+            between the GPUs and resulting gradients from each GPU will be
+            summed and then applied once per batch at the nominal learning
+            rate that the model and optimizer were initialized with.
+            If true and multiple gpus are found, ``default_device`` device
+            should be set to /gpu:0
 
         Returns
         -------
@@ -931,10 +932,11 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             Flag to break up the batch for parallel gradient descent
             calculations on multiple gpus. If True and multiple GPUs are
             present, each batch from the batch_handler will be divided up
-            between the GPUs and the resulting gradient from each GPU will
-            constitute a single gradient descent step with the nominal learning
-            rate that the model was initialized with. If true and multiple gpus
-            are found, default_device device should be set to /cpu:0
+            between the GPUs and resulting gradients from each GPU will be
+            summed and then applied once per batch at the nominal learning
+            rate that the model and optimizer were initialized with.
+            If true and multiple gpus are found, ``default_device`` device
+            should be set to /gpu:0
         tensorboard_log : bool
             Whether to write log file for use with tensorboard. Log data can
             be viewed with ``tensorboard --logdir <logdir>`` where ``<logdir>``
