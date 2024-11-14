@@ -468,6 +468,7 @@ class ForwardPass:
                     model_class=strategy.model_class,
                     allowed_const=strategy.allowed_const,
                     output_workers=strategy.output_workers,
+                    invert_uv=strategy.invert_uv,
                     meta=fwp.meta,
                 )
                 logger.info(
@@ -575,6 +576,7 @@ class ForwardPass:
         model_kwargs,
         model_class,
         allowed_const,
+        invert_uv=None,
         meta=None,
         output_workers=None,
     ):
@@ -599,6 +601,10 @@ class ForwardPass:
             True to allow any constant output or a list of allowed possible
             constant outputs. See :class:`ForwardPassStrategy` for more
             information on this argument.
+        invert_uv : bool
+            Whether to convert uv to windspeed and winddirection for writing
+            output. This defaults to True for H5 output and False for NETCDF
+            output.
         meta : dict | None
             Meta data to write to forward pass output file.
         output_workers : int | None
@@ -640,6 +646,7 @@ class ForwardPass:
                 times=chunk.hr_times,
                 out_file=chunk.out_file,
                 meta_data=meta,
+                invert_uv=invert_uv,
                 max_workers=output_workers,
                 gids=chunk.gids,
             )

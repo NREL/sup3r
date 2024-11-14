@@ -162,6 +162,10 @@ class ForwardPassStrategy:
         chunks and overwrite any pre-existing outputs (False).
     output_workers : int | None
         Max number of workers to use for writing forward pass output.
+    invert_uv : bool | None
+        Whether to convert u and v wind components to windspeed and direction
+        for writing to output. This defaults to True for H5 output and False
+        for NETCDF output.
     pass_workers : int | None
         Max number of workers to use for performing forward passes on a single
         node. If 1 then all forward passes on chunks distributed to a single
@@ -195,6 +199,7 @@ class ForwardPassStrategy:
     allowed_const: Optional[Union[list, bool]] = None
     incremental: bool = True
     output_workers: int = 1
+    invert_uv: Optional[bool] = None
     pass_workers: int = 1
     max_nodes: int = 1
     head_node: bool = False
