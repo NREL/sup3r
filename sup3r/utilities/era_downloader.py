@@ -198,7 +198,7 @@ class EraDownloader:
             msg = (
                 'Both surface and pressure level variables were requested '
                 'without requesting "orog" and "zg". Adding these to the '
-                'download'
+                'download.'
             )
             logger.info(msg)
             self.sfc_file_variables.append('geopotential')
