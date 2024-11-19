@@ -124,7 +124,10 @@ class LoaderNC(BaseLoader):
         res.data_vars."""
         for dset in [*list(res.coords), *list(res.data_vars)]:
             chunks = self._parse_chunks(dims=res[dset].dims, feature=dset)
-            if chunks != 'auto':
+
+            # specifying chunks to xarray.open_mfdataset doesn't automatically
+            # apply to coordinates so we do that here
+            if chunks != 'auto' or dset in Dimension.coords_2d():
                 res[dset] = res[dset].chunk(chunks)
         return res
 

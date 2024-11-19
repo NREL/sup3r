@@ -208,7 +208,19 @@ class Cacher(Container):
     @classmethod
     def get_chunksizes(cls, dset, data, chunks):
         """Get chunksizes after rechunking (could be undetermined beforehand
-        if ``chunks == 'auto'``) and return rechunked data."""
+        if ``chunks == 'auto'``) and return rechunked data.
+
+        Parameters
+        ----------
+        dset : str
+            Name of feature to get chunksizes for.
+        data : Sup3rX | xr.Dataset
+            ``Sup3rX`` or ``xr.Dataset`` containing data to be cached.
+        chunks : dict | None | 'auto'
+            Dictionary of chunksizes either to use for all features or, if the
+            dictionary includes feature keys, feature specific chunksizes. Can
+            also be None or 'auto'.
+        """
         data_var = data.coords[dset] if dset in data.coords else data[dset]
         fchunk = cls.parse_chunks(dset, chunks, data_var.dims)
         if isinstance(fchunk, dict):
@@ -233,10 +245,23 @@ class Cacher(Container):
         return data_var, chunksizes
 
     @classmethod
-    def add_coord_meta(cls, out_file, data):
+    def add_coord_meta(cls, out_file, data, meta=None):
         """Add flattened coordinate meta to out_file. This is used for h5
-        caching."""
-        meta = pd.DataFrame()
+        caching.
+
+        Parameters
+        ----------
+        out_file : str
+            Name of output file.
+        data : Sup3rX | xr.Dataset
+            Data being written to the given ``out_file``.
+        meta : pd.DataFrame | None
+            Optional additional meta information to be written to the given
+            ``out_file``. If this is None then only coordinate info will be
+            included in the meta written to the ``out_file``
+        """
+        if meta is None or (isinstance(meta, dict) and not meta):
+            meta = pd.DataFrame()
         for coord in Dimension.coords_2d():
             if coord in data:
                 meta[coord] = data[coord].data.flatten()
@@ -280,18 +305,21 @@ class Cacher(Container):
         attrs : dict | None
             Optional attributes to write to file. Can specify dataset specific
             attributes by adding a dictionary with the dataset name as a key.
-            e.g. {**global_attrs, dset: {...}}
+            e.g. {**global_attrs, dset: {...}}. Can also include a global meta
+            dataframe that will then be added to the coordinate meta.
         verbose : bool
             Dummy arg to match ``write_netcdf`` signature
         """
-        if len(data.dims) == 3:
+        if len(data.dims) == 3 and Dimension.TIME in data.dims:
             data = data.transpose(Dimension.TIME, *Dimension.dims_2d())
         if features == 'all':
             features = list(data.data_vars)
         features = features if isinstance(features, list) else [features]
         chunks = chunks or 'auto'
         global_attrs = data.attrs.copy()
-        global_attrs.update(attrs or {})
+        attrs = attrs or {}
+        meta = attrs.pop('meta', {})
+        global_attrs.update(attrs)
         attrs = {k: safe_cast(v) for k, v in global_attrs.items()}
         with h5py.File(out_file, mode) as f:
             for k, v in attrs.items():
@@ -335,7 +363,7 @@ class Cacher(Container):
                         scheduler='threads',
                         num_workers=max_workers,
                     )
-        cls.add_coord_meta(out_file=out_file, data=data)
+        cls.add_coord_meta(out_file=out_file, data=data, meta=meta)
 
     @staticmethod
     def get_chunk_slices(chunks, shape):
@@ -383,7 +411,7 @@ class Cacher(Container):
             _mem_check(),
         )
         for i, chunk_slice in enumerate(chunk_slices):
-            msg = f'Writing chunk {i} / {len(chunk_slices)} to {out_file}'
+            msg = f'Writing chunk {i + 1} / {len(chunk_slices)} to {out_file}'
             msg = None if not verbose else msg
             chunk = data_var.data[chunk_slice]
             task = dask.delayed(cls.write_chunk)(

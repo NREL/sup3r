@@ -312,23 +312,20 @@ def test_qdm_transform_notrend(tmp_path, dist_params):
     assert np.allclose(corrected, unbiased, equal_nan=True)
 
 
-def test_handler_qdm_bc(fp_fut_cc, dist_params):
-    """qdm_bc() method from DataHandler
-
-    WIP: Confirm it runs, but don't verify much yet.
-    """
+def test_qdm_bc_method(fp_fut_cc, dist_params):
+    """Tesat qdm_bc standalone method"""
     Handler = DataHandler(fp_fut_cc, 'rsds')
     original = Handler.data.as_array().copy()
     qdm_bc(Handler, dist_params, 'ghi')
     corrected = Handler.data.as_array()
 
+    original = compute_if_dask(original)
+    corrected = compute_if_dask(corrected)
     assert not np.isnan(corrected).all(), "Can't compare if only NaN"
 
     idx = ~(np.isnan(original) | np.isnan(corrected))
     # Where it is not NaN, it must have differences.
-    assert not np.allclose(
-        compute_if_dask(original)[idx], compute_if_dask(corrected)[idx]
-    )
+    assert not np.allclose(original[idx], corrected[idx])
 
 
 def test_bc_identity(tmp_path, fp_fut_cc, dist_params):
