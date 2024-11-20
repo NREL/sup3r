@@ -598,7 +598,7 @@ def _apply_qdm(
     tmp = QDM(tmp, max_workers=max_workers)
     # Reorgnize array back from  (time, space)
     # to (spatial, spatial, temporal)
-    return da.reshape(tmp.T, subset.shape)
+    return np.reshape(tmp.T, subset.shape)
 
 
 def local_qdm_bc(
