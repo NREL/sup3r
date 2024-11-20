@@ -1094,8 +1094,9 @@ def local_presrat_bc(
         # If no trend, it doesn't make sense to correct for zero rate or
         # apply the k-factor, but limit to QDM only.
         if not no_trend:
-            subset = np.where(subset < bias_tau_fut, 0, subset)
-            subset *= k_factor[:, :, nt : nt + 1]
+            subset = np.where(
+                subset < bias_tau_fut, 0, subset * k_factor[:, :, nt : nt + 1]
+            )
 
         data_unbiased[:, :, subset_idx] = subset
 
