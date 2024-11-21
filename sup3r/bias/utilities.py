@@ -107,6 +107,11 @@ def qdm_bc(
     relative=True,
     threshold=0.1,
     no_trend=False,
+    delta_denom_min=None,
+    delta_denom_zero=None,
+    delta_range=None,
+    out_range=None,
+    max_workers=1
 ):
     """Bias Correction using Quantile Delta Mapping
 
@@ -149,6 +154,27 @@ def qdm_bc(
         Note that this assumes that "bias_{feature}_params"
         (``params_mh``) is the data distribution representative for the
         target data.
+    delta_denom_min : float | None
+        Option to specify a minimum value for the denominator term in the
+        calculation of a relative delta value. This prevents division by a
+        very small number making delta blow up and resulting in very large
+        output bias corrected values. See equation 4 of Cannon et al., 2015
+        for the delta term.
+    delta_denom_zero : float | None
+        Option to specify a value to replace zeros in the denominator term
+        in the calculation of a relative delta value. This prevents
+        division by a very small number making delta blow up and resulting
+        in very large output bias corrected values. See equation 4 of
+        Cannon et al., 2015 for the delta term.
+    delta_range : tuple | None
+        Option to set a (min, max) on the delta term in QDM. This can help
+        prevent QDM from making non-realistic increases/decreases in
+        otherwise physical values. See equation 4 of Cannon et al., 2015 for
+        the delta term.
+    out_range : None | tuple
+        Option to set floor/ceiling values on the output data.
+    max_workers: int | None
+        Max number of workers to use for QDM process pool
     """
 
     if isinstance(bc_files, str):
@@ -172,7 +198,7 @@ def qdm_bc(
                     )
                 )
                 handler.data[feature] = local_qdm_bc(
-                    handler.data[feature][...],
+                    handler.data[feature],
                     handler.lat_lon,
                     bias_feature,
                     feature,
@@ -181,6 +207,12 @@ def qdm_bc(
                     threshold=threshold,
                     relative=relative,
                     no_trend=no_trend,
+                    delta_denom_min=delta_denom_min,
+                    delta_denom_zero=delta_denom_zero,
+                    delta_range=delta_range,
+                    out_range=out_range,
+                    max_workers=max_workers
+
                 )
                 completed.append(feature)
 

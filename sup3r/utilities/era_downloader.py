@@ -198,7 +198,7 @@ class EraDownloader:
             msg = (
                 'Both surface and pressure level variables were requested '
                 'without requesting "orog" and "zg". Adding these to the '
-                'download'
+                'download.'
             )
             logger.info(msg)
             self.sfc_file_variables.append('geopotential')
@@ -323,6 +323,11 @@ class EraDownloader:
             Whether to overwrite existing file
         """
         if os.path.exists(out_file) and not cls._can_skip_file(out_file):
+            logger.info(
+                'Previous download of %s failed. Removing %s.',
+                out_file,
+                out_file,
+            )
             os.remove(out_file)
 
         if not cls._can_skip_file(out_file) or overwrite:
@@ -807,7 +812,7 @@ class EraDownloader:
         try:
             _ = Loader(file)
         except Exception as e:
-            msg = 'Could not open %s. %s Will redownload.'
+            msg = 'Could not open %s. %s. Will redownload.'
             logger.warning(msg, file, e)
             warn(msg % (file, e))
             openable = False

@@ -111,7 +111,8 @@ class DataHandler(Deriver):
             Keyword arguments for nan handling. If 'mask', time steps with nans
             will be dropped. Otherwise this should be a dict of kwargs which
             will be passed to
-            :py:meth:`sup3r.preprocessing.accessor.Sup3rX.interpolate_na`.
+            :py:meth:`sup3r.preprocessing.accessor.Sup3rX.interpolate_na`. e.g.
+            {'method': 'linear', 'dim': 'time'}
         BaseLoader : Callable
             Base level file loader wrapped by
             :class:`~sup3r.preprocessing.loaders.Loader`. This is usually

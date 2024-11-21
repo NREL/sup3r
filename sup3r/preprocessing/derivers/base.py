@@ -137,8 +137,10 @@ class BaseDeriver(Container):
             if not missing:
                 logger.debug(msg, inputs)
                 return self._run_compute(feature, method)
-            msg = ('Some of the method inputs reference %s itself. We will '
-                   'try height interpolation instead.')
+            msg = (
+                'Some of the method inputs reference %s itself. We will '
+                'try height interpolation instead.'
+            )
             if not can_derive:
                 logger.debug(msg, feature)
         return None
@@ -328,9 +330,7 @@ class BaseDeriver(Container):
                 attrs = self.data[feat].attrs
 
         level = (
-            [fstruct.height]
-            if fstruct.height is not None
-            else [fstruct.pressure]
+            fstruct.height if fstruct.height is not None else fstruct.pressure
         )
 
         if ml_var is not None and sl_var is None:

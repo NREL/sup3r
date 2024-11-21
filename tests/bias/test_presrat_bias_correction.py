@@ -642,7 +642,8 @@ def test_presrat_transform(presrat_params, precip_fut):
     - unbiased zero rate is not smaller the input zero rate
     """
     # local_presrat_bc expects time in the last dimension.
-    data = precip_fut.transpose('lat', 'lon', 'time').values
+
+    data = precip_fut.transpose('lat', 'lon', 'time')
     time = pd.to_datetime(precip_fut.time)
     latlon = np.stack(
         xr.broadcast(precip_fut['lat'], precip_fut['lon'] - 360), axis=-1
