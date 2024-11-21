@@ -55,7 +55,7 @@ def test_solar_cc_model(hr_steps):
     )
 
     fp_gen = os.path.join(CONFIG_DIR, 'sup3rcc/gen_solar_1x_8x_1f.json')
-    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
+    fp_disc = pytest.ST_FP_DISC
 
     Sup3rGan.seed()
     model = SolarCC(
@@ -127,7 +127,7 @@ def test_solar_cc_model_spatial():
     )
 
     fp_gen = os.path.join(CONFIG_DIR, 'sup3rcc/gen_solar_5x_1x_1f.json')
-    fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
+    fp_disc = pytest.S_FP_DISC
 
     Sup3rGan.seed()
     model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
@@ -179,7 +179,7 @@ def test_solar_custom_loss():
     )
 
     fp_gen = os.path.join(CONFIG_DIR, 'sup3rcc/gen_solar_1x_8x_1f.json')
-    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
+    fp_disc = pytest.ST_FP_DISC
 
     Sup3rGan.seed()
     model = SolarCC(

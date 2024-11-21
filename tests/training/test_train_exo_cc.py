@@ -7,7 +7,6 @@ import tempfile
 import numpy as np
 import pytest
 
-from sup3r import CONFIG_DIR
 from sup3r.models import Sup3rGan
 from sup3r.preprocessing.batch_handlers.factory import BatchHandlerCC
 from sup3r.preprocessing.data_handlers.factory import DataHandlerH5WindCC
@@ -57,11 +56,9 @@ def test_wind_hi_res_topo(
         mode='eager',
     )
 
-    fp_disc = os.path.join(CONFIG_DIR, 'spatial/disc.json')
-
     Sup3rGan.seed()
     model = Sup3rGan(
-        gen_config_with_topo(CustomLayer), fp_disc, learning_rate=1e-4
+        gen_config_with_topo(CustomLayer), pytest.S_FP_DISC, learning_rate=1e-4
     )
 
     with tempfile.TemporaryDirectory() as td:

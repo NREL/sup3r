@@ -33,8 +33,12 @@ def pytest_configure(config):  # pylint: disable=unused-argument # noqa: ARG001
         CONFIG_DIR, 'spatiotemporal', 'gen_3x_4x_2f.json'
     )
     pytest.S_FP_GEN = os.path.join(CONFIG_DIR, 'spatial', 'gen_2x_2f.json')
-    pytest.ST_FP_DISC = os.path.join(CONFIG_DIR, 'spatiotemporal', 'disc.json')
-    pytest.S_FP_DISC = os.path.join(CONFIG_DIR, 'spatial', 'disc.json')
+
+    # Note that disc should not use "same" zeros padding but easier to use this
+    # for testing on small sample sizes.
+    pytest.ST_FP_DISC = os.path.join(TEST_DATA_DIR, 'config_disc_st_test.json')
+    pytest.S_FP_DISC = os.path.join(TEST_DATA_DIR, 'config_disc_s_test.json')
+
     pytest.FPS_GCM = [
         os.path.join(TEST_DATA_DIR, 'ua_test.nc'),
         os.path.join(TEST_DATA_DIR, 'va_test.nc'),
