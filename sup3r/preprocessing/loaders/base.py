@@ -5,12 +5,13 @@ import copy
 import logging
 from abc import ABC, abstractmethod
 from datetime import datetime as dt
+from functools import cached_property
 from typing import Callable
 
 import numpy as np
 
 from sup3r.preprocessing.base import Container
-from sup3r.preprocessing.names import FEATURE_NAMES
+from sup3r.preprocessing.names import FEATURE_NAMES, Dimension
 from sup3r.preprocessing.utilities import (
     expand_paths,
     log_args,
@@ -153,3 +154,31 @@ class BaseLoader(Container, ABC):
         -------
         xr.Dataset
         """
+
+    @cached_property
+    @abstractmethod
+    def _lat_lon_shape(self):
+        """Get shape of lat lon grid only."""
+
+    @cached_property
+    @abstractmethod
+    def _is_flattened(self):
+        """Check if data is flattened or not"""
+
+    @cached_property
+    def _lat_lon_dims(self):
+        """Get dim names for lat lon grid. Either
+        ``Dimension.FLATTENED_SPATIAL`` or ``(Dimension.SOUTH_NORTH,
+        Dimension.WEST_EAST)``"""
+        if self._is_flattened:
+            return (Dimension.FLATTENED_SPATIAL,)
+        return Dimension.dims_2d()
+
+    @property
+    def _time_independent(self):
+        return 'time_index' not in self.res and 'time' not in self.res
+
+    def _is_spatial_dset(self, data):
+        """Check if given data is spatial only. We compare against the size of
+        the spatial domain."""
+        return len(data.shape) == 1 and len(data) == self._lat_lon_shape[0]

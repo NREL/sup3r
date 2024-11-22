@@ -3,6 +3,7 @@ file_paths and include some sampling ability to interface with batcher
 classes."""
 
 import logging
+from functools import cached_property
 from warnings import warn
 
 import dask.array as da
@@ -31,7 +32,7 @@ class LoaderNC(BaseLoader):
     def _enforce_descending_lats(self, dset):
         """Make sure latitudes are in descending order so that min lat / lon is
         at ``lat_lon[-1, 0]``."""
-        invert_lats = (
+        invert_lats = not self._is_flattened(self.res) and (
             dset[Dimension.LATITUDE][-1, 0] > dset[Dimension.LATITUDE][0, 0]
         )
         if invert_lats:
@@ -63,8 +64,31 @@ class LoaderNC(BaseLoader):
             dset.update({Dimension.PRESSURE_LEVEL: new_press})
         return dset
 
-    @staticmethod
-    def get_coords(res):
+    @cached_property
+    def _lat_lon_shape(self):
+        """Get shape of lat lon grid only."""
+        space_key = (
+            Dimension.LATITUDE
+            if Dimension.LATITUDE in self.res
+            else Dimension.SOUTH_NORTH
+        )
+        return self.res[space_key].shape
+
+    @cached_property
+    def _is_flattened(self):
+        """Check if dims include a single spatial dimension."""
+        crd_names = (
+            Dimension.coords_2d()
+            if Dimension.LATITUDE in self.res
+            else Dimension.dims_2d()
+        )
+        check = (
+            self._lat_lon_shape == 1
+            and self.res[crd_names[0]].dims == self.res[crd_names[1]].dims
+        )
+        return check
+
+    def get_coords(self, res):
         """Get coordinate dictionary to use in
         ``xr.Dataset().assign_coords()``."""
         lats = res[Dimension.LATITUDE].data.astype(np.float32)
@@ -76,12 +100,14 @@ class LoaderNC(BaseLoader):
         if lons.ndim == 3:
             lons = lons.squeeze()
 
-        if len(lats.shape) == 1:
+        if len(lats.shape) == 1 and not self._is_flattened:
             lons, lats = da.meshgrid(lons, lats)
 
-        lats = ((Dimension.SOUTH_NORTH, Dimension.WEST_EAST), lats)
-        lons = ((Dimension.SOUTH_NORTH, Dimension.WEST_EAST), lons)
-        coords = {Dimension.LATITUDE: lats, Dimension.LONGITUDE: lons}
+        dim_names = self._lat_lon_dims
+        coords = {
+            Dimension.LATITUDE: (dim_names, lats),
+            Dimension.LONGITUDE: (dim_names, lons),
+        }
 
         if Dimension.TIME in res:
             if Dimension.TIME in res.indexes:
@@ -95,16 +121,16 @@ class LoaderNC(BaseLoader):
             coords[Dimension.TIME] = times
         return coords
 
-    @staticmethod
-    def get_dims(res):
+    def get_dims(self, res):
         """Get dimension name map using our standard mappping and the names
         used for coordinate dimensions."""
         rename_dims = {k: v for k, v in DIM_NAMES.items() if k in res.dims}
         lat_dims = res[Dimension.LATITUDE].dims
         lon_dims = res[Dimension.LONGITUDE].dims
         if len(lat_dims) == 1 and len(lon_dims) == 1:
-            rename_dims[lat_dims[0]] = Dimension.SOUTH_NORTH
-            rename_dims[lon_dims[0]] = Dimension.WEST_EAST
+            dim_names = self._lat_lon_dims
+            rename_dims[lat_dims[0]] = dim_names[0]
+            rename_dims[lon_dims[0]] = dim_names[-1]
         else:
             msg = (
                 'Latitude and Longitude dimension names are different. '

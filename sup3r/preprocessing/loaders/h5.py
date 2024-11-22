@@ -6,6 +6,7 @@ though.
 """
 
 import logging
+from functools import cached_property
 from typing import Dict, Tuple
 from warnings import warn
 
@@ -33,25 +34,22 @@ class LoaderH5(BaseLoader):
     BASE_LOADER = MultiFileWindX
 
     @property
-    def _time_independent(self):
-        return 'time_index' not in self.res
-
-    @property
     def _time_steps(self):
         return (
             len(self.res['time_index']) if not self._time_independent else None
         )
 
-    def _meta_shape(self):
+    @cached_property
+    def _lat_lon_shape(self):
         """Get shape of spatial domain only."""
         if 'latitude' in self.res.h5:
             return self.res.h5['latitude'].shape
         return self.res.h5['meta']['latitude'].shape
 
-    def _is_spatial_dset(self, data):
-        """Check if given data is spatial only. We compare against the size of
-        the meta."""
-        return len(data.shape) == 1 and len(data) == self._meta_shape()[0]
+    @cached_property
+    def _is_flattened(self):
+        """Check if dims include a single spatial dimension."""
+        return self._lat_lon_shape == 1
 
     def _res_shape(self):
         """Get shape of H5 file.
@@ -61,9 +59,9 @@ class LoaderH5(BaseLoader):
         Flattened files are 2D but we have 3D H5 files available through
         caching and bias correction factor calculations."""
         return (
-            self._meta_shape()
+            self._lat_lon_shape
             if self._time_independent
-            else (self._time_steps, *self._meta_shape())
+            else (self._time_steps, *self._lat_lon_shape)
         )
 
     def _get_coords(self, dims):
@@ -74,7 +72,7 @@ class LoaderH5(BaseLoader):
         coord_base = (
             self.res.h5 if 'latitude' in self.res.h5 else self.res.h5['meta']
         )
-        coord_dims = dims[-len(self._meta_shape()) :]
+        coord_dims = dims[-len(self._lat_lon_shape) :]
         chunks = self._parse_chunks(coord_dims)
         lats = da.asarray(
             coord_base['latitude'], dtype=np.float32, chunks=chunks
@@ -152,7 +150,7 @@ class LoaderH5(BaseLoader):
         elevation to data_vars if it is."""
 
         flattened_with_elevation = (
-            len(self._meta_shape()) == 1
+            len(self._lat_lon_shape) == 1
             and hasattr(self.res, 'meta')
             and 'elevation' in self.res.meta
         )
@@ -191,7 +189,7 @@ class LoaderH5(BaseLoader):
 
     def _get_dims(self):
         """Get tuple of named dims for dataset."""
-        if len(self._meta_shape()) == 2:
+        if len(self._lat_lon_shape) == 2:
             dims = Dimension.dims_2d()
         else:
             dims = (Dimension.FLATTENED_SPATIAL,)
