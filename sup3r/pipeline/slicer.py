@@ -179,8 +179,7 @@ class ForwardPassSlicer:
                 shape=self.time_steps,
                 enhancement=1,
                 padding=self.temporal_pad,
-                step=self.time_slice.step,
-                min_size=self.chunk_shape[-1],
+                step=self.time_slice.step
             )
         return self._t_lr_pad_slices
 
@@ -465,7 +464,7 @@ class ForwardPassSlicer:
 
     @staticmethod
     def get_padded_slices(
-        slices, shape, enhancement, padding, min_size, step=None
+        slices, shape, enhancement, padding, min_size=None, step=None
     ):
         """Get padded slices with the specified padding size, max shape,
         enhancement, and step size
@@ -487,9 +486,8 @@ class ForwardPassSlicer:
             multiplied by the enhancement factor if the slices are to be used
             to index an enhanced dimension.
         min_size : int
-            Minimum size of a slice. This is usually the forward pass chunk
-            shape. A padded slice (the size of data passed to the generator)
-            should not be smaller than the forward pass chunk shape
+            Minimum size of a slice. This is usually at least 4. Padding layers
+            in the generator model typpically require a minimum shape of 4.
         step : int | None
             Step size for slices. e.g. If these slices are indexing a temporal
             dimension and time_slice.step = 3 then step=3.
@@ -503,10 +501,10 @@ class ForwardPassSlicer:
         pad = step * padding * enhancement
         pad_slices = []
         for _, s in enumerate(slices):
-            start = np.max([0, s.start * enhancement - pad])
             end = np.min([enhancement * shape, s.stop * enhancement + pad])
-            if end - start < min_size:
-                start = end - min_size
+            start = np.max([0, s.start * enhancement - pad])
+            if min_size is not None and end - start < min_size:
+                start = np.max([0, end - min_size])
             pad_slices.append(slice(start, end, step))
         return pad_slices
 

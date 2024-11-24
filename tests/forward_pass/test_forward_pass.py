@@ -750,7 +750,7 @@ def test_slicing_pad(input_files):
             input_files,
             model_kwargs={'model_dir': st_out_dir},
             model_class='Sup3rGan',
-            fwp_chunk_shape=(2, 1, 4),
+            fwp_chunk_shape=(4, 1, 4),
             input_handler_kwargs=input_handler_kwargs,
             spatial_pad=2,
             temporal_pad=2,
