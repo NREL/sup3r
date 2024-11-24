@@ -1,5 +1,6 @@
 """Slicer class for chunking forward pass input"""
 
+import itertools as it
 import logging
 from dataclasses import dataclass
 from typing import Union
@@ -133,11 +134,9 @@ class ForwardPassSlicer:
             going through the generator
         """
         if self._s_lr_slices is None:
-            self._s_lr_slices = [
-                (s1, s2)
-                for s1 in self.s1_lr_slices
-                for s2 in self.s2_lr_slices
-            ]
+            self._s_lr_slices = list(
+                it.product(self.s1_lr_slices, self.s2_lr_slices)
+            )
         return self._s_lr_slices
 
     @property
@@ -154,11 +153,9 @@ class ForwardPassSlicer:
             padded data volume passed through the generator
         """
         if self._s_lr_pad_slices is None:
-            self._s_lr_pad_slices = [
-                (s1, s2)
-                for s1 in self.s1_lr_pad_slices
-                for s2 in self.s2_lr_pad_slices
-            ]
+            self._s_lr_pad_slices = list(
+                it.product(self.s1_lr_pad_slices, self.s2_lr_pad_slices)
+            )
         return self._s_lr_pad_slices
 
     @property
@@ -179,7 +176,7 @@ class ForwardPassSlicer:
                 shape=self.time_steps,
                 enhancement=1,
                 padding=self.temporal_pad,
-                step=self.time_slice.step
+                step=self.time_slice.step,
             )
         return self._t_lr_pad_slices
 
@@ -250,12 +247,9 @@ class ForwardPassSlicer:
             domain corresponding to data_handler.data[lr_slice]
         """
         if self._s_hr_slices is None:
-            self._s_hr_slices = []
-            self._s_hr_slices = [
-                (s1, s2)
-                for s1 in self.s1_hr_slices
-                for s2 in self.s2_hr_slices
-            ]
+            self._s_hr_slices = list(
+                it.product(self.s1_hr_slices, self.s2_hr_slices)
+            )
         return self._s_hr_slices
 
     @property
@@ -276,9 +270,9 @@ class ForwardPassSlicer:
             s2_crop_slices = self.get_cropped_slices(
                 self.s2_lr_slices, self.s2_lr_pad_slices, 1
             )
-            self._s_lr_crop_slices = [
-                (s1, s2) for s1 in s1_crop_slices for s2 in s2_crop_slices
-            ]
+            self._s_lr_crop_slices = list(
+                it.product(s1_crop_slices, s2_crop_slices)
+            )
         return self._s_lr_crop_slices
 
     @property
@@ -308,11 +302,24 @@ class ForwardPassSlicer:
                 for _ in range(len(self.s2_lr_slices))
             ]
 
-            self._s_hr_crop_slices = [
-                (s1, s2)
-                for s1 in s1_hr_crop_slices
-                for s2 in s2_hr_crop_slices
-            ]
+            if self.spatial_pad == 0:
+                s1_end_slice = self.get_cropped_slices(
+                    self.s1_lr_slices[-1:],
+                    self.s1_lr_pad_slices[-1:],
+                    self.s_enhance,
+                )
+                s2_end_slice = self.get_cropped_slices(
+                    self.s2_lr_slices[-1:],
+                    self.s2_lr_pad_slices[-1:],
+                    self.s_enhance,
+                )
+
+                s1_hr_crop_slices[-1] = slice(s1_end_slice[0].start, None)
+                s2_hr_crop_slices[-1] = slice(s2_end_slice[0].start, None)
+
+            self._s_hr_crop_slices = list(
+                it.product(s1_hr_crop_slices, s2_hr_crop_slices)
+            )
         return self._s_hr_crop_slices
 
     @property
@@ -348,7 +355,7 @@ class ForwardPassSlicer:
                 shape=self.coarse_shape[0],
                 enhancement=1,
                 padding=self.spatial_pad,
-                min_size=self.chunk_shape[0],
+                min_size=self.chunk_shape[0]
             )
         return self._s1_lr_pad_slices
 
@@ -503,7 +510,7 @@ class ForwardPassSlicer:
         for _, s in enumerate(slices):
             end = np.min([enhancement * shape, s.stop * enhancement + pad])
             start = np.max([0, s.start * enhancement - pad])
-            if min_size is not None and end - start < min_size:
+            if min_size is not None and end - start < min_size and pad == 0:
                 start = np.max([0, end - min_size])
             pad_slices.append(slice(start, end, step))
         return pad_slices
