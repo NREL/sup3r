@@ -175,11 +175,12 @@ class ForwardPassSlicer:
         """
         if self._t_lr_pad_slices is None:
             self._t_lr_pad_slices = self.get_padded_slices(
-                self.t_lr_slices,
-                self.time_steps,
-                1,
-                self.temporal_pad,
-                self.time_slice.step,
+                slices=self.t_lr_slices,
+                shape=self.time_steps,
+                enhancement=1,
+                padding=self.temporal_pad,
+                step=self.time_slice.step,
+                min_size=self.chunk_shape[-1],
             )
         return self._t_lr_pad_slices
 
@@ -344,10 +345,11 @@ class ForwardPassSlicer:
         spatial dimension"""
         if self._s1_lr_pad_slices is None:
             self._s1_lr_pad_slices = self.get_padded_slices(
-                self.s1_lr_slices,
-                self.coarse_shape[0],
-                1,
+                slices=self.s1_lr_slices,
+                shape=self.coarse_shape[0],
+                enhancement=1,
                 padding=self.spatial_pad,
+                min_size=self.chunk_shape[0],
             )
         return self._s1_lr_pad_slices
 
@@ -357,10 +359,11 @@ class ForwardPassSlicer:
         spatial dimension"""
         if self._s2_lr_pad_slices is None:
             self._s2_lr_pad_slices = self.get_padded_slices(
-                self.s2_lr_slices,
-                self.coarse_shape[1],
-                1,
+                slices=self.s2_lr_slices,
+                shape=self.coarse_shape[1],
+                enhancement=1,
                 padding=self.spatial_pad,
+                min_size=self.chunk_shape[1],
             )
         return self._s2_lr_pad_slices
 
@@ -461,7 +464,9 @@ class ForwardPassSlicer:
         return self.n_spatial_chunks * self.n_time_chunks
 
     @staticmethod
-    def get_padded_slices(slices, shape, enhancement, padding, step=None):
+    def get_padded_slices(
+        slices, shape, enhancement, padding, min_size, step=None
+    ):
         """Get padded slices with the specified padding size, max shape,
         enhancement, and step size
 
@@ -481,6 +486,10 @@ class ForwardPassSlicer:
             dimension and the spatial_pad is 10 this is 10. It will be
             multiplied by the enhancement factor if the slices are to be used
             to index an enhanced dimension.
+        min_size : int
+            Minimum size of a slice. This is usually the forward pass chunk
+            shape. A padded slice (the size of data passed to the generator)
+            should not be smaller than the forward pass chunk shape
         step : int | None
             Step size for slices. e.g. If these slices are indexing a temporal
             dimension and time_slice.step = 3 then step=3.
@@ -496,6 +505,8 @@ class ForwardPassSlicer:
         for _, s in enumerate(slices):
             start = np.max([0, s.start * enhancement - pad])
             end = np.min([enhancement * shape, s.stop * enhancement + pad])
+            if end - start < min_size:
+                start = end - min_size
             pad_slices.append(slice(start, end, step))
         return pad_slices
 

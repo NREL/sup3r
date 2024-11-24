@@ -1,4 +1,5 @@
 """pytests for forward pass module"""
+
 import json
 import os
 import tempfile
@@ -681,18 +682,38 @@ def test_slicing_no_pad(input_files):
         )
 
         fwp = ForwardPass(strategy)
-        for i in range(len(strategy.node_chunks)):
+        for i in strategy.node_chunks[0]:
             chunk = fwp.get_input_chunk(i)
             s_idx, t_idx = strategy.get_chunk_indices(i)
-            s_slices = strategy.lr_pad_slices[s_idx]
+            s_slices = strategy.lr_slices[s_idx]
+            s_pad_slices = strategy.lr_pad_slices[s_idx]
+            s_crop_slices = strategy.fwp_slicer.s_lr_crop_slices[s_idx]
+            t_crop_slice = strategy.fwp_slicer.t_lr_crop_slices[t_idx]
+            lr_pad_data_slice = (
+                s_pad_slices[0],
+                s_pad_slices[1],
+                fwp.strategy.ti_pad_slices[t_idx],
+            )
+            lr_crop_data_slice = (
+                s_crop_slices[0],
+                s_crop_slices[1],
+                t_crop_slice,
+            )
             lr_data_slice = (
                 s_slices[0],
                 s_slices[1],
-                fwp.strategy.ti_pad_slices[t_idx],
+                fwp.strategy.ti_slices[t_idx],
             )
 
-            truth = handler.data[lr_data_slice]
-            assert np.allclose(chunk.input_data, truth)
+            assert handler.data[lr_pad_data_slice].shape[:-1] == (3, 2, 4)
+            assert chunk.input_data.shape[:-1] == (3, 2, 4)
+            assert np.allclose(
+                chunk.input_data, handler.data[lr_pad_data_slice]
+            )
+            assert np.allclose(
+                chunk.input_data[lr_crop_data_slice],
+                handler.data[lr_data_slice],
+            )
 
 
 def test_slicing_pad(input_files):
@@ -752,7 +773,7 @@ def test_slicing_pad(input_files):
         assert chunk_lookup[0, 1, 1] == n_s1 * n_s2 + 1
 
         fwp = ForwardPass(strategy)
-        for i in range(len(strategy.node_chunks)):
+        for i in strategy.node_chunks[0]:
             chunk = fwp.get_input_chunk(i, mode='constant')
             s_idx, t_idx = strategy.get_chunk_indices(i)
             s_slices = strategy.lr_pad_slices[s_idx]
