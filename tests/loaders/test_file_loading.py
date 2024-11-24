@@ -7,6 +7,7 @@ from tempfile import TemporaryDirectory
 import numpy as np
 import pandas as pd
 import pytest
+import xarray as xr
 from rex import Resource
 
 from sup3r.preprocessing import Dimension, Loader, LoaderH5, LoaderNC
@@ -51,7 +52,7 @@ def test_dim_ordering():
         Dimension.TIME,
         Dimension.PRESSURE_LEVEL,
         'nbnd',
-        Dimension.VARIABLE
+        Dimension.VARIABLE,
     )
 
 
@@ -178,6 +179,36 @@ def test_load_era5(fp):
     )
 
 
+def test_load_flattened_nc():
+    """Test simple netcdf file loading when nc data is spatially flattened."""
+    with TemporaryDirectory() as td:
+        temp_file = os.path.join(td, 'test.nc')
+        coords = {
+            'time': np.array(range(5)),
+            'latitude': ('space_dummy', np.array(range(100))),
+            'longitude': ('space_dummy', np.array(range(100))),
+        }
+        data_vars = {
+            'u_100m': (('time', 'space_dummy'), np.zeros((5, 100))),
+            'v_100m': (('time', 'space_dummy'), np.zeros((5, 100))),
+        }
+        nc = xr.Dataset(coords=coords, data_vars=data_vars)
+        nc.to_netcdf(temp_file)
+        chunks = {'time': 5, 'space': 5}
+        loader = LoaderNC(temp_file, chunks=chunks)
+        assert loader.shape == (100, 5, 2)
+        assert 'space' in loader['latitude'].dims
+        assert 'space' in loader['longitude'].dims
+        assert all(
+            loader[f].data.chunksize == tuple(chunks.values())
+            for f in loader.features
+        )
+
+        gen_loader = Loader(temp_file, chunks=chunks)
+
+        assert np.array_equal(loader.as_array(), gen_loader.as_array())
+
+
 def test_load_nc():
     """Test simple netcdf file loading. Make sure general loader matches nc
     specific loader"""
@@ -224,7 +255,7 @@ def test_load_h5():
     assert np.array_equal(loader.as_array(), gen_loader.as_array())
     loader_attrs = {f: loader[f].attrs for f in feats}
     resource_attrs = Resource(pytest.FP_WTK).attrs
-    assert np.array_equal(loader.meta, loader.res.meta)
+    assert np.array_equal(loader.meta, loader._res.meta)
     matching_feats = set(Resource(pytest.FP_WTK).datasets).intersection(feats)
     assert all(loader_attrs[f] == resource_attrs[f] for f in matching_feats)
 

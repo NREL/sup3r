@@ -32,7 +32,7 @@ class LoaderNC(BaseLoader):
     def _enforce_descending_lats(self, dset):
         """Make sure latitudes are in descending order so that min lat / lon is
         at ``lat_lon[-1, 0]``."""
-        invert_lats = not self._is_flattened(self.res) and (
+        invert_lats = not self._is_flattened and (
             dset[Dimension.LATITUDE][-1, 0] > dset[Dimension.LATITUDE][0, 0]
         )
         if invert_lats:
@@ -67,28 +67,19 @@ class LoaderNC(BaseLoader):
     @cached_property
     def _lat_lon_shape(self):
         """Get shape of lat lon grid only."""
-        space_key = (
-            Dimension.LATITUDE
-            if Dimension.LATITUDE in self.res
-            else Dimension.SOUTH_NORTH
-        )
-        return self.res[space_key].shape
+        return self._res[Dimension.LATITUDE].shape
 
     @cached_property
     def _is_flattened(self):
         """Check if dims include a single spatial dimension."""
-        crd_names = (
-            Dimension.coords_2d()
-            if Dimension.LATITUDE in self.res
-            else Dimension.dims_2d()
-        )
         check = (
-            self._lat_lon_shape == 1
-            and self.res[crd_names[0]].dims == self.res[crd_names[1]].dims
+            len(self._lat_lon_shape) == 1
+            and self._res[Dimension.LATITUDE].dims
+            == self._res[Dimension.LONGITUDE].dims
         )
         return check
 
-    def get_coords(self, res):
+    def _get_coords(self, res):
         """Get coordinate dictionary to use in
         ``xr.Dataset().assign_coords()``."""
         lats = res[Dimension.LATITUDE].data.astype(np.float32)
@@ -121,7 +112,7 @@ class LoaderNC(BaseLoader):
             coords[Dimension.TIME] = times
         return coords
 
-    def get_dims(self, res):
+    def _get_dims(self, res):
         """Get dimension name map using our standard mappping and the names
         used for coordinate dimensions."""
         rename_dims = {k: v for k, v in DIM_NAMES.items() if k in res.dims}
@@ -159,19 +150,19 @@ class LoaderNC(BaseLoader):
 
     def _load(self):
         """Load netcdf ``xarray.Dataset()``."""
-        res = lower_names(self.res)
+        res = lower_names(self._res)
         rename_coords = {
             k: v for k, v in COORD_NAMES.items() if k in res and v not in res
         }
-        res = res.rename(rename_coords)
+        self._res = res.rename(rename_coords)
 
-        if not all(coord in res for coord in Dimension.coords_2d()):
+        if not all(coord in self._res for coord in Dimension.coords_2d()):
             err = 'Could not find valid coordinates in given files: %s'
             logger.error(err, self.file_paths)
             raise OSError(err % (self.file_paths))
 
-        res = res.swap_dims(self.get_dims(res))
-        res = res.assign_coords(self.get_coords(res))
+        res = self._res.swap_dims(self._get_dims(self._res))
+        res = res.assign_coords(self._get_coords(res))
         res = self._enforce_descending_lats(res)
         res = self._rechunk_dsets(res)
         return self._enforce_descending_levels(res).astype(np.float32)

@@ -28,4 +28,4 @@ class Loader:
         return self
 
     def __exit__(self, exc_type, exc_value, trace):
-        self.res.close()
+        self._res.close()
