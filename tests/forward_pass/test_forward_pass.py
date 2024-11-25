@@ -479,7 +479,9 @@ def test_fwp_chunking(input_files):
                 output_workers=strat.output_workers,
                 meta=fwp.meta,
             )
-            s_chunk_idx, t_chunk_idx = fwp.strategy.get_chunk_indices(i)
+            s_chunk_idx, t_chunk_idx = (
+                fwp.strategy.fwp_slicer.get_chunk_indices(i)
+            )
             ti_slice = fwp.strategy.ti_slices[t_chunk_idx]
             hr_slice = fwp.strategy.hr_slices[s_chunk_idx]
 
@@ -698,7 +700,7 @@ def test_slicing_no_pad(input_files):
         fwp = ForwardPass(strategy)
         for i in strategy.node_chunks[0]:
             chunk = fwp.get_input_chunk(i)
-            s_idx, t_idx = strategy.get_chunk_indices(i)
+            s_idx, t_idx = strategy.fwp_slicer.get_chunk_indices(i)
             s_slices = strategy.lr_slices[s_idx]
             s_pad_slices = strategy.lr_pad_slices[s_idx]
             s_crop_slices = strategy.fwp_slicer.s_lr_crop_slices[s_idx]
@@ -780,8 +782,8 @@ def test_slicing_auto_boundary_pad(input_files, spatial_pad):
         fwp = ForwardPass(strategy)
         for i in strategy.node_chunks[0]:
             chunk = fwp.get_input_chunk(i)
-            s_idx, t_idx = strategy.get_chunk_indices(i)
-            pad_width = strategy.get_pad_width(i)
+            s_idx, t_idx = strategy.fwp_slicer.get_chunk_indices(i)
+            pad_width = strategy.fwp_slicer.get_pad_width(i)
             s_slices = strategy.lr_slices[s_idx]
             s_crop_slices = strategy.fwp_slicer.s_lr_crop_slices[s_idx]
             t_crop_slice = strategy.fwp_slicer.t_lr_crop_slices[t_idx]
@@ -796,8 +798,8 @@ def test_slicing_auto_boundary_pad(input_files, spatial_pad):
                 fwp.strategy.ti_slices[t_idx],
             )
 
-            assert chunk.input_data.shape[:-2][0] > 3
-            assert chunk.input_data.shape[:-2][1] > 3
+            assert chunk.input_data.shape[0] > 3
+            assert chunk.input_data.shape[1] > 3
             input_data = chunk.input_data.copy()
             if spatial_pad > 0:
                 slices = [
@@ -867,7 +869,7 @@ def test_slicing_pad(input_files):
         fwp = ForwardPass(strategy)
         for i in strategy.node_chunks[0]:
             chunk = fwp.get_input_chunk(i, mode='constant')
-            s_idx, t_idx = strategy.get_chunk_indices(i)
+            s_idx, t_idx = strategy.fwp_slicer.get_chunk_indices(i)
             s_slices = strategy.lr_pad_slices[s_idx]
             lr_data_slice = (
                 s_slices[0],
@@ -903,6 +905,9 @@ def test_slicing_pad(input_files):
                 (pad_t_start, pad_t_end),
                 (0, 0),
             )
+
+            assert chunk.input_data.shape[0] > 3
+            assert chunk.input_data.shape[1] > 3
 
             truth = handler.data[lr_data_slice]
             padded_truth = np.pad(truth, pad_width, mode='constant')

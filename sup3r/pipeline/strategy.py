@@ -410,75 +410,6 @@ class ForwardPassStrategy:
             ]
         return out_file_list
 
-    @staticmethod
-    def _get_pad_width(window, max_steps, max_pad, check_boundary=False):
-        """
-        Parameters
-        ----------
-        window : slice
-            Slice with start and stop of window to pad.
-        max_steps : int
-            Maximum number of steps available. Padding cannot extend past this
-        max_pad : int
-            Maximum amount of padding to apply.
-        check_bounary : bool
-            Whether to check the final slice for minimum size requirement
-
-        Returns
-        -------
-        tuple
-            Tuple of pad width for the given window.
-        """
-        win_start = window.start or 0
-        win_stop = window.stop or max_steps
-        start = int(np.maximum(0, (max_pad - win_start)))
-        stop = int(np.maximum(0, max_pad + win_stop - max_steps))
-
-        # We add minimum padding to the last slice if the padded window is
-        # too small for the generator. This can happen if 2 * spatial_pad +
-        # modulo(grid_size, fwp_chunk_shape) < 4
-        if (
-            check_boundary
-            and win_stop == max_steps
-            and (start + stop + win_stop - win_start) < 4
-        ):
-            stop = np.max([2, max_pad])
-            start = np.max([2, max_pad])
-
-        return (start, stop)
-
-    def get_pad_width(self, chunk_index):
-        """Get padding for the current spatiotemporal chunk
-
-        Returns
-        -------
-        padding : tuple
-            Tuple of tuples with padding width for spatial and temporal
-            dimensions. Each tuple includes the start and end of padding for
-            that dimension. Ordering is spatial_1, spatial_2, temporal.
-        """
-        s_chunk_idx, t_chunk_idx = self.get_chunk_indices(chunk_index)
-        ti_slice = self.ti_slices[t_chunk_idx]
-        lr_slice = self.lr_slices[s_chunk_idx]
-
-        return (
-            self._get_pad_width(
-                lr_slice[0],
-                self.input_handler.grid_shape[0],
-                self.spatial_pad,
-                check_boundary=True,
-            ),
-            self._get_pad_width(
-                lr_slice[1],
-                self.input_handler.grid_shape[1],
-                self.spatial_pad,
-                check_boundary=True,
-            ),
-            self._get_pad_width(
-                ti_slice, len(self.input_handler.time_index), self.temporal_pad
-            ),
-        )
-
     def prep_chunk_data(self, chunk_index=0):
         """Get low res input data and exo data for given chunk index and bias
         correct low res data if requested.
@@ -530,7 +461,9 @@ class ForwardPassStrategy:
         with that data and other chunk specific attributes.
         """
 
-        s_chunk_idx, t_chunk_idx = self.get_chunk_indices(chunk_index)
+        s_chunk_idx, t_chunk_idx = self.fwp_slicer.get_chunk_indices(
+            chunk_index
+        )
 
         msg = (
             f'Requested forward pass on chunk_index={chunk_index} > '
@@ -579,7 +512,7 @@ class ForwardPassStrategy:
             ),
             gids=self.gids[hr_slice[:2]],
             out_file=self.out_files[chunk_index],
-            pad_width=self.get_pad_width(chunk_index),
+            pad_width=self.fwp_slicer.extra_padding[chunk_index],
             index=chunk_index,
         )
 
@@ -687,7 +620,7 @@ class ForwardPassStrategy:
         """Check if the region for this chunk is masked. This is used to skip
         running the forward pass for region with just ocean, for example."""
 
-        s_chunk_idx, _ = self.get_chunk_indices(chunk_idx)
+        s_chunk_idx, _ = self.fwp_slicer.get_chunk_indices(chunk_idx)
         mask_check = self.fwp_mask[s_chunk_idx]
         if mask_check and log:
             logger.info(

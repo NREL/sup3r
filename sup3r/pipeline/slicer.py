@@ -72,6 +72,7 @@ class ForwardPassSlicer:
         self.time_slice = _parse_time_slice(self.time_slice)
 
         self._chunk_lookup = None
+        self._extra_padding = None
         self._s1_lr_slices = None
         self._s2_lr_slices = None
         self._s1_lr_pad_slices = None
@@ -536,7 +537,7 @@ class ForwardPassSlicer:
         such that the last slice (right boundary) does not meet the minimum
         number of elements. (Padding layers in the generator typically require
         a minimum shape of 4). When this minimum shape is not met we apply
-        extra padding in ``ForwardPassStrategy._get_pad_width``. Cropped slices
+        extra padding in :meth:`self._get_pad_width`. Cropped slices
         have to be adjusted to account for this here."""
 
         warn_msg = (
@@ -612,3 +613,88 @@ class ForwardPassSlicer:
             hr_crop_stop = -hr_crop_start
 
         return [slice(hr_crop_start, hr_crop_stop)] * len(unpadded_slices)
+
+    @staticmethod
+    def _get_pad_width(window, max_steps, max_pad, check_boundary=False):
+        """
+        Parameters
+        ----------
+        window : slice
+            Slice with start and stop of window to pad.
+        max_steps : int
+            Maximum number of steps available. Padding cannot extend past this
+        max_pad : int
+            Maximum amount of padding to apply.
+        check_bounary : bool
+            Whether to check the final slice for minimum size requirement
+
+        Returns
+        -------
+        tuple
+            Tuple of pad width for the given window.
+        """
+        win_start = window.start or 0
+        win_stop = window.stop or max_steps
+        start = int(np.maximum(0, (max_pad - win_start)))
+        stop = int(np.maximum(0, max_pad + win_stop - max_steps))
+
+        # We add minimum padding to the last slice if the padded window is
+        # too small for the generator. This can happen if 2 * spatial_pad +
+        # modulo(grid_size, fwp_chunk_shape) < 4
+        if (
+            check_boundary
+            and win_stop == max_steps
+            and (2 * max_pad + win_stop - win_start) < 4
+        ):
+            stop = np.max([2, max_pad])
+            start = np.max([2, max_pad])
+
+        return (start, stop)
+
+    def get_chunk_indices(self, chunk_index):
+        """Get (spatial, temporal) indices for the given chunk index"""
+        return (
+            chunk_index % self.n_spatial_chunks,
+            chunk_index // self.n_spatial_chunks,
+        )
+
+    def get_pad_width(self, chunk_index):
+        """Get extra padding for the current spatiotemporal chunk
+
+        Returns
+        -------
+        padding : tuple
+            Tuple of tuples with padding width for spatial and temporal
+            dimensions. Each tuple includes the start and end of padding for
+            that dimension. Ordering is spatial_1, spatial_2, temporal.
+        """
+        s_chunk_idx, t_chunk_idx = self.get_chunk_indices(chunk_index)
+        ti_slice = self.t_lr_slices[t_chunk_idx]
+        lr_slice = self.s_lr_slices[s_chunk_idx]
+
+        return (
+            self._get_pad_width(
+                lr_slice[0],
+                self.coarse_shape[0],
+                self.spatial_pad,
+                check_boundary=True,
+            ),
+            self._get_pad_width(
+                lr_slice[1],
+                self.coarse_shape[1],
+                self.spatial_pad,
+                check_boundary=True,
+            ),
+            self._get_pad_width(
+                ti_slice, len(self.dummy_time_index), self.temporal_pad
+            ),
+        )
+
+    @property
+    def extra_padding(self):
+        """Get list of pad widths for each chunk index"""
+        if self._extra_padding is None:
+            self._extra_padding = [
+                self.get_pad_width(idx) for idx in range(self.n_chunks)
+            ]
+        return self._extra_padding
