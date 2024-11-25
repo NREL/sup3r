@@ -669,11 +669,25 @@ def test_slicing_no_pad(input_files):
             'shape': shape,
             'time_slice': time_slice,
         }
+
+        # raises error because fwp_chunk_shape is too small
+        with pytest.raises(ValueError):
+            strategy = ForwardPassStrategy(
+                input_files,
+                model_kwargs={'model_dir': st_out_dir},
+                model_class='Sup3rGan',
+                fwp_chunk_shape=(3, 2, 4),
+                spatial_pad=0,
+                temporal_pad=0,
+                input_handler_kwargs=input_handler_kwargs,
+                out_pattern=out_files,
+                max_nodes=1,
+            )
         strategy = ForwardPassStrategy(
             input_files,
             model_kwargs={'model_dir': st_out_dir},
             model_class='Sup3rGan',
-            fwp_chunk_shape=(3, 2, 4),
+            fwp_chunk_shape=(4, 4, 4),
             spatial_pad=0,
             temporal_pad=0,
             input_handler_kwargs=input_handler_kwargs,
@@ -705,8 +719,90 @@ def test_slicing_no_pad(input_files):
                 fwp.strategy.ti_slices[t_idx],
             )
 
-            assert handler.data[lr_pad_data_slice].shape[:-2] == (3, 2)
-            assert chunk.input_data.shape[:-2] == (3, 2)
+            assert handler.data[lr_pad_data_slice].shape[:-2] == (4, 4)
+            assert chunk.input_data.shape[:-2] == (4, 4)
+            assert np.allclose(
+                chunk.input_data, handler.data[lr_pad_data_slice]
+            )
+            assert np.allclose(
+                chunk.input_data[lr_crop_data_slice],
+                handler.data[lr_data_slice],
+            )
+
+
+def test_slicing_auto_boundary_pad(input_files):
+    """Test that automatic boundary padding is applied when the fwp chunk shape
+    and grid size result in a slice that is too small for the generator."""
+
+    Sup3rGan.seed()
+    s_enhance = 3
+    t_enhance = 4
+    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
+    st_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+    features = ['u_100m', 'v_100m']
+    st_model.meta['lr_features'] = features
+    st_model.meta['hr_out_features'] = features
+    st_model.meta['s_enhance'] = s_enhance
+    st_model.meta['t_enhance'] = t_enhance
+    _ = st_model.generate(np.ones((4, 10, 10, 6, 2)))
+
+    with tempfile.TemporaryDirectory() as td:
+        out_files = os.path.join(td, 'out_{file_id}.h5')
+        st_out_dir = os.path.join(td, 'st_gan')
+        st_model.save(st_out_dir)
+
+        handler = DataHandler(
+            input_files, features, target=target, shape=shape
+        )
+
+        input_handler_kwargs = {
+            'target': target,
+            'shape': shape,
+            'time_slice': time_slice,
+        }
+
+        # raises warning because modulo(shape, fwp_chunk_shape) = 1 for the
+        # spatial dimensions. The slices of length 1 are then padded to 7
+        with pytest.warns(match='too small'):
+            strategy = ForwardPassStrategy(
+                input_files,
+                model_kwargs={'model_dir': st_out_dir},
+                model_class='Sup3rGan',
+                fwp_chunk_shape=(7, 7, 4),
+                spatial_pad=0,
+                temporal_pad=0,
+                input_handler_kwargs=input_handler_kwargs,
+                out_pattern=out_files,
+                max_nodes=1,
+            )
+
+        fwp = ForwardPass(strategy)
+        for i in strategy.node_chunks[0]:
+            chunk = fwp.get_input_chunk(i)
+            s_idx, t_idx = strategy.get_chunk_indices(i)
+            s_slices = strategy.lr_slices[s_idx]
+            s_pad_slices = strategy.lr_pad_slices[s_idx]
+            s_crop_slices = strategy.fwp_slicer.s_lr_crop_slices[s_idx]
+            t_crop_slice = strategy.fwp_slicer.t_lr_crop_slices[t_idx]
+            lr_pad_data_slice = (
+                s_pad_slices[0],
+                s_pad_slices[1],
+                fwp.strategy.ti_pad_slices[t_idx],
+            )
+            lr_crop_data_slice = (
+                s_crop_slices[0],
+                s_crop_slices[1],
+                t_crop_slice,
+            )
+            lr_data_slice = (
+                s_slices[0],
+                s_slices[1],
+                fwp.strategy.ti_slices[t_idx],
+            )
+
+            assert handler.data[lr_pad_data_slice].shape[:-2] == (7, 7)
+            assert chunk.input_data.shape[:-2] == (7, 7)
             assert np.allclose(
                 chunk.input_data, handler.data[lr_pad_data_slice]
             )
