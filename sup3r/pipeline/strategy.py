@@ -440,7 +440,7 @@ class ForwardPassStrategy:
         if (
             check_boundary
             and win_stop == max_steps
-            and (win_stop - win_start) < 4
+            and (start + stop + win_stop - win_start) < 4
         ):
             stop = np.max([2, max_pad])
             start = np.max([2, max_pad])
