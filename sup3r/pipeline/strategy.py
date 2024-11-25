@@ -6,7 +6,6 @@ import logging
 import os
 import pathlib
 import pprint
-import warnings
 from dataclasses import dataclass
 from functools import cached_property
 from typing import Dict, Optional, Tuple, Union
@@ -336,6 +335,18 @@ class ForwardPassStrategy:
         out = self.fwp_slicer.get_time_slices()
         self.ti_slices, self.ti_pad_slices = out
 
+        fwp_s1_steps = self.fwp_chunk_shape[0] + 2 * self.spatial_pad
+        fwp_s2_steps = self.fwp_chunk_shape[1] + 2 * self.spatial_pad
+        msg = (
+            'The padding layers in the generator typically require at least 4 '
+            'elements per spatial dimension. The padded chunk shape (%s, %s) '
+            'is smaller than this.'
+        )
+
+        if fwp_s1_steps < 4 or fwp_s2_steps < 4:
+            logger.warning(msg, fwp_s1_steps, fwp_s2_steps)
+            warn(msg % (fwp_s1_steps, fwp_s2_steps))
+
         fwp_tsteps = self.fwp_chunk_shape[2] + 2 * self.temporal_pad
         tsteps = len(self.input_handler.time_index[self.time_slice])
         msg = (
@@ -345,7 +356,7 @@ class ForwardPassStrategy:
         )
         if fwp_tsteps > tsteps:
             logger.warning(msg)
-            warnings.warn(msg)
+            warn(msg)
         out = self.fwp_slicer.get_spatial_slices()
         self.lr_slices, self.lr_pad_slices, self.hr_slices = out
 
@@ -400,7 +411,7 @@ class ForwardPassStrategy:
         return out_file_list
 
     @staticmethod
-    def _get_pad_width(window, max_steps, max_pad):
+    def _get_pad_width(window, max_steps, max_pad, check_boundary=False):
         """
         Parameters
         ----------
@@ -410,16 +421,30 @@ class ForwardPassStrategy:
             Maximum number of steps available. Padding cannot extend past this
         max_pad : int
             Maximum amount of padding to apply.
+        check_bounary : bool
+            Whether to check the final slice for minimum size requirement
 
         Returns
         -------
         tuple
             Tuple of pad width for the given window.
         """
-        start = window.start or 0
-        stop = window.stop or max_steps
-        start = int(np.maximum(0, (max_pad - start)))
-        stop = int(np.maximum(0, max_pad + stop - max_steps))
+        win_start = window.start or 0
+        win_stop = window.stop or max_steps
+        start = int(np.maximum(0, (max_pad - win_start)))
+        stop = int(np.maximum(0, max_pad + win_stop - max_steps))
+
+        # We add minimum padding to the last slice if the padded window is
+        # too small for the generator. This can happen if 2 * spatial_pad +
+        # modulo(grid_size, fwp_chunk_shape) < 4
+        if (
+            check_boundary
+            and win_stop == max_steps
+            and (win_stop - win_start) < 4
+        ):
+            stop = np.max([2, max_pad])
+            start = np.max([2, max_pad])
+
         return (start, stop)
 
     def get_pad_width(self, chunk_index):
@@ -438,10 +463,16 @@ class ForwardPassStrategy:
 
         return (
             self._get_pad_width(
-                lr_slice[0], self.input_handler.grid_shape[0], self.spatial_pad
+                lr_slice[0],
+                self.input_handler.grid_shape[0],
+                self.spatial_pad,
+                check_boundary=True,
             ),
             self._get_pad_width(
-                lr_slice[1], self.input_handler.grid_shape[1], self.spatial_pad
+                lr_slice[1],
+                self.input_handler.grid_shape[1],
+                self.spatial_pad,
+                check_boundary=True,
             ),
             self._get_pad_width(
                 ti_slice, len(self.input_handler.time_index), self.temporal_pad

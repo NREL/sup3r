@@ -670,8 +670,8 @@ def test_slicing_no_pad(input_files):
             'time_slice': time_slice,
         }
 
-        # raises error because fwp_chunk_shape is too small
-        with pytest.raises(ValueError):
+        # raises warning because fwp_chunk_shape is too small
+        with pytest.warns(match='at least 4'):
             strategy = ForwardPassStrategy(
                 input_files,
                 model_kwargs={'model_dir': st_out_dir},
@@ -719,8 +719,10 @@ def test_slicing_no_pad(input_files):
                 fwp.strategy.ti_slices[t_idx],
             )
 
-            assert handler.data[lr_pad_data_slice].shape[:-2] == (4, 4)
-            assert chunk.input_data.shape[:-2] == (4, 4)
+            assert handler.data[lr_pad_data_slice].shape[:-2][0] > 3
+            assert handler.data[lr_pad_data_slice].shape[:-2][1] > 3
+            assert chunk.input_data.shape[:-2][0] > 3
+            assert chunk.input_data.shape[:-2][1] > 3
             assert np.allclose(
                 chunk.input_data, handler.data[lr_pad_data_slice]
             )
@@ -730,7 +732,8 @@ def test_slicing_no_pad(input_files):
             )
 
 
-def test_slicing_auto_boundary_pad(input_files):
+@pytest.mark.parametrize('spatial_pad', [0, 1])
+def test_slicing_auto_boundary_pad(input_files, spatial_pad):
     """Test that automatic boundary padding is applied when the fwp chunk shape
     and grid size result in a slice that is too small for the generator."""
 
@@ -762,34 +765,26 @@ def test_slicing_auto_boundary_pad(input_files):
             'time_slice': time_slice,
         }
 
-        # raises warning because modulo(shape, fwp_chunk_shape) = 1 for the
-        # spatial dimensions. The slices of length 1 are then padded to 7
-        with pytest.warns(match='too small'):
-            strategy = ForwardPassStrategy(
-                input_files,
-                model_kwargs={'model_dir': st_out_dir},
-                model_class='Sup3rGan',
-                fwp_chunk_shape=(7, 7, 4),
-                spatial_pad=0,
-                temporal_pad=0,
-                input_handler_kwargs=input_handler_kwargs,
-                out_pattern=out_files,
-                max_nodes=1,
-            )
+        strategy = ForwardPassStrategy(
+            input_files,
+            model_kwargs={'model_dir': st_out_dir},
+            model_class='Sup3rGan',
+            fwp_chunk_shape=(7, 7, 4),
+            spatial_pad=spatial_pad,
+            temporal_pad=0,
+            input_handler_kwargs=input_handler_kwargs,
+            out_pattern=out_files,
+            max_nodes=1,
+        )
 
         fwp = ForwardPass(strategy)
         for i in strategy.node_chunks[0]:
             chunk = fwp.get_input_chunk(i)
             s_idx, t_idx = strategy.get_chunk_indices(i)
+            pad_width = strategy.get_pad_width(i)
             s_slices = strategy.lr_slices[s_idx]
-            s_pad_slices = strategy.lr_pad_slices[s_idx]
             s_crop_slices = strategy.fwp_slicer.s_lr_crop_slices[s_idx]
             t_crop_slice = strategy.fwp_slicer.t_lr_crop_slices[t_idx]
-            lr_pad_data_slice = (
-                s_pad_slices[0],
-                s_pad_slices[1],
-                fwp.strategy.ti_pad_slices[t_idx],
-            )
             lr_crop_data_slice = (
                 s_crop_slices[0],
                 s_crop_slices[1],
@@ -801,15 +796,16 @@ def test_slicing_auto_boundary_pad(input_files):
                 fwp.strategy.ti_slices[t_idx],
             )
 
-            assert handler.data[lr_pad_data_slice].shape[:-2] == (7, 7)
-            assert chunk.input_data.shape[:-2] == (7, 7)
-            assert np.allclose(
-                chunk.input_data, handler.data[lr_pad_data_slice]
-            )
-            assert np.allclose(
-                chunk.input_data[lr_crop_data_slice],
-                handler.data[lr_data_slice],
-            )
+            assert chunk.input_data.shape[:-2][0] > 3
+            assert chunk.input_data.shape[:-2][1] > 3
+            input_data = chunk.input_data.copy()
+            if spatial_pad > 0:
+                slices = [
+                    slice(pw[0] or None, -pw[1] or None) for pw in pad_width
+                ]
+                input_data = input_data[slices[0], slices[1]]
+            hdata = handler.data[lr_data_slice]
+            assert np.allclose(input_data[lr_crop_data_slice], hdata)
 
 
 def test_slicing_pad(input_files):
