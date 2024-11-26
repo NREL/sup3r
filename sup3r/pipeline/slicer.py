@@ -244,11 +244,12 @@ class ForwardPassSlicer:
         """Get high res cropped slices for first spatial dimension"""
 
         if self._s1_hr_crop_slices is None:
-            self._s1_hr_crop_slices = self.get_hr_cropped_slices(
-                unpadded_slices=self.s1_lr_slices,
-                enhancement=self.s_enhance,
-                padding=self.spatial_pad,
-            )
+            hr_crop_start = self.s_enhance * self.spatial_pad or None
+            hr_crop_stop = None if self.spatial_pad == 0 else -hr_crop_start
+
+            self._s1_hr_crop_slices = [
+                slice(hr_crop_start, hr_crop_stop)
+            ] * len(self.s1_lr_slices)
 
             self._s1_hr_crop_slices = self.check_boundary_slice(
                 unpadded_slices=self.s1_lr_slices,
@@ -262,11 +263,13 @@ class ForwardPassSlicer:
         """Get high res cropped slices for first spatial dimension"""
 
         if self._s2_hr_crop_slices is None:
-            self._s2_hr_crop_slices = self.get_hr_cropped_slices(
-                unpadded_slices=self.s2_lr_slices,
-                enhancement=self.s_enhance,
-                padding=self.spatial_pad,
-            )
+            hr_crop_start = self.s_enhance * self.spatial_pad or None
+            hr_crop_stop = None if self.spatial_pad == 0 else -hr_crop_start
+
+            self._s2_hr_crop_slices = [
+                slice(hr_crop_start, hr_crop_stop)
+            ] * len(self.s2_lr_slices)
+
             self._s2_hr_crop_slices = self.check_boundary_slice(
                 unpadded_slices=self.s2_lr_slices,
                 cropped_slices=self._s2_hr_crop_slices,
@@ -488,14 +491,6 @@ class ForwardPassSlicer:
         """Get padded slices with the specified padding size, max shape,
         enhancement, and step size
 
-        Note
-        ----
-        It's possible to get a boundary slice that is too small for generator
-        input (padding layers typically need at least 4 elements) if the
-        forward pass chunk shape does not evenly divide the grid shape. We add
-        extra padding in the low res slices to account for this with
-        ``min_size`` argument.
-
         Parameters
         ----------
         slices : list
@@ -536,9 +531,12 @@ class ForwardPassSlicer:
         It is possible for the forward pass chunk shape to divide the grid size
         such that the last slice (right boundary) does not meet the minimum
         number of elements. (Padding layers in the generator typically require
-        a minimum shape of 4). When this minimum shape is not met we apply
-        extra padding in :meth:`self._get_pad_width`. Cropped slices
-        have to be adjusted to account for this here."""
+        a minimum shape of 4). e.g. ``grid_size = (8, 8)`` with
+        ``fwp_chunk_shape = (7, 7, ...)`` results in unpadded slices with just
+        one element. If the padding is 0 or 1 these padded slices have length
+        less than 4. When this minimum shape is not met we apply extra padding
+        in :meth:`self._get_pad_width`. Cropped slices have to be adjusted to
+        account for this here."""
 
         warn_msg = (
             'The final spatial slice for dimension #%s is too small '
@@ -600,19 +598,6 @@ class ForwardPassSlicer:
             cropped_slices.append(slice(start, stop))
 
         return cropped_slices
-
-    @classmethod
-    def get_hr_cropped_slices(cls, unpadded_slices, padding, enhancement):
-        """Get high res cropped slices"""
-
-        hr_crop_start = None
-        hr_crop_stop = None
-
-        if padding > 0:
-            hr_crop_start = enhancement * padding
-            hr_crop_stop = -hr_crop_start
-
-        return [slice(hr_crop_start, hr_crop_stop)] * len(unpadded_slices)
 
     @staticmethod
     def _get_pad_width(window, max_steps, max_pad, check_boundary=False):

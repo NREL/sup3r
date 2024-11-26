@@ -737,7 +737,13 @@ def test_slicing_no_pad(input_files):
 @pytest.mark.parametrize('spatial_pad', [0, 1])
 def test_slicing_auto_boundary_pad(input_files, spatial_pad):
     """Test that automatic boundary padding is applied when the fwp chunk shape
-    and grid size result in a slice that is too small for the generator."""
+    and grid size result in a slice that is too small for the generator.
+
+    Here the fwp chunk shape is (7, 7, 4) and the grid size is (8, 8) so with
+    no spatial padding this results in some chunk slices that have length 1.
+    With spatial padding equal to 1 some slices have length 3. In each of these
+    case we need to pad the slices so the input to the generator has at least 4
+    elements."""
 
     Sup3rGan.seed()
     s_enhance = 3
