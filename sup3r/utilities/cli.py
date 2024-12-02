@@ -73,10 +73,12 @@ class BaseCLI:
         cmd = module_class.get_node_cmd(config)
 
         if hardware_option.lower() in AVAILABLE_HARDWARE_OPTIONS:
-            cls.kickoff_slurm_job(module_name, ctx, pipeline_step, cmd,
+            cls.kickoff_slurm_job(module_name, ctx, cmd,
+                                  pipeline_step=pipeline_step,
                                   **exec_kwargs)
         else:
-            cls.kickoff_local_job(module_name, ctx, cmd, pipeline_step)
+            cls.kickoff_local_job(module_name, ctx, cmd,
+                                  pipeline_step=pipeline_step)
 
     @classmethod
     def from_config_preflight(cls, module_name, ctx, config_file, verbose):
