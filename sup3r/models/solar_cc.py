@@ -16,8 +16,9 @@ class SolarCC(Sup3rGan):
     Note
     ----
     *Modifications to standard Sup3rGan*
-        - Content loss is only on the n_days of the center 8 daylight hours of
-          the daily true+synthetic high res samples
+        - Content loss is only on the n_days of the temporal-mean of the center
+          8 daylight hours of the daily true + 24hours of synthetic high res
+          samples
         - Discriminator only sees n_days of the center 8 daylight hours of the
           daily true high res sample.
         - Discriminator sees random n_days of 8-hour samples of the daily
@@ -142,7 +143,9 @@ class SolarCC(Sup3rGan):
 
         t_len = hi_res_true.shape[3]
         n_days = int(t_len // 24)
-        day_slices = [
+
+        # slices for middle-daylight-hours
+        sub_day_slices = [
             slice(
                 self.STARTING_HOUR + x,
                 self.STARTING_HOUR + x + self.DAYLIGHT_HOURS,
@@ -150,24 +153,30 @@ class SolarCC(Sup3rGan):
             for x in range(0, 24 * n_days, 24)
         ]
 
+        # slices for 24-hour full days
+        day_24h_slices = [slice(x, x + 24) for x in range(0, 24 * n_days, 24)]
+
         # sample only daylight hours for disc training and gen content loss
         disc_out_true = []
         disc_out_gen = []
         loss_gen_content = 0.0
-        for tslice in day_slices:
-            disc_t = self._tf_discriminate(hi_res_true[:, :, :, tslice, :])
-            gen_c = self.calc_loss_gen_content(
-                hi_res_true[:, :, :, tslice, :], hi_res_gen[:, :, :, tslice, :]
-            )
-            disc_out_true.append(disc_t)
+        for tslice_sub, tslice_24h in zip(sub_day_slices, day_24h_slices):
+            hr_true_slice = hi_res_true[:, :, :, tslice_sub, :]
+            hr_gen_slice = hi_res_gen[:, :, :, tslice_24h, :]
+            hr_true_slice = tf.math.reduce_mean(hr_true_slice, axis=3)
+            hr_gen_slice = tf.math.reduce_mean(hr_gen_slice, axis=3)
+            gen_c = self.calc_loss_gen_content(hr_true_slice, hr_gen_slice)
             loss_gen_content += gen_c
+
+            disc_t = self._tf_discriminate(hi_res_true[:, :, :, tslice_sub, :])
+            disc_out_true.append(disc_t)
 
         # Randomly sample daylight windows from generated data. Better than
         # strided samples covering full day because the random samples will
         # provide an evenly balanced training set for the disc
         logits = [[1.0] * (t_len - self.DAYLIGHT_HOURS)]
-        time_samples = tf.random.categorical(logits, len(day_slices))
-        for i in range(len(day_slices)):
+        time_samples = tf.random.categorical(logits, len(sub_day_slices))
+        for i in range(len(sub_day_slices)):
             t0 = time_samples[0, i]
             t1 = t0 + self.DAYLIGHT_HOURS
             disc_g = self._tf_discriminate(hi_res_gen[:, :, :, t0:t1, :])
@@ -177,7 +186,7 @@ class SolarCC(Sup3rGan):
         disc_out_gen = tf.concat([disc_out_gen], axis=0)
         loss_disc = self.calc_loss_disc(disc_out_true, disc_out_gen)
 
-        loss_gen_content /= len(day_slices)
+        loss_gen_content /= len(sub_day_slices)
         loss_gen_advers = self.calc_loss_gen_advers(disc_out_gen)
         loss_gen = loss_gen_content + weight_gen_advers * loss_gen_advers
 
