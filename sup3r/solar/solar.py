@@ -138,11 +138,11 @@ class Solar:
         assert 'surface_pressure' in self.nsrdb.dsets
         assert isinstance(self.nsrdb_tslice, slice)
 
-        ti_gan = self.gan_data.time_index
-        delta = pd.Series(ti_gan[1:] - ti_gan[:-1]).mean().total_seconds()
+        delta = pd.Series(self.time_index[1:] - self.time_index[:-1])
+        delta = delta.mean().total_seconds()
         msg = (
             'Its assumed that the sup3r GAN output solar data will be '
-            'hourly but received time index: {}'.format(ti_gan)
+            'hourly but received time index: {}'.format(self.time_index)
         )
         assert delta == 3600, msg
 
@@ -305,9 +305,8 @@ class Solar:
         """
         if self._ghi is None:
             logger.debug('Calculating GHI.')
-            self._ghi = (
-                self.get_nsrdb_data('clearsky_ghi') * self.clearsky_ratio
-            )
+            nsrdb_cs_ghi = self.get_nsrdb_data('clearsky_ghi')
+            self._ghi = nsrdb_cs_ghi * self.clearsky_ratio
             self._ghi[:, self.out_of_bounds] = 0
         return self._ghi
 
