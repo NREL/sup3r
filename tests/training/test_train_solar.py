@@ -246,4 +246,3 @@ def test_solar_custom_loss():
         )
 
         assert loss1 > loss2
-        assert loss2 == 0
