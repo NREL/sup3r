@@ -49,6 +49,7 @@ class Sup3rQa:
         t_enhance,
         temporal_coarsening_method,
         features=None,
+        source_features=None,
         output_names=None,
         input_handler_name=None,
         input_handler_kwargs=None,
@@ -85,6 +86,17 @@ class Sup3rQa:
             Explicit list of features to validate. Can be a single feature str,
             list of string feature names, or None for all features found in the
             out_file_path.
+        source_features : str | list | None
+            Optional feature names to retrieve from the source dataset if the
+            source feature names are not the same as the sup3r output feature
+            names. These will be used to derive the features to be validated.
+            e.g. If model output is temperature_2m, and these were derived from
+            temperature_min_2m (and max), then source features should be
+            temperature_min_2m and temperature_max_2m while the model output
+            temperature_2m is aggregated using min/max in the
+            temporal_coarsening_method. Another example is features="ghi",
+            source_features="rsds", where this is a simple alternative name
+            lookup.
         output_names : str | list
             Optional output file dataset names corresponding to the features
             list input
@@ -124,6 +136,11 @@ class Sup3rQa:
         self._out_fp = out_file_path
         self._features = (
             features if isinstance(features, (list, tuple)) else [features]
+        )
+        self._source_features = (
+            source_features
+            if isinstance(source_features, (list, tuple))
+            else [source_features]
         )
         self._out_names = (
             output_names
@@ -197,6 +214,14 @@ class Sup3rQa:
         if self._out_names is None or self._out_names == [None]:
             return self.features
         return self._out_names
+
+    @property
+    def source_features(self):
+        """Get a list of source dataset names corresponding to the input source
+        data """
+        if self._source_features is None or self._source_features == [None]:
+            return self.features
+        return self._source_features
 
     @property
     def output_type(self):
@@ -451,16 +476,17 @@ class Sup3rQa:
         """
 
         errors = {}
-        ziter = zip(self.features, self.output_names)
-        for idf, (feature, dset_out) in enumerate(ziter):
+        ziter = zip(self.features, self.source_features, self.output_names)
+        for idf, (feature, source_feature, dset_out) in enumerate(ziter):
             logger.info(
-                'Running QA on dataset {} of {} for "{}"'.format(
-                    idf + 1, len(self.features), feature
+                'Running QA on dataset {} of {} for feature "{}" '
+                'with source feature name "{}"'.format(
+                    idf + 1, len(self.features), feature, source_feature,
                 )
             )
             data_syn = self.get_dset_out(feature)
             data_syn = self.coarsen_data(idf, feature, data_syn)
-            data_true = self.input_handler[feature][...]
+            data_true = self.input_handler[source_feature][...]
 
             if data_syn.shape != data_true.shape:
                 msg = (
