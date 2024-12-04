@@ -146,12 +146,25 @@ class CollectorH5(BaseCollector):
         with RexOutputs(file_path, unscale=False, mode='r') as f:
             f_ti = f.time_index
             f_meta = f.meta
+
+            if feature not in f.attrs:
+                e = (
+                    'Trying to collect dataset "{}" from {} but cannot find '
+                    'in available attrbutes: {}'.format(
+                        feature, file_path, f.attrs
+                    )
+                )
+                logger.error(e)
+                raise KeyError(e)
+
             source_scale_factor = f.attrs[feature].get('scale_factor', 1)
 
             if feature not in f.dsets:
                 e = (
-                    'Trying to collect dataset "{}" but cannot find in '
-                    'available: {}'.format(feature, f.dsets)
+                    'Trying to collect dataset "{}" from {} but cannot find '
+                    'in available features: {}'.format(
+                        feature, file_path, f.dsets
+                    )
                 )
                 logger.error(e)
                 raise KeyError(e)
