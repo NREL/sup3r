@@ -16,9 +16,9 @@ class SolarCC(Sup3rGan):
     Note
     ----
     *Modifications to standard Sup3rGan*
-        - Content loss is only on the n_days of the temporal-mean of the center
-          8 daylight hours of the daily true + 24hours of synthetic high res
-          samples
+        - Content loss is only on the n_days of the center 8 daylight hours of
+          the daily true + synthetic and the temporal mean of the 24hours of
+          synthetic
         - Discriminator only sees n_days of the center 8 daylight hours of the
           daily true high res sample.
         - Discriminator sees random n_days of 8-hour samples of the daily
@@ -161,12 +161,16 @@ class SolarCC(Sup3rGan):
         disc_out_gen = []
         loss_gen_content = 0.0
         for tslice_sub, tslice_24h in zip(sub_day_slices, day_24h_slices):
-            hr_true_slice = hi_res_true[:, :, :, tslice_sub, :]
-            hr_gen_slice = hi_res_gen[:, :, :, tslice_24h, :]
-            hr_true_slice = tf.math.reduce_mean(hr_true_slice, axis=3)
-            hr_gen_slice = tf.math.reduce_mean(hr_gen_slice, axis=3)
-            gen_c = self.calc_loss_gen_content(hr_true_slice, hr_gen_slice)
-            loss_gen_content += gen_c
+            hr_true_sub = hi_res_true[:, :, :, tslice_sub, :]
+            hr_gen_sub = hi_res_gen[:, :, :, tslice_sub, :]
+            hr_gen_24h = hi_res_gen[:, :, :, tslice_24h, :]
+
+            hr_true_mean = tf.math.reduce_mean(hr_true_sub, axis=3)
+            hr_gen_mean = tf.math.reduce_mean(hr_gen_24h, axis=3)
+
+            gen_c_sub = self.calc_loss_gen_content(hr_true_sub, hr_gen_sub)
+            gen_c_24h = self.calc_loss_gen_content(hr_true_mean, hr_gen_mean)
+            loss_gen_content += gen_c_24h + gen_c_sub
 
             disc_t = self._tf_discriminate(hi_res_true[:, :, :, tslice_sub, :])
             disc_out_true.append(disc_t)
