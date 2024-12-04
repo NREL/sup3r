@@ -328,13 +328,16 @@ class Cacher(Container):
             coord_names = [
                 crd for crd in data.coords if crd in Dimension.coords_4d()
             ]
+
+            if Dimension.TIME in data:
+                data[Dimension.TIME] = data[Dimension.TIME].astype(int)
+
             for dset in [*coord_names, *features]:
                 data_var, chunksizes = cls.get_chunksizes(dset, data, chunks)
+                data_var = data_var.data
 
-                if dset == Dimension.TIME:
-                    data_var = da.asarray(data_var.astype(int).data)
-                else:
-                    data_var = data_var.data
+                if not isinstance(data_var, da.core.Array):
+                    data_var = da.asarray(data_var)
 
                 dset_name = dset
                 if dset == Dimension.TIME:

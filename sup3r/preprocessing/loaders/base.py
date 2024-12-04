@@ -5,12 +5,13 @@ import copy
 import logging
 from abc import ABC, abstractmethod
 from datetime import datetime as dt
+from functools import cached_property
 from typing import Callable
 
 import numpy as np
 
 from sup3r.preprocessing.base import Container
-from sup3r.preprocessing.names import FEATURE_NAMES
+from sup3r.preprocessing.names import FEATURE_NAMES, Dimension
 from sup3r.preprocessing.utilities import (
     expand_paths,
     log_args,
@@ -74,7 +75,7 @@ class BaseLoader(Container, ABC):
         self.file_paths = file_paths
         self.chunks = chunks
         BASE_LOADER = BaseLoader or self.BASE_LOADER
-        self.res = BASE_LOADER(self.file_paths, **self.res_kwargs)
+        self._res = BASE_LOADER(self.file_paths, **self.res_kwargs)
         data = lower_names(self._load())
         data = self._add_attrs(data)
         data = standardize_values(data)
@@ -83,8 +84,8 @@ class BaseLoader(Container, ABC):
         features = list(data.dims) if features == [] else features
         self.data = data[features] if features != 'all' else data
 
-        if 'meta' in self.res:
-            self.data.meta = self.res.meta
+        if 'meta' in self._res:
+            self.data.meta = self._res.meta
 
         if self.chunks is None:
             logger.info(f'Pre-loading data into memory for: {features}')
@@ -106,8 +107,8 @@ class BaseLoader(Container, ABC):
     def _add_attrs(self, data):
         """Add meta data to dataset."""
         attrs = {'source_files': self.file_paths}
-        attrs['global_attrs'] = getattr(self.res, 'global_attrs', [])
-        attrs.update(getattr(self.res, 'attrs', {}))
+        attrs['global_attrs'] = getattr(self._res, 'global_attrs', [])
+        attrs.update(getattr(self._res, 'attrs', {}))
         attrs['date_modified'] = attrs.get(
             'date_modified', dt.utcnow().isoformat()
         )
@@ -118,7 +119,7 @@ class BaseLoader(Container, ABC):
         return self
 
     def __exit__(self, exc_type, exc_value, trace):
-        self.res.close()
+        self._res.close()
 
     @property
     def file_paths(self):
@@ -153,3 +154,31 @@ class BaseLoader(Container, ABC):
         -------
         xr.Dataset
         """
+
+    @cached_property
+    @abstractmethod
+    def _lat_lon_shape(self):
+        """Get shape of lat lon grid only."""
+
+    @cached_property
+    @abstractmethod
+    def _is_flattened(self):
+        """Check if data is flattened or not"""
+
+    @cached_property
+    def _lat_lon_dims(self):
+        """Get dim names for lat lon grid. Either
+        ``Dimension.FLATTENED_SPATIAL`` or ``(Dimension.SOUTH_NORTH,
+        Dimension.WEST_EAST)``"""
+        if self._is_flattened:
+            return (Dimension.FLATTENED_SPATIAL,)
+        return Dimension.dims_2d()
+
+    @property
+    def _time_independent(self):
+        return 'time_index' not in self._res and 'time' not in self._res
+
+    def _is_spatial_dset(self, data):
+        """Check if given data is spatial only. We compare against the size of
+        the spatial domain."""
+        return len(data.shape) == 1 and len(data) == self._lat_lon_shape[0]

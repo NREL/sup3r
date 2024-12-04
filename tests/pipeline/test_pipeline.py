@@ -29,7 +29,7 @@ def input_files(tmpdir_factory):
     """Dummy netcdf input files for :class:`ForwardPass`"""
 
     input_file = str(tmpdir_factory.mktemp('data').join('fwp_input.nc'))
-    make_fake_nc_file(input_file, shape=(100, 100, 80), features=FEATURES)
+    make_fake_nc_file(input_file, shape=(109, 261, 80), features=FEATURES)
     return input_file
 
 

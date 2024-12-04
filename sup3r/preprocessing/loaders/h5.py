@@ -6,6 +6,7 @@ though.
 """
 
 import logging
+from functools import cached_property
 from typing import Dict, Tuple
 from warnings import warn
 
@@ -33,25 +34,24 @@ class LoaderH5(BaseLoader):
     BASE_LOADER = MultiFileWindX
 
     @property
-    def _time_independent(self):
-        return 'time_index' not in self.res
-
-    @property
     def _time_steps(self):
         return (
-            len(self.res['time_index']) if not self._time_independent else None
+            len(self._res['time_index'])
+            if not self._time_independent
+            else None
         )
 
-    def _meta_shape(self):
+    @cached_property
+    def _lat_lon_shape(self):
         """Get shape of spatial domain only."""
-        if 'latitude' in self.res.h5:
-            return self.res.h5['latitude'].shape
-        return self.res.h5['meta']['latitude'].shape
+        if 'latitude' in self._res.h5:
+            return self._res.h5['latitude'].shape
+        return self._res.h5['meta']['latitude'].shape
 
-    def _is_spatial_dset(self, data):
-        """Check if given data is spatial only. We compare against the size of
-        the meta."""
-        return len(data.shape) == 1 and len(data) == self._meta_shape()[0]
+    @cached_property
+    def _is_flattened(self):
+        """Check if dims include a single spatial dimension."""
+        return len(self._lat_lon_shape) == 1
 
     def _res_shape(self):
         """Get shape of H5 file.
@@ -61,20 +61,22 @@ class LoaderH5(BaseLoader):
         Flattened files are 2D but we have 3D H5 files available through
         caching and bias correction factor calculations."""
         return (
-            self._meta_shape()
+            self._lat_lon_shape
             if self._time_independent
-            else (self._time_steps, *self._meta_shape())
+            else (self._time_steps, *self._lat_lon_shape)
         )
 
     def _get_coords(self, dims):
         """Get coords dict for xr.Dataset construction."""
         coords: Dict[str, Tuple] = {}
         if not self._time_independent:
-            coords[Dimension.TIME] = self.res['time_index']
+            coords[Dimension.TIME] = self._res['time_index']
         coord_base = (
-            self.res.h5 if 'latitude' in self.res.h5 else self.res.h5['meta']
+            self._res.h5
+            if 'latitude' in self._res.h5
+            else self._res.h5['meta']
         )
-        coord_dims = dims[-len(self._meta_shape()) :]
+        coord_dims = dims[-len(self._lat_lon_shape) :]
         chunks = self._parse_chunks(coord_dims)
         lats = da.asarray(
             coord_base['latitude'], dtype=np.float32, chunks=chunks
@@ -94,14 +96,14 @@ class LoaderH5(BaseLoader):
         spatiotemporal, 3D spatiotemporal, 4D spatiotemporal (with presssure
         levels), etc
         """
-        # if self.res includes time-dependent and time-independent variables
+        # if self._res includes time-dependent and time-independent variables
         # and chunks is 3-tuple we only use the spatial chunk for
         # time-indepdent variables
         dset_chunks = chunks
-        if len(chunks) == 3 and len(self.res.h5[dset].shape) == 2:
-            dset_chunks = chunks[-len(self.res.h5[dset].shape)]
+        if len(chunks) == 3 and len(self._res.h5[dset].shape) == 2:
+            dset_chunks = chunks[-len(self._res.h5[dset].shape)]
         arr = da.asarray(
-            self.res.h5[dset], dtype=np.float32, chunks=dset_chunks
+            self._res.h5[dset], dtype=np.float32, chunks=dset_chunks
         )
         arr /= self.scale_factor(dset)
         if len(arr.shape) == 4:
@@ -130,7 +132,7 @@ class LoaderH5(BaseLoader):
             arr_dims = dims[-len(arr.shape) :]
         elif len(arr.shape) == 1:
             msg = (
-                f'Received 1D feature "{dset}" with shape that does not '
+                f'Received 1D feature "{dset}" with shape that does not equal '
                 'the length of the meta nor the time_index.'
             )
             is_ts = not self._time_independent and len(arr) == self._time_steps
@@ -138,7 +140,7 @@ class LoaderH5(BaseLoader):
             arr_dims = (Dimension.TIME,)
         else:
             arr_dims = dims[: len(arr.shape)]
-        return (arr_dims, arr, dict(self.res.h5[dset].attrs))
+        return (arr_dims, arr, dict(self._res.h5[dset].attrs))
 
     def _parse_chunks(self, dims, feature=None):
         """Get chunks for given dimensions from ``self.chunks``."""
@@ -152,15 +154,15 @@ class LoaderH5(BaseLoader):
         elevation to data_vars if it is."""
 
         flattened_with_elevation = (
-            len(self._meta_shape()) == 1
-            and hasattr(self.res, 'meta')
-            and 'elevation' in self.res.meta
+            len(self._lat_lon_shape) == 1
+            and hasattr(self._res, 'meta')
+            and 'elevation' in self._res.meta
         )
         if flattened_with_elevation:
-            elev = self.res.meta['elevation'].values.astype(np.float32)
+            elev = self._res.meta['elevation'].values.astype(np.float32)
             elev = da.asarray(elev)
             if not self._time_independent:
-                t_steps = len(self.res['time_index'])
+                t_steps = len(self._res['time_index'])
                 elev = da.repeat(elev[None, ...], t_steps, axis=0)
             elev = elev.rechunk(chunks)
             data_vars['elevation'] = (dims, elev)
@@ -175,7 +177,7 @@ class LoaderH5(BaseLoader):
             data_vars, dims=dims, chunks=chunks
         )
 
-        feats = set(self.res.h5.datasets)
+        feats = set(self._res.h5.datasets)
         exclude = {
             'meta',
             'time_index',
@@ -191,7 +193,7 @@ class LoaderH5(BaseLoader):
 
     def _get_dims(self):
         """Get tuple of named dims for dataset."""
-        if len(self._meta_shape()) == 2:
+        if len(self._lat_lon_shape) == 2:
             dims = Dimension.dims_2d()
         else:
             dims = (Dimension.FLATTENED_SPATIAL,)
@@ -216,8 +218,8 @@ class LoaderH5(BaseLoader):
     def scale_factor(self, feature):
         """Get scale factor for given feature. Data is stored in scaled form to
         reduce memory."""
-        feat = feature if feature in self.res.datasets else feature.lower()
-        feat = self.res.h5[feat]
+        feat = feature if feature in self._res.datasets else feature.lower()
+        feat = self._res.h5[feat]
         return np.float32(
             1.0
             if not hasattr(feat, 'attrs')

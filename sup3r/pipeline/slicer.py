@@ -1,8 +1,10 @@
 """Slicer class for chunking forward pass input"""
 
+import itertools as it
 import logging
 from dataclasses import dataclass
 from typing import Union
+from warnings import warn
 
 import numpy as np
 
@@ -70,10 +72,13 @@ class ForwardPassSlicer:
         self.time_slice = _parse_time_slice(self.time_slice)
 
         self._chunk_lookup = None
+        self._extra_padding = None
         self._s1_lr_slices = None
         self._s2_lr_slices = None
         self._s1_lr_pad_slices = None
         self._s2_lr_pad_slices = None
+        self._s1_hr_crop_slices = None
+        self._s2_hr_crop_slices = None
         self._s_lr_slices = None
         self._s_lr_pad_slices = None
         self._s_lr_crop_slices = None
@@ -133,11 +138,9 @@ class ForwardPassSlicer:
             going through the generator
         """
         if self._s_lr_slices is None:
-            self._s_lr_slices = [
-                (s1, s2)
-                for s1 in self.s1_lr_slices
-                for s2 in self.s2_lr_slices
-            ]
+            self._s_lr_slices = list(
+                it.product(self.s1_lr_slices, self.s2_lr_slices)
+            )
         return self._s_lr_slices
 
     @property
@@ -154,11 +157,9 @@ class ForwardPassSlicer:
             padded data volume passed through the generator
         """
         if self._s_lr_pad_slices is None:
-            self._s_lr_pad_slices = [
-                (s1, s2)
-                for s1 in self.s1_lr_pad_slices
-                for s2 in self.s2_lr_pad_slices
-            ]
+            self._s_lr_pad_slices = list(
+                it.product(self.s1_lr_pad_slices, self.s2_lr_pad_slices)
+            )
         return self._s_lr_pad_slices
 
     @property
@@ -175,11 +176,11 @@ class ForwardPassSlicer:
         """
         if self._t_lr_pad_slices is None:
             self._t_lr_pad_slices = self.get_padded_slices(
-                self.t_lr_slices,
-                self.time_steps,
-                1,
-                self.temporal_pad,
-                self.time_slice.step,
+                slices=self.t_lr_slices,
+                shape=self.time_steps,
+                enhancement=1,
+                padding=self.temporal_pad,
+                step=self.time_slice.step,
             )
         return self._t_lr_pad_slices
 
@@ -239,6 +240,44 @@ class ForwardPassSlicer:
         return self.get_hr_slices(self.s2_lr_slices, self.s_enhance)
 
     @property
+    def s1_hr_crop_slices(self):
+        """Get high res cropped slices for first spatial dimension"""
+
+        if self._s1_hr_crop_slices is None:
+            hr_crop_start = self.s_enhance * self.spatial_pad or None
+            hr_crop_stop = None if self.spatial_pad == 0 else -hr_crop_start
+
+            self._s1_hr_crop_slices = [
+                slice(hr_crop_start, hr_crop_stop)
+            ] * len(self.s1_lr_slices)
+
+            self._s1_hr_crop_slices = self.check_boundary_slice(
+                unpadded_slices=self.s1_lr_slices,
+                cropped_slices=self._s1_hr_crop_slices,
+                dim=0,
+            )
+        return self._s1_hr_crop_slices
+
+    @property
+    def s2_hr_crop_slices(self):
+        """Get high res cropped slices for first spatial dimension"""
+
+        if self._s2_hr_crop_slices is None:
+            hr_crop_start = self.s_enhance * self.spatial_pad or None
+            hr_crop_stop = None if self.spatial_pad == 0 else -hr_crop_start
+
+            self._s2_hr_crop_slices = [
+                slice(hr_crop_start, hr_crop_stop)
+            ] * len(self.s2_lr_slices)
+
+            self._s2_hr_crop_slices = self.check_boundary_slice(
+                unpadded_slices=self.s2_lr_slices,
+                cropped_slices=self._s2_hr_crop_slices,
+                dim=1,
+            )
+        return self._s2_hr_crop_slices
+
+    @property
     def s_hr_slices(self):
         """Get high res slices for indexing full generator output array
 
@@ -250,12 +289,9 @@ class ForwardPassSlicer:
             domain corresponding to data_handler.data[lr_slice]
         """
         if self._s_hr_slices is None:
-            self._s_hr_slices = []
-            self._s_hr_slices = [
-                (s1, s2)
-                for s1 in self.s1_hr_slices
-                for s2 in self.s2_hr_slices
-            ]
+            self._s_hr_slices = list(
+                it.product(self.s1_hr_slices, self.s2_hr_slices)
+            )
         return self._s_hr_slices
 
     @property
@@ -273,12 +309,23 @@ class ForwardPassSlicer:
             s1_crop_slices = self.get_cropped_slices(
                 self.s1_lr_slices, self.s1_lr_pad_slices, 1
             )
+
+            s1_crop_slices = self.check_boundary_slice(
+                unpadded_slices=self.s1_lr_slices,
+                cropped_slices=s1_crop_slices,
+                dim=0,
+            )
             s2_crop_slices = self.get_cropped_slices(
                 self.s2_lr_slices, self.s2_lr_pad_slices, 1
             )
-            self._s_lr_crop_slices = [
-                (s1, s2) for s1 in s1_crop_slices for s2 in s2_crop_slices
-            ]
+            s2_crop_slices = self.check_boundary_slice(
+                unpadded_slices=self.s2_lr_slices,
+                cropped_slices=s2_crop_slices,
+                dim=1,
+            )
+            self._s_lr_crop_slices = list(
+                it.product(s1_crop_slices, s2_crop_slices)
+            )
         return self._s_lr_crop_slices
 
     @property
@@ -291,28 +338,10 @@ class ForwardPassSlicer:
             List of high res cropped slices. Each entry in this list has a
             slice for each spatial dimension.
         """
-        hr_crop_start = None
-        hr_crop_stop = None
-        if self.spatial_pad > 0:
-            hr_crop_start = self.s_enhance * self.spatial_pad
-            hr_crop_stop = -hr_crop_start
-
         if self._s_hr_crop_slices is None:
-            self._s_hr_crop_slices = []
-            s1_hr_crop_slices = [
-                slice(hr_crop_start, hr_crop_stop)
-                for _ in range(len(self.s1_lr_slices))
-            ]
-            s2_hr_crop_slices = [
-                slice(hr_crop_start, hr_crop_stop)
-                for _ in range(len(self.s2_lr_slices))
-            ]
-
-            self._s_hr_crop_slices = [
-                (s1, s2)
-                for s1 in s1_hr_crop_slices
-                for s2 in s2_hr_crop_slices
-            ]
+            self._s_hr_crop_slices = list(
+                it.product(self.s1_hr_crop_slices, self.s2_hr_crop_slices)
+            )
         return self._s_hr_crop_slices
 
     @property
@@ -344,9 +373,9 @@ class ForwardPassSlicer:
         spatial dimension"""
         if self._s1_lr_pad_slices is None:
             self._s1_lr_pad_slices = self.get_padded_slices(
-                self.s1_lr_slices,
-                self.coarse_shape[0],
-                1,
+                slices=self.s1_lr_slices,
+                shape=self.coarse_shape[0],
+                enhancement=1,
                 padding=self.spatial_pad,
             )
         return self._s1_lr_pad_slices
@@ -357,9 +386,9 @@ class ForwardPassSlicer:
         spatial dimension"""
         if self._s2_lr_pad_slices is None:
             self._s2_lr_pad_slices = self.get_padded_slices(
-                self.s2_lr_slices,
-                self.coarse_shape[1],
-                1,
+                slices=self.s2_lr_slices,
+                shape=self.coarse_shape[1],
+                enhancement=1,
                 padding=self.spatial_pad,
             )
         return self._s2_lr_pad_slices
@@ -369,20 +398,18 @@ class ForwardPassSlicer:
         """List of low resolution spatial slices for first spatial dimension
         considering padding on all sides of the spatial raster."""
         ind = slice(0, self.coarse_shape[0])
-        slices = get_chunk_slices(
+        return get_chunk_slices(
             self.coarse_shape[0], self.chunk_shape[0], index_slice=ind
         )
-        return slices
 
     @property
     def s2_lr_slices(self):
         """List of low resolution spatial slices for second spatial dimension
         considering padding on all sides of the spatial raster."""
         ind = slice(0, self.coarse_shape[1])
-        slices = get_chunk_slices(
+        return get_chunk_slices(
             self.coarse_shape[1], self.chunk_shape[1], index_slice=ind
         )
-        return slices
 
     @property
     def t_lr_slices(self):
@@ -392,10 +419,9 @@ class ForwardPassSlicer:
         n_chunks = int(np.ceil(n_chunks))
         ti_slices = self.dummy_time_index[self.time_slice]
         ti_slices = np.array_split(ti_slices, n_chunks)
-        ti_slices = [
+        return [
             slice(c[0], c[-1] + 1, self.time_slice.step) for c in ti_slices
         ]
-        return ti_slices
 
     @staticmethod
     def get_hr_slices(slices, enhancement, step=None):
@@ -494,10 +520,49 @@ class ForwardPassSlicer:
         pad = step * padding * enhancement
         pad_slices = []
         for _, s in enumerate(slices):
-            start = np.max([0, s.start * enhancement - pad])
             end = np.min([enhancement * shape, s.stop * enhancement + pad])
+            start = np.max([0, s.start * enhancement - pad])
             pad_slices.append(slice(start, end, step))
         return pad_slices
+
+    def check_boundary_slice(self, unpadded_slices, cropped_slices, dim):
+        """Check cropped slice at the right boundary for minimum shape.
+
+        It is possible for the forward pass chunk shape to divide the grid size
+        such that the last slice (right boundary) does not meet the minimum
+        number of elements. (Padding layers in the generator typically require
+        a minimum shape of 4). e.g. ``grid_size = (8, 8)`` with
+        ``fwp_chunk_shape = (7, 7, ...)`` results in unpadded slices with just
+        one element. If the padding is 0 or 1 these padded slices have length
+        less than 4. When this minimum shape is not met we apply extra padding
+        in :meth:`self._get_pad_width`. Cropped slices have to be adjusted to
+        account for this here."""
+
+        warn_msg = (
+            'The final spatial slice for dimension #%s is too small '
+            '(slice=slice(%s, %s), padding=%s). The start of this slice will '
+            'be reduced to try to meet the minimum slice length.'
+        )
+
+        lr_slice_start = unpadded_slices[-1].start or 0
+        lr_slice_stop = unpadded_slices[-1].stop or self.coarse_shape[dim]
+
+        # last slice adjustment
+        if 2 * self.spatial_pad + (lr_slice_stop - lr_slice_start) < 4:
+            logger.warning(
+                warn_msg,
+                dim + 1,
+                lr_slice_start,
+                lr_slice_stop,
+                self.spatial_pad,
+            )
+            warn(
+                warn_msg
+                % (dim + 1, lr_slice_start, lr_slice_stop, self.spatial_pad)
+            )
+            cropped_slices[-1] = slice(2 * self.s_enhance, -2 * self.s_enhance)
+
+        return cropped_slices
 
     @staticmethod
     def get_cropped_slices(unpadded_slices, padded_slices, enhancement):
@@ -531,4 +596,90 @@ class ForwardPassSlicer:
             if stop is not None and stop >= 0:
                 stop = None
             cropped_slices.append(slice(start, stop))
+
         return cropped_slices
+
+    @staticmethod
+    def _get_pad_width(window, max_steps, max_pad, check_boundary=False):
+        """
+        Parameters
+        ----------
+        window : slice
+            Slice with start and stop of window to pad.
+        max_steps : int
+            Maximum number of steps available. Padding cannot extend past this
+        max_pad : int
+            Maximum amount of padding to apply.
+        check_bounary : bool
+            Whether to check the final slice for minimum size requirement
+
+        Returns
+        -------
+        tuple
+            Tuple of pad width for the given window.
+        """
+        win_start = window.start or 0
+        win_stop = window.stop or max_steps
+        start = int(np.maximum(0, (max_pad - win_start)))
+        stop = int(np.maximum(0, max_pad + win_stop - max_steps))
+
+        # We add minimum padding to the last slice if the padded window is
+        # too small for the generator. This can happen if 2 * spatial_pad +
+        # modulo(grid_size, fwp_chunk_shape) < 4
+        if (
+            check_boundary
+            and win_stop == max_steps
+            and (2 * max_pad + win_stop - win_start) < 4
+        ):
+            stop = np.max([2, max_pad])
+            start = np.max([2, max_pad])
+
+        return (start, stop)
+
+    def get_chunk_indices(self, chunk_index):
+        """Get (spatial, temporal) indices for the given chunk index"""
+        return (
+            chunk_index % self.n_spatial_chunks,
+            chunk_index // self.n_spatial_chunks,
+        )
+
+    def get_pad_width(self, chunk_index):
+        """Get extra padding for the current spatiotemporal chunk
+
+        Returns
+        -------
+        padding : tuple
+            Tuple of tuples with padding width for spatial and temporal
+            dimensions. Each tuple includes the start and end of padding for
+            that dimension. Ordering is spatial_1, spatial_2, temporal.
+        """
+        s_chunk_idx, t_chunk_idx = self.get_chunk_indices(chunk_index)
+        ti_slice = self.t_lr_slices[t_chunk_idx]
+        lr_slice = self.s_lr_slices[s_chunk_idx]
+
+        return (
+            self._get_pad_width(
+                lr_slice[0],
+                self.coarse_shape[0],
+                self.spatial_pad,
+                check_boundary=True,
+            ),
+            self._get_pad_width(
+                lr_slice[1],
+                self.coarse_shape[1],
+                self.spatial_pad,
+                check_boundary=True,
+            ),
+            self._get_pad_width(
+                ti_slice, len(self.dummy_time_index), self.temporal_pad
+            ),
+        )
+
+    @property
+    def extra_padding(self):
+        """Get list of pad widths for each chunk index"""
+        if self._extra_padding is None:
+            self._extra_padding = [
+                self.get_pad_width(idx) for idx in range(self.n_chunks)
+            ]
+        return self._extra_padding

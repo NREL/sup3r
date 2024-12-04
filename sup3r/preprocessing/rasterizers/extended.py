@@ -175,7 +175,7 @@ class Rasterizer(BaseRasterizer):
             assert (
                 self._target is not None and self._grid_shape is not None
             ), msg
-            raster_index = self.loader.res.get_raster_index(
+            raster_index = self.loader._res.get_raster_index(
                 self._target, self._grid_shape, max_delta=self.max_delta
             )
         else:

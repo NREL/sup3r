@@ -791,10 +791,9 @@ def local_qdm_bc(
     if out_range is not None:
         data_unbiased = np.maximum(data_unbiased, np.min(out_range))
         data_unbiased = np.minimum(data_unbiased, np.max(out_range))
-
-    if da.isnan(data_unbiased).any():
+    if not da.isfinite(data_unbiased).all():
         msg = (
-            'QDM bias correction resulted in NaN values! If this is a '
+            'QDM bias correction resulted in NaN / inf values! If this is a '
             'relative QDM, you may try setting ``delta_denom_min`` or '
             '``delta_denom_zero``'
         )

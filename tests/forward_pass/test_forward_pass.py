@@ -1,4 +1,5 @@
 """pytests for forward pass module"""
+
 import json
 import os
 import tempfile
@@ -478,7 +479,9 @@ def test_fwp_chunking(input_files):
                 output_workers=strat.output_workers,
                 meta=fwp.meta,
             )
-            s_chunk_idx, t_chunk_idx = fwp.strategy.get_chunk_indices(i)
+            s_chunk_idx, t_chunk_idx = (
+                fwp.strategy.fwp_slicer.get_chunk_indices(i)
+            )
             ti_slice = fwp.strategy.ti_slices[t_chunk_idx]
             hr_slice = fwp.strategy.hr_slices[s_chunk_idx]
 
@@ -668,11 +671,25 @@ def test_slicing_no_pad(input_files):
             'shape': shape,
             'time_slice': time_slice,
         }
+
+        # raises warning because fwp_chunk_shape is too small
+        with pytest.warns(match='at least 4'):
+            strategy = ForwardPassStrategy(
+                input_files,
+                model_kwargs={'model_dir': st_out_dir},
+                model_class='Sup3rGan',
+                fwp_chunk_shape=(3, 2, 4),
+                spatial_pad=0,
+                temporal_pad=0,
+                input_handler_kwargs=input_handler_kwargs,
+                out_pattern=out_files,
+                max_nodes=1,
+            )
         strategy = ForwardPassStrategy(
             input_files,
             model_kwargs={'model_dir': st_out_dir},
             model_class='Sup3rGan',
-            fwp_chunk_shape=(3, 2, 4),
+            fwp_chunk_shape=(4, 4, 4),
             spatial_pad=0,
             temporal_pad=0,
             input_handler_kwargs=input_handler_kwargs,
@@ -681,18 +698,122 @@ def test_slicing_no_pad(input_files):
         )
 
         fwp = ForwardPass(strategy)
-        for i in range(len(strategy.node_chunks)):
+        for i in strategy.node_chunks[0]:
             chunk = fwp.get_input_chunk(i)
-            s_idx, t_idx = strategy.get_chunk_indices(i)
-            s_slices = strategy.lr_pad_slices[s_idx]
+            s_idx, t_idx = strategy.fwp_slicer.get_chunk_indices(i)
+            s_slices = strategy.lr_slices[s_idx]
+            s_pad_slices = strategy.lr_pad_slices[s_idx]
+            s_crop_slices = strategy.fwp_slicer.s_lr_crop_slices[s_idx]
+            t_crop_slice = strategy.fwp_slicer.t_lr_crop_slices[t_idx]
+            lr_pad_data_slice = (
+                s_pad_slices[0],
+                s_pad_slices[1],
+                fwp.strategy.ti_pad_slices[t_idx],
+            )
+            lr_crop_data_slice = (
+                s_crop_slices[0],
+                s_crop_slices[1],
+                t_crop_slice,
+            )
             lr_data_slice = (
                 s_slices[0],
                 s_slices[1],
-                fwp.strategy.ti_pad_slices[t_idx],
+                fwp.strategy.ti_slices[t_idx],
             )
 
-            truth = handler.data[lr_data_slice]
-            assert np.allclose(chunk.input_data, truth)
+            assert handler.data[lr_pad_data_slice].shape[:-2][0] > 3
+            assert handler.data[lr_pad_data_slice].shape[:-2][1] > 3
+            assert chunk.input_data.shape[:-2][0] > 3
+            assert chunk.input_data.shape[:-2][1] > 3
+            assert np.allclose(
+                chunk.input_data, handler.data[lr_pad_data_slice]
+            )
+            assert np.allclose(
+                chunk.input_data[lr_crop_data_slice],
+                handler.data[lr_data_slice],
+            )
+
+
+@pytest.mark.parametrize('spatial_pad', [0, 1])
+def test_slicing_auto_boundary_pad(input_files, spatial_pad):
+    """Test that automatic boundary padding is applied when the fwp chunk shape
+    and grid size result in a slice that is too small for the generator.
+
+    Here the fwp chunk shape is (7, 7, 4) and the grid size is (8, 8) so with
+    no spatial padding this results in some chunk slices that have length 1.
+    With spatial padding equal to 1 some slices have length 3. In each of these
+    case we need to pad the slices so the input to the generator has at least 4
+    elements."""
+
+    Sup3rGan.seed()
+    s_enhance = 3
+    t_enhance = 4
+    fp_gen = os.path.join(CONFIG_DIR, 'spatiotemporal/gen_3x_4x_2f.json')
+    fp_disc = os.path.join(CONFIG_DIR, 'spatiotemporal/disc.json')
+    st_model = Sup3rGan(fp_gen, fp_disc, learning_rate=1e-4)
+    features = ['u_100m', 'v_100m']
+    st_model.meta['lr_features'] = features
+    st_model.meta['hr_out_features'] = features
+    st_model.meta['s_enhance'] = s_enhance
+    st_model.meta['t_enhance'] = t_enhance
+    _ = st_model.generate(np.ones((4, 10, 10, 6, 2)))
+
+    with tempfile.TemporaryDirectory() as td:
+        out_files = os.path.join(td, 'out_{file_id}.h5')
+        st_out_dir = os.path.join(td, 'st_gan')
+        st_model.save(st_out_dir)
+
+        handler = DataHandler(
+            input_files, features, target=target, shape=shape
+        )
+
+        input_handler_kwargs = {
+            'target': target,
+            'shape': shape,
+            'time_slice': time_slice,
+        }
+
+        strategy = ForwardPassStrategy(
+            input_files,
+            model_kwargs={'model_dir': st_out_dir},
+            model_class='Sup3rGan',
+            fwp_chunk_shape=(7, 7, 4),
+            spatial_pad=spatial_pad,
+            temporal_pad=0,
+            input_handler_kwargs=input_handler_kwargs,
+            out_pattern=out_files,
+            max_nodes=1,
+        )
+
+        fwp = ForwardPass(strategy)
+        for i in strategy.node_chunks[0]:
+            chunk = fwp.get_input_chunk(i)
+            s_idx, t_idx = strategy.fwp_slicer.get_chunk_indices(i)
+            pad_width = strategy.fwp_slicer.get_pad_width(i)
+            s_slices = strategy.lr_slices[s_idx]
+            s_crop_slices = strategy.fwp_slicer.s_lr_crop_slices[s_idx]
+            t_crop_slice = strategy.fwp_slicer.t_lr_crop_slices[t_idx]
+            lr_crop_data_slice = (
+                s_crop_slices[0],
+                s_crop_slices[1],
+                t_crop_slice,
+            )
+            lr_data_slice = (
+                s_slices[0],
+                s_slices[1],
+                fwp.strategy.ti_slices[t_idx],
+            )
+
+            assert chunk.input_data.shape[0] > 3
+            assert chunk.input_data.shape[1] > 3
+            input_data = chunk.input_data.copy()
+            if spatial_pad > 0:
+                slices = [
+                    slice(pw[0] or None, -pw[1] or None) for pw in pad_width
+                ]
+                input_data = input_data[slices[0], slices[1]]
+            hdata = handler.data[lr_data_slice]
+            assert np.allclose(input_data[lr_crop_data_slice], hdata)
 
 
 def test_slicing_pad(input_files):
@@ -752,9 +873,9 @@ def test_slicing_pad(input_files):
         assert chunk_lookup[0, 1, 1] == n_s1 * n_s2 + 1
 
         fwp = ForwardPass(strategy)
-        for i in range(len(strategy.node_chunks)):
+        for i in strategy.node_chunks[0]:
             chunk = fwp.get_input_chunk(i, mode='constant')
-            s_idx, t_idx = strategy.get_chunk_indices(i)
+            s_idx, t_idx = strategy.fwp_slicer.get_chunk_indices(i)
             s_slices = strategy.lr_pad_slices[s_idx]
             lr_data_slice = (
                 s_slices[0],
@@ -790,6 +911,9 @@ def test_slicing_pad(input_files):
                 (pad_t_start, pad_t_end),
                 (0, 0),
             )
+
+            assert chunk.input_data.shape[0] > 3
+            assert chunk.input_data.shape[1] > 3
 
             truth = handler.data[lr_data_slice]
             padded_truth = np.pad(truth, pad_width, mode='constant')

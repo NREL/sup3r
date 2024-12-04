@@ -3,6 +3,7 @@ file_paths and include some sampling ability to interface with batcher
 classes."""
 
 import logging
+from functools import cached_property
 from warnings import warn
 
 import dask.array as da
@@ -31,7 +32,7 @@ class LoaderNC(BaseLoader):
     def _enforce_descending_lats(self, dset):
         """Make sure latitudes are in descending order so that min lat / lon is
         at ``lat_lon[-1, 0]``."""
-        invert_lats = (
+        invert_lats = not self._is_flattened and (
             dset[Dimension.LATITUDE][-1, 0] > dset[Dimension.LATITUDE][0, 0]
         )
         if invert_lats:
@@ -63,8 +64,22 @@ class LoaderNC(BaseLoader):
             dset.update({Dimension.PRESSURE_LEVEL: new_press})
         return dset
 
-    @staticmethod
-    def get_coords(res):
+    @cached_property
+    def _lat_lon_shape(self):
+        """Get shape of lat lon grid only."""
+        return self._res[Dimension.LATITUDE].shape
+
+    @cached_property
+    def _is_flattened(self):
+        """Check if dims include a single spatial dimension."""
+        check = (
+            len(self._lat_lon_shape) == 1
+            and self._res[Dimension.LATITUDE].dims
+            == self._res[Dimension.LONGITUDE].dims
+        )
+        return check
+
+    def _get_coords(self, res):
         """Get coordinate dictionary to use in
         ``xr.Dataset().assign_coords()``."""
         lats = res[Dimension.LATITUDE].data.astype(np.float32)
@@ -76,12 +91,14 @@ class LoaderNC(BaseLoader):
         if lons.ndim == 3:
             lons = lons.squeeze()
 
-        if len(lats.shape) == 1:
+        if len(lats.shape) == 1 and not self._is_flattened:
             lons, lats = da.meshgrid(lons, lats)
 
-        lats = ((Dimension.SOUTH_NORTH, Dimension.WEST_EAST), lats)
-        lons = ((Dimension.SOUTH_NORTH, Dimension.WEST_EAST), lons)
-        coords = {Dimension.LATITUDE: lats, Dimension.LONGITUDE: lons}
+        dim_names = self._lat_lon_dims
+        coords = {
+            Dimension.LATITUDE: (dim_names, lats),
+            Dimension.LONGITUDE: (dim_names, lons),
+        }
 
         if Dimension.TIME in res:
             if Dimension.TIME in res.indexes:
@@ -95,16 +112,16 @@ class LoaderNC(BaseLoader):
             coords[Dimension.TIME] = times
         return coords
 
-    @staticmethod
-    def get_dims(res):
+    def _get_dims(self, res):
         """Get dimension name map using our standard mappping and the names
         used for coordinate dimensions."""
         rename_dims = {k: v for k, v in DIM_NAMES.items() if k in res.dims}
         lat_dims = res[Dimension.LATITUDE].dims
         lon_dims = res[Dimension.LONGITUDE].dims
         if len(lat_dims) == 1 and len(lon_dims) == 1:
-            rename_dims[lat_dims[0]] = Dimension.SOUTH_NORTH
-            rename_dims[lon_dims[0]] = Dimension.WEST_EAST
+            dim_names = self._lat_lon_dims
+            rename_dims[lat_dims[0]] = dim_names[0]
+            rename_dims[lon_dims[0]] = dim_names[-1]
         else:
             msg = (
                 'Latitude and Longitude dimension names are different. '
@@ -133,19 +150,19 @@ class LoaderNC(BaseLoader):
 
     def _load(self):
         """Load netcdf ``xarray.Dataset()``."""
-        res = lower_names(self.res)
+        res = lower_names(self._res)
         rename_coords = {
             k: v for k, v in COORD_NAMES.items() if k in res and v not in res
         }
-        res = res.rename(rename_coords)
+        self._res = res.rename(rename_coords)
 
-        if not all(coord in res for coord in Dimension.coords_2d()):
+        if not all(coord in self._res for coord in Dimension.coords_2d()):
             err = 'Could not find valid coordinates in given files: %s'
             logger.error(err, self.file_paths)
             raise OSError(err % (self.file_paths))
 
-        res = res.swap_dims(self.get_dims(res))
-        res = res.assign_coords(self.get_coords(res))
+        res = self._res.swap_dims(self._get_dims(self._res))
+        res = res.assign_coords(self._get_coords(res))
         res = self._enforce_descending_lats(res)
         res = self._rechunk_dsets(res)
         return self._enforce_descending_levels(res).astype(np.float32)
