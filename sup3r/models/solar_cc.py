@@ -16,28 +16,38 @@ class SolarCC(Sup3rGan):
     Note
     ----
     *Modifications to standard Sup3rGan*
-        - Content loss is only on the n_days of the center 8 daylight hours of
-          the daily true + synthetic and the temporal mean of the 24hours of
-          synthetic
-        - Discriminator only sees n_days of the center 8 daylight hours of the
-          daily true high res sample.
-        - Discriminator sees random n_days of 8-hour samples of the daily
-          synthetic high res sample.
+        - Pointwise content loss (MAE/MSE) is only on the center 2 daylight
+          hours (POINT_LOSS_HOURS) of the daily true + synthetic days and the
+          temporal mean of the 24hours of synthetic for n_days
+          (usually just 1 day)
+        - Discriminator only sees n_days of the center 8 daylight hours
+          (DAYLIGHT_HOURS and STARTING_HOUR) of the daily true high res sample.
+        - Discriminator sees random n_days of 8-hour samples (DAYLIGHT_HOURS)
+          of the daily synthetic high res sample.
         - Includes padding on high resolution output of :meth:`generate` so
           that forward pass always outputs a multiple of 24 hours.
     """
 
-    # starting hour is the hour that daylight starts at, daylight hours is the
-    # number of daylight hours to sample, so for example if 8 and 8, the
-    # daylight slice will be slice(8, 16). The stride length is the step size
-    # for sampling the temporal axis of the generated data to send to the
-    # discriminator for the adversarial loss component of the generator. For
-    # example, if the generator produces 24 timesteps and stride is 4 and the
-    # daylight hours is 8, slices of (0, 8) (4, 12), (8, 16), (12, 20), and
-    # (16, 24) will be sent to the disc.
     STARTING_HOUR = 8
+    """Starting hour is the hour that daylight starts at, typically
+    zero-indexed and rolled to local time"""
+
     DAYLIGHT_HOURS = 8
+    """Daylight hours is the number of daylight hours to sample, so for example
+    if 8 and 8, the daylight slice will be slice(8, 16). """
+
     STRIDE_LEN = 4
+    """The stride length is the step size for sampling the temporal axis of the
+    generated data to send to the discriminator for the adversarial loss
+    component of the generator. For example, if the generator produces 24
+    timesteps and stride is 4 and the daylight hours is 8,
+    slices of (0, 8) (4, 12), (8, 16), (12, 20), and (16, 24) will be sent to
+    the disc."""
+
+    POINT_LOSS_HOURS = 2
+    """Number of hours from the center of the day to calculate pointwise loss
+    from, e.g., MAE/MSE based on data from the true 4km hourly high res
+    field."""
 
     def __init__(self, *args, t_enhance=None, **kwargs):
         """Add optional t_enhance adjustment.
@@ -144,6 +154,9 @@ class SolarCC(Sup3rGan):
         t_len = hi_res_true.shape[3]
         n_days = int(t_len // 24)
 
+        # slices for 24-hour full days
+        day_24h_slices = [slice(x, x + 24) for x in range(0, 24 * n_days, 24)]
+
         # slices for middle-daylight-hours
         sub_day_slices = [
             slice(
@@ -153,26 +166,34 @@ class SolarCC(Sup3rGan):
             for x in range(0, 24 * n_days, 24)
         ]
 
-        # slices for 24-hour full days
-        day_24h_slices = [slice(x, x + 24) for x in range(0, 24 * n_days, 24)]
+        # slices for middle-pointwise-loss-hours
+        point_loss_slices = [
+            slice(
+                (24 - self.POINT_LOSS_HOURS) // 2 + x,
+                (24 - self.POINT_LOSS_HOURS) // 2 + x + self.POINT_LOSS_HOURS,
+            )
+            for x in range(0, 24 * n_days, 24)
+        ]
 
         # sample only daylight hours for disc training and gen content loss
         disc_out_true = []
         disc_out_gen = []
         loss_gen_content = 0.0
-        for tslice_sub, tslice_24h in zip(sub_day_slices, day_24h_slices):
+        ziter = zip(sub_day_slices, point_loss_slices, day_24h_slices)
+        for tslice_sub, tslice_ploss, tslice_24h in ziter:
             hr_true_sub = hi_res_true[:, :, :, tslice_sub, :]
-            hr_gen_sub = hi_res_gen[:, :, :, tslice_sub, :]
             hr_gen_24h = hi_res_gen[:, :, :, tslice_24h, :]
+            hr_true_ploss = hi_res_true[:, :, :, tslice_ploss, :]
+            hr_gen_ploss = hi_res_gen[:, :, :, tslice_ploss, :]
 
             hr_true_mean = tf.math.reduce_mean(hr_true_sub, axis=3)
             hr_gen_mean = tf.math.reduce_mean(hr_gen_24h, axis=3)
 
-            gen_c_sub = self.calc_loss_gen_content(hr_true_sub, hr_gen_sub)
+            gen_c_sub = self.calc_loss_gen_content(hr_true_ploss, hr_gen_ploss)
             gen_c_24h = self.calc_loss_gen_content(hr_true_mean, hr_gen_mean)
             loss_gen_content += gen_c_24h + gen_c_sub
 
-            disc_t = self._tf_discriminate(hi_res_true[:, :, :, tslice_sub, :])
+            disc_t = self._tf_discriminate(hr_true_sub)
             disc_out_true.append(disc_t)
 
         # Randomly sample daylight windows from generated data. Better than
