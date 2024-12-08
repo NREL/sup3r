@@ -37,6 +37,7 @@ class DataHandlerNCforCC(BaseNCforCC):
         nsrdb_source_fp=None,
         nsrdb_agg=1,
         nsrdb_smoothing=0,
+        scale_clearsky_ghi=True,
         **kwargs,
     ):
         """
@@ -61,6 +62,12 @@ class DataHandlerNCforCC(BaseNCforCC):
             clearsky_ghi from high-resolution nsrdb source data. This is
             typically done because spatially aggregated nsrdb data is still
             usually rougher than CC irradiance data.
+        scale_clearsky_ghi : bool
+            Flag to scale the NSRDB clearsky ghi so that the maximum value
+            matches the GCM rsds maximum value per spatial pixel. This is
+            useful when calculating "clearsky_ratio" so that there are not an
+            unrealistic number of 1 values if the maximum NSRDB clearsky_ghi is
+            much lower than the GCM values
         kwargs : list
             Same optional keyword arguments as parent class.
         """
@@ -68,6 +75,7 @@ class DataHandlerNCforCC(BaseNCforCC):
         self._nsrdb_agg = nsrdb_agg
         self._nsrdb_smoothing = nsrdb_smoothing
         self._features = features
+        self._scale_clearsky_ghi = scale_clearsky_ghi
         super().__init__(file_paths=file_paths, features=features, **kwargs)
 
     _signature_objs = (__init__, BaseNCforCC)
@@ -78,11 +86,13 @@ class DataHandlerNCforCC(BaseNCforCC):
         rasterized data, which will then be used when the :class:`Deriver` is
         called."""
         cs_feats = ['clearsky_ratio', 'clearsky_ghi']
-        need_ghi = any(
+        need_cs_ghi = any(
             f in self._features and f not in self.rasterizer for f in cs_feats
         )
-        if need_ghi:
+        if need_cs_ghi:
             self.rasterizer.data['clearsky_ghi'] = self.get_clearsky_ghi()
+        if need_cs_ghi and self._scale_clearsky_ghi:
+            self.scale_clearsky_ghi()
 
     def run_input_checks(self):
         """Run checks on the files provided for extracting clearsky_ghi. Make
@@ -183,28 +193,21 @@ class DataHandlerNCforCC(BaseNCforCC):
             )
         )
 
-        cs_ghi = (
-            res.data[['clearsky_ghi']]
-            .isel(
-                {
-                    Dimension.FLATTENED_SPATIAL: i.flatten(),
-                    Dimension.TIME: t_slice,
-                }
-            )
-            .coarsen({Dimension.FLATTENED_SPATIAL: self._nsrdb_agg})
-            .mean()
-        )
-        time_freq = float(
-            mode(
-                (ti_nsrdb[1:] - ti_nsrdb[:-1]).seconds / 3600, keepdims=False
-            ).mode
-        )
+        # spatial coarsening from NSRDB to GCM
+        cs_ghi = res.data[['clearsky_ghi']]
+        dims = i.flatten()
+        dims = {Dimension.FLATTENED_SPATIAL: dims, Dimension.TIME: t_slice}
+        cs_ghi = cs_ghi.isel(dims)
+        cs_ghi = cs_ghi.coarsen({Dimension.FLATTENED_SPATIAL: self._nsrdb_agg})
+        cs_ghi = cs_ghi.mean()
 
+        # temporal coarsening from NSRDB to daily average
+        time_freq = (ti_nsrdb[1:] - ti_nsrdb[:-1]).seconds / 3600
+        time_freq = float(mode(time_freq, keepdims=False).mode)
         cs_ghi = cs_ghi.coarsen({Dimension.TIME: int(24 // time_freq)}).mean()
-        lat_idx, lon_idx = (
-            np.arange(self.rasterizer.grid_shape[0]),
-            np.arange(self.rasterizer.grid_shape[1]),
-        )
+
+        lat_idx = np.arange(self.rasterizer.grid_shape[0])
+        lon_idx = np.arange(self.rasterizer.grid_shape[1])
         ind = pd.MultiIndex.from_product(
             (lat_idx, lon_idx), names=Dimension.dims_2d()
         )
@@ -213,19 +216,33 @@ class DataHandlerNCforCC(BaseNCforCC):
         )
 
         cs_ghi = cs_ghi.transpose(*Dimension.dims_3d())
-
         cs_ghi = cs_ghi['clearsky_ghi'].data
-        if cs_ghi.shape[-1] < len(self.rasterizer.time_index):
-            n = int(
-                da.ceil(len(self.rasterizer.time_index) / cs_ghi.shape[-1])
-            )
-            cs_ghi = da.repeat(cs_ghi, n, axis=2)
 
-        cs_ghi = cs_ghi[..., : len(self.rasterizer.time_index)]
+        # concatenate multiple years, need to consider leap years explicitly
+        # so decadal timeseries dont get shifted
+        multi_year = []
+        if cs_ghi.shape[-1] < len(self.rasterizer.time_index):
+            for year in self.rasterizer.time_index.year.unique():
+                n = (self.rasterizer.time_index.year == year).sum()
+                multi_year.append(cs_ghi[..., :n])
+
+        cs_ghi = da.concatenate(multi_year, axis=-1)
+        cs_ghi = cs_ghi[..., :len(self.rasterizer.time_index)]
 
         self.run_wrap_checks(cs_ghi)
 
         return cs_ghi
+
+    def scale_clearsky_ghi(self):
+        """Method to scale the NSRDB clearsky ghi so that the maximum value
+        matches the GCM rsds maximum value per spatial pixel. This is useful
+        when calculating "clearsky_ratio" so that there are not an unrealistic
+        number of 1 values if the maximum NSRDB clearsky_ghi is much lower than
+        the GCM values"""
+        ghi_max = self.rasterizer.data['rsds'].max(dim='time')
+        cs_max = self.rasterizer.data['clearsky_ghi'].max(dim='time')
+        scale = ghi_max / cs_max
+        self.rasterizer.data['clearsky_ghi'] *= scale
 
 
 class DataHandlerNCforCCwithPowerLaw(DataHandlerNCforCC):
