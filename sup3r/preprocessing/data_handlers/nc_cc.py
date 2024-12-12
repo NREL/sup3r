@@ -76,6 +76,7 @@ class DataHandlerNCforCC(BaseNCforCC):
         self._nsrdb_smoothing = nsrdb_smoothing
         self._features = features
         self._scale_clearsky_ghi = scale_clearsky_ghi
+        self._cs_ghi_scale = 1
         super().__init__(file_paths=file_paths, features=features, **kwargs)
 
     _signature_objs = (__init__, BaseNCforCC)
@@ -220,13 +221,13 @@ class DataHandlerNCforCC(BaseNCforCC):
 
         # concatenate multiple years, need to consider leap years explicitly
         # so decadal timeseries dont get shifted
-        multi_year = []
         if cs_ghi.shape[-1] < len(self.rasterizer.time_index):
+            multi_year = []
             for year in self.rasterizer.time_index.year.unique():
                 n = (self.rasterizer.time_index.year == year).sum()
                 multi_year.append(cs_ghi[..., :n])
+            cs_ghi = da.concatenate(multi_year, axis=-1)
 
-        cs_ghi = da.concatenate(multi_year, axis=-1)
         cs_ghi = cs_ghi[..., :len(self.rasterizer.time_index)]
 
         self.run_wrap_checks(cs_ghi)
@@ -241,8 +242,8 @@ class DataHandlerNCforCC(BaseNCforCC):
         the GCM values"""
         ghi_max = self.rasterizer.data['rsds'].max(dim='time')
         cs_max = self.rasterizer.data['clearsky_ghi'].max(dim='time')
-        scale = ghi_max / cs_max
-        self.rasterizer.data['clearsky_ghi'] *= scale
+        self._cs_ghi_scale = ghi_max / cs_max
+        self.rasterizer.data['clearsky_ghi'] *= self._cs_ghi_scale
 
 
 class DataHandlerNCforCCwithPowerLaw(DataHandlerNCforCC):
