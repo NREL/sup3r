@@ -3,7 +3,6 @@
 import logging
 import os
 
-import dask.array as da
 import numpy as np
 import pandas as pd
 from scipy.spatial import KDTree
@@ -216,19 +215,16 @@ class DataHandlerNCforCC(BaseNCforCC):
             Dimension.FLATTENED_SPATIAL
         )
 
+        # reindex to target time index using only months/days
+        # (year-independent), this will handle multiple years and leap days
+        cs_ghi_ti = pd.to_datetime(cs_ghi[Dimension.TIME]).strftime('%m.%d')
+        target_ti = self.rasterizer.time_index.strftime('%m.%d')
+        cs_ghi[Dimension.TIME] = cs_ghi_ti
+        reindex = {Dimension.TIME: target_ti}
+        cs_ghi = cs_ghi.reindex(reindex)
+
         cs_ghi = cs_ghi.transpose(*Dimension.dims_3d())
         cs_ghi = cs_ghi['clearsky_ghi'].data
-
-        # concatenate multiple years, need to consider leap years explicitly
-        # so decadal timeseries dont get shifted
-        if cs_ghi.shape[-1] < len(self.rasterizer.time_index):
-            multi_year = []
-            for year in self.rasterizer.time_index.year.unique():
-                n = (self.rasterizer.time_index.year == year).sum()
-                multi_year.append(cs_ghi[..., :n])
-            cs_ghi = da.concatenate(multi_year, axis=-1)
-
-        cs_ghi = cs_ghi[..., :len(self.rasterizer.time_index)]
 
         self.run_wrap_checks(cs_ghi)
 
