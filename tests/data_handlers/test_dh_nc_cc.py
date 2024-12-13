@@ -225,6 +225,7 @@ def test_solar_cc(agg):
         target=target,
         shape=shape,
         time_slice=slice(0, 1),
+        scale_clearsky_ghi=True,
     )
 
     cs_ratio = handler.data['clearsky_ratio']
@@ -232,9 +233,8 @@ def test_solar_cc(agg):
     cs_ghi = handler.data['clearsky_ghi']
     cs_ratio_truth = ghi / cs_ghi
 
-    assert cs_ratio.max() < 1
-    assert cs_ratio.min() > 0
-    assert (ghi < cs_ghi).all()
+    assert cs_ratio.max() <= 1
+    assert cs_ratio.min() >= 0
     assert np.allclose(cs_ratio, cs_ratio_truth)
 
     with Resource(nsrdb_source_fp) as res:
@@ -247,5 +247,6 @@ def test_solar_cc(agg):
         for j in range(4):
             test_coord = handler.lat_lon[i, j]
             _, inn = tree.query(test_coord, k=agg)
-
-            assert np.allclose(cs_ghi_true[0:48, inn].mean(), cs_ghi[i, j])
+            true = cs_ghi_true[0:48, inn].mean()
+            scaled_true = true * handler._cs_ghi_scale[i, j]
+            assert np.allclose(scaled_true, cs_ghi[i, j])

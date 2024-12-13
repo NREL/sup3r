@@ -760,7 +760,18 @@ class SurfaceSpatialMetModel(LinearInterp):
         w_delta_topo : float
             Weight for the delta-topography feature for the relative humidity
             linear regression model.
+        regr : sklearn.LinearRegression
+            Trained regression object that predicts regr(x) = y
+        x : np.ndarray
+            2D array of shape (n, 2) where n is the number of observations
+            being trained on and axis=1 is 1) the True high-res temperature
+            minus the interpolated temperature and 2) the True high-res topo
+            minus the interpolate topo.
+        y : np.ndarray
+            2D array of shape (n,) that represents the true high-res humidity
+            minus the interpolated humidity
         """
+
         self._input_resolution = input_resolution
         assert len(true_hr_temp.shape) == 3, 'Bad true_hr_temp shape'
         assert len(true_hr_rh.shape) == 3, 'Bad true_hr_rh shape'
@@ -799,7 +810,7 @@ class SurfaceSpatialMetModel(LinearInterp):
         x = np.vstack((x1.flatten(), x2.flatten())).T
         y = (true_hr_rh - interp_hr_rh).flatten()
 
-        regr = linear_model.LinearRegression()
+        regr = linear_model.LinearRegression(fit_intercept=False)
         regr.fit(x, y)
         if np.abs(regr.intercept_) > 1e-6:
             msg = (
@@ -813,4 +824,4 @@ class SurfaceSpatialMetModel(LinearInterp):
 
         w_delta_temp, w_delta_topo = regr.coef_[0], regr.coef_[1]
 
-        return w_delta_temp, w_delta_topo
+        return w_delta_temp, w_delta_topo, regr, x, y
