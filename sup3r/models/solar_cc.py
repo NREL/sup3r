@@ -34,7 +34,8 @@ class SolarCC(Sup3rGan):
 
     DAYLIGHT_HOURS = 8
     """Daylight hours is the number of daylight hours to sample, so for example
-    if 8 and 8, the daylight slice will be slice(8, 16). """
+    if STARTING_HOUR is 8 and DAYLIGHT_HOURS is 8, the daylight slice will be
+    slice(8, 16). """
 
     STRIDE_LEN = 4
     """The stride length is the step size for sampling the temporal axis of the
@@ -44,7 +45,7 @@ class SolarCC(Sup3rGan):
     slices of (0, 8) (4, 12), (8, 16), (12, 20), and (16, 24) will be sent to
     the disc."""
 
-    POINT_LOSS_HOURS = 2
+    POINT_LOSS_HOURS = 8
     """Number of hours from the center of the day to calculate pointwise loss
     from, e.g., MAE/MSE based on data from the true 4km hourly high res
     field."""
