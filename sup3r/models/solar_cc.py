@@ -192,9 +192,9 @@ class SolarCC(Sup3rGan):
         # Randomly sample daylight windows from generated data. Better than
         # strided samples covering full day because the random samples will
         # provide an evenly balanced training set for the disc
-        logits = [[1.0] * (t_len - self.DAYLIGHT_HOURS)]
-        time_samples = tf.random.categorical(logits, len(sub_day_slices))
-        for i in range(len(sub_day_slices)):
+        logits = [[1.0] * (t_len - self.DAYLIGHT_HOURS + 1)]
+        time_samples = tf.random.categorical(logits, n_days)
+        for i in range(n_days):
             t0 = time_samples[0, i]
             t1 = t0 + self.DAYLIGHT_HOURS
             disc_g = self._tf_discriminate(hi_res_gen[:, :, :, t0:t1, :])
