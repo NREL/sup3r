@@ -122,11 +122,11 @@ def test_data_handling_nc_cc():
 
     handler = DataHandlerNCforCC(
         pytest.FPS_GCM,
-        features=['u_100m', 'v_100m'],
+        features=['u_100m', 'v_100m', 'latitude_feature', 'longitude_feature'],
         target=target,
         shape=(20, 20),
     )
-    assert handler.data.shape == (20, 20, 20, 2)
+    assert handler.data.shape == (20, 20, 20, 4)
 
     # upper case features warning
     features = [f'U_{int(plevel)}pa', f'V_{int(plevel)}pa']
