@@ -384,13 +384,29 @@ class TasMax(Tas):
 class Sza(DerivedFeature):
     """Solar zenith angle derived feature."""
 
-    inputs = ()
-
     @classmethod
     def compute(cls, data):
         """Compute method for sza."""
         sza = SolarZenith.get_zenith(data.time_index, data.lat_lon)
         return sza.astype(np.float32)
+
+
+class LatitudeFeature(DerivedFeature):
+    """Latitude treated as a training feature"""
+
+    @classmethod
+    def compute(cls, data):
+        """Method to compute latitude feature array"""
+        return data.coords['latitude']
+
+
+class LongitudeFeature(DerivedFeature):
+    """Longitude treated as a training feature"""
+
+    @classmethod
+    def compute(cls, data):
+        """Method to compute longitude feature array"""
+        return data.coords['longitude']
 
 
 RegistryBase = {
@@ -402,6 +418,8 @@ RegistryBase = {
     'cloud_mask': CloudMask,
     'clearsky_ratio': ClearSkyRatio,
     'sza': Sza,
+    'latitude_feature': LatitudeFeature,
+    'longitude_feature': LongitudeFeature,
 }
 
 RegistryH5WindCC = {
