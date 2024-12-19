@@ -391,24 +391,6 @@ class Sza(DerivedFeature):
         return sza.astype(np.float32)
 
 
-class LatitudeFeature(DerivedFeature):
-    """Latitude treated as a training feature"""
-
-    @classmethod
-    def compute(cls, data):
-        """Method to compute latitude feature array"""
-        return data.coords['latitude']
-
-
-class LongitudeFeature(DerivedFeature):
-    """Longitude treated as a training feature"""
-
-    @classmethod
-    def compute(cls, data):
-        """Method to compute longitude feature array"""
-        return data.coords['longitude']
-
-
 RegistryBase = {
     'u_(.*)': UWind,
     'v_(.*)': VWind,
@@ -418,8 +400,8 @@ RegistryBase = {
     'cloud_mask': CloudMask,
     'clearsky_ratio': ClearSkyRatio,
     'sza': Sza,
-    'latitude_feature': LatitudeFeature,
-    'longitude_feature': LongitudeFeature,
+    'latitude_feature': 'latitude',
+    'longitude_feature': 'longitude',
 }
 
 RegistryH5WindCC = {
