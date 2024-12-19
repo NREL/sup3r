@@ -37,15 +37,7 @@ class SolarCC(Sup3rGan):
     if STARTING_HOUR is 8 and DAYLIGHT_HOURS is 8, the daylight slice will be
     slice(8, 16). """
 
-    STRIDE_LEN = 4
-    """The stride length is the step size for sampling the temporal axis of the
-    generated data to send to the discriminator for the adversarial loss
-    component of the generator. For example, if the generator produces 24
-    timesteps and stride is 4 and the daylight hours is 8,
-    slices of (0, 8) (4, 12), (8, 16), (12, 20), and (16, 24) will be sent to
-    the disc."""
-
-    POINT_LOSS_HOURS = 8
+    POINT_LOSS_HOURS = 2
     """Number of hours from the center of the day to calculate pointwise loss
     from, e.g., MAE/MSE based on data from the true 4km hourly high res
     field."""
