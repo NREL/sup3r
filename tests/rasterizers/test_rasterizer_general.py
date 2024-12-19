@@ -80,3 +80,15 @@ def test_topography_h5():
         topo = res.get_meta_arr('elevation')[ri.flatten(),]
         topo = topo.reshape((ri.shape[0], ri.shape[1]))
     assert np.allclose(topo, rasterizer['topography'][..., 0])
+
+
+def test_preloaded_h5():
+    """Test preload of h5 file"""
+    rasterizer = Rasterizer(
+        file_paths=pytest.FP_WTK,
+        target=(39.01, -105.15),
+        shape=(20, 20),
+        chunks=None,
+    )
+    for f in list(rasterizer.data.data_vars) + list(Dimension.coords_2d()):
+        assert isinstance(rasterizer[f].data, np.ndarray)

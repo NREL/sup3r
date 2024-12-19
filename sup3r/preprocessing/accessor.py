@@ -230,8 +230,9 @@ class Sup3rX:
             logger.debug(f'Loading dataset into memory: {self._ds}')
             logger.debug(f'Pre-loading: {_mem_check()}')
 
-            for f in self._ds.data_vars:
-                self._ds[f] = self._ds[f].compute(**kwargs)
+            for f in list(self._ds.data_vars) + list(self._ds.coords):
+                if hasattr(self._ds[f], 'compute'):
+                    self._ds[f] = self._ds[f].compute(**kwargs)
                 logger.debug(
                     f'Loaded {f} into memory with shape '
                     f'{self._ds[f].shape}. {_mem_check()}'
