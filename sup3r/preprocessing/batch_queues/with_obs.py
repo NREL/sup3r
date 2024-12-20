@@ -3,6 +3,7 @@ high-res data. The observation data is sampled with the same index as the
 high-res data during training."""
 
 import logging
+from collections import namedtuple
 
 from scipy.ndimage import gaussian_filter
 
@@ -14,6 +15,8 @@ logger = logging.getLogger(__name__)
 class DualBatchQueueWithObs(DualBatchQueue):
     """Base BatchQueue for use with
     :class:`~sup3r.preprocessing.samplers.DualSamplerWithObs` objects."""
+
+    Batch = namedtuple('Batch', ['low_res', 'high_res', 'obs'])
 
     _signature_objs = (DualBatchQueue,)
 
@@ -48,3 +51,17 @@ class DualBatchQueueWithObs(DualBatchQueue):
                         low_res[i, ..., j], smoothing, mode='nearest'
                     )
         return low_res, high_res, obs
+
+    def post_proc(self, samples) -> Batch:
+        """Performs some post proc on dequeued samples before sending out for
+        training. Post processing can include coarsening on high-res data (if
+        :class:`Collection` consists of :class:`Sampler` objects and not
+        :class:`DualSampler` objects), smoothing, etc
+
+        Returns
+        -------
+        Batch : namedtuple
+             namedtuple with `low_res`, `high_res`, and `obs` attributes
+        """
+        lr, hr, obs = self.transform(samples, **self.transform_kwargs)
+        return self.Batch(low_res=lr, high_res=hr, obs=obs)
