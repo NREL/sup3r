@@ -12,3 +12,4 @@ from .conditional import (
 )
 from .dc import BatchQueueDC, ValBatchQueueDC
 from .dual import DualBatchQueue
+from .with_obs import DualBatchQueueWithObs
