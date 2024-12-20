@@ -1,5 +1,6 @@
 """Test the training of GANs with dual data handler"""
 
+import itertools
 import os
 import tempfile
 
@@ -8,6 +9,7 @@ import pytest
 
 from sup3r.models import Sup3rGan
 from sup3r.preprocessing import (
+    Container,
     DataHandler,
     DualBatchHandlerWithObs,
     DualRasterizer,
@@ -41,7 +43,7 @@ DualBatchHandlerWithObsTester = BatchHandlerTesterFactory(
         (pytest.S_FP_GEN, pytest.S_FP_DISC, 2, 1, (20, 20, 1), 'eager'),
     ],
 )
-def test_train_h5_nc(
+def test_train_coarse_h5(
     fp_gen, fp_disc, s_enhance, t_enhance, sample_shape, mode, n_epoch=2
 ):
     """Test model training with a dual data handler / batch handler with h5 and
@@ -59,23 +61,11 @@ def test_train_h5_nc(
         **kwargs,
         time_slice=slice(None, None, 1),
     )
-    lr_handler = DataHandler(
-        pytest.FP_ERA,
-        features=FEATURES,
-        time_slice=slice(None, None, 30),
-    )
-
-    # time indices conflict with t_enhance
-    with pytest.raises(AssertionError):
-        dual_rasterizer = DualRasterizer(
-            data=(lr_handler.data, hr_handler.data),
-            s_enhance=s_enhance,
-            t_enhance=t_enhance,
-        )
 
     lr_handler = DataHandler(
-        pytest.FP_ERA,
-        features=FEATURES,
+        pytest.FP_WTK,
+        **kwargs,
+        hr_spatial_coarsen=s_enhance,
         time_slice=slice(None, None, t_enhance),
     )
 
@@ -85,11 +75,20 @@ def test_train_h5_nc(
         t_enhance=t_enhance,
     )
     obs_data = dual_rasterizer.high_res.copy()
+    for feat in FEATURES:
+        tmp = np.full(obs_data[feat].shape, np.nan)
+        lat_ids = list(range(0, 20, 4))
+        lon_ids = list(range(0, 20, 4))
+        for ilat, ilon in itertools.product(lat_ids, lon_ids):
+            tmp[ilat, ilon, :] = obs_data[feat][ilat, ilon]
+        obs_data[feat] = (obs_data[feat].dims, tmp)
 
-    dual_with_obs = Sup3rDataset(
-        low_res=dual_rasterizer.low_res,
-        high_res=dual_rasterizer.high_res,
-        obs=obs_data,
+    dual_with_obs = Container(
+        data=Sup3rDataset(
+            low_res=dual_rasterizer.low_res,
+            high_res=dual_rasterizer.high_res,
+            obs=obs_data,
+        )
     )
 
     batch_handler = DualBatchHandlerWithObsTester(
@@ -122,4 +121,6 @@ def test_train_h5_nc(
         model.train(batch_handler, **model_kwargs)
 
         tlossg = model.history['train_loss_gen'].values
+        tlosso = model.history['train_loss_obs'].values
         assert np.sum(np.diff(tlossg)) < 0
+        assert np.sum(np.diff(tlosso)) < 0

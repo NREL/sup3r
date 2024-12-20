@@ -1364,6 +1364,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         low_res,
         hi_res_true,
         training_weights,
+        obs_data=None,
         optimizer=None,
         multi_gpu=False,
         **calc_loss_kwargs,
@@ -1385,6 +1386,8 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         training_weights : list
             A list of layer weights that are to-be-trained based on the
             current loss weight values.
+        obs_data : tf.Tensor | None
+            Optional observation data to use in additional content loss term.
         optimizer : tf.keras.optimizers.Optimizer
             Optimizer class to use to update weights. This can be different if
             you're training just the generator or one of the discriminator
@@ -1413,6 +1416,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
                 low_res,
                 hi_res_true,
                 training_weights,
+                obs_data=obs_data,
                 device_name=self.default_device,
                 **calc_loss_kwargs,
             )
@@ -1426,6 +1430,11 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             futures = []
             lr_chunks = np.array_split(low_res, len(self.gpu_list))
             hr_true_chunks = np.array_split(hi_res_true, len(self.gpu_list))
+            obs_data_chunks = (
+                [None] * len(hr_true_chunks)
+                if obs_data is None
+                else np.array_split(obs_data, len(self.gpu_list))
+            )
             split_mask = False
             mask_chunks = None
             if 'mask' in calc_loss_kwargs:
@@ -1444,6 +1453,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
                             lr_chunks[i],
                             hr_true_chunks[i],
                             training_weights,
+                            obs_data=obs_data_chunks[i],
                             device_name=f'/gpu:{i}',
                             **calc_loss_kwargs,
                         )
@@ -1666,6 +1676,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         low_res,
         hi_res_true,
         training_weights,
+        obs_data=None,
         device_name=None,
         **calc_loss_kwargs,
     ):
@@ -1685,6 +1696,8 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         training_weights : list
             A list of layer weights that are to-be-trained based on the
             current loss weight values.
+        obs_data : tf.Tensor | None
+            Optional observation data to use in additional content loss term.
         device_name : None | str
             Optional tensorflow device name for GPU placement. Note that if a
             GPU is available, variables will be placed on that GPU even if
@@ -1708,7 +1721,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             hi_res_exo = self.get_hr_exo_input(hi_res_true)
             hi_res_gen = self._tf_generate(low_res, hi_res_exo)
             loss_out = self.calc_loss(
-                hi_res_true, hi_res_gen, **calc_loss_kwargs
+                hi_res_true, hi_res_gen, obs_data=obs_data, **calc_loss_kwargs
             )
             loss, loss_details = loss_out
             grad = tape.gradient(loss, training_weights)
