@@ -14,10 +14,12 @@ from sup3r.preprocessing.batch_queues.conditional import (
     QueueMom2SF,
 )
 from sup3r.preprocessing.batch_queues.dual import DualBatchQueue
+from sup3r.preprocessing.batch_queues.with_obs import DualBatchQueueWithObs
 from sup3r.preprocessing.collections.stats import StatsCollection
 from sup3r.preprocessing.samplers.base import Sampler
 from sup3r.preprocessing.samplers.cc import DualSamplerCC
 from sup3r.preprocessing.samplers.dual import DualSampler
+from sup3r.preprocessing.samplers.with_obs import DualSamplerWithObs
 from sup3r.preprocessing.utilities import (
     check_signatures,
     get_class_kwargs,
@@ -315,6 +317,11 @@ BatchHandler = BatchHandlerFactory(
 DualBatchHandler = BatchHandlerFactory(
     DualBatchQueue, DualSampler, name='DualBatchHandler'
 )
+
+DualBatchHandlerWithObs = BatchHandlerFactory(
+    DualBatchQueueWithObs, DualSamplerWithObs, name='DualBatchHandlerWithObs'
+)
+
 BatchHandlerCC = BatchHandlerFactory(
     DualBatchQueue, DualSamplerCC, name='BatchHandlerCC'
 )

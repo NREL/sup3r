@@ -183,17 +183,18 @@ class Sup3rDataset:
         """Rewrap data as ``Sup3rDataset`` after calling parent method."""
         if isinstance(data, type(self)):
             return data
-        return (
-            type(self)(low_res=data[0], high_res=data[1])
-            if len(data) > 1
-            else type(self)(high_res=data[0])
-        )
+        if len(data) == 2:
+            return type(self)(low_res=data[0], high_res=data[1])
+        if len(data) == 3:
+            return type(self)(low_res=data[0], high_res=data[1], obs=data[2])
+        return type(self)(high_res=data[0])
 
     def sample(self, idx):
         """Get samples from ``self._ds`` members. idx should be either a tuple
         of slices for the dimensions (south_north, west_east, time) and a list
-        of feature names or a 2-tuple of the same, for dual datasets."""
-        if len(self._ds) == 2:
+        of feature names or a tuple of the same, for multi-member datasets
+        (dual datasets and dual with observations datasets)."""
+        if len(self._ds) > 1:
             return tuple(d.sample(idx[i]) for i, d in enumerate(self))
         return self._ds[-1].sample(idx)
 
@@ -228,10 +229,12 @@ class Sup3rDataset:
     def features(self):
         """The features are determined by the set of features from all data
         members."""
+        if len(self._ds) == 1:
+            return self._ds[0].features
         feats = [
-            f for f in self._ds[0].features if f not in self._ds[-1].features
+            f for f in self._ds[0].features if f not in self._ds[1].features
         ]
-        feats += self._ds[-1].features
+        feats += self._ds[1].features
         return feats
 
     @property
@@ -258,13 +261,13 @@ class Sup3rDataset:
         """Use the high_res members to compute the means. These are used for
         normalization during training."""
         kwargs['skipna'] = kwargs.get('skipna', True)
-        return self._ds[-1].mean(**kwargs)
+        return self._ds[1 if len(self._ds) > 1 else 0].mean(**kwargs)
 
     def std(self, **kwargs):
         """Use the high_res members to compute the stds. These are used for
         normalization during training."""
         kwargs['skipna'] = kwargs.get('skipna', True)
-        return self._ds[-1].std(**kwargs)
+        return self._ds[1 if len(self._ds) > 1 else 0].std(**kwargs)
 
     def normalize(self, means, stds):
         """Normalize dataset using the given mean and stds. These are provided
@@ -309,10 +312,12 @@ class Container(metaclass=Sup3rMeta):
             such. This is a tuple when the `.data` attribute belongs to a
             :class:`~.collections.base.Collection` object like
             :class:`~.batch_handlers.factory.BatchHandler`. Otherwise this is
-            :class:`~.Sup3rDataset` object, which is either a wrapped 2-tuple
-            or 1-tuple (e.g. ``len(data) == 2`` or ``len(data) == 1)``. This is
-            a 2-tuple when ``.data`` belongs to a dual container object like
-            :class:`~.samplers.DualSampler` and a 1-tuple otherwise.
+            :class:`~.Sup3rDataset` object, which is either a wrapped 3-tuple,
+            2-tuple, or 1-tuple (e.g. ``len(data) == 3``, ``len(data) == 2`` or
+            ``len(data) == 1)``. This is a 3-tuple when ``.data`` belongs to a
+            container object like :class:`~.samplers.DualSamplerWithObs`, a
+            2-tuple when ``.data`` belongs to a dual container object like
+            :class:`~.samplers.DualSampler`, and a 1-tuple otherwise.
         """
         self.data = data
 
@@ -345,10 +350,12 @@ class Container(metaclass=Sup3rMeta):
         tuple when the `.data` attribute belongs to a
         :class:`~.collections.base.Collection` object like
         :class:`~.batch_handlers.factory.BatchHandler`. Otherwise this is
-        :class:`~.Sup3rDataset` object, which is either a wrapped 2-tuple or
-        1-tuple (e.g. ``len(data) == 2`` or ``len(data) == 1)``. This is a
-        2-tuple when ``.data`` belongs to a dual container object like
-        :class:`~.samplers.DualSampler` and a 1-tuple otherwise.
+        :class:`~.Sup3rDataset` object, which is either a wrapped 3-tuple,
+        2-tuple, or 1-tuple (e.g. ``len(data) == 3``, ``len(data) == 2`` or
+        ``len(data) == 1)``. This is a 3-tuple when ``.data`` belongs to a
+        container object like :class:`~.samplers.DualSamplerWithObs`, a 2-tuple
+        when ``.data`` belongs to a dual container object like
+        :class:`~.samplers.DualSampler`, and a 1-tuple otherwise.
         """
         if data is None:
             return data
@@ -365,6 +372,16 @@ class Container(metaclass=Sup3rMeta):
             logger.warning(msg)
             warn(msg)
             data = Sup3rDataset(low_res=data[0], high_res=data[1])
+        elif isinstance(data, tuple) and len(data) == 3:
+            msg = (
+                f'{self.__class__.__name__}.data is being set with a '
+                '3-tuple without explicit dataset names. We will assume '
+                'first tuple member is low-res, second is high-res, and third '
+                'is obs'
+            )
+            logger.warning(msg)
+            warn(msg)
+            data = Sup3rDataset(low_res=data[0], high_res=data[1], obs=data[2])
         elif not isinstance(data, Sup3rDataset):
             name = getattr(data, 'name', None) or 'high_res'
             data = Sup3rDataset(**{name: data})

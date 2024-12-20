@@ -9,3 +9,4 @@ from .base import Sampler
 from .cc import DualSamplerCC
 from .dc import SamplerDC
 from .dual import DualSampler
+from .with_obs import DualSamplerWithObs
