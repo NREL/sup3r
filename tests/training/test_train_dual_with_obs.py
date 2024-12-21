@@ -13,7 +13,6 @@ from sup3r.preprocessing import (
     DataHandler,
     DualBatchHandlerWithObs,
     DualRasterizer,
-    Sup3rDataset,
 )
 from sup3r.preprocessing.samplers import DualSamplerWithObs
 from sup3r.utilities.pytest.helpers import BatchHandlerTesterFactory
@@ -46,9 +45,9 @@ DualBatchHandlerWithObsTester = BatchHandlerTesterFactory(
 def test_train_coarse_h5(
     fp_gen, fp_disc, s_enhance, t_enhance, sample_shape, mode, n_epoch=2
 ):
-    """Test model training with a dual data handler / batch handler with h5 and
-    era as hr / lr datasets with additional observation data used in extra
-    content loss. Tests both spatiotemporal and spatial models."""
+    """Test model training with a dual data handler / batch handler with
+    additional sparse observation data used in extra content loss term. Tests
+    both spatiotemporal and spatial models."""
 
     lr = 1e-5
     kwargs = {
@@ -84,11 +83,11 @@ def test_train_coarse_h5(
         obs_data[feat] = (obs_data[feat].dims, tmp)
 
     dual_with_obs = Container(
-        data=Sup3rDataset(
-            low_res=dual_rasterizer.low_res,
-            high_res=dual_rasterizer.high_res,
-            obs=obs_data,
-        )
+        data={
+            'low_res': dual_rasterizer.low_res,
+            'high_res': dual_rasterizer.high_res,
+            'obs': obs_data,
+        }
     )
 
     batch_handler = DualBatchHandlerWithObsTester(

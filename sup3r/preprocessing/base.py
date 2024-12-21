@@ -12,7 +12,7 @@ import logging
 import pprint
 from abc import ABCMeta
 from collections import namedtuple
-from typing import Mapping, Tuple, Union
+from typing import Dict, Mapping, Tuple, Union
 from warnings import warn
 
 import numpy as np
@@ -183,11 +183,9 @@ class Sup3rDataset:
         """Rewrap data as ``Sup3rDataset`` after calling parent method."""
         if isinstance(data, type(self)):
             return data
-        if len(data) == 2:
-            return type(self)(low_res=data[0], high_res=data[1])
-        if len(data) == 3:
-            return type(self)(low_res=data[0], high_res=data[1], obs=data[2])
-        return type(self)(high_res=data[0])
+        if len(data) == 1:
+            return type(self)(high_res=data[0])
+        return type(self)(**dict(zip(['low_res', 'high_res', 'obs'], data)))
 
     def sample(self, idx):
         """Get samples from ``self._ds`` members. idx should be either a tuple
@@ -295,7 +293,12 @@ class Container(metaclass=Sup3rMeta):
     def __init__(
         self,
         data: Union[
-            Sup3rX, Sup3rDataset, Tuple[Sup3rX, ...], Tuple[Sup3rDataset, ...]
+            Sup3rX,
+            Sup3rDataset,
+            Tuple[Sup3rX, ...],
+            Tuple[Sup3rDataset, ...],
+            Dict[str, Sup3rX],
+            Dict[str, Sup3rDataset],
         ] = None,
     ):
         """
@@ -363,25 +366,19 @@ class Container(metaclass=Sup3rMeta):
         if is_type_of(data, Sup3rDataset):
             return data
 
-        if isinstance(data, tuple) and len(data) == 2:
+        if isinstance(data, dict):
+            data = Sup3rDataset(**data)
+
+        default_names = ['low_res', 'high_res', 'obs']
+        if isinstance(data, tuple) and len(data) > 1:
             msg = (
                 f'{self.__class__.__name__}.data is being set with a '
-                '2-tuple without explicit dataset names. We will assume '
-                'first tuple member is low-res and second is high-res.'
+                f'{len(data)}-tuple without explicit dataset names. We will '
+                f'assume name ordering: {default_names[:len(data)]}'
             )
             logger.warning(msg)
             warn(msg)
-            data = Sup3rDataset(low_res=data[0], high_res=data[1])
-        elif isinstance(data, tuple) and len(data) == 3:
-            msg = (
-                f'{self.__class__.__name__}.data is being set with a '
-                '3-tuple without explicit dataset names. We will assume '
-                'first tuple member is low-res, second is high-res, and third '
-                'is obs'
-            )
-            logger.warning(msg)
-            warn(msg)
-            data = Sup3rDataset(low_res=data[0], high_res=data[1], obs=data[2])
+            data = Sup3rDataset(**dict(zip(default_names, data)))
         elif not isinstance(data, Sup3rDataset):
             name = getattr(data, 'name', None) or 'high_res'
             data = Sup3rDataset(**{name: data})
