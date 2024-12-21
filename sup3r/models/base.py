@@ -14,7 +14,8 @@ import tensorflow as tf
 from sup3r.preprocessing.utilities import get_class_kwargs
 from sup3r.utilities import VERSION_RECORD
 
-from .abstract import AbstractInterface, AbstractSingleModel
+from .abstract import AbstractSingleModel
+from .interface import AbstractInterface
 from .utilities import get_optimizer_class
 
 logger = logging.getLogger(__name__)

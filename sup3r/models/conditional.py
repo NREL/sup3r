@@ -12,7 +12,8 @@ from tensorflow.keras import optimizers
 
 from sup3r.utilities import VERSION_RECORD
 
-from .abstract import AbstractInterface, AbstractSingleModel
+from .abstract import AbstractSingleModel
+from .interface import AbstractInterface
 
 logger = logging.getLogger(__name__)
 
