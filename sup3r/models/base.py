@@ -877,7 +877,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         loss_gen_advers = self.calc_loss_gen_advers(disc_out_gen)
         loss_gen = loss_gen_content + weight_gen_advers * loss_gen_advers
 
-        loss_obs = None
+        loss_obs = np.nan
         if obs_data is not None:
             mask = tf.math.is_nan(obs_data)
             loss_obs = self.loss_fun(obs_data[~mask], hi_res_gen[~mask])

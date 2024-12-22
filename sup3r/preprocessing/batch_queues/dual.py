@@ -2,6 +2,7 @@
 interface with models."""
 
 import logging
+from collections import namedtuple
 
 from scipy.ndimage import gaussian_filter
 
@@ -28,10 +29,10 @@ class DualBatchQueue(AbstractBatchQueue):
     @property
     def queue_shape(self):
         """Shape of objects stored in the queue."""
-        return [
-            (self.batch_size, *self.lr_shape),
-            (self.batch_size, *self.hr_shape),
-        ]
+        queue_shapes = [(self.batch_size, *self.lr_shape)]
+        hr_mems = len(self.Batch._fields) - 1
+        queue_shapes += [(self.batch_size, *self.hr_shape)] * hr_mems
+        return queue_shapes
 
     def check_enhancement_factors(self):
         """Make sure each DualSampler has the same enhancment factors and they
@@ -58,7 +59,7 @@ class DualBatchQueue(AbstractBatchQueue):
         This does not include temporal or spatial coarsening like
         :class:`SingleBatchQueue`
         """
-        low_res, high_res = samples
+        low_res = samples[0]
 
         if smoothing is not None:
             feat_iter = [
@@ -71,4 +72,11 @@ class DualBatchQueue(AbstractBatchQueue):
                     low_res[i, ..., j] = gaussian_filter(
                         low_res[i, ..., j], smoothing, mode='nearest'
                     )
-        return low_res, high_res
+        return low_res, *samples[1:]
+
+
+class DualBatchQueueWithObs(DualBatchQueue):
+    """BatchQueue for use with
+    :class:`~sup3r.preprocessing.samplers.DualSamplerWithObs` objects."""
+
+    Batch = namedtuple('Batch', ['low_res', 'high_res', 'obs'])

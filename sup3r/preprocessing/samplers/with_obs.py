@@ -1,10 +1,14 @@
 """Extended Sampler for sampling observation data in addition to standard
 gridded training data."""
 
+import logging
 from typing import Dict, Optional
 
 from sup3r.preprocessing.base import Sup3rDataset
-from sup3r.preprocessing.samplers.dual import DualSampler
+
+from .dual import DualSampler
+
+logger = logging.getLogger(__name__)
 
 
 class DualSamplerWithObs(DualSampler):
@@ -19,7 +23,7 @@ class DualSamplerWithObs(DualSampler):
         sample_shape: Optional[tuple] = None,
         batch_size: int = 16,
         s_enhance: int = 1,
-        t_enhance: int = 24,
+        t_enhance: int = 1,
         feature_sets: Optional[Dict] = None,
     ):
         """
@@ -27,8 +31,7 @@ class DualSamplerWithObs(DualSampler):
         ----------
         data : Sup3rDataset
             A :class:`~sup3r.preprocessing.base.Sup3rDataset` instance with
-            low-res, high-res, and obs data members. The observation data is on
-            the same grid as the high-res data.
+            low-res and high-res data members
         sample_shape : tuple
             Size of arrays to sample from the high-res data. The sample shape
             for the low-res sampler will be determined from the enhancement
@@ -51,6 +54,22 @@ class DualSamplerWithObs(DualSampler):
                 output from the generative model. An example is high-res
                 topography that is to be injected mid-network.
         """
+
+        msg = (
+            f'{self.__class__.__name__} requires a Sup3rDataset object '
+            'with `.low_res`, `.high_res`, and `.obs` data members, in that '
+            'order'
+        )
+        assert (
+            hasattr(data, 'low_res')
+            and hasattr(data, 'high_res')
+            and hasattr(data, 'obs')
+        ), msg
+        assert (
+            data.low_res == data[0]
+            and data.high_res == data[1]
+            and data.obs == data[2]
+        ), msg
         super().__init__(
             data,
             sample_shape=sample_shape,

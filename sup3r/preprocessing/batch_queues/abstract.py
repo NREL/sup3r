@@ -22,7 +22,11 @@ from sup3r.preprocessing.collections.base import Collection
 from sup3r.utilities.utilities import RANDOM_GENERATOR, Timer
 
 if TYPE_CHECKING:
-    from sup3r.preprocessing.samplers import DualSampler, Sampler
+    from sup3r.preprocessing.samplers import (
+        DualSampler,
+        DualSamplerWithObs,
+        Sampler,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +40,9 @@ class AbstractBatchQueue(Collection, ABC):
 
     def __init__(
         self,
-        samplers: Union[List['Sampler'], List['DualSampler']],
+        samplers: Union[
+            List['Sampler'], List['DualSampler'], List['DualSamplerWithObs']
+        ],
         batch_size: int = 16,
         n_batches: int = 64,
         s_enhance: int = 1,
@@ -183,10 +189,12 @@ class AbstractBatchQueue(Collection, ABC):
         Returns
         -------
         Batch : namedtuple
-             namedtuple with `low_res` and `high_res` attributes
+             namedtuple with `low_res` and `high_res` attributes. Could also
+             include additional members for subclass queues
+             (i.e. ``DualBatchQueueWithObs``)
         """
-        lr, hr = self.transform(samples, **self.transform_kwargs)
-        return self.Batch(low_res=lr, high_res=hr)
+        tsamps = self.transform(samples, **self.transform_kwargs)
+        return self.Batch(**dict(zip(self.Batch._fields, tsamps)))
 
     def start(self) -> None:
         """Start thread to keep sample queue full for batches."""

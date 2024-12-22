@@ -6,7 +6,7 @@ from inspect import signature
 
 import numpy as np
 
-from .abstract import AbstractInterface
+from .interface import AbstractInterface
 from .utilities import st_interp
 
 logger = logging.getLogger(__name__)
