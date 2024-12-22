@@ -11,5 +11,4 @@ from .conditional import (
     QueueMom2SF,
 )
 from .dc import BatchQueueDC, ValBatchQueueDC
-from .dual import DualBatchQueue
-from .with_obs import DualBatchQueueWithObs
+from .dual import DualBatchQueue, DualBatchQueueWithObs

@@ -108,11 +108,11 @@ class DualSampler(Sampler):
             self.lr_data.shape[2] * self.t_enhance,
         )
         msg = (
-            f'hr_data.shape {self.hr_data.shape} and enhanced '
+            f'hr_data.shape {self.hr_data.shape[:-1]} and enhanced '
             f'lr_data.shape {enhanced_shape} are not compatible with '
             'the given enhancement factors'
         )
-        assert self.hr_data.shape[:3] == enhanced_shape, msg
+        assert self.hr_data.shape[:-1] == enhanced_shape, msg
 
     def get_sample_index(self, n_obs=None):
         """Get paired sample index, consisting of index for the low res sample
