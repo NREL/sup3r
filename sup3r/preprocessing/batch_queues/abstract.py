@@ -190,8 +190,8 @@ class AbstractBatchQueue(Collection, ABC):
         -------
         Batch : namedtuple
              namedtuple with `low_res` and `high_res` attributes. Could also
-             include additional members for subclass queues
-             (i.e. ``DualBatchQueueWithObs``)
+             include additional members for integration with
+             ``DualSamplerWithObs``
         """
         tsamps = self.transform(samples, **self.transform_kwargs)
         return self.Batch(**dict(zip(self.Batch._fields, tsamps)))

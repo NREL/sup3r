@@ -21,6 +21,7 @@ class DualBatchQueue(AbstractBatchQueue):
         --------
         :class:`~sup3r.preprocessing.batch_queues.abstract.AbstractBatchQueue`
         """
+        self.Batch = namedtuple('Batch', samplers[0]._fields)
         super().__init__(samplers, **kwargs)
         self.check_enhancement_factors()
 
@@ -73,10 +74,3 @@ class DualBatchQueue(AbstractBatchQueue):
                         low_res[i, ..., j], smoothing, mode='nearest'
                     )
         return low_res, *samples[1:]
-
-
-class DualBatchQueueWithObs(DualBatchQueue):
-    """BatchQueue for use with
-    :class:`~sup3r.preprocessing.samplers.DualSamplerWithObs` objects."""
-
-    Batch = namedtuple('Batch', ['low_res', 'high_res', 'obs'])

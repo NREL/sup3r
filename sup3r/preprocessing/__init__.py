@@ -35,12 +35,7 @@ from .batch_handlers import (
     DualBatchHandler,
     DualBatchHandlerWithObs,
 )
-from .batch_queues import (
-    BatchQueueDC,
-    DualBatchQueue,
-    DualBatchQueueWithObs,
-    SingleBatchQueue,
-)
+from .batch_queues import BatchQueueDC, DualBatchQueue, SingleBatchQueue
 from .cachers import Cacher
 from .collections import Collection, StatsCollection
 from .data_handlers import (

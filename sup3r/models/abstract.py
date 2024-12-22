@@ -23,7 +23,7 @@ from sup3r.preprocessing.utilities import numpy_if_tensor
 from sup3r.utilities import VERSION_RECORD
 from sup3r.utilities.utilities import safe_cast
 
-from .tensorboard import TensorboardMixIn
+from .utilities import TensorboardMixIn
 
 logger = logging.getLogger(__name__)
 
