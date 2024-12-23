@@ -63,10 +63,11 @@ class DualSampler(Sampler):
             'with `.low_res` and `.high_res` data members, and optionally an '
             '`.obs` member, in that order'
         )
-        check = hasattr(data, 'low_res') and hasattr(data, 'high_res')
-        check = check and data.low_res == data[0] and data.high_res == data[1]
-        if len(data) == 2:
-            check = check and (hasattr(data, 'obs') and data.obs == data[2])
+        dnames = ['low_res', 'high_res', 'obs'][:len(data)]
+        check = (
+            hasattr(data, dname) and getattr(data, dname) == data[i]
+            for i, dname in enumerate(dnames)
+        )
         assert check, msg
 
         super().__init__(
@@ -146,7 +147,5 @@ class DualSampler(Sampler):
         ]
         hr_index = (*hr_index, self.hr_features)
 
-        sample_index = (lr_index, hr_index)
-        if hasattr(self.data, 'obs'):
-            sample_index += (hr_index,)
-        return sample_index
+        sample_index = (lr_index, hr_index, hr_index)
+        return sample_index[:len(self.data)]

@@ -116,6 +116,8 @@ class Sup3rDataset:
     from the high_res non coarsened variable.
     """
 
+    DSET_NAMES = ('low_res', 'high_res', 'obs')
+
     def __init__(
         self,
         **dsets: Mapping[str, Union[xr.Dataset, Sup3rX]],
@@ -185,7 +187,7 @@ class Sup3rDataset:
             return data
         if len(data) == 1:
             return type(self)(high_res=data[0])
-        return type(self)(**dict(zip(['low_res', 'high_res', 'obs'], data)))
+        return type(self)(**dict(zip(self.DSET_NAMES, data)))
 
     def sample(self, idx):
         """Get samples from ``self._ds`` members. idx should be either a tuple
@@ -369,16 +371,15 @@ class Container(metaclass=Sup3rMeta):
         if isinstance(data, dict):
             data = Sup3rDataset(**data)
 
-        default_names = ['low_res', 'high_res', 'obs']
         if isinstance(data, tuple) and len(data) > 1:
             msg = (
                 f'{self.__class__.__name__}.data is being set with a '
                 f'{len(data)}-tuple without explicit dataset names. We will '
-                f'assume name ordering: {default_names[:len(data)]}'
+                f'assume name ordering: {Sup3rDataset.DSET_NAMES[:len(data)]}'
             )
             logger.warning(msg)
             warn(msg)
-            data = Sup3rDataset(**dict(zip(default_names, data)))
+            data = Sup3rDataset(**dict(zip(Sup3rDataset.DSET_NAMES, data)))
         elif not isinstance(data, Sup3rDataset):
             name = getattr(data, 'name', None) or 'high_res'
             data = Sup3rDataset(**{name: data})

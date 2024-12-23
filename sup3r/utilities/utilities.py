@@ -26,7 +26,7 @@ def preprocess_datasets(dset):
             dset.indexes['time'], 'to_datetimeindex'
         ):
             dset['time'] = dset.indexes['time'].to_datetimeindex()
-        ti = dset['time'].astype(int)
+        ti = dset['time'].astype('int64')
         dset['time'] = ti
     if 'latitude' in dset.dims:
         dset = dset.swap_dims({'latitude': 'south_north'})
