@@ -76,7 +76,9 @@ class DualRasterizer(Container):
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
         if isinstance(data, tuple):
-            data = Sup3rDataset(low_res=data[0], high_res=data[1])
+            data = {'low_res': data[0], 'high_res': data[1]}
+        if isinstance(data, dict):
+            data = Sup3rDataset(data)
         msg = (
             'The DualRasterizer requires either a data tuple with two '
             'members, low and high resolution in that order, or a '

@@ -33,7 +33,6 @@ from .batch_handlers import (
     BatchHandlerMom2SepSF,
     BatchHandlerMom2SF,
     DualBatchHandler,
-    DualBatchHandlerWithObs,
 )
 from .batch_queues import BatchQueueDC, DualBatchQueue, SingleBatchQueue
 from .cachers import Cacher
@@ -62,7 +61,6 @@ from .rasterizers import (
 from .samplers import (
     DualSampler,
     DualSamplerCC,
-    DualSamplerWithObs,
     Sampler,
     SamplerDC,
 )

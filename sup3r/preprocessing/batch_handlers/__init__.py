@@ -11,5 +11,4 @@ from .factory import (
     BatchHandlerMom2SepSF,
     BatchHandlerMom2SF,
     DualBatchHandler,
-    DualBatchHandlerWithObs,
 )

@@ -4,7 +4,7 @@ TODO:
     (1) Figure out apparent "blocking" issue with threaded enqueue batches.
         max_workers=1 is the fastest?
     (2) Setup distributed data handling so this can work with data distributed
-    over multiple nodes.
+        over multiple nodes.
 """
 
 import logging

@@ -8,4 +8,4 @@ just for special paired datasets. This would be a nice unification.
 from .base import Sampler
 from .cc import DualSamplerCC
 from .dc import SamplerDC
-from .dual import DualSampler, DualSamplerWithObs
+from .dual import DualSampler
