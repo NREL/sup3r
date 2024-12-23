@@ -2,7 +2,7 @@
 datasets"""
 
 import logging
-from typing import Tuple, Union
+from typing import Dict, Tuple, Union
 from warnings import warn
 
 import numpy as np
@@ -38,7 +38,9 @@ class DualRasterizer(Container):
     @log_args
     def __init__(
         self,
-        data: Union[Sup3rDataset, Tuple[xr.Dataset, xr.Dataset]],
+        data: Union[
+            Sup3rDataset, Tuple[xr.Dataset, xr.Dataset], Dict[str, xr.Dataset]
+        ],
         regrid_workers=1,
         regrid_lr=True,
         s_enhance=1,
@@ -51,7 +53,8 @@ class DualRasterizer(Container):
 
         Parameters
         ----------
-        data : Sup3rDataset | Tuple[xr.Dataset, xr.Dataset]
+        data : Sup3rDataset | Tuple[xr.Dataset, xr.Dataset] |
+               Dict[str, xr.Dataset]
             A tuple of xr.Dataset instances. The first must be low-res
             and the second must be high-res data
         regrid_workers : int | None
@@ -78,9 +81,9 @@ class DualRasterizer(Container):
         if isinstance(data, tuple):
             data = {'low_res': data[0], 'high_res': data[1]}
         if isinstance(data, dict):
-            data = Sup3rDataset(data)
+            data = Sup3rDataset(**data)
         msg = (
-            'The DualRasterizer requires either a data tuple with two '
+            'The DualRasterizer requires a data tuple or dictionary with two '
             'members, low and high resolution in that order, or a '
             f'Sup3rDataset instance. Received {type(data)}.'
         )
