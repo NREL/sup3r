@@ -193,7 +193,8 @@ class Rasterizer(BaseRasterizer):
         return self._get_flat_data_lat_lon()
 
     def _get_flat_data_lat_lon(self):
-        """Get lat lon for flattened source data."""
+        """Get lat lon for flattened source data. Output is shape (y, x, 2)
+        where 2 is (lat, lon)"""
         if hasattr(self.full_lat_lon, 'vindex'):
             return self.full_lat_lon.vindex[self.raster_index]
-        return self.full_lat_lon[self.raster_index.flatten]
+        return self.full_lat_lon[self.raster_index]

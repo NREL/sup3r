@@ -384,8 +384,6 @@ class TasMax(Tas):
 class Sza(DerivedFeature):
     """Solar zenith angle derived feature."""
 
-    inputs = ()
-
     @classmethod
     def compute(cls, data):
         """Compute method for sza."""
@@ -402,6 +400,8 @@ RegistryBase = {
     'cloud_mask': CloudMask,
     'clearsky_ratio': ClearSkyRatio,
     'sza': Sza,
+    'latitude_feature': 'latitude',
+    'longitude_feature': 'longitude',
 }
 
 RegistryH5WindCC = {

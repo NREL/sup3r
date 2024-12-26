@@ -34,7 +34,7 @@ class Solar:
         sup3r_fps,
         nsrdb_fp,
         t_slice=slice(None),
-        tz=-6,
+        tz=-7,
         agg_factor=1,
         nn_threshold=0.5,
         cloud_threshold=0.99,
@@ -64,8 +64,8 @@ class Solar:
         tz : int
             The timezone offset for the data in sup3r_fps. It is assumed that
             the GAN is trained on data in local time and therefore the output
-            in sup3r_fps should be treated as local time. For example, -6 is
-            CST which is default for CONUS training data.
+            in sup3r_fps should be treated as local time. For example, -7 is
+            MST which is default for CONUS training data.
         agg_factor : int
             Spatial aggregation factor for nsrdb-to-GAN-meta e.g. the number of
             NSRDB spatial pixels to average for a single sup3r GAN output site.
@@ -585,7 +585,7 @@ class Solar:
         fp_pattern,
         nsrdb_fp,
         fp_out_suffix='irradiance',
-        tz=-6,
+        tz=-7,
         agg_factor=1,
         nn_threshold=0.5,
         cloud_threshold=0.99,
@@ -610,8 +610,8 @@ class Solar:
         tz : int
             The timezone offset for the data in sup3r_fps. It is assumed that
             the GAN is trained on data in local time and therefore the output
-            in sup3r_fps should be treated as local time. For example, -6 is
-            CST which is default for CONUS training data.
+            in sup3r_fps should be treated as local time. For example, -7 is
+            MST which is default for CONUS training data.
         agg_factor : int
             Spatial aggregation factor for nsrdb-to-GAN-meta e.g. the number of
             NSRDB spatial pixels to average for a single sup3r GAN output site.
@@ -663,7 +663,7 @@ class Solar:
         fp_pattern,
         nsrdb_fp,
         fp_out_suffix='irradiance',
-        tz=-6,
+        tz=-7,
         agg_factor=1,
         nn_threshold=0.5,
         cloud_threshold=0.99,
