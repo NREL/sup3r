@@ -11,7 +11,6 @@ integrated into xarray (in progress as of 8/8/2024)
 import logging
 import pprint
 from abc import ABCMeta
-from collections import namedtuple
 from typing import Dict, Mapping, Tuple, Union
 from warnings import warn
 
@@ -68,6 +67,28 @@ class Sup3rMeta(ABCMeta, type):
 
     def __repr__(cls):
         return f"<class '{cls.__module__}.{cls.__name__}'>"
+
+
+class DsetTuple:
+    """A simple class to mimic namedtuple behavior with dynamic attributes
+    while being serializable"""
+
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+
+    def __iter__(self):
+        return iter(self.__dict__.values())
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            key = list(self.__dict__)[key]
+        return self.__dict__[key]
+
+    def __len__(self):
+        return len(self.__dict__)
+
+    def __repr__(self):
+        return f"DsetTuple({self.__dict__})"
 
 
 class Sup3rDataset:
@@ -149,7 +170,7 @@ class Sup3rDataset:
                 assert len(dset) == 1, msg
                 dsets[name] = dset._ds[0]
 
-        self._ds = namedtuple('Dataset', list(dsets))(**dsets)
+        self._ds = DsetTuple(**dsets)
 
     def __iter__(self):
         yield from self._ds

@@ -12,9 +12,9 @@ import threading
 import time
 from abc import ABC, abstractmethod
 from collections import namedtuple
-from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING, List, Optional, Union
 
+import dask
 import numpy as np
 import tensorflow as tf
 
@@ -36,8 +36,7 @@ class AbstractBatchQueue(Collection, ABC):
 
     def __init__(
         self,
-        samplers: Union[
-            List['Sampler'], List['DualSampler']],
+        samplers: Union[List['Sampler'], List['DualSampler']],
         batch_size: int = 16,
         n_batches: int = 64,
         s_enhance: int = 1,
@@ -237,6 +236,24 @@ class AbstractBatchQueue(Collection, ABC):
             and not self.queue.is_closed()
         )
 
+    def sample_batches(self, n_batches) -> None:
+        """Sample N batches from samplers. Returns N batches which are then
+        used to fill the queue."""
+        if n_batches == 1:
+            return [self.sample_batch()]
+
+        tasks = [dask.delayed(self.sample_batch)() for _ in range(n_batches)]
+        logger.debug('Added %s sample_batch futures to %s queue.',
+                     n_batches,
+                     self._thread_name)
+
+        if self.max_workers == 1:
+            batches = dask.compute(*tasks, scheduler='single-threaded')
+        else:
+            batches = dask.compute(
+                *tasks, scheduler='threads', num_workers=self.max_workers)
+        return batches
+
     def enqueue_batches(self) -> None:
         """Callback function for queue thread. While training, the queue is
         checked for empty spots and filled. In the training thread, batches are
@@ -244,16 +261,15 @@ class AbstractBatchQueue(Collection, ABC):
         log_time = time.time()
         while self.running:
             needed = self.queue_cap - self.queue.size().numpy()
-            if needed == 1 or self.max_workers == 1:
-                self.enqueue_batch()
-            elif needed > 0:
-                with ThreadPoolExecutor(self.max_workers) as exe:
-                    _ = [exe.submit(self.enqueue_batch) for _ in range(needed)]
-                logger.debug(
-                    'Added %s enqueue futures to %s queue.',
-                    needed,
-                    self._thread_name,
-                )
+
+            # no point in getting more than one batch at a time if
+            # max_workers == 1
+            needed = 1 if needed > 0 and self.max_workers == 1 else needed
+
+            if needed > 0:
+                for batch in self.sample_batches(n_batches=needed):
+                    self.queue.enqueue(batch)
+
             if time.time() > log_time + 10:
                 logger.debug(self.log_queue_info())
                 log_time = time.time()
@@ -316,11 +332,6 @@ class AbstractBatchQueue(Collection, ABC):
             self.queue.size().numpy(),
             self.queue_cap,
         )
-
-    def enqueue_batch(self):
-        """Build batch and send to queue."""
-        if self.running and self.queue.size().numpy() < self.queue_cap:
-            self.queue.enqueue(self.sample_batch())
 
     @property
     def lr_shape(self):

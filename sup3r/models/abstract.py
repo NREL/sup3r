@@ -684,9 +684,9 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         """
         self.log_loss_details(loss_details)
         self._history.at[epoch, 'elapsed_time'] = time.time() - t0
-        for key, value in loss_details.items():
-            if key != 'n_obs':
-                self._history.at[epoch, key] = value
+        cols = [k for k in loss_details if k != 'n_obs']
+        entry = np.vstack([loss_details[k] for k in cols])
+        self._history.loc[epoch, cols] = entry.T
 
         last_epoch = epoch == epochs[-1]
         chp = checkpoint_int is not None and (epoch % checkpoint_int) == 0
@@ -710,8 +710,8 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
                 self.save(out_dir.format(epoch=epoch))
 
         if extras is not None:
-            for k, v in extras.items():
-                self._history.at[epoch, k] = safe_cast(v)
+            entry = np.vstack([safe_cast(v) for v in extras.values()])
+            self._history.loc[epoch, list(extras)] = entry.T
 
         return stop
 
@@ -744,6 +744,8 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             current loss weight values.
         obs_data : tf.Tensor | None
             Optional observation data to use in additional content loss term.
+            (n_observations, spatial_1, spatial_2, features)
+            (n_observations, spatial_1, spatial_2, temporal, features)
         optimizer : tf.keras.optimizers.Optimizer
             Optimizer class to use to update weights. This can be different if
             you're training just the generator or one of the discriminator
@@ -1054,6 +1056,8 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             current loss weight values.
         obs_data : tf.Tensor | None
             Optional observation data to use in additional content loss term.
+            (n_observations, spatial_1, spatial_2, features)
+            (n_observations, spatial_1, spatial_2, temporal, features)
         device_name : None | str
             Optional tensorflow device name for GPU placement. Note that if a
             GPU is available, variables will be placed on that GPU even if

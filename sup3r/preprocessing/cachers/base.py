@@ -330,6 +330,7 @@ class Cacher(Container):
             ]
 
             if Dimension.TIME in data:
+                # int64 used explicity to avoid incorrect encoding as int32
                 data[Dimension.TIME] = data[Dimension.TIME].astype('int64')
 
             for dset in [*coord_names, *features]:
