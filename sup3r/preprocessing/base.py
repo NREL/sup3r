@@ -74,21 +74,27 @@ class DsetTuple:
     while being serializable"""
 
     def __init__(self, **kwargs):
+        self.dset_names = list(kwargs)
         self.__dict__.update(kwargs)
 
+    @property
+    def dsets(self):
+        """Dictionary with only dset names and associated values."""
+        return {k: v for k, v in self.__dict__.items() if k in self.dset_names}
+
     def __iter__(self):
-        return iter(self.__dict__.values())
+        return iter(self.dsets.values())
 
     def __getitem__(self, key):
         if isinstance(key, int):
-            key = list(self.__dict__)[key]
-        return self.__dict__[key]
+            key = list(self.dsets)[key]
+        return self.dsets[key]
 
     def __len__(self):
-        return len(self.__dict__)
+        return len(self.dsets)
 
     def __repr__(self):
-        return f"DsetTuple({self.__dict__})"
+        return f'DsetTuple({self.dsets})'
 
 
 class Sup3rDataset:
@@ -237,7 +243,7 @@ class Sup3rDataset:
         if len(self._ds) == 1:
             return out[-1]
         if all(isinstance(o, Sup3rX) for o in out):
-            return type(self)(**dict(zip(self._ds._fields, out)))
+            return type(self)(**dict(zip(self._ds.dset_names, out)))
         return out
 
     @property

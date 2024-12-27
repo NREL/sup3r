@@ -20,7 +20,7 @@ class DualBatchQueue(AbstractBatchQueue):
         --------
         :class:`~sup3r.preprocessing.batch_queues.abstract.AbstractBatchQueue`
         """
-        self.BATCH_MEMBERS = samplers[0]._fields
+        self.BATCH_MEMBERS = samplers[0].dset_names
         super().__init__(samplers, **kwargs)
         self.check_enhancement_factors()
 
@@ -30,7 +30,7 @@ class DualBatchQueue(AbstractBatchQueue):
     def queue_shape(self):
         """Shape of objects stored in the queue."""
         queue_shapes = [(self.batch_size, *self.lr_shape)]
-        hr_mems = len(self.Batch._fields) - 1
+        hr_mems = len(self.BATCH_MEMBERS) - 1
         queue_shapes += [(self.batch_size, *self.hr_shape)] * hr_mems
         return queue_shapes
 
