@@ -265,26 +265,26 @@ def BatchHandlerFactory(
             """Initialize samplers from given data containers."""
             train_samplers = [
                 self.SAMPLER(
-                    data=c.data,
+                    data=container,
                     sample_shape=sample_shape,
                     feature_sets=feature_sets,
                     batch_size=batch_size,
                     **sampler_kwargs,
                 )
-                for c in train_containers
+                for container in train_containers
             ]
             val_samplers = (
                 []
                 if val_containers is None
                 else [
                     self.SAMPLER(
-                        data=c.data,
+                        data=container,
                         sample_shape=sample_shape,
                         feature_sets=feature_sets,
                         batch_size=batch_size,
                         **sampler_kwargs,
                     )
-                    for c in val_containers
+                    for container in val_containers
                 ]
             )
             return train_samplers, val_samplers

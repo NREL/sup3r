@@ -386,6 +386,9 @@ class Container(metaclass=Sup3rMeta):
         if data is None:
             return data
 
+        if hasattr(data, 'data'):
+            data = data.data
+
         if is_type_of(data, Sup3rDataset):
             return data
 

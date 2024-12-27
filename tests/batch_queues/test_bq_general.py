@@ -12,6 +12,7 @@ from sup3r.utilities.pytest.helpers import (
     DummyData,
     DummySampler,
 )
+from sup3r.utilities.utilities import Timer
 
 FEATURES = ['windspeed', 'winddirection']
 
@@ -51,6 +52,55 @@ def test_batch_queue():
         assert b.low_res.shape == (4, 4, 4, 5, len(FEATURES))
         assert b.high_res.shape == (4, 8, 8, 10, len(FEATURES))
     batcher.stop()
+
+
+def test_batch_queue_workers():
+    """Check that using max_workers > 1 for a batch queue is faster than using
+    max_workers = 1."""
+
+    timer = Timer()
+    sample_shape = (10, 10, 20)
+    n_batches = 20
+    batch_size = 10
+    max_workers = 10
+    n_epochs = 10
+    chunk_shape = {'south_north': 20, 'west_east': 20, 'time': 40}
+    samplers = [
+        DummySampler(
+            sample_shape,
+            data_shape=(100, 100, 1000),
+            batch_size=batch_size,
+            features=FEATURES,
+            chunk_shape=chunk_shape
+        )
+    ]
+    batcher = SingleBatchQueue(
+        samplers=samplers,
+        n_batches=n_batches,
+        batch_size=batch_size,
+        max_workers=1,
+    )
+    timer.start()
+    for _ in range(n_epochs):
+        _ = list(batcher)
+    timer.stop()
+    batcher.stop()
+    serial_time = timer.elapsed / (n_epochs * n_batches)
+
+    batcher = SingleBatchQueue(
+        samplers=samplers,
+        n_batches=n_batches,
+        batch_size=batch_size,
+        max_workers=max_workers,
+    )
+    timer.start()
+    for _ in range(n_epochs):
+        _ = list(batcher)
+    timer.stop()
+    batcher.stop()
+    parallel_time = timer.elapsed / (n_epochs * n_batches)
+    print(f'Parallel / Serial Time: {parallel_time} / {serial_time}')
+    assert parallel_time < serial_time
 
 
 def test_spatial_batch_queue():

@@ -11,13 +11,13 @@ import logging
 import threading
 import time
 from abc import ABC, abstractmethod
-from collections import namedtuple
 from typing import TYPE_CHECKING, List, Optional, Union
 
 import dask
 import numpy as np
 import tensorflow as tf
 
+from sup3r.preprocessing.base import DsetTuple
 from sup3r.preprocessing.collections.base import Collection
 from sup3r.utilities.utilities import RANDOM_GENERATOR, Timer
 
@@ -32,7 +32,7 @@ class AbstractBatchQueue(Collection, ABC):
     generator and maintains a queue of batches in a dedicated thread so the
     training routine can proceed as soon as batches are available."""
 
-    Batch = namedtuple('Batch', ['low_res', 'high_res'])
+    BATCH_MEMBERS = ('low_res', 'high_res')
 
     def __init__(
         self,
@@ -46,6 +46,7 @@ class AbstractBatchQueue(Collection, ABC):
         max_workers: int = 1,
         thread_name: str = 'training',
         mode: str = 'lazy',
+        verbose: bool = False
     ):
         """
         Parameters
@@ -77,6 +78,8 @@ class AbstractBatchQueue(Collection, ABC):
             Loading mode. Default is 'lazy', which only loads data into memory
             as batches are queued. 'eager' will load all data into memory right
             away.
+        verbose : bool
+            Whether to log timing information for batch steps.
         """
         msg = (
             f'{self.__class__.__name__} requires a list of samplers. '
@@ -101,6 +104,7 @@ class AbstractBatchQueue(Collection, ABC):
             'smoothing_ignore': [],
             'smoothing': None,
         }
+        self.verbose = verbose
         self.timer = Timer()
         self.preflight()
 
@@ -174,7 +178,7 @@ class AbstractBatchQueue(Collection, ABC):
         high res samples. For a dual dataset queue this will just include
         smoothing."""
 
-    def post_proc(self, samples) -> Batch:
+    def post_proc(self, samples) -> DsetTuple:
         """Performs some post proc on dequeued samples before sending out for
         training. Post processing can include coarsening on high-res data (if
         :class:`Collection` consists of :class:`Sampler` objects and not
@@ -182,13 +186,12 @@ class AbstractBatchQueue(Collection, ABC):
 
         Returns
         -------
-        Batch : namedtuple
-             namedtuple with `low_res` and `high_res` attributes. Could also
-             include additional members for integration with
-             ``DualSamplerWithObs``
+        Batch : DsetTuple
+             namedtuple-like object with `low_res` and `high_res` attributes.
+             Could also include `obs` member.
         """
         tsamps = self.transform(samples, **self.transform_kwargs)
-        return self.Batch(**dict(zip(self.Batch._fields, tsamps)))
+        return DsetTuple(**dict(zip(self.BATCH_MEMBERS, tsamps)))
 
     def start(self) -> None:
         """Start thread to keep sample queue full for batches."""
@@ -216,7 +219,7 @@ class AbstractBatchQueue(Collection, ABC):
         self.start()
         return self
 
-    def get_batch(self) -> Batch:
+    def get_batch(self) -> DsetTuple:
         """Get batch from queue or directly from a ``Sampler`` through
         ``sample_batch``."""
         if (
@@ -274,10 +277,10 @@ class AbstractBatchQueue(Collection, ABC):
                 logger.debug(self.log_queue_info())
                 log_time = time.time()
 
-    def __next__(self) -> Batch:
+    def __next__(self) -> DsetTuple:
         """Dequeue batch samples, squeeze if for a spatial only model, perform
         some post-proc like smoothing, coarsening, etc, and then send out for
-        training as a namedtuple of low_res / high_res arrays.
+        training as a namedtuple-like object of low_res / high_res arrays.
 
         Returns
         -------
@@ -295,11 +298,12 @@ class AbstractBatchQueue(Collection, ABC):
             batch = self.post_proc(samples)
             self.timer.stop()
             self._batch_count += 1
-            logger.debug(
-                'Batch step %s finished in %s.',
-                self._batch_count,
-                self.timer.elapsed_str,
-            )
+            if self.verbose:
+                logger.debug(
+                    'Batch step %s finished in %s.',
+                    self._batch_count,
+                    self.timer.elapsed_str,
+                )
         else:
             raise StopIteration
         return batch
