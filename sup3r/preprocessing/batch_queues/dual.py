@@ -2,7 +2,6 @@
 interface with models."""
 
 import logging
-from collections import namedtuple
 
 from scipy.ndimage import gaussian_filter
 
@@ -21,7 +20,7 @@ class DualBatchQueue(AbstractBatchQueue):
         --------
         :class:`~sup3r.preprocessing.batch_queues.abstract.AbstractBatchQueue`
         """
-        self.Batch = namedtuple('Batch', samplers[0]._fields)
+        self.BATCH_MEMBERS = samplers[0]._fields
         super().__init__(samplers, **kwargs)
         self.check_enhancement_factors()
 
