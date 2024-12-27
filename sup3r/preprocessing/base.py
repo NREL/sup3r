@@ -428,6 +428,9 @@ class Container(metaclass=Sup3rMeta):
         """Get shape of underlying data."""
         return self.data.shape
 
+    def __len__(self):
+        return len(self.data)
+
     def __contains__(self, vals):
         return vals in self.data
 
