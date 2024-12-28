@@ -144,7 +144,8 @@ class DualSampler(Sampler):
             slice(s.start * self.t_enhance, s.stop * self.t_enhance)
             for s in lr_index[2:-1]
         ]
+        obs_index = (*hr_index, self.hr_out_features)
         hr_index = (*hr_index, self.hr_features)
 
-        sample_index = (lr_index, hr_index, hr_index)
+        sample_index = (lr_index, hr_index, obs_index)
         return sample_index[:len(self.data)]

@@ -451,8 +451,6 @@ class Container(metaclass=Sup3rMeta):
 
     def __getattr__(self, attr):
         """Check if attribute is available from ``.data``"""
-        if attr in dir(self):
-            return self.__getattribute__(attr)
         try:
             data = self.__getattribute__('_data')
             return getattr(data, attr)
