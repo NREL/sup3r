@@ -11,9 +11,9 @@ import logging
 import threading
 import time
 from abc import ABC, abstractmethod
+from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING, List, Optional, Union
 
-import dask
 import numpy as np
 import tensorflow as tf
 
@@ -46,7 +46,7 @@ class AbstractBatchQueue(Collection, ABC):
         max_workers: int = 1,
         thread_name: str = 'training',
         mode: str = 'lazy',
-        verbose: bool = False
+        verbose: bool = False,
     ):
         """
         Parameters
@@ -91,6 +91,7 @@ class AbstractBatchQueue(Collection, ABC):
         self._queue_thread = None
         self._training_flag = threading.Event()
         self._thread_name = thread_name
+        self._thread_pool = ThreadPoolExecutor(max_workers=max_workers)
         self.mode = mode
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
@@ -114,6 +115,22 @@ class AbstractBatchQueue(Collection, ABC):
         """Shape of objects stored in the queue. e.g. for single dataset queues
         this is (batch_size, *sample_shape, len(features)). For dual dataset
         queues this is [(batch_size, *lr_shape), (batch_size, *hr_shape)]"""
+
+    @property
+    def queue_len(self):
+        """Get number of batches in the queue."""
+        return self.queue.size().numpy()
+
+    @property
+    def queue_futures(self):
+        """Get number of scheduled futures that will eventually add batches to
+        the queue."""
+        return self._thread_pool._work_queue.qsize()
+
+    @property
+    def queue_free(self):
+        """Get number of free spots in the queue."""
+        return self.queue_cap - self.queue_len
 
     def get_queue(self):
         """Return FIFO queue for storing batches."""
@@ -222,13 +239,9 @@ class AbstractBatchQueue(Collection, ABC):
     def get_batch(self) -> DsetTuple:
         """Get batch from queue or directly from a ``Sampler`` through
         ``sample_batch``."""
-        if (
-            self.mode == 'eager'
-            or self.queue_cap == 0
-            or self.queue.size().numpy() == 0
-        ):
-            return self.sample_batch()
-        return self.queue.dequeue()
+        if self.queue_len > 0 or self.queue_futures > 0:
+            return self.queue.dequeue()
+        return self.sample_batch()
 
     @property
     def running(self):
@@ -245,17 +258,19 @@ class AbstractBatchQueue(Collection, ABC):
         if n_batches == 1:
             return [self.sample_batch()]
 
-        tasks = [dask.delayed(self.sample_batch)() for _ in range(n_batches)]
-        logger.debug('Added %s sample_batch futures to %s queue.',
-                     n_batches,
-                     self._thread_name)
-
         if self.max_workers == 1:
-            batches = dask.compute(*tasks, scheduler='single-threaded')
-        else:
-            batches = dask.compute(
-                *tasks, scheduler='threads', num_workers=self.max_workers)
-        return batches
+            return [self.sample_batch() for _ in range(n_batches)]
+
+        tasks = [
+            self._thread_pool.submit(self.sample_batch)
+            for _ in range(n_batches)
+        ]
+        logger.debug(
+            'Added %s sample_batch futures to %s queue.',
+            n_batches,
+            self._thread_name,
+        )
+        return [task.result() for task in tasks]
 
     def enqueue_batches(self) -> None:
         """Callback function for queue thread. While training, the queue is
@@ -263,8 +278,10 @@ class AbstractBatchQueue(Collection, ABC):
         removed from the queue."""
         log_time = time.time()
         while self.running:
-            needed = self.queue_cap - self.queue.size().numpy()
-
+            needed = min(
+                self.queue_free - self.queue_futures,
+                self.n_batches - self._batch_count
+            )
             # no point in getting more than one batch at a time if
             # max_workers == 1
             needed = 1 if needed > 0 and self.max_workers == 1 else needed
@@ -331,10 +348,11 @@ class AbstractBatchQueue(Collection, ABC):
 
     def log_queue_info(self):
         """Log info about queue size."""
-        return '{} queue length: {} / {}.'.format(
+        return '{} queue length: {} / {}, with {} futures'.format(
             self._thread_name.title(),
-            self.queue.size().numpy(),
+            self.queue_len,
             self.queue_cap,
+            self.queue_futures
         )
 
     @property

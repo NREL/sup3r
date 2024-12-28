@@ -2,8 +2,11 @@
 
 import copy
 
+import dask.array as da
 import numpy as np
+import pandas as pd
 import pytest
+import xarray as xr
 from scipy.ndimage import gaussian_filter
 
 from sup3r.preprocessing import (
@@ -17,6 +20,7 @@ from sup3r.utilities.pytest.helpers import (
 )
 from sup3r.utilities.utilities import (
     RANDOM_GENERATOR,
+    Timer,
     spatial_coarsening,
     temporal_coarsening,
 )
@@ -27,6 +31,78 @@ stds = dict.fromkeys(FEATURES, 1)
 
 
 BatchHandlerTester = BatchHandlerTesterFactory(BatchHandler, SamplerTester)
+
+
+def test_batch_handler_workers():
+    """Check that it is faster to get batches with max_workers > 1 than with
+    max_workers = 1."""
+
+    timer = Timer()
+    n_lats = 200
+    n_lons = 200
+    sample_shape = (20, 20, 30)
+    chunk_shape = (
+        2 * sample_shape[0],
+        2 * sample_shape[1],
+        2 * sample_shape[-1],
+    )
+    n_obs = 40
+    max_workers = 5
+    n_batches = 40
+
+    lons, lats = np.meshgrid(
+        np.linspace(0, 180, n_lats), np.linspace(40, 60, n_lons)
+    )
+    time = pd.date_range('2023-01-01', '2023-05-01', freq='h')
+    u_arr = da.random.random((*lats.shape, len(time)))
+    v_arr = da.random.random((*lats.shape, len(time)))
+    ds = xr.Dataset(
+        coords={
+            'latitude': (('south_north', 'west_east'), lats),
+            'longitude': (('south_north', 'west_east'), lons),
+            'time': time,
+        },
+        data_vars={
+            'u_100m': (('south_north', 'west_east', 'time'), u_arr),
+            'v_100m': (('south_north', 'west_east', 'time'), v_arr),
+        },
+    )
+    ds = ds.chunk(dict(zip(['south_north', 'west_east', 'time'], chunk_shape)))
+
+    batcher = BatchHandler(
+        [ds],
+        n_batches=n_batches,
+        batch_size=n_obs,
+        sample_shape=sample_shape,
+        max_workers=max_workers,
+    )
+    timer.start()
+    for _ in range(10):
+        _ = list(batcher)
+    timer.stop()
+    parallel_time = timer.elapsed / (n_batches * 10)
+    batcher.stop()
+
+    batcher = BatchHandler(
+        [ds],
+        n_batches=n_batches,
+        batch_size=n_obs,
+        sample_shape=sample_shape,
+        max_workers=1,
+    )
+    timer.start()
+    for _ in range(10):
+        _ = list(batcher)
+    timer.stop()
+    serial_time = timer.elapsed / (n_batches * 10)
+    batcher.stop()
+
+    print(
+        'Elapsed (serial / parallel): {} / {}'.format(
+            serial_time, parallel_time
+        )
+    )
+    assert serial_time > parallel_time
 
 
 def test_eager_vs_lazy():

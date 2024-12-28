@@ -10,6 +10,7 @@ from warnings import warn
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+from tensorflow.keras.losses import MeanAbsoluteError
 
 from sup3r.preprocessing.utilities import get_class_kwargs
 from sup3r.utilities import VERSION_RECORD
@@ -880,7 +881,9 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         loss_obs = np.nan
         if obs_data is not None:
             mask = tf.math.is_nan(obs_data)
-            loss_obs = self.loss_fun(obs_data[~mask], hi_res_gen[~mask])
+            loss_obs = MeanAbsoluteError()(
+                obs_data[~mask],
+                hi_res_gen[..., : len(self.hr_out_features)][~mask])
             loss_gen += loss_obs
 
         loss_disc = self.calc_loss_disc(disc_out_true, disc_out_gen)
