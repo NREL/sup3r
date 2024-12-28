@@ -194,10 +194,11 @@ class Sampler(Container):
             new_shape[2] // self.batch_size,
             new_shape[-1],
         ]
+        out = compute_if_dask(samples)
         # (lats, lons, batch_size, times, feats)
-        out = np.reshape(samples, new_shape)
+        out = np.reshape(out, new_shape)
         # (batch_size, lats, lons, times, feats)
-        return compute_if_dask(np.transpose(out, axes=(2, 0, 1, 3, 4)))
+        return np.transpose(out, axes=(2, 0, 1, 3, 4))
 
     def _stack_samples(self, samples):
         """Used to build batch arrays in the case of independent time samples
