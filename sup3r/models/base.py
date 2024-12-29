@@ -10,7 +10,6 @@ from warnings import warn
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from tensorflow.keras.losses import MeanAbsoluteError
 
 from sup3r.preprocessing.utilities import get_class_kwargs
 from sup3r.utilities import VERSION_RECORD
@@ -824,7 +823,6 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         self,
         hi_res_true,
         hi_res_gen,
-        obs_data=None,
         weight_gen_advers=0.001,
         train_gen=True,
         train_disc=False,
@@ -877,15 +875,6 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         loss_gen_content = self.calc_loss_gen_content(hi_res_true, hi_res_gen)
         loss_gen_advers = self.calc_loss_gen_advers(disc_out_gen)
         loss_gen = loss_gen_content + weight_gen_advers * loss_gen_advers
-
-        loss_obs = np.nan
-        if obs_data is not None:
-            mask = tf.math.is_nan(obs_data)
-            loss_obs = MeanAbsoluteError()(
-                obs_data[~mask],
-                hi_res_gen[..., : len(self.hr_out_features)][~mask])
-            loss_gen += loss_obs
-
         loss_disc = self.calc_loss_disc(disc_out_true, disc_out_gen)
 
         loss = None
@@ -896,7 +885,6 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
 
         loss_details = {
             'loss_gen': loss_gen,
-            'loss_obs': loss_obs,
             'loss_gen_content': loss_gen_content,
             'loss_gen_advers': loss_gen_advers,
             'loss_disc': loss_disc,
@@ -930,11 +918,15 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             _, v_loss_details = self.calc_loss(
                 val_batch.high_res,
                 high_res_gen,
-                obs_data=getattr(val_batch, 'obs', None),
                 weight_gen_advers=weight_gen_advers,
                 train_gen=False,
                 train_disc=False,
             )
+            obs_data = getattr(val_batch, 'obs', None)
+            if obs_data is not None:
+                v_loss_details['loss_obs'] = self.cal_loss_obs(
+                    obs_data, high_res_gen
+                )
 
             loss_details = self.update_loss_details(
                 loss_details, v_loss_details, len(val_batch), prefix='val_'
