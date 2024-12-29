@@ -276,7 +276,7 @@ class AbstractBatchQueue(Collection, ABC):
     def needed_batches(self):
         """Number of batches needed to either fill or the queue or hit the
         epoch limit."""
-        remaining = self.n_batches - self._batch_count - self.queue_len - 1
+        remaining = self.n_batches - self._batch_count - self.queue_len
         return min(self.queue_cap - self.queue_len, remaining)
 
     def enqueue_batches(self) -> None:
@@ -314,7 +314,6 @@ class AbstractBatchQueue(Collection, ABC):
         if self._batch_count < self.n_batches:
             self.timer.start()
             samples = self.get_batch()
-            self._batch_count += 1
             if self.sample_shape[2] == 1:
                 if isinstance(samples, (list, tuple)):
                     samples = tuple(s[..., 0, :] for s in samples)
@@ -322,6 +321,7 @@ class AbstractBatchQueue(Collection, ABC):
                     samples = samples[..., 0, :]
             batch = self.post_proc(samples)
             self.timer.stop()
+            self._batch_count += 1
             if self.verbose:
                 logger.debug(
                     'Batch step %s finished in %s.',
