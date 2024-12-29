@@ -228,6 +228,8 @@ def compute_if_dask(arr):
             compute_if_dask(arr.stop),
             compute_if_dask(arr.step),
         )
+    if isinstance(arr, (tuple, list)):
+        return type(arr)(compute_if_dask(a) for a in arr)
     return arr.compute() if hasattr(arr, 'compute') else arr
 
 
