@@ -18,6 +18,7 @@ from phygnn import CustomNetwork
 from phygnn.layers.custom_layers import Sup3rAdder, Sup3rConcat
 from rex.utilities.utilities import safe_json_load
 from tensorflow.keras import optimizers
+from tensorflow.keras.losses import MeanAbsoluteError
 
 import sup3r.utilities.loss_metrics
 from sup3r.preprocessing.data_handlers import ExoData
@@ -782,6 +783,69 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
 
         return stop
 
+    def _get_parallel_grad(
+        self,
+        low_res,
+        hi_res_true,
+        training_weights,
+        obs_data=None,
+        **calc_loss_kwargs,
+    ):
+        """Compute gradient for one mini-batch of (low_res, hi_res_true)
+        across multiple GPUs"""
+
+        futures = []
+        lr_chunks = np.array_split(low_res, len(self.gpu_list))
+        hr_true_chunks = np.array_split(hi_res_true, len(self.gpu_list))
+        obs_data_chunks = (
+            [None] * len(hr_true_chunks)
+            if obs_data is None
+            else np.array_split(obs_data, len(self.gpu_list))
+        )
+        split_mask = False
+        mask_chunks = None
+        if 'mask' in calc_loss_kwargs:
+            split_mask = True
+            mask_chunks = np.array_split(
+                calc_loss_kwargs['mask'], len(self.gpu_list)
+            )
+
+        with ThreadPoolExecutor(max_workers=len(self.gpu_list)) as exe:
+            for i in range(len(self.gpu_list)):
+                if split_mask:
+                    calc_loss_kwargs['mask'] = mask_chunks[i]
+                futures.append(
+                    exe.submit(
+                        self.get_single_grad,
+                        lr_chunks[i],
+                        hr_true_chunks[i],
+                        training_weights,
+                        obs_data=obs_data_chunks[i],
+                        device_name=f'/gpu:{i}',
+                        **calc_loss_kwargs,
+                    )
+                )
+
+        # sum the gradients from each gpu to weight equally in
+        # optimizer momentum calculation
+        total_grad = None
+        for future in futures:
+            grad, loss_details = future.result()
+            if total_grad is None:
+                total_grad = grad
+            else:
+                for i, igrad in enumerate(grad):
+                    total_grad[i] += igrad
+
+        self.timer.stop()
+        logger.debug(
+            'Finished %s gradient descent steps on %s GPUs in %s',
+            len(futures),
+            len(self.gpu_list),
+            self.timer.elapsed_str,
+        )
+        return total_grad, loss_details
+
     def run_gradient_descent(
         self,
         low_res,
@@ -792,7 +856,6 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         multi_gpu=False,
         **calc_loss_kwargs,
     ):
-        # pylint: disable=E0602
         """Run gradient descent for one mini-batch of (low_res, hi_res_true)
         and update weights
 
@@ -832,6 +895,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         loss_details : dict
             Namespace of the breakdown of loss components
         """
+
         self.timer.start()
         if optimizer is None:
             optimizer = self.optimizer
@@ -852,58 +916,15 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
                 self.timer.elapsed_str,
             )
         else:
-            futures = []
-            lr_chunks = np.array_split(low_res, len(self.gpu_list))
-            hr_true_chunks = np.array_split(hi_res_true, len(self.gpu_list))
-            obs_data_chunks = (
-                [None] * len(hr_true_chunks)
-                if obs_data is None
-                else np.array_split(obs_data, len(self.gpu_list))
+            total_grad, loss_details = self._get_parallel_grad(
+                low_res,
+                hi_res_true,
+                training_weights,
+                obs_data,
+                **calc_loss_kwargs,
             )
-            split_mask = False
-            mask_chunks = None
-            if 'mask' in calc_loss_kwargs:
-                split_mask = True
-                mask_chunks = np.array_split(
-                    calc_loss_kwargs['mask'], len(self.gpu_list)
-                )
-
-            with ThreadPoolExecutor(max_workers=len(self.gpu_list)) as exe:
-                for i in range(len(self.gpu_list)):
-                    if split_mask:
-                        calc_loss_kwargs['mask'] = mask_chunks[i]
-                    futures.append(
-                        exe.submit(
-                            self.get_single_grad,
-                            lr_chunks[i],
-                            hr_true_chunks[i],
-                            training_weights,
-                            obs_data=obs_data_chunks[i],
-                            device_name=f'/gpu:{i}',
-                            **calc_loss_kwargs,
-                        )
-                    )
-
-            # sum the gradients from each gpu to weight equally in
-            # optimizer momentum calculation
-            total_grad = None
-            for future in futures:
-                grad, loss_details = future.result()
-                if total_grad is None:
-                    total_grad = grad
-                else:
-                    for i, igrad in enumerate(grad):
-                        total_grad[i] += igrad
-
             optimizer.apply_gradients(zip(total_grad, training_weights))
 
-            self.timer.stop()
-            logger.debug(
-                'Finished %s gradient descent steps on %s GPUs in %s',
-                len(futures),
-                len(self.gpu_list),
-                self.timer.elapsed_str,
-            )
         return loss_details
 
     def _reshape_norm_exo(self, hi_res, hi_res_exo, exo_name, norm_in=True):
@@ -1148,9 +1169,13 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             hi_res_exo = self.get_hr_exo_input(hi_res_true)
             hi_res_gen = self._tf_generate(low_res, hi_res_exo)
             loss_out = self.calc_loss(
-                hi_res_true, hi_res_gen, obs_data=obs_data, **calc_loss_kwargs
+                hi_res_true, hi_res_gen, **calc_loss_kwargs
             )
             loss, loss_details = loss_out
+            if obs_data is not None:
+                loss_obs = self.calc_loss_obs(obs_data, hi_res_gen)
+                loss += loss_obs
+                loss_details['loss_obs'] = loss_obs
             grad = tape.gradient(loss, training_weights)
         return grad, loss_details
 
@@ -1159,36 +1184,33 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         self,
         hi_res_true,
         hi_res_gen,
-        obs_data=None,
         weight_gen_advers=0.001,
         train_gen=True,
         train_disc=False,
     ):
         """Calculate the GAN loss function using generated and true high
-        resolution data.
+        resolution data."""
+
+    @tf.function
+    def calc_loss_obs(self, obs_data, hi_res_gen):
+        """Calculate loss term for the observation data vs generated
+        high-resolution data
 
         Parameters
         ----------
-        hi_res_true : tf.Tensor
-            Ground truth high resolution spatiotemporal data.
+        obs_data : tf.Tensor | None
+            Optional observation data to use in additional content loss term.
         hi_res_gen : tf.Tensor
             Superresolved high resolution spatiotemporal data generated by the
             generative model.
-        obs_data : tf.Tensor | None
-            Optional observation data to use in additional content loss term.
-        weight_gen_advers : float
-            Weight factor for the adversarial loss component of the generator
-            vs. the discriminator.
-        train_gen : bool
-            True if generator is being trained, then loss=loss_gen
-        train_disc : bool
-            True if disc is being trained, then loss=loss_disc
 
         Returns
         -------
         loss : tf.Tensor
-            0D tensor representing the loss value for the network being trained
-            (either generator or one of the discriminators)
-        loss_details : dict
-            Namespace of the breakdown of loss components
+            0D tensor of observation loss
         """
+        mask = tf.math.is_nan(obs_data)
+        return MeanAbsoluteError()(
+            obs_data[~mask],
+            hi_res_gen[..., : len(self.hr_out_features)][~mask],
+        )

@@ -10,7 +10,6 @@ from warnings import warn
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from tensorflow.keras.losses import MeanAbsoluteError
 
 from sup3r.preprocessing.utilities import get_class_kwargs
 from sup3r.utilities import VERSION_RECORD

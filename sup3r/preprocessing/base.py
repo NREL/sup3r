@@ -379,7 +379,7 @@ class Container(metaclass=Sup3rMeta):
     def wrap(self, data):
         """
         Return a :class:`~.Sup3rDataset` object or tuple of such. This is a
-        tuple when the `.data` attribute belongs to a
+        tuple when the ``.data`` attribute belongs to a
         :class:`~.collections.base.Collection` object like
         :class:`~.batch_handlers.factory.BatchHandler`. Otherwise this is
         :class:`~.Sup3rDataset` object, which is either a wrapped 3-tuple,
@@ -452,8 +452,7 @@ class Container(metaclass=Sup3rMeta):
     def __getattr__(self, attr):
         """Check if attribute is available from ``.data``"""
         try:
-            data = self.__getattribute__('_data')
-            return getattr(data, attr)
+            return getattr(self._data, attr)
         except Exception as e:
             msg = f'{self.__class__.__name__} object has no attribute "{attr}"'
             raise AttributeError(msg) from e
