@@ -539,6 +539,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
 
             if key in loss_details:
                 saved_value = loss_details[key]
+                saved_value = 0 if np.isnan(saved_value) else saved_value
                 saved_value *= prior_n_obs
                 saved_value += batch_len * new_value
                 saved_value /= new_n_obs

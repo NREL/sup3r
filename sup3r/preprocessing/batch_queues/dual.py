@@ -28,11 +28,19 @@ class DualBatchQueue(AbstractBatchQueue):
 
     @property
     def queue_shape(self):
-        """Shape of objects stored in the queue."""
-        queue_shapes = [(self.batch_size, *self.lr_shape)]
-        hr_mems = len(self.BATCH_MEMBERS) - 1
-        queue_shapes += [(self.batch_size, *self.hr_shape)] * hr_mems
-        return queue_shapes
+        """Shape of objects stored in the queue. Optionally includes shape of
+        observation data which would be included in an extra content loss
+        term"""
+        obs_shape = (
+            *self.hr_shape[:-1],
+            len(self.containers[0].hr_out_features),
+        )
+        queue_shapes = [
+            (self.batch_size, *self.lr_shape),
+            (self.batch_size, *self.hr_shape),
+            (self.batch_size, *obs_shape),
+        ]
+        return queue_shapes[: len(self.BATCH_MEMBERS)]
 
     def check_enhancement_factors(self):
         """Make sure each DualSampler has the same enhancment factors and they

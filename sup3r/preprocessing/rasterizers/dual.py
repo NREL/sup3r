@@ -43,6 +43,7 @@ class DualRasterizer(Container):
         ],
         regrid_workers=1,
         regrid_lr=True,
+        run_qa=False,
         s_enhance=1,
         t_enhance=1,
         lr_cache_kwargs=None,
@@ -63,6 +64,9 @@ class DualRasterizer(Container):
             Flag to regrid the low-res data to the high-res grid. This will
             take care of any minor inconsistencies in different projections.
             Disable this if the grids are known to be the same.
+        run_qa : bool
+            Flag to run qa on the regridded low-res data. This will check for
+            NaNs and fill them if there are not too many.
         s_enhance : int
             Spatial enhancement factor
         t_enhance : int
@@ -135,7 +139,8 @@ class DualRasterizer(Container):
         self.update_hr_data()
         super().__init__(data=(self.lr_data, self.hr_data))
 
-        self.check_regridded_lr_data()
+        if run_qa:
+            self.check_regridded_lr_data()
 
         if lr_cache_kwargs is not None:
             Cacher(self.lr_data, lr_cache_kwargs)
@@ -205,7 +210,7 @@ class DualRasterizer(Container):
             lr_coords_new = {
                 Dimension.LATITUDE: self.lr_lat_lon[..., 0],
                 Dimension.LONGITUDE: self.lr_lat_lon[..., 1],
-                Dimension.TIME: self.lr_data.indexes['time'][
+                Dimension.TIME: self.lr_data.indexes[Dimension.TIME][
                     : self.lr_required_shape[2]
                 ],
             }
