@@ -43,7 +43,7 @@ class DualRasterizer(Container):
         ],
         regrid_workers=1,
         regrid_lr=True,
-        run_qa=False,
+        run_qa=True,
         s_enhance=1,
         t_enhance=1,
         lr_cache_kwargs=None,
