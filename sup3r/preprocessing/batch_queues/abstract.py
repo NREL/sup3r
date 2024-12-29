@@ -119,18 +119,13 @@ class AbstractBatchQueue(Collection, ABC):
     @property
     def queue_len(self):
         """Get number of batches in the queue."""
-        return self.queue.size().numpy()
+        return self.queue.size().numpy() + self.queue_futures
 
     @property
     def queue_futures(self):
         """Get number of scheduled futures that will eventually add batches to
         the queue."""
         return self._thread_pool._work_queue.qsize()
-
-    @property
-    def queue_free(self):
-        """Get number of free spots in the queue."""
-        return self.queue_cap - self.queue_len
 
     def get_queue(self):
         """Return FIFO queue for storing batches."""
@@ -232,16 +227,16 @@ class AbstractBatchQueue(Collection, ABC):
         return self.n_batches
 
     def __iter__(self):
-        self._batch_count = 0
         self.start()
+        self._batch_count = 0
         return self
 
     def get_batch(self) -> DsetTuple:
         """Get batch from queue or directly from a ``Sampler`` through
         ``sample_batch``."""
-        if self.queue_len > 0 or self.queue_futures > 0:
-            return self.queue.dequeue()
-        return self.sample_batch()
+        if self.mode == 'eager' or self.queue_cap == 0 or self.queue_len == 0:
+            return self.sample_batch()
+        return self.queue.dequeue()
 
     @property
     def running(self):
@@ -272,19 +267,26 @@ class AbstractBatchQueue(Collection, ABC):
         )
         return [task.result() for task in tasks]
 
+    @property
+    def needed_batches(self):
+        """Number of batches needed to either fill or the queue or hit the
+        epoch limit."""
+        remaining = self.n_batches - self._batch_count - self.queue_len - 1
+        return min(self.queue_cap - self.queue_len, remaining)
+
     def enqueue_batches(self) -> None:
         """Callback function for queue thread. While training, the queue is
         checked for empty spots and filled. In the training thread, batches are
         removed from the queue."""
         log_time = time.time()
         while self.running:
-            needed = min(
-                self.queue_free - self.queue_futures,
-                self.n_batches - self._batch_count
-            )
             # no point in getting more than one batch at a time if
             # max_workers == 1
-            needed = 1 if needed > 0 and self.max_workers == 1 else needed
+            needed = (
+                1
+                if self.needed_batches > 0 and self.max_workers == 1
+                else self.needed_batches
+            )
 
             if needed > 0:
                 for batch in self.sample_batches(n_batches=needed):
@@ -307,6 +309,7 @@ class AbstractBatchQueue(Collection, ABC):
         if self._batch_count < self.n_batches:
             self.timer.start()
             samples = self.get_batch()
+            self._batch_count += 1
             if self.sample_shape[2] == 1:
                 if isinstance(samples, (list, tuple)):
                     samples = tuple(s[..., 0, :] for s in samples)
@@ -314,7 +317,6 @@ class AbstractBatchQueue(Collection, ABC):
                     samples = samples[..., 0, :]
             batch = self.post_proc(samples)
             self.timer.stop()
-            self._batch_count += 1
             if self.verbose:
                 logger.debug(
                     'Batch step %s finished in %s.',
@@ -348,11 +350,8 @@ class AbstractBatchQueue(Collection, ABC):
 
     def log_queue_info(self):
         """Log info about queue size."""
-        return '{} queue length: {} / {}, with {} futures'.format(
-            self._thread_name.title(),
-            self.queue_len,
-            self.queue_cap,
-            self.queue_futures
+        return '{} queue length: {} / {}'.format(
+            self._thread_name.title(), self.queue_len, self.queue_cap
         )
 
     @property
