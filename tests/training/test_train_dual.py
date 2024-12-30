@@ -66,7 +66,7 @@ def test_train_h5_nc(
     # time indices conflict with t_enhance
     with pytest.raises(AssertionError):
         dual_rasterizer = DualRasterizer(
-            data=(lr_handler.data, hr_handler.data),
+            data={'low_res': lr_handler.data, 'high_res': hr_handler.data},
             s_enhance=s_enhance,
             t_enhance=t_enhance,
         )
@@ -78,7 +78,7 @@ def test_train_h5_nc(
     )
 
     dual_rasterizer = DualRasterizer(
-        data=(lr_handler.data, hr_handler.data),
+        data={'low_res': lr_handler.data, 'high_res': hr_handler.data},
         s_enhance=s_enhance,
         t_enhance=t_enhance,
     )
@@ -158,7 +158,7 @@ def test_train_coarse_h5(
     )
 
     dual_rasterizer = DualRasterizer(
-        data=(lr_handler.data, hr_handler.data),
+        data={'low_res': lr_handler.data, 'high_res': hr_handler.data},
         s_enhance=s_enhance,
         t_enhance=t_enhance,
     )

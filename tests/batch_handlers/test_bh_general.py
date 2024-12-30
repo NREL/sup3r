@@ -49,13 +49,14 @@ def test_batch_handler_workers():
     n_obs = 40
     max_workers = 32
     n_batches = 40
+    n_epochs = 3
 
     lons, lats = np.meshgrid(
         np.linspace(0, 180, n_lats), np.linspace(40, 60, n_lons)
     )
     time = pd.date_range('2023-01-01', '2023-05-01', freq='h')
-    u_arr = da.random.random((*lats.shape, len(time)))
-    v_arr = da.random.random((*lats.shape, len(time)))
+    u_arr = da.random.random((*lats.shape, len(time))).astype('float32')
+    v_arr = da.random.random((*lats.shape, len(time))).astype('float32')
     ds = xr.Dataset(
         coords={
             'latitude': (('south_north', 'west_east'), lats),
@@ -75,12 +76,14 @@ def test_batch_handler_workers():
         batch_size=n_obs,
         sample_shape=sample_shape,
         max_workers=max_workers,
+        means={'u_100m': 0, 'v_100m': 0},
+        stds={'u_100m': 1, 'v_100m': 1},
     )
     timer.start()
-    for _ in range(10):
+    for _ in range(n_epochs):
         _ = list(batcher)
     timer.stop()
-    parallel_time = timer.elapsed / (n_batches * 10)
+    parallel_time = timer.elapsed / (n_batches * n_epochs)
     batcher.stop()
 
     batcher = BatchHandler(
@@ -89,12 +92,14 @@ def test_batch_handler_workers():
         batch_size=n_obs,
         sample_shape=sample_shape,
         max_workers=1,
+        means={'u_100m': 0, 'v_100m': 0},
+        stds={'u_100m': 1, 'v_100m': 1},
     )
     timer.start()
-    for _ in range(10):
+    for _ in range(n_epochs):
         _ = list(batcher)
     timer.stop()
-    serial_time = timer.elapsed / (n_batches * 10)
+    serial_time = timer.elapsed / (n_batches * n_epochs)
     batcher.stop()
 
     print(
