@@ -11,6 +11,7 @@ from tensorflow.python.framework.errors_impl import InvalidArgumentError
 
 from sup3r.models import Sup3rGan
 from sup3r.preprocessing import BatchHandler, DataHandler
+from sup3r.utilities.utilities import Timer
 
 TARGET_COORD = (39.01, -105.15)
 FEATURES = ['u_100m', 'v_100m']
@@ -180,10 +181,13 @@ def test_train(fp_gen, fp_disc, s_enhance, t_enhance, sample_shape, n_epoch=8):
         assert 'OptmGen/learning_rate' in model.history
         assert 'OptmDisc/learning_rate' in model.history
 
-        msg = ('Could not find OptmGen states in columns: '
-               f'{sorted(model.history.columns)}')
-        check = [col.startswith('OptmGen/Adam/v')
-                 for col in model.history.columns]
+        msg = (
+            'Could not find OptmGen states in columns: '
+            f'{sorted(model.history.columns)}'
+        )
+        check = [
+            col.startswith('OptmGen/Adam/v') for col in model.history.columns
+        ]
         assert any(check), msg
 
         assert 'config_generator' in loaded.meta
@@ -233,6 +237,75 @@ def test_train(fp_gen, fp_disc, s_enhance, t_enhance, sample_shape, n_epoch=8):
         assert y_test.shape[-1] == test_data.shape[-1]
 
         batch_handler.stop()
+
+
+def test_train_workers(n_epoch=3):
+    """Test that model training with max_workers > 1 for the batch queue is
+    faster than for max_workers = 1."""
+
+    lr = 5e-5
+    Sup3rGan.seed()
+    model = Sup3rGan(
+        pytest.ST_FP_GEN,
+        pytest.ST_FP_DISC,
+        learning_rate=lr,
+        loss='MeanAbsoluteError',
+    )
+
+    train_handler, val_handler = _get_handlers()
+    timer = Timer()
+
+    with tempfile.TemporaryDirectory() as td:
+        batch_handler = BatchHandler(
+            train_containers=[train_handler],
+            val_containers=[val_handler],
+            sample_shape=(12, 12, 16),
+            batch_size=15,
+            s_enhance=3,
+            t_enhance=4,
+            n_batches=10,
+            means={'u_100m': 0, 'v_100m': 0},
+            stds={'u_100m': 1, 'v_100m': 1},
+            max_workers=10,
+        )
+
+        model_kwargs = {
+            'input_resolution': {'spatial': '30km', 'temporal': '60min'},
+            'n_epoch': n_epoch,
+            'weight_gen_advers': 0.0,
+            'train_gen': True,
+            'train_disc': False,
+            'checkpoint_int': 1,
+            'out_dir': os.path.join(td, 'test_{epoch}'),
+        }
+
+        timer.start()
+        model.train(batch_handler, **model_kwargs)
+        parallel_time = timer.elapsed
+
+        batch_handler = BatchHandler(
+            train_containers=[train_handler],
+            val_containers=[val_handler],
+            sample_shape=(12, 12, 16),
+            batch_size=15,
+            s_enhance=3,
+            t_enhance=4,
+            n_batches=10,
+            means={'u_100m': 0, 'v_100m': 0},
+            stds={'u_100m': 1, 'v_100m': 1},
+            max_workers=1,
+        )
+
+        timer.start()
+        model.train(batch_handler, **model_kwargs)
+        serial_time = timer.elapsed
+
+        print(
+            'Elapsed (parallel / serial): {} / {}'.format(
+                parallel_time, serial_time
+            )
+        )
+        assert parallel_time < serial_time
 
 
 def test_train_st_weight_update(n_epoch=2):

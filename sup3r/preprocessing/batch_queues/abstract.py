@@ -351,7 +351,10 @@ class AbstractBatchQueue(Collection, ABC):
         These samples are wrapped in an ``np.asarray`` call, so they have been
         loaded into memory.
         """
-        return next(self.get_random_container())
+        out = next(self.get_random_container())
+        if not isinstance(out, tuple):
+            return tf.convert_to_tensor(out, dtype=tf.float32)
+        return tuple(tf.convert_to_tensor(o, dtype=tf.float32) for o in out)
 
     def log_queue_info(self):
         """Log info about queue size."""

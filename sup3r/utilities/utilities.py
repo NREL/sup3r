@@ -92,6 +92,8 @@ class Timer:
     @property
     def elapsed(self):
         """Elapsed time between start and stop."""
+        if self._stop is None:
+            return time.time() - self._start
         return self._stop - self._start
 
     @property
