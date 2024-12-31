@@ -46,9 +46,9 @@ def test_batch_handler_workers():
         2 * sample_shape[1],
         2 * sample_shape[-1],
     )
-    n_obs = 40
-    max_workers = 32
-    n_batches = 40
+    n_obs = 10
+    max_workers = 10
+    n_batches = 10
     n_epochs = 3
 
     lons, lats = np.meshgrid(

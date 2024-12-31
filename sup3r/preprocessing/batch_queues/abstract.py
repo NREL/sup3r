@@ -11,7 +11,7 @@ import logging
 import threading
 import time
 from abc import ABC, abstractmethod
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import TYPE_CHECKING, List, Optional, Union
 
 import numpy as np
@@ -232,14 +232,14 @@ class AbstractBatchQueue(Collection, ABC):
         return self.n_batches
 
     def __iter__(self):
-        self.start()
         self._batch_count = 0
+        self.start()
         return self
 
     def get_batch(self) -> DsetTuple:
         """Get batch from queue or directly from a ``Sampler`` through
         ``sample_batch``."""
-        if self.mode == 'eager' or self.queue_cap == 0 or self.queue_len == 0:
+        if self.mode == 'eager' or self.queue_cap == 0:
             return self.sample_batch()
         return self.queue.dequeue()
 
@@ -252,32 +252,24 @@ class AbstractBatchQueue(Collection, ABC):
             and not self.queue.is_closed()
         )
 
-    def sample_batches(self, n_batches) -> None:
-        """Sample N batches from samplers. Returns N batches which are then
-        used to fill the queue."""
-        if n_batches == 1:
-            return [self.sample_batch()]
+    def _enqueue_batches(self, n_batches) -> None:
+        """Sample N batches and enqueue them as they are sampled."""
+        if n_batches == 1 or self.max_workers == 1:
+            for _ in range(n_batches):
+                self.queue.enqueue(self.sample_batch())
 
-        if self.max_workers == 1:
-            return [self.sample_batch() for _ in range(n_batches)]
-
-        tasks = [
-            self._thread_pool.submit(self.sample_batch)
-            for _ in range(n_batches)
-        ]
-        logger.debug(
-            'Added %s sample_batch futures to %s queue.',
-            n_batches,
-            self._thread_name,
-        )
-        return [task.result() for task in tasks]
-
-    @property
-    def needed_batches(self):
-        """Number of batches needed to either fill or the queue or hit the
-        epoch limit."""
-        remaining = self.n_batches - self._batch_count - self.queue_len
-        return min(self.queue_cap - self.queue_len, remaining)
+        else:
+            tasks = [
+                self._thread_pool.submit(self.sample_batch)
+                for _ in range(n_batches)
+            ]
+            logger.debug(
+                'Added %s sample_batch futures to %s queue.',
+                n_batches,
+                self._thread_name,
+            )
+            for batch in as_completed(tasks):
+                self.queue.enqueue(batch.result())
 
     def enqueue_batches(self) -> None:
         """Callback function for queue thread. While training, the queue is
@@ -285,17 +277,9 @@ class AbstractBatchQueue(Collection, ABC):
         removed from the queue."""
         log_time = time.time()
         while self.running:
-            # no point in getting more than one batch at a time if
-            # max_workers == 1
-            needed = (
-                1
-                if self.needed_batches > 0 and self.max_workers == 1
-                else self.needed_batches
-            )
-
+            needed = max(self.queue_cap - self.queue_len, 0)
             if needed > 0:
-                for batch in self.sample_batches(n_batches=needed):
-                    self.queue.enqueue(batch)
+                self._enqueue_batches(n_batches=needed)
 
             if time.time() > log_time + 10:
                 logger.debug(self.log_queue_info())

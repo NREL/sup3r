@@ -239,34 +239,37 @@ def test_train(fp_gen, fp_disc, s_enhance, t_enhance, sample_shape, n_epoch=8):
         batch_handler.stop()
 
 
-def test_train_workers(n_epoch=3):
+def test_train_workers(n_epoch=20):
     """Test that model training with max_workers > 1 for the batch queue is
     faster than for max_workers = 1."""
 
     lr = 5e-5
+    train_handler, val_handler = _get_handlers()
+    timer = Timer()
+    n_batches = 40
+    batch_size = 40
+
     Sup3rGan.seed()
     model = Sup3rGan(
-        pytest.ST_FP_GEN,
-        pytest.ST_FP_DISC,
+        pytest.S_FP_GEN,
+        pytest.S_FP_DISC,
         learning_rate=lr,
         loss='MeanAbsoluteError',
     )
 
-    train_handler, val_handler = _get_handlers()
-    timer = Timer()
-
     with tempfile.TemporaryDirectory() as td:
+
         batch_handler = BatchHandler(
             train_containers=[train_handler],
             val_containers=[val_handler],
-            sample_shape=(12, 12, 16),
-            batch_size=15,
-            s_enhance=3,
-            t_enhance=4,
-            n_batches=10,
+            sample_shape=(10, 10, 1),
+            batch_size=batch_size,
+            s_enhance=2,
+            t_enhance=1,
+            n_batches=n_batches,
             means={'u_100m': 0, 'v_100m': 0},
             stds={'u_100m': 1, 'v_100m': 1},
-            max_workers=10,
+            max_workers=5,
         )
 
         model_kwargs = {
@@ -275,22 +278,23 @@ def test_train_workers(n_epoch=3):
             'weight_gen_advers': 0.0,
             'train_gen': True,
             'train_disc': False,
-            'checkpoint_int': 1,
+            'checkpoint_int': 10,
             'out_dir': os.path.join(td, 'test_{epoch}'),
         }
 
         timer.start()
         model.train(batch_handler, **model_kwargs)
-        parallel_time = timer.elapsed
+        timer.stop()
+        parallel_time = timer.elapsed / n_epoch
 
         batch_handler = BatchHandler(
             train_containers=[train_handler],
             val_containers=[val_handler],
-            sample_shape=(12, 12, 16),
-            batch_size=15,
-            s_enhance=3,
-            t_enhance=4,
-            n_batches=10,
+            sample_shape=(10, 10, 1),
+            batch_size=batch_size,
+            s_enhance=2,
+            t_enhance=1,
+            n_batches=n_batches,
             means={'u_100m': 0, 'v_100m': 0},
             stds={'u_100m': 1, 'v_100m': 1},
             max_workers=1,
@@ -298,7 +302,8 @@ def test_train_workers(n_epoch=3):
 
         timer.start()
         model.train(batch_handler, **model_kwargs)
-        serial_time = timer.elapsed
+        timer.stop()
+        serial_time = timer.elapsed / n_epoch
 
         print(
             'Elapsed (parallel / serial): {} / {}'.format(

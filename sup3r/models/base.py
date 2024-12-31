@@ -812,6 +812,11 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             )
             if stop:
                 break
+        logger.info(
+            'Finished training %s epochs in %s seconds',
+            n_epoch,
+            time.time() - t0,
+        )
 
         batch_handler.stop()
 
