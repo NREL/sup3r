@@ -43,6 +43,7 @@ def _get_handlers():
     ['fp_gen', 'fp_disc', 's_enhance', 't_enhance', 'sample_shape'],
     [
         (pytest.ST_FP_GEN, pytest.ST_FP_DISC, 3, 4, (12, 12, 16)),
+        (pytest.ST_FP_GEN, pytest.ST_FP_DISC_PROD, 3, 4, (12, 12, 16)),
         (pytest.S_FP_GEN, pytest.S_FP_DISC, 2, 1, (10, 10, 1)),
     ],
 )
@@ -322,7 +323,7 @@ def test_train_st_weight_update(n_epoch=2):
         pytest.ST_FP_GEN,
         pytest.ST_FP_DISC,
         learning_rate=1e-4,
-        learning_rate_disc=4e-4,
+        learning_rate_disc=4e-4
     )
 
     train_handler, val_handler = _get_handlers()
