@@ -252,24 +252,21 @@ class AbstractBatchQueue(Collection, ABC):
             and not self.queue.is_closed()
         )
 
-    def _enqueue_batches(self, n_batches) -> None:
-        """Sample N batches and enqueue them as they are sampled."""
+    def sample_batches(self, n_batches) -> None:
+        """Sample given number of batches either in serial or with thread
+        pool."""
         if n_batches == 1 or self.max_workers == 1:
-            for _ in range(n_batches):
-                self.queue.enqueue(self.sample_batch())
-
-        else:
-            tasks = [
-                self._thread_pool.submit(self.sample_batch)
-                for _ in range(n_batches)
-            ]
-            logger.debug(
-                'Added %s sample_batch futures to %s queue.',
-                n_batches,
-                self._thread_name,
-            )
-            for batch in as_completed(tasks):
-                self.queue.enqueue(batch.result())
+            return [self.sample_batch() for _ in range(n_batches)]
+        tasks = [
+            self._thread_pool.submit(self.sample_batch)
+            for _ in range(n_batches)
+        ]
+        logger.debug(
+            'Added %s sample_batch futures to %s queue.',
+            n_batches,
+            self._thread_name,
+        )
+        return tasks
 
     def enqueue_batches(self) -> None:
         """Callback function for queue thread. While training, the queue is
@@ -278,8 +275,15 @@ class AbstractBatchQueue(Collection, ABC):
         log_time = time.time()
         while self.running:
             needed = max(self.queue_cap - self.queue_len, 0)
+            needed = min(self.max_workers, needed)
             if needed > 0:
-                self._enqueue_batches(n_batches=needed)
+                batches = self.sample_batches(n_batches=needed)
+                if needed > 1 and self.max_workers > 1:
+                    for batch in as_completed(batches):
+                        self.queue.enqueue(batch.result())
+                else:
+                    for batch in batches:
+                        self.queue.enqueue(batch)
 
             if time.time() > log_time + 10:
                 logger.debug(self.log_queue_info())
