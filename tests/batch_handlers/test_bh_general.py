@@ -2,11 +2,8 @@
 
 import copy
 
-import dask.array as da
 import numpy as np
-import pandas as pd
 import pytest
-import xarray as xr
 from scipy.ndimage import gaussian_filter
 
 from sup3r.preprocessing import (
@@ -33,13 +30,12 @@ stds = dict.fromkeys(FEATURES, 1)
 BatchHandlerTester = BatchHandlerTesterFactory(BatchHandler, SamplerTester)
 
 
-def test_batch_handler_workers():
-    """Check that it is faster to get batches with max_workers > 1 than with
-    max_workers = 1."""
+def test_batch_sampling_workers():
+    """Check that it is faster to sample batches with max_workers > 1 than with
+    max_workers = 1. This does not include enqueueing and dequeueing."""
 
     timer = Timer()
-    n_lats = 200
-    n_lons = 200
+    ds = DummyData((200, 200, 2000), ['u_100m', 'v_100m'])
     sample_shape = (20, 20, 30)
     chunk_shape = (
         2 * sample_shape[0],
@@ -51,23 +47,65 @@ def test_batch_handler_workers():
     n_batches = 10
     n_epochs = 3
 
-    lons, lats = np.meshgrid(
-        np.linspace(0, 180, n_lats), np.linspace(40, 60, n_lons)
+    ds = ds.chunk(dict(zip(['south_north', 'west_east', 'time'], chunk_shape)))
+
+    batcher = BatchHandler(
+        [ds],
+        n_batches=n_batches,
+        batch_size=n_obs,
+        sample_shape=sample_shape,
+        max_workers=max_workers,
+        means={'u_100m': 0, 'v_100m': 0},
+        stds={'u_100m': 1, 'v_100m': 1},
     )
-    time = pd.date_range('2023-01-01', '2023-05-01', freq='h')
-    u_arr = da.random.random((*lats.shape, len(time))).astype('float32')
-    v_arr = da.random.random((*lats.shape, len(time))).astype('float32')
-    ds = xr.Dataset(
-        coords={
-            'latitude': (('south_north', 'west_east'), lats),
-            'longitude': (('south_north', 'west_east'), lons),
-            'time': time,
-        },
-        data_vars={
-            'u_100m': (('south_north', 'west_east', 'time'), u_arr),
-            'v_100m': (('south_north', 'west_east', 'time'), v_arr),
-        },
+    timer.start()
+    for _ in range(n_epochs):
+        batches = batcher.sample_batches(n_batches)
+        _ = [batch.result() for batch in batches]
+    timer.stop()
+    parallel_time = timer.elapsed / (n_batches * n_epochs)
+    batcher.stop()
+
+    batcher = BatchHandler(
+        [ds],
+        n_batches=n_batches,
+        batch_size=n_obs,
+        sample_shape=sample_shape,
+        max_workers=1,
+        means={'u_100m': 0, 'v_100m': 0},
+        stds={'u_100m': 1, 'v_100m': 1},
     )
+    timer.start()
+    for _ in range(n_epochs):
+        _ = batcher.sample_batches(n_batches)
+    timer.stop()
+    serial_time = timer.elapsed / (n_batches * n_epochs)
+    batcher.stop()
+
+    print(
+        'Elapsed (serial / parallel): {} / {}'.format(
+            serial_time, parallel_time
+        )
+    )
+    assert serial_time > parallel_time
+
+
+def test_batch_queue_workers():
+    """Check that it is faster to queue batches with max_workers > 1 than with
+    max_workers = 1."""
+
+    timer = Timer()
+    ds = DummyData((200, 200, 2000), ['u_100m', 'v_100m'])
+    sample_shape = (20, 20, 30)
+    chunk_shape = (
+        2 * sample_shape[0],
+        2 * sample_shape[1],
+        2 * sample_shape[-1],
+    )
+    n_obs = 10
+    max_workers = 10
+    n_batches = 10
+    n_epochs = 3
     ds = ds.chunk(dict(zip(['south_north', 'west_east', 'time'], chunk_shape)))
 
     batcher = BatchHandler(
