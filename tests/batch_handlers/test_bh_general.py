@@ -1,14 +1,14 @@
 """Smoke tests for batcher objects. Just make sure things run without errors"""
-
 import copy
+import os
+import time
+from tempfile import TemporaryDirectory
 
 import numpy as np
 import pytest
 from scipy.ndimage import gaussian_filter
 
-from sup3r.preprocessing import (
-    BatchHandler,
-)
+from sup3r.preprocessing import BatchHandler, DataHandler
 from sup3r.preprocessing.base import Container
 from sup3r.utilities.pytest.helpers import (
     BatchHandlerTesterFactory,
@@ -35,8 +35,7 @@ def test_batch_sampling_workers():
     max_workers = 1. This does not include enqueueing and dequeueing."""
 
     timer = Timer()
-    ds = DummyData((200, 200, 2000), ['u_100m', 'v_100m'])
-    sample_shape = (20, 20, 30)
+    sample_shape = (100, 100, 30)
     chunk_shape = (
         2 * sample_shape[0],
         2 * sample_shape[1],
@@ -44,108 +43,73 @@ def test_batch_sampling_workers():
     )
     n_obs = 10
     max_workers = 10
-    n_batches = 10
+    n_batches = 50
     n_epochs = 3
+    chunks = dict(zip(['south_north', 'west_east', 'time'], chunk_shape))
 
-    ds = ds.chunk(dict(zip(['south_north', 'west_east', 'time'], chunk_shape)))
+    with TemporaryDirectory() as td:
+        ds = DummyData((200, 200, 2000), ['u_100m', 'v_100m'])
+        ds.to_netcdf(os.path.join(td, 'test.nc'))
+        ds = DataHandler(os.path.join(td, 'test.nc'), chunks=chunks)
 
-    batcher = BatchHandler(
-        [ds],
-        n_batches=n_batches,
-        batch_size=n_obs,
-        sample_shape=sample_shape,
-        max_workers=max_workers,
-        means={'u_100m': 0, 'v_100m': 0},
-        stds={'u_100m': 1, 'v_100m': 1},
-    )
-    timer.start()
-    for _ in range(n_epochs):
-        batches = batcher.sample_batches(n_batches)
-        _ = [batch.result() for batch in batches]
-    timer.stop()
-    parallel_time = timer.elapsed / (n_batches * n_epochs)
-    batcher.stop()
-
-    batcher = BatchHandler(
-        [ds],
-        n_batches=n_batches,
-        batch_size=n_obs,
-        sample_shape=sample_shape,
-        max_workers=1,
-        means={'u_100m': 0, 'v_100m': 0},
-        stds={'u_100m': 1, 'v_100m': 1},
-    )
-    timer.start()
-    for _ in range(n_epochs):
-        _ = batcher.sample_batches(n_batches)
-    timer.stop()
-    serial_time = timer.elapsed / (n_batches * n_epochs)
-    batcher.stop()
-
-    print(
-        'Elapsed (serial / parallel): {} / {}'.format(
-            serial_time, parallel_time
+        batcher = BatchHandler(
+            [ds],
+            n_batches=n_batches,
+            batch_size=n_obs,
+            sample_shape=sample_shape,
+            max_workers=max_workers,
+            means={'u_100m': 0, 'v_100m': 0},
+            stds={'u_100m': 1, 'v_100m': 1},
         )
-    )
-    assert serial_time > parallel_time
+        timer.start()
+        queue_time = 0
+        for _ in range(n_epochs):
+            batches = batcher.sample_batches(n_batches)
+            batches = [batch.result() for batch in batches]
+            queue_start = time.time()
+            for batch in batches:
+                batcher.queue.enqueue(batch)
+                _ = batcher.queue.dequeue()
+            queue_time += (time.time() - queue_start)
+        timer.stop()
+        parallel_time = timer.elapsed / (n_batches * n_epochs)
+        parallel_queue_time = queue_time / (n_batches * n_epochs)
+        batcher.stop()
 
-
-def test_batch_queue_workers():
-    """Check that it is faster to queue batches with max_workers > 1 than with
-    max_workers = 1."""
-
-    timer = Timer()
-    ds = DummyData((200, 200, 2000), ['u_100m', 'v_100m'])
-    sample_shape = (20, 20, 30)
-    chunk_shape = (
-        2 * sample_shape[0],
-        2 * sample_shape[1],
-        2 * sample_shape[-1],
-    )
-    n_obs = 10
-    max_workers = 10
-    n_batches = 10
-    n_epochs = 3
-    ds = ds.chunk(dict(zip(['south_north', 'west_east', 'time'], chunk_shape)))
-
-    batcher = BatchHandler(
-        [ds],
-        n_batches=n_batches,
-        batch_size=n_obs,
-        sample_shape=sample_shape,
-        max_workers=max_workers,
-        means={'u_100m': 0, 'v_100m': 0},
-        stds={'u_100m': 1, 'v_100m': 1},
-    )
-    timer.start()
-    for _ in range(n_epochs):
-        _ = list(batcher)
-    timer.stop()
-    parallel_time = timer.elapsed / (n_batches * n_epochs)
-    batcher.stop()
-
-    batcher = BatchHandler(
-        [ds],
-        n_batches=n_batches,
-        batch_size=n_obs,
-        sample_shape=sample_shape,
-        max_workers=1,
-        means={'u_100m': 0, 'v_100m': 0},
-        stds={'u_100m': 1, 'v_100m': 1},
-    )
-    timer.start()
-    for _ in range(n_epochs):
-        _ = list(batcher)
-    timer.stop()
-    serial_time = timer.elapsed / (n_batches * n_epochs)
-    batcher.stop()
-
-    print(
-        'Elapsed (serial / parallel): {} / {}'.format(
-            serial_time, parallel_time
+        batcher = BatchHandler(
+            [ds],
+            n_batches=n_batches,
+            batch_size=n_obs,
+            sample_shape=sample_shape,
+            max_workers=1,
+            means={'u_100m': 0, 'v_100m': 0},
+            stds={'u_100m': 1, 'v_100m': 1},
         )
-    )
-    assert serial_time > parallel_time
+        timer.start()
+        queue_time = 0
+        for _ in range(n_epochs):
+            batches = batcher.sample_batches(n_batches)
+            queue_start = time.time()
+            for batch in batches:
+                batcher.queue.enqueue(batch)
+                _ = batcher.queue.dequeue()
+            queue_time += time.time() - queue_start
+        timer.stop()
+        serial_time = timer.elapsed / (n_batches * n_epochs)
+        serial_queue_time = queue_time / (n_batches * n_epochs)
+        batcher.stop()
+
+        print(
+            'Elapsed total time (serial / parallel): {} / {}'.format(
+                serial_time, parallel_time
+            )
+        )
+        print(
+            'Elapsed queue time (serial / parallel): {} / {}'.format(
+                serial_queue_time, parallel_queue_time
+            )
+        )
+        assert serial_time > parallel_time
 
 
 def test_eager_vs_lazy():
