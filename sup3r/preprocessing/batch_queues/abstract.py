@@ -239,7 +239,7 @@ class AbstractBatchQueue(Collection, ABC):
     def get_batch(self) -> DsetTuple:
         """Get batch from queue or directly from a ``Sampler`` through
         ``sample_batch``."""
-        if self.mode == 'eager' or self.queue_cap == 0:
+        if self.mode == 'eager' or self.queue_cap == 0 or self.queue_len == 0:
             return self.sample_batch()
         return self.queue.dequeue()
 

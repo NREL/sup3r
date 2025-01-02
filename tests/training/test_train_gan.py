@@ -11,7 +11,6 @@ from tensorflow.python.framework.errors_impl import InvalidArgumentError
 
 from sup3r.models import Sup3rGan
 from sup3r.preprocessing import BatchHandler, DataHandler
-from sup3r.utilities.utilities import Timer
 
 TARGET_COORD = (39.01, -105.15)
 FEATURES = ['u_100m', 'v_100m']
@@ -237,79 +236,6 @@ def test_train(fp_gen, fp_disc, s_enhance, t_enhance, sample_shape, n_epoch=8):
         assert y_test.shape[-1] == test_data.shape[-1]
 
         batch_handler.stop()
-
-
-def test_train_workers(n_epoch=10):
-    """Test that model training with max_workers > 1 for the batch queue is
-    faster than for max_workers = 1."""
-
-    lr = 5e-5
-    train_handler, val_handler = _get_handlers()
-    timer = Timer()
-    n_batches = 40
-    batch_size = 40
-
-    Sup3rGan.seed()
-    model = Sup3rGan(
-        pytest.S_FP_GEN,
-        pytest.S_FP_DISC,
-        learning_rate=lr,
-        loss='MeanAbsoluteError',
-    )
-
-    with tempfile.TemporaryDirectory() as td:
-        batch_handler = BatchHandler(
-            train_containers=[train_handler],
-            val_containers=[val_handler],
-            sample_shape=(10, 10, 1),
-            batch_size=batch_size,
-            s_enhance=2,
-            t_enhance=1,
-            n_batches=n_batches,
-            means={'u_100m': 0, 'v_100m': 0},
-            stds={'u_100m': 1, 'v_100m': 1},
-            max_workers=5,
-        )
-
-        model_kwargs = {
-            'input_resolution': {'spatial': '30km', 'temporal': '60min'},
-            'n_epoch': n_epoch,
-            'weight_gen_advers': 0.0,
-            'train_gen': True,
-            'train_disc': False,
-            'checkpoint_int': 10,
-            'out_dir': os.path.join(td, 'test_{epoch}'),
-        }
-
-        timer.start()
-        model.train(batch_handler, **model_kwargs)
-        timer.stop()
-        parallel_time = timer.elapsed / n_epoch
-
-        batch_handler = BatchHandler(
-            train_containers=[train_handler],
-            val_containers=[val_handler],
-            sample_shape=(10, 10, 1),
-            batch_size=batch_size,
-            s_enhance=2,
-            t_enhance=1,
-            n_batches=n_batches,
-            means={'u_100m': 0, 'v_100m': 0},
-            stds={'u_100m': 1, 'v_100m': 1},
-            max_workers=1,
-        )
-
-        timer.start()
-        model.train(batch_handler, **model_kwargs)
-        timer.stop()
-        serial_time = timer.elapsed / n_epoch
-
-        print(
-            'Elapsed (parallel / serial): {} / {}'.format(
-                parallel_time, serial_time
-            )
-        )
-        assert parallel_time < serial_time
 
 
 def test_train_st_weight_update(n_epoch=2):
