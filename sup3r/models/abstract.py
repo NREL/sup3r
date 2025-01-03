@@ -18,13 +18,12 @@ from phygnn import CustomNetwork
 from phygnn.layers.custom_layers import Sup3rAdder, Sup3rConcat
 from rex.utilities.utilities import safe_json_load
 from tensorflow.keras import optimizers
-from tensorflow.keras.losses import MeanAbsoluteError
 
 import sup3r.utilities.loss_metrics
 from sup3r.preprocessing.data_handlers import ExoData
 from sup3r.preprocessing.utilities import numpy_if_tensor
 from sup3r.utilities import VERSION_RECORD
-from sup3r.utilities.utilities import safe_cast
+from sup3r.utilities.utilities import camel_to_underscore, safe_cast
 
 from .utilities import TensorboardMixIn
 
@@ -783,25 +782,42 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
 
         return stop
 
+    def _sum_parallel_grad(self, futures, start_time):
+        """Sum gradient descent future results"""
+
+        # sum the gradients from each gpu to weight equally in
+        # optimizer momentum calculation
+        total_grad = None
+        for future in futures:
+            grad, loss_details = future.result()
+            if total_grad is None:
+                total_grad = grad
+            else:
+                for i, igrad in enumerate(grad):
+                    total_grad[i] += igrad
+
+        msg = (
+            f'Finished {len(futures)} gradient descent steps on '
+            f'{len(self.gpu_list)} GPUs in {time.time() - start_time:.4f} '
+            'seconds'
+        )
+        logger.info(msg)
+        return total_grad, loss_details
+
     def _get_parallel_grad(
         self,
         low_res,
         hi_res_true,
         training_weights,
-        obs_data=None,
         **calc_loss_kwargs,
     ):
         """Compute gradient for one mini-batch of (low_res, hi_res_true)
         across multiple GPUs"""
 
         futures = []
+        start_time = time.time()
         lr_chunks = np.array_split(low_res, len(self.gpu_list))
         hr_true_chunks = np.array_split(hi_res_true, len(self.gpu_list))
-        obs_data_chunks = (
-            [None] * len(hr_true_chunks)
-            if obs_data is None
-            else np.array_split(obs_data, len(self.gpu_list))
-        )
         split_mask = False
         mask_chunks = None
         if 'mask' in calc_loss_kwargs:
@@ -820,38 +836,17 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
                         lr_chunks[i],
                         hr_true_chunks[i],
                         training_weights,
-                        obs_data=obs_data_chunks[i],
                         device_name=f'/gpu:{i}',
                         **calc_loss_kwargs,
                     )
                 )
-
-        # sum the gradients from each gpu to weight equally in
-        # optimizer momentum calculation
-        total_grad = None
-        for future in futures:
-            grad, loss_details = future.result()
-            if total_grad is None:
-                total_grad = grad
-            else:
-                for i, igrad in enumerate(grad):
-                    total_grad[i] += igrad
-
-        self.timer.stop()
-        logger.debug(
-            'Finished %s gradient descent steps on %s GPUs in %s',
-            len(futures),
-            len(self.gpu_list),
-            self.timer.elapsed_str,
-        )
-        return total_grad, loss_details
+        return self._sum_parallel_grad(futures, start_time=start_time)
 
     def run_gradient_descent(
         self,
         low_res,
         hi_res_true,
         training_weights,
-        obs_data=None,
         optimizer=None,
         multi_gpu=False,
         **calc_loss_kwargs,
@@ -872,10 +867,6 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         training_weights : list
             A list of layer weights that are to-be-trained based on the
             current loss weight values.
-        obs_data : tf.Tensor | None
-            Optional observation data to use in additional content loss term.
-            (n_observations, spatial_1, spatial_2, features)
-            (n_observations, spatial_1, spatial_2, temporal, features)
         optimizer : tf.keras.optimizers.Optimizer
             Optimizer class to use to update weights. This can be different if
             you're training just the generator or one of the discriminator
@@ -895,32 +886,27 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         loss_details : dict
             Namespace of the breakdown of loss components
         """
-
-        self.timer.start()
         if optimizer is None:
             optimizer = self.optimizer
 
         if not multi_gpu or len(self.gpu_list) < 2:
+            start_time = time.time()
             grad, loss_details = self.get_single_grad(
                 low_res,
                 hi_res_true,
                 training_weights,
-                obs_data=obs_data,
                 device_name=self.default_device,
                 **calc_loss_kwargs,
             )
             optimizer.apply_gradients(zip(grad, training_weights))
-            self.timer.stop()
-            logger.debug(
-                'Finished single gradient descent step in %s',
-                self.timer.elapsed_str,
-            )
+            msg = ('Finished single gradient descent step in '
+                   f'{time.time() - start_time:.4f} seconds')
+            logger.debug(msg)
         else:
             total_grad, loss_details = self._get_parallel_grad(
                 low_res,
                 hi_res_true,
                 training_weights,
-                obs_data,
                 **calc_loss_kwargs,
             )
             optimizer.apply_gradients(zip(total_grad, training_weights))
@@ -1116,13 +1102,25 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
 
         return hi_res
 
+    def _get_hr_exo_and_loss(
+        self,
+        low_res,
+        hi_res_true,
+        **calc_loss_kwargs,
+    ):
+        """Get high-resolution exogenous data, generate synthetic output, and
+        compute loss."""
+        hi_res_exo = self.get_high_res_exo_input(hi_res_true)
+        hi_res_gen = self._tf_generate(low_res, hi_res_exo)
+        loss_out = self.calc_loss(hi_res_true, hi_res_gen, **calc_loss_kwargs)
+        return *loss_out, hi_res_gen
+
     @tf.function
     def get_single_grad(
         self,
         low_res,
         hi_res_true,
         training_weights,
-        obs_data=None,
         device_name=None,
         **calc_loss_kwargs,
     ):
@@ -1142,10 +1140,6 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         training_weights : list
             A list of layer weights that are to-be-trained based on the
             current loss weight values.
-        obs_data : tf.Tensor | None
-            Optional observation data to use in additional content loss term.
-            (n_observations, spatial_1, spatial_2, features)
-            (n_observations, spatial_1, spatial_2, temporal, features)
         device_name : None | str
             Optional tensorflow device name for GPU placement. Note that if a
             GPU is available, variables will be placed on that GPU even if
@@ -1166,16 +1160,10 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             watch_accessed_variables=False
         ) as tape:
             tape.watch(training_weights)
-            hi_res_exo = self.get_hr_exo_input(hi_res_true)
-            hi_res_gen = self._tf_generate(low_res, hi_res_exo)
-            loss_out = self.calc_loss(
-                hi_res_true, hi_res_gen, **calc_loss_kwargs
+            *loss_out, _ = self._get_hr_exo_and_loss(
+                low_res, hi_res_true, **calc_loss_kwargs
             )
             loss, loss_details = loss_out
-            if obs_data is not None:
-                loss_obs = self.calc_loss_obs(obs_data, hi_res_gen)
-                loss += loss_obs
-                loss_details['loss_obs'] = loss_obs
             grad = tape.gradient(loss, training_weights)
         return grad, loss_details
 
@@ -1190,27 +1178,3 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
     ):
         """Calculate the GAN loss function using generated and true high
         resolution data."""
-
-    @tf.function
-    def calc_loss_obs(self, obs_data, hi_res_gen):
-        """Calculate loss term for the observation data vs generated
-        high-resolution data
-
-        Parameters
-        ----------
-        obs_data : tf.Tensor | None
-            Optional observation data to use in additional content loss term.
-        hi_res_gen : tf.Tensor
-            Superresolved high resolution spatiotemporal data generated by the
-            generative model.
-
-        Returns
-        -------
-        loss : tf.Tensor
-            0D tensor of observation loss
-        """
-        mask = tf.math.is_nan(obs_data)
-        return MeanAbsoluteError()(
-            obs_data[~mask],
-            hi_res_gen[..., : len(self.hr_out_features)][~mask],
-        )

@@ -750,13 +750,13 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         )
 
         for epoch in epochs:
+            t_epoch = time.time()
             loss_details = self._train_epoch(
                 batch_handler,
                 weight_gen_advers,
                 train_gen,
                 train_disc,
                 disc_loss_bounds,
-                loss_mean_window=loss_mean_window,
                 multi_gpu=multi_gpu,
             )
             loss_details.update(
@@ -810,12 +810,18 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
                 early_stop_n_epoch,
                 extras=extras,
             )
+            logger.info(
+                'Finished training epoch in {:.4f} seconds'.format(
+                    time.time() - t_epoch
+                )
+            )
             if stop:
                 break
         logger.info(
-            'Finished training %s epochs in %s seconds',
-            n_epoch,
-            time.time() - t0,
+            'Finished training {} epochs in {:.4f} seconds'.format(
+                n_epoch,
+                time.time() - t0,
+            )
         )
 
         batch_handler.stop()
@@ -921,10 +927,10 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         """
         logger.debug('Starting end-of-epoch validation loss calculation...')
         for batch in batch_handler.val_data:
-            hi_res_exo = self.get_hr_exo_input(batch.high_res)
-            hi_res_gen = self._tf_generate(batch.low_res, hi_res_exo)
-            _, v_loss_details = self.calc_loss(
-                batch.high_res, hi_res_gen, weight_gen_advers=weight_gen_advers
+            _, v_loss_details, _, _ = self._get_hr_exo_and_loss(
+                batch.low_res,
+                batch.high_res,
+                weight_gen_advers=weight_gen_advers
             )
             self._val_record = self.update_loss_details(
                 self._val_record,
@@ -1022,9 +1028,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         loss_details['disc_train_frac'] = float(trained_disc)
         return loss_details
 
-    def _post_batch(
-        self, ib, b_loss_details, n_batches, previous_means
-    ):
+    def _post_batch(self, ib, b_loss_details, n_batches, previous_means):
         """Update loss details after the current batch and write to log.
 
         Parameters
