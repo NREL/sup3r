@@ -7,7 +7,7 @@ import tempfile
 import numpy as np
 import pytest
 
-from sup3r.models import Sup3rGan
+from sup3r.models import Sup3rGanWithObs
 from sup3r.preprocessing import (
     Container,
     DataHandler,
@@ -104,8 +104,8 @@ def test_train_h5_nc(
         assert not np.isnan(batch.obs).all()
         assert np.isnan(batch.obs).any()
 
-    Sup3rGan.seed()
-    model = Sup3rGan(
+    Sup3rGanWithObs.seed()
+    model = Sup3rGanWithObs(
         fp_gen, fp_disc, learning_rate=lr, loss='MeanAbsoluteError'
     )
 
@@ -208,8 +208,8 @@ def test_train_coarse_h5(
         assert not np.isnan(batch.obs).all()
         assert np.isnan(batch.obs).any()
 
-    Sup3rGan.seed()
-    model = Sup3rGan(
+    Sup3rGanWithObs.seed()
+    model = Sup3rGanWithObs(
         fp_gen, fp_disc, learning_rate=lr, loss='MeanAbsoluteError'
     )
 
