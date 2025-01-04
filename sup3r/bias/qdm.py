@@ -8,7 +8,6 @@ import copy
 import json
 import logging
 import os
-from concurrent.futures import ProcessPoolExecutor, as_completed
 
 import h5py
 import numpy as np
@@ -23,6 +22,7 @@ from sup3r.preprocessing.utilities import expand_paths
 
 from .base import DataRetrievalBase
 from .mixins import FillAndSmoothMixin
+from .utilities import run_in_parallel
 
 logger = logging.getLogger(__name__)
 
@@ -46,31 +46,32 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
     a dataset.
     """
 
-    def __init__(self,
-                 base_fps,
-                 bias_fps,
-                 bias_fut_fps,
-                 base_dset,
-                 bias_feature,
-                 distance_upper_bound=None,
-                 target=None,
-                 shape=None,
-                 base_handler='Resource',
-                 bias_handler='DataHandlerNCforCC',
-                 base_handler_kwargs=None,
-                 bias_handler_kwargs=None,
-                 bias_fut_handler_kwargs=None,
-                 decimals=None,
-                 match_zero_rate=False,
-                 n_quantiles=101,
-                 dist='empirical',
-                 relative=True,
-                 sampling='linear',
-                 log_base=10,
-                 n_time_steps=24,
-                 window_size=120,
-                 pre_load=True,
-                 ):
+    def __init__(
+        self,
+        base_fps,
+        bias_fps,
+        bias_fut_fps,
+        base_dset,
+        bias_feature,
+        distance_upper_bound=None,
+        target=None,
+        shape=None,
+        base_handler='Resource',
+        bias_handler='DataHandlerNCforCC',
+        base_handler_kwargs=None,
+        bias_handler_kwargs=None,
+        bias_fut_handler_kwargs=None,
+        decimals=None,
+        match_zero_rate=False,
+        n_quantiles=101,
+        dist='empirical',
+        relative=True,
+        sampling='linear',
+        log_base=10,
+        n_time_steps=24,
+        window_size=120,
+        pre_load=True,
+    ):
         """
         Parameters
         ----------
@@ -203,31 +204,34 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
         self.n_time_steps = n_time_steps
         self.window_size = window_size
 
-        super().__init__(base_fps=base_fps,
-                         bias_fps=bias_fps,
-                         base_dset=base_dset,
-                         bias_feature=bias_feature,
-                         distance_upper_bound=distance_upper_bound,
-                         target=target,
-                         shape=shape,
-                         base_handler=base_handler,
-                         bias_handler=bias_handler,
-                         base_handler_kwargs=base_handler_kwargs,
-                         bias_handler_kwargs=bias_handler_kwargs,
-                         decimals=decimals,
-                         match_zero_rate=match_zero_rate,
-                         pre_load=False,
-                         )
+        super().__init__(
+            base_fps=base_fps,
+            bias_fps=bias_fps,
+            base_dset=base_dset,
+            bias_feature=bias_feature,
+            distance_upper_bound=distance_upper_bound,
+            target=target,
+            shape=shape,
+            base_handler=base_handler,
+            bias_handler=bias_handler,
+            base_handler_kwargs=base_handler_kwargs,
+            bias_handler_kwargs=bias_handler_kwargs,
+            decimals=decimals,
+            match_zero_rate=match_zero_rate,
+            pre_load=False,
+        )
 
         self.bias_fut_fps = bias_fut_fps
         self.bias_fut_fps = expand_paths(self.bias_fut_fps)
 
         self.bias_fut_handler_kwargs = bias_fut_handler_kwargs or {}
-        self.bias_fut_dh = self.bias_handler(self.bias_fut_fps,
-                                             [self.bias_feature],
-                                             target=self.target,
-                                             shape=self.shape,
-                                             **self.bias_fut_handler_kwargs)
+        self.bias_fut_dh = self.bias_handler(
+            self.bias_fut_fps,
+            [self.bias_feature],
+            target=self.target,
+            shape=self.shape,
+            **self.bias_fut_handler_kwargs,
+        )
 
         if pre_load:
             self.pre_load()
@@ -249,12 +253,16 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
         probability distributions for the three datasets (see class
         documentation).
         """
-        keys = [f'bias_{self.bias_feature}_params',
-                f'bias_fut_{self.bias_feature}_params',
-                f'base_{self.base_dset}_params',
-                ]
-        shape = (*self.bias_gid_raster.shape, self.n_time_steps,
-                 self.n_quantiles)
+        keys = [
+            f'bias_{self.bias_feature}_params',
+            f'bias_fut_{self.bias_feature}_params',
+            f'base_{self.base_dset}_params',
+        ]
+        shape = (
+            *self.bias_gid_raster.shape,
+            self.n_time_steps,
+            self.n_quantiles,
+        )
         arr = np.full(shape, np.nan, np.float32)
         self.out = {k: arr.copy() for k in keys}
 
@@ -290,44 +298,47 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
             ...]. It includes the fraction of a day, thus 15.5 is equivalent
             to January 15th, 12:00h.
         """
-        assert ntimes > 0, "Requires a positive number of intervals"
+        assert ntimes > 0, 'Requires a positive number of intervals'
 
         dt = 365 / ntimes
         return np.arange(dt / 2, 366, dt)
 
     # pylint: disable=W0613
     @classmethod
-    def _run_single(cls,
-                    bias_data,
-                    bias_fut_data,
-                    base_fps,
-                    bias_feature,
-                    base_dset,
-                    base_gid,
-                    base_handler,
-                    daily_reduction,
-                    *,
-                    bias_ti,
-                    bias_fut_ti,
-                    decimals,
-                    dist,
-                    relative,
-                    sampling,
-                    n_samples,
-                    log_base,
-                    n_time_steps,
-                    window_size,
-                    base_dh_inst=None,
-                    ):
+    def _run_single(
+        cls,
+        bias_data,
+        bias_fut_data,
+        base_fps,
+        bias_feature,
+        base_dset,
+        base_gid,
+        base_handler,
+        daily_reduction,
+        *,
+        bias_ti,
+        bias_fut_ti,
+        decimals,
+        dist,
+        relative,
+        sampling,
+        n_samples,
+        log_base,
+        n_time_steps,
+        window_size,
+        base_dh_inst=None,
+    ):
         """Estimate probability distributions at a single site"""
 
-        base_data, base_ti = cls.get_base_data(base_fps,
-                                               base_dset,
-                                               base_gid,
-                                               base_handler,
-                                               daily_reduction=daily_reduction,
-                                               decimals=decimals,
-                                               base_dh_inst=base_dh_inst)
+        base_data, base_ti = cls.get_base_data(
+            base_fps,
+            base_dset,
+            base_gid,
+            base_handler,
+            daily_reduction=daily_reduction,
+            decimals=decimals,
+            base_dh_inst=base_dh_inst,
+        )
 
         window_size = window_size or 365 / n_time_steps
         window_center = cls._window_center(n_time_steps)
@@ -338,19 +349,21 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
         for nt, idt in enumerate(window_center):
             base_idx = cls.window_mask(base_ti.day_of_year, idt, window_size)
             bias_idx = cls.window_mask(bias_ti.day_of_year, idt, window_size)
-            bias_fut_idx = cls.window_mask(bias_fut_ti.day_of_year,
-                                           idt,
-                                           window_size)
+            bias_fut_idx = cls.window_mask(
+                bias_fut_ti.day_of_year, idt, window_size
+            )
 
             if any(base_idx) and any(bias_idx) and any(bias_fut_idx):
-                tmp = cls.get_qdm_params(bias_data[bias_idx],
-                                         bias_fut_data[bias_fut_idx],
-                                         base_data[base_idx],
-                                         bias_feature,
-                                         base_dset,
-                                         sampling,
-                                         n_samples,
-                                         log_base)
+                tmp = cls.get_qdm_params(
+                    bias_data[bias_idx],
+                    bias_fut_data[bias_fut_idx],
+                    base_data[base_idx],
+                    bias_feature,
+                    base_dset,
+                    sampling,
+                    n_samples,
+                    log_base,
+                )
                 for k, v in tmp.items():
                     if k not in out:
                         out[k] = template.copy()
@@ -359,15 +372,16 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
         return out
 
     @staticmethod
-    def get_qdm_params(bias_data,
-                       bias_fut_data,
-                       base_data,
-                       bias_feature,
-                       base_dset,
-                       sampling,
-                       n_samples,
-                       log_base,
-                       ):
+    def get_qdm_params(
+        bias_data,
+        bias_fut_data,
+        base_data,
+        bias_feature,
+        base_dset,
+        sampling,
+        n_samples,
+        log_base,
+    ):
         """Get quantiles' cut point for given datasets
 
         Estimate the quantiles' cut points for each of the three given
@@ -422,16 +436,18 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
         elif sampling == 'invlog':
             quantiles = sample_q_invlog(n_samples, log_base)
         else:
-            msg = ('sampling option must be linear, log, or invlog, but '
-                   'received: {}'.format(sampling)
-                   )
+            msg = (
+                'sampling option must be linear, log, or invlog, but '
+                'received: {}'.format(sampling)
+            )
             logger.error(msg)
             raise KeyError(msg)
 
         out = {
             f'bias_{bias_feature}_params': np.quantile(bias_data, quantiles),
-            f'bias_fut_{bias_feature}_params': np.quantile(bias_fut_data,
-                                                           quantiles),
+            f'bias_fut_{bias_feature}_params': np.quantile(
+                bias_fut_data, quantiles
+            ),
             f'base_{base_dset}_params': np.quantile(base_data, quantiles),
         }
 
@@ -466,24 +482,24 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
 
                 for k, v in self.meta.items():
                     f.attrs[k] = json.dumps(v)
-                f.attrs["dist"] = self.dist
-                f.attrs["sampling"] = self.sampling
-                f.attrs["log_base"] = self.log_base
-                f.attrs["base_fps"] = self.base_fps
-                f.attrs["bias_fps"] = self.bias_fps
-                f.attrs["bias_fut_fps"] = self.bias_fut_fps
-                f.attrs["time_window_center"] = self.time_window_center
-                logger.info(
-                    'Wrote quantiles to file: {}'.format(fp_out))
+                f.attrs['dist'] = self.dist
+                f.attrs['sampling'] = self.sampling
+                f.attrs['log_base'] = self.log_base
+                f.attrs['base_fps'] = self.base_fps
+                f.attrs['bias_fps'] = self.bias_fps
+                f.attrs['bias_fut_fps'] = self.bias_fut_fps
+                f.attrs['time_window_center'] = self.time_window_center
+                logger.info('Wrote quantiles to file: {}'.format(fp_out))
 
-    def run(self,
-            fp_out=None,
-            max_workers=None,
-            daily_reduction='avg',
-            fill_extend=True,
-            smooth_extend=0,
-            smooth_interior=0,
-            ):
+    def run(
+        self,
+        fp_out=None,
+        max_workers=None,
+        daily_reduction='avg',
+        fill_extend=True,
+        smooth_extend=0,
+        smooth_interior=0,
+    ):
         """Estimate the statistical distributions for each location
 
         Parameters
@@ -509,8 +525,11 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
 
         logger.debug('Calculating CDF parameters for QDM')
 
-        logger.info('Initialized params with shape: {}'
-                    .format(self.bias_gid_raster.shape))
+        logger.info(
+            'Initialized params with shape: {}'.format(
+                self.bias_gid_raster.shape
+            )
+        )
         self.bad_bias_gids = []
 
         # sup3r DataHandler opening base files will load all data in parallel
@@ -518,21 +537,18 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
         if isinstance(self.base_dh, DataHandler):
             max_workers = 1
 
-        if max_workers == 1:
-            logger.debug('Running serial calculation.')
-            for i, bias_gid in enumerate(self.bias_meta.index):
-                raster_loc = np.where(self.bias_gid_raster == bias_gid)
-                _, base_gid = self.get_base_gid(bias_gid)
+        task_args_list = []
+        for bias_gid in self.bias_meta.index:
+            raster_loc = np.where(self.bias_gid_raster == bias_gid)
+            _, base_gid = self.get_base_gid(bias_gid)
 
-                if not base_gid.any():
-                    self.bad_bias_gids.append(bias_gid)
-                    logger.debug(f'No base data for bias_gid: {bias_gid}. '
-                                 'Adding it to bad_bias_gids')
-                else:
-                    bias_data = self.get_bias_data(bias_gid)
-                    bias_fut_data = self.get_bias_data(bias_gid,
-                                                       self.bias_fut_dh)
-                    single_out = self._run_single(
+            if not base_gid.any():
+                self.bad_bias_gids.append(bias_gid)
+            else:
+                bias_data = self.get_bias_data(bias_gid)
+                bias_fut_data = self.get_bias_data(bias_gid, self.bias_fut_dh)
+                task_args_list.append(
+                    (
                         bias_data,
                         bias_fut_data,
                         self.base_fps,
@@ -541,80 +557,49 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                         base_gid,
                         self.base_handler,
                         daily_reduction,
-                        bias_ti=self.bias_dh.time_index,
-                        bias_fut_ti=self.bias_fut_dh.time_index,
-                        decimals=self.decimals,
-                        dist=self.dist,
-                        relative=self.relative,
-                        sampling=self.sampling,
-                        n_samples=self.n_quantiles,
-                        log_base=self.log_base,
-                        n_time_steps=self.n_time_steps,
-                        window_size=self.window_size,
-                        base_dh_inst=self.base_dh,
+                        self.bias_dh.time_index,
+                        self.bias_fut_dh.time_index,
+                        self.decimals,
+                        self.dist,
+                        self.relative,
+                        self.sampling,
+                        self.n_quantiles,
+                        self.log_base,
+                        self.n_time_steps,
+                        self.window_size,
+                        self.base_dh,
                     )
-                    for key, arr in single_out.items():
-                        self.out[key][raster_loc] = arr
+                )
 
-                logger.info('Completed bias calculations for {} out of {} '
-                            'sites'.format(i + 1, len(self.bias_meta)))
-
+        if max_workers == 1:
+            logger.debug('Running serial calculation.')
+            results = [self._run_single(*args) for args in task_args_list]
         else:
             logger.debug(
-                'Running parallel calculation with {} workers.'.format(
-                    max_workers))
-            with ProcessPoolExecutor(max_workers=max_workers) as exe:
-                futures = {}
-                for bias_gid in self.bias_meta.index:
-                    raster_loc = np.where(self.bias_gid_raster == bias_gid)
-                    _, base_gid = self.get_base_gid(bias_gid)
+                'Running parallel calculation with %s workers.', max_workers
+            )
+            results = run_in_parallel(
+                self._run_single, task_args_list, max_workers=max_workers
+            )
 
-                    if not base_gid.any():
-                        self.bad_bias_gids.append(bias_gid)
-                    else:
-                        bias_data = self.get_bias_data(bias_gid)
-                        bias_fut_data = self.get_bias_data(bias_gid,
-                                                           self.bias_fut_dh)
-                        future = exe.submit(
-                            self._run_single,
-                            bias_data,
-                            bias_fut_data,
-                            self.base_fps,
-                            self.bias_feature,
-                            self.base_dset,
-                            base_gid,
-                            self.base_handler,
-                            daily_reduction,
-                            bias_ti=self.bias_dh.time_index,
-                            bias_fut_ti=self.bias_fut_dh.time_index,
-                            decimals=self.decimals,
-                            dist=self.dist,
-                            relative=self.relative,
-                            sampling=self.sampling,
-                            n_samples=self.n_quantiles,
-                            log_base=self.log_base,
-                            n_time_steps=self.n_time_steps,
-                            window_size=self.window_size,
-                        )
-                        futures[future] = raster_loc
+        for i, single_out in enumerate(results):
+            raster_loc = np.where(self.bias_gid_raster == task_args_list[i][0])
+            for key, arr in single_out.items():
+                self.out[key][raster_loc] = arr
 
-                logger.debug('Finished launching futures.')
-                for i, future in enumerate(as_completed(futures)):
-                    raster_loc = futures[future]
-                    single_out = future.result()
-                    for key, arr in single_out.items():
-                        self.out[key][raster_loc] = arr
-
-                    logger.info('Completed bias calculations for {} out of {} '
-                                'sites'.format(i + 1, len(futures)))
+            logger.info(
+                'Completed bias calculations for %s out of %s sites',
+                i + 1,
+                len(results),
+            )
 
         logger.info('Finished calculating bias correction factors.')
 
-        self.out = self.fill_and_smooth(self.out, fill_extend, smooth_extend,
-                                        smooth_interior)
+        self.out = self.fill_and_smooth(
+            self.out, fill_extend, smooth_extend, smooth_interior
+        )
 
         self.write_outputs(fp_out, self.out)
-
         return copy.deepcopy(self.out)
 
     @staticmethod
