@@ -17,12 +17,10 @@ from rex.utilities.bc_utils import (
     sample_q_log,
 )
 
-from sup3r.preprocessing import DataHandler
 from sup3r.preprocessing.utilities import expand_paths
 
 from .base import DataRetrievalBase
 from .mixins import FillAndSmoothMixin
-from .utilities import run_in_parallel
 
 logger = logging.getLogger(__name__)
 
@@ -491,6 +489,41 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                 f.attrs['time_window_center'] = self.time_window_center
                 logger.info('Wrote quantiles to file: {}'.format(fp_out))
 
+    def _get_run_kwargs(self, **kwargs_extras):
+        """Get dictionary of kwarg dictionaries to use for calls to
+        ``_run_single``. Each key-value pair is a bias_gid with the associated
+        ``_run_single`` arguments for that gid"""
+        task_kwargs = {}
+        for bias_gid in self.bias_meta.index:
+            _, base_gid = self.get_base_gid(bias_gid)
+
+            if not base_gid.any():
+                self.bad_bias_gids.append(bias_gid)
+            else:
+                bias_data = self.get_bias_data(bias_gid)
+                bias_fut_data = self.get_bias_data(bias_gid, self.bias_fut_dh)
+                task_kwargs[bias_gid] = {
+                    'bias_data': bias_data,
+                    'bias_fut_data': bias_fut_data,
+                    'base_fps': self.base_fps,
+                    'bias_feature': self.bias_feature,
+                    'base_dset': self.base_dset,
+                    'base_gid': base_gid,
+                    'base_handler': self.base_handler,
+                    'bias_ti': self.bias_dh.time_index,
+                    'bias_fut_ti': self.bias_fut_dh.time_index,
+                    'decimals': self.decimals,
+                    'dist': self.dist,
+                    'relative': self.relative,
+                    'sampling': self.sampling,
+                    'n_samples': self.n_quantiles,
+                    'log_base': self.log_base,
+                    'n_time_steps': self.n_time_steps,
+                    'window_size': self.window_size,
+                    **kwargs_extras,
+                }
+        return task_kwargs
+
     def run(
         self,
         fp_out=None,
@@ -530,76 +563,13 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
                 self.bias_gid_raster.shape
             )
         )
-        self.bad_bias_gids = []
 
-        # sup3r DataHandler opening base files will load all data in parallel
-        # during the init and should not be passed in parallel to workers
-        if isinstance(self.base_dh, DataHandler):
-            max_workers = 1
-
-        task_kwargs_list = []
-        bias_gids = []
-        for bias_gid in self.bias_meta.index:
-            raster_loc = np.where(self.bias_gid_raster == bias_gid)
-            _, base_gid = self.get_base_gid(bias_gid)
-
-            if not base_gid.any():
-                self.bad_bias_gids.append(bias_gid)
-            else:
-                bias_gids.append(bias_gid)
-                bias_data = self.get_bias_data(bias_gid)
-                bias_fut_data = self.get_bias_data(bias_gid, self.bias_fut_dh)
-                task_kwargs_list.append(
-                    {
-                        'bias_data': bias_data,
-                        'bias_fut_data': bias_fut_data,
-                        'base_fps': self.base_fps,
-                        'bias_feature': self.bias_feature,
-                        'base_dset': self.base_dset,
-                        'base_gid': base_gid,
-                        'base_handler': self.base_handler,
-                        'daily_reduction': daily_reduction,
-                        'bias_ti': self.bias_dh.time_index,
-                        'bias_fut_ti': self.bias_fut_dh.time_index,
-                        'decimals': self.decimals,
-                        'dist': self.dist,
-                        'relative': self.relative,
-                        'sampling': self.sampling,
-                        'n_samples': self.n_quantiles,
-                        'log_base': self.log_base,
-                        'n_time_steps': self.n_time_steps,
-                        'window_size': self.window_size,
-                    }
-                )
-
-        if max_workers == 1:
-            logger.debug('Running serial calculation.')
-            results = [
-                self._run_single(**kwargs) for kwargs in task_kwargs_list
-            ]
-        else:
-            logger.debug(
-                'Running parallel calculation with %s workers.', max_workers
-            )
-            results = run_in_parallel(
-                self._run_single, task_kwargs_list, max_workers=max_workers
-            )
-
-        for i, single_out in enumerate(results):
-            raster_loc = np.where(self.bias_gid_raster == bias_gids[i])
-            for key, arr in single_out.items():
-                self.out[key][raster_loc] = arr
-
-            logger.info(
-                'Completed bias calculations for %s out of %s sites',
-                i + 1,
-                len(results),
-            )
-
-        logger.info('Finished calculating bias correction factors.')
-
-        self.out = self.fill_and_smooth(
-            self.out, fill_extend, smooth_extend, smooth_interior
+        self.out = self._run(
+            max_workers=max_workers,
+            daily_reduction=daily_reduction,
+            fill_extend=fill_extend,
+            smooth_extend=smooth_extend,
+            smooth_interior=smooth_interior,
         )
 
         self.write_outputs(fp_out, self.out)

@@ -11,11 +11,8 @@ import h5py
 import numpy as np
 from scipy import stats
 
-from sup3r.preprocessing import DataHandler
-
 from .base import DataRetrievalBase
 from .mixins import FillAndSmoothMixin
-from .utilities import run_in_parallel
 
 logger = logging.getLogger(__name__)
 
@@ -214,67 +211,12 @@ class LinearCorrection(FillAndSmoothMixin, DataRetrievalBase):
                 self.bias_gid_raster.shape
             )
         )
-
-        self.bad_bias_gids = []
-
-        # sup3r DataHandler opening base files will load all data in parallel
-        # during the init and should not be passed in parallel to workers
-        if isinstance(self.base_dh, DataHandler):
-            max_workers = 1
-
-        task_kwargs_list = []
-        bias_gids = []
-        for bias_gid in self.bias_meta.index:
-            raster_loc = np.where(self.bias_gid_raster == bias_gid)
-            _, base_gid = self.get_base_gid(bias_gid)
-
-            if not base_gid.any():
-                self.bad_bias_gids.append(bias_gid)
-            else:
-                bias_data = self.get_bias_data(bias_gid)
-                bias_gids.append(bias_gid)
-                task_kwargs_list.append(
-                    {
-                        'bias_data': bias_data,
-                        'base_fps': self.base_fps,
-                        'bias_feature': self.bias_feature,
-                        'base_dset': self.base_dset,
-                        'base_gid': base_gid,
-                        'base_handler': self.base_handler,
-                        'daily_reduction': daily_reduction,
-                        'bias_ti': self.bias_ti,
-                        'decimals': self.decimals,
-                        'match_zero_rate': self.match_zero_rate,
-                    }
-                )
-
-        if max_workers == 1:
-            logger.debug('Running serial calculation.')
-            results = [
-                self._run_single(**kwargs, base_dh_inst=self.base_dh)
-                for kwargs in task_kwargs_list
-            ]
-        else:
-            logger.info(
-                'Running parallel calculation with %s workers.', max_workers
-            )
-            results = run_in_parallel(
-                self._run_single, task_kwargs_list, max_workers=max_workers
-            )
-        for i, single_out in enumerate(results):
-            raster_loc = np.where(self.bias_gid_raster == bias_gids[i])
-            for key, arr in single_out.items():
-                self.out[key][raster_loc] = arr
-            logger.info(
-                'Completed bias calculations for %s out of %s sites',
-                i + 1,
-                len(results),
-            )
-
-        logger.info('Finished calculating bias correction factors.')
-
-        self.out = self.fill_and_smooth(
-            self.out, fill_extend, smooth_extend, smooth_interior
+        self.out = self._run(
+            max_workers=max_workers,
+            daily_reduction=daily_reduction,
+            fill_extend=fill_extend,
+            smooth_extend=smooth_extend,
+            smooth_interior=smooth_interior,
         )
         self.write_outputs(fp_out, self.out)
 
