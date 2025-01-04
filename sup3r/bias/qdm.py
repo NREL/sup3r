@@ -537,7 +537,8 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
         if isinstance(self.base_dh, DataHandler):
             max_workers = 1
 
-        task_args_list = []
+        task_kwargs_list = []
+        bias_gids = []
         for bias_gid in self.bias_meta.index:
             raster_loc = np.where(self.bias_gid_raster == bias_gid)
             _, base_gid = self.get_base_gid(bias_gid)
@@ -545,45 +546,47 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
             if not base_gid.any():
                 self.bad_bias_gids.append(bias_gid)
             else:
+                bias_gids.append(bias_gid)
                 bias_data = self.get_bias_data(bias_gid)
                 bias_fut_data = self.get_bias_data(bias_gid, self.bias_fut_dh)
-                task_args_list.append(
-                    (
-                        bias_data,
-                        bias_fut_data,
-                        self.base_fps,
-                        self.bias_feature,
-                        self.base_dset,
-                        base_gid,
-                        self.base_handler,
-                        daily_reduction,
-                        self.bias_dh.time_index,
-                        self.bias_fut_dh.time_index,
-                        self.decimals,
-                        self.dist,
-                        self.relative,
-                        self.sampling,
-                        self.n_quantiles,
-                        self.log_base,
-                        self.n_time_steps,
-                        self.window_size,
-                        self.base_dh,
-                    )
+                task_kwargs_list.append(
+                    {
+                        'bias_data': bias_data,
+                        'bias_fut_data': bias_fut_data,
+                        'base_fps': self.base_fps,
+                        'bias_feature': self.bias_feature,
+                        'base_dset': self.base_dset,
+                        'base_gid': base_gid,
+                        'base_handler': self.base_handler,
+                        'daily_reduction': daily_reduction,
+                        'bias_ti': self.bias_dh.time_index,
+                        'bias_fut_ti': self.bias_fut_dh.time_index,
+                        'decimals': self.decimals,
+                        'dist': self.dist,
+                        'relative': self.relative,
+                        'sampling': self.sampling,
+                        'n_samples': self.n_quantiles,
+                        'log_base': self.log_base,
+                        'n_time_steps': self.n_time_steps,
+                        'window_size': self.window_size,
+                    }
                 )
 
         if max_workers == 1:
             logger.debug('Running serial calculation.')
-            results = [self._run_single(*args) for args in task_args_list]
+            results = [
+                self._run_single(**kwargs) for kwargs in task_kwargs_list
+            ]
         else:
             logger.debug(
                 'Running parallel calculation with %s workers.', max_workers
             )
             results = run_in_parallel(
-                self._run_single, task_args_list, max_workers=max_workers
+                self._run_single, task_kwargs_list, max_workers=max_workers
             )
 
         for i, single_out in enumerate(results):
-            raster_loc = np.where(self.bias_gid_raster == task_args_list[i][0])
+            raster_loc = np.where(self.bias_gid_raster == bias_gids[i])
             for key, arr in single_out.items():
                 self.out[key][raster_loc] = arr
 

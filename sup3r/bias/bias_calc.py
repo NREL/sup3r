@@ -222,7 +222,8 @@ class LinearCorrection(FillAndSmoothMixin, DataRetrievalBase):
         if isinstance(self.base_dh, DataHandler):
             max_workers = 1
 
-        task_args_list = []
+        task_kwargs_list = []
+        bias_gids = []
         for bias_gid in self.bias_meta.index:
             raster_loc = np.where(self.bias_gid_raster == bias_gid)
             _, base_gid = self.get_base_gid(bias_gid)
@@ -231,52 +232,44 @@ class LinearCorrection(FillAndSmoothMixin, DataRetrievalBase):
                 self.bad_bias_gids.append(bias_gid)
             else:
                 bias_data = self.get_bias_data(bias_gid)
-                task_args_list.append(
-                    (
-                        bias_data,
-                        self.base_fps,
-                        self.bias_feature,
-                        self.base_dset,
-                        base_gid,
-                        self.base_handler,
-                        daily_reduction,
-                        self.bias_ti,
-                        self.decimals,
-                        self.base_dh,
-                        self.match_zero_rate,
-                    )
+                bias_gids.append(bias_gid)
+                task_kwargs_list.append(
+                    {
+                        'bias_data': bias_data,
+                        'base_fps': self.base_fps,
+                        'bias_feature': self.bias_feature,
+                        'base_dset': self.base_dset,
+                        'base_gid': base_gid,
+                        'base_handler': self.base_handler,
+                        'daily_reduction': daily_reduction,
+                        'bias_ti': self.bias_ti,
+                        'decimals': self.decimals,
+                        'match_zero_rate': self.match_zero_rate,
+                    }
                 )
 
         if max_workers == 1:
             logger.debug('Running serial calculation.')
-            for i, args in enumerate(task_args_list):
-                single_out = self._run_single(*args)
-                raster_loc = np.where(self.bias_gid_raster == args[0])
-                for key, arr in single_out.items():
-                    self.out[key][raster_loc] = arr
-                logger.info(
-                    'Completed bias calculations for %s out of %s sites',
-                    i + 1,
-                    len(task_args_list),
-                )
+            results = [
+                self._run_single(**kwargs, base_dh_inst=self.base_dh)
+                for kwargs in task_kwargs_list
+            ]
         else:
             logger.info(
                 'Running parallel calculation with %s workers.', max_workers
             )
             results = run_in_parallel(
-                self._run_single, task_args_list, max_workers=max_workers
+                self._run_single, task_kwargs_list, max_workers=max_workers
             )
-            for i, single_out in enumerate(results):
-                raster_loc = np.where(
-                    self.bias_gid_raster == task_args_list[i][0]
-                )
-                for key, arr in single_out.items():
-                    self.out[key][raster_loc] = arr
-                logger.info(
-                    'Completed bias calculations for %s out of %s sites',
-                    i + 1,
-                    len(results),
-                )
+        for i, single_out in enumerate(results):
+            raster_loc = np.where(self.bias_gid_raster == bias_gids[i])
+            for key, arr in single_out.items():
+                self.out[key][raster_loc] = arr
+            logger.info(
+                'Completed bias calculations for %s out of %s sites',
+                i + 1,
+                len(results),
+            )
 
         logger.info('Finished calculating bias correction factors.')
 

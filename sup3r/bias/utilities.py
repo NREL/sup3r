@@ -19,7 +19,7 @@ from sup3r.preprocessing.utilities import (
 logger = logging.getLogger(__name__)
 
 
-def run_in_parallel(task_function, task_args_list, max_workers=None):
+def run_in_parallel(task_function, task_kwargs_list, max_workers=None):
     """
     Execute a list of tasks in parallel using ``ProcessPoolExecutor``.
 
@@ -28,8 +28,8 @@ def run_in_parallel(task_function, task_args_list, max_workers=None):
     task_function : callable
         The function to execute in parallel.
     task_args_list : list
-        A list of argument tuples, where each tuple contains the arguments
-        for a single call to ``task_function``.
+        A list of keyword argument dictionaries for a single call to
+        ``task_function``.
     max_workers : int, optional
         The maximum number of workers to use. If None, it uses all available.
 
@@ -41,8 +41,8 @@ def run_in_parallel(task_function, task_args_list, max_workers=None):
     results = []
     with ProcessPoolExecutor(max_workers=max_workers) as exe:
         futures = {
-            exe.submit(task_function, *args): args
-            for args in task_args_list
+            exe.submit(task_function, **kwargs): kwargs
+            for kwargs in task_kwargs_list
         }
         for future in as_completed(futures):
             result = future.result()
