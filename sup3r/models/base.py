@@ -1146,8 +1146,8 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
                 )
                 logger.warning(msg)
                 warn(msg)
-            self.total_batches += 1
 
+        self.total_batches += len(batch_handler)
         loss_details['total_batches'] = int(self.total_batches)
         self.profile_to_tensorboard('training_epoch')
         return loss_details
