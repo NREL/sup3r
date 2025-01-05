@@ -2,7 +2,6 @@
 
 import logging
 import os
-from concurrent.futures import ProcessPoolExecutor, as_completed
 from inspect import signature
 from warnings import warn
 
@@ -17,38 +16,6 @@ from sup3r.preprocessing.utilities import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-def run_in_parallel(task_function, task_kwargs, max_workers=None):
-    """
-    Execute a list of tasks in parallel using ``ProcessPoolExecutor``.
-
-    Parameters
-    ----------
-    task_function : callable
-        The function to execute in parallel.
-    task_kwargs : dictionary
-        A dictionary of keyword argument dictionaries for a single call to
-        ``task_function``.
-    max_workers : int, optional
-        The maximum number of workers to use. If None, it uses all available.
-
-    Returns
-    -------
-    results : dictionary
-        A dictionary of results from the executed tasks with the same keys as
-        ``task_kwargs``.
-    """
-    results = {}
-    with ProcessPoolExecutor(max_workers=max_workers) as exe:
-        futures = {
-            exe.submit(task_function, **kwargs): bias_gid
-            for bias_gid, kwargs in task_kwargs.items()
-        }
-        for future in as_completed(futures):
-            bias_gid = futures[future]
-            results[bias_gid] = future.result()
-    return results
 
 
 def lin_bc(handler, bc_files, bias_feature=None, threshold=0.1):

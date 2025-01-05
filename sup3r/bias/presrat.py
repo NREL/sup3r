@@ -359,41 +359,6 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
 
         return out
 
-    def _get_run_kwargs(self, **kwargs_extras):
-        """Get dictionary of kwarg dictionaries to use for calls to
-        ``_run_single``. Each key-value pair is a bias_gid with the associated
-        ``_run_single`` arguments for that gid"""
-        task_kwargs = {}
-        for bias_gid in self.bias_meta.index:
-            _, base_gid = self.get_base_gid(bias_gid)
-
-            if not base_gid.any():
-                self.bad_bias_gids.append(bias_gid)
-            else:
-                bias_data = self.get_bias_data(bias_gid)
-                bias_fut_data = self.get_bias_data(bias_gid, self.bias_fut_dh)
-                task_kwargs[bias_gid] = {
-                    'bias_data': bias_data,
-                    'bias_fut_data': bias_fut_data,
-                    'base_fps': self.base_fps,
-                    'bias_feature': self.bias_feature,
-                    'base_dset': self.base_dset,
-                    'base_gid': base_gid,
-                    'base_handler': self.base_handler,
-                    'bias_ti': self.bias_dh.time_index,
-                    'bias_fut_ti': self.bias_fut_dh.time_index,
-                    'decimals': self.decimals,
-                    'dist': self.dist,
-                    'relative': self.relative,
-                    'sampling': self.sampling,
-                    'n_samples': self.n_quantiles,
-                    'log_base': self.log_base,
-                    'n_time_steps': self.n_time_steps,
-                    'window_size': self.window_size,
-                    **kwargs_extras,
-                }
-        return task_kwargs
-
     def run(
         self,
         fp_out=None,
@@ -454,6 +419,7 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
             )
         )
         self.out = self._run(
+            out=self.out,
             max_workers=max_workers,
             daily_reduction=daily_reduction,
             fill_extend=fill_extend,

@@ -19,13 +19,16 @@ from rex.utilities.bc_utils import (
 
 from sup3r.preprocessing.utilities import expand_paths
 
+from .abstract import AbstractBiasCorrection
 from .base import DataRetrievalBase
 from .mixins import FillAndSmoothMixin
 
 logger = logging.getLogger(__name__)
 
 
-class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
+class QuantileDeltaMappingCorrection(
+    AbstractBiasCorrection, FillAndSmoothMixin, DataRetrievalBase
+):
     """Estimate probability distributions required by Quantile Delta Mapping
 
     The main purpose of this class is to estimate the probability
@@ -565,6 +568,7 @@ class QuantileDeltaMappingCorrection(FillAndSmoothMixin, DataRetrievalBase):
         )
 
         self.out = self._run(
+            out=self.out,
             max_workers=max_workers,
             daily_reduction=daily_reduction,
             fill_extend=fill_extend,

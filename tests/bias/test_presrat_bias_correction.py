@@ -82,27 +82,17 @@ def fp_resource(tmpdir_factory):
     """
     fn = tmpdir_factory.mktemp('data').join('precip_oh.h5')
 
-    # Reproducing FP_NSRDB before I can change it.
     time = pd.date_range(
-        '2018-01-01 00:00:00+0000', '2018-03-26 23:30:00+0000', freq='30m'
-    )
-    time = pd.DatetimeIndex(
-        np.arange(
-            np.datetime64('2018-01-01 00:00:00+00:00'),
-            np.datetime64('2019-01-01 00:00:00+00:00'),
-            np.timedelta64(6, 'h'),
-        )
+        '2018-01-01 00:00:00', '2019-01-01 00:00:00', freq='6h'
     )
     lat = np.arange(39.77, 39.00, -0.04)
     lon = np.arange(-105.14, -104.37, 0.04)
-    rng = np.random.default_rng()
-    ghi = rng.lognormal(0.0, 1.0, (time.size, lat.size, lon.size))
+    ghi = RANDOM_GENERATOR.lognormal(0.0, 1.0, (time.size, lat.size, lon.size))
 
     ds = xr.Dataset(
         data_vars={'ghi': (['time', 'lat', 'lon'], ghi)},
         coords={
             'time': ('time', time),
-            # "time_bnds": (["time", "bnds"], time_bnds),
             'lat': ('lat', lat),
             'lon': ('lon', lon),
         },
@@ -142,40 +132,16 @@ def fp_resource(tmpdir_factory):
 
 @pytest.fixture(scope='module')
 def precip():
-    """Synthetic historical modeled dataset
-
-    Note
-    ----
-    There are different expected patterns in different components of the
-    processing. For instance, lon might be expected as 0-360 in some places
-    but -180 to 180 in others, and expect a certain order that does not
-    necessarily match latitutde. So changes in the coordinates shall be
-    done carefullly.
-    """
-    # first value must conform with TARGET[0]
-    # n values must conform with SHAPE[0]
-    # dlat = -0.70175216
+    """Synthetic historical modeled dataset"""
     lat = np.array(
         [40.3507847105177, 39.649032596592, 38.9472804370071, 38.2455282337738]
     )
-    # assert np.allclose(lat[0], TARGET[0])
-    # assert lat.size == SHAPE[0]
-
-    # lon = np.linspace(254.4, 255.1, 10)
-    # first value must conform with TARGET[1]
-    # n values must conform with SHAPE[1]
     lon = np.array([254.53125, 255.234375, 255.9375, 256.640625])
-    # assert np.allclose(lat[1], 360 + TARGET[0])
-    # assert lon.size == SHAPE[0]
 
-    t0 = np.datetime64('2015-01-01T12:00:00')
-    time = t0 + np.arange(
-        0, SAMPLE_TIME_DURATION, SAMPLE_TIME_RESOLUTION, dtype='timedelta64[D]'
+    time = pd.date_range(
+        '2015-01-01T12:00:00', '2016-12-31T12:00:00', freq='D'
     )
-    # bnds = (-np.timedelta64(12, 'h'), np.timedelta64(12, 'h'))
-    # time_bnds = time[:, np.newaxis] + bnds
-    rng = np.random.default_rng()
-    pr = rng.lognormal(0.0, 1.0, (time.size, lat.size, lon.size))
+    pr = RANDOM_GENERATOR.lognormal(0.0, 1.0, (time.size, lat.size, lon.size))
 
     # Transform the upper tail into negligible to guarantee some 'zero
     # precipiation days'.
@@ -190,7 +156,7 @@ def precip():
         data=pr,
         dims=['time', 'lat', 'lon'],
         coords={
-            'time': ('time', time),
+            'time': ('time', pd.DatetimeIndex(time)),
             'lat': ('lat', lat),
             'lon': ('lon', lon),
         },
