@@ -76,12 +76,11 @@ class TensorboardMixIn:
     @property
     def total_batches(self):
         """Record of total number of batches for logging."""
-        if self._total_batches is None and self._history is None:
-            self._total_batches = 0
-        elif self._history is None and 'total_batches' in self._history:
-            self._total_batches = self._history['total_batches'].values[-1]
-        elif self._total_batches is None and self._history is not None:
-            self._total_batches = 0
+        if self._total_batches is None:
+            if self._history is not None and 'total_batches' in self._history:
+                self._total_batches = self._history['total_batches'].values[-1]
+            else:
+                self._total_batches = 0
         return self._total_batches
 
     @total_batches.setter
