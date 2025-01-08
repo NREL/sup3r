@@ -319,10 +319,10 @@ class Sup3rGanWithObs(Sup3rGan):
                 low_res, hi_res_true, **calc_loss_kwargs
             )
             loss, loss_details = loss_out
-            if obs_data is not None:
-                loss_obs = self.calc_loss_obs(obs_data, hi_res_gen)
+            loss_obs = self.calc_loss_obs(obs_data, hi_res_gen)
+            if not tf.reduce_any(tf.math.is_nan(loss_obs)):
                 loss += loss_obs
-                loss_details['loss_obs'] = loss_obs
+                loss_details.update({'loss_obs': loss_obs})
             grad = tape.gradient(loss, training_weights)
         return grad, loss_details
 
@@ -345,8 +345,13 @@ class Sup3rGanWithObs(Sup3rGan):
         loss : tf.Tensor
             0D tensor of observation loss
         """
-        mask = tf.math.is_nan(obs_data)
-        return MeanAbsoluteError()(
-            obs_data[~mask],
-            hi_res_gen[..., : len(self.hr_out_features)][~mask],
-        )
+        obs_loss = tf.constant(np.nan)
+        if obs_data is not None:
+            mask = tf.math.is_nan(obs_data)
+            masked_obs = obs_data[~mask]
+            if len(masked_obs) > 0:
+                obs_loss = MeanAbsoluteError()(
+                    masked_obs,
+                    hi_res_gen[..., : len(self.hr_out_features)][~mask],
+                )
+        return obs_loss
