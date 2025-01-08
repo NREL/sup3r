@@ -48,7 +48,7 @@ class Interpolator:
             da.arange(lev_array.shape[-1]), lev_array.shape
         )
         mask1 = lev_indices == argmin1
-        lev_diff = da.where(mask1, np.inf, lev_diff)
+        lev_diff = da.abs(da.ma.masked_array(lev_array, mask1) - level)
         argmin2 = da.argmin(lev_diff, axis=-1, keepdims=True)
         mask2 = lev_indices == argmin2
         return mask1, mask2

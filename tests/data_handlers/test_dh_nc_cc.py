@@ -69,6 +69,7 @@ def test_reload_cache():
             target=target,
             shape=(20, 20),
             cache_kwargs=cache_kwargs,
+            interp_kwargs={'include_single_levels': True}
         )
 
         # reload from cache
@@ -80,7 +81,9 @@ def test_reload_cache():
             cache_kwargs=cache_kwargs,
         )
         assert all(f in cached for f in features)
-        assert np.array_equal(handler.as_array(), cached.as_array())
+        harr = handler.as_array().compute()
+        carr = cached.as_array().compute()
+        assert np.array_equal(harr, carr)
 
 
 @pytest.mark.parametrize(
