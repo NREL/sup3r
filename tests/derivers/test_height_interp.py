@@ -156,7 +156,7 @@ def test_single_levels_height_interp_nc(shape=(10, 10), target=(37.25, -107)):
         transform = Deriver(
             no_transform.data,
             derive_features,
-            interp_kwargs={'method': 'linear'},
+            interp_kwargs={'method': 'linear', 'include_single_levels': True},
         )
 
     h10 = np.zeros(transform.shape[:3], dtype=np.float32)[..., None]
@@ -197,7 +197,11 @@ def test_plevel_height_interp_with_single_lev_data_nc(
             [wind_file, level_file], target=target, shape=shape
         )
 
-        transform = Deriver(no_transform.data, derive_features)
+        transform = Deriver(
+            no_transform.data,
+            derive_features,
+            interp_kwargs={'include_single_levels': True},
+        )
 
     hgt_array = (
         no_transform['zg'].data - no_transform['topography'].data[..., None]
@@ -237,7 +241,7 @@ def test_log_interp(shape=(10, 10), target=(37.25, -107)):
         transform = Deriver(
             no_transform.data,
             derive_features,
-            interp_kwargs={'method': 'log'},
+            interp_kwargs={'method': 'log', 'include_single_levels': True},
         )
 
     hgt_array = (

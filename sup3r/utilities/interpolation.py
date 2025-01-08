@@ -45,14 +45,14 @@ class Interpolator:
             to the one requested.
             (lat, lon, time, level)
         """
-        argmin1 = da.argmin(da.abs(lev_array - level), axis=-1, keepdims=True)
+        lev_diff = np.abs(lev_array - level)
+        argmin1 = da.argmin(lev_diff, axis=-1, keepdims=True)
         lev_indices = da.broadcast_to(
             da.arange(lev_array.shape[-1]), lev_array.shape
         )
         mask1 = lev_indices == argmin1
-
-        other_levs = da.ma.masked_array(lev_array, mask1)
-        argmin2 = da.argmin(da.abs(other_levs - level), axis=-1, keepdims=True)
+        lev_diff = da.where(mask1, np.inf, lev_diff)
+        argmin2 = da.argmin(lev_diff, axis=-1, keepdims=True)
         mask2 = lev_indices == argmin2
         return mask1, mask2
 
@@ -61,7 +61,7 @@ class Interpolator:
         """Linearly interpolate between levels."""
         diff = da.map_blocks(lambda x, y: x - y, lev_samps[1], lev_samps[0])
         alpha = da.where(
-            diff == 0,
+            diff < 1e-3,
             0,
             da.map_blocks(lambda x, y: x / y, (level - lev_samps[0]), diff),
         )
