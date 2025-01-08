@@ -20,9 +20,6 @@ class Interpolator:
 
         Parameters
         ----------
-        var_array : Union[np.ndarray, da.core.Array]
-            Array of variable data, for example u-wind in a 4D array of shape
-            (lat, lon, time, level)
         lev_array : Union[np.ndarray, da.core.Array]
             Height or pressure values for the corresponding entries in
             var_array, in the same shape as var_array. If this is height and
@@ -61,7 +58,7 @@ class Interpolator:
         """Linearly interpolate between levels."""
         diff = da.map_blocks(lambda x, y: x - y, lev_samps[1], lev_samps[0])
         alpha = da.where(
-            diff < 1e-3,
+            diff == 0,
             0,
             da.map_blocks(lambda x, y: x / y, (level - lev_samps[0]), diff),
         )
@@ -109,9 +106,6 @@ class Interpolator:
 
         Parameters
         ----------
-        var_array : xr.DataArray
-            Array of variable data, for example u-wind in a 4D array of shape
-            (lat, lon, time, level)
         lev_array : xr.DataArray
             Height or pressure values for the corresponding entries in
             var_array, in the same shape as var_array. If this is height and
@@ -119,6 +113,9 @@ class Interpolator:
             should be the geopotential height corresponding to every var_array
             index relative to the surface elevation (subtract the elevation at
             the surface from the geopotential height)
+        var_array : xr.DataArray
+            Array of variable data, for example u-wind in a 4D array of shape
+            (lat, lon, time, level)
         level : float
             level or levels to interpolate to (e.g. final desired hub height
             above surface elevation)
