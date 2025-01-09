@@ -8,7 +8,6 @@ import copy
 import json
 import logging
 import os
-from concurrent.futures import ProcessPoolExecutor, as_completed
 from typing import Optional
 
 import h5py
@@ -16,8 +15,6 @@ import numpy as np
 from rex.utilities.bc_utils import (
     QuantileDeltaMapping,
 )
-
-from sup3r.preprocessing import DataHandler
 
 from .mixins import ZeroRateMixin
 from .qdm import QuantileDeltaMappingCorrection
@@ -84,19 +81,26 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         super()._init_out()
 
         shape = (*self.bias_gid_raster.shape, 1)
-        self.out[f'{self.base_dset}_zero_rate'] = np.full(shape,
-                                                          np.nan,
-                                                          np.float32)
-        self.out[f'{self.bias_feature}_tau_fut'] = np.full(shape,
-                                                           np.nan,
-                                                           np.float32)
+        self.out[f'{self.base_dset}_zero_rate'] = np.full(
+            shape, np.nan, np.float32
+        )
+        self.out[f'{self.bias_feature}_tau_fut'] = np.full(
+            shape, np.nan, np.float32
+        )
         shape = (*self.bias_gid_raster.shape, self.n_time_steps)
         self.out[f'{self.bias_feature}_k_factor'] = np.full(
-            shape, np.nan, np.float32)
+            shape, np.nan, np.float32
+        )
 
     @classmethod
-    def calc_tau_fut(cls, base_data, bias_data, bias_fut_data,
-                     corrected_fut_data, zero_rate_threshold=1.157e-7):
+    def calc_tau_fut(
+        cls,
+        base_data,
+        bias_data,
+        bias_fut_data,
+        corrected_fut_data,
+        zero_rate_threshold=1.157e-7,
+    ):
         """Calculate a precipitation threshold (tau) that preserves the
         model-predicted changes in fraction of dry days at a single spatial
         location.
@@ -134,12 +138,13 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         # Step 1: Define zero rate from observations
         assert base_data.ndim == 1
         obs_zero_rate = cls.zero_precipitation_rate(
-            base_data, zero_rate_threshold)
+            base_data, zero_rate_threshold
+        )
 
         # Step 2: Find tau for each grid point
         # Removed NaN handling, thus reinforce finite-only data.
-        assert np.isfinite(bias_data).all(), "Unexpected invalid values"
-        assert bias_data.ndim == 1, "Assumed bias_data to be 1D"
+        assert np.isfinite(bias_data).all(), 'Unexpected invalid values'
+        assert bias_data.ndim == 1, 'Assumed bias_data to be 1D'
         n_threshold = round(obs_zero_rate * bias_data.size)
         n_threshold = min(n_threshold, bias_data.size - 1)
         tau = np.sort(bias_data)[n_threshold]
@@ -147,20 +152,31 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         # tau = max(tau, 0.01)
 
         # Step 3: Find Z_gf as the zero rate in mf
-        assert np.isfinite(bias_fut_data).all(), "Unexpected invalid values"
+        assert np.isfinite(bias_fut_data).all(), 'Unexpected invalid values'
         z_fg = (bias_fut_data < tau).astype('i').sum() / bias_fut_data.size
 
         # Step 4: Estimate tau_fut with corrected mf
-        tau_fut = np.sort(corrected_fut_data)[round(
-            z_fg * corrected_fut_data.size)]
+        tau_fut = np.sort(corrected_fut_data)[
+            round(z_fg * corrected_fut_data.size)
+        ]
 
         return tau_fut, obs_zero_rate
 
     @classmethod
-    def calc_k_factor(cls, base_data, bias_data, bias_fut_data,
-                      corrected_fut_data, base_ti, bias_ti, bias_fut_ti,
-                      window_center, window_size, n_time_steps,
-                      zero_rate_threshold):
+    def calc_k_factor(
+        cls,
+        base_data,
+        bias_data,
+        bias_fut_data,
+        corrected_fut_data,
+        base_ti,
+        bias_ti,
+        bias_fut_ti,
+        window_center,
+        window_size,
+        n_time_steps,
+        zero_rate_threshold,
+    ):
         """Calculate the K factor at a single spatial location that will
         preserve the original model-predicted mean change in precipitation
 
@@ -213,8 +229,9 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
         for nt, t in enumerate(window_center):
             base_idt = cls.window_mask(base_ti.day_of_year, t, window_size)
             bias_idt = cls.window_mask(bias_ti.day_of_year, t, window_size)
-            bias_fut_idt = cls.window_mask(bias_fut_ti.day_of_year, t,
-                                           window_size)
+            bias_fut_idt = cls.window_mask(
+                bias_fut_ti.day_of_year, t, window_size
+            )
 
             oh = base_data[base_idt].mean()
             mh = bias_data[bias_idt].mean()
@@ -233,29 +250,30 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
 
     # pylint: disable=W0613
     @classmethod
-    def _run_single(cls,
-                    bias_data,
-                    bias_fut_data,
-                    base_fps,
-                    bias_feature,
-                    base_dset,
-                    base_gid,
-                    base_handler,
-                    daily_reduction,
-                    *,
-                    bias_ti,
-                    bias_fut_ti,
-                    decimals,
-                    dist,
-                    relative,
-                    sampling,
-                    n_samples,
-                    log_base,
-                    n_time_steps,
-                    window_size,
-                    zero_rate_threshold,
-                    base_dh_inst=None,
-                    ):
+    def _run_single(
+        cls,
+        bias_data,
+        bias_fut_data,
+        base_fps,
+        bias_feature,
+        base_dset,
+        base_gid,
+        base_handler,
+        daily_reduction,
+        *,
+        bias_ti,
+        bias_fut_ti,
+        decimals,
+        dist,
+        relative,
+        sampling,
+        n_samples,
+        log_base,
+        n_time_steps,
+        window_size,
+        zero_rate_threshold,
+        base_dh_inst=None,
+    ):
         """Estimate probability distributions at a single site
 
         TODO! This should be refactored. There is too much redundancy in
@@ -281,19 +299,21 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
             # Define indices for which data goes in the current time window
             base_idx = cls.window_mask(base_ti.day_of_year, t, window_size)
             bias_idx = cls.window_mask(bias_ti.day_of_year, t, window_size)
-            bias_fut_idx = cls.window_mask(bias_fut_ti.day_of_year,
-                                           t,
-                                           window_size)
+            bias_fut_idx = cls.window_mask(
+                bias_fut_ti.day_of_year, t, window_size
+            )
 
             if any(base_idx) and any(bias_idx) and any(bias_fut_idx):
-                tmp = cls.get_qdm_params(bias_data[bias_idx],
-                                         bias_fut_data[bias_fut_idx],
-                                         base_data[base_idx],
-                                         bias_feature,
-                                         base_dset,
-                                         sampling,
-                                         n_samples,
-                                         log_base)
+                tmp = cls.get_qdm_params(
+                    bias_data[bias_idx],
+                    bias_fut_data[bias_fut_idx],
+                    base_data[base_idx],
+                    bias_feature,
+                    base_dset,
+                    sampling,
+                    n_samples,
+                    log_base,
+                )
                 for k, v in tmp.items():
                     if k not in out:
                         out[k] = template.copy()
@@ -312,14 +332,26 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
             subset = bias_fut_data[bias_fut_idx]
             corrected_fut_data[bias_fut_idx] = QDM(subset).squeeze()
 
-        tau_fut, obs_zero_rate = cls.calc_tau_fut(base_data, bias_data,
-                                                  bias_fut_data,
-                                                  corrected_fut_data,
-                                                  zero_rate_threshold)
-        k = cls.calc_k_factor(base_data, bias_data, bias_fut_data,
-                              corrected_fut_data, base_ti, bias_ti,
-                              bias_fut_ti, window_center, window_size,
-                              n_time_steps, zero_rate_threshold)
+        tau_fut, obs_zero_rate = cls.calc_tau_fut(
+            base_data,
+            bias_data,
+            bias_fut_data,
+            corrected_fut_data,
+            zero_rate_threshold,
+        )
+        k = cls.calc_k_factor(
+            base_data,
+            bias_data,
+            bias_fut_data,
+            corrected_fut_data,
+            base_ti,
+            bias_ti,
+            bias_fut_ti,
+            window_center,
+            window_size,
+            n_time_steps,
+            zero_rate_threshold,
+        )
 
         out[f'{bias_feature}_k_factor'] = k
         out[f'{base_dset}_zero_rate'] = obs_zero_rate
@@ -386,135 +418,34 @@ class PresRat(ZeroRateMixin, QuantileDeltaMappingCorrection):
                 self.bias_gid_raster.shape
             )
         )
-        self.bad_bias_gids = []
-
-        # sup3r DataHandler opening base files will load all data in parallel
-        # during the init and should not be passed in parallel to workers
-        if isinstance(self.base_dh, DataHandler):
-            max_workers = 1
-
-        if max_workers == 1:
-            logger.debug('Running serial calculation.')
-            for i, bias_gid in enumerate(self.bias_meta.index):
-                raster_loc = np.where(self.bias_gid_raster == bias_gid)
-                _, base_gid = self.get_base_gid(bias_gid)
-
-                if not base_gid.any():
-                    self.bad_bias_gids.append(bias_gid)
-                    logger.debug(
-                        f'No base data for bias_gid: {bias_gid}. '
-                        'Adding it to bad_bias_gids'
-                    )
-                else:
-                    bias_data = self.get_bias_data(bias_gid)
-                    bias_fut_data = self.get_bias_data(
-                        bias_gid, self.bias_fut_dh
-                    )
-                    single_out = self._run_single(
-                        bias_data,
-                        bias_fut_data,
-                        self.base_fps,
-                        self.bias_feature,
-                        self.base_dset,
-                        base_gid,
-                        self.base_handler,
-                        daily_reduction,
-                        bias_ti=self.bias_dh.time_index,
-                        bias_fut_ti=self.bias_fut_dh.time_index,
-                        decimals=self.decimals,
-                        dist=self.dist,
-                        relative=self.relative,
-                        sampling=self.sampling,
-                        n_samples=self.n_quantiles,
-                        log_base=self.log_base,
-                        n_time_steps=self.n_time_steps,
-                        window_size=self.window_size,
-                        base_dh_inst=self.base_dh,
-                        zero_rate_threshold=zero_rate_threshold,
-                    )
-                    for key, arr in single_out.items():
-                        self.out[key][raster_loc] = arr
-
-                logger.info(
-                    'Completed bias calculations for {} out of {} '
-                    'sites'.format(i + 1, len(self.bias_meta))
-                )
-
-        else:
-            logger.debug(
-                'Running parallel calculation with {} workers.'.format(
-                    max_workers
-                )
-            )
-            with ProcessPoolExecutor(max_workers=max_workers) as exe:
-                futures = {}
-                for bias_gid in self.bias_meta.index:
-                    raster_loc = np.where(self.bias_gid_raster == bias_gid)
-                    _, base_gid = self.get_base_gid(bias_gid)
-
-                    if not base_gid.any():
-                        self.bad_bias_gids.append(bias_gid)
-                    else:
-                        bias_data = self.get_bias_data(bias_gid)
-                        bias_fut_data = self.get_bias_data(
-                            bias_gid, self.bias_fut_dh
-                        )
-                        future = exe.submit(
-                            self._run_single,
-                            bias_data,
-                            bias_fut_data,
-                            self.base_fps,
-                            self.bias_feature,
-                            self.base_dset,
-                            base_gid,
-                            self.base_handler,
-                            daily_reduction,
-                            bias_ti=self.bias_dh.time_index,
-                            bias_fut_ti=self.bias_fut_dh.time_index,
-                            decimals=self.decimals,
-                            dist=self.dist,
-                            relative=self.relative,
-                            sampling=self.sampling,
-                            n_samples=self.n_quantiles,
-                            log_base=self.log_base,
-                            n_time_steps=self.n_time_steps,
-                            window_size=self.window_size,
-                            zero_rate_threshold=zero_rate_threshold,
-                        )
-                        futures[future] = raster_loc
-
-                logger.debug('Finished launching futures.')
-                for i, future in enumerate(as_completed(futures)):
-                    raster_loc = futures[future]
-                    single_out = future.result()
-                    for key, arr in single_out.items():
-                        self.out[key][raster_loc] = arr
-
-                    logger.info(
-                        'Completed bias calculations for {} out of {} '
-                        'sites'.format(i + 1, len(futures))
-                    )
-
-        logger.info('Finished calculating bias correction factors.')
-
-        self.out = self.fill_and_smooth(
-            self.out, fill_extend, smooth_extend, smooth_interior
+        self.out = self._run(
+            out=self.out,
+            max_workers=max_workers,
+            daily_reduction=daily_reduction,
+            fill_extend=fill_extend,
+            smooth_extend=smooth_extend,
+            smooth_interior=smooth_interior,
+            zero_rate_threshold=zero_rate_threshold,
         )
 
         extra_attrs = {
             'zero_rate_threshold': zero_rate_threshold,
             'time_window_center': self.time_window_center,
         }
-        self.write_outputs(fp_out,
-                           self.out,
-                           extra_attrs=extra_attrs,
-                           )
+        self.write_outputs(
+            fp_out,
+            self.out,
+            extra_attrs=extra_attrs,
+        )
 
         return copy.deepcopy(self.out)
 
-    def write_outputs(self, fp_out: str,
-                      out: Optional[dict] = None,
-                      extra_attrs: Optional[dict] = None):
+    def write_outputs(
+        self,
+        fp_out: str,
+        out: Optional[dict] = None,
+        extra_attrs: Optional[dict] = None,
+    ):
         """Write outputs to an .h5 file.
 
         Parameters

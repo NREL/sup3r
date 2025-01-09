@@ -1,30 +1,26 @@
 """Utilities to calculate the bias correction factors for biased data that is
 going to be fed into the sup3r downscaling models. This is typically used to
-bias correct GCM data vs. some historical record like the WTK or NSRDB.
-
-TODO: Generalize the ``with ProcessPoolExecutor() as exe: ...`` so we don't
-need to duplicate this wherever we kickoff a process or thread pool
-"""
+bias correct GCM data vs. some historical record like the WTK or NSRDB."""
 
 import copy
 import json
 import logging
 import os
-from concurrent.futures import ProcessPoolExecutor, as_completed
 
 import h5py
 import numpy as np
 from scipy import stats
 
-from sup3r.preprocessing import DataHandler
-
+from .abstract import AbstractBiasCorrection
 from .base import DataRetrievalBase
 from .mixins import FillAndSmoothMixin
 
 logger = logging.getLogger(__name__)
 
 
-class LinearCorrection(FillAndSmoothMixin, DataRetrievalBase):
+class LinearCorrection(
+    AbstractBiasCorrection, FillAndSmoothMixin, DataRetrievalBase
+):
     """Calculate linear correction *scalar +adder factors to bias correct data
 
     This calculation operates on single bias sites for the full time series of
@@ -166,6 +162,32 @@ class LinearCorrection(FillAndSmoothMixin, DataRetrievalBase):
                     'Wrote scalar adder factors to file: {}'.format(fp_out)
                 )
 
+    def _get_run_kwargs(self, **kwargs_extras):
+        """Get dictionary of kwarg dictionaries to use for calls to
+        ``_run_single``. Each key-value pair is a bias_gid with the associated
+        ``_run_single`` arguments for that gid"""
+        task_kwargs = {}
+        for bias_gid in self.bias_meta.index:
+            _, base_gid = self.get_base_gid(bias_gid)
+
+            if not base_gid.any():
+                self.bad_bias_gids.append(bias_gid)
+            else:
+                bias_data = self.get_bias_data(bias_gid)
+                task_kwargs[bias_gid] = {
+                    'bias_data': bias_data,
+                    'base_fps': self.base_fps,
+                    'bias_feature': self.bias_feature,
+                    'base_dset': self.base_dset,
+                    'base_gid': base_gid,
+                    'base_handler': self.base_handler,
+                    'bias_ti': self.bias_ti,
+                    'decimals': self.decimals,
+                    'match_zero_rate': self.match_zero_rate,
+                    **kwargs_extras,
+                }
+        return task_kwargs
+
     def run(
         self,
         fp_out=None,
@@ -218,94 +240,14 @@ class LinearCorrection(FillAndSmoothMixin, DataRetrievalBase):
                 self.bias_gid_raster.shape
             )
         )
-
-        self.bad_bias_gids = []
-
-        # sup3r DataHandler opening base files will load all data in parallel
-        # during the init and should not be passed in parallel to workers
-        if isinstance(self.base_dh, DataHandler):
-            max_workers = 1
-
-        if max_workers == 1:
-            logger.debug('Running serial calculation.')
-            for i, bias_gid in enumerate(self.bias_meta.index):
-                raster_loc = np.where(self.bias_gid_raster == bias_gid)
-                _, base_gid = self.get_base_gid(bias_gid)
-
-                if not base_gid.any():
-                    self.bad_bias_gids.append(bias_gid)
-                else:
-                    bias_data = self.get_bias_data(bias_gid)
-                    single_out = self._run_single(
-                        bias_data,
-                        self.base_fps,
-                        self.bias_feature,
-                        self.base_dset,
-                        base_gid,
-                        self.base_handler,
-                        daily_reduction,
-                        self.bias_ti,
-                        self.decimals,
-                        base_dh_inst=self.base_dh,
-                        match_zero_rate=self.match_zero_rate,
-                    )
-                    for key, arr in single_out.items():
-                        self.out[key][raster_loc] = arr
-
-                logger.info(
-                    'Completed bias calculations for {} out of {} '
-                    'sites'.format(i + 1, len(self.bias_meta))
-                )
-
-        else:
-            logger.debug(
-                'Running parallel calculation with {} workers.'.format(
-                    max_workers
-                )
-            )
-            with ProcessPoolExecutor(max_workers=max_workers) as exe:
-                futures = {}
-                for bias_gid in self.bias_meta.index:
-                    raster_loc = np.where(self.bias_gid_raster == bias_gid)
-                    _, base_gid = self.get_base_gid(bias_gid)
-
-                    if not base_gid.any():
-                        self.bad_bias_gids.append(bias_gid)
-                    else:
-                        bias_data = self.get_bias_data(bias_gid)
-                        future = exe.submit(
-                            self._run_single,
-                            bias_data,
-                            self.base_fps,
-                            self.bias_feature,
-                            self.base_dset,
-                            base_gid,
-                            self.base_handler,
-                            daily_reduction,
-                            self.bias_ti,
-                            self.decimals,
-                            match_zero_rate=self.match_zero_rate,
-                        )
-                        futures[future] = raster_loc
-
-                logger.debug('Finished launching futures.')
-                for i, future in enumerate(as_completed(futures)):
-                    raster_loc = futures[future]
-                    single_out = future.result()
-                    for key, arr in single_out.items():
-                        self.out[key][raster_loc] = arr
-
-                    logger.info(
-                        'Completed bias calculations for {} out of {} '
-                        'sites'.format(i + 1, len(futures))
-                    )
-
-        logger.info('Finished calculating bias correction factors.')
-
-        self.out = self.fill_and_smooth(
-            self.out, fill_extend, smooth_extend, smooth_interior
+        self.out = self._run(
+            out=self.out,
+            max_workers=max_workers,
+            daily_reduction=daily_reduction,
+            fill_extend=fill_extend,
+            smooth_extend=smooth_extend,
+            smooth_interior=smooth_interior,
         )
-
         self.write_outputs(fp_out, self.out)
 
         return copy.deepcopy(self.out)

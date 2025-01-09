@@ -43,7 +43,7 @@ class DataRetrievalBase:
         bias_handler_kwargs=None,
         decimals=None,
         match_zero_rate=False,
-        pre_load=True
+        pre_load=True,
     ):
         """
         Parameters
@@ -178,7 +178,7 @@ class DataRetrievalBase:
 
         self.nn_dist, self.nn_ind = self.bias_tree.query(
             self.base_meta[['latitude', 'longitude']],
-            distance_upper_bound=self.distance_upper_bound
+            distance_upper_bound=self.distance_upper_bound,
         )
 
         if pre_load:

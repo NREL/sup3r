@@ -38,8 +38,10 @@ class TrainingSession:
             kwargs=self.kwargs,
         )
         try:
-            logger.info('Starting training session.')
-            self.batch_handler.start()
+            logger.info(
+                'Starting training session. Training for %s epochs',
+                self.kwargs['n_epoch'],
+            )
             model_thread.start()
         except KeyboardInterrupt:
             logger.info('Ending training session.')
@@ -53,7 +55,6 @@ class TrainingSession:
             sys.exit()
 
         logger.info('Finished training')
-        self.batch_handler.stop()
         model_thread.join()
 
 
