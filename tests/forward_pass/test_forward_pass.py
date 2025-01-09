@@ -491,9 +491,7 @@ def test_fwp_chunking(input_files):
             data_chunked[hr_slice][..., t_hr_slice, :] = out
 
         err = data_chunked - data_nochunk
-        err /= data_nochunk
-
-        assert np.mean(np.abs(err.flatten())) < 0.01
+        assert np.mean(np.abs(err)) < 1e-6
 
 
 def test_fwp_nochunking(input_files):
