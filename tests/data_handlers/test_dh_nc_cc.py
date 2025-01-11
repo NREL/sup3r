@@ -68,8 +68,7 @@ def test_reload_cache():
             features=features,
             target=target,
             shape=(20, 20),
-            cache_kwargs=cache_kwargs,
-            interp_kwargs={'include_single_levels': True}
+            cache_kwargs=cache_kwargs
         )
 
         # reload from cache

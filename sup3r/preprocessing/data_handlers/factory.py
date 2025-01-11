@@ -47,6 +47,7 @@ class DataHandler(Deriver):
         self,
         file_paths,
         features='all',
+        load_features='all',
         res_kwargs: Optional[dict] = None,
         chunks: Union[str, Dict[str, int]] = 'auto',
         target: Optional[tuple] = None,
@@ -69,9 +70,16 @@ class DataHandler(Deriver):
         file_paths : str | list | pathlib.Path
             file_paths input to LoaderClass
         features : list | str
-            Features to load and / or derive. If 'all' then all available raw
-            features will be loaded. Specify explicit feature names for
-            derivations.
+            Features to derive. If 'all' then all available raw features will
+            just be loaded. Specify explicit feature names for derivations.
+        load_features : list | str
+            Features to load and make available for derivations. If 'all' then
+            all available raw features will be loaded and made available for
+            derivations. This can be used to restrict features used for
+            derivations. For example, to derive 'temperature_100m' from only
+            temperature isobars, from data that includes single level values as
+            well (like temperature_2m), don't include 'temperature_2m' in the
+            ``load_features`` list.
         res_kwargs : dict
             Additional keyword arguments passed through to the ``BaseLoader``.
             BaseLoader is usually xr.open_mfdataset for NETCDF files and
@@ -146,12 +154,13 @@ class DataHandler(Deriver):
         )
 
         just_coords = not features
-        raster_feats = 'all' if any(missing_features) else []
+        raster_feats = load_features if any(missing_features) else []
         self.rasterizer = self.loader = self.cache = None
 
         if any(cached_features):
             self.cache = Loader(
                 file_paths=cached_files,
+                features=load_features,
                 res_kwargs=res_kwargs,
                 chunks=chunks,
                 BaseLoader=BaseLoader,

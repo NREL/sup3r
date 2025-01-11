@@ -114,6 +114,41 @@ def test_plevel_height_interp_nc_with_cache():
         )
 
 
+def test_plevel_height_interp_with_filtered_load_features():
+    """Test that filtering load features can be used to control the features
+    used in the derivations."""
+
+    with TemporaryDirectory() as td:
+        orog_file = os.path.join(td, 'orog.nc')
+        make_fake_nc_file(orog_file, shape=(10, 10, 20), features=['orog'])
+        sfc_file = os.path.join(td, 'u_10m.nc')
+        make_fake_nc_file(sfc_file, shape=(10, 10, 20), features=['u_10m'])
+        level_file = os.path.join(td, 'wind_levs.nc')
+        make_fake_nc_file(
+            level_file, shape=(10, 10, 20, 3), features=['zg', 'u']
+        )
+        derive_features = ['u_20m']
+        dh_filt = DataHandler(
+            [orog_file, sfc_file, level_file],
+            features=derive_features,
+            load_features=['topography', 'zg', 'u'],
+        )
+        dh_no_filt = DataHandler(
+            [orog_file, sfc_file, level_file],
+            features=derive_features,
+        )
+        dh = DataHandler(
+            [orog_file, level_file],
+            features=derive_features,
+        )
+        assert np.array_equal(
+            dh_filt.data['u_20m'].data, dh.data['u_20m'].data
+        )
+        assert not np.array_equal(
+            dh_filt.data['u_20m'].data, dh_no_filt.data['u_20m'].data
+        )
+
+
 def test_only_interp_method():
     """Test that interp method alone returns the right values"""
     hgt = np.zeros((10, 10, 5, 3))
@@ -156,7 +191,7 @@ def test_single_levels_height_interp_nc(shape=(10, 10), target=(37.25, -107)):
         transform = Deriver(
             no_transform.data,
             derive_features,
-            interp_kwargs={'method': 'linear', 'include_single_levels': True},
+            interp_kwargs={'method': 'linear'},
         )
 
     h10 = np.zeros(transform.shape[:3], dtype=np.float32)[..., None]
@@ -200,7 +235,6 @@ def test_plevel_height_interp_with_single_lev_data_nc(
         transform = Deriver(
             no_transform.data,
             derive_features,
-            interp_kwargs={'include_single_levels': True},
         )
 
     hgt_array = (
@@ -241,7 +275,7 @@ def test_log_interp(shape=(10, 10), target=(37.25, -107)):
         transform = Deriver(
             no_transform.data,
             derive_features,
-            interp_kwargs={'method': 'log', 'include_single_levels': True},
+            interp_kwargs={'method': 'log'},
         )
 
     hgt_array = (

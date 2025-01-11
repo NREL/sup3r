@@ -55,14 +55,10 @@ class BaseDeriver(Container):
             that is not found in the :class:`Rasterizer` data it will look for
             a method to derive the feature in the registry.
         interp_kwargs : dict | None
-            Dictionary of kwargs for level interpolation. Can include "method",
-            "run_level_check", and "include_single_levels" keys. Method
-            specifies how to perform height interpolation. e.g. Deriving
-            u_20m from u_10m and u_100m. Options are "linear" and "log".
-            ``include_single_levels = True`` will include single level
-            variables in addition to pressure level variables in the
-            interpolation. e.g. the 3D array of ``temperature_2m`` along
-            with the 4D array of ``temperature``. ``See
+            Dictionary of kwargs for level interpolation. Can include "method"
+            and "run_level_check". "method" specifies how to perform height
+            interpolation. e.g. Deriving u_20m from u_10m and u_100m. Options
+            are "linear" and "log". See
             :py:meth:`sup3r.preprocessing.derivers.Deriver.do_level_interpolation`
         """  # pylint: disable=line-too-long
         if FeatureRegistry is not None:
@@ -324,10 +320,7 @@ class BaseDeriver(Container):
     ) -> xr.DataArray:
         """Interpolate over height or pressure to derive the given feature."""
         ml_var, ml_levs = self.get_multi_level_data(feature)
-        if interp_kwargs.get('include_single_levels', False):
-            sl_var, sl_levs = self.get_single_level_data(feature)
-        else:
-            sl_var, sl_levs = None, None
+        sl_var, sl_levs = self.get_single_level_data(feature)
 
         fstruct = parse_feature(feature)
         attrs = {}
