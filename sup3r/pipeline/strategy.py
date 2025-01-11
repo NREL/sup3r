@@ -231,6 +231,7 @@ class ForwardPassStrategy:
             t_enhance=self.t_enhance,
             spatial_pad=self.spatial_pad,
             temporal_pad=self.temporal_pad,
+            min_width=self.get_min_pad_width(model)
         )
         self.n_chunks = self.fwp_slicer.n_chunks
 
@@ -252,6 +253,19 @@ class ForwardPassStrategy:
             self.exo_data = self.timer(self.load_exo_data, log=True)(model)
 
         self.preflight()
+
+    def get_min_pad_width(self, model):
+        """Get the padding values applied in the first padding layer of the
+        model. This is used to determine the minimum width of padded slices
+        used to chunk the generator input."""
+        pad_width = (1, 1, 1)
+        for layer in model._gen.layers:
+            if hasattr(layer, 'paddings'):
+                pad_width = np.max(layer.paddings, axis=1)[1:-1]
+                if len(pad_width) < 3:
+                    pad_width = (*pad_width, 1)
+                break
+        return pad_width
 
     @property
     def meta(self):
