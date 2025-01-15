@@ -115,6 +115,8 @@ def test_nc_for_cc_sig():
         'chunks',
         'interp_kwargs',
         'nan_method_kwargs',
+        'BaseLoader',
+        'FeatureRegistry',
     ]
     sig = signature(DataHandlerNCforCC)
     init_sig = signature(DataHandlerNCforCC.__init__)
