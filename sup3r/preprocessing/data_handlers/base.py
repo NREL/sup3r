@@ -1,7 +1,7 @@
-"""DataHandler objects, which are built through composition of
+"""DataHandler objects, which inherit from the
+:class:`~sup3r.preprocessing.derivers.Deriver` class and compose
 :class:`~sup3r.preprocessing.rasterizers.Rasterizer`,
 :class:`~sup3r.preprocessing.loaders.Loader`,
-:class:`~sup3r.preprocessing.derivers.Deriver`, and
 :class:`~sup3r.preprocessing.cachers.Cacher` classes.
 
 TODO: If ``.data`` is a ``Sup3rDataset`` with more than one member only the
@@ -38,8 +38,7 @@ logger = logging.getLogger(__name__)
 class DataHandler(Deriver):
     """Base DataHandler. Composes
     :class:`~sup3r.preprocessing.rasterizers.Rasterizer`,
-    :class:`~sup3r.preprocessing.loaders.Loader`,
-    :class:`~sup3r.preprocessing.derivers.Deriver`, and
+    :class:`~sup3r.preprocessing.loaders.Loader`, and
     :class:`~sup3r.preprocessing.cachers.Cacher` classes."""
 
     @log_args
@@ -206,7 +205,7 @@ class DataHandler(Deriver):
             )
 
         if cache_kwargs is not None and 'cache_pattern' in cache_kwargs:
-            _ = Cacher(data=self.data, cache_kwargs=cache_kwargs)
+            self.cacher = Cacher(data=self.data, cache_kwargs=cache_kwargs)
         self._deriver_hook()
 
     def _rasterizer_hook(self):

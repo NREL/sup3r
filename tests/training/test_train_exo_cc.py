@@ -9,7 +9,7 @@ import pytest
 
 from sup3r.models import Sup3rGan
 from sup3r.preprocessing.batch_handlers.factory import BatchHandlerCC
-from sup3r.preprocessing.data_handlers.factory import DataHandlerH5WindCC
+from sup3r.preprocessing.data_handlers.base import DataHandlerH5WindCC
 from sup3r.preprocessing.utilities import lowered
 from sup3r.utilities.utilities import RANDOM_GENERATOR
 
