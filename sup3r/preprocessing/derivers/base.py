@@ -62,7 +62,7 @@ class BaseDeriver(Container):
             :py:meth:`sup3r.preprocessing.derivers.Deriver.do_level_interpolation`
         """  # pylint: disable=line-too-long
         if FeatureRegistry is not None:
-            self.FEATURE_REGISTRY = FeatureRegistry
+            self.FEATURE_REGISTRY.update(FeatureRegistry)
 
         super().__init__(data=data)
         self.interp_kwargs = interp_kwargs or {}
@@ -84,9 +84,9 @@ class BaseDeriver(Container):
         keys. Return the corresponding value if found."""
         if feature.lower() in self.FEATURE_REGISTRY:
             return self.FEATURE_REGISTRY[feature.lower()]
-        for pattern in self.FEATURE_REGISTRY:
+        for pattern, method in self.FEATURE_REGISTRY.items():
             if re.match(pattern.lower(), feature.lower()):
-                return self.FEATURE_REGISTRY[pattern]
+                return method
         return None
 
     def _get_inputs(self, feature):
