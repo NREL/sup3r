@@ -268,10 +268,12 @@ class ForwardPassStrategy:
         pad_width = (1, 1, 1)
         for layer in model._gen.layers:
             if hasattr(layer, 'paddings'):
-                pad_width = np.max(layer.paddings, axis=1)[1:-1]
-                if len(pad_width) < 3:
-                    pad_width = (*pad_width, 1)
-                break
+                new_pw = np.max(layer.paddings, axis=1)[1:-1]
+                if len(new_pw) < 3:
+                    new_pw = (*new_pw, 1)
+                pad_width = [
+                    np.max((new_pw[i], pad_width[i])) for i in range(3)
+                ]
         return pad_width
 
     @property
