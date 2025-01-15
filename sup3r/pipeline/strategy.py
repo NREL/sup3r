@@ -221,7 +221,6 @@ class ForwardPassStrategy:
             self.input_handler_kwargs.get('time_slice', slice(None))
         )
         self.fwp_chunk_shape = self._get_fwp_chunk_shape()
-
         self.fwp_slicer = ForwardPassSlicer(
             coarse_shape=self.input_handler.grid_shape,
             time_steps=len(self.input_handler.time_index),
@@ -231,7 +230,7 @@ class ForwardPassStrategy:
             t_enhance=self.t_enhance,
             spatial_pad=self.spatial_pad,
             temporal_pad=self.temporal_pad,
-            min_width=self.get_min_pad_width(model)
+            min_width=self.get_min_pad_width(model),
         )
         self.n_chunks = self.fwp_slicer.n_chunks
 
@@ -261,10 +260,12 @@ class ForwardPassStrategy:
         pad_width = (1, 1, 1)
         for layer in model._gen.layers:
             if hasattr(layer, 'paddings'):
-                pad_width = np.max(layer.paddings, axis=1)[1:-1]
-                if len(pad_width) < 3:
-                    pad_width = (*pad_width, 1)
-                break
+                new_pw = np.max(layer.paddings, axis=1)[1:-1]
+                if len(new_pw) < 3:
+                    new_pw = (*new_pw, 1)
+                pad_width = [
+                    np.max((new_pw[i], pad_width[i])) for i in range(3)
+                ]
         return pad_width
 
     @property
