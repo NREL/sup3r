@@ -326,6 +326,8 @@ class ForwardPassSlicer:
             s1_crop_slices = self.check_boundary_slice(
                 unpadded_slices=self.s1_lr_slices,
                 cropped_slices=s1_crop_slices,
+                enhancement=self.s_enhance,
+                padding=self.spatial_pad,
                 dim=0,
             )
             s2_crop_slices = self.get_cropped_slices(
@@ -334,6 +336,8 @@ class ForwardPassSlicer:
             s2_crop_slices = self.check_boundary_slice(
                 unpadded_slices=self.s2_lr_slices,
                 cropped_slices=s2_crop_slices,
+                enhancement=self.s_enhance,
+                padding=self.spatial_pad,
                 dim=1,
             )
             self._s_lr_crop_slices = list(
@@ -653,7 +657,7 @@ class ForwardPassSlicer:
         if (
             check_boundary
             and win_stop == max_steps
-            and (2 * max_pad + win_stop - win_start) < min_width
+            and (2 * max_pad + win_stop - win_start) <= min_width
         ):
             half_width = min_width // 2 + 1
             stop = np.max([half_width, max_pad])
