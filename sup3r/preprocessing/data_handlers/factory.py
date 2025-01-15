@@ -361,6 +361,10 @@ def DataHandlerFactory(cls, BaseLoader=None, FeatureRegistry=None, name=None):
                 kwargs for parent class, except for FeatureRegistry and
                 BaseLoader
             """
+
+            if 'FeatureRegistry' in kwargs:
+                self.FEATURE_REGISTRY.update(kwargs.pop('FeatureRegistry'))
+
             super().__init__(
                 file_paths,
                 features=features,
