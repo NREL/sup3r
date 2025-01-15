@@ -56,7 +56,7 @@ class BaseDeriver(Container):
             a method to derive the feature in the registry.
         interp_kwargs : dict | None
             Dictionary of kwargs for level interpolation. Can include "method"
-            and "run_level_check" keys. Method specifies how to perform height
+            and "run_level_check". "method" specifies how to perform height
             interpolation. e.g. Deriving u_20m from u_10m and u_100m. Options
             are "linear" and "log". See
             :py:meth:`sup3r.preprocessing.derivers.Deriver.do_level_interpolation`
@@ -65,7 +65,7 @@ class BaseDeriver(Container):
             self.FEATURE_REGISTRY = FeatureRegistry
 
         super().__init__(data=data)
-        self.interp_kwargs = interp_kwargs
+        self.interp_kwargs = interp_kwargs or {}
         features = parse_to_list(data=data, features=features)
         new_features = [f for f in features if f not in self.data]
         for f in new_features:
@@ -269,7 +269,6 @@ class BaseDeriver(Container):
             var_array = da.stack(var_list, axis=-1)
             sl_shape = (*var_array.shape[:-1], len(lev_list))
             lev_array = da.broadcast_to(da.from_array(lev_list), sl_shape)
-
         return var_array, lev_array
 
     def get_multi_level_data(self, feature):
@@ -296,8 +295,8 @@ class BaseDeriver(Container):
             assert can_calc_height or have_height, msg
 
             if can_calc_height:
-                lev_array = self.data[['zg', 'topography']].as_array()
-                lev_array = lev_array[..., 0] - lev_array[..., 1]
+                lev_array = self.data['zg'] - self.data['topography']
+                lev_array = lev_array.data
             else:
                 lev_array = da.broadcast_to(
                     self.data[Dimension.HEIGHT].astype(np.float32),

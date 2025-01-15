@@ -20,9 +20,6 @@ class Interpolator:
 
         Parameters
         ----------
-        var_array : Union[np.ndarray, da.core.Array]
-            Array of variable data, for example u-wind in a 4D array of shape
-            (lat, lon, time, level)
         lev_array : Union[np.ndarray, da.core.Array]
             Height or pressure values for the corresponding entries in
             var_array, in the same shape as var_array. If this is height and
@@ -45,14 +42,14 @@ class Interpolator:
             to the one requested.
             (lat, lon, time, level)
         """
-        argmin1 = da.argmin(da.abs(lev_array - level), axis=-1, keepdims=True)
+        lev_diff = np.abs(lev_array - level)
+        argmin1 = da.argmin(lev_diff, axis=-1, keepdims=True)
         lev_indices = da.broadcast_to(
             da.arange(lev_array.shape[-1]), lev_array.shape
         )
         mask1 = lev_indices == argmin1
-
-        other_levs = da.ma.masked_array(lev_array, mask1)
-        argmin2 = da.argmin(da.abs(other_levs - level), axis=-1, keepdims=True)
+        lev_diff = da.abs(da.ma.masked_array(lev_array, mask1) - level)
+        argmin2 = da.argmin(lev_diff, axis=-1, keepdims=True)
         mask2 = lev_indices == argmin2
         return mask1, mask2
 
@@ -109,9 +106,6 @@ class Interpolator:
 
         Parameters
         ----------
-        var_array : xr.DataArray
-            Array of variable data, for example u-wind in a 4D array of shape
-            (lat, lon, time, level)
         lev_array : xr.DataArray
             Height or pressure values for the corresponding entries in
             var_array, in the same shape as var_array. If this is height and
@@ -119,6 +113,9 @@ class Interpolator:
             should be the geopotential height corresponding to every var_array
             index relative to the surface elevation (subtract the elevation at
             the surface from the geopotential height)
+        var_array : xr.DataArray
+            Array of variable data, for example u-wind in a 4D array of shape
+            (lat, lon, time, level)
         level : float
             level or levels to interpolate to (e.g. final desired hub height
             above surface elevation)
