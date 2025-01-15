@@ -16,7 +16,7 @@ from sup3r.preprocessing.loaders import Loader
 from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.utilities import log_args
 
-from .factory import DataHandler
+from .base import DataHandler
 
 logger = logging.getLogger(__name__)
 
