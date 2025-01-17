@@ -84,9 +84,9 @@ class BaseDeriver(Container):
         keys. Return the corresponding value if found."""
         if feature.lower() in self.FEATURE_REGISTRY:
             return self.FEATURE_REGISTRY[feature.lower()]
-        for pattern in self.FEATURE_REGISTRY:
+        for pattern, method in self.FEATURE_REGISTRY.items():
             if re.match(pattern.lower(), feature.lower()):
-                return self.FEATURE_REGISTRY[pattern]
+                return method
         return None
 
     def _get_inputs(self, feature):

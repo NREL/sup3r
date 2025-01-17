@@ -1,7 +1,7 @@
-"""DataHandler objects, which are built through composition of
+"""DataHandler objects, which inherit from the
+:class:`~sup3r.preprocessing.derivers.Deriver` class and compose
 :class:`~sup3r.preprocessing.rasterizers.Rasterizer`,
 :class:`~sup3r.preprocessing.loaders.Loader`,
-:class:`~sup3r.preprocessing.derivers.Deriver`, and
 :class:`~sup3r.preprocessing.cachers.Cacher` classes.
 
 TODO: If ``.data`` is a ``Sup3rDataset`` with more than one member only the
@@ -12,7 +12,7 @@ load both with groups
 import logging
 from typing import Callable, Dict, Optional, Union
 
-from rex import MultiFileNSRDBX
+from rex import MultiFileNSRDBX, MultiFileWindX
 
 from sup3r.preprocessing.base import (
     Sup3rDataset,
@@ -38,8 +38,7 @@ logger = logging.getLogger(__name__)
 class DataHandler(Deriver):
     """Base DataHandler. Composes
     :class:`~sup3r.preprocessing.rasterizers.Rasterizer`,
-    :class:`~sup3r.preprocessing.loaders.Loader`,
-    :class:`~sup3r.preprocessing.derivers.Deriver`, and
+    :class:`~sup3r.preprocessing.loaders.Loader`, and
     :class:`~sup3r.preprocessing.cachers.Cacher` classes."""
 
     @log_args
@@ -206,7 +205,7 @@ class DataHandler(Deriver):
             )
 
         if cache_kwargs is not None and 'cache_pattern' in cache_kwargs:
-            _ = Cacher(data=self.data, cache_kwargs=cache_kwargs)
+            self.cacher = Cacher(data=self.data, cache_kwargs=cache_kwargs)
         self._deriver_hook()
 
     def _rasterizer_hook(self):
@@ -322,70 +321,17 @@ class DailyDataHandler(DataHandler):
         self.data = Sup3rDataset(daily=daily_data, hourly=hourly_data)
 
 
-def DataHandlerFactory(cls, BaseLoader=None, FeatureRegistry=None, name=None):
-    """Build composite objects that load from file_paths, rasterize a specified
-    region, derive new features, and cache derived data.
+class DataHandlerH5SolarCC(DailyDataHandler):
+    """Extended ``DailyDataHandler`` specifically for handling H5 data for
+    SolarCC applications"""
 
-    Parameters
-    ----------
-    BaseLoader : Callable
-        Optional base loader update. The default for H5 is MultiFileWindX and
-        for NETCDF the default is xarray
-    FeatureRegistry : Dict[str, DerivedFeature]
-        Dictionary of compute methods for features. This is used to look up how
-        to derive features that are not contained in the raw loaded data.
-    name : str
-        Optional class name, used to resolve `repr(Class)` and distinguish
-        partially initialized DataHandlers with different FeatureRegistrys
-    """
-
-    class FactoryDataHandler(cls):
-        """FactoryDataHandler object. Is a partially initialized instance with
-        `BaseLoader`, `FeatureRegistry`, and `name` set."""
-
-        FEATURE_REGISTRY = FeatureRegistry or None
-        BASE_LOADER = BaseLoader or None
-        __name__ = name or 'FactoryDataHandler'
-
-        def __init__(self, file_paths, features='all', **kwargs):
-            """
-            Parameters
-            ----------
-            file_paths : str | list | pathlib.Path
-                file_paths input to LoaderClass
-            features : list | str
-                Features to load and / or derive. If 'all' then all available
-                raw features will be loaded. Specify explicit feature names for
-                derivations.
-            kwargs : dict
-                kwargs for parent class, except for FeatureRegistry and
-                BaseLoader
-            """
-            super().__init__(
-                file_paths,
-                features=features,
-                BaseLoader=self.BASE_LOADER,
-                FeatureRegistry=self.FEATURE_REGISTRY,
-                **kwargs,
-            )
-
-        _signature_objs = (cls,)
-        _skip_params = ('FeatureRegistry', 'BaseLoader')
-
-    return FactoryDataHandler
+    BASE_LOADER = MultiFileNSRDBX
+    FEATURE_REGISTRY = RegistryH5SolarCC
 
 
-DataHandlerH5SolarCC = DataHandlerFactory(
-    DailyDataHandler,
-    BaseLoader=MultiFileNSRDBX,
-    FeatureRegistry=RegistryH5SolarCC,
-    name='DataHandlerH5SolarCC',
-)
+class DataHandlerH5WindCC(DailyDataHandler):
+    """Extended ``DailyDataHandler`` specifically for handling H5 data for
+    WindCC applications"""
 
-
-DataHandlerH5WindCC = DataHandlerFactory(
-    DailyDataHandler,
-    BaseLoader=MultiFileNSRDBX,
-    FeatureRegistry=RegistryH5WindCC,
-    name='DataHandlerH5WindCC',
-)
+    BASE_LOADER = MultiFileWindX
+    FEATURE_REGISTRY = RegistryH5WindCC
