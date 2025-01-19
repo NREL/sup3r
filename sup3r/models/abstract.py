@@ -857,8 +857,10 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
                 **calc_loss_kwargs,
             )
             optimizer.apply_gradients(zip(grad, training_weights))
-            msg = ('Finished single gradient descent step in '
-                   f'{time.time() - start_time:.4f} seconds')
+            msg = (
+                'Finished single gradient descent step in '
+                f'{time.time() - start_time:.4f} seconds'
+            )
             logger.debug(msg)
         else:
             total_grad, loss_details = self._get_parallel_grad(
@@ -1070,8 +1072,10 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         compute loss."""
         hi_res_exo = self.get_high_res_exo_input(hi_res_true)
         hi_res_gen = self._tf_generate(low_res, hi_res_exo)
-        loss_out = self.calc_loss(hi_res_true, hi_res_gen, **calc_loss_kwargs)
-        return *loss_out, hi_res_gen
+        loss, loss_details = self.calc_loss(
+            hi_res_true, hi_res_gen, **calc_loss_kwargs
+        )
+        return loss, loss_details, hi_res_gen
 
     @tf.function
     def get_single_grad(
@@ -1118,10 +1122,9 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             watch_accessed_variables=False
         ) as tape:
             tape.watch(training_weights)
-            *loss_out, _ = self._get_hr_exo_and_loss(
+            loss, loss_details, _ = self._get_hr_exo_and_loss(
                 low_res, hi_res_true, **calc_loss_kwargs
             )
-            loss, loss_details = loss_out
             grad = tape.gradient(loss, training_weights)
         return grad, loss_details
 

@@ -14,8 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class Sup3rGanWithObs(Sup3rGan):
-    """Sup3r GAN model which incorporates observation data into content loss.
-    """
+    """Sup3r GAN model with additional observation data content loss."""
 
     def _calc_val_loss(self, batch, weight_gen_advers, loss_details):
         """Calculate the validation loss at the current state of model training
@@ -133,6 +132,11 @@ class Sup3rGanWithObs(Sup3rGan):
 
         b_loss_details['gen_trained_frac'] = float(trained_gen)
         b_loss_details['disc_trained_frac'] = float(trained_disc)
+
+        if 'loss_obs' in b_loss_details:
+            loss_update = b_loss_details['loss_gen']
+            loss_update += b_loss_details['loss_obs']
+            b_loss_details.update({'loss_gen': loss_update})
         return b_loss_details
 
     def _get_parallel_grad(
@@ -315,10 +319,9 @@ class Sup3rGanWithObs(Sup3rGan):
             watch_accessed_variables=False
         ) as tape:
             tape.watch(training_weights)
-            *loss_out, hi_res_gen = self._get_hr_exo_and_loss(
+            loss, loss_details, hi_res_gen = self._get_hr_exo_and_loss(
                 low_res, hi_res_true, **calc_loss_kwargs
             )
-            loss, loss_details = loss_out
             loss_obs = self.calc_loss_obs(obs_data, hi_res_gen)
             if not tf.reduce_any(tf.math.is_nan(loss_obs)):
                 loss += loss_obs
@@ -345,13 +348,13 @@ class Sup3rGanWithObs(Sup3rGan):
         loss : tf.Tensor
             0D tensor of observation loss
         """
-        obs_loss = tf.constant(np.nan)
+        loss_obs = tf.constant(np.nan)
         if obs_data is not None:
             mask = tf.math.is_nan(obs_data)
             masked_obs = obs_data[~mask]
             if len(masked_obs) > 0:
-                obs_loss = MeanAbsoluteError()(
+                loss_obs = MeanAbsoluteError()(
                     masked_obs,
                     hi_res_gen[..., : len(self.hr_out_features)][~mask],
                 )
-        return obs_loss
+        return loss_obs

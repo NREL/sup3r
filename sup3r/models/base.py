@@ -1012,6 +1012,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
 
         trained_gen = False
         trained_disc = False
+        b_loss_details = {}
         if only_gen or (train_gen and not gen_too_good):
             trained_gen = True
             b_loss_details = self.timer(self.run_gradient_descent)(
