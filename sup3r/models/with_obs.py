@@ -133,7 +133,9 @@ class Sup3rGanWithObs(Sup3rGan):
         b_loss_details['gen_trained_frac'] = float(trained_gen)
         b_loss_details['disc_trained_frac'] = float(trained_disc)
 
-        if 'loss_obs' in b_loss_details:
+        if 'loss_obs' in b_loss_details and not tf.math.is_nan(
+            b_loss_details['loss_obs']
+        ):
             loss_update = b_loss_details['loss_gen']
             loss_update += b_loss_details['loss_obs']
             b_loss_details.update({'loss_gen': loss_update})
