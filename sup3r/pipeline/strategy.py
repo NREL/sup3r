@@ -261,21 +261,6 @@ class ForwardPassStrategy:
 
         self.preflight()
 
-    def get_min_pad_width(self, model):
-        """Get the padding values applied in the first padding layer of the
-        model. This is used to determine the minimum width of padded slices
-        used to chunk the generator input."""
-        pad_width = (1, 1, 1)
-        for layer in model._gen.layers:
-            if hasattr(layer, 'paddings'):
-                new_pw = np.max(layer.paddings, axis=1)[1:-1]
-                if len(new_pw) < 3:
-                    new_pw = (*new_pw, 1)
-                pad_width = [
-                    np.max((new_pw[i], pad_width[i])) for i in range(3)
-                ]
-        return pad_width
-
     @property
     def meta(self):
         """Meta data dictionary for the strategy. Used to add info to forward
