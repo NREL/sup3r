@@ -1,6 +1,5 @@
 """pytests for H5 climate change data batch handlers"""
 
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
@@ -370,10 +369,11 @@ def test_surf_min_max_vars():
         assert batch.low_res.shape[-1] == len(surf_features)
 
         # compare daily avg temp vs min and max
-        assert (batch.low_res[..., 0] > batch.low_res[..., 2]).all()
-        assert (batch.low_res[..., 0] < batch.low_res[..., 3]).all()
+        blr = batch.low_res.numpy()
+        assert (blr[..., 0] > blr[..., 2]).all()
+        assert (blr[..., 0] < blr[..., 3]).all()
 
         # compare daily avg rh vs min and max
-        assert (batch.low_res[..., 1] > batch.low_res[..., 4]).all()
-        assert (batch.low_res[..., 1] < batch.low_res[..., 5]).all()
+        assert (blr[..., 1] > blr[..., 4]).all()
+        assert (blr[..., 1] < blr[..., 5]).all()
     batcher.stop()

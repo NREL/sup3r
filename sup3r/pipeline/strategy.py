@@ -221,7 +221,6 @@ class ForwardPassStrategy:
             self.input_handler_kwargs.get('time_slice', slice(None))
         )
         self.fwp_chunk_shape = self._get_fwp_chunk_shape()
-
         self.fwp_slicer = ForwardPassSlicer(
             coarse_shape=self.input_handler.grid_shape,
             time_steps=len(self.input_handler.time_index),
@@ -231,6 +230,7 @@ class ForwardPassStrategy:
             t_enhance=self.t_enhance,
             spatial_pad=self.spatial_pad,
             temporal_pad=self.temporal_pad,
+            min_width=model.max_paddings,
         )
         self.n_chunks = self.fwp_slicer.n_chunks
 

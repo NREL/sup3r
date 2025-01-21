@@ -2,12 +2,12 @@
 
 import logging
 from abc import abstractmethod
-from collections import namedtuple
 from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
 import numpy as np
 
 from sup3r.models.conditional import Sup3rCondMom
+from sup3r.preprocessing.base import DsetTuple
 from sup3r.preprocessing.utilities import numpy_if_tensor
 
 from .base import SingleBatchQueue
@@ -21,10 +21,6 @@ logger = logging.getLogger(__name__)
 
 class ConditionalBatchQueue(SingleBatchQueue):
     """BatchQueue class for conditional moment estimation."""
-
-    ConditionalBatch = namedtuple(
-        'ConditionalBatch', ['low_res', 'high_res', 'output', 'mask']
-    )
 
     def __init__(
         self,
@@ -160,14 +156,14 @@ class ConditionalBatchQueue(SingleBatchQueue):
 
         Returns
         -------
-        namedtuple
-            Named tuple with `low_res`, `high_res`, `mask`, and `output`
-            attributes
+        DsetTuple
+            Namedtuple-like object with `low_res`, `high_res`, `mask`, and
+            `output` attributes
         """
         lr, hr = self.transform(samples, **self.transform_kwargs)
         mask = self.make_mask(high_res=hr)
         output = self.make_output(samples=(lr, hr))
-        return self.ConditionalBatch(
+        return DsetTuple(
             low_res=lr, high_res=hr, output=output, mask=mask
         )
 

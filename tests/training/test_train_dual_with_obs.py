@@ -1,13 +1,15 @@
 """Test the training of GANs with dual data handler"""
 
+import itertools
 import os
 import tempfile
 
 import numpy as np
 import pytest
 
-from sup3r.models import Sup3rGan
+from sup3r.models import Sup3rGanWithObs
 from sup3r.preprocessing import (
+    Container,
     DataHandler,
     DualBatchHandler,
     DualRasterizer,
@@ -19,7 +21,7 @@ TARGET_COORD = (39.01, -105.15)
 FEATURES = ['u_100m', 'v_100m']
 
 
-DualBatchHandlerTester = BatchHandlerTesterFactory(
+DualBatchHandlerWithObsTester = BatchHandlerTesterFactory(
     DualBatchHandler, DualSampler
 )
 
@@ -57,19 +59,6 @@ def test_train_h5_nc(
         **kwargs,
         time_slice=slice(None, None, 1),
     )
-    lr_handler = DataHandler(
-        pytest.FP_ERA,
-        features=FEATURES,
-        time_slice=slice(None, None, 30),
-    )
-
-    # time indices conflict with t_enhance
-    with pytest.raises(AssertionError):
-        dual_rasterizer = DualRasterizer(
-            data={'low_res': lr_handler.data, 'high_res': hr_handler.data},
-            s_enhance=s_enhance,
-            t_enhance=t_enhance,
-        )
 
     lr_handler = DataHandler(
         pytest.FP_ERA,
@@ -82,9 +71,25 @@ def test_train_h5_nc(
         s_enhance=s_enhance,
         t_enhance=t_enhance,
     )
+    obs_data = dual_rasterizer.high_res.copy()
+    for feat in FEATURES:
+        tmp = np.full(obs_data[feat].shape, np.nan)
+        lat_ids = list(range(0, 20, 4))
+        lon_ids = list(range(0, 20, 4))
+        for ilat, ilon in itertools.product(lat_ids, lon_ids):
+            tmp[ilat, ilon, :] = obs_data[feat][ilat, ilon]
+        obs_data[feat] = (obs_data[feat].dims, tmp)
 
-    batch_handler = DualBatchHandlerTester(
-        train_containers=[dual_rasterizer],
+    dual_with_obs = Container(
+        data={
+            'low_res': dual_rasterizer.low_res,
+            'high_res': dual_rasterizer.high_res,
+            'obs': obs_data,
+        }
+    )
+
+    batch_handler = DualBatchHandlerWithObsTester(
+        train_containers=[dual_with_obs],
         val_containers=[],
         sample_shape=sample_shape,
         batch_size=3,
@@ -94,8 +99,13 @@ def test_train_h5_nc(
         mode=mode,
     )
 
-    Sup3rGan.seed()
-    model = Sup3rGan(
+    for batch in batch_handler:
+        assert hasattr(batch, 'obs')
+        assert not np.isnan(batch.obs).all()
+        assert np.isnan(batch.obs).any()
+
+    Sup3rGanWithObs.seed()
+    model = Sup3rGanWithObs(
         fp_gen, fp_disc, learning_rate=lr, loss='MeanAbsoluteError'
     )
 
@@ -113,7 +123,9 @@ def test_train_h5_nc(
         model.train(batch_handler, **model_kwargs)
 
         tlossg = model.history['train_loss_gen'].values
+        tlosso = model.history['train_loss_obs'].values
         assert np.sum(np.diff(tlossg)) < 0
+        assert np.sum(np.diff(tlosso)) < 0
 
 
 @pytest.mark.parametrize(
@@ -135,9 +147,9 @@ def test_train_h5_nc(
 def test_train_coarse_h5(
     fp_gen, fp_disc, s_enhance, t_enhance, sample_shape, mode, n_epoch=2
 ):
-    """Test model training with a dual data handler / batch handler using h5
-    and coarse h5 for hr / lr datasets. Tests both spatiotemporal and spatial
-    models."""
+    """Test model training with a dual data handler / batch handler with
+    additional sparse observation data used in extra content loss term. Tests
+    both spatiotemporal and spatial models."""
 
     lr = 1e-5
     kwargs = {
@@ -150,6 +162,7 @@ def test_train_coarse_h5(
         **kwargs,
         time_slice=slice(None, None, 1),
     )
+
     lr_handler = DataHandler(
         pytest.FP_WTK,
         **kwargs,
@@ -162,9 +175,25 @@ def test_train_coarse_h5(
         s_enhance=s_enhance,
         t_enhance=t_enhance,
     )
+    obs_data = dual_rasterizer.high_res.copy()
+    for feat in FEATURES:
+        tmp = np.full(obs_data[feat].shape, np.nan)
+        lat_ids = list(range(0, 20, 4))
+        lon_ids = list(range(0, 20, 4))
+        for ilat, ilon in itertools.product(lat_ids, lon_ids):
+            tmp[ilat, ilon, :] = obs_data[feat][ilat, ilon]
+        obs_data[feat] = (obs_data[feat].dims, tmp)
 
-    batch_handler = DualBatchHandlerTester(
-        train_containers=[dual_rasterizer],
+    dual_with_obs = Container(
+        data={
+            'low_res': dual_rasterizer.low_res,
+            'high_res': dual_rasterizer.high_res,
+            'obs': obs_data,
+        }
+    )
+
+    batch_handler = DualBatchHandlerWithObsTester(
+        train_containers=[dual_with_obs],
         val_containers=[],
         sample_shape=sample_shape,
         batch_size=3,
@@ -174,8 +203,13 @@ def test_train_coarse_h5(
         mode=mode,
     )
 
-    Sup3rGan.seed()
-    model = Sup3rGan(
+    for batch in batch_handler:
+        assert hasattr(batch, 'obs')
+        assert not np.isnan(batch.obs).all()
+        assert np.isnan(batch.obs).any()
+
+    Sup3rGanWithObs.seed()
+    model = Sup3rGanWithObs(
         fp_gen, fp_disc, learning_rate=lr, loss='MeanAbsoluteError'
     )
 
@@ -193,4 +227,6 @@ def test_train_coarse_h5(
         model.train(batch_handler, **model_kwargs)
 
         tlossg = model.history['train_loss_gen'].values
+        tlosso = model.history['train_loss_obs'].values
         assert np.sum(np.diff(tlossg)) < 0
+        assert np.sum(np.diff(tlosso)) < 0
