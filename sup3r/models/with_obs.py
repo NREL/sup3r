@@ -6,7 +6,10 @@ from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import tensorflow as tf
+from phygnn.layers.custom_layers import Sup3rFixer
 from tensorflow.keras.losses import MeanAbsoluteError
+
+from sup3r.utilities.utilities import RANDOM_GENERATOR
 
 from .base import Sup3rGan
 
@@ -14,7 +17,9 @@ logger = logging.getLogger(__name__)
 
 
 class Sup3rGanWithObs(Sup3rGan):
-    """Sup3r GAN model with additional observation data content loss."""
+    """Sup3r GAN model with additional observation data content loss. This
+    model is useful for when observations are available for the training domain
+    but not for the production domain."""
 
     def _calc_val_loss(self, batch, weight_gen_advers, loss_details):
         """Calculate the validation loss at the current state of model training
@@ -360,3 +365,285 @@ class Sup3rGanWithObs(Sup3rGan):
                     hi_res_gen[..., : len(self.hr_out_features)][~mask],
                 )
         return loss_obs
+
+
+class Sup3rGanFixedObs(Sup3rGan):
+    """Sup3r GAN model which includes mid network observation fixing. This
+    model is useful for when production runs will be over a domain for which
+    observation data is available."""
+
+    def __init__(self, *args, obs_frac=None, **kwargs):
+        """
+        Initialize the Sup3rGanFixedObs model.
+
+        Parameters
+        ----------
+        args : list
+            Positional args for ``Sup3rGan`` parent class.
+        obs_frac : dict
+            Fraction of the batch that should be "fixed" with observations.
+            Should include ``spatial`` key and optionally ``time`` key if this
+            is a spatiotemporal model. The values should correspond roughly to
+            the fraction of the production domain for which observations are
+            available (spatial) and the fraction of the full time period that
+            these cover.
+        kwargs : dict
+            Keyword arguments for the ``Sup3rGan`` parent class.
+        """
+        self.obs_frac = {} if obs_frac is None else obs_frac
+        super().__init__(*args, **kwargs)
+
+    @property
+    def obs_features(self):
+        """Get list of exogenous observation feature names the model uses.
+        These come from the names of the ``Sup3rFixer`` layers."""
+        # pylint: disable=E1101
+        features = []
+        if hasattr(self, '_gen'):
+            features = [
+                layer.name
+                for layer in self._gen.layers
+                if isinstance(layer, Sup3rFixer)
+            ]
+        return features
+
+    @tf.function
+    def _get_single_grad(
+        self,
+        low_res,
+        hi_res_true,
+        obs_data,
+        training_weights,
+        device_name=None,
+        **calc_loss_kwargs,
+    ):
+        """Run gradient descent for one mini-batch of (low_res, hi_res_true),
+        do not update weights, just return gradient details.
+
+        Parameters
+        ----------
+        low_res : np.ndarray
+            Real low-resolution data in a 4D or 5D array:
+            (n_observations, spatial_1, spatial_2, features)
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        hi_res_true : np.ndarray
+            Real high-resolution data in a 4D or 5D array:
+            (n_observations, spatial_1, spatial_2, features)
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        obs_data : dict
+            Dictionary of masked "observation" data which will be added to the
+            dictionary of ``hi_res_exo`` data
+        training_weights : list
+            A list of layer weights that are to-be-trained based on the
+            current loss weight values.
+        device_name : None | str
+            Optional tensorflow device name for GPU placement. Note that if a
+            GPU is available, variables will be placed on that GPU even if
+            device_name=None.
+        calc_loss_kwargs : dict
+            Kwargs to pass to the self.calc_loss() method
+
+        Returns
+        -------
+        grad : list
+            a list or nested structure of Tensors (or IndexedSlices, or None,
+            or CompositeTensor) representing the gradients for the
+            training_weights
+        loss_details : dict
+            Namespace of the breakdown of loss components
+        """
+        with tf.device(device_name), tf.GradientTape(
+            watch_accessed_variables=False
+        ) as tape:
+            tape.watch(training_weights)
+            loss, loss_details, _ = self._get_hr_exo_and_loss(
+                low_res, hi_res_true, obs_data, **calc_loss_kwargs
+            )
+            grad = tape.gradient(loss, training_weights)
+        return grad, loss_details
+
+    def get_single_grad(
+        self,
+        low_res,
+        hi_res_true,
+        training_weights,
+        device_name=None,
+        **calc_loss_kwargs,
+    ):
+        """Run gradient descent for one mini-batch of (low_res, hi_res_true),
+        do not update weights, just return gradient details.
+
+        Parameters
+        ----------
+        low_res : np.ndarray
+            Real low-resolution data in a 4D or 5D array:
+            (n_observations, spatial_1, spatial_2, features)
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        hi_res_true : np.ndarray
+            Real high-resolution data in a 4D or 5D array:
+            (n_observations, spatial_1, spatial_2, features)
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        training_weights : list
+            A list of layer weights that are to-be-trained based on the
+            current loss weight values.
+        device_name : None | str
+            Optional tensorflow device name for GPU placement. Note that if a
+            GPU is available, variables will be placed on that GPU even if
+            device_name=None.
+        calc_loss_kwargs : dict
+            Kwargs to pass to the self.calc_loss() method
+
+        Returns
+        -------
+        grad : list
+            a list or nested structure of Tensors (or IndexedSlices, or None,
+            or CompositeTensor) representing the gradients for the
+            training_weights
+        loss_details : dict
+            Namespace of the breakdown of loss components
+        """
+        obs_data = self._get_masked_obs(hi_res_true)
+        return self._get_single_grad(
+            low_res,
+            hi_res_true,
+            obs_data,
+            training_weights,
+            device_name=device_name,
+            **calc_loss_kwargs,
+        )
+
+    def _get_obs_mask(self, hi_res):
+        """Define observation mask for the current batch. This is done
+        with a spatial mask and a temporal mask since often observation data
+        might be very sparse spatially but cover most of the full time period
+        for those locations."""
+        spatial_frac = self.obs_frac['spatial']
+        sp_mask = RANDOM_GENERATOR.choice(
+            [True, False],
+            size=hi_res.shape[1:3],
+            p=[1 - spatial_frac, spatial_frac],
+        )
+        if self.is_4d:
+            return sp_mask
+
+        time_frac = self.obs_frac['time']
+        time_mask = RANDOM_GENERATOR.choice(
+            [True, False],
+            size=hi_res.shape[-2],
+            p=[1 - time_frac, time_frac],
+        )
+        obs_mask = np.repeat(
+            sp_mask[..., None], hi_res.shape[-2], axis=-1
+        )
+        obs_mask[sp_mask] = time_mask
+        return obs_mask
+
+    def init_weights(self, lr_shape, hr_shape, device=None):
+        """Initialize the generator and discriminator weights with device
+        placement.
+
+        Parameters
+        ----------
+        lr_shape : tuple
+            Shape of one batch of low res input data for sup3r resolution. Note
+            that the batch size (axis=0) must be included, but the actual batch
+            size doesnt really matter.
+        hr_shape : tuple
+            Shape of one batch of high res input data for sup3r resolution.
+            Note that the batch size (axis=0) must be included, but the actual
+            batch size doesnt really matter.
+        device : str | None
+            Option to place model weights on a device. If None,
+            self.default_device will be used.
+        """
+
+        if device is None:
+            device = self.default_device
+
+        logger.info('Initializing model weights on device "{}"'.format(device))
+        low_res = np.ones(lr_shape).astype(np.float32)
+        hi_res = np.ones(hr_shape).astype(np.float32)
+
+        hr_exo_shape = hr_shape[:-1] + (1,)
+        hr_exo = np.ones(hr_exo_shape).astype(np.float32)
+
+        with tf.device(device):
+            hr_exo_data = {}
+            for feature in self.hr_exo_features + self.obs_features:
+                hr_exo_data[feature] = hr_exo
+            _ = self._tf_generate(low_res, hr_exo_data)
+            _ = self._tf_discriminate(hi_res)
+
+    @property
+    def model_params(self):
+        """
+        Model parameters, used to save model to disc
+
+        Returns
+        -------
+        dict
+        """
+        params = super().model_params
+        params['obs_frac'] = self.obs_frac
+        return params
+
+    def _get_masked_obs(self, hi_res_true):
+        """Mask hi res data to act as sparse observation data."""
+        obs_exo = {}
+        obs_mask = self._get_obs_mask(hi_res_true)
+        for feature in self.obs_features:
+            f_idx = self.hr_out_features.index(feature)
+            obs_fdata = hi_res_true[..., f_idx : f_idx + 1].copy()
+            obs_fdata[:, obs_mask] = np.nan
+            obs_exo[feature] = obs_fdata
+        return obs_exo
+
+    def _get_hr_exo_and_loss(
+        self,
+        low_res,
+        hi_res_true,
+        obs_data,
+        **calc_loss_kwargs,
+    ):
+        """Get high-resolution exogenous data, generate synthetic output, and
+        compute loss. Includes artificially masking hi res data to act as
+        sparse observation data."""
+        hi_res_exo = self.get_high_res_exo_input(hi_res_true)
+        hi_res_exo.update(obs_data)
+        hi_res_gen = self._tf_generate(low_res, hi_res_exo)
+        loss, loss_details = self.calc_loss(
+            hi_res_true, hi_res_gen, **calc_loss_kwargs
+        )
+        return loss, loss_details, hi_res_gen
+
+    def _calc_val_loss(self, batch, weight_gen_advers, loss_details):
+        """Calculate the validation loss at the current state of model training
+        for a given batch
+
+        Parameters
+        ----------
+        batch : DsetTuple
+            Object with ``.high_res`` and ``.low_res`` arrays
+        weight_gen_advers : float
+            Weight factor for the adversarial loss component of the generator
+            vs. the discriminator.
+        loss_details : dict
+            Namespace of the breakdown of loss components
+
+        Returns
+        -------
+        loss_details : dict
+            Same as input but now includes val_* loss info
+        """
+        _, v_loss_details, _ = self._get_hr_exo_and_loss(
+            batch.low_res,
+            batch.high_res,
+            self._get_masked_obs(batch.high_res),
+            weight_gen_advers=weight_gen_advers,
+            train_gen=False,
+            train_disc=False,
+        )
+        loss_details = self.update_loss_details(
+            loss_details, v_loss_details, len(batch), prefix='val_'
+        )
+        return loss_details

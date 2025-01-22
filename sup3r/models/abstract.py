@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from phygnn import CustomNetwork
-from phygnn.layers.custom_layers import Sup3rAdder, Sup3rConcat
+from phygnn.layers.custom_layers import Sup3rAdder, Sup3rConcat, Sup3rFixer
 from rex.utilities.utilities import safe_json_load
 from tensorflow.keras import optimizers
 
@@ -1054,6 +1054,18 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
 
         return self._combine_fwp_output(hi_res, exogenous_data)
 
+    def _run_exo_layer(self, hi_res, hi_res_exo, layer):
+        """Run layer which requires handling of exogenous data, such as
+        ``Sup3rConcat``, ``Sup3rAdder``, or ``Sup3rFixer``"""
+        msg = (f'layer.name = {layer.name} does not match any features in '
+               f'exogenous_data ({list(hi_res_exo)})')
+        assert layer.name in hi_res_exo, msg
+        hr_exo = hi_res_exo[layer.name]
+        if isinstance(layer, Sup3rFixer):
+            feature_index = self.obs_features.index(layer.name)
+            return layer(hi_res, hr_exo, feature_index=feature_index)
+        return layer(hi_res, hr_exo)
+
     @tf.function
     def _tf_generate(self, low_res, hi_res_exo=None):
         """Use the generator model to generate high res data from low res input
@@ -1085,14 +1097,8 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         try:
             for i, layer in enumerate(self.generator.layers[1:]):
                 layer_num = i + 1
-                if isinstance(layer, (Sup3rAdder, Sup3rConcat)):
-                    msg = (
-                        f'layer.name = {layer.name} does not match any '
-                        f'features in exogenous_data ({list(hi_res_exo)})'
-                    )
-                    assert layer.name in hi_res_exo, msg
-                    hr_exo = hi_res_exo[layer.name]
-                    hi_res = layer(hi_res, hr_exo)
+                if isinstance(layer, (Sup3rAdder, Sup3rConcat, Sup3rFixer)):
+                    hi_res = self._run_exo_layer(hi_res, hi_res_exo, layer)
                 else:
                     hi_res = layer(hi_res)
         except Exception as e:
