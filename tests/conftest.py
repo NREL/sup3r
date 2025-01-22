@@ -67,6 +67,92 @@ def train_on_cpu():
 
 
 @pytest.fixture(scope='package')
+def gen_config_with_fixer():
+    """Get generator config with custom fixer layer."""
+
+    def func():
+        return [
+            {
+                'class': 'FlexiblePadding',
+                'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
+                'mode': 'REFLECT',
+            },
+            {
+                'class': 'Conv2DTranspose',
+                'filters': 2,
+                'kernel_size': 3,
+                'strides': 1,
+                'activation': 'relu',
+            },
+            {'class': 'Cropping2D', 'cropping': 4},
+            {
+                'class': 'FlexiblePadding',
+                'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
+                'mode': 'REFLECT',
+            },
+            {
+                'class': 'Conv2DTranspose',
+                'filters': 64,
+                'kernel_size': 3,
+                'strides': 1,
+                'activation': 'relu',
+            },
+            {'class': 'Cropping2D', 'cropping': 4},
+            {
+                'class': 'FlexiblePadding',
+                'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
+                'mode': 'REFLECT',
+            },
+            {
+                'class': 'Conv2DTranspose',
+                'filters': 64,
+                'kernel_size': 3,
+                'strides': 1,
+                'activation': 'relu',
+            },
+            {'class': 'Cropping2D', 'cropping': 4},
+            {'class': 'SpatialExpansion', 'spatial_mult': 2},
+            {'class': 'Activation', 'activation': 'relu'},
+            {
+                'class': 'FlexiblePadding',
+                'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
+                'mode': 'REFLECT',
+            },
+            {
+                'class': 'Conv2DTranspose',
+                'filters': 2,
+                'kernel_size': 3,
+                'strides': 1,
+                'activation': 'relu',
+            },
+            {'class': 'Cropping2D', 'cropping': 4},
+            {'class': 'Sup3rFixer', 'name': 'u_10m'},
+            {'class': 'Sup3rFixer', 'name': 'v_10m'},
+            {
+                'class': 'SkipConnection', 'name': 'b'
+            },
+            {
+                'class': 'FlexiblePadding',
+                'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
+                'mode': 'REFLECT',
+            },
+            {
+                'class': 'Conv2DTranspose',
+                'filters': 2,
+                'kernel_size': 3,
+                'strides': 1,
+                'activation': 'relu',
+            },
+            {'class': 'Cropping2D', 'cropping': 4},
+            {
+                'class': 'SkipConnection', 'name': 'b'
+            },
+        ]
+
+    return func
+
+
+@pytest.fixture(scope='package')
 def gen_config_with_topo():
     """Get generator config with custom topo layer."""
 
