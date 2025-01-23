@@ -44,7 +44,7 @@ class Collection(Container):
         if not self._features:
             _ = [
                 self._features.append(f)
-                for f in np.concatenate([d.features for d in self.data])
+                for f in np.concatenate([c.features for c in self.containers])
                 if f not in self._features
             ]
         return self._features

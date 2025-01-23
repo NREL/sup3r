@@ -67,8 +67,8 @@ def train_on_cpu():
 
 
 @pytest.fixture(scope='package')
-def gen_config_with_fixer():
-    """Get generator config with custom fixer layer."""
+def gen_config_with_concat_masked():
+    """Get generator config with custom concat masked layer."""
 
     def func():
         return [
@@ -126,11 +126,8 @@ def gen_config_with_fixer():
                 'activation': 'relu',
             },
             {'class': 'Cropping2D', 'cropping': 4},
-            {'class': 'Sup3rFixer', 'name': 'u_10m'},
-            {'class': 'Sup3rFixer', 'name': 'v_10m'},
-            {
-                'class': 'SkipConnection', 'name': 'b'
-            },
+            {'class': 'Sup3rConcatMasked', 'name': 'u_10m'},
+            {'class': 'Sup3rConcatMasked', 'name': 'v_10m'},
             {
                 'class': 'FlexiblePadding',
                 'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
@@ -144,9 +141,6 @@ def gen_config_with_fixer():
                 'activation': 'relu',
             },
             {'class': 'Cropping2D', 'cropping': 4},
-            {
-                'class': 'SkipConnection', 'name': 'b'
-            },
         ]
 
     return func

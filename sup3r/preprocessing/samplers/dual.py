@@ -63,7 +63,7 @@ class DualSampler(Sampler):
             'with `.low_res` and `.high_res` data members, and optionally an '
             '`.obs` member, in that order'
         )
-        dnames = ['low_res', 'high_res', 'obs'][:len(data)]
+        dnames = ['low_res', 'high_res', 'obs'][: len(data)]
         check = (
             hasattr(data, dname) and getattr(data, dname) == data[i]
             for i, dname in enumerate(dnames)
@@ -83,8 +83,9 @@ class DualSampler(Sampler):
         feature_sets = feature_sets or {}
         self._lr_only_features = feature_sets.get('lr_only_features', [])
         self._hr_exo_features = feature_sets.get('hr_exo_features', [])
-        self.lr_features = list(self.lr_data.data_vars)
         self.features = self.get_features(feature_sets)
+        lr_feats = self.lr_data.features
+        self.lr_features = [f for f in lr_feats if f in self.features]
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
         self.check_for_consistent_shapes()
@@ -149,4 +150,4 @@ class DualSampler(Sampler):
         hr_index = (*hr_index, self.hr_features)
 
         sample_index = (lr_index, hr_index, obs_index)
-        return sample_index[:len(self.data)]
+        return sample_index[: len(self.data)]
