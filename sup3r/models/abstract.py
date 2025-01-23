@@ -15,7 +15,11 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from phygnn import CustomNetwork
-from phygnn.layers.custom_layers import Sup3rAdder, Sup3rConcat, Sup3rFixer
+from phygnn.layers.custom_layers import (
+    Sup3rAdder,
+    Sup3rConcat,
+    Sup3rConcatMasked,
+)
 from rex.utilities.utilities import safe_json_load
 from tensorflow.keras import optimizers
 
@@ -916,8 +920,8 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         return loss_details
 
     def _reshape_norm_exo(self, hi_res, hi_res_exo, exo_name, norm_in=True):
-        """Reshape the hi_res_topo to match the hi_res tensor (if necessary)
-        and normalize (if requested).
+        """Reshape the hi_res_exo data to match the hi_res tensor (if
+        necessary) and normalize (if requested).
 
         Parameters
         ----------
@@ -1024,20 +1028,22 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         try:
             for i, layer in enumerate(self.generator.layers[1:]):
                 layer_num = i + 1
-                if isinstance(layer, (Sup3rAdder, Sup3rConcat)):
+                if isinstance(
+                    layer, (Sup3rAdder, Sup3rConcat, Sup3rConcatMasked)
+                ):
                     msg = (
                         f'layer.name = {layer.name} does not match any '
                         'features in exogenous_data '
                         f'({list(exogenous_data)})'
                     )
                     assert layer.name in exogenous_data, msg
-                    hi_res_exo = exogenous_data.get_combine_type_data(
+                    hr_exo = exogenous_data.get_combine_type_data(
                         layer.name, 'layer'
                     )
-                    hi_res_exo = self._reshape_norm_exo(
-                        hi_res, hi_res_exo, layer.name, norm_in=norm_in
+                    hr_exo = self._reshape_norm_exo(
+                        hi_res, hr_exo, layer.name, norm_in=norm_in
                     )
-                    hi_res = layer(hi_res, hi_res_exo)
+                    hi_res = layer(hi_res, hr_exo)
                 else:
                     hi_res = layer(hi_res)
         except Exception as e:
@@ -1053,18 +1059,6 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             hi_res = self.un_norm_output(hi_res)
 
         return self._combine_fwp_output(hi_res, exogenous_data)
-
-    def _run_exo_layer(self, hi_res, hi_res_exo, layer):
-        """Run layer which requires handling of exogenous data, such as
-        ``Sup3rConcat``, ``Sup3rAdder``, or ``Sup3rFixer``"""
-        msg = (f'layer.name = {layer.name} does not match any features in '
-               f'exogenous_data ({list(hi_res_exo)})')
-        assert layer.name in hi_res_exo, msg
-        hr_exo = hi_res_exo[layer.name]
-        if isinstance(layer, Sup3rFixer):
-            feature_index = self.obs_features.index(layer.name)
-            return layer(hi_res, hr_exo, feature_index=feature_index)
-        return layer(hi_res, hr_exo)
 
     @tf.function
     def _tf_generate(self, low_res, hi_res_exo=None):
@@ -1097,8 +1091,15 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         try:
             for i, layer in enumerate(self.generator.layers[1:]):
                 layer_num = i + 1
-                if isinstance(layer, (Sup3rAdder, Sup3rConcat, Sup3rFixer)):
-                    hi_res = self._run_exo_layer(hi_res, hi_res_exo, layer)
+                if isinstance(
+                    layer, (Sup3rAdder, Sup3rConcat, Sup3rConcatMasked)
+                ):
+                    msg = (
+                        f'layer.name = {layer.name} does not match any '
+                        f'features in exogenous_data ({list(hi_res_exo)})'
+                    )
+                    assert layer.name in hi_res_exo, msg
+                    hi_res = layer(hi_res, hi_res_exo[layer.name])
                 else:
                     hi_res = layer(hi_res)
         except Exception as e:

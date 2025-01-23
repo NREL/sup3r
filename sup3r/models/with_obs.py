@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import tensorflow as tf
-from phygnn.layers.custom_layers import Sup3rFixer
+from phygnn.layers.custom_layers import Sup3rConcatMasked
 from tensorflow.keras.losses import MeanAbsoluteError
 
 from sup3r.utilities.utilities import RANDOM_GENERATOR
@@ -396,14 +396,14 @@ class Sup3rGanFixedObs(Sup3rGan):
     @property
     def obs_features(self):
         """Get list of exogenous observation feature names the model uses.
-        These come from the names of the ``Sup3rFixer`` layers."""
+        These come from the names of the ``Sup3rConcatMasked`` layers."""
         # pylint: disable=E1101
         features = []
         if hasattr(self, '_gen'):
             features = [
                 layer.name
                 for layer in self._gen.layers
-                if isinstance(layer, Sup3rFixer)
+                if isinstance(layer, Sup3rConcatMasked)
             ]
         return features
 
@@ -592,7 +592,9 @@ class Sup3rGanFixedObs(Sup3rGan):
         obs_exo = {}
         obs_mask = self._get_obs_mask(hi_res_true)
         for feature in self.obs_features:
-            f_idx = self.hr_out_features.index(feature)
+            # obs_features can include a _obs suffix to avoid conflict with
+            # fully gridded exo features
+            f_idx = self.hr_out_features.index(feature.strip('_obs'))
             obs_fdata = hi_res_true[..., f_idx : f_idx + 1].copy()
             obs_fdata[:, obs_mask] = np.nan
             obs_exo[feature] = obs_fdata

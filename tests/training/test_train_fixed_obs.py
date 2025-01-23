@@ -3,6 +3,7 @@
 import os
 import tempfile
 
+import numpy as np
 import pytest
 
 from sup3r.models import Sup3rGanFixedObs
@@ -10,15 +11,16 @@ from sup3r.preprocessing import (
     BatchHandler,
     DataHandler,
 )
+from sup3r.utilities.utilities import RANDOM_GENERATOR
 
 SHAPE = (20, 20)
 FEATURES_W = ['u_10m', 'v_10m']
 TARGET_W = (39.01, -105.15)
 
 
-def test_fixed_wind_obs(gen_config_with_fixer):
+def test_fixed_wind_obs(gen_config_with_concat_masked):
     """Test a special model which fixes observations mid network with
-    ``Sup3rFixer`` layer."""
+    ``Sup3rConcatMasked`` layer."""
     kwargs = {
         'file_paths': pytest.FP_WTK,
         'features': FEATURES_W,
@@ -42,7 +44,7 @@ def test_fixed_wind_obs(gen_config_with_fixer):
     Sup3rGanFixedObs.seed()
 
     model = Sup3rGanFixedObs(
-        gen_config_with_fixer(),
+        gen_config_with_concat_masked(),
         pytest.S_FP_DISC,
         obs_frac={'spatial': 0.1},
         learning_rate=1e-4,
@@ -63,3 +65,33 @@ def test_fixed_wind_obs(gen_config_with_fixer):
 
         loaded = model.load(os.path.join(td, 'test_2'))
         loaded.train(batcher, **model_kwargs)
+
+    x = RANDOM_GENERATOR.uniform(0, 1, (4, 30, 30, len(FEATURES_W)))
+    u10m_obs = RANDOM_GENERATOR.uniform(0, 1, (4, 60, 60, 1))
+    v10m_obs = RANDOM_GENERATOR.uniform(0, 1, (4, 60, 60, 1))
+    mask = RANDOM_GENERATOR.choice([True, False], (60, 60, 1), p=[0.9, 0.1])
+    u10m_obs[:, mask] = np.nan
+    v10m_obs[:, mask] = np.nan
+
+    with pytest.raises(RuntimeError):
+        y = model.generate(x, exogenous_data=None)
+
+    exo_tmp = {
+        'u_10m': {
+            'steps': [
+                {'model': 0, 'combine_type': 'layer', 'data': u10m_obs}
+            ]
+        },
+        'v_10m': {
+            'steps': [
+                {'model': 0, 'combine_type': 'layer', 'data': v10m_obs}
+            ]
+        }
+    }
+    y = model.generate(x, exogenous_data=exo_tmp)
+
+    assert y.dtype == np.float32
+    assert y.shape[0] == x.shape[0]
+    assert y.shape[1] == x.shape[1] * 2
+    assert y.shape[2] == x.shape[2] * 2
+    assert y.shape[3] == len(FEATURES_W)
