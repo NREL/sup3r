@@ -18,7 +18,8 @@ from phygnn import CustomNetwork
 from phygnn.layers.custom_layers import (
     Sup3rAdder,
     Sup3rConcat,
-    Sup3rConcatMasked,
+    Sup3rConcatObs,
+    Sup3rImpute,
 )
 from rex.utilities.utilities import safe_json_load
 from tensorflow.keras import optimizers
@@ -1029,21 +1030,27 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             for i, layer in enumerate(self.generator.layers[1:]):
                 layer_num = i + 1
                 if isinstance(
-                    layer, (Sup3rAdder, Sup3rConcat, Sup3rConcatMasked)
+                    layer,
+                    (Sup3rAdder, Sup3rConcat, Sup3rConcatObs, Sup3rImpute),
                 ):
                     msg = (
                         f'layer.name = {layer.name} does not match any '
                         'features in exogenous_data '
                         f'({list(exogenous_data)})'
                     )
-                    assert layer.name in exogenous_data, msg
+                    hr_feat = layer.name.replace('_obs', '')
+                    assert hr_feat in exogenous_data, msg
                     hr_exo = exogenous_data.get_combine_type_data(
                         layer.name, 'layer'
                     )
                     hr_exo = self._reshape_norm_exo(
-                        hi_res, hr_exo, layer.name, norm_in=norm_in
+                        hi_res, hr_exo, hr_feat, norm_in=norm_in,
                     )
-                    hi_res = layer(hi_res, hr_exo)
+                    if isinstance(layer, Sup3rImpute):
+                        fidx = self.hr_out_features.index(hr_feat)
+                        hi_res = layer(hi_res, hr_exo, fidx)
+                    else:
+                        hi_res = layer(hi_res, hr_exo)
                 else:
                     hi_res = layer(hi_res)
         except Exception as e:
@@ -1092,14 +1099,22 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             for i, layer in enumerate(self.generator.layers[1:]):
                 layer_num = i + 1
                 if isinstance(
-                    layer, (Sup3rAdder, Sup3rConcat, Sup3rConcatMasked)
+                    layer,
+                    (Sup3rAdder, Sup3rConcat, Sup3rConcatObs, Sup3rImpute),
                 ):
                     msg = (
                         f'layer.name = {layer.name} does not match any '
                         f'features in exogenous_data ({list(hi_res_exo)})'
                     )
+                    hr_feat = layer.name.replace('_obs', '')
                     assert layer.name in hi_res_exo, msg
-                    hi_res = layer(hi_res, hi_res_exo[layer.name])
+                    hr_exo = hi_res_exo[hr_feat]
+
+                    if isinstance(layer, Sup3rImpute):
+                        fidx = self.hr_out_features.index(hr_feat)
+                        hi_res = layer(hi_res, hr_exo, fidx)
+                    else:
+                        hi_res = layer(hi_res, hr_exo)
                 else:
                     hi_res = layer(hi_res)
         except Exception as e:
