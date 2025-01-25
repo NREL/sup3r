@@ -20,7 +20,7 @@ TARGET_W = (39.01, -105.15)
 
 def test_fixed_wind_obs(gen_config_with_concat_masked):
     """Test a special model which fixes observations mid network with
-    ``Sup3rConcatMasked`` layer."""
+    ``Sup3rConcatObs`` layer."""
     kwargs = {
         'file_paths': pytest.FP_WTK,
         'features': FEATURES_W,
@@ -49,6 +49,9 @@ def test_fixed_wind_obs(gen_config_with_concat_masked):
         obs_frac={'spatial': 0.1},
         learning_rate=1e-4,
     )
+    test_mask = model._get_obs_mask(np.zeros((1, 20, 20, 1, 1)))
+    frac = 1 - test_mask.sum() / test_mask.size
+    assert np.abs(0.1 - frac) < test_mask.size / (2 * np.sqrt(test_mask.size))
     assert model.obs_features == ['u_10m', 'v_10m']
     with tempfile.TemporaryDirectory() as td:
         model_kwargs = {
