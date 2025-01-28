@@ -40,7 +40,7 @@ class Sup3rGanWithObs(Sup3rGan):
         loss_details : dict
             Same as input with updated val_* loss info
         """
-        _, v_loss_details, hi_res_gen = self._get_hr_exo_and_loss(
+        _, v_loss_details, hi_res_gen, _ = self._get_hr_exo_and_loss(
             batch.low_res,
             batch.high_res,
             weight_gen_advers=weight_gen_advers,
@@ -48,7 +48,7 @@ class Sup3rGanWithObs(Sup3rGan):
             train_disc=False,
         )
 
-        v_loss_details['loss_obs'] = self.cal_loss_obs(batch.obs, hi_res_gen)
+        v_loss_details['loss_obs'] = self.calc_loss_obs(batch.obs, hi_res_gen)
 
         loss_details = self.update_loss_details(
             loss_details, v_loss_details, len(batch), prefix='val_'
@@ -325,13 +325,17 @@ class Sup3rGanWithObs(Sup3rGan):
             watch_accessed_variables=False
         ) as tape:
             tape.watch(training_weights)
-            loss, loss_details, hi_res_gen = self._get_hr_exo_and_loss(
+            loss, loss_details, hi_res_gen, _ = self._get_hr_exo_and_loss(
                 low_res, hi_res_true, **calc_loss_kwargs
             )
             loss_obs = self.calc_loss_obs(obs_data, hi_res_gen)
-            if not tf.reduce_any(tf.math.is_nan(loss_obs)):
+            loss_update = {'loss_obs': loss_obs}
+            if calc_loss_kwargs['train_gen'] and not tf.reduce_any(
+                tf.math.is_nan(loss_obs)
+            ):
                 loss += loss_obs
-                loss_details.update({'loss_obs': loss_obs})
+                loss_update['loss_gen'] = loss
+                loss_details.update(loss_update)
             grad = tape.gradient(loss, training_weights)
         return grad, loss_details
 
@@ -408,15 +412,24 @@ class Sup3rGanFixedObs(Sup3rGan):
 
     def _get_loss_obs_comparison(self, hi_res_true, hi_res_gen, obs_mask):
         """Get loss for observation locations and for non observation
-        locations.
+        locations."""
 
-        Note: This assumes the loss function called by
-        ``calc_loss_gen_content`` works with the non-gridded masked data"""
-        loss_obs = self.calc_loss_gen_content(
-            hi_res_true[~obs_mask], hi_res_gen[~obs_mask]
+        hr_true = [
+            hi_res_true[..., self.hr_out_features.index(f)]
+            for f in self.obs_features
+        ]
+        hr_true = tf.stack(hr_true, axis=-1)
+        hr_gen = [
+            hi_res_gen[..., self.hr_out_features.index(f)]
+            for f in self.obs_features
+        ]
+        hr_gen = tf.stack(hr_gen, axis=-1)
+
+        loss_obs = MeanAbsoluteError()(
+            hr_true[~obs_mask], hr_gen[~obs_mask]
         )
-        loss_non_obs = self.calc_loss_gen_content(
-            hi_res_true[obs_mask], hi_res_gen[obs_mask]
+        loss_non_obs = MeanAbsoluteError()(
+            hr_true[obs_mask], hr_gen[obs_mask]
         )
         return loss_obs, loss_non_obs
 
@@ -515,15 +528,18 @@ class Sup3rGanFixedObs(Sup3rGan):
         """Get high-resolution exogenous data, generate synthetic output, and
         compute loss. Includes artificially masking hi res data to act as
         sparse observation data."""
-        hi_res_exo = self.get_high_res_exo_input(hi_res_true)
-        hi_res_gen = self._tf_generate(low_res, hi_res_exo)
-        loss, loss_details = self.calc_loss(
-            hi_res_true, hi_res_gen, **calc_loss_kwargs
+        out = super()._get_hr_exo_and_loss(
+            low_res, hi_res_true, **calc_loss_kwargs
         )
+        loss, loss_details, hi_res_gen, hi_res_exo = out
         loss_obs, loss_non_obs = self._get_loss_obs_comparison(
-            hi_res_true, hi_res_gen, hi_res_exo['mask'],
+            hi_res_true,
+            hi_res_gen,
+            hi_res_exo['mask'],
         )
-        loss_details.update(
-            {'loss_obs': loss_obs, 'loss_non_obs': loss_non_obs}
-        )
-        return loss, loss_details, hi_res_gen
+        loss_update = {
+            'loss_obs': loss_obs,
+            'loss_non_obs': loss_non_obs,
+        }
+        loss_details.update(loss_update)
+        return loss, loss_details, hi_res_gen, hi_res_exo

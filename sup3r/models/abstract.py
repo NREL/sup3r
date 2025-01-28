@@ -1139,7 +1139,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         loss, loss_details = self.calc_loss(
             hi_res_true, hi_res_gen, **calc_loss_kwargs
         )
-        return loss, loss_details, hi_res_gen
+        return loss, loss_details, hi_res_gen, hi_res_exo
 
     @tf.function
     def get_single_grad(
@@ -1186,7 +1186,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             watch_accessed_variables=False
         ) as tape:
             tape.watch(training_weights)
-            loss, loss_details, _ = self._get_hr_exo_and_loss(
+            loss, loss_details, _, _ = self._get_hr_exo_and_loss(
                 low_res, hi_res_true, **calc_loss_kwargs
             )
             grad = tape.gradient(loss, training_weights)
