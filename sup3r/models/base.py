@@ -926,7 +926,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         loss_details : dict
             Same as input but now includes val_* loss info
         """
-        _, v_loss_details, _ = self._get_hr_exo_and_loss(
+        _, v_loss_details, _, _ = self._get_hr_exo_and_loss(
             batch.low_res,
             batch.high_res,
             weight_gen_advers=weight_gen_advers,
