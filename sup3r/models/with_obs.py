@@ -389,7 +389,8 @@ class Sup3rGanFixedObs(Sup3rGan):
             is a spatiotemporal model. The values should correspond roughly to
             the fraction of the production domain for which observations are
             available (spatial) and the fraction of the full time period that
-            these cover.
+            these cover. For each batch a spatial frac will be selected by
+            uniformly selecting from the range ``(0, obs_frac['spatial'])``
         kwargs : dict
             Keyword arguments for the ``Sup3rGan`` parent class.
         """
@@ -425,20 +426,15 @@ class Sup3rGanFixedObs(Sup3rGan):
         ]
         hr_gen = tf.stack(hr_gen, axis=-1)
 
-        loss_obs = MeanAbsoluteError()(
-            hr_true[~obs_mask], hr_gen[~obs_mask]
-        )
-        loss_non_obs = MeanAbsoluteError()(
-            hr_true[obs_mask], hr_gen[obs_mask]
-        )
+        loss_obs = MeanAbsoluteError()(hr_true[~obs_mask], hr_gen[~obs_mask])
+        loss_non_obs = MeanAbsoluteError()(hr_true[obs_mask], hr_gen[obs_mask])
         return loss_obs, loss_non_obs
 
-    def _get_obs_mask(self, hi_res):
+    def _get_obs_mask(self, hi_res, spatial_frac, time_frac=None):
         """Define observation mask for the current batch. This is done
         with a spatial mask and a temporal mask since often observation data
         might be very sparse spatially but cover most of the full time period
         for those locations."""
-        spatial_frac = self.obs_frac['spatial']
         obs_mask = RANDOM_GENERATOR.choice(
             [True, False],
             size=hi_res.shape[1:3],
@@ -446,7 +442,6 @@ class Sup3rGanFixedObs(Sup3rGan):
         )
         if self.is_5d:
             sp_mask = obs_mask.copy()
-            time_frac = self.obs_frac['time']
             obs_mask = RANDOM_GENERATOR.choice(
                 [True, False],
                 size=hi_res.shape[1:-1],
@@ -508,7 +503,13 @@ class Sup3rGanFixedObs(Sup3rGan):
         """Mask high res data to act as sparse observation data. Add this to
         the standard high res exo input"""
         exo_data = super().get_high_res_exo_input(hi_res_true)
-        obs_mask = self._get_obs_mask(hi_res_true)
+        spatial_frac = RANDOM_GENERATOR.uniform(self.obs_frac['spatial'])
+        logger.info(
+            'Using spatial_frac = %s for the current observation mask',
+            spatial_frac,
+        )
+        time_frac = self.obs_frac.get('time', None)
+        obs_mask = self._get_obs_mask(hi_res_true, spatial_frac, time_frac)
         for feature in self.obs_features:
             # obs_features can include a _obs suffix to avoid conflict with
             # fully gridded exo features
