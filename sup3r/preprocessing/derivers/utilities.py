@@ -159,7 +159,7 @@ def transform_rotate_wind(ws, wd, lat_lon):
         (spatial_1, spatial_2, temporal)
     wd : Union[np.ndarray, da.core.Array]
         3D array of high res winddirection data. Angle is in degrees and
-        measured relative to the south_north direction.
+        measured clockwise from the north direction.
         (spatial_1, spatial_2, temporal)
     lat_lon : Union[np.ndarray, da.core.Array]
         3D array of lat lon
