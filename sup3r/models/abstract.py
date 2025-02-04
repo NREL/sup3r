@@ -14,9 +14,12 @@ import numpy as np
 import tensorflow as tf
 from phygnn import CustomNetwork
 from phygnn.layers.custom_layers import (
+    MaskedSqueezeAndExcitation,
+    SparseAttention,
     Sup3rAdder,
     Sup3rConcat,
     Sup3rConcatObs,
+    Sup3rConcatObsBlock,
     Sup3rImpute,
 )
 from rex.utilities.utilities import safe_json_load
@@ -31,6 +34,17 @@ from sup3r.utilities.utilities import safe_cast
 from .utilities import TensorboardMixIn
 
 logger = logging.getLogger(__name__)
+
+
+SUP3R_LAYERS = (
+    Sup3rAdder,
+    Sup3rConcat,
+    Sup3rConcatObs,
+    Sup3rConcatObsBlock,
+    Sup3rImpute,
+    SparseAttention,
+    MaskedSqueezeAndExcitation
+)
 
 
 # pylint: disable=E1101,W0201,E0203
@@ -987,10 +1001,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         try:
             for i, layer in enumerate(self.generator.layers[1:]):
                 layer_num = i + 1
-                if isinstance(
-                    layer,
-                    (Sup3rAdder, Sup3rConcat, Sup3rConcatObs, Sup3rImpute),
-                ):
+                if isinstance(layer, SUP3R_LAYERS):
                     msg = (
                         f'layer.name = {layer.name} does not match any '
                         'features in exogenous_data '
@@ -1002,7 +1013,10 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
                         layer.name, 'layer'
                     )
                     hr_exo = self._reshape_norm_exo(
-                        hi_res, hr_exo, hr_feat, norm_in=norm_in,
+                        hi_res,
+                        hr_exo,
+                        hr_feat,
+                        norm_in=norm_in,
                     )
                     if isinstance(layer, Sup3rImpute):
                         fidx = self.hr_out_features.index(hr_feat)
@@ -1056,10 +1070,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         try:
             for i, layer in enumerate(self.generator.layers[1:]):
                 layer_num = i + 1
-                if isinstance(
-                    layer,
-                    (Sup3rAdder, Sup3rConcat, Sup3rConcatObs, Sup3rImpute),
-                ):
+                if isinstance(layer, SUP3R_LAYERS):
                     msg = (
                         f'layer.name = {layer.name} does not match any '
                         f'features in exogenous_data ({list(hi_res_exo)})'
@@ -1073,6 +1084,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
                         hi_res = layer(hi_res, hr_exo, fidx)
                     else:
                         hi_res = layer(hi_res, hr_exo)
+
                 else:
                     hi_res = layer(hi_res)
         except Exception as e:

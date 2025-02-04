@@ -6,7 +6,11 @@ from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import tensorflow as tf
-from phygnn.layers.custom_layers import Sup3rConcatObs, Sup3rImpute
+from phygnn.layers.custom_layers import (
+    Sup3rConcatObs,
+    Sup3rConcatObsBlock,
+    Sup3rImpute,
+)
 from tensorflow.keras.losses import MeanAbsoluteError
 
 from sup3r.utilities.utilities import RANDOM_GENERATOR
@@ -405,7 +409,9 @@ class Sup3rGanFixedObs(Sup3rGan):
         features = []
         if hasattr(self, '_gen'):
             for layer in self._gen.layers:
-                check = isinstance(layer, (Sup3rConcatObs, Sup3rImpute))
+                check = isinstance(
+                    layer, (Sup3rConcatObs, Sup3rConcatObsBlock, Sup3rImpute)
+                )
                 check = check and layer.name not in features
                 if check:
                     features.append(layer.name)
@@ -503,11 +509,7 @@ class Sup3rGanFixedObs(Sup3rGan):
         """Mask high res data to act as sparse observation data. Add this to
         the standard high res exo input"""
         exo_data = super().get_high_res_exo_input(hi_res_true)
-        spatial_frac = RANDOM_GENERATOR.uniform(self.obs_frac['spatial'])
-        logger.info(
-            'Using spatial_frac = %s for the current observation mask',
-            spatial_frac,
-        )
+        spatial_frac = RANDOM_GENERATOR.uniform(0, self.obs_frac['spatial'])
         time_frac = self.obs_frac.get('time', None)
         obs_mask = self._get_obs_mask(hi_res_true, spatial_frac, time_frac)
         for feature in self.obs_features:
