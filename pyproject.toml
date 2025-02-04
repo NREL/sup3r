@@ -24,8 +24,7 @@ classifiers=[
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
-  "Programming Language :: Python :: 3.12",
-  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.12"
 ]
 dependencies = [
   "NREL-rex>=0.2.91",
@@ -273,7 +272,7 @@ matplotlib = ">=3.1"
 numpy = "~=1.7"
 pandas = ">=2.0"
 scipy = ">=1.0.0"
-tensorflow = ">2.4,<2.16"
+tensorflow = ">2.4,<2.18"
 xarray = ">=2023.0"
 
 [tool.pixi.pypi-dependencies]
