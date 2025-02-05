@@ -1099,7 +1099,6 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         train_gen,
         train_disc,
         disc_loss_bounds,
-        loss_mean_window=None,
         multi_gpu=False,
     ):
         """Train the GAN for one epoch.
@@ -1142,11 +1141,6 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         loss_means = self._train_record.mean().to_dict()
         loss_means.setdefault('train_loss_disc', 0)
         loss_means.setdefault('train_loss_gen', 0)
-        loss_mean_window = (
-            len(batch_handler)
-            if loss_mean_window is None
-            else loss_mean_window
-        )
 
         only_gen = train_gen and not train_disc
         only_disc = train_disc and not train_gen
