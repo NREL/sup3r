@@ -60,21 +60,18 @@ def test_train_disc(
     train_handler, val_handler = _get_handlers()
 
     with tempfile.TemporaryDirectory() as td:
-        # stats will be calculated since they are given as None
-        batch_handler = BatchHandler(
-            train_containers=[train_handler],
-            val_containers=[val_handler],
-            sample_shape=sample_shape,
-            batch_size=15,
-            s_enhance=s_enhance,
-            t_enhance=t_enhance,
-            n_batches=1,
-            means=None,
-            stds=None,
-        )
-
-        assert batch_handler.means is not None
-        assert batch_handler.stds is not None
+        bh_kwargs = {
+            'train_containers': [train_handler],
+            'val_containers': [val_handler],
+            'sample_shape': sample_shape,
+            'batch_size': 15,
+            's_enhance': s_enhance,
+            't_enhance': t_enhance,
+            'n_batches': 1,
+            'means': None,
+            'stds': None,
+        }
+        batch_handler = BatchHandler(**bh_kwargs)
 
         model_kwargs = {
             'input_resolution': {'spatial': '30km', 'temporal': '60min'},
@@ -90,6 +87,15 @@ def test_train_disc(
         model.train(batch_handler, **model_kwargs)
 
         assert all(model.history['train_disc_trained_frac'] == 1)
+
+        out_dir = os.path.join(td, 'st_gan')
+        model.save(out_dir)
+        loaded = model.load(out_dir)
+
+        batch_handler = BatchHandler(**bh_kwargs)
+
+        loaded.train(batch_handler, **model_kwargs)
+        assert all(loaded.history['train_disc_trained_frac'] == 1)
 
 
 @pytest.mark.parametrize(
