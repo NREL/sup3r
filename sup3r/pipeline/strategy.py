@@ -258,7 +258,15 @@ class ForwardPassStrategy:
         model. This is used to determine the minimum width of padded slices
         used to chunk the generator input."""
         pad_width = (1, 1, 1)
-        for layer in model._gen.layers:
+        if hasattr(model, '_gen'):
+            layers = model._gen.layers
+        elif hasattr(model, 'models'):
+            # multi-step model
+            layers = model.models[0]._gen.layers
+        else:
+            # topography interpolation models don't have a generator network
+            return pad_width
+        for layer in layers:
             if hasattr(layer, 'paddings'):
                 new_pw = np.max(layer.paddings, axis=1)[1:-1]
                 if len(new_pw) < 3:
