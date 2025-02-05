@@ -45,6 +45,60 @@ def _get_handlers():
         (pytest.S_FP_GEN, pytest.S_FP_DISC, 2, 1, (10, 10, 1)),
     ],
 )
+def test_train_disc(
+    fp_gen, fp_disc, s_enhance, t_enhance, sample_shape, n_epoch=8
+):
+    """Test that the discriminator is trained whenever loss is outside given
+    bounds"""
+
+    lr = 5e-5
+    Sup3rGan.seed()
+    model = Sup3rGan(
+        fp_gen, fp_disc, learning_rate=lr, loss='MeanAbsoluteError'
+    )
+
+    train_handler, val_handler = _get_handlers()
+
+    with tempfile.TemporaryDirectory() as td:
+        # stats will be calculated since they are given as None
+        batch_handler = BatchHandler(
+            train_containers=[train_handler],
+            val_containers=[val_handler],
+            sample_shape=sample_shape,
+            batch_size=15,
+            s_enhance=s_enhance,
+            t_enhance=t_enhance,
+            n_batches=1,
+            means=None,
+            stds=None,
+        )
+
+        assert batch_handler.means is not None
+        assert batch_handler.stds is not None
+
+        model_kwargs = {
+            'input_resolution': {'spatial': '30km', 'temporal': '60min'},
+            'n_epoch': n_epoch,
+            'weight_gen_advers': 0.0,
+            'train_gen': True,
+            'train_disc': True,
+            'disc_loss_bounds': [-np.inf, 0.0],
+            'checkpoint_int': 1,
+            'out_dir': os.path.join(td, 'test_{epoch}'),
+        }
+
+        model.train(batch_handler, **model_kwargs)
+
+        assert all(model.history['train_disc_trained_frac'] == 1)
+
+
+@pytest.mark.parametrize(
+    ['fp_gen', 'fp_disc', 's_enhance', 't_enhance', 'sample_shape'],
+    [
+        (pytest.ST_FP_GEN, pytest.ST_FP_DISC, 3, 4, (12, 12, 16)),
+        (pytest.S_FP_GEN, pytest.S_FP_DISC, 2, 1, (10, 10, 1)),
+    ],
+)
 def test_train(fp_gen, fp_disc, s_enhance, t_enhance, sample_shape, n_epoch=8):
     """Test basic model training with only gen content loss. Tests both
     spatiotemporal and spatial models."""
