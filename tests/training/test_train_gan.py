@@ -97,6 +97,15 @@ def test_train_disc(
         loaded.train(batch_handler, **model_kwargs)
         assert all(loaded.history['disc_train_frac'] == 1)
 
+        out_dir = os.path.join(td, 'st_gan')
+        model.save(out_dir)
+        loaded = model.load(out_dir)
+
+        batch_handler = BatchHandler(**bh_kwargs)
+
+        loaded.train(batch_handler, **model_kwargs)
+        assert all(loaded.history['train_disc_trained_frac'] == 1)
+
 
 @pytest.mark.parametrize(
     ['fp_gen', 'fp_disc', 's_enhance', 't_enhance', 'sample_shape'],
