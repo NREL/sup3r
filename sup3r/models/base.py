@@ -704,10 +704,12 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
 
         disc_th_low = np.min(disc_loss_bounds)
         disc_th_high = np.max(disc_loss_bounds)
-        loss_details = {'n_obs': 0, 'train_loss_disc': 0}
+        n_obs = train_loss_disc = 0
         if 'train_loss_disc' in self.history:
-            last_disc_loss = self.history['train_loss_disc'].values[-1]
-            loss_details['train_loss_disc'] = last_disc_loss
+            train_loss_disc = self.history['train_loss_disc'].values[-1]
+        if 'train_n_obs' in self.history:
+            n_obs = self.history['train_n_obs'].values[-1]
+        loss_details = {'n_obs': n_obs, 'train_loss_disc': train_loss_disc}
 
         only_gen = train_gen and not train_disc
         only_disc = train_disc and not train_gen
