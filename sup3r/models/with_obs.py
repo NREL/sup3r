@@ -25,39 +25,42 @@ class Sup3rGanWithObs(Sup3rGan):
     model is useful for when observations are available for the training domain
     but not for the production domain."""
 
-    def _calc_val_loss(self, batch, weight_gen_advers, loss_details):
+    def calc_val_loss(self, batch_handler, weight_gen_advers):
         """Calculate the validation loss at the current state of model training
-        for a given batch
 
         Parameters
         ----------
-        batch : DsetTuple
-            Object with ``.high_res``, ``.low_res``, and ``.obs`` arrays
+        batch_handler : sup3r.preprocessing.BatchHandler
+            BatchHandler object to iterate through
         weight_gen_advers : float
             Weight factor for the adversarial loss component of the generator
             vs. the discriminator.
-        loss_details : dict
-            Namespace of the breakdown of loss components
 
         Returns
         -------
         loss_details : dict
-            Same as input with updated val_* loss info
+            Running mean for validation loss details
         """
-        _, v_loss_details, hi_res_gen, _ = self._get_hr_exo_and_loss(
-            batch.low_res,
-            batch.high_res,
-            weight_gen_advers=weight_gen_advers,
-            train_gen=False,
-            train_disc=False,
-        )
+        logger.debug('Starting end-of-epoch validation loss calculation...')
+        for batch in batch_handler.val_data:
+            _, v_loss_details, hi_res_gen, _ = self._get_hr_exo_and_loss(
+                batch.low_res,
+                batch.high_res,
+                weight_gen_advers=weight_gen_advers,
+                train_gen=False,
+                train_disc=False,
+            )
+            v_loss_details['loss_obs'] = self.calc_loss_obs(
+                batch.obs, hi_res_gen
+            )
 
-        v_loss_details['loss_obs'] = self.calc_loss_obs(batch.obs, hi_res_gen)
-
-        loss_details = self.update_loss_details(
-            loss_details, v_loss_details, len(batch), prefix='val_'
-        )
-        return loss_details
+            self._val_record = self.update_loss_details(
+                self._val_record,
+                v_loss_details,
+                len(batch_handler.val_data),
+                prefix='val_',
+            )
+        return self._val_record.mean(axis=0)
 
     def _get_batch_loss_details(
         self,

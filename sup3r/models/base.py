@@ -113,6 +113,12 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         if isinstance(self._history, str):
             self._history = pd.read_csv(self._history, index_col=0)
 
+        if self._history is not None:
+            train_cols = [c for c in self._history.columns if 'train_' in c]
+            val_cols = [c for c in self._history.columns if 'val_' in c]
+            self._train_record = self._history.iloc[-1, train_cols]
+            self._val_record = self._history.iloc[-1, val_cols]
+
         optimizer_disc = optimizer_disc or copy.deepcopy(optimizer)
         learning_rate_disc = learning_rate_disc or learning_rate
         self._optimizer = self.init_optimizer(optimizer, learning_rate)
@@ -766,11 +772,9 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
                 disc_loss_bounds,
                 multi_gpu=multi_gpu,
             )
-            train_n_obs = loss_details['n_obs']
-            loss_details = self.calc_val_loss(
-                batch_handler, weight_gen_advers, loss_details
+            loss_details.update(
+                self.calc_val_loss(batch_handler, weight_gen_advers)
             )
-            val_n_obs = loss_details['n_obs']
 
             msg = f'Epoch {epoch} of {epochs[-1]} '
             msg += 'gen/disc train loss: {:.2e}/{:.2e} '.format(
@@ -787,8 +791,6 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             logger.info(msg)
 
             extras = {
-                'train_n_obs': train_n_obs,
-                'val_n_obs': val_n_obs,
                 'weight_gen_advers': weight_gen_advers,
                 'disc_loss_bound_0': disc_loss_bounds[0],
                 'disc_loss_bound_1': disc_loss_bounds[1],
@@ -909,38 +911,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
 
         return loss, loss_details
 
-    def _calc_val_loss(self, batch, weight_gen_advers, loss_details):
-        """Calculate the validation loss at the current state of model training
-        for a given batch
-
-        Parameters
-        ----------
-        batch : DsetTuple
-            Object with ``.high_res`` and ``.low_res`` arrays
-        weight_gen_advers : float
-            Weight factor for the adversarial loss component of the generator
-            vs. the discriminator.
-        loss_details : dict
-            Namespace of the breakdown of loss components
-
-        Returns
-        -------
-        loss_details : dict
-            Same as input but now includes val_* loss info
-        """
-        _, v_loss_details, _, _ = self._get_hr_exo_and_loss(
-            batch.low_res,
-            batch.high_res,
-            weight_gen_advers=weight_gen_advers,
-            train_gen=False,
-            train_disc=False,
-        )
-        loss_details = self.update_loss_details(
-            loss_details, v_loss_details, len(batch), prefix='val_'
-        )
-        return loss_details
-
-    def calc_val_loss(self, batch_handler, weight_gen_advers, loss_details):
+    def calc_val_loss(self, batch_handler, weight_gen_advers):
         """Calculate the validation loss at the current state of model training
 
         Parameters
@@ -950,21 +921,28 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         weight_gen_advers : float
             Weight factor for the adversarial loss component of the generator
             vs. the discriminator.
-        loss_details : dict
-            Namespace of the breakdown of loss components
 
         Returns
         -------
         loss_details : dict
-            Same as input but now includes val_* loss info
+            Running mean for validation loss details
         """
         logger.debug('Starting end-of-epoch validation loss calculation...')
-        loss_details['n_obs'] = 0
-        for val_batch in batch_handler.val_data:
-            loss_details = self._calc_val_loss(
-                val_batch, weight_gen_advers, loss_details
+        for batch in batch_handler.val_data:
+            _, v_loss_details, _, _ = self._get_hr_exo_and_loss(
+                batch.low_res,
+                batch.high_res,
+                weight_gen_advers=weight_gen_advers,
+                train_gen=False,
+                train_disc=False,
             )
-        return loss_details
+            self._val_record = self.update_loss_details(
+                self._val_record,
+                v_loss_details,
+                len(batch_handler.val_data),
+                prefix='val_',
+            )
+        return self._val_record.mean(axis=0)
 
     def _get_batch_loss_details(
         self,
@@ -1094,7 +1072,9 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
 
         disc_th_low = np.min(disc_loss_bounds)
         disc_th_high = np.max(disc_loss_bounds)
-        loss_details = self._get_last_epoch_details()
+        loss_details = self._train_record.mean(axis=0).to_dict()
+        loss_details.setdefault('train_loss_disc', 0)
+        loss_details.setdefault('train_loss_gen', 0)
 
         only_gen = train_gen and not train_disc
         only_disc = train_disc and not train_gen
@@ -1129,12 +1109,14 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             self.dict_to_tensorboard(b_loss_details)
             self.dict_to_tensorboard(self.timer.log)
 
-            loss_details = self.update_loss_details(
-                loss_details,
+            self._train_record = self.update_loss_details(
+                self._train_record,
                 b_loss_details,
-                batch_handler.batch_size,
+                len(batch_handler),
                 prefix='train_',
             )
+            loss_details = self._train_record.mean(axis=0).to_dict()
+
             logger.debug(
                 'Batch {} out of {} has epoch-average '
                 '(gen / disc) loss of: ({:.2e} / {:.2e}). '
