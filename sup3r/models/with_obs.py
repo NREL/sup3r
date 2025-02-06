@@ -379,7 +379,7 @@ class Sup3rGanFixedObs(Sup3rGan):
     model is useful for when production runs will be over a domain for which
     observation data is available."""
 
-    def __init__(self, *args, obs_frac=None, **kwargs):
+    def __init__(self, *args, obs_frac=None, loss_obs_weight=None, **kwargs):
         """
         Initialize the Sup3rGanFixedObs model.
 
@@ -395,10 +395,15 @@ class Sup3rGanFixedObs(Sup3rGan):
             available (spatial) and the fraction of the full time period that
             these cover. For each batch a spatial frac will be selected by
             uniformly selecting from the range ``(0, obs_frac['spatial'])``
+        loss_obs_weight : float
+            Value used to weight observation locations in extra content loss
+            term. e.g. The new content loss will include ``obs_loss_weight *
+            MAE(hi_res_gen[~obs_mask], hi_res_true[~obs_mask])``
         kwargs : dict
             Keyword arguments for the ``Sup3rGan`` parent class.
         """
         self.obs_frac = {} if obs_frac is None else obs_frac
+        self.loss_obs_weight = loss_obs_weight
         super().__init__(*args, **kwargs)
 
     @property
@@ -436,17 +441,23 @@ class Sup3rGanFixedObs(Sup3rGan):
         loss_non_obs = MeanAbsoluteError()(hr_true[obs_mask], hr_gen[obs_mask])
         return loss_obs, loss_non_obs
 
-    def _get_obs_mask(self, hi_res, spatial_frac, time_frac=None):
+    def _get_obs_mask(self, hi_res, spatial_frac=None, time_frac=None):
         """Define observation mask for the current batch. This is done
         with a spatial mask and a temporal mask since often observation data
         might be very sparse spatially but cover most of the full time period
         for those locations."""
+        spatial_frac = (
+            self.obs_frac['spatial'] if spatial_frac is None else spatial_frac
+        )
         obs_mask = RANDOM_GENERATOR.choice(
             [True, False],
             size=hi_res.shape[1:3],
             p=[1 - spatial_frac, spatial_frac],
         )
         if self.is_5d:
+            time_frac = (
+                self.obs_frac['time'] if time_frac is None else time_frac
+            )
             sp_mask = obs_mask.copy()
             obs_mask = RANDOM_GENERATOR.choice(
                 [True, False],
@@ -503,6 +514,7 @@ class Sup3rGanFixedObs(Sup3rGan):
         """
         params = super().model_params
         params['obs_frac'] = self.obs_frac
+        params['loss_obs_weight'] = self.loss_obs_weight
         return params
 
     def get_high_res_exo_input(self, hi_res_true):
@@ -513,8 +525,8 @@ class Sup3rGanFixedObs(Sup3rGan):
         time_frac = self.obs_frac.get('time', None)
         obs_mask = self._get_obs_mask(hi_res_true, spatial_frac, time_frac)
         for feature in self.obs_features:
-            # obs_features can include a _obs suffix to avoid conflict with
-            # fully gridded exo features
+            # obs_features can include a _obs suffix to avoid name conflict
+            # with fully gridded exo features
             f_idx = self.hr_out_features.index(feature.replace('_obs', ''))
             exo_data[feature] = tf.where(
                 obs_mask, np.nan, hi_res_true[..., f_idx]
@@ -544,5 +556,8 @@ class Sup3rGanFixedObs(Sup3rGan):
             'loss_obs': loss_obs,
             'loss_non_obs': loss_non_obs,
         }
+        if self.loss_obs_weight is not None and calc_loss_kwargs['train_gen']:
+            loss += self.loss_obs_weight * loss_obs
+            loss_update['loss_gen'] = loss
         loss_details.update(loss_update)
         return loss, loss_details, hi_res_gen, hi_res_exo
