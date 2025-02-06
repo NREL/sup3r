@@ -640,6 +640,23 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             record.loc[new_index, key] = new_value
         return record.iloc[-max_batches:]
 
+    def _get_last_epoch_details(self):
+        """Get loss details from last epoch to use for continued running
+        averages"""
+        n_obs = loss_disc = loss_gen = 0
+        if 'train_loss_disc' in self.history:
+            loss_disc = self.history['train_loss_disc'].ffill().values[-1]
+        if 'train_loss_gen' in self.history:
+            loss_gen = self.history['train_loss_gen'].ffill().values[-1]
+        if 'train_n_obs' in self.history:
+            n_obs = self.history['train_n_obs'].ffill().values[-1]
+        loss_details = {
+            'n_obs': n_obs,
+            'train_loss_disc': loss_disc,
+            'train_loss_gen': loss_gen,
+        }
+        return loss_details
+
     @staticmethod
     def log_loss_details(loss_details, level='INFO'):
         """Log the loss details to the module logger.
