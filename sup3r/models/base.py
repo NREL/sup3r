@@ -483,13 +483,12 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             0D tensor generator model loss for the content loss comparing the
             hi res ground truth to the hi res synthetically generated output.
         """
-        # only use output features in the content loss, not exogenous features
-        # which artificially lower the loss. Exo features are assumed to come
-        # last in the feature channels
-        return self.loss_fun(
-            hi_res_true[..., : len(self.hr_out_features)],
-            hi_res_gen[..., : len(self.hr_out_features)],
+        slc = (
+            slice(0, None)
+            if len(self.hr_exo_features) == 0
+            else slice(0, -len(self.hr_exo_features))
         )
+        return self.loss_fun(hi_res_true[..., slc], hi_res_gen[..., slc])
 
     @staticmethod
     @tf.function
