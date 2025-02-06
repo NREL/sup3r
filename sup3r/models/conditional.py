@@ -91,6 +91,8 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
         if isinstance(self._history, str):
             self._history = pd.read_csv(self._history, index_col=0)
 
+        self._init_records()
+
         self._optimizer = self.init_optimizer(optimizer, learning_rate)
 
         self._gen = self.load_network(gen_layers, 'generator')
