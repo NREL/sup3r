@@ -972,6 +972,17 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
 
         return params
 
+    def _init_records(self):
+        """Initialize running records used to compute loss details running
+        means"""
+        if self._history is not None:
+            train_cols = [c for c in self._history.columns if 'train_' in c]
+            val_cols = [c for c in self._history.columns if 'val_' in c]
+            self._train_record = self._history[train_cols].iloc[-1:]
+            self._train_record = self._train_record.reset_index(drop=True)
+            self._val_record = self._history[val_cols].iloc[-1:]
+            self._val_record = self._val_record.reset_index(drop=True)
+
     def get_high_res_exo_input(self, high_res):
         """Get exogenous feature data from high_res
 

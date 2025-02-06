@@ -112,11 +112,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         if isinstance(self._history, str):
             self._history = pd.read_csv(self._history, index_col=0)
 
-        if self._history is not None:
-            train_cols = [c for c in self._history.columns if 'train_' in c]
-            val_cols = [c for c in self._history.columns if 'val_' in c]
-            self._train_record = self._history.iloc[-1, train_cols]
-            self._val_record = self._history.iloc[-1, val_cols]
+        self._init_records()
 
         optimizer_disc = optimizer_disc or copy.deepcopy(optimizer)
         learning_rate_disc = learning_rate_disc or learning_rate
