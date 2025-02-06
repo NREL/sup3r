@@ -47,6 +47,7 @@ def test_fixed_wind_obs(gen_config_with_concat_masked):
         gen_config_with_concat_masked(),
         pytest.S_FP_DISC,
         obs_frac={'spatial': 0.1},
+        loss_obs_weight=0.1,
         learning_rate=1e-4,
     )
     test_mask = model._get_obs_mask(np.zeros((1, 20, 20, 1, 1)))
