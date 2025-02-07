@@ -137,7 +137,7 @@ def test_train(fp_gen, fp_disc, s_enhance, t_enhance, sample_shape, n_epoch=8):
         model_kwargs = {
             'input_resolution': {'spatial': '30km', 'temporal': '60min'},
             'n_epoch': n_epoch,
-            'weight_gen_advers': 0.0,
+            'weight_gen_advers': 0,
             'train_gen': True,
             'train_disc': False,
             'checkpoint_int': 1,

@@ -587,7 +587,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             Same as input with details from ``new_data`` added and only the
             last ``max_batches`` rows kept.
         """
-        new_index = len(record)
+        new_index = 0 if len(record) == 0 else record.index[-1] + 1
         for k, v in new_data.items():
             key = k if prefix is None else prefix + k
             new_value = numpy_if_tensor(v)
