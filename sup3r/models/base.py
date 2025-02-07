@@ -669,7 +669,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             if train_disc:
                 update_frac = self.get_weight_update_fraction(
                     history,
-                    'train_disc_trained_frac',
+                    'disc_train_frac',
                     update_frac=adaptive_update_fraction,
                     update_bounds=adaptive_update_bounds,
                 )
@@ -1005,8 +1005,8 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
                 multi_gpu=multi_gpu,
             )
 
-        b_loss_details['gen_trained_frac'] = float(trained_gen)
-        b_loss_details['disc_trained_frac'] = float(trained_disc)
+        b_loss_details['gen_train_frac'] = float(trained_gen)
+        b_loss_details['disc_train_frac'] = float(trained_disc)
         return b_loss_details
 
     def train_epoch(
@@ -1084,8 +1084,8 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
                 weight_gen_advers,
                 multi_gpu,
             )
-            trained_gen = bool(b_loss_details.get('gen_trained_frac', False))
-            trained_disc = bool(b_loss_details.get('disc_trained_frac', False))
+            trained_gen = bool(b_loss_details.get('gen_train_frac', False))
+            trained_disc = bool(b_loss_details.get('disc_train_frac', False))
 
             self.dict_to_tensorboard(b_loss_details)
             self.dict_to_tensorboard(self.timer.log)
