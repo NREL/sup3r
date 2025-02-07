@@ -579,7 +579,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             details
         prefix : None | str
             Option to prefix the names of the loss data when saving to the
-            loss_details dictionary.
+            loss_details dictionary. This is usually 'train_' or 'val_'
 
         Returns
         -------
@@ -589,7 +589,9 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         """
         new_index = 0 if len(record) == 0 else record.index[-1] + 1
         for k, v in new_data.items():
-            key = k if prefix is None else prefix + k
+            # only add prefix if key doesn't already include the prefix - no
+            # point in adding 'train_' to keys like 'disc_train_frac'
+            key = k if prefix is None or prefix in k else prefix + k
             new_value = numpy_if_tensor(v)
             record.loc[new_index, key] = new_value
         return record.iloc[-max_batches:]

@@ -141,8 +141,8 @@ class Sup3rGanWithObs(Sup3rGan):
                 multi_gpu=multi_gpu,
             )
 
-        b_loss_details['gen_trained_frac'] = float(trained_gen)
-        b_loss_details['disc_trained_frac'] = float(trained_disc)
+        b_loss_details['gen_train_frac'] = float(trained_gen)
+        b_loss_details['disc_train_frac'] = float(trained_disc)
 
         if 'loss_obs' in b_loss_details and not tf.math.is_nan(
             b_loss_details['loss_obs']

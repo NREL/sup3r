@@ -86,7 +86,7 @@ def test_train_disc(
 
         model.train(batch_handler, **model_kwargs)
 
-        assert all(model.history['train_disc_trained_frac'] == 1)
+        assert all(model.history['disc_train_frac'] == 1)
 
         out_dir = os.path.join(td, 'st_gan')
         model.save(out_dir)
@@ -95,7 +95,7 @@ def test_train_disc(
         batch_handler = BatchHandler(**bh_kwargs)
 
         loaded.train(batch_handler, **model_kwargs)
-        assert all(loaded.history['train_disc_trained_frac'] == 1)
+        assert all(loaded.history['disc_train_frac'] == 1)
 
 
 @pytest.mark.parametrize(
@@ -149,8 +149,8 @@ def test_train(fp_gen, fp_disc, s_enhance, t_enhance, sample_shape, n_epoch=8):
         assert 'config_generator' in model.meta
         assert 'config_discriminator' in model.meta
         assert len(model.history) == n_epoch
-        assert all(model.history['train_gen_trained_frac'] == 1)
-        assert all(model.history['train_disc_trained_frac'] == 0)
+        assert all(model.history['gen_train_frac'] == 1)
+        assert all(model.history['disc_train_frac'] == 0)
         tlossg = model.history['train_loss_gen'].values
         vlossg = model.history['val_loss_gen'].values
         assert np.sum(np.diff(tlossg)) < 0
@@ -270,23 +270,23 @@ def test_train_st_weight_update(n_epoch=2):
         # check that weight is changed
         check_lower = any(
             frac < adaptive_update_bounds[0]
-            for frac in model.history['train_disc_trained_frac'][:-1]
+            for frac in model.history['disc_train_frac'][:-1]
         )
         check_higher = any(
             frac > adaptive_update_bounds[1]
-            for frac in model.history['train_disc_trained_frac'][:-1]
+            for frac in model.history['disc_train_frac'][:-1]
         )
         assert check_lower or check_higher
         for e in range(0, n_epoch - 1):
             weight_old = model.history['weight_gen_advers'][e]
             weight_new = model.history['weight_gen_advers'][e + 1]
             if (
-                model.history['train_disc_trained_frac'][e]
+                model.history['disc_train_frac'][e]
                 < adaptive_update_bounds[0]
             ):
                 assert weight_new > weight_old
             if (
-                model.history['train_disc_trained_frac'][e]
+                model.history['disc_train_frac'][e]
                 > adaptive_update_bounds[1]
             ):
                 assert weight_new < weight_old
