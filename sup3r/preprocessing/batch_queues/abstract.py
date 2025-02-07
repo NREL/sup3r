@@ -285,7 +285,7 @@ class AbstractBatchQueue(Collection, ABC):
                     for batch in batches:
                         self.queue.enqueue(batch)
 
-            if time.time() > log_time + 10:
+            if time.time() > log_time + 60:
                 logger.debug(self.log_queue_info())
                 log_time = time.time()
 
