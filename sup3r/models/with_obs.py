@@ -425,6 +425,7 @@ class Sup3rGanFixedObs(Sup3rGan):
                     features.append(layer.name)
         return features
 
+    @tf.function
     def _get_loss_obs_comparison(self, hi_res_true, hi_res_gen, obs_mask):
         """Get loss for observation locations and for non observation
         locations."""

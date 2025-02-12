@@ -646,6 +646,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         adaptive_update_bounds=(0.9, 0.99),
         adaptive_update_fraction=0.0,
         multi_gpu=False,
+        loss_mean_window=None,
         tensorboard_log=True,
         tensorboard_profile=False,
     ):
@@ -711,6 +712,10 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             rate that the model and optimizer were initialized with.
             If true and multiple gpus are found, ``default_device`` device
             should be set to /gpu:0
+        loss_mean_window : int
+            Number of batches to use to compute generator and discriminator
+            loss means, which are used to decide whether to train each network
+            for a given batch. Defaults to the number of batches in an epoch
         tensorboard_log : bool
             Whether to write log file for use with tensorboard. Log data can
             be viewed with ``tensorboard --logdir <logdir>`` where ``<logdir>``
@@ -766,6 +771,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
                 train_gen,
                 train_disc,
                 disc_loss_bounds,
+                loss_mean_window=loss_mean_window,
                 multi_gpu=multi_gpu,
             )
             loss_details.update(
@@ -1024,6 +1030,48 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         b_loss_details['disc_train_frac'] = float(trained_disc)
         return b_loss_details
 
+    def _finish_batch(self, ib, b_loss_details, loss_mean_window, n_batches):
+        """Update loss details after the current batch and write to log."""
+
+        self._train_record = self.update_loss_details(
+            self._train_record,
+            b_loss_details,
+            loss_mean_window,
+            prefix='train_',
+        )
+
+        self.dict_to_tensorboard(b_loss_details)
+        self.dict_to_tensorboard(self.timer.log)
+
+        trained_gen = bool(self._train_record['gen_train_frac'].values[-1])
+        trained_disc = bool(self._train_record['disc_train_frac'].values[-1])
+        disc_loss = self._train_record['train_loss_disc'].values
+        disc_loss = disc_loss[-loss_mean_window:].mean()
+        gen_loss = self._train_record['train_loss_gen'].values
+        gen_loss = gen_loss[-loss_mean_window:].mean()
+
+        logger.debug(
+            'Batch {} out of {} has (gen / disc) loss of: '
+            '({:.2e} / {:.2e}). Running mean (gen / disc): '
+            '({:.2e} / {:.2e}). Trained (gen / disc): ({} / {})'.format(
+                ib + 1,
+                n_batches,
+                self._train_record['train_loss_gen'].values[-1],
+                self._train_record['train_loss_disc'].values[-1],
+                gen_loss,
+                disc_loss,
+                trained_gen,
+                trained_disc,
+            )
+        )
+        if all([not trained_gen, not trained_disc]):
+            msg = (
+                'For some reason none of the GAN networks trained '
+                'during batch {} out of {}!'.format(ib, n_batches)
+            )
+            logger.warning(msg)
+            warn(msg)
+
     def train_epoch(
         self,
         batch_handler,
@@ -1031,6 +1079,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         train_gen,
         train_disc,
         disc_loss_bounds,
+        loss_mean_window=None,
         multi_gpu=False,
     ):
         """Train the GAN for one epoch.
@@ -1050,6 +1099,10 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             Lower and upper bounds for the discriminator loss outside of which
             the discriminators will not train unless train_disc=True or
             and train_gen=False.
+        loss_mean_window : int
+            Number of batches to use to compute generator and discriminator
+            loss means, which are used to decide whether to train each network
+            for a given batch. Defaults to the number of batches in an epoch
         multi_gpu : bool
             Flag to break up the batch for parallel gradient descent
             calculations on multiple gpus. If True and multiple GPUs are
@@ -1071,6 +1124,11 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         loss_details = self._train_record.mean(axis=0).to_dict()
         loss_details.setdefault('train_loss_disc', 0)
         loss_details.setdefault('train_loss_gen', 0)
+        loss_mean_window = (
+            len(batch_handler)
+            if loss_mean_window is None
+            else loss_mean_window
+        )
 
         only_gen = train_gen and not train_disc
         only_disc = train_disc and not train_gen
@@ -1099,41 +1157,13 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
                 weight_gen_advers,
                 multi_gpu,
             )
-            trained_gen = bool(b_loss_details.get('gen_train_frac', False))
-            trained_disc = bool(b_loss_details.get('disc_train_frac', False))
 
-            self.dict_to_tensorboard(b_loss_details)
-            self.dict_to_tensorboard(self.timer.log)
-
-            self._train_record = self.update_loss_details(
-                self._train_record,
-                b_loss_details,
-                len(batch_handler),
-                prefix='train_',
+            self._finish_batch(
+                ib, b_loss_details, loss_mean_window, len(batch_handler)
             )
-            loss_details = self._train_record.mean(axis=0).to_dict()
-
-            logger.debug(
-                'Batch {} out of {} has epoch-average '
-                '(gen / disc) loss of: ({:.2e} / {:.2e}). '
-                'Trained (gen / disc): ({} / {})'.format(
-                    ib + 1,
-                    len(batch_handler),
-                    loss_details['train_loss_gen'],
-                    loss_details['train_loss_disc'],
-                    trained_gen,
-                    trained_disc,
-                )
-            )
-            if all([not trained_gen, not trained_disc]):
-                msg = (
-                    'For some reason none of the GAN networks trained '
-                    'during batch {} out of {}!'.format(ib, len(batch_handler))
-                )
-                logger.warning(msg)
-                warn(msg)
 
         self.total_batches += len(batch_handler)
+        loss_details = self._train_record.mean(axis=0).to_dict()
         loss_details['total_batches'] = int(self.total_batches)
         self.profile_to_tensorboard('training_epoch')
         return loss_details
