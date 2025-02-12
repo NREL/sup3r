@@ -757,6 +757,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
                 train_gen,
                 train_disc,
                 disc_loss_bounds,
+                loss_mean_window=loss_mean_window,
                 multi_gpu=multi_gpu,
             )
             loss_details.update(
