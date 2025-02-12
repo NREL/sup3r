@@ -7,7 +7,7 @@ import tensorflow as tf
 from sup3r.utilities.loss_metrics import (
     CoarseMseLoss,
     LowResLoss,
-    MaterialDerivativeLoss,
+    MaterialDerivativeLossOnly,
     MmdMseLoss,
     SpatialExtremesLoss,
     SpatiotemporalExtremesLoss,
@@ -254,7 +254,7 @@ def test_md_loss():
     x = RANDOM_GENERATOR.random((6, 10, 10, 8, 3))
     y = x.copy()
 
-    md_loss = MaterialDerivativeLoss()
+    md_loss = MaterialDerivativeLossOnly()
     u_div = md_loss._compute_md(x, fidx=0)
     v_div = md_loss._compute_md(x, fidx=1)
 
