@@ -1015,7 +1015,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         b_loss_details['disc_train_frac'] = float(trained_disc)
         return b_loss_details
 
-    def _finish_batch(self, ib, b_loss_details, loss_mean_window, n_batches):
+    def _post_batch(self, ib, b_loss_details, loss_mean_window, n_batches):
         """Update loss details after the current batch and write to log."""
 
         self._train_record = self.update_loss_details(
@@ -1056,6 +1056,8 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             )
             logger.warning(msg)
             warn(msg)
+        loss_details = self._train_record.iloc[-loss_mean_window:].mean(axis=0)
+        return loss_details.to_dict()
 
     def train_epoch(
         self,
@@ -1143,12 +1145,11 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
                 multi_gpu,
             )
 
-            self._finish_batch(
+            loss_details = self._post_batch(
                 ib, b_loss_details, loss_mean_window, len(batch_handler)
             )
 
         self.total_batches += len(batch_handler)
-        loss_details = self._train_record.mean(axis=0).to_dict()
         loss_details['total_batches'] = int(self.total_batches)
         self.profile_to_tensorboard('training_epoch')
         return loss_details
