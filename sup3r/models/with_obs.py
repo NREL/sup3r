@@ -521,10 +521,10 @@ class Sup3rGanFixedObs(Sup3rGan):
         params['loss_obs_weight'] = self.loss_obs_weight
         return params
 
-    def get_high_res_exo_input(self, hi_res_true):
+    def get_hr_exo_input(self, hi_res_true):
         """Mask high res data to act as sparse observation data. Add this to
         the standard high res exo input"""
-        exo_data = super().get_high_res_exo_input(hi_res_true)
+        exo_data = super().get_hr_exo_input(hi_res_true)
         spatial_frac = RANDOM_GENERATOR.uniform(0, self.obs_frac['spatial'])
         time_frac = self.obs_frac.get('time', None)
         obs_mask = self._get_obs_mask(hi_res_true, spatial_frac, time_frac)
@@ -561,7 +561,11 @@ class Sup3rGanFixedObs(Sup3rGan):
             'loss_non_obs': loss_non_obs,
         }
         if self.loss_obs_weight is not None and calc_loss_kwargs['train_gen']:
-            loss += self.loss_obs_weight * loss_obs
+            loss_obs *= self.loss_obs_weight
+            loss += loss_obs
             loss_update['loss_gen'] = loss
+            loss_update['loss_gen_content'] = (
+                loss_details['loss_gen_content'] + loss_obs
+            )
         loss_details.update(loss_update)
         return loss, loss_details, hi_res_gen, hi_res_exo

@@ -1031,12 +1031,29 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         return b_loss_details
 
     def _post_batch(self, ib, b_loss_details, loss_mean_window, n_batches):
-        """Update loss details after the current batch and write to log."""
+        """Update loss details after the current batch and write to log.
+
+        Parameters
+        ----------
+        ib : int
+            Index of the current batch
+        b_loss_details : dict
+            Dictionary of loss details for the current batch
+        loss_mean_window : int
+            Number of batches to use in the running loss means
+        n_batches : int
+            Number of batches in an epoch
+
+        Returns
+        -------
+        loss_means : dict
+            Dictionary of running loss means
+        """
 
         self._train_record = self.update_loss_details(
             self._train_record,
             b_loss_details,
-            loss_mean_window,
+            n_batches,
             prefix='train_',
         )
 
@@ -1071,8 +1088,8 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             )
             logger.warning(msg)
             warn(msg)
-        loss_details = self._train_record.iloc[-loss_mean_window:].mean(axis=0)
-        return loss_details.to_dict()
+        loss_means = self._train_record.iloc[-loss_mean_window:].mean(axis=0)
+        return loss_means.to_dict()
 
     def train_epoch(
         self,
@@ -1123,9 +1140,9 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
 
         disc_th_low = np.min(disc_loss_bounds)
         disc_th_high = np.max(disc_loss_bounds)
-        loss_details = self._train_record.mean(axis=0).to_dict()
-        loss_details.setdefault('train_loss_disc', 0)
-        loss_details.setdefault('train_loss_gen', 0)
+        loss_means = self._history.iloc[-1].to_dict()
+        loss_means.setdefault('train_loss_disc', 0)
+        loss_means.setdefault('train_loss_gen', 0)
         loss_mean_window = (
             len(batch_handler)
             if loss_mean_window is None
@@ -1140,7 +1157,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
 
         for ib, batch in enumerate(batch_handler):
             b_loss_details = {}
-            loss_disc = loss_details['train_loss_disc']
+            loss_disc = loss_means['train_loss_disc']
             disc_too_good = loss_disc <= disc_th_low
             disc_too_bad = (loss_disc > disc_th_high) and train_disc
             gen_too_good = disc_too_bad
@@ -1160,11 +1177,12 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
                 multi_gpu,
             )
 
-            loss_details = self._post_batch(
+            loss_means = self._post_batch(
                 ib, b_loss_details, loss_mean_window, len(batch_handler)
             )
 
         self.total_batches += len(batch_handler)
+        loss_details = self._train_record.mean().to_dict()
         loss_details['total_batches'] = int(self.total_batches)
         self.profile_to_tensorboard('training_epoch')
         return loss_details
