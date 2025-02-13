@@ -246,13 +246,11 @@ class DerivativeLoss(tf.keras.losses.Loss):
         fidx : int
             Feature index to compute derivatives for.
         """
-        x_div = (
-            _derivative(x[..., fidx], axis=3)
-            + _derivative(x[..., fidx], axis=1)
+        return (
+            _derivative(x[..., fidx], axis=1)
             + _derivative(x[..., fidx], axis=2)
+            + _derivative(x[..., fidx], axis=3)
         )
-
-        return x_div
 
     def __call__(self, x1, x2):
         """Custom content loss that encourages accuracy of spatial and temporal
