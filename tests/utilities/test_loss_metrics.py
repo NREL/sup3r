@@ -9,11 +9,10 @@ from sup3r.models.abstract import AbstractSingleModel
 from sup3r.utilities.loss_metrics import (
     CoarseMseLoss,
     LowResLoss,
-    MaterialDerivativeOnlyLoss,
-    MmdMseLoss,
+    MaterialDerivativeLoss,
+    MmdLoss,
     SpatialExtremesLoss,
-    SpatiotemporalExtremesLoss,
-    StExtremesFftLoss,
+    SpatiotemporalFftLoss,
     TemporalExtremesLoss,
     _derivative,
 )
@@ -35,10 +34,10 @@ def test_mmd_loss():
     # distributions differing by only a small peak should give small mse and
     # larger mmd
     mse_fun = tf.keras.losses.MeanSquaredError()
-    mmd_mse_fun = MmdMseLoss()
+    mmd_fun = MmdLoss()
 
     mse = mse_fun(x, y)
-    mmd_plus_mse = mmd_mse_fun(x, y)
+    mmd_plus_mse = (mmd_fun(x, y) + mse) / 2
 
     assert mmd_plus_mse > mse
 
@@ -49,7 +48,7 @@ def test_mmd_loss():
 
     # scaling the same distribution should give high mse and smaller mmd
     mse = mse_fun(5 * x, x)
-    mmd_plus_mse = mmd_mse_fun(5 * x, x)
+    mmd_plus_mse = (mmd_fun(5 * x, x) + mse) / 2
 
     assert mmd_plus_mse < mse
 
@@ -117,7 +116,14 @@ def test_spex_loss():
 def test_stex_loss():
     """Test custom SpatioTemporalExtremesLoss function that looks at min/max
     values in the timeseries."""
-    loss_obj = SpatiotemporalExtremesLoss(spatial_weight=1, temporal_weight=1)
+
+    def loss_obj(x, y):
+        loss = (
+            MeanAbsoluteError()(x, y)
+            + SpatialExtremesLoss()(x, y)
+            + TemporalExtremesLoss()(x, y)
+        )
+        return 1 / 3 * loss
 
     x = np.zeros((1, 10, 10, 5, 1))
     y = np.zeros((1, 10, 10, 5, 1))
@@ -139,9 +145,15 @@ def test_st_fft_loss():
     """Test custom StExtremesFftLoss function that looks at min/max
     values in the timeseries and also encourages accuracy of the frequency
     spectrum"""
-    loss_obj = StExtremesFftLoss(
-        spatial_weight=1.0, temporal_weight=1.0, fft_weight=1.0
-    )
+
+    def loss_obj(x, y):
+        loss = (
+            SpatiotemporalFftLoss()(x, y)
+            + SpatialExtremesLoss()(x, y)
+            + TemporalExtremesLoss()(x, y)
+            + MeanAbsoluteError()(x, y)
+        )
+        return 1 / 4 * loss
 
     x = np.zeros((1, 10, 10, 5, 1))
     y = np.zeros((1, 10, 10, 5, 1))
@@ -242,7 +254,7 @@ def test_lr_loss():
         t_enhance=1,
         t_method=t_meth,
         tf_loss='MeanSquaredError',
-        ex_loss='SpatialExtremesOnlyLoss',
+        ex_loss='SpatialExtremesLoss',
     )
     ex_loss = loss_obj(xtensor, ytensor)
     assert ex_loss > loss

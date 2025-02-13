@@ -386,7 +386,7 @@ class TemporalExtremesLoss(tf.keras.losses.Loss):
         return (mae_min + mae_max) / 2
 
 
-class SpatialFftOnlyLoss(tf.keras.losses.Loss):
+class SpatialFftLoss(tf.keras.losses.Loss):
     """Loss class that encourages accuracy of the spatial frequency spectrum"""
 
     MAE_LOSS = MeanAbsoluteError()
@@ -431,7 +431,7 @@ class SpatialFftOnlyLoss(tf.keras.losses.Loss):
         return self.MAE_LOSS(x1_hat, x2_hat)
 
 
-class SpatiotemporalFftOnlyLoss(tf.keras.losses.Loss):
+class SpatiotemporalFftLoss(tf.keras.losses.Loss):
     """Loss class that encourages accuracy of the spatiotemporal frequency
     spectrum"""
 
@@ -517,8 +517,8 @@ class LowResLoss(tf.keras.losses.Loss):
             ``tf.keras.losses`` e.g., "MeanSquaredError" or "MeanAbsoluteError"
         ex_loss : None | str
             Optional additional loss metric evaluating the spatial or temporal
-            extremes of the high-res data. Can be "SpatialExtremesOnlyLoss" or
-            "TemporalExtremesOnlyLoss" (keys in ``EX_LOSS_METRICS``).
+            extremes of the high-res data. Can be "SpatialExtremesLoss" or
+            "TemporalExtremesLoss" (keys in ``EX_LOSS_METRICS``).
         """
 
         super().__init__()
