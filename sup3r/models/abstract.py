@@ -1146,7 +1146,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
     ):
         """Get high-resolution exogenous data, generate synthetic output, and
         compute loss."""
-        hi_res_exo = self.get_high_res_exo_input(hi_res_true)
+        hi_res_exo = self.get_hr_exo_input(hi_res_true)
         hi_res_gen = self._tf_generate(low_res, hi_res_exo)
         loss, loss_details = self.calc_loss(
             hi_res_true, hi_res_gen, **calc_loss_kwargs
