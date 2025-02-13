@@ -491,7 +491,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             loss function classes, each with dictionaries of kwargs for that
             function. Can also include a key ``term_weights``, which provides a
             list of weights for each loss function. e.g.
-            ``{'SpatialExtremesOnlyLoss': {}, 'MeanAbsoluteError': {},
+            ``{'SpatialExtremesLoss': {}, 'MeanAbsoluteError': {},
             'term_weights': [0.8, 0.2]}``
 
         Returns
@@ -503,12 +503,13 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         if isinstance(loss, str):
             return cls._get_loss_fun(loss)
         lns = [ln for ln in loss if ln != 'term_weights']
+        loss_funcs = [cls._get_loss_fun({ln: loss[ln]}) for ln in lns]
         weights = copy.deepcopy(loss).pop('term_weights', [1.0] * len(lns))
 
         def loss_fun(x1, x2):
             out = 0
-            for i, ln in enumerate(lns):
-                out += weights[i] * cls._get_loss_fun({ln: loss[ln]})(x1, x2)
+            for i, loss_func in enumerate(loss_funcs):
+                out += weights[i] * loss_func(x1, x2)
             return out
 
         return loss_fun
