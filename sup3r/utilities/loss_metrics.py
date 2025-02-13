@@ -7,6 +7,56 @@ import tensorflow as tf
 from tensorflow.keras.losses import MeanAbsoluteError, MeanSquaredError
 
 
+def _derivative(x, axis=1):
+    """Custom derivative function for compatibility with tensorflow.
+
+    Note
+    ----
+    Matches np.gradient by using the central difference approximation.
+
+    Parameters
+    ----------
+    x : tf.Tensor
+        (n_observations, spatial_1, spatial_2, temporal)
+    axis : int
+        Axis to take derivative over
+    """
+    if axis == 1:
+        return tf.concat(
+            [
+                x[:, 1:2] - x[:, 0:1],
+                (x[:, 2:] - x[:, :-2]) / 2,
+                x[:, -1:] - x[:, -2:-1],
+            ],
+            axis=axis,
+        )
+    if axis == 2:
+        return tf.concat(
+            [
+                x[..., 1:2, :] - x[..., 0:1, :],
+                (x[..., 2:, :] - x[..., :-2, :]) / 2,
+                x[..., -1:, :] - x[..., -2:-1, :],
+            ],
+            axis=axis,
+        )
+    if axis == 3:
+        return tf.concat(
+            [
+                x[..., 1:2] - x[..., 0:1],
+                (x[..., 2:] - x[..., :-2]) / 2,
+                x[..., -1:] - x[..., -2:-1],
+            ],
+            axis=axis,
+        )
+
+    msg = (
+        f'_derivative received axis={axis}. This is meant to compute only '
+        'temporal (axis=3) or spatial (axis=1/2) derivatives for tensors '
+        'of shape (n_obs, spatial_1, spatial_2, temporal)'
+    )
+    raise ValueError(msg)
+
+
 def gaussian_kernel(x1, x2, sigma=1.0):
     """Gaussian kernel for mmd content loss
 
@@ -134,56 +184,6 @@ class MaterialDerivativeOnlyLoss(tf.keras.losses.Loss):
 
     LOSS_METRIC = MeanAbsoluteError()
 
-    def _derivative(self, x, axis=1):
-        """Custom derivative function for compatibility with tensorflow.
-
-        Note
-        ----
-        Matches np.gradient by using the central difference approximation.
-
-        Parameters
-        ----------
-        x : tf.Tensor
-            (n_observations, spatial_1, spatial_2, temporal)
-        axis : int
-            Axis to take derivative over
-        """
-        if axis == 1:
-            return tf.concat(
-                [
-                    x[:, 1:2] - x[:, 0:1],
-                    (x[:, 2:] - x[:, :-2]) / 2,
-                    x[:, -1:] - x[:, -2:-1],
-                ],
-                axis=1,
-            )
-        if axis == 2:
-            return tf.concat(
-                [
-                    x[..., 1:2, :] - x[..., 0:1, :],
-                    (x[..., 2:, :] - x[..., :-2, :]) / 2,
-                    x[..., -1:, :] - x[..., -2:-1, :],
-                ],
-                axis=2,
-            )
-        if axis == 3:
-            return tf.concat(
-                [
-                    x[..., 1:2] - x[..., 0:1],
-                    (x[..., 2:] - x[..., :-2]) / 2,
-                    x[..., -1:] - x[..., -2:-1],
-                ],
-                axis=3,
-            )
-
-        msg = (
-            f'{self.__class__.__name__}._derivative received '
-            f'axis={axis}. This is meant to compute only temporal '
-            '(axis=3) or spatial (axis=1/2) derivatives for tensors '
-            'of shape (n_obs, spatial_1, spatial_2, temporal)'
-        )
-        raise ValueError(msg)
-
     def _compute_md(self, x, fidx):
         """Compute material derivative the feature given by the index fidx.
         It is assumed that for a given feature index fidx there is a pair of
@@ -200,14 +200,14 @@ class MaterialDerivativeOnlyLoss(tf.keras.losses.Loss):
         uidx = 2 * (fidx // 2)
         vidx = 2 * (fidx // 2) + 1
         # df/dt
-        x_div = self._derivative(x[..., fidx], axis=3)
+        x_div = _derivative(x[..., fidx], axis=3)
         # u * df/dx
         x_div += tf.math.multiply(
-            x[..., uidx], self._derivative(x[..., fidx], axis=1)
+            x[..., uidx], _derivative(x[..., fidx], axis=1)
         )
         # v * df/dy
         x_div += tf.math.multiply(
-            x[..., vidx], self._derivative(x[..., fidx], axis=2)
+            x[..., vidx], _derivative(x[..., fidx], axis=2)
         )
 
         return x_div
@@ -251,6 +251,65 @@ class MaterialDerivativeOnlyLoss(tf.keras.losses.Loss):
                 self._compute_md(x2, fidx=i)
                 for i in range(0, 2 * hub_heights, 2)
             ]
+        )
+
+        return self.LOSS_METRIC(x1_div, x2_div)
+
+
+class DerivativeOnlyLoss(tf.keras.losses.Loss):
+    """Loss class to encourage accurary of spatial and temporal derivatives."""
+
+    LOSS_METRIC = MeanAbsoluteError()
+
+    def _compute_deriv(self, x, fidx):
+        """Compute sum of spatial and temporal derivatives for the feature with
+        the index fidx.
+
+        Parameters
+        ----------
+        x : tf.tensor
+            synthetic output or high resolution data
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        fidx : int
+            Feature index to compute derivatives for.
+        """
+        x_div = (
+            _derivative(x[..., fidx], axis=3)
+            + _derivative(x[..., fidx], axis=1)
+            + _derivative(x[..., fidx], axis=2)
+        )
+
+        return x_div
+
+    def __call__(self, x1, x2):
+        """Custom content loss that encourages accuracy of spatial and temporal
+        derivatives
+
+        Parameters
+        ----------
+        x1 : tf.tensor
+            synthetic generator output
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        x2 : tf.tensor
+            high resolution data
+            (n_observations, spatial_1, spatial_2, temporal, features)
+
+        Returns
+        -------
+        tf.tensor
+            0D tensor with loss value
+        """
+        msg = (
+            f'The {self.__class__.__name__} is meant to be used on '
+            'spatiotemporal data only. Received tensor(s) that are not 5D'
+        )
+        assert len(x1.shape) == 5 and len(x2.shape) == 5, msg
+
+        x1_div = tf.stack(
+            [self._compute_deriv(x1, fidx=i) for i in range(0, x1.shape[-1])]
+        )
+        x2_div = tf.stack(
+            [self._compute_deriv(x2, fidx=i) for i in range(0, x2.shape[-1])]
         )
 
         return self.LOSS_METRIC(x1_div, x2_div)
@@ -547,6 +606,66 @@ class SpatiotemporalExtremesLoss(tf.keras.losses.Loss):
         ) / 5
 
 
+class DerivativeWithExtremesLoss(tf.keras.losses.Loss):
+    """Loss class for the spatial and temporal derivatives with spatiotemporal
+    extremes."""
+
+    MAE_LOSS = MeanAbsoluteError()
+    D_LOSS = DerivativeOnlyLoss()
+    S_EX_LOSS = SpatialExtremesOnlyLoss()
+    T_EX_LOSS = TemporalExtremesOnlyLoss()
+
+    def __init__(
+        self, deriv_weight=1.0, spatial_weight=1.0, temporal_weight=1.0
+    ):
+        """Initialize the loss with given weight
+
+        Parameters
+        ----------
+        deriv_weight : float
+            Weight for the derivative loss terms.
+        spatial_weight : float
+            Weight for spatial min/max loss terms.
+        temporal_weight : float
+            Weight for temporal min/max loss terms.
+        """
+        super().__init__()
+        self.deriv_weight = deriv_weight
+        self.s_weight = spatial_weight
+        self.t_weight = temporal_weight
+
+    def __call__(self, x1, x2):
+        """Custom content loss that encourages accuracy of the spatial and
+        temporal derivatives and spatiotemporal extremes.
+
+        Parameters
+        ----------
+        x1 : tf.tensor
+            synthetic generator output
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        x2 : tf.tensor
+            high resolution data
+            (n_observations, spatial_1, spatial_2, temporal, features)
+
+        Returns
+        -------
+        tf.tensor
+            0D tensor with loss value
+        """
+        mae = self.MAE_LOSS(x1, x2)
+        div_mae = self.D_LOSS(x1, x2)
+        s_ex = self.S_EX_LOSS(x1, x2)
+        t_ex = self.T_EX_LOSS(x1, x2)
+
+        loss = (
+            mae
+            + self.deriv_weight * div_mae
+            + self.s_weight * s_ex
+            + self.t_weight * t_ex
+        )
+        return 1 / 4 * loss
+
+
 class MaterialDerivativeWithExtremesLoss(tf.keras.losses.Loss):
     """Loss class for the material derivative with spatiotemporal extremes."""
 
@@ -560,6 +679,8 @@ class MaterialDerivativeWithExtremesLoss(tf.keras.losses.Loss):
 
         Parameters
         ----------
+        md_weight : float
+            Weight for the material derivative loss terms.
         spatial_weight : float
             Weight for spatial min/max loss terms.
         temporal_weight : float

@@ -476,8 +476,44 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             high_res_gen = tf.concat((high_res_gen, *exo_data), axis=-1)
         return high_res_gen
 
+    @classmethod
+    def get_loss_fun(cls, loss):
+        """Get full, possibly multi-term, loss function from the provided str
+        or dictionary.
+
+        Parameters
+        ----------
+        loss : str | dict
+            Loss function class name from sup3r.utilities.loss_metrics
+            (prioritized) or tensorflow.keras.losses or dictionary of loss
+            function class names. As a dictionary this can include multiple
+            loss function classes, each with dictionaries of kwargs for that
+            function. Can also include a key ``term_weights``, which provides a
+            list of weights for each loss function. e.g.
+            ``{'SpatialExtremesOnlyLoss': {}, 'MeanAbsoluteError': {},
+            'term_weights': [0.8, 0.2]}``
+
+        Returns
+        -------
+        loss_func : tf.keras.losses.Loss
+            Initialized loss function, possibly consisting of multiple
+            individual functions
+        """
+        if isinstance(loss, str):
+            return cls._get_loss_fun(loss)
+        loss_names = [ln for ln in loss if ln != 'term_weights']
+        weights = loss.pop('term_weights', [1.0] * len(loss_names))
+
+        def loss_fun(x1, x2):
+            out = 0
+            for i, ln in enumerate(loss_names):
+                out += weights[i] * cls._get_loss_fun({ln: loss[ln]})(x1, x2)
+            return out
+
+        return loss_fun
+
     @staticmethod
-    def get_loss_fun(loss):
+    def _get_loss_fun(loss):
         """Get the initialized loss function class from the sup3r loss library
         or the tensorflow losses.
 
