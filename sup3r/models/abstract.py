@@ -1,5 +1,6 @@
 """Abstract class defining the required interface for Sup3r model subclasses"""
 
+import copy
 import json
 import logging
 import os
@@ -501,12 +502,12 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         """
         if isinstance(loss, str):
             return cls._get_loss_fun(loss)
-        loss_names = [ln for ln in loss if ln != 'term_weights']
-        weights = loss.pop('term_weights', [1.0] * len(loss_names))
+        lns = [ln for ln in loss if ln != 'term_weights']
+        weights = copy.deepcopy(loss).pop('term_weights', [1.0] * len(lns))
 
         def loss_fun(x1, x2):
             out = 0
-            for i, ln in enumerate(loss_names):
+            for i, ln in enumerate(lns):
                 out += weights[i] * cls._get_loss_fun({ln: loss[ln]})(x1, x2)
             return out
 
