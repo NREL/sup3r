@@ -3,7 +3,9 @@
 import numpy as np
 import pytest
 import tensorflow as tf
+from tensorflow.keras.losses import MeanAbsoluteError
 
+from sup3r.models.abstract import AbstractSingleModel
 from sup3r.utilities.loss_metrics import (
     CoarseMseLoss,
     LowResLoss,
@@ -13,6 +15,7 @@ from sup3r.utilities.loss_metrics import (
     SpatiotemporalExtremesLoss,
     StExtremesFftLoss,
     TemporalExtremesLoss,
+    _derivative,
 )
 from sup3r.utilities.utilities import (
     RANDOM_GENERATOR,
@@ -114,9 +117,7 @@ def test_spex_loss():
 def test_stex_loss():
     """Test custom SpatioTemporalExtremesLoss function that looks at min/max
     values in the timeseries."""
-    loss_obj = SpatiotemporalExtremesLoss(
-        spatial_weight=1, temporal_weight=1
-    )
+    loss_obj = SpatiotemporalExtremesLoss(spatial_weight=1, temporal_weight=1)
 
     x = np.zeros((1, 10, 10, 5, 1))
     y = np.zeros((1, 10, 10, 5, 1))
@@ -267,10 +268,31 @@ def test_md_loss():
     v_div_np += y[..., 1] * np.gradient(y[..., 1], axis=2)
 
     with pytest.raises(ValueError):
-        md_loss._derivative(x, axis=0)
+        _derivative(x, axis=0)
 
     with pytest.raises(AssertionError):
         md_loss(x[..., 0], y[..., 0])
 
     assert np.allclose(u_div, u_div_np)
     assert np.allclose(v_div, v_div_np)
+
+
+def test_multiterm_loss():
+    """Test multi-term loss functionality."""
+
+    x = RANDOM_GENERATOR.random((6, 10, 10, 8, 3))
+    y = x.copy()
+
+    md_loss = MaterialDerivativeLoss()
+    mae_loss = MeanAbsoluteError()
+    multi_loss = AbstractSingleModel.get_loss_fun(
+        {
+            'MaterialDerivativeLoss': {},
+            'MeanAbsoluteError': {},
+            'term_weights': [0.2, 0.8],
+        }
+    )
+
+    assert np.allclose(
+        0.2 * md_loss(x, y) + 0.8 * mae_loss(x, y), multi_loss(x, y)
+    )

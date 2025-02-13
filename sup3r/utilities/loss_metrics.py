@@ -7,6 +7,56 @@ import tensorflow as tf
 from tensorflow.keras.losses import MeanAbsoluteError, MeanSquaredError
 
 
+def _derivative(x, axis=1):
+    """Custom derivative function for compatibility with tensorflow.
+
+    Note
+    ----
+    Matches np.gradient by using the central difference approximation.
+
+    Parameters
+    ----------
+    x : tf.Tensor
+        (n_observations, spatial_1, spatial_2, temporal)
+    axis : int
+        Axis to take derivative over
+    """
+    if axis == 1:
+        return tf.concat(
+            [
+                x[:, 1:2] - x[:, 0:1],
+                (x[:, 2:] - x[:, :-2]) / 2,
+                x[:, -1:] - x[:, -2:-1],
+            ],
+            axis=axis,
+        )
+    if axis == 2:
+        return tf.concat(
+            [
+                x[..., 1:2, :] - x[..., 0:1, :],
+                (x[..., 2:, :] - x[..., :-2, :]) / 2,
+                x[..., -1:, :] - x[..., -2:-1, :],
+            ],
+            axis=axis,
+        )
+    if axis == 3:
+        return tf.concat(
+            [
+                x[..., 1:2] - x[..., 0:1],
+                (x[..., 2:] - x[..., :-2]) / 2,
+                x[..., -1:] - x[..., -2:-1],
+            ],
+            axis=axis,
+        )
+
+    msg = (
+        f'_derivative received axis={axis}. This is meant to compute only '
+        'temporal (axis=3) or spatial (axis=1/2) derivatives for tensors '
+        'of shape (n_obs, spatial_1, spatial_2, temporal)'
+    )
+    raise ValueError(msg)
+
+
 def gaussian_kernel(x1, x2, sigma=1.0):
     """Gaussian kernel for mmd content loss
 
@@ -134,56 +184,6 @@ class MaterialDerivativeOnlyLoss(tf.keras.losses.Loss):
 
     LOSS_METRIC = MeanAbsoluteError()
 
-    def _derivative(self, x, axis=1):
-        """Custom derivative function for compatibility with tensorflow.
-
-        Note
-        ----
-        Matches np.gradient by using the central difference approximation.
-
-        Parameters
-        ----------
-        x : tf.Tensor
-            (n_observations, spatial_1, spatial_2, temporal)
-        axis : int
-            Axis to take derivative over
-        """
-        if axis == 1:
-            return tf.concat(
-                [
-                    x[:, 1:2] - x[:, 0:1],
-                    (x[:, 2:] - x[:, :-2]) / 2,
-                    x[:, -1:] - x[:, -2:-1],
-                ],
-                axis=1,
-            )
-        if axis == 2:
-            return tf.concat(
-                [
-                    x[..., 1:2, :] - x[..., 0:1, :],
-                    (x[..., 2:, :] - x[..., :-2, :]) / 2,
-                    x[..., -1:, :] - x[..., -2:-1, :],
-                ],
-                axis=2,
-            )
-        if axis == 3:
-            return tf.concat(
-                [
-                    x[..., 1:2] - x[..., 0:1],
-                    (x[..., 2:] - x[..., :-2]) / 2,
-                    x[..., -1:] - x[..., -2:-1],
-                ],
-                axis=3,
-            )
-
-        msg = (
-            f'{self.__class__.__name__}._derivative received '
-            f'axis={axis}. This is meant to compute only temporal '
-            '(axis=3) or spatial (axis=1/2) derivatives for tensors '
-            'of shape (n_obs, spatial_1, spatial_2, temporal)'
-        )
-        raise ValueError(msg)
-
     def _compute_md(self, x, fidx):
         """Compute material derivative the feature given by the index fidx.
         It is assumed that for a given feature index fidx there is a pair of
@@ -200,14 +200,14 @@ class MaterialDerivativeOnlyLoss(tf.keras.losses.Loss):
         uidx = 2 * (fidx // 2)
         vidx = 2 * (fidx // 2) + 1
         # df/dt
-        x_div = self._derivative(x[..., fidx], axis=3)
+        x_div = _derivative(x[..., fidx], axis=3)
         # u * df/dx
         x_div += tf.math.multiply(
-            x[..., uidx], self._derivative(x[..., fidx], axis=1)
+            x[..., uidx], _derivative(x[..., fidx], axis=1)
         )
         # v * df/dy
         x_div += tf.math.multiply(
-            x[..., vidx], self._derivative(x[..., fidx], axis=2)
+            x[..., vidx], _derivative(x[..., fidx], axis=2)
         )
 
         return x_div
