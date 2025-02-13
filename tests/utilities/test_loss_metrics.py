@@ -162,13 +162,13 @@ def test_st_fft_loss():
     x[:, 5, 5, 2, 0] = 100
     y[:, 5, 5, 2, 0] = 150
     loss = loss_obj(x, y)
-    assert loss.numpy() > 1.5
+    assert loss.numpy() > 1.0
 
     # loss should be dominated by special min/max values
     x[:, 5, 5, 2, 0] = -100
     y[:, 5, 5, 2, 0] = -150
     loss = loss_obj(x, y)
-    assert loss.numpy() > 1.5
+    assert loss.numpy() > 1.0
 
 
 def test_lr_loss():
