@@ -162,10 +162,10 @@ def test_train(fp_gen, fp_disc, s_enhance, t_enhance, sample_shape, n_epoch=8):
         assert 'test_1' in os.listdir(td)
         assert 'model_gen.pkl' in os.listdir(td + '/test_1')
         assert 'model_disc.pkl' in os.listdir(td + '/test_1')
-        assert 'train_loss_mean_absolute_error' in model.history
-        assert 'train_loss_mean_squared_error' in model.history
-        assert 'val_loss_mean_absolute_error' in model.history
-        assert 'val_loss_mean_squared_error' in model.history
+        assert 'train_mean_absolute_error' in model.history
+        assert 'train_mean_squared_error' in model.history
+        assert 'val_mean_absolute_error' in model.history
+        assert 'val_mean_squared_error' in model.history
 
         # test save/load functionality
         out_dir = os.path.join(td, 'st_gan')
