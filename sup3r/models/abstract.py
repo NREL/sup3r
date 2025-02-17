@@ -500,17 +500,19 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             Initialized loss function, possibly consisting of multiple
             individual functions
         """
-        if isinstance(loss, str):
-            return cls._get_loss_fun(loss)
+        loss = {loss: {}} if isinstance(loss, str) else loss
         lns = [ln for ln in loss if ln != 'term_weights']
         loss_funcs = [cls._get_loss_fun({ln: loss[ln]}) for ln in lns]
         weights = copy.deepcopy(loss).pop('term_weights', [1.0] * len(lns))
 
         def loss_fun(x1, x2):
-            out = 0
-            for i, loss_func in enumerate(loss_funcs):
-                out += weights[i] * loss_func(x1, x2)
-            return out
+            loss_details = {}
+            loss = 0
+            for i, (ln, loss_func) in enumerate(zip(lns, loss_funcs)):
+                val = weights[i] * loss_func(x1, x2)
+                loss_details[f'loss_{ln}'] = val
+                loss += val
+            return loss, loss_details
 
         return loss_fun
 

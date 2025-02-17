@@ -10,6 +10,7 @@ from warnings import warn
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+from scipy.stats.mstats import winsorize
 
 from sup3r.preprocessing.utilities import get_class_kwargs
 from sup3r.utilities import VERSION_RECORD
@@ -893,7 +894,9 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         disc_out_true = self._tf_discriminate(hi_res_true)
         disc_out_gen = self._tf_discriminate(hi_res_gen)
 
-        loss_gen_content = self.calc_loss_gen_content(hi_res_true, hi_res_gen)
+        loss_gen_content, loss_gen_content_details = (
+            self.calc_loss_gen_content(hi_res_true, hi_res_gen)
+        )
         loss_gen_advers = self.calc_loss_gen_advers(disc_out_gen)
         loss_gen = loss_gen_content + weight_gen_advers * loss_gen_advers
         loss_disc = self.calc_loss_disc(disc_out_true, disc_out_gen)
@@ -910,6 +913,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             'loss_gen_advers': loss_gen_advers,
             'loss_disc': loss_disc,
         }
+        loss_details.update(loss_gen_content_details)
 
         return loss, loss_details
 
@@ -1060,23 +1064,30 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         self.dict_to_tensorboard(b_loss_details)
         self.dict_to_tensorboard(self.timer.log)
 
-        trained_gen = bool(self._train_record['gen_train_frac'].values[-1])
-        trained_disc = bool(self._train_record['disc_train_frac'].values[-1])
+        # use winsorized mean resistant to outliers
+        wlims = [1 / loss_mean_window, 1 / loss_mean_window]
+        trained_gen = bool(b_loss_details['gen_train_frac'])
+        trained_disc = bool(b_loss_details['disc_train_frac'])
         disc_loss = self._train_record['train_loss_disc'].values
-        disc_loss = disc_loss[-loss_mean_window:].mean()
+        disc_loss = winsorize(disc_loss[-loss_mean_window:], wlims).mean()
         gen_loss = self._train_record['train_loss_gen'].values
-        gen_loss = gen_loss[-loss_mean_window:].mean()
+        gen_loss = winsorize(gen_loss[-loss_mean_window:], wlims).mean()
+        advers_loss = self._train_record['train_loss_gen_advers'].values
+        advers_loss = winsorize(advers_loss[-loss_mean_window:], wlims).mean()
 
         logger.debug(
-            'Batch {} out of {} has (gen / disc) loss of: '
-            '({:.2e} / {:.2e}). Running mean (gen / disc): '
-            '({:.2e} / {:.2e}). Trained (gen / disc): ({} / {})'.format(
+            'Batch {} out of {} has (gen / disc / advers) loss of: '
+            '({:.2e} / {:.2e} / {:.2e}). Running mean (gen / disc / advers): '
+            '({:.2e} / {:.2e} / {:.2e}). Trained (gen / disc): '
+            '({} / {})'.format(
                 ib + 1,
                 n_batches,
-                self._train_record['train_loss_gen'].values[-1],
-                self._train_record['train_loss_disc'].values[-1],
+                b_loss_details['loss_gen'],
+                b_loss_details['loss_disc'],
+                b_loss_details['loss_gen_advers'],
                 gen_loss,
                 disc_loss,
+                advers_loss,
                 trained_gen,
                 trained_disc,
             )
@@ -1088,8 +1099,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             )
             logger.warning(msg)
             warn(msg)
-        loss_means = self._train_record.iloc[-loss_mean_window:].mean(axis=0)
-        return loss_means.to_dict()
+        return {'train_loss_disc': disc_loss, 'train_loss_gen': gen_loss}
 
     def train_epoch(
         self,
@@ -1140,7 +1150,9 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
 
         disc_th_low = np.min(disc_loss_bounds)
         disc_th_high = np.max(disc_loss_bounds)
-        loss_means = self._history.iloc[-1].to_dict()
+        loss_means = (
+            {} if self._history.empty else self._history.iloc[-1].to_dict()
+        )
         loss_means.setdefault('train_loss_disc', 0)
         loss_means.setdefault('train_loss_gen', 0)
         loss_mean_window = (

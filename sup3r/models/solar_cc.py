@@ -182,9 +182,13 @@ class SolarCC(Sup3rGan):
             hr_true_mean = tf.math.reduce_mean(hr_true_sub, axis=3)
             hr_gen_mean = tf.math.reduce_mean(hr_gen_24h, axis=3)
 
-            gen_c_sub = self.calc_loss_gen_content(hr_true_ploss, hr_gen_ploss)
-            gen_c_24h = self.calc_loss_gen_content(hr_true_mean, hr_gen_mean)
-            loss_gen_content += gen_c_24h + gen_c_sub
+            gen_c_sub, gen_c_sub_details = self.calc_loss_gen_content(
+                hr_true_ploss, hr_gen_ploss
+            )
+            gen_c_24h, gen_c_24h_details = self.calc_loss_gen_content(
+                hr_true_mean, hr_gen_mean
+            )
+            loss_gen_content = gen_c_sub + gen_c_24h
 
             disc_t = self._tf_discriminate(hr_true_sub)
             disc_out_true.append(disc_t)
@@ -220,6 +224,12 @@ class SolarCC(Sup3rGan):
             'loss_gen_advers': loss_gen_advers,
             'loss_disc': loss_disc,
         }
+        loss_details.update(
+            {f'c_sub_{k}': v for k, v in gen_c_sub_details.items()}
+        )
+        loss_details.update(
+            {f'c_24h_{k}': v for k, v in gen_c_24h_details.items()}
+        )
 
         return loss, loss_details
 
