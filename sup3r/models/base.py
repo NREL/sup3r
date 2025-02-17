@@ -10,6 +10,7 @@ from warnings import warn
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+from scipy.stats.mstats import winsorize
 
 from sup3r.preprocessing.utilities import get_class_kwargs
 from sup3r.utilities import VERSION_RECORD
@@ -1072,11 +1073,12 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         logger.debug(
             'Batch {} out of {} has (gen / disc) loss of: '
             '({:.2e} / {:.2e}). Running mean (gen / disc): '
-            '({:.2e} / {:.2e}). Trained (gen / disc): ({} / {})'.format(
+            '({:.2e} / {:.2e}). Trained (gen / disc): '
+            '({} / {})'.format(
                 ib + 1,
                 n_batches,
-                self._train_record['train_loss_gen'].values[-1],
-                self._train_record['train_loss_disc'].values[-1],
+                b_loss_details['loss_gen'],
+                b_loss_details['loss_disc'],
                 gen_loss,
                 disc_loss,
                 trained_gen,
