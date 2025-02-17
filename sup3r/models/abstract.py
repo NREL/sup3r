@@ -1071,9 +1071,9 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             loss_details = {}
             loss = 0
             for i, (ln, loss_func) in enumerate(zip(lns, loss_funcs)):
-                val = weights[i] * loss_func(x1, x2)
+                val = loss_func(x1, x2)
                 loss_details[camel_to_underscore(ln)] = val
-                loss += val
+                loss += weights[i] * val
             return loss, loss_details
 
         return loss_fun
