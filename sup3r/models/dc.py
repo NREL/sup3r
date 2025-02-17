@@ -3,6 +3,7 @@
 import logging
 
 import numpy as np
+import tensorflow as tf
 
 from .base import Sup3rGan
 
@@ -78,11 +79,12 @@ class Sup3rGanDC(Sup3rGan):
             dtype=np.float32,
         )
         for i, batch in enumerate(batch_handler.val_data):
-            exo_data = self.get_high_res_exo_input(batch.high_res)
-            loss = self.calc_loss_gen_content(
+            exo_data = self.get_hr_exo_input(batch.high_res)
+            loss, _ = self.calc_loss_gen_content(
                 hi_res_true=batch.high_res,
                 hi_res_gen=self._tf_generate(batch.low_res, exo_data),
             )
+            loss = tf.reduce_sum(loss.values())
             row = i // batch_handler.n_time_bins
             col = i % batch_handler.n_time_bins
             losses[row, col] = loss

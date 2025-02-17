@@ -112,7 +112,10 @@ def test_train(fp_gen, fp_disc, s_enhance, t_enhance, sample_shape, n_epoch=8):
     lr = 5e-5
     Sup3rGan.seed()
     model = Sup3rGan(
-        fp_gen, fp_disc, learning_rate=lr, loss='MeanAbsoluteError'
+        fp_gen,
+        fp_disc,
+        learning_rate=lr,
+        loss={'MeanAbsoluteError': {}, 'MeanSquaredError': {}},
     )
 
     train_handler, val_handler = _get_handlers()
@@ -159,6 +162,10 @@ def test_train(fp_gen, fp_disc, s_enhance, t_enhance, sample_shape, n_epoch=8):
         assert 'test_1' in os.listdir(td)
         assert 'model_gen.pkl' in os.listdir(td + '/test_1')
         assert 'model_disc.pkl' in os.listdir(td + '/test_1')
+        assert 'train_loss_MeanAbsoluteError' in model.history
+        assert 'train_loss_MeanSquaredError' in model.history
+        assert 'val_loss_MeanAbsoluteError' in model.history
+        assert 'val_loss_MeanSquaredError' in model.history
 
         # test save/load functionality
         out_dir = os.path.join(td, 'st_gan')
@@ -185,7 +192,10 @@ def test_train(fp_gen, fp_disc, s_enhance, t_enhance, sample_shape, n_epoch=8):
 
         # make an un-trained dummy model
         dummy = Sup3rGan(
-            fp_gen, fp_disc, learning_rate=lr, loss='MeanAbsoluteError'
+            fp_gen,
+            fp_disc,
+            learning_rate=lr,
+            loss={'MeanAbsoluteError': {}, 'MeanSquaredError': {}},
         )
 
         for batch in batch_handler:
@@ -277,15 +287,9 @@ def test_train_st_weight_update(n_epoch=2):
         for e in range(0, n_epoch - 1):
             weight_old = model.history['weight_gen_advers'][e]
             weight_new = model.history['weight_gen_advers'][e + 1]
-            if (
-                model.history['disc_train_frac'][e]
-                < adaptive_update_bounds[0]
-            ):
+            if model.history['disc_train_frac'][e] < adaptive_update_bounds[0]:
                 assert weight_new > weight_old
-            if (
-                model.history['disc_train_frac'][e]
-                > adaptive_update_bounds[1]
-            ):
+            if model.history['disc_train_frac'][e] > adaptive_update_bounds[1]:
                 assert weight_new < weight_old
 
         batch_handler.stop()
