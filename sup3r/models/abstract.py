@@ -31,7 +31,7 @@ import sup3r.utilities.loss_metrics
 from sup3r.preprocessing.data_handlers import ExoData
 from sup3r.preprocessing.utilities import numpy_if_tensor
 from sup3r.utilities import VERSION_RECORD
-from sup3r.utilities.utilities import safe_cast
+from sup3r.utilities.utilities import camel_to_underscore, safe_cast
 
 from .utilities import TensorboardMixIn
 
@@ -498,7 +498,11 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         -------
         loss_func : tf.keras.losses.Loss
             Initialized loss function, possibly consisting of multiple
-            individual functions
+            individual functions. This loss function returns a total loss value
+            and a dictionary of loss values for each loss term. For example, if
+            the loss funcion is a weighted sum of ``MeanAbsoluteError`` and
+            ``MeanSquaredError`` the dictionary will include entries for each
+            of these functions.
         """
         loss = {loss: {}} if isinstance(loss, str) else loss
         lns = [ln for ln in loss if ln != 'term_weights']
@@ -510,7 +514,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             loss = 0
             for i, (ln, loss_func) in enumerate(zip(lns, loss_funcs)):
                 val = weights[i] * loss_func(x1, x2)
-                loss_details[f'loss_{ln}'] = val
+                loss_details[camel_to_underscore(ln)] = val
                 loss += val
             return loss, loss_details
 
