@@ -277,9 +277,11 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
             logger.error(msg)
             raise RuntimeError(msg)
 
-        loss = self.calc_loss_cond_mom(output_true, output_gen, mask)
+        loss, loss_details = self.calc_loss_cond_mom(
+            output_true, output_gen, mask
+        )
 
-        loss_details = {'loss_gen': loss}
+        loss_details.update({'loss_gen': loss})
 
         return loss, loss_details
 
