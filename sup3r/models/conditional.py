@@ -180,12 +180,11 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
 
     @property
     def model_params(self):
-        """
-        Model parameters, used to save model to disc
+        """Model parameters, used to save model to disc
 
         Returns
         -------
-        dict
+        model_params: dict
         """
 
         config_optm_g = self.get_optimizer_config(self.optimizer)
@@ -239,9 +238,7 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
             moment predictor
         """
 
-        loss = self.loss_fun(output_true * mask, output_gen * mask)
-
-        return loss
+        return self.loss_fun(output_true * mask, output_gen * mask)
 
     def calc_loss(self, output_true, output_gen, mask):
         """Calculate the total moment predictor loss
@@ -352,7 +349,7 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
                 len(batch_handler),
                 prefix='train_',
             )
-            loss_details = self._train_record.mean(axis=0).to_dict()
+            loss_details = self._train_record.mean().to_dict()
 
             logger.debug(
                 'Batch {} out of {} has epoch-average '
@@ -458,9 +455,8 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
             )
             loss_details.update(self.calc_val_loss(batch_handler))
 
-            msg = f'Epoch {epoch} of {epochs[-1]} '
-            msg += 'gen train loss: {:.2e} '.format(
-                loss_details['train_loss_gen']
+            msg = 'Epoch {} of {} gen train loss: {:.2e} '.format(
+                epoch, epochs[-1], loss_details['train_loss_gen']
             )
 
             if all(loss in loss_details for loss in ['val_loss_gen']):
@@ -489,4 +485,5 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
 
             if stop:
                 break
+
         batch_handler.stop()
