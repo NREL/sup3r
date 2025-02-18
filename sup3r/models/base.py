@@ -1150,9 +1150,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
 
         disc_th_low = np.min(disc_loss_bounds)
         disc_th_high = np.max(disc_loss_bounds)
-        loss_means = (
-            {} if self._history.empty else self._history.iloc[-1].to_dict()
-        )
+        loss_means = self._train_record.mean().to_dict()
         loss_means.setdefault('train_loss_disc', 0)
         loss_means.setdefault('train_loss_gen', 0)
         loss_mean_window = (

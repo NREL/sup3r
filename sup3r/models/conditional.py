@@ -352,8 +352,8 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
             loss_details = self._train_record.mean().to_dict()
 
             logger.debug(
-                'Batch {} out of {} has epoch-average '
-                'gen loss of: {:.2e}. '.format(
+                'Batch {} out of {} has epoch-average gen loss of: '
+                '{:.2e}. '.format(
                     ib, len(batch_handler), loss_details['train_loss_gen']
                 )
             )
