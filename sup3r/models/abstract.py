@@ -989,7 +989,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             self._val_record = self._history[val_cols].iloc[-1:]
             self._val_record = self._val_record.reset_index(drop=True)
 
-    def get_high_res_exo_input(self, high_res):
+    def get_hr_exo_input(self, high_res):
         """Get exogenous feature data from high_res
 
         Parameters
@@ -1030,7 +1030,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             Same as input with exogenous data combined with high_res input
         """
         if high_res_true.shape[-1] > high_res_gen.shape[-1]:
-            exo_dict = self.get_high_res_exo_input(high_res_true)
+            exo_dict = self.get_hr_exo_input(high_res_true)
             exo_data = [exo_dict[feat] for feat in self.hr_exo_features]
             high_res_gen = tf.concat((high_res_gen, *exo_data), axis=-1)
         return high_res_gen
@@ -1705,7 +1705,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             watch_accessed_variables=False
         ) as tape:
             tape.watch(training_weights)
-            hi_res_exo = self.get_high_res_exo_input(hi_res_true)
+            hi_res_exo = self.get_hr_exo_input(hi_res_true)
             hi_res_gen = self._tf_generate(low_res, hi_res_exo)
             loss_out = self.calc_loss(
                 hi_res_true, hi_res_gen, **calc_loss_kwargs

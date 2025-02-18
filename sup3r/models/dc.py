@@ -43,7 +43,7 @@ class Sup3rGanDC(Sup3rGan):
             dtype=np.float32,
         )
         for i, batch in enumerate(batch_handler.val_data):
-            exo_data = self.get_high_res_exo_input(batch.high_res)
+            exo_data = self.get_hr_exo_input(batch.high_res)
             loss, _ = self.calc_loss(
                 hi_res_true=batch.high_res,
                 hi_res_gen=self._tf_generate(batch.low_res, exo_data),
