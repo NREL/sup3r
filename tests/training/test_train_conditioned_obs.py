@@ -1,4 +1,5 @@
-"""Test the training of super resolution GANs with exo data."""
+"""Test the training of super resolution GANs with exogenous observation data.
+"""
 
 import os
 import tempfile
