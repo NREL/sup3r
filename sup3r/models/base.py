@@ -1126,10 +1126,11 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         loss_details : dict
             Namespace of the breakdown of loss components
         """
-
-        self.init_weights(
-            (1, *batch_handler.lr_shape), (1, *batch_handler.hr_shape)
-        )
+        lr_shape, hr_shape = batch_handler.queue_shape
+        if self.is_4d:
+            lr_shape = lr_shape[:3] + (lr_shape[-1],)
+            hr_shape = hr_shape[:3] + (hr_shape[-1],)
+        self.init_weights(lr_shape, hr_shape)
 
         disc_th_low = np.min(disc_loss_bounds)
         disc_th_high = np.max(disc_loss_bounds)
