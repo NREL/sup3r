@@ -74,11 +74,10 @@ class DualSampler(Sampler):
             data=data, sample_shape=sample_shape, batch_size=batch_size
         )
         self.lr_data, self.hr_data = self.data.low_res, self.data.high_res
-        self.hr_sample_shape = self.sample_shape
         self.lr_sample_shape = (
-            self.sample_shape[0] // s_enhance,
-            self.sample_shape[1] // s_enhance,
-            self.sample_shape[2] // t_enhance,
+            self.hr_sample_shape[0] // s_enhance,
+            self.hr_sample_shape[1] // s_enhance,
+            self.hr_sample_shape[2] // t_enhance,
         )
         feature_sets = feature_sets or {}
         self._lr_only_features = feature_sets.get('lr_only_features', [])
