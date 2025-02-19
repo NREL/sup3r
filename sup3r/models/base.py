@@ -1138,6 +1138,10 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         lr_shape, hr_shape = batch_handler.shapes
         self.init_weights(lr_shape, hr_shape)
 
+        self.init_weights(
+            (1, *batch_handler.lr_shape), (1, *batch_handler.hr_shape)
+        )
+
         disc_th_low = np.min(disc_loss_bounds)
         disc_th_high = np.max(disc_loss_bounds)
         loss_means = self._train_record.mean().to_dict()
