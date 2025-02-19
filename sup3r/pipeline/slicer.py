@@ -702,9 +702,7 @@ class ForwardPassSlicer:
                 check_boundary=True,
             ),
             self._get_pad_width(
-                ti_slice,
-                len(self.dummy_time_index),
-                self.temporal_pad
+                ti_slice, len(self.dummy_time_index), self.temporal_pad
             ),
         )
 

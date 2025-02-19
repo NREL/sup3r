@@ -10,7 +10,6 @@ from warnings import warn
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from scipy.stats.mstats import winsorize
 
 from sup3r.preprocessing.utilities import get_class_kwargs
 from sup3r.utilities import VERSION_RECORD
@@ -1087,8 +1086,8 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         )
         if all([not trained_gen, not trained_disc]):
             msg = (
-                'For some reason none of the GAN networks trained '
-                'during batch {} out of {}!'.format(ib, n_batches)
+                'For some reason none of the GAN networks trained during '
+                'batch {} out of {}!'.format(ib, n_batches)
             )
             logger.warning(msg)
             warn(msg)
