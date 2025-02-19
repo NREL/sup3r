@@ -86,27 +86,6 @@ class AbstractInterface(ABC):
         return 5
 
     @property
-    def max_paddings(self):
-        """Get the maximum padding values used by the generator. This is used
-        to apply extra padding during forward passes if the raw input doesn't
-        meet the minimum input shape."""
-
-        paddings = (1, 1, 1)
-        if hasattr(self, '_gen'):
-            for layer in self._gen.layers:
-                if hasattr(layer, 'paddings'):
-                    new_pw = np.max(layer.paddings, axis=1)[1:-1]
-                    if len(new_pw) < 3:
-                        new_pw = (*new_pw, 1)
-                    paddings = [
-                        np.max((new_pw[i], paddings[i])) for i in range(3)
-                    ]
-            return paddings
-        if hasattr(self, 'models'):
-            return self.models[0].max_paddings
-        return paddings
-
-    @property
     def is_5d(self):
         """Check if model expects spatiotemporal input"""
         return self.input_dims == 5
