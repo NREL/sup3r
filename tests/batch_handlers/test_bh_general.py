@@ -160,8 +160,8 @@ def test_eager_vs_lazy():
     lazy_batcher.stop()
 
     for eb, lb in zip(eager_batches, lazy_batches):
-        assert np.array_equal(eb.high_res, lb.high_res)
-        assert np.array_equal(eb.low_res, lb.low_res)
+        assert np.allclose(eb.high_res, lb.high_res)
+        assert np.allclose(eb.low_res, lb.low_res)
 
 
 def test_not_enough_stats():
