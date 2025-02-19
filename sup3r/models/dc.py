@@ -3,7 +3,6 @@
 import logging
 
 import numpy as np
-import tensorflow as tf
 
 from .base import Sup3rGan
 
@@ -84,7 +83,6 @@ class Sup3rGanDC(Sup3rGan):
                 hi_res_true=batch.high_res,
                 hi_res_gen=self._tf_generate(batch.low_res, exo_data),
             )
-            loss = tf.reduce_sum(loss.values())
             row = i // batch_handler.n_time_bins
             col = i % batch_handler.n_time_bins
             losses[row, col] = loss

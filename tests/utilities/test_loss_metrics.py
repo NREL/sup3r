@@ -304,7 +304,6 @@ def test_multiterm_loss():
             'term_weights': [0.2, 0.8],
         }
     )
+    loss, _ = multi_loss(x, y)
 
-    assert np.allclose(
-        0.2 * md_loss(x, y) + 0.8 * mae_loss(x, y), multi_loss(x, y)
-    )
+    assert np.allclose(0.2 * md_loss(x, y) + 0.8 * mae_loss(x, y), loss)
