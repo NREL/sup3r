@@ -10,7 +10,6 @@ from warnings import warn
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from scipy.stats.mstats import winsorize
 
 from sup3r.preprocessing.utilities import get_class_kwargs
 from sup3r.utilities import VERSION_RECORD
@@ -1064,16 +1063,14 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         self.dict_to_tensorboard(b_loss_details)
         self.dict_to_tensorboard(self.timer.log)
 
-        # use winsorized mean resistant to outliers
-        wlims = [1 / loss_mean_window, 1 / loss_mean_window]
         trained_gen = bool(b_loss_details['gen_train_frac'])
         trained_disc = bool(b_loss_details['disc_train_frac'])
         disc_loss = self._train_record['train_loss_disc'].values
-        disc_loss = winsorize(disc_loss[-loss_mean_window:], wlims).mean()
+        disc_loss = disc_loss[-loss_mean_window:].mean()
         gen_loss = self._train_record['train_loss_gen'].values
-        gen_loss = winsorize(gen_loss[-loss_mean_window:], wlims).mean()
+        gen_loss = gen_loss[-loss_mean_window:].mean()
         advers_loss = self._train_record['train_loss_gen_advers'].values
-        advers_loss = winsorize(advers_loss[-loss_mean_window:], wlims).mean()
+        advers_loss = advers_loss[-loss_mean_window:].mean()
 
         logger.debug(
             'Batch {} out of {} has (gen / disc / advers) loss of: '
@@ -1094,8 +1091,8 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         )
         if all([not trained_gen, not trained_disc]):
             msg = (
-                'For some reason none of the GAN networks trained '
-                'during batch {} out of {}!'.format(ib, n_batches)
+                'For some reason none of the GAN networks trained during '
+                'batch {} out of {}!'.format(ib, n_batches)
             )
             logger.warning(msg)
             warn(msg)
