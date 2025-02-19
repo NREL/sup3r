@@ -412,22 +412,25 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             self.default_device will be used.
         """
 
-        if device is None:
-            device = self.default_device
+        if not self.generator_weights:
+            if device is None:
+                device = self.default_device
 
-        logger.info('Initializing model weights on device "{}"'.format(device))
-        low_res = np.ones(lr_shape).astype(np.float32)
-        hi_res = np.ones(hr_shape).astype(np.float32)
+            logger.info(
+                'Initializing model weights on device "{}"'.format(device)
+            )
+            low_res = np.ones(lr_shape).astype(np.float32)
+            hi_res = np.ones(hr_shape).astype(np.float32)
 
-        hr_exo_shape = hr_shape[:-1] + (1,)
-        hr_exo = np.ones(hr_exo_shape).astype(np.float32)
+            hr_exo_shape = hr_shape[:-1] + (1,)
+            hr_exo = np.ones(hr_exo_shape).astype(np.float32)
 
-        with tf.device(device):
-            hr_exo_data = {}
-            for feature in self.hr_exo_features:
-                hr_exo_data[feature] = hr_exo
-            _ = self._tf_generate(low_res, hr_exo_data)
-            _ = self._tf_discriminate(hi_res)
+            with tf.device(device):
+                hr_exo_data = {}
+                for feature in self.hr_exo_features:
+                    hr_exo_data[feature] = hr_exo
+                _ = self._tf_generate(low_res, hr_exo_data)
+                _ = self._tf_discriminate(hi_res)
 
     @staticmethod
     def get_weight_update_fraction(
@@ -949,7 +952,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             )
         return self._val_record.mean(axis=0)
 
-    def _get_batch_loss_details(
+    def _run_gradient_descent(
         self,
         batch,
         train_gen,
@@ -961,7 +964,8 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         weight_gen_advers,
         multi_gpu=False,
     ):
-        """Get loss details for a given batch for the current epoch.
+        """Run gradient descent and get loss details for a given batch for the
+        current epoch.
 
         Parameters
         ----------
@@ -1145,6 +1149,10 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             Namespace of the breakdown of loss components
         """
 
+        self.init_weights(
+            (1, *batch_handler.lr_shape), (1, *batch_handler.hr_shape)
+        )
+
         disc_th_low = np.min(disc_loss_bounds)
         disc_th_high = np.max(disc_loss_bounds)
         loss_means = self._train_record.mean().to_dict()
@@ -1169,10 +1177,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             disc_too_bad = (loss_disc > disc_th_high) and train_disc
             gen_too_good = disc_too_bad
 
-            if not self.generator_weights:
-                self.init_weights(batch.low_res.shape, batch.high_res.shape)
-
-            b_loss_details = self._get_batch_loss_details(
+            b_loss_details = self._run_gradient_descent(
                 batch,
                 train_gen,
                 only_gen,
