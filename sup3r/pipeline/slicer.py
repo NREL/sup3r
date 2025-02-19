@@ -59,7 +59,9 @@ class ForwardPassSlicer:
         Minimum width of padded slices, with each element providing the min
         width for the corresponding dimension. e.g. (spatial_1, spatial_2,
         temporal). This is used to make sure generator network input meets the
-        minimum size requirement for padding layers.
+        minimum size requirement for padding layers. e.g. If the generator
+        includes a ``FlexiblePadding`` layer with ``padding = [0, 3, 3, 3, 0]``
+        the minimum input shape to this layer must be ``[..., 4, 4, 4, ...]``
     """
 
     coarse_shape: Union[tuple, list]
@@ -566,10 +568,9 @@ class ForwardPassSlicer:
         lr_slice_stop = unpadded_slices[-1].stop or self.coarse_shape[dim]
 
         # last slice adjustment
-        if (
-            2 * padding + (lr_slice_stop - lr_slice_start)
-            <= self.min_width[dim]
-        ):
+        padded_width = 2 * padding + lr_slice_stop - lr_slice_start
+        too_small = padded_width < self.min_width[dim]
+        if too_small:
             half_width = self.min_width[dim] // 2 + 1
             logger.warning(
                 warn_msg,
@@ -635,7 +636,7 @@ class ForwardPassSlicer:
             Maximum amount of padding to apply.
         min_width : int | None
             Minimum width to enforce. This could be the forward pass chunk
-            shape or the padding value in the first padding layer of the
+            shape or 1 + padding value in the first padding layer of the
             generator network. This is only used if ``check_boundary = True``
         check_bounary : bool
             Whether to check the final slice for minimum size requirement
@@ -654,11 +655,9 @@ class ForwardPassSlicer:
         # too small for the generator. This can happen if 2 * spatial_pad +
         # modulo(grid_size, fwp_chunk_shape) is less than the padding applied
         # in the first padding layer of the generator
-        if (
-            check_boundary
-            and win_stop == max_steps
-            and (2 * max_pad + win_stop - win_start) <= min_width
-        ):
+        padded_width = 2 * max_pad + win_stop - win_start
+        too_small = padded_width < min_width
+        if check_boundary and win_stop == max_steps and too_small:
             half_width = min_width // 2 + 1
             stop = np.max([half_width, max_pad])
             start = np.max([half_width, max_pad])
@@ -702,9 +701,7 @@ class ForwardPassSlicer:
                 check_boundary=True,
             ),
             self._get_pad_width(
-                ti_slice,
-                len(self.dummy_time_index),
-                self.temporal_pad
+                ti_slice, len(self.dummy_time_index), self.temporal_pad
             ),
         )
 
