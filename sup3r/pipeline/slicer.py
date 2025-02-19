@@ -656,8 +656,9 @@ class ForwardPassSlicer:
         # modulo(grid_size, fwp_chunk_shape) is less than the padding applied
         # in the first padding layer of the generator
         padded_width = 2 * max_pad + win_stop - win_start
-        too_small = padded_width < min_width
-        if check_boundary and win_stop == max_steps and too_small:
+        is_last_slice = win_stop == max_steps
+        too_small = min_width is not None and padded_width < min_width
+        if check_boundary and is_last_slice and too_small:
             half_width = min_width // 2 + 1
             stop = np.max([half_width, max_pad])
             start = np.max([half_width, max_pad])
