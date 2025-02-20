@@ -802,8 +802,8 @@ def test_slicing_auto_boundary_pad(input_files, spatial_pad):
                 fwp.strategy.ti_slices[t_idx],
             )
 
-            assert chunk.input_data.shape[0] > 3
-            assert chunk.input_data.shape[1] > 3
+            assert chunk.input_data.shape[0] > strategy.fwp_slicer.min_width[0]
+            assert chunk.input_data.shape[1] > strategy.fwp_slicer.min_width[1]
             input_data = chunk.input_data.copy()
             if spatial_pad > 0:
                 slices = [

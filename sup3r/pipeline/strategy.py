@@ -106,6 +106,13 @@ class ForwardPassStrategy:
         Size of temporal overlap between coarse chunks passed to forward passes
         for subsequent temporal stitching. This overlap will pad both sides of
         the fwp_chunk_shape.
+    min_width : tuple
+        Minimum width of padded slices, with each element providing the min
+        width for the corresponding dimension. e.g. (spatial_1, spatial_2,
+        temporal). This is used to make sure generator network input meets the
+        minimum size requirement for padding layers. e.g. If the generator
+        includes a ``FlexiblePadding`` layer with ``padding = [0, 3, 3, 3, 0]``
+        the minimum input shape to this layer must be ``[..., 4, 4, 4, ...]``
     model_class : str
         Name of the sup3r model class for the GAN model to load. The default is
         the basic spatial / spatiotemporal ``Sup3rGan`` model. This will be
@@ -188,6 +195,7 @@ class ForwardPassStrategy:
     fwp_chunk_shape: tuple = (None, None, None)
     spatial_pad: int = 0
     temporal_pad: int = 0
+    min_width: tuple = (4, 4, 4)
     model_class: str = 'Sup3rGan'
     out_pattern: Optional[str] = None
     input_handler_name: Optional[str] = None
@@ -221,7 +229,6 @@ class ForwardPassStrategy:
             self.input_handler_kwargs.get('time_slice', slice(None))
         )
         self.fwp_chunk_shape = self._get_fwp_chunk_shape()
-
         self.fwp_slicer = ForwardPassSlicer(
             coarse_shape=self.input_handler.grid_shape,
             time_steps=len(self.input_handler.time_index),
@@ -231,6 +238,7 @@ class ForwardPassStrategy:
             t_enhance=self.t_enhance,
             spatial_pad=self.spatial_pad,
             temporal_pad=self.temporal_pad,
+            min_width=self.min_width,
         )
         self.n_chunks = self.fwp_slicer.n_chunks
 

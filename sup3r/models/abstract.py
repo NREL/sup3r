@@ -29,7 +29,12 @@ logger = logging.getLogger(__name__)
 
 
 class TensorboardMixIn:
-    """MixIn class for tensorboard logging and profiling."""
+    """MixIn class for tensorboard logging and profiling.
+
+    Note: To monitor model training with tensorboard run ``ssh -N -f -L
+    localhost:6006:localhost:6006 <user>@<host>`` on your local machine and
+    then ``tensorboard --logdir <log_dir>`` on the remote machine
+    """
 
     def __init__(self):
         self._tb_writer = None
