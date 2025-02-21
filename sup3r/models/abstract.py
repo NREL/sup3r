@@ -1587,21 +1587,6 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
 
         return hi_res
 
-    def _get_hr_exo_and_loss(
-        self,
-        low_res,
-        hi_res_true,
-        **calc_loss_kwargs,
-    ):
-        """Get high-resolution exogenous data, generate synthetic output, and
-        compute loss."""
-        hi_res_exo = self.get_high_res_exo_input(hi_res_true)
-        hi_res_gen = self._tf_generate(low_res, hi_res_exo)
-        loss, loss_details = self.calc_loss(
-            hi_res_true, hi_res_gen, **calc_loss_kwargs
-        )
-        return loss, loss_details, hi_res_gen, hi_res_exo
-
     @tf.function
     def get_single_grad(
         self,

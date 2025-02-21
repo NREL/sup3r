@@ -836,7 +836,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         )
 
         for epoch in epochs:
-            loss_details = self.train_epoch(
+            loss_details = self._train_epoch(
                 batch_handler,
                 weight_gen_advers,
                 train_gen,
@@ -919,9 +919,11 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         """
         logger.debug('Starting end-of-epoch validation loss calculation...')
         for batch in batch_handler.val_data:
-            _, v_loss_details, _, _ = self._get_hr_exo_and_loss(
-                batch.low_res,
+            hi_res_exo = self.get_high_res_exo_input(batch.high_res)
+            hi_res_gen = self._tf_generate(batch.low_res, hi_res_exo)
+            _, v_loss_details = self.calc_loss(
                 batch.high_res,
+                hi_res_gen,
                 weight_gen_advers=weight_gen_advers,
                 train_gen=False,
                 train_disc=False,
@@ -934,7 +936,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             )
         return self._val_record.mean(axis=0)
 
-    def _run_gradient_descent(
+    def _train_batch(
         self,
         batch,
         train_gen,
@@ -1080,7 +1082,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         loss_means = self._train_record.iloc[-loss_mean_window:].mean(axis=0)
         return loss_means.to_dict()
 
-    def train_epoch(
+    def _train_epoch(
         self,
         batch_handler,
         weight_gen_advers,
@@ -1153,7 +1155,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             disc_too_bad = (loss_disc > disc_th_high) and train_disc
             gen_too_good = disc_too_bad
 
-            b_loss_details = self._run_gradient_descent(
+            b_loss_details = self._train_batch(
                 batch,
                 train_gen,
                 only_gen,
