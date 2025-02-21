@@ -312,7 +312,7 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
 
         return self._val_record.mean(axis=0)
 
-    def train_epoch(self, batch_handler, multi_gpu=False):
+    def _train_epoch(self, batch_handler, multi_gpu=False):
         """Train the model for one epoch.
 
         Parameters
@@ -450,7 +450,9 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
         )
 
         for epoch in epochs:
-            loss_details = self.train_epoch(batch_handler, multi_gpu=multi_gpu)
+            loss_details = self._train_epoch(
+                batch_handler, multi_gpu=multi_gpu
+            )
             loss_details.update(self.calc_val_loss(batch_handler))
 
             msg = 'Epoch {} of {} gen train loss: {:.2e} '.format(

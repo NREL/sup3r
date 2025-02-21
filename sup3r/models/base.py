@@ -768,7 +768,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
 
         for epoch in epochs:
             t_epoch = time.time()
-            loss_details = self.train_epoch(
+            loss_details = self._train_epoch(
                 batch_handler,
                 weight_gen_advers,
                 train_gen,
@@ -1102,7 +1102,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             warn(msg)
         return {'train_loss_disc': disc_loss, 'train_loss_gen': gen_loss}
 
-    def train_epoch(
+    def _train_epoch(
         self,
         batch_handler,
         weight_gen_advers,
@@ -1148,10 +1148,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         loss_details : dict
             Namespace of the breakdown of loss components
         """
-        lr_shape, hr_shape = batch_handler.queue_shape
-        if self.is_4d:
-            lr_shape = lr_shape[:3] + (lr_shape[-1],)
-            hr_shape = hr_shape[:3] + (hr_shape[-1],)
+        lr_shape, hr_shape = batch_handler.shapes
         self.init_weights(lr_shape, hr_shape)
 
         disc_th_low = np.min(disc_loss_bounds)
