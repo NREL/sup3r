@@ -88,7 +88,7 @@ class Sup3rGanDC(Sup3rGan):
             losses[row, col] = loss
         return losses
 
-    def calc_val_loss(self, batch_handler, weight_gen_advers, loss_details):
+    def calc_val_loss(self, batch_handler, weight_gen_advers):
         """Overloading the base calc_val_loss method. Method updates the
         temporal weights for the batch handler based on the losses across the
         time bins
@@ -100,16 +100,14 @@ class Sup3rGanDC(Sup3rGan):
         weight_gen_advers : float
             Weight factor for the adversarial loss component of the generator
             vs. the discriminator.
-        loss_details : dict
-            Namespace of the breakdown of loss components where each value is a
-            running average at the current state in the epoch.
 
         Returns
         -------
-        dict
+        loss_details : dict
             Updated loss_details with mean validation loss calculated using
             the validation samples across the time bins
         """
+        loss_details = {}
         total_losses = self.calc_val_loss_gen(batch_handler, weight_gen_advers)
         content_losses = self.calc_val_loss_gen_content(batch_handler)
 

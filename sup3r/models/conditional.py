@@ -90,6 +90,8 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
         if isinstance(self._history, str):
             self._history = pd.read_csv(self._history, index_col=0)
 
+        self._init_records()
+
         self._optimizer = self.init_optimizer(optimizer, learning_rate)
 
         self._gen = self.load_network(gen_layers, 'generator')
@@ -280,23 +282,20 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
 
         return loss, loss_details
 
-    def calc_val_loss(self, batch_handler, loss_details):
+    def calc_val_loss(self, batch_handler):
         """Calculate the validation loss at the current state of model training
 
         Parameters
         ----------
         batch_handler : sup3r.preprocessing.BatchHandler
             BatchHandler object to iterate through
-        loss_details : dict
-            Namespace of the breakdown of loss components
 
         Returns
         -------
         loss_details : dict
-            Same as input but now includes val_* loss info
+            Running mean of validation loss details
         """
         logger.debug('Starting end-of-epoch validation loss calculation...')
-        loss_details['n_obs'] = 0
         for val_batch in batch_handler.val_data:
             val_exo_data = self.get_high_res_exo_input(val_batch.high_res)
             output_gen = self._tf_generate(val_batch.low_res, val_exo_data)
@@ -304,13 +303,16 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
                 val_batch.output, output_gen, val_batch.mask
             )
 
-            loss_details = self.update_loss_details(
-                loss_details, v_loss_details, len(val_batch), prefix='val_'
+            self._val_record = self.update_loss_details(
+                self._val_record,
+                v_loss_details,
+                len(batch_handler.val_data),
+                prefix='val_',
             )
 
-        return loss_details
+        return self._val_record.mean(axis=0)
 
-    def train_epoch(self, batch_handler, multi_gpu=False):
+    def _train_epoch(self, batch_handler, multi_gpu=False):
         """Train the model for one epoch.
 
         Parameters
@@ -330,9 +332,6 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
         loss_details : dict
             Namespace of the breakdown of loss components
         """
-
-        loss_details = {'n_obs': 0}
-
         for ib, batch in enumerate(batch_handler):
             b_loss_details = {}
             b_loss_details = self.run_gradient_descent(
@@ -344,12 +343,13 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
                 mask=batch.mask,
             )
 
-            loss_details = self.update_loss_details(
-                loss_details,
+            self._train_record = self.update_loss_details(
+                self._train_record,
                 b_loss_details,
-                batch_handler.batch_size,
+                len(batch_handler),
                 prefix='train_',
             )
+            loss_details = self._train_record.mean(axis=0).to_dict()
 
             logger.debug(
                 'Batch {} out of {} has epoch-average '
@@ -450,9 +450,10 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
         )
 
         for epoch in epochs:
-            loss_details = self.train_epoch(batch_handler, multi_gpu=multi_gpu)
-
-            loss_details = self.calc_val_loss(batch_handler, loss_details)
+            loss_details = self._train_epoch(
+                batch_handler, multi_gpu=multi_gpu
+            )
+            loss_details.update(self.calc_val_loss(batch_handler))
 
             msg = f'Epoch {epoch} of {epochs[-1]} '
             msg += 'gen train loss: {:.2e} '.format(

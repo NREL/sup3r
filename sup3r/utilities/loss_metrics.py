@@ -122,7 +122,7 @@ class MmdLoss(tf.keras.losses.Loss):
         return mmd
 
 
-class MaterialDerivativeLoss(tf.keras.losses.Loss):
+class MaterialDerivativeOnlyLoss(tf.keras.losses.Loss):
     """Loss class for the material derivative. This is the left hand side of
     the Navier-Stokes equation and is equal to internal + external forces
     divided by density.
@@ -253,8 +253,36 @@ class MaterialDerivativeLoss(tf.keras.losses.Loss):
             ]
         )
 
-        mae = self.LOSS_METRIC(x1, x2)
-        div_mae = self.LOSS_METRIC(x1_div, x2_div)
+        return self.LOSS_METRIC(x1_div, x2_div)
+
+
+class MaterialDerivativeLoss(tf.keras.losses.Loss):
+    """Loss class for the material derivative with additional MAE loss."""
+
+    MAE_LOSS = MeanAbsoluteError()
+    MD_LOSS = MaterialDerivativeOnlyLoss()
+
+    def __call__(self, x1, x2):
+        """Custom content loss that encourages accuracy of the material
+        derivative with additional MAE loss term.
+
+        Parameters
+        ----------
+        x1 : tf.tensor
+            synthetic generator output
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        x2 : tf.tensor
+            high resolution data
+            (n_observations, spatial_1, spatial_2, temporal, features)
+
+        Returns
+        -------
+        tf.tensor
+            0D tensor with loss value
+        """
+
+        mae = self.MAE_LOSS(x1, x2)
+        div_mae = self.MD_LOSS(x1, x2)
 
         return (mae + div_mae) / 2
 
@@ -517,6 +545,61 @@ class SpatiotemporalExtremesLoss(tf.keras.losses.Loss):
         return (
             mae + 2 * self.s_weight * s_ex_mae + 2 * self.t_weight * t_ex_mae
         ) / 5
+
+
+class MaterialDerivativeWithExtremesLoss(tf.keras.losses.Loss):
+    """Loss class for the material derivative with spatiotemporal extremes."""
+
+    MAE_LOSS = MeanAbsoluteError()
+    MD_LOSS = MaterialDerivativeOnlyLoss()
+    S_EX_LOSS = SpatialExtremesOnlyLoss()
+    T_EX_LOSS = TemporalExtremesOnlyLoss()
+
+    def __init__(self, md_weight=1.0, spatial_weight=1.0, temporal_weight=1.0):
+        """Initialize the loss with given weight
+
+        Parameters
+        ----------
+        spatial_weight : float
+            Weight for spatial min/max loss terms.
+        temporal_weight : float
+            Weight for temporal min/max loss terms.
+        """
+        super().__init__()
+        self.md_weight = md_weight
+        self.s_weight = spatial_weight
+        self.t_weight = temporal_weight
+
+    def __call__(self, x1, x2):
+        """Custom content loss that encourages accuracy of the material
+        derivative and spatiotemporal extremes.
+
+        Parameters
+        ----------
+        x1 : tf.tensor
+            synthetic generator output
+            (n_observations, spatial_1, spatial_2, temporal, features)
+        x2 : tf.tensor
+            high resolution data
+            (n_observations, spatial_1, spatial_2, temporal, features)
+
+        Returns
+        -------
+        tf.tensor
+            0D tensor with loss value
+        """
+        mae = self.MAE_LOSS(x1, x2)
+        div_mae = self.MD_LOSS(x1, x2)
+        s_ex = self.S_EX_LOSS(x1, x2)
+        t_ex = self.T_EX_LOSS(x1, x2)
+
+        loss = (
+            mae
+            + self.md_weight * div_mae
+            + self.s_weight * s_ex
+            + self.t_weight * t_ex
+        )
+        return 1 / 4 * loss
 
 
 class SpatialFftOnlyLoss(tf.keras.losses.Loss):

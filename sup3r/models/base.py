@@ -112,6 +112,8 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         if isinstance(self._history, str):
             self._history = pd.read_csv(self._history, index_col=0)
 
+        self._init_records()
+
         optimizer_disc = optimizer_disc or copy.deepcopy(optimizer)
         learning_rate_disc = learning_rate_disc or learning_rate
         self._optimizer = self.init_optimizer(optimizer, learning_rate)
@@ -409,22 +411,25 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             self.default_device will be used.
         """
 
-        if device is None:
-            device = self.default_device
+        if not self.generator_weights:
+            if device is None:
+                device = self.default_device
 
-        logger.info('Initializing model weights on device "{}"'.format(device))
-        low_res = np.ones(lr_shape).astype(np.float32)
-        hi_res = np.ones(hr_shape).astype(np.float32)
+            logger.info(
+                'Initializing model weights on device "{}"'.format(device)
+            )
+            low_res = np.ones(lr_shape).astype(np.float32)
+            hi_res = np.ones(hr_shape).astype(np.float32)
 
-        hr_exo_shape = hr_shape[:-1] + (1,)
-        hr_exo = np.ones(hr_exo_shape).astype(np.float32)
+            hr_exo_shape = hr_shape[:-1] + (1,)
+            hr_exo = np.ones(hr_exo_shape).astype(np.float32)
 
-        with tf.device(device):
-            hr_exo_data = {}
-            for feature in self.hr_exo_features:
-                hr_exo_data[feature] = hr_exo
-            _ = self._tf_generate(low_res, hr_exo_data)
-            _ = self._tf_discriminate(hi_res)
+            with tf.device(device):
+                hr_exo_data = {}
+                for feature in self.hr_exo_features:
+                    hr_exo_data[feature] = hr_exo
+                _ = self._tf_generate(low_res, hr_exo_data)
+                _ = self._tf_discriminate(hi_res)
 
     @staticmethod
     def get_weight_update_fraction(
@@ -483,8 +488,12 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             0D tensor generator model loss for the content loss comparing the
             hi res ground truth to the hi res synthetically generated output.
         """
-        hi_res_gen = self._combine_loss_input(hi_res_true, hi_res_gen)
-        return self.loss_fun(hi_res_true, hi_res_gen)
+        slc = (
+            slice(0, None)
+            if len(self.hr_exo_features) == 0
+            else slice(0, -len(self.hr_exo_features))
+        )
+        return self.loss_fun(hi_res_true[..., slc], hi_res_gen[..., slc])
 
     @staticmethod
     @tf.function
@@ -619,169 +628,6 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
 
         return loss, loss_details
 
-    def calc_val_loss(self, batch_handler, weight_gen_advers, loss_details):
-        """Calculate the validation loss at the current state of model training
-
-        Parameters
-        ----------
-        batch_handler : sup3r.preprocessing.BatchHandler
-            BatchHandler object to iterate through
-        weight_gen_advers : float
-            Weight factor for the adversarial loss component of the generator
-            vs. the discriminator.
-        loss_details : dict
-            Namespace of the breakdown of loss components
-
-        Returns
-        -------
-        loss_details : dict
-            Same as input but now includes val_* loss info
-        """
-        logger.debug('Starting end-of-epoch validation loss calculation...')
-        loss_details['n_obs'] = 0
-        for val_batch in batch_handler.val_data:
-            val_exo_data = self.get_high_res_exo_input(val_batch.high_res)
-            high_res_gen = self._tf_generate(val_batch.low_res, val_exo_data)
-            _, v_loss_details = self.calc_loss(
-                val_batch.high_res,
-                high_res_gen,
-                weight_gen_advers=weight_gen_advers,
-                train_gen=False,
-                train_disc=False,
-            )
-
-            loss_details = self.update_loss_details(
-                loss_details, v_loss_details, len(val_batch), prefix='val_'
-            )
-        return loss_details
-
-    def train_epoch(
-        self,
-        batch_handler,
-        weight_gen_advers,
-        train_gen,
-        train_disc,
-        disc_loss_bounds,
-        multi_gpu=False,
-    ):
-        """Train the GAN for one epoch.
-
-        Parameters
-        ----------
-        batch_handler : sup3r.preprocessing.BatchHandler
-            BatchHandler object to iterate through
-        weight_gen_advers : float
-            Weight factor for the adversarial loss component of the generator
-            vs. the discriminator.
-        train_gen : bool
-            Flag whether to train the generator for this set of epochs
-        train_disc : bool
-            Flag whether to train the discriminator for this set of epochs
-        disc_loss_bounds : tuple
-            Lower and upper bounds for the discriminator loss outside of which
-            the discriminators will not train unless train_disc=True or
-            and train_gen=False.
-        multi_gpu : bool
-            Flag to break up the batch for parallel gradient descent
-            calculations on multiple gpus. If True and multiple GPUs are
-            present, each batch from the batch_handler will be divided up
-            between the GPUs and resulting gradients from each GPU will be
-            summed and then applied once per batch at the nominal learning
-            rate that the model and optimizer were initialized with.
-            If true and multiple gpus are found, ``default_device`` device
-            should be set to /gpu:0
-
-        Returns
-        -------
-        loss_details : dict
-            Namespace of the breakdown of loss components
-        """
-
-        disc_th_low = np.min(disc_loss_bounds)
-        disc_th_high = np.max(disc_loss_bounds)
-        loss_details = {'n_obs': 0, 'train_loss_disc': 0}
-
-        only_gen = train_gen and not train_disc
-        only_disc = train_disc and not train_gen
-
-        if self._write_tb_profile:
-            tf.summary.trace_on(graph=True, profiler=True)
-
-        for ib, batch in enumerate(batch_handler):
-            trained_gen = False
-            trained_disc = False
-            b_loss_details = {}
-            loss_disc = loss_details['train_loss_disc']
-            disc_too_good = loss_disc <= disc_th_low
-            disc_too_bad = (loss_disc > disc_th_high) and train_disc
-            gen_too_good = disc_too_bad
-
-            if not self.generator_weights:
-                self.init_weights(batch.low_res.shape, batch.high_res.shape)
-
-            if only_gen or (train_gen and not gen_too_good):
-                trained_gen = True
-                b_loss_details = self.timer(self.run_gradient_descent)(
-                    batch.low_res,
-                    batch.high_res,
-                    self.generator_weights,
-                    weight_gen_advers=weight_gen_advers,
-                    optimizer=self.optimizer,
-                    train_gen=True,
-                    train_disc=False,
-                    multi_gpu=multi_gpu,
-                )
-
-            if only_disc or (train_disc and not disc_too_good):
-                trained_disc = True
-                b_loss_details = self.timer(self.run_gradient_descent)(
-                    batch.low_res,
-                    batch.high_res,
-                    self.discriminator_weights,
-                    weight_gen_advers=weight_gen_advers,
-                    optimizer=self.optimizer_disc,
-                    train_gen=False,
-                    train_disc=True,
-                    multi_gpu=multi_gpu,
-                )
-
-            b_loss_details['gen_trained_frac'] = float(trained_gen)
-            b_loss_details['disc_trained_frac'] = float(trained_disc)
-
-            self.dict_to_tensorboard(b_loss_details)
-            self.dict_to_tensorboard(self.timer.log)
-
-            loss_details = self.update_loss_details(
-                loss_details,
-                b_loss_details,
-                batch_handler.batch_size,
-                prefix='train_',
-            )
-            logger.debug(
-                'Batch {} out of {} has epoch-average '
-                '(gen / disc) loss of: ({:.2e} / {:.2e}). '
-                'Trained (gen / disc): ({} / {})'.format(
-                    ib + 1,
-                    len(batch_handler),
-                    loss_details['train_loss_gen'],
-                    loss_details['train_loss_disc'],
-                    trained_gen,
-                    trained_disc,
-                )
-            )
-            if all([not trained_gen, not trained_disc]):
-                msg = (
-                    'For some reason none of the GAN networks trained '
-                    'during batch {} out of {}!'.format(ib, len(batch_handler))
-                )
-                logger.warning(msg)
-                warn(msg)
-            self.total_batches += 1
-
-        loss_details['total_batches'] = int(self.total_batches)
-        self.profile_to_tensorboard('training_epoch')
-        return loss_details
-
     def update_adversarial_weights(
         self,
         history,
@@ -826,7 +672,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             if train_disc:
                 update_frac = self.get_weight_update_fraction(
                     history,
-                    'train_disc_trained_frac',
+                    'disc_train_frac',
                     update_frac=adaptive_update_fraction,
                     update_bounds=adaptive_update_bounds,
                 )
@@ -872,6 +718,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         adaptive_update_bounds=(0.9, 0.99),
         adaptive_update_fraction=0.0,
         multi_gpu=False,
+        loss_mean_window=None,
         tensorboard_log=True,
         tensorboard_profile=False,
     ):
@@ -937,6 +784,10 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             rate that the model and optimizer were initialized with.
             If true and multiple gpus are found, ``default_device`` device
             should be set to /gpu:0
+        loss_mean_window : int
+            Number of batches to use to compute generator and discriminator
+            loss means, which are used to decide whether to train each network
+            for a given batch. Defaults to the number of batches in an epoch
         tensorboard_log : bool
             Whether to write log file for use with tensorboard. Log data can
             be viewed with ``tensorboard --logdir <logdir>`` where ``<logdir>``
@@ -985,19 +836,18 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         )
 
         for epoch in epochs:
-            loss_details = self.train_epoch(
+            loss_details = self._train_epoch(
                 batch_handler,
                 weight_gen_advers,
                 train_gen,
                 train_disc,
                 disc_loss_bounds,
+                loss_mean_window=loss_mean_window,
                 multi_gpu=multi_gpu,
             )
-            train_n_obs = loss_details['n_obs']
-            loss_details = self.calc_val_loss(
-                batch_handler, weight_gen_advers, loss_details
+            loss_details.update(
+                self.calc_val_loss(batch_handler, weight_gen_advers)
             )
-            val_n_obs = loss_details['n_obs']
 
             msg = f'Epoch {epoch} of {epochs[-1]} '
             msg += 'gen/disc train loss: {:.2e}/{:.2e} '.format(
@@ -1014,8 +864,6 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             logger.info(msg)
 
             extras = {
-                'train_n_obs': train_n_obs,
-                'val_n_obs': val_n_obs,
                 'weight_gen_advers': weight_gen_advers,
                 'disc_loss_bound_0': disc_loss_bounds[0],
                 'disc_loss_bound_1': disc_loss_bounds[1],
@@ -1052,3 +900,279 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
                 break
 
         batch_handler.stop()
+
+    def calc_val_loss(self, batch_handler, weight_gen_advers):
+        """Calculate the validation loss at the current state of model training
+
+        Parameters
+        ----------
+        batch_handler : sup3r.preprocessing.BatchHandler
+            BatchHandler object to iterate through
+        weight_gen_advers : float
+            Weight factor for the adversarial loss component of the generator
+            vs. the discriminator.
+
+        Returns
+        -------
+        loss_details : dict
+            Running mean for validation loss details
+        """
+        logger.debug('Starting end-of-epoch validation loss calculation...')
+        for batch in batch_handler.val_data:
+            hi_res_exo = self.get_high_res_exo_input(batch.high_res)
+            hi_res_gen = self._tf_generate(batch.low_res, hi_res_exo)
+            _, v_loss_details = self.calc_loss(
+                batch.high_res,
+                hi_res_gen,
+                weight_gen_advers=weight_gen_advers,
+                train_gen=False,
+                train_disc=False,
+            )
+            self._val_record = self.update_loss_details(
+                self._val_record,
+                v_loss_details,
+                len(batch_handler.val_data),
+                prefix='val_',
+            )
+        return self._val_record.mean(axis=0)
+
+    def _train_batch(
+        self,
+        batch,
+        train_gen,
+        only_gen,
+        gen_too_good,
+        train_disc,
+        only_disc,
+        disc_too_good,
+        weight_gen_advers,
+        multi_gpu=False,
+    ):
+        """Run gradient descent and get loss details for a given batch for the
+        current epoch.
+
+        Parameters
+        ----------
+        batch : sup3r.preprocessing.base.DsetTuple
+            Object with ``.low_res`` and ``.high_res`` arrays
+        train_gen : bool
+            Flag whether to train the generator for this set of epochs
+        only_gen : bool
+            Flag whether to only train the generator for this set of epochs
+        gen_too_good : bool
+            Flag whether to skip training the generator and only train the
+            discriminator, due to superior performance, for this batch.
+        train_disc : bool
+            Flag whether to train the discriminator for this set of epochs
+        only_disc : bool
+            Flag whether to only train the discriminator for this set of epochs
+        gen_too_good : bool
+            Flag whether to skip training the discriminator and only train the
+            generator, due to superior performance, for this batch.
+        weight_gen_advers : float
+            Weight factor for the adversarial loss component of the generator
+            vs. the discriminator.
+        multi_gpu : bool
+            Flag to break up the batch for parallel gradient descent
+            calculations on multiple gpus. If True and multiple GPUs are
+            present, each batch from the batch_handler will be divided up
+            between the GPUs and resulting gradients from each GPU will be
+            summed and then applied once per batch at the nominal learning
+            rate that the model and optimizer were initialized with.
+            If true and multiple gpus are found, ``default_device`` device
+            should be set to /gpu:0
+
+        Returns
+        -------
+        loss_details : dict
+            Namespace of the breakdown of loss components for the given batch
+        """
+
+        trained_gen = False
+        trained_disc = False
+        b_loss_details = {}
+        if only_gen or (train_gen and not gen_too_good):
+            trained_gen = True
+            b_loss_details = self.timer(self.run_gradient_descent)(
+                batch.low_res,
+                batch.high_res,
+                self.generator_weights,
+                weight_gen_advers=weight_gen_advers,
+                optimizer=self.optimizer,
+                train_gen=True,
+                train_disc=False,
+                multi_gpu=multi_gpu,
+            )
+
+        if only_disc or (train_disc and not disc_too_good):
+            trained_disc = True
+            b_loss_details = self.timer(self.run_gradient_descent)(
+                batch.low_res,
+                batch.high_res,
+                self.discriminator_weights,
+                weight_gen_advers=weight_gen_advers,
+                optimizer=self.optimizer_disc,
+                train_gen=False,
+                train_disc=True,
+                multi_gpu=multi_gpu,
+            )
+
+        b_loss_details['gen_train_frac'] = float(trained_gen)
+        b_loss_details['disc_train_frac'] = float(trained_disc)
+        return b_loss_details
+
+    def _post_batch(self, ib, b_loss_details, loss_mean_window, n_batches):
+        """Update loss details after the current batch and write to log.
+
+        Parameters
+        ----------
+        ib : int
+            Index of the current batch
+        b_loss_details : dict
+            Dictionary of loss details for the current batch
+        loss_mean_window : int
+            Number of batches to use in the running loss means
+        n_batches : int
+            Number of batches in an epoch
+
+        Returns
+        -------
+        loss_means : dict
+            Dictionary of running loss means
+        """
+
+        self._train_record = self.update_loss_details(
+            self._train_record,
+            b_loss_details,
+            n_batches,
+            prefix='train_',
+        )
+
+        self.dict_to_tensorboard(b_loss_details)
+        self.dict_to_tensorboard(self.timer.log)
+
+        trained_gen = bool(self._train_record['gen_train_frac'].values[-1])
+        trained_disc = bool(self._train_record['disc_train_frac'].values[-1])
+        disc_loss = self._train_record['train_loss_disc'].values
+        disc_loss = disc_loss[-loss_mean_window:].mean()
+        gen_loss = self._train_record['train_loss_gen'].values
+        gen_loss = gen_loss[-loss_mean_window:].mean()
+
+        logger.debug(
+            'Batch {} out of {} has (gen / disc) loss of: '
+            '({:.2e} / {:.2e}). Running mean (gen / disc): '
+            '({:.2e} / {:.2e}). Trained (gen / disc): ({} / {})'.format(
+                ib + 1,
+                n_batches,
+                self._train_record['train_loss_gen'].values[-1],
+                self._train_record['train_loss_disc'].values[-1],
+                gen_loss,
+                disc_loss,
+                trained_gen,
+                trained_disc,
+            )
+        )
+        if all([not trained_gen, not trained_disc]):
+            msg = (
+                'For some reason none of the GAN networks trained '
+                'during batch {} out of {}!'.format(ib, n_batches)
+            )
+            logger.warning(msg)
+            warn(msg)
+        loss_means = self._train_record.iloc[-loss_mean_window:].mean(axis=0)
+        return loss_means.to_dict()
+
+    def _train_epoch(
+        self,
+        batch_handler,
+        weight_gen_advers,
+        train_gen,
+        train_disc,
+        disc_loss_bounds,
+        loss_mean_window=None,
+        multi_gpu=False,
+    ):
+        """Train the GAN for one epoch.
+
+        Parameters
+        ----------
+        batch_handler : sup3r.preprocessing.BatchHandler
+            BatchHandler object to iterate through
+        weight_gen_advers : float
+            Weight factor for the adversarial loss component of the generator
+            vs. the discriminator.
+        train_gen : bool
+            Flag whether to train the generator for this set of epochs
+        train_disc : bool
+            Flag whether to train the discriminator for this set of epochs
+        disc_loss_bounds : tuple
+            Lower and upper bounds for the discriminator loss outside of which
+            the discriminators will not train unless train_disc=True or
+            and train_gen=False.
+        loss_mean_window : int
+            Number of batches to use to compute generator and discriminator
+            loss means, which are used to decide whether to train each network
+            for a given batch. Defaults to the number of batches in an epoch
+        multi_gpu : bool
+            Flag to break up the batch for parallel gradient descent
+            calculations on multiple gpus. If True and multiple GPUs are
+            present, each batch from the batch_handler will be divided up
+            between the GPUs and resulting gradients from each GPU will be
+            summed and then applied once per batch at the nominal learning
+            rate that the model and optimizer were initialized with.
+            If true and multiple gpus are found, ``default_device`` device
+            should be set to /gpu:0
+
+        Returns
+        -------
+        loss_details : dict
+            Namespace of the breakdown of loss components
+        """
+        lr_shape, hr_shape = batch_handler.shapes
+        self.init_weights(lr_shape, hr_shape)
+
+        disc_th_low = np.min(disc_loss_bounds)
+        disc_th_high = np.max(disc_loss_bounds)
+        loss_means = self._train_record.mean().to_dict()
+        loss_means.setdefault('train_loss_disc', 0)
+        loss_means.setdefault('train_loss_gen', 0)
+        loss_mean_window = (
+            len(batch_handler)
+            if loss_mean_window is None
+            else loss_mean_window
+        )
+
+        only_gen = train_gen and not train_disc
+        only_disc = train_disc and not train_gen
+
+        if self._write_tb_profile:
+            tf.summary.trace_on(graph=True, profiler=True)
+
+        for ib, batch in enumerate(batch_handler):
+            b_loss_details = {}
+            loss_disc = loss_means['train_loss_disc']
+            disc_too_good = loss_disc <= disc_th_low
+            disc_too_bad = (loss_disc > disc_th_high) and train_disc
+            gen_too_good = disc_too_bad
+
+            b_loss_details = self._train_batch(
+                batch,
+                train_gen,
+                only_gen,
+                gen_too_good,
+                train_disc,
+                only_disc,
+                disc_too_good,
+                weight_gen_advers,
+                multi_gpu,
+            )
+
+            loss_means = self._post_batch(
+                ib, b_loss_details, loss_mean_window, len(batch_handler)
+            )
+
+        self.total_batches += len(batch_handler)
+        loss_details = self._train_record.mean().to_dict()
+        loss_details['total_batches'] = int(self.total_batches)
+        self.profile_to_tensorboard('training_epoch')
+        return loss_details

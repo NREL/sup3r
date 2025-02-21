@@ -13,6 +13,7 @@ from inspect import signature
 from warnings import warn
 
 import numpy as np
+import pandas as pd
 import tensorflow as tf
 from phygnn import CustomNetwork
 from phygnn.layers.custom_layers import Sup3rAdder, Sup3rConcat
@@ -626,6 +627,8 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         self._gen = None
         self._means = None
         self._stdevs = None
+        self._train_record = pd.DataFrame()
+        self._val_record = pd.DataFrame()
 
     def load_network(self, model, name):
         """Load a CustomNetwork object from hidden layers config, .json file
@@ -974,6 +977,17 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
 
         return params
 
+    def _init_records(self):
+        """Initialize running records used to compute loss details running
+        means"""
+        if self._history is not None:
+            train_cols = [c for c in self._history.columns if 'train_' in c]
+            val_cols = [c for c in self._history.columns if 'val_' in c]
+            self._train_record = self._history[train_cols].iloc[-1:]
+            self._train_record = self._train_record.reset_index(drop=True)
+            self._val_record = self._history[val_cols].iloc[-1:]
+            self._val_record = self._val_record.reset_index(drop=True)
+
     def get_high_res_exo_input(self, high_res):
         """Get exogenous feature data from high_res
 
@@ -1082,49 +1096,39 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         return state
 
     @staticmethod
-    def update_loss_details(loss_details, new_data, batch_len, prefix=None):
+    def update_loss_details(record, new_data, max_batches, prefix=None):
         """Update a dictionary of loss_details with loss information from a new
         batch.
 
         Parameters
         ----------
-        loss_details : dict
-            Namespace of the breakdown of loss components where each value is a
-            running average at the current state in the epoch.
+        record : pd.DataFrame
+            Details for the last N batches, where N is the number of batches in
+            an epoch, used to compute the running means.
         new_data : dict
             Namespace of the breakdown of loss components for a single new
             batch.
-        batch_len : int
-            Length of the incoming batch.
+        max_batches : int
+            Maximum number of batches to use for the running mean of loss
+            details
         prefix : None | str
             Option to prefix the names of the loss data when saving to the
-            loss_details dictionary.
+            loss_details dictionary. This is usually 'train_' or 'val_'
 
         Returns
         -------
-        loss_details : dict
-            Same as input loss_details but with running averages updated.
+        record : pd.DataFrame
+            Same as input with details from ``new_data`` added and only the
+            last ``max_batches`` rows kept.
         """
-        assert 'n_obs' in loss_details, 'loss_details must have n_obs to start'
-        prior_n_obs = loss_details['n_obs']
-        new_n_obs = prior_n_obs + batch_len
-
+        new_index = 0 if len(record) == 0 else record.index[-1] + 1
         for k, v in new_data.items():
-            key = k if prefix is None else prefix + k
+            # only add prefix if key doesn't already include the prefix - no
+            # point in adding 'train_' to keys like 'disc_train_frac'
+            key = k if prefix is None or prefix in k else prefix + k
             new_value = numpy_if_tensor(v)
-
-            if key in loss_details:
-                saved_value = loss_details[key]
-                saved_value *= prior_n_obs
-                saved_value += batch_len * new_value
-                saved_value /= new_n_obs
-                loss_details[key] = saved_value
-            else:
-                loss_details[key] = new_value
-
-        loss_details['n_obs'] = new_n_obs
-
-        return loss_details
+            record.loc[new_index, key] = new_value
+        return record.iloc[-max_batches:]
 
     @staticmethod
     def log_loss_details(loss_details, level='INFO'):
@@ -1139,15 +1143,11 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             Log level (e.g. INFO, DEBUG)
         """
         for k, v in sorted(loss_details.items()):
-            if k != 'n_obs':
-                if isinstance(v, str):
-                    msg_format = '\t{}: {}'
-                else:
-                    msg_format = '\t{}: {:.2e}'
-                if level.lower() == 'info':
-                    logger.info(msg_format.format(k, v))
-                else:
-                    logger.debug(msg_format.format(k, v))
+            msg_format = '\t{}: {}' if isinstance(v, str) else '\t{}: {:.2e}'
+            if level.lower() == 'info':
+                logger.info(msg_format.format(k, v))
+            else:
+                logger.debug(msg_format.format(k, v))
 
     @staticmethod
     def early_stop(history, column, threshold=0.005, n_epoch=5):
@@ -1261,9 +1261,8 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         """
         self.log_loss_details(loss_details)
         self._history.at[epoch, 'elapsed_time'] = time.time() - t0
-        for key, value in loss_details.items():
-            if key != 'n_obs':
-                self._history.at[epoch, key] = value
+        entry = np.vstack(list(loss_details.values())).T
+        self._history.loc[epoch, list(loss_details.keys())] = entry
 
         last_epoch = epoch == epochs[-1]
         chp = checkpoint_int is not None and (epoch % checkpoint_int) == 0

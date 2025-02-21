@@ -45,6 +45,66 @@ def _get_handlers():
         (pytest.S_FP_GEN, pytest.S_FP_DISC, 2, 1, (10, 10, 1)),
     ],
 )
+def test_train_disc(
+    fp_gen, fp_disc, s_enhance, t_enhance, sample_shape, n_epoch=8
+):
+    """Test that the discriminator is trained whenever loss is outside given
+    bounds"""
+
+    lr = 5e-5
+    Sup3rGan.seed()
+    model = Sup3rGan(
+        fp_gen, fp_disc, learning_rate=lr, loss='MeanAbsoluteError'
+    )
+
+    train_handler, val_handler = _get_handlers()
+
+    with tempfile.TemporaryDirectory() as td:
+        bh_kwargs = {
+            'train_containers': [train_handler],
+            'val_containers': [val_handler],
+            'sample_shape': sample_shape,
+            'batch_size': 15,
+            's_enhance': s_enhance,
+            't_enhance': t_enhance,
+            'n_batches': 1,
+            'means': None,
+            'stds': None,
+        }
+        batch_handler = BatchHandler(**bh_kwargs)
+
+        model_kwargs = {
+            'input_resolution': {'spatial': '30km', 'temporal': '60min'},
+            'n_epoch': n_epoch,
+            'weight_gen_advers': 0.0,
+            'train_gen': True,
+            'train_disc': True,
+            'disc_loss_bounds': [-np.inf, 0.0],
+            'checkpoint_int': 1,
+            'out_dir': os.path.join(td, 'test_{epoch}'),
+        }
+
+        model.train(batch_handler, **model_kwargs)
+
+        assert all(model.history['disc_train_frac'] == 1)
+
+        out_dir = os.path.join(td, 'st_gan')
+        model.save(out_dir)
+        loaded = model.load(out_dir)
+
+        batch_handler = BatchHandler(**bh_kwargs)
+
+        loaded.train(batch_handler, **model_kwargs)
+        assert all(loaded.history['disc_train_frac'] == 1)
+
+
+@pytest.mark.parametrize(
+    ['fp_gen', 'fp_disc', 's_enhance', 't_enhance', 'sample_shape'],
+    [
+        (pytest.ST_FP_GEN, pytest.ST_FP_DISC, 3, 4, (12, 12, 16)),
+        (pytest.S_FP_GEN, pytest.S_FP_DISC, 2, 1, (10, 10, 1)),
+    ],
+)
 def test_train(fp_gen, fp_disc, s_enhance, t_enhance, sample_shape, n_epoch=8):
     """Test basic model training with only gen content loss. Tests both
     spatiotemporal and spatial models."""
@@ -77,7 +137,7 @@ def test_train(fp_gen, fp_disc, s_enhance, t_enhance, sample_shape, n_epoch=8):
         model_kwargs = {
             'input_resolution': {'spatial': '30km', 'temporal': '60min'},
             'n_epoch': n_epoch,
-            'weight_gen_advers': 0.0,
+            'weight_gen_advers': 0,
             'train_gen': True,
             'train_disc': False,
             'checkpoint_int': 1,
@@ -89,8 +149,8 @@ def test_train(fp_gen, fp_disc, s_enhance, t_enhance, sample_shape, n_epoch=8):
         assert 'config_generator' in model.meta
         assert 'config_discriminator' in model.meta
         assert len(model.history) == n_epoch
-        assert all(model.history['train_gen_trained_frac'] == 1)
-        assert all(model.history['train_disc_trained_frac'] == 0)
+        assert all(model.history['gen_train_frac'] == 1)
+        assert all(model.history['disc_train_frac'] == 0)
         tlossg = model.history['train_loss_gen'].values
         vlossg = model.history['val_loss_gen'].values
         assert np.sum(np.diff(tlossg)) < 0
@@ -207,23 +267,23 @@ def test_train_st_weight_update(n_epoch=2):
         # check that weight is changed
         check_lower = any(
             frac < adaptive_update_bounds[0]
-            for frac in model.history['train_disc_trained_frac'][:-1]
+            for frac in model.history['disc_train_frac'][:-1]
         )
         check_higher = any(
             frac > adaptive_update_bounds[1]
-            for frac in model.history['train_disc_trained_frac'][:-1]
+            for frac in model.history['disc_train_frac'][:-1]
         )
         assert check_lower or check_higher
         for e in range(0, n_epoch - 1):
             weight_old = model.history['weight_gen_advers'][e]
             weight_new = model.history['weight_gen_advers'][e + 1]
             if (
-                model.history['train_disc_trained_frac'][e]
+                model.history['disc_train_frac'][e]
                 < adaptive_update_bounds[0]
             ):
                 assert weight_new > weight_old
             if (
-                model.history['train_disc_trained_frac'][e]
+                model.history['disc_train_frac'][e]
                 > adaptive_update_bounds[1]
             ):
                 assert weight_new < weight_old

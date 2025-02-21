@@ -4,7 +4,7 @@ TODO:
     (1) Figure out apparent "blocking" issue with threaded enqueue batches.
         max_workers=1 is the fastest?
     (2) Setup distributed data handling so this can work with data distributed
-    over multiple nodes.
+        over multiple nodes.
 """
 
 import logging
@@ -97,6 +97,11 @@ class AbstractBatchQueue(Collection, ABC):
         self.max_workers = max_workers
         self.container_index = self.get_container_index()
         self.queue = self.get_queue()
+        self.lr_sample_shape = (
+            self.hr_sample_shape[0] // s_enhance,
+            self.hr_sample_shape[1] // s_enhance,
+            self.hr_sample_shape[2] // t_enhance,
+        )
         self.transform_kwargs = transform_kwargs or {
             'smoothing_ignore': [],
             'smoothing': None,
@@ -330,3 +335,12 @@ class AbstractBatchQueue(Collection, ABC):
         """Shape of high resolution sample in a low-res / high-res pair.  (e.g.
         (spatial_1, spatial_2, temporal, features))"""
         return (*self.hr_sample_shape, len(self.hr_features))
+
+    @property
+    def shapes(self):
+        """Shapes of batches returned by ``__next__``"""
+        lr_shape, hr_shape = self.lr_shape, self.hr_shape
+        if self.sample_shape[2] == 1:
+            lr_shape = lr_shape[:2] + (lr_shape[-1],)
+            hr_shape = hr_shape[:2] + (hr_shape[-1],)
+        return (self.batch_size, *lr_shape), (self.batch_size, *hr_shape)
