@@ -490,22 +490,25 @@ class Sup3rGanFixedObs(Sup3rGan):
             self.default_device will be used.
         """
 
-        if device is None:
-            device = self.default_device
+        if not self.generator_weights:
+            if device is None:
+                device = self.default_device
 
-        logger.info('Initializing model weights on device "{}"'.format(device))
-        low_res = np.ones(lr_shape).astype(np.float32)
-        hi_res = np.ones(hr_shape).astype(np.float32)
+            logger.info(
+                'Initializing model weights on device "{}"'.format(device)
+            )
+            low_res = np.ones(lr_shape).astype(np.float32)
+            hi_res = np.ones(hr_shape).astype(np.float32)
 
-        hr_exo_shape = hr_shape[:-1] + (1,)
-        hr_exo = np.ones(hr_exo_shape).astype(np.float32)
+            hr_exo_shape = hr_shape[:-1] + (1,)
+            hr_exo = np.ones(hr_exo_shape).astype(np.float32)
 
-        with tf.device(device):
-            hr_exo_data = {}
-            for feature in self.hr_exo_features + self.obs_features:
-                hr_exo_data[feature] = hr_exo
-            _ = self._tf_generate(low_res, hr_exo_data)
-            _ = self._tf_discriminate(hi_res)
+            with tf.device(device):
+                hr_exo_data = {}
+                for feature in self.hr_exo_features + self.obs_features:
+                    hr_exo_data[feature] = hr_exo
+                _ = self._tf_generate(low_res, hr_exo_data)
+                _ = self._tf_discriminate(hi_res)
 
     @property
     def model_params(self):
