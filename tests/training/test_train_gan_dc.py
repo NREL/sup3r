@@ -10,7 +10,6 @@ from sup3r.models import Sup3rGan, Sup3rGanDC
 from sup3r.preprocessing import (
     DataHandler,
 )
-from sup3r.utilities.loss_metrics import MmdMseLoss
 from sup3r.utilities.pytest.helpers import BatchHandlerTesterDC
 
 TARGET_COORD = (39.01, -105.15)
@@ -35,7 +34,7 @@ def test_train_spatial_dc(
         pytest.S_FP_GEN,
         pytest.S_FP_DISC,
         learning_rate=1e-4,
-        loss='MmdMseLoss',
+        loss={'MmdLoss': {}, 'MeanSquaredError': {}},
     )
 
     handler = DataHandler(
@@ -90,8 +89,6 @@ def test_train_spatial_dc(
         model.save(out_dir)
         loaded = model.load(out_dir)
 
-        assert isinstance(model.loss_fun, MmdMseLoss)
-        assert isinstance(loaded.loss_fun, MmdMseLoss)
         assert model.meta['class'] == 'Sup3rGanDC'
         assert loaded.meta['class'] == 'Sup3rGanDC'
 
@@ -108,7 +105,7 @@ def test_train_st_dc(n_space_bins, n_time_bins, n_epoch=2):
         pytest.ST_FP_GEN,
         pytest.ST_FP_DISC,
         learning_rate=1e-4,
-        loss='MmdMseLoss',
+        loss={'MmdLoss': {}, 'MeanSquaredError': {}},
     )
 
     handler = DataHandler(
@@ -162,7 +159,5 @@ def test_train_st_dc(n_space_bins, n_time_bins, n_epoch=2):
         model.save(out_dir)
         loaded = model.load(out_dir)
 
-        assert isinstance(model.loss_fun, MmdMseLoss)
-        assert isinstance(loaded.loss_fun, MmdMseLoss)
         assert model.meta['class'] == 'Sup3rGanDC'
         assert loaded.meta['class'] == 'Sup3rGanDC'
