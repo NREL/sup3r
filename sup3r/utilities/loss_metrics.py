@@ -33,18 +33,18 @@ def _derivative(x, axis=1):
     if axis == 2:
         return tf.concat(
             [
-                x[..., 1:2, :] - x[..., 0:1, :],
-                (x[..., 2:, :] - x[..., :-2, :]) / 2,
-                x[..., -1:, :] - x[..., -2:-1, :],
+                x[:, :, 1:2] - x[:, :, 0:1],
+                (x[:, :, 2:] - x[:, :, :-2]) / 2,
+                x[:, :, -1:] - x[:, :, -2:-1],
             ],
             axis=axis,
         )
     if axis == 3:
         return tf.concat(
             [
-                x[..., 1:2] - x[..., 0:1],
-                (x[..., 2:] - x[..., :-2]) / 2,
-                x[..., -1:] - x[..., -2:-1],
+                x[:, :, :, 1:2] - x[:, :, :, 0:1],
+                (x[:, :, :, 2:] - x[:, :, :, :-2]) / 2,
+                x[:, :, :, -1:] - x[:, :, :, -2:-1],
             ],
             axis=axis,
         )
@@ -229,34 +229,48 @@ class MaterialDerivativeLoss(tf.keras.losses.Loss):
         return self.LOSS_METRIC(x1_div, x2_div)
 
 
-class DerivativeLoss(tf.keras.losses.Loss):
-    """Loss class to encourage accurary of spatial and temporal derivatives."""
+class SpatialDerivativeLoss(tf.keras.losses.Loss):
+    """Loss class to encourage accurary of spatial derivatives."""
 
     LOSS_METRIC = MeanAbsoluteError()
 
-    def _compute_deriv(self, x, fidx):
-        """Compute sum of spatial and temporal derivatives for the feature with
-        the index fidx.
+    def __call__(self, x1, x2):
+        """Custom content loss that encourages accuracy of spatial derivatives
 
         Parameters
         ----------
-        x : tf.tensor
-            synthetic output or high resolution data
+        x1 : tf.tensor
+            synthetic generator output
             (n_observations, spatial_1, spatial_2, temporal, features)
-        fidx : int
-            Feature index to compute derivatives for.
-        """
-        x_div = (
-            _derivative(x[..., fidx], axis=3)
-            + _derivative(x[..., fidx], axis=1)
-            + _derivative(x[..., fidx], axis=2)
-        )
+        x2 : tf.tensor
+            high resolution data
+            (n_observations, spatial_1, spatial_2, temporal, features)
 
-        return x_div
+        Returns
+        -------
+        tf.tensor
+            0D tensor with loss value
+        """
+        msg = (
+            f'The {self.__class__.__name__} is meant to be used on spatial or '
+            'spatiotemporal data only. Received tensor(s) that are not at '
+            'least 4D'
+        )
+        assert len(x1.shape) >= 4 and len(x2.shape) >= 4, msg
+
+        x1_div = _derivative(x1, axis=1) + _derivative(x1, axis=2)
+        x2_div = _derivative(x2, axis=1) + _derivative(x2, axis=2)
+
+        return self.LOSS_METRIC(x1_div, x2_div)
+
+
+class TemporalDerivativeLoss(tf.keras.losses.Loss):
+    """Loss class to encourage accurary of temporal derivative."""
+
+    LOSS_METRIC = MeanAbsoluteError()
 
     def __call__(self, x1, x2):
-        """Custom content loss that encourages accuracy of spatial and temporal
-        derivatives
+        """Custom content loss that encourages accuracy of temporal derivative
 
         Parameters
         ----------
@@ -278,12 +292,8 @@ class DerivativeLoss(tf.keras.losses.Loss):
         )
         assert len(x1.shape) == 5 and len(x2.shape) == 5, msg
 
-        x1_div = tf.stack(
-            [self._compute_deriv(x1, fidx=i) for i in range(0, x1.shape[-1])]
-        )
-        x2_div = tf.stack(
-            [self._compute_deriv(x2, fidx=i) for i in range(0, x2.shape[-1])]
-        )
+        x1_div = _derivative(x1, axis=3)
+        x2_div = _derivative(x2, axis=3)
 
         return self.LOSS_METRIC(x1_div, x2_div)
 
