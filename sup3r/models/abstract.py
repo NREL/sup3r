@@ -1,6 +1,5 @@
 """Abstract class defining the required interface for Sup3r model subclasses"""
 
-import copy
 import json
 import logging
 import os
@@ -507,7 +506,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         loss = {loss: {}} if isinstance(loss, str) else loss
         lns = [ln for ln in loss if ln != 'term_weights']
         loss_funcs = [cls._get_loss_fun({ln: loss[ln]}) for ln in lns]
-        weights = copy.deepcopy(loss).pop('term_weights', [1.0] * len(lns))
+        weights = loss.get('term_weights', [1.0] * len(lns))
 
         def loss_fun(x1, x2):
             loss_details = {}
@@ -828,6 +827,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         low_res,
         hi_res_true,
         training_weights,
+        monitor_grad_norms=False,
         **calc_loss_kwargs,
     ):
         """Compute gradient for one mini-batch of (low_res, hi_res_true)
@@ -856,6 +856,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
                         hr_true_chunks[i],
                         training_weights,
                         device_name=f'/gpu:{i}',
+                        monitor_grad_norms=monitor_grad_norms,
                         **calc_loss_kwargs,
                     )
                 )
@@ -868,6 +869,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         training_weights,
         optimizer=None,
         multi_gpu=False,
+        monitor_grad_norms=False,
         **calc_loss_kwargs,
     ):
         """Run gradient descent for one mini-batch of (low_res, hi_res_true)
@@ -897,6 +899,8 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             between the GPUs and resulting gradients from each GPU will be
             summed and then applied once per batch at the nominal learning
             rate that the model and optimizer were initialized with.
+        monitor_grad_norms : bool
+            Whether to record norms of gradients for each loss term.
         calc_loss_kwargs : dict
             Kwargs to pass to the self.calc_loss() method
 
@@ -915,6 +919,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
                 hi_res_true,
                 training_weights,
                 device_name=self.default_device,
+                monitor_grad_norms=monitor_grad_norms,
                 **calc_loss_kwargs,
             )
             optimizer.apply_gradients(zip(grad, training_weights))
@@ -928,6 +933,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
                 low_res,
                 hi_res_true,
                 training_weights,
+                monitor_grad_norms=monitor_grad_norms,
                 **calc_loss_kwargs,
             )
             optimizer.apply_gradients(zip(total_grad, training_weights))
@@ -1148,10 +1154,10 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         compute loss."""
         hi_res_exo = self.get_hr_exo_input(hi_res_true)
         hi_res_gen = self._tf_generate(low_res, hi_res_exo)
-        loss, loss_details = self.calc_loss(
+        loss, loss_details, loss_weights = self.calc_loss(
             hi_res_true, hi_res_gen, **calc_loss_kwargs
         )
-        return loss, loss_details, hi_res_gen, hi_res_exo
+        return loss, loss_details, loss_weights, hi_res_gen, hi_res_exo
 
     @tf.function
     def get_single_grad(
@@ -1160,6 +1166,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         hi_res_true,
         training_weights,
         device_name=None,
+        monitor_grad_norms=False,
         **calc_loss_kwargs,
     ):
         """Run gradient descent for one mini-batch of (low_res, hi_res_true),
@@ -1182,6 +1189,8 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             Optional tensorflow device name for GPU placement. Note that if a
             GPU is available, variables will be placed on that GPU even if
             device_name=None.
+        monitor_grad_norms : bool
+            Whether to record norms of gradients for each loss term.
         calc_loss_kwargs : dict
             Kwargs to pass to the self.calc_loss() method
 
@@ -1195,13 +1204,28 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             Namespace of the breakdown of loss components
         """
         with tf.device(device_name), tf.GradientTape(
-            watch_accessed_variables=False
+            watch_accessed_variables=False, persistent=monitor_grad_norms
         ) as tape:
             tape.watch(training_weights)
-            loss, loss_details, _, _ = self._get_hr_exo_and_loss(
+            loss, loss_details, loss_weights, _, _ = self._get_hr_exo_and_loss(
                 low_res, hi_res_true, **calc_loss_kwargs
             )
             grad = tape.gradient(loss, training_weights)
+
+            tape.stop_recording()
+
+            if monitor_grad_norms:
+                grad_details = {}
+                for loss_name, loss_weight in loss_weights.items():
+                    loss_value = (
+                        tf.cast(loss_weight, tf.float32)
+                        * loss_details[loss_name]
+                    )
+                    single_grad = tape.gradient(loss_value, training_weights)
+                    grad_norm = tf.linalg.global_norm(single_grad)
+                    grad_details[f'{loss_name}_grad_norm'] = grad_norm
+                loss_details.update(grad_details)
+
         return grad, loss_details
 
     @abstractmethod
@@ -1214,4 +1238,35 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         train_disc=False,
     ):
         """Calculate the GAN loss function using generated and true high
-        resolution data."""
+        resolution data.
+
+        Parameters
+        ----------
+        hi_res_true : tf.Tensor
+            Ground truth high resolution spatiotemporal data.
+        hi_res_gen : tf.Tensor
+            Superresolved high resolution spatiotemporal data generated by the
+            generative model.
+        weight_gen_advers : float
+            Weight factor for the adversarial loss component of the generator
+            vs. the discriminator.
+        train_gen : bool
+            True if generator is being trained, then loss=loss_gen
+        train_disc : bool
+            True if disc is being trained, then loss=loss_disc
+
+        Returns
+        -------
+        loss : tf.Tensor
+            0D tensor with total loss value
+        loss_details : dict
+            Namespace of the breakdown of all loss components. Not all of these
+            components are neccessarily used in subsequent gradient
+            calculations
+        loss_weights : dict
+            Namespace of loss terms to include in gradient calculation, with
+            term weights as values. e.g. If ``train_disc`` is ``True`` this
+            just includes ``loss_disc`` and a weight of 1.0. If ``train_gen``
+            is ``True`` this includes all content loss terms, and adversarial
+            loss, weight all associated weights
+        """

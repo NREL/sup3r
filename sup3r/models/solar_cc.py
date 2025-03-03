@@ -119,10 +119,12 @@ class SolarCC(Sup3rGan):
         Returns
         -------
         loss : tf.Tensor
-            0D tensor representing the loss value for the network being trained
-            (either generator or one of the discriminators)
+            0D tensor representing the total loss value for the network being
+            trained (either generator or one of the discriminators)
         loss_details : dict
             Namespace of the breakdown of loss components
+        loss_weights : dict
+            Namespace of the weights of the different loss components
         """
 
         if hi_res_gen.shape != hi_res_true.shape:
@@ -212,12 +214,6 @@ class SolarCC(Sup3rGan):
         loss_gen_advers = self.calc_loss_gen_advers(disc_out_gen)
         loss_gen = loss_gen_content + weight_gen_advers * loss_gen_advers
 
-        loss = None
-        if train_gen:
-            loss = loss_gen
-        elif train_disc:
-            loss = loss_disc
-
         loss_details = {
             'loss_gen': loss_gen,
             'loss_gen_content': loss_gen_content,
@@ -231,7 +227,23 @@ class SolarCC(Sup3rGan):
             {f'c_24h_{k}': v for k, v in gen_c_24h_details.items()}
         )
 
-        return loss, loss_details
+        loss = None
+        if train_gen:
+            loss_weights = {
+                f'c_sub_{k}': self.content_loss_weights[i]
+                for i, k in enumerate(gen_c_sub_details)
+            }
+            day_weights = {
+                f'c_24h_{k}': self.content_loss_weights[i]
+                for i, k in enumerate(gen_c_24h_details)
+            }
+            loss_weights.update(day_weights)
+            loss_weights['loss_gen_advers'] = weight_gen_advers
+            loss = loss_gen
+        elif train_disc:
+            loss_weights = {'loss_disc': 1.0}
+            loss = loss_disc
+        return loss, loss_details, loss_weights
 
     def temporal_pad(self, low_res, hi_res, mode='reflect'):
         """Optionally add temporal padding to the 5D generated output array

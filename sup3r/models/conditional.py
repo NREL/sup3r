@@ -236,6 +236,9 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
         loss : tf.Tensor
             0D tensor generator model loss for the MSE loss of the
             moment predictor
+        loss_details : dict
+            Breakdown of loss values for each loss term (just MSE for
+            conditional models)
         """
 
         return self.loss_fun(output_true * mask, output_gen * mask)
@@ -255,8 +258,10 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
         Returns
         -------
         loss : tf.Tensor
-            0D tensor representing the loss value for the
-            moment predictor
+            0D tensor with total loss value
+        loss_weights : dict
+            Namespace of the weights for each loss term (just MSE for
+            conditional models)
         loss_details : dict
             Namespace of the breakdown of loss components
         """
@@ -277,10 +282,10 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
         loss, loss_details = self.calc_loss_cond_mom(
             output_true, output_gen, mask
         )
-
+        loss_weights = dict.fromkeys(loss_details, 1.0)
         loss_details.update({'loss_gen': loss})
 
-        return loss, loss_details
+        return loss, loss_weights, loss_details
 
     def calc_val_loss(self, batch_handler):
         """Calculate the validation loss at the current state of model training
@@ -299,7 +304,7 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
         for val_batch in batch_handler.val_data:
             val_exo_data = self.get_hr_exo_input(val_batch.high_res)
             output_gen = self._tf_generate(val_batch.low_res, val_exo_data)
-            _, v_loss_details = self.calc_loss(
+            _, v_loss_details, _ = self.calc_loss(
                 val_batch.output, output_gen, val_batch.mask
             )
 

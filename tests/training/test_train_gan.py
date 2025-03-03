@@ -145,10 +145,10 @@ def test_train(fp_gen, fp_disc, s_enhance, t_enhance, sample_shape, n_epoch=8):
             'train_disc': False,
             'checkpoint_int': 1,
             'out_dir': os.path.join(td, 'test_{epoch}'),
+            'monitor_grad_norms': False
         }
 
         model.train(batch_handler, **model_kwargs)
-
         assert 'config_generator' in model.meta
         assert 'config_discriminator' in model.meta
         assert len(model.history) == n_epoch
@@ -202,9 +202,9 @@ def test_train(fp_gen, fp_disc, s_enhance, t_enhance, sample_shape, n_epoch=8):
         )
 
         for batch in batch_handler:
-            out_og = model._tf_generate(batch.low_res)
-            out_dummy = dummy._tf_generate(batch.low_res)
-            out_loaded = loaded._tf_generate(batch.low_res)
+            out_loaded = loaded.generate(batch.low_res)
+            out_og = model.generate(batch.low_res)
+            out_dummy = dummy.generate(batch.low_res)
 
             # make sure the loaded model generates the same data as the saved
             # model but different than the dummy

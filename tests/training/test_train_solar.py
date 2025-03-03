@@ -207,29 +207,29 @@ def test_solar_custom_loss():
 
         # hi res true and gen shapes need to match
         with pytest.raises(RuntimeError):
-            loss1, _ = model.calc_loss(
+            loss1 = model.calc_loss(
                 RANDOM_GENERATOR.uniform(0, 1, (1, 5, 5, 24, 1)).astype(
                     np.float32
                 ),
                 RANDOM_GENERATOR.uniform(0, 1, (1, 10, 10, 24, 1)).astype(
                     np.float32
                 ),
-            )
+            )[0]
 
         # time steps need to be multiple of 24
         with pytest.raises(AssertionError):
-            loss1, _ = model.calc_loss(
+            loss1 = model.calc_loss(
                 RANDOM_GENERATOR.uniform(0, 1, (1, 5, 5, 20, 1)).astype(
                     np.float32
                 ),
                 RANDOM_GENERATOR.uniform(0, 1, (1, 5, 5, 20, 1)).astype(
                     np.float32
                 ),
-            )
+            )[0]
 
-        loss1, _ = model.calc_loss(
+        loss1 = model.calc_loss(
             hi_res_true, hi_res_gen, weight_gen_advers=0.0
-        )
+        )[0]
 
         t_len = hi_res_true.shape[3]
         n_days = int(t_len // 24)
@@ -244,8 +244,8 @@ def test_solar_custom_loss():
         for tslice in day_slices:
             hi_res_gen[:, :, :, tslice, :] = hi_res_true[:, :, :, tslice, :]
 
-        loss2, _ = model.calc_loss(
+        loss2 = model.calc_loss(
             hi_res_true, hi_res_gen, weight_gen_advers=0.0
-        )
+        )[0]
 
         assert loss1 > loss2

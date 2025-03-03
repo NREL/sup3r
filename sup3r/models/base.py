@@ -57,8 +57,10 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             Loss function class name from sup3r.utilities.loss_metrics
             (prioritized) or tensorflow.keras.losses. Defaults to
             tf.keras.losses.MeanSquaredError. This can be provided as a dict
-            with kwargs for loss functions with extra parameters.
-            e.g. {'SpatialExtremesLoss': {'weight': 0.5}}
+            with kwargs for loss functions with extra parameters and an
+            optional key ``term_weights`` to specify weights of terms for
+            multi-term loss functions. e.g. {'SpatialExtremesLoss': {},
+            'MeanAbsoluteError': {}, 'term_weights': [0.5, 0.5]}
         optimizer : tf.keras.optimizers.Optimizer | dict | None | str
             Instantiated tf.keras.optimizers object or a dict optimizer config
             from tf.keras.optimizers.get_config(). None defaults to Adam.
@@ -106,6 +108,9 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         self.name = name if name is not None else self.__class__.__name__
         self._meta = meta if meta is not None else {}
 
+        loss = {loss: {}} if isinstance(loss, str) else loss
+        lns = [ln for ln in loss if ln != 'term_weights']
+        self.content_loss_weights = loss.get('term_weights', [1.0] * len(lns))
         self.loss_name = loss
         self.loss_fun = self.get_loss_fun(loss)
 
@@ -485,9 +490,11 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
 
         Returns
         -------
-        loss_gen_s : tf.Tensor
+        loss : tf.keras.losses.Loss
             0D tensor generator model loss for the content loss comparing the
             hi res ground truth to the hi res synthetically generated output.
+        loss_details : dict
+            Breakdown of loss values for each loss term
         """
         # only use output features in the content loss, not exogenous features
         # which artificially lower the loss. Exo features are assumed to come
@@ -550,8 +557,11 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         # note that these have flipped labels from the generator
         # loss because of the opposite optimization goal
         logits = tf.concat([disc_out_true, disc_out_gen], axis=0)
+
+        # Use label smoothing here, so 0.9 instead of 1.0
         labels = tf.concat(
-            [tf.ones_like(disc_out_true), tf.zeros_like(disc_out_gen)], axis=0
+            [tf.ones_like(disc_out_true) * 0.9, tf.zeros_like(disc_out_gen)],
+            axis=0,
         )
 
         loss_disc = tf.nn.sigmoid_cross_entropy_with_logits(
@@ -652,6 +662,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         loss_mean_window=None,
         tensorboard_log=True,
         tensorboard_profile=False,
+        monitor_grad_norms=False
     ):
         """Train the GAN model on real low res data and real high res data
 
@@ -727,6 +738,8 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         tensorboard_profile : bool
             Whether to export profiling information to tensorboard. This can
             then be viewed in the tensorboard dashboard under the profile tab
+        monitor_grad_norms : bool
+            Whether to record norms of gradients for each loss term.
 
         TODO: (1) args here are getting excessive. Might be time for some
         refactoring.
@@ -775,6 +788,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
                 train_disc,
                 disc_loss_bounds,
                 loss_mean_window=loss_mean_window,
+                monitor_grad_norms=monitor_grad_norms,
                 multi_gpu=multi_gpu,
             )
             loss_details.update(
@@ -874,10 +888,15 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         Returns
         -------
         loss : tf.Tensor
-            0D tensor representing the loss value for the network being trained
-            (either generator or one of the discriminators)
+            0D tensor with total loss value
         loss_details : dict
             Namespace of the breakdown of loss components
+        loss_weights : dict
+            Namespace of loss terms to include in gradient calculation, with
+            term weights as values. e.g. If ``train_disc`` is ``True`` this
+            just includes ``loss_disc`` and a weight of 1.0. If ``train_gen``
+            is ``True`` this includes all content loss terms, and adversarial
+            loss, weight all associated weights
         """
         hi_res_gen = self._combine_loss_input(hi_res_true, hi_res_gen)
 
@@ -903,12 +922,6 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         loss_gen = loss_gen_content + weight_gen_advers * loss_gen_advers
         loss_disc = self.calc_loss_disc(disc_out_true, disc_out_gen)
 
-        loss = None
-        if train_gen:
-            loss = loss_gen
-        elif train_disc:
-            loss = loss_disc
-
         loss_details = {
             'loss_gen': loss_gen,
             'loss_gen_content': loss_gen_content,
@@ -917,7 +930,19 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         }
         loss_details.update(loss_gen_content_details)
 
-        return loss, loss_details
+        loss_weights = {}
+        loss = None
+        if train_gen:
+            loss_weights = dict(
+                zip(loss_gen_content_details.keys(), self.content_loss_weights)
+            )
+            loss_weights['loss_gen_advers'] = weight_gen_advers
+            loss = loss_gen
+        elif train_disc:
+            loss_weights = {'loss_disc': 1.0}
+            loss = loss_disc
+
+        return loss, loss_details, loss_weights
 
     def calc_val_loss(self, batch_handler, weight_gen_advers):
         """Calculate the validation loss at the current state of model training
@@ -937,7 +962,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         """
         logger.debug('Starting end-of-epoch validation loss calculation...')
         for batch in batch_handler.val_data:
-            _, v_loss_details, _, _ = self._get_hr_exo_and_loss(
+            _, v_loss_details, _, _, _ = self._get_hr_exo_and_loss(
                 batch.low_res,
                 batch.high_res,
                 weight_gen_advers=weight_gen_advers,
@@ -952,7 +977,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             )
         return self._val_record.mean(axis=0)
 
-    def _run_gradient_descent(
+    def _train_batch(
         self,
         batch,
         train_gen,
@@ -962,6 +987,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         only_disc,
         disc_too_good,
         weight_gen_advers,
+        monitor_grad_norms,
         multi_gpu=False,
     ):
         """Run gradient descent and get loss details for a given batch for the
@@ -988,6 +1014,8 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         weight_gen_advers : float
             Weight factor for the adversarial loss component of the generator
             vs. the discriminator.
+        monitor_grad_norms : bool
+            Whether to record norms of gradients for each loss term.
         multi_gpu : bool
             Flag to break up the batch for parallel gradient descent
             calculations on multiple gpus. If True and multiple GPUs are
@@ -1018,6 +1046,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
                 train_gen=True,
                 train_disc=False,
                 multi_gpu=multi_gpu,
+                monitor_grad_norms=monitor_grad_norms
             )
 
         if only_disc or (train_disc and not disc_too_good):
@@ -1031,6 +1060,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
                 train_gen=False,
                 train_disc=True,
                 multi_gpu=multi_gpu,
+                monitor_grad_norms=monitor_grad_norms
             )
 
         b_loss_details['gen_train_frac'] = float(trained_gen)
@@ -1110,6 +1140,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         train_disc,
         disc_loss_bounds,
         loss_mean_window=None,
+        monitor_grad_norms=False,
         multi_gpu=False,
     ):
         """Train the GAN for one epoch.
@@ -1133,6 +1164,8 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             Number of batches to use to compute generator and discriminator
             loss means, which are used to decide whether to train each network
             for a given batch. Defaults to the number of batches in an epoch
+        monitor_grad_norms : bool
+            Whether to record norms of gradients for each loss term.
         multi_gpu : bool
             Flag to break up the batch for parallel gradient descent
             calculations on multiple gpus. If True and multiple GPUs are
@@ -1175,7 +1208,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             disc_too_bad = (loss_disc > disc_th_high) and train_disc
             gen_too_good = disc_too_bad
 
-            b_loss_details = self._run_gradient_descent(
+            b_loss_details = self._train_batch(
                 batch,
                 train_gen,
                 only_gen,
@@ -1184,6 +1217,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
                 only_disc,
                 disc_too_good,
                 weight_gen_advers,
+                monitor_grad_norms,
                 multi_gpu,
             )
 

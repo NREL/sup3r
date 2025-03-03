@@ -59,10 +59,11 @@ def test_fixed_wind_obs(gen_config_with_concat_masked):
         model_kwargs = {
             'input_resolution': {'spatial': '16km', 'temporal': '3600min'},
             'n_epoch': 3,
-            'weight_gen_advers': 0.0,
+            'weight_gen_advers': 0.001,
             'train_gen': True,
-            'train_disc': False,
+            'train_disc': True,
             'checkpoint_int': None,
+            'monitor_grad_norms': True,
             'out_dir': os.path.join(td, 'test_{epoch}'),
         }
 
