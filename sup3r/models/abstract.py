@@ -1153,7 +1153,6 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         )
         return loss, loss_details, hi_res_gen, hi_res_exo
 
-    @tf.function
     def get_single_grad(
         self,
         low_res,

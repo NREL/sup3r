@@ -649,7 +649,6 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         adaptive_update_bounds=(0.9, 0.99),
         adaptive_update_fraction=0.0,
         multi_gpu=False,
-        loss_mean_window=None,
         tensorboard_log=True,
         tensorboard_profile=False,
     ):
@@ -715,10 +714,6 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             rate that the model and optimizer were initialized with.
             If true and multiple gpus are found, ``default_device`` device
             should be set to /gpu:0
-        loss_mean_window : int
-            Number of batches to use to compute generator and discriminator
-            loss means, which are used to decide whether to train each network
-            for a given batch. Defaults to the number of batches in an epoch
         tensorboard_log : bool
             Whether to write log file for use with tensorboard. Log data can
             be viewed with ``tensorboard --logdir <logdir>`` where ``<logdir>``
@@ -774,7 +769,6 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
                 train_gen,
                 train_disc,
                 disc_loss_bounds,
-                loss_mean_window=loss_mean_window,
                 multi_gpu=multi_gpu,
             )
             loss_details.update(
@@ -844,7 +838,6 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
 
         batch_handler.stop()
 
-    @tf.function
     def calc_loss(
         self,
         hi_res_true,
@@ -1037,7 +1030,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         b_loss_details['disc_train_frac'] = float(trained_disc)
         return b_loss_details
 
-    def _post_batch(self, ib, b_loss_details, loss_mean_window, n_batches):
+    def _post_batch(self, ib, b_loss_details, n_batches):
         """Update loss details after the current batch and write to log.
 
         Parameters
@@ -1046,8 +1039,6 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             Index of the current batch
         b_loss_details : dict
             Dictionary of loss details for the current batch
-        loss_mean_window : int
-            Number of batches to use in the running loss means
         n_batches : int
             Number of batches in an epoch
 
@@ -1069,12 +1060,9 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
 
         trained_gen = bool(b_loss_details['gen_train_frac'])
         trained_disc = bool(b_loss_details['disc_train_frac'])
-        disc_loss = self._train_record['train_loss_disc'].values
-        disc_loss = disc_loss[-loss_mean_window:].mean()
-        gen_loss = self._train_record['train_loss_gen'].values
-        gen_loss = gen_loss[-loss_mean_window:].mean()
-        advers_loss = self._train_record['train_loss_gen_advers'].values
-        advers_loss = advers_loss[-loss_mean_window:].mean()
+        disc_loss = self._train_record['train_loss_disc'].values.mean()
+        gen_loss = self._train_record['train_loss_gen'].values.mean()
+        advers_loss = self._train_record['train_loss_gen_advers'].values.mean()
 
         logger.debug(
             'Batch {} out of {} has (gen / disc / advers) loss of: '
@@ -1109,7 +1097,6 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         train_gen,
         train_disc,
         disc_loss_bounds,
-        loss_mean_window=None,
         multi_gpu=False,
     ):
         """Train the GAN for one epoch.
@@ -1129,10 +1116,6 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             Lower and upper bounds for the discriminator loss outside of which
             the discriminators will not train unless train_disc=True or
             and train_gen=False.
-        loss_mean_window : int
-            Number of batches to use to compute generator and discriminator
-            loss means, which are used to decide whether to train each network
-            for a given batch. Defaults to the number of batches in an epoch
         multi_gpu : bool
             Flag to break up the batch for parallel gradient descent
             calculations on multiple gpus. If True and multiple GPUs are
@@ -1156,11 +1139,6 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         loss_means = self._train_record.mean().to_dict()
         loss_means.setdefault('train_loss_disc', 0)
         loss_means.setdefault('train_loss_gen', 0)
-        loss_mean_window = (
-            len(batch_handler)
-            if loss_mean_window is None
-            else loss_mean_window
-        )
 
         only_gen = train_gen and not train_disc
         only_disc = train_disc and not train_gen
@@ -1188,7 +1166,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             )
 
             loss_means = self._post_batch(
-                ib, b_loss_details, loss_mean_window, len(batch_handler)
+                ib, b_loss_details, len(batch_handler)
             )
 
         self.total_batches += len(batch_handler)
