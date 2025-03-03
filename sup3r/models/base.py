@@ -632,7 +632,6 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         adaptive_update_bounds=(0.9, 0.99),
         adaptive_update_fraction=0.0,
         multi_gpu=False,
-        loss_mean_window=None,
         tensorboard_log=True,
         tensorboard_profile=False,
     ):
@@ -698,10 +697,6 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             rate that the model and optimizer were initialized with.
             If true and multiple gpus are found, ``default_device`` device
             should be set to /gpu:0
-        loss_mean_window : int
-            Number of batches to use to compute generator and discriminator
-            loss means, which are used to decide whether to train each network
-            for a given batch. Defaults to the number of batches in an epoch
         tensorboard_log : bool
             Whether to write log file for use with tensorboard. Log data can
             be viewed with ``tensorboard --logdir <logdir>`` where ``<logdir>``
@@ -757,7 +752,6 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
                 train_gen,
                 train_disc,
                 disc_loss_bounds,
-                loss_mean_window=loss_mean_window,
                 multi_gpu=multi_gpu,
             )
             loss_details.update(
