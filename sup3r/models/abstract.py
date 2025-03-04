@@ -16,13 +16,9 @@ import pandas as pd
 import tensorflow as tf
 from phygnn import CustomNetwork
 from phygnn.layers.custom_layers import (
-    MaskedSqueezeAndExcitation,
-    SparseAttention,
     Sup3rAdder,
     Sup3rConcat,
     Sup3rConcatObs,
-    Sup3rConcatObsBlock,
-    Sup3rImpute,
 )
 from rex.utilities.utilities import safe_json_load
 from tensorflow.keras import optimizers
@@ -41,11 +37,7 @@ logger = logging.getLogger(__name__)
 SUP3R_LAYERS = (
     Sup3rAdder,
     Sup3rConcat,
-    Sup3rConcatObs,
-    Sup3rConcatObsBlock,
-    Sup3rImpute,
-    SparseAttention,
-    MaskedSqueezeAndExcitation,
+    Sup3rConcatObs
 )
 
 
@@ -1060,11 +1052,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
                         hr_feat,
                         norm_in=norm_in,
                     )
-                    if isinstance(layer, Sup3rImpute):
-                        fidx = self.hr_out_features.index(hr_feat)
-                        hi_res = layer(hi_res, hr_exo, fidx)
-                    else:
-                        hi_res = layer(hi_res, hr_exo)
+                    hi_res = layer(hi_res, hr_exo)
                 else:
                     hi_res = layer(hi_res)
         except Exception as e:
@@ -1120,12 +1108,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
                     hr_feat = layer.name.replace('_obs', '')
                     assert layer.name in hi_res_exo, msg
                     hr_exo = hi_res_exo[hr_feat]
-
-                    if isinstance(layer, Sup3rImpute):
-                        fidx = self.hr_out_features.index(hr_feat)
-                        hi_res = layer(hi_res, hr_exo, fidx)
-                    else:
-                        hi_res = layer(hi_res, hr_exo)
+                    hi_res = layer(hi_res, hr_exo)
 
                 else:
                     hi_res = layer(hi_res)
