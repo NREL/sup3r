@@ -4,11 +4,7 @@ import logging
 
 import numpy as np
 import tensorflow as tf
-from phygnn.layers.custom_layers import (
-    Sup3rConcatObs,
-    Sup3rConcatObsBlock,
-    Sup3rImpute,
-)
+from phygnn.layers.custom_layers import Sup3rConcatObs
 from tensorflow.keras.losses import MeanAbsoluteError
 
 from sup3r.utilities.utilities import RANDOM_GENERATOR
@@ -58,9 +54,7 @@ class Sup3rGanFixedObs(Sup3rGan):
         features = []
         if hasattr(self, '_gen'):
             for layer in self._gen.layers:
-                check = isinstance(
-                    layer, (Sup3rConcatObs, Sup3rConcatObsBlock, Sup3rImpute)
-                )
+                check = isinstance(layer, Sup3rConcatObs)
                 check = check and layer.name not in features
                 if check:
                     features.append(layer.name)
