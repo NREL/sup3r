@@ -521,7 +521,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         disc_out_true : tf.Tensor
             Raw discriminator outputs from the discriminator model predicting
             only on ground truth data hi_res_true (not on hi_res_gen).
-        disc_out_fake : tf.Tensor
+        disc_out_gen : tf.Tensor
             Raw discriminator outputs from the discriminator model predicting
             only on synthetic data hi_res_gen (not on hi_res_true).
 
@@ -540,7 +540,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         loss_disc = tf.nn.sigmoid_cross_entropy_with_logits(
             logits=logits, labels=labels
         )
-        return tf.reduce_mean(real_loss) + tf.reduce_mean(fake_loss)
+        return tf.reduce_mean(loss_disc)
 
     def update_adversarial_weights(
         self,
