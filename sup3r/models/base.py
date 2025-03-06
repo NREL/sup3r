@@ -501,42 +501,26 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
 
     @staticmethod
     @tf.function
-    def calc_loss_gen_advers(disc_out_gen):
-        """Calculate the adversarial component of the loss term for the
-        generator model.
-
-        Parameters
-        ----------
-        disc_out_gen : tf.Tensor
-            Raw discriminator outputs from the discriminator model
-            predicting only on hi_res_gen (not on hi_res_true).
-
-        Returns
-        -------
-        loss_gen_advers : tf.Tensor
-            0D tensor generator model loss for the adversarial component of the
-            generator loss term.
-        """
-
-        # note that these have flipped labels from the discriminator
-        # loss because of the opposite optimization goal
-        loss_gen_advers = tf.nn.sigmoid_cross_entropy_with_logits(
-            logits=disc_out_gen, labels=tf.ones_like(disc_out_gen)
-        )
-        return tf.reduce_mean(loss_gen_advers)
-
-    @staticmethod
-    @tf.function
     def calc_loss_disc(disc_out_true, disc_out_gen):
         """Calculate the loss term for the discriminator model (either the
-        spatial or temporal discriminator).
+        spatial or temporal discriminator. This uses the relativistic
+        discriminator loss described in [Wang2018]_.
+
+        Note: To use this for adversarial loss we simply set ``disc_out_true``
+        to ``disc_out_gen`` and vice versa.
+
+        References
+        ----------
+        .. [Wang2018] Wang, Xintao, et al. "Esrgan: Enhanced super-resolution
+            generative adversarial networks." Proceedings of the European
+            conference on computer vision (ECCV) workshops. 2018.
 
         Parameters
         ----------
         disc_out_true : tf.Tensor
             Raw discriminator outputs from the discriminator model predicting
             only on ground truth data hi_res_true (not on hi_res_gen).
-        disc_out_gen : tf.Tensor
+        disc_out_fake : tf.Tensor
             Raw discriminator outputs from the discriminator model predicting
             only on synthetic data hi_res_gen (not on hi_res_true).
 
@@ -546,18 +530,15 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             0D tensor discriminator model loss for either the spatial or
             temporal component of the super resolution generated output.
         """
-
-        # note that these have flipped labels from the generator
-        # loss because of the opposite optimization goal
-        logits = tf.concat([disc_out_true, disc_out_gen], axis=0)
-        labels = tf.concat(
-            [tf.ones_like(disc_out_true), tf.zeros_like(disc_out_gen)], axis=0
+        real_loss = tf.nn.sigmoid_cross_entropy_with_logits(
+            labels=tf.zeros_like(disc_out_gen),
+            logits=disc_out_gen - tf.reduce_mean(disc_out_true)
         )
-
-        loss_disc = tf.nn.sigmoid_cross_entropy_with_logits(
-            logits=logits, labels=labels
+        fake_loss = tf.nn.sigmoid_cross_entropy_with_logits(
+            labels=tf.ones_like(disc_out_true),
+            logits=disc_out_true - tf.reduce_mean(disc_out_gen)
         )
-        return tf.reduce_mean(loss_disc)
+        return tf.reduce_mean(real_loss) + tf.reduce_mean(fake_loss)
 
     def update_adversarial_weights(
         self,
@@ -892,9 +873,11 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         loss_gen_content, loss_gen_content_details = (
             self.calc_loss_gen_content(hi_res_true, hi_res_gen)
         )
-        loss_gen_advers = self.calc_loss_gen_advers(disc_out_gen)
+        loss_gen_advers = self.calc_loss_disc(
+            disc_out_true=disc_out_gen, disc_out_gen=disc_out_true)
         loss_gen = loss_gen_content + weight_gen_advers * loss_gen_advers
-        loss_disc = self.calc_loss_disc(disc_out_true, disc_out_gen)
+        loss_disc = self.calc_loss_disc(
+            disc_out_true=disc_out_true, disc_out_gen=disc_out_gen)
 
         loss = None
         if train_gen:
