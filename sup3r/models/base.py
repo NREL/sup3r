@@ -506,8 +506,12 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         spatial or temporal discriminator. This uses the relativistic
         discriminator loss described in [Wang2018]_.
 
-        Note: To use this for adversarial loss we simply set ``disc_out_true``
-        to ``disc_out_gen`` and vice versa.
+        Note: Instead of training the discriminator to label data as either
+        real or fake this trains the disc to label data as more or less
+        realistic. To use this for adversarial loss we simply set
+        ``disc_out_true`` to ``disc_out_gen`` and vice versa, which then
+        encourages the generator to produce output which is "more realistic"
+        than the true high-res data.
 
         References
         ----------
@@ -520,7 +524,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         disc_out_true : tf.Tensor
             Raw discriminator outputs from the discriminator model predicting
             only on ground truth data hi_res_true (not on hi_res_gen).
-        disc_out_fake : tf.Tensor
+        disc_out_gen : tf.Tensor
             Raw discriminator outputs from the discriminator model predicting
             only on synthetic data hi_res_gen (not on hi_res_true).
 
@@ -530,15 +534,16 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             0D tensor discriminator model loss for either the spatial or
             temporal component of the super resolution generated output.
         """
-        real_loss = tf.nn.sigmoid_cross_entropy_with_logits(
-            labels=tf.zeros_like(disc_out_gen),
-            logits=disc_out_gen - tf.reduce_mean(disc_out_true)
+        true_logits = disc_out_true - tf.reduce_mean(disc_out_gen)
+        fake_logits = disc_out_gen - tf.reduce_mean(disc_out_true)
+        logits = tf.concat([true_logits, fake_logits], axis=0)
+        labels = tf.concat(
+            [tf.ones_like(disc_out_true), tf.zeros_like(disc_out_gen)], axis=0
         )
-        fake_loss = tf.nn.sigmoid_cross_entropy_with_logits(
-            labels=tf.ones_like(disc_out_true),
-            logits=disc_out_true - tf.reduce_mean(disc_out_gen)
+        loss_disc = tf.nn.sigmoid_cross_entropy_with_logits(
+            logits=logits, labels=labels
         )
-        return tf.reduce_mean(real_loss) + tf.reduce_mean(fake_loss)
+        return tf.reduce_mean(loss_disc)
 
     def update_adversarial_weights(
         self,
@@ -874,10 +879,12 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             self.calc_loss_gen_content(hi_res_true, hi_res_gen)
         )
         loss_gen_advers = self.calc_loss_disc(
-            disc_out_true=disc_out_gen, disc_out_gen=disc_out_true)
+            disc_out_true=disc_out_gen, disc_out_gen=disc_out_true
+        )
         loss_gen = loss_gen_content + weight_gen_advers * loss_gen_advers
         loss_disc = self.calc_loss_disc(
-            disc_out_true=disc_out_true, disc_out_gen=disc_out_gen)
+            disc_out_true=disc_out_true, disc_out_gen=disc_out_gen
+        )
 
         loss = None
         if train_gen:
