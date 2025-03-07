@@ -82,12 +82,15 @@ def test_solar_cc_model(hr_steps):
         model.save(out_dir)
         loaded = model.load(out_dir)
 
-        assert isinstance(model.loss_fun, MeanAbsoluteError)
-        assert isinstance(loaded.loss_fun, MeanAbsoluteError)
         assert model.meta['class'] == 'SolarCC'
         assert loaded.meta['class'] == 'SolarCC'
 
     x = RANDOM_GENERATOR.uniform(0, 1, (1, 30, 30, hr_steps // 8, 1))
+    z = RANDOM_GENERATOR.uniform(0, 1, (1, 30, 30, hr_steps // 8, 1))
+    mae = MeanAbsoluteError()(x, z)
+    assert np.allclose(model.loss_fun(x, z)[0], mae)
+    assert np.allclose(loaded.loss_fun(x, z)[0], mae)
+
     y = model.generate(x)
     assert y.shape[0] == x.shape[0]
     assert y.shape[1] == x.shape[1]

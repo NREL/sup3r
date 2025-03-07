@@ -7,6 +7,56 @@ import tensorflow as tf
 from tensorflow.keras.losses import MeanAbsoluteError, MeanSquaredError
 
 
+def _derivative(x, axis=1):
+    """Custom derivative function for compatibility with tensorflow.
+
+    Note
+    ----
+    Matches np.gradient by using the central difference approximation.
+
+    Parameters
+    ----------
+    x : tf.Tensor
+        (n_observations, spatial_1, spatial_2, temporal)
+    axis : int
+        Axis to take derivative over
+    """
+    if axis == 1:
+        return tf.concat(
+            [
+                x[:, 1:2] - x[:, 0:1],
+                (x[:, 2:] - x[:, :-2]) / 2,
+                x[:, -1:] - x[:, -2:-1],
+            ],
+            axis=axis,
+        )
+    if axis == 2:
+        return tf.concat(
+            [
+                x[:, :, 1:2] - x[:, :, 0:1],
+                (x[:, :, 2:] - x[:, :, :-2]) / 2,
+                x[:, :, -1:] - x[:, :, -2:-1],
+            ],
+            axis=axis,
+        )
+    if axis == 3:
+        return tf.concat(
+            [
+                x[:, :, :, 1:2] - x[:, :, :, 0:1],
+                (x[:, :, :, 2:] - x[:, :, :, :-2]) / 2,
+                x[:, :, :, -1:] - x[:, :, :, -2:-1],
+            ],
+            axis=axis,
+        )
+
+    msg = (
+        f'_derivative received axis={axis}. This is meant to compute only '
+        'temporal (axis=3) or spatial (axis=1/2) derivatives for tensors '
+        'of shape (n_obs, spatial_1, spatial_2, temporal)'
+    )
+    raise ValueError(msg)
+
+
 def gaussian_kernel(x1, x2, sigma=1.0):
     """Gaussian kernel for mmd content loss
 
@@ -66,33 +116,6 @@ class ExpLoss(tf.keras.losses.Loss):
         return tf.reduce_mean(1 - tf.exp(-((x1 - x2) ** 2)))
 
 
-class MseExpLoss(tf.keras.losses.Loss):
-    """Loss class for mse + squared exponential difference"""
-
-    MSE_LOSS = MeanSquaredError()
-
-    def __call__(self, x1, x2):
-        """Mse + Exponential difference loss function
-
-        Parameters
-        ----------
-        x1 : tf.tensor
-            synthetic generator output
-            (n_observations, spatial_1, spatial_2, temporal, features)
-        x2 : tf.tensor
-            high resolution data
-            (n_observations, spatial_1, spatial_2, temporal, features)
-
-        Returns
-        -------
-        tf.tensor
-            0D tensor with loss value
-        """
-        mse = self.MSE_LOSS(x1, x2)
-        exp = tf.reduce_mean(1 - tf.exp(-((x1 - x2) ** 2)))
-        return mse + exp
-
-
 class MmdLoss(tf.keras.losses.Loss):
     """Loss class for max mean discrepancy loss"""
 
@@ -122,7 +145,7 @@ class MmdLoss(tf.keras.losses.Loss):
         return mmd
 
 
-class MaterialDerivativeOnlyLoss(tf.keras.losses.Loss):
+class MaterialDerivativeLoss(tf.keras.losses.Loss):
     """Loss class for the material derivative. This is the left hand side of
     the Navier-Stokes equation and is equal to internal + external forces
     divided by density.
@@ -133,56 +156,6 @@ class MaterialDerivativeOnlyLoss(tf.keras.losses.Loss):
     """
 
     LOSS_METRIC = MeanAbsoluteError()
-
-    def _derivative(self, x, axis=1):
-        """Custom derivative function for compatibility with tensorflow.
-
-        Note
-        ----
-        Matches np.gradient by using the central difference approximation.
-
-        Parameters
-        ----------
-        x : tf.Tensor
-            (n_observations, spatial_1, spatial_2, temporal)
-        axis : int
-            Axis to take derivative over
-        """
-        if axis == 1:
-            return tf.concat(
-                [
-                    x[:, 1:2] - x[:, 0:1],
-                    (x[:, 2:] - x[:, :-2]) / 2,
-                    x[:, -1:] - x[:, -2:-1],
-                ],
-                axis=1,
-            )
-        if axis == 2:
-            return tf.concat(
-                [
-                    x[..., 1:2, :] - x[..., 0:1, :],
-                    (x[..., 2:, :] - x[..., :-2, :]) / 2,
-                    x[..., -1:, :] - x[..., -2:-1, :],
-                ],
-                axis=2,
-            )
-        if axis == 3:
-            return tf.concat(
-                [
-                    x[..., 1:2] - x[..., 0:1],
-                    (x[..., 2:] - x[..., :-2]) / 2,
-                    x[..., -1:] - x[..., -2:-1],
-                ],
-                axis=3,
-            )
-
-        msg = (
-            f'{self.__class__.__name__}._derivative received '
-            f'axis={axis}. This is meant to compute only temporal '
-            '(axis=3) or spatial (axis=1/2) derivatives for tensors '
-            'of shape (n_obs, spatial_1, spatial_2, temporal)'
-        )
-        raise ValueError(msg)
 
     def _compute_md(self, x, fidx):
         """Compute material derivative the feature given by the index fidx.
@@ -200,14 +173,14 @@ class MaterialDerivativeOnlyLoss(tf.keras.losses.Loss):
         uidx = 2 * (fidx // 2)
         vidx = 2 * (fidx // 2) + 1
         # df/dt
-        x_div = self._derivative(x[..., fidx], axis=3)
+        x_div = _derivative(x[..., fidx], axis=3)
         # u * df/dx
         x_div += tf.math.multiply(
-            x[..., uidx], self._derivative(x[..., fidx], axis=1)
+            x[..., uidx], _derivative(x[..., fidx], axis=1)
         )
         # v * df/dy
         x_div += tf.math.multiply(
-            x[..., vidx], self._derivative(x[..., fidx], axis=2)
+            x[..., vidx], _derivative(x[..., fidx], axis=2)
         )
 
         return x_div
@@ -256,15 +229,13 @@ class MaterialDerivativeOnlyLoss(tf.keras.losses.Loss):
         return self.LOSS_METRIC(x1_div, x2_div)
 
 
-class MaterialDerivativeLoss(tf.keras.losses.Loss):
-    """Loss class for the material derivative with additional MAE loss."""
+class SpatialDerivativeLoss(tf.keras.losses.Loss):
+    """Loss class to encourage accurary of spatial derivatives."""
 
-    MAE_LOSS = MeanAbsoluteError()
-    MD_LOSS = MaterialDerivativeOnlyLoss()
+    LOSS_METRIC = MeanAbsoluteError()
 
     def __call__(self, x1, x2):
-        """Custom content loss that encourages accuracy of the material
-        derivative with additional MAE loss term.
+        """Custom content loss that encourages accuracy of spatial derivatives
 
         Parameters
         ----------
@@ -280,22 +251,26 @@ class MaterialDerivativeLoss(tf.keras.losses.Loss):
         tf.tensor
             0D tensor with loss value
         """
+        msg = (
+            f'The {self.__class__.__name__} is meant to be used on spatial or '
+            'spatiotemporal data only. Received tensor(s) that are not at '
+            'least 4D'
+        )
+        assert len(x1.shape) >= 4 and len(x2.shape) >= 4, msg
 
-        mae = self.MAE_LOSS(x1, x2)
-        div_mae = self.MD_LOSS(x1, x2)
+        x1_div = _derivative(x1, axis=1) + _derivative(x1, axis=2)
+        x2_div = _derivative(x2, axis=1) + _derivative(x2, axis=2)
 
-        return (mae + div_mae) / 2
+        return self.LOSS_METRIC(x1_div, x2_div)
 
 
-class MmdMseLoss(tf.keras.losses.Loss):
-    """Loss class for MMD + MSE"""
+class TemporalDerivativeLoss(tf.keras.losses.Loss):
+    """Loss class to encourage accurary of temporal derivative."""
 
-    MMD_LOSS = MmdLoss()
-    MSE_LOSS = MeanSquaredError()
+    LOSS_METRIC = MeanAbsoluteError()
 
-    def __call__(self, x1, x2, sigma=1.0):
-        """Maximum mean discrepancy (MMD) based on Gaussian kernel function
-        for keras models plus the typical MSE loss.
+    def __call__(self, x1, x2):
+        """Custom content loss that encourages accuracy of temporal derivative
 
         Parameters
         ----------
@@ -305,17 +280,22 @@ class MmdMseLoss(tf.keras.losses.Loss):
         x2 : tf.tensor
             high resolution data
             (n_observations, spatial_1, spatial_2, temporal, features)
-        sigma : float
-            standard deviation for gaussian kernel
 
         Returns
         -------
         tf.tensor
             0D tensor with loss value
         """
-        mmd = self.MMD_LOSS(x1, x2, sigma=sigma)
-        mse = self.MSE_LOSS(x1, x2)
-        return (mmd + mse) / 2
+        msg = (
+            f'The {self.__class__.__name__} is meant to be used on '
+            'spatiotemporal data only. Received tensor(s) that are not 5D'
+        )
+        assert len(x1.shape) == 5 and len(x2.shape) == 5, msg
+
+        x1_div = _derivative(x1, axis=3)
+        x2_div = _derivative(x2, axis=3)
+
+        return self.LOSS_METRIC(x1_div, x2_div)
 
 
 class CoarseMseLoss(tf.keras.losses.Loss):
@@ -346,7 +326,7 @@ class CoarseMseLoss(tf.keras.losses.Loss):
         return self.MSE_LOSS(x1_coarse, x2_coarse)
 
 
-class SpatialExtremesOnlyLoss(tf.keras.losses.Loss):
+class SpatialExtremesLoss(tf.keras.losses.Loss):
     """Loss class that encourages accuracy of the min/max values in the
     spatial domain. This does not include an additional MAE term"""
 
@@ -381,49 +361,7 @@ class SpatialExtremesOnlyLoss(tf.keras.losses.Loss):
         return (mae_min + mae_max) / 2
 
 
-class SpatialExtremesLoss(tf.keras.losses.Loss):
-    """Loss class that encourages accuracy of the min/max values in the
-    spatial domain"""
-
-    MAE_LOSS = MeanAbsoluteError()
-    EX_LOSS = SpatialExtremesOnlyLoss()
-
-    def __init__(self, weight=1.0):
-        """Initialize the loss with given weight
-
-        Parameters
-        ----------
-        weight : float
-            Weight for min/max loss terms. Setting this to zero turns
-            loss into MAE.
-        """
-        super().__init__()
-        self._weight = weight
-
-    def __call__(self, x1, x2):
-        """Custom content loss that encourages temporal min/max accuracy
-
-        Parameters
-        ----------
-        x1 : tf.tensor
-            synthetic generator output
-            (n_observations, spatial_1, spatial_2, features)
-        x2 : tf.tensor
-            high resolution data
-            (n_observations, spatial_1, spatial_2, features)
-
-        Returns
-        -------
-        tf.tensor
-            0D tensor with loss value
-        """
-        mae = self.MAE_LOSS(x1, x2)
-        ex_mae = self.EX_LOSS(x1, x2)
-
-        return (mae + 2 * self._weight * ex_mae) / 3
-
-
-class TemporalExtremesOnlyLoss(tf.keras.losses.Loss):
+class TemporalExtremesLoss(tf.keras.losses.Loss):
     """Loss class that encourages accuracy of the min/max values in the
     timeseries. This does not include an additional mae term"""
 
@@ -458,151 +396,7 @@ class TemporalExtremesOnlyLoss(tf.keras.losses.Loss):
         return (mae_min + mae_max) / 2
 
 
-class TemporalExtremesLoss(tf.keras.losses.Loss):
-    """Loss class that encourages accuracy of the min/max values in the
-    timeseries"""
-
-    MAE_LOSS = MeanAbsoluteError()
-    EX_LOSS = TemporalExtremesOnlyLoss()
-
-    def __init__(self, weight=1.0):
-        """Initialize the loss with given weight
-
-        Parameters
-        ----------
-        weight : float
-            Weight for min/max loss terms. Setting this to zero turns
-            loss into MAE.
-        """
-        super().__init__()
-        self._weight = weight
-
-    def __call__(self, x1, x2):
-        """Custom content loss that encourages temporal min/max accuracy
-
-        Parameters
-        ----------
-        x1 : tf.tensor
-            synthetic generator output
-            (n_observations, spatial_1, spatial_2, temporal, features)
-        x2 : tf.tensor
-            high resolution data
-            (n_observations, spatial_1, spatial_2, temporal, features)
-
-        Returns
-        -------
-        tf.tensor
-            0D tensor with loss value
-        """
-        mae = self.MAE_LOSS(x1, x2)
-        ex_mae = self.EX_LOSS(x1, x2)
-
-        return (mae + 2 * self._weight * ex_mae) / 3
-
-
-class SpatiotemporalExtremesLoss(tf.keras.losses.Loss):
-    """Loss class that encourages accuracy of the min/max values across both
-    space and time"""
-
-    MAE_LOSS = MeanAbsoluteError()
-    S_EX_LOSS = SpatialExtremesOnlyLoss()
-    T_EX_LOSS = TemporalExtremesOnlyLoss()
-
-    def __init__(self, spatial_weight=1.0, temporal_weight=1.0):
-        """Initialize the loss with given weight
-
-        Parameters
-        ----------
-        spatial_weight : float
-            Weight for spatial min/max loss terms.
-        temporal_weight : float
-            Weight for temporal min/max loss terms.
-        """
-        super().__init__()
-        self.s_weight = spatial_weight
-        self.t_weight = temporal_weight
-
-    def __call__(self, x1, x2):
-        """Custom content loss that encourages spatiotemporal min/max accuracy.
-
-        Parameters
-        ----------
-        x1 : tf.tensor
-            synthetic generator output
-            (n_observations, spatial_1, spatial_2, temporal, features)
-        x2 : tf.tensor
-            high resolution data
-            (n_observations, spatial_1, spatial_2, temporal, features)
-
-        Returns
-        -------
-        tf.tensor
-            0D tensor with loss value
-        """
-        mae = self.MAE_LOSS(x1, x2)
-        s_ex_mae = self.S_EX_LOSS(x1, x2)
-        t_ex_mae = self.T_EX_LOSS(x1, x2)
-        return (
-            mae + 2 * self.s_weight * s_ex_mae + 2 * self.t_weight * t_ex_mae
-        ) / 5
-
-
-class MaterialDerivativeWithExtremesLoss(tf.keras.losses.Loss):
-    """Loss class for the material derivative with spatiotemporal extremes."""
-
-    MAE_LOSS = MeanAbsoluteError()
-    MD_LOSS = MaterialDerivativeOnlyLoss()
-    S_EX_LOSS = SpatialExtremesOnlyLoss()
-    T_EX_LOSS = TemporalExtremesOnlyLoss()
-
-    def __init__(self, md_weight=1.0, spatial_weight=1.0, temporal_weight=1.0):
-        """Initialize the loss with given weight
-
-        Parameters
-        ----------
-        spatial_weight : float
-            Weight for spatial min/max loss terms.
-        temporal_weight : float
-            Weight for temporal min/max loss terms.
-        """
-        super().__init__()
-        self.md_weight = md_weight
-        self.s_weight = spatial_weight
-        self.t_weight = temporal_weight
-
-    def __call__(self, x1, x2):
-        """Custom content loss that encourages accuracy of the material
-        derivative and spatiotemporal extremes.
-
-        Parameters
-        ----------
-        x1 : tf.tensor
-            synthetic generator output
-            (n_observations, spatial_1, spatial_2, temporal, features)
-        x2 : tf.tensor
-            high resolution data
-            (n_observations, spatial_1, spatial_2, temporal, features)
-
-        Returns
-        -------
-        tf.tensor
-            0D tensor with loss value
-        """
-        mae = self.MAE_LOSS(x1, x2)
-        div_mae = self.MD_LOSS(x1, x2)
-        s_ex = self.S_EX_LOSS(x1, x2)
-        t_ex = self.T_EX_LOSS(x1, x2)
-
-        loss = (
-            mae
-            + self.md_weight * div_mae
-            + self.s_weight * s_ex
-            + self.t_weight * t_ex
-        )
-        return 1 / 4 * loss
-
-
-class SpatialFftOnlyLoss(tf.keras.losses.Loss):
+class SpatialFftLoss(tf.keras.losses.Loss):
     """Loss class that encourages accuracy of the spatial frequency spectrum"""
 
     MAE_LOSS = MeanAbsoluteError()
@@ -647,7 +441,7 @@ class SpatialFftOnlyLoss(tf.keras.losses.Loss):
         return self.MAE_LOSS(x1_hat, x2_hat)
 
 
-class SpatiotemporalFftOnlyLoss(tf.keras.losses.Loss):
+class SpatiotemporalFftLoss(tf.keras.losses.Loss):
     """Loss class that encourages accuracy of the spatiotemporal frequency
     spectrum"""
 
@@ -695,63 +489,14 @@ class SpatiotemporalFftOnlyLoss(tf.keras.losses.Loss):
         return self.MAE_LOSS(x1_hat, x2_hat)
 
 
-class StExtremesFftLoss(tf.keras.losses.Loss):
-    """Loss class that encourages accuracy of the min/max values across both
-    space and time as well as frequency domain accuracy."""
-
-    def __init__(
-        self, spatial_weight=1.0, temporal_weight=1.0, fft_weight=1.0
-    ):
-        """Initialize the loss with given weight
-
-        Parameters
-        ----------
-        spatial_weight : float
-            Weight for spatial min/max loss terms.
-        temporal_weight : float
-            Weight for temporal min/max loss terms.
-        fft_weight : float
-            Weight for the fft loss term.
-        """
-        super().__init__()
-        self.st_ex_loss = SpatiotemporalExtremesLoss(
-            spatial_weight, temporal_weight
-        )
-        self.fft_loss = SpatiotemporalFftOnlyLoss()
-        self.fft_weight = fft_weight
-
-    def __call__(self, x1, x2):
-        """Custom content loss that encourages spatiotemporal min/max accuracy
-        and fft accuracy.
-
-        Parameters
-        ----------
-        x1 : tf.tensor
-            synthetic generator output
-            (n_observations, spatial_1, spatial_2, temporal, features)
-        x2 : tf.tensor
-            high resolution data
-            (n_observations, spatial_1, spatial_2, temporal, features)
-
-        Returns
-        -------
-        tf.tensor
-            0D tensor with loss value
-        """
-        return (
-            5 * self.st_ex_loss(x1, x2)
-            + self.fft_weight * self.fft_loss(x1, x2)
-        ) / 6
-
-
 class LowResLoss(tf.keras.losses.Loss):
     """Content loss that is calculated by coarsening the synthetic and true
     high-resolution data pairs and then performing the pointwise content loss
     on the low-resolution fields"""
 
     EX_LOSS_METRICS: ClassVar = {
-        'SpatialExtremesOnlyLoss': SpatialExtremesOnlyLoss,
-        'TemporalExtremesOnlyLoss': TemporalExtremesOnlyLoss,
+        'SpatialExtremesLoss': SpatialExtremesLoss,
+        'TemporalExtremesLoss': TemporalExtremesLoss,
     }
 
     def __init__(
@@ -782,8 +527,8 @@ class LowResLoss(tf.keras.losses.Loss):
             ``tf.keras.losses`` e.g., "MeanSquaredError" or "MeanAbsoluteError"
         ex_loss : None | str
             Optional additional loss metric evaluating the spatial or temporal
-            extremes of the high-res data. Can be "SpatialExtremesOnlyLoss" or
-            "TemporalExtremesOnlyLoss" (keys in ``EX_LOSS_METRICS``).
+            extremes of the high-res data. Can be "SpatialExtremesLoss" or
+            "TemporalExtremesLoss" (keys in ``EX_LOSS_METRICS``).
         """
 
         super().__init__()
