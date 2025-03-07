@@ -607,7 +607,9 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         disc_out_true = self._tf_discriminate(hi_res_true)
         disc_out_gen = self._tf_discriminate(hi_res_gen)
 
-        loss_gen_content = self.calc_loss_gen_content(hi_res_true, hi_res_gen)
+        loss_gen_content, loss_gen_content_details = (
+            self.calc_loss_gen_content(hi_res_true, hi_res_gen)
+        )
         loss_gen_advers = self.calc_loss_gen_advers(disc_out_gen)
         loss_gen = loss_gen_content + weight_gen_advers * loss_gen_advers
 
@@ -625,6 +627,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             'loss_gen_advers': loss_gen_advers,
             'loss_disc': loss_disc,
         }
+        loss_details.update(loss_gen_content_details)
 
         return loss, loss_details
 
@@ -919,7 +922,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         """
         logger.debug('Starting end-of-epoch validation loss calculation...')
         for batch in batch_handler.val_data:
-            hi_res_exo = self.get_high_res_exo_input(batch.high_res)
+            hi_res_exo = self.get_hr_exo_input(batch.high_res)
             hi_res_gen = self._tf_generate(batch.low_res, hi_res_exo)
             _, v_loss_details = self.calc_loss(
                 batch.high_res,
