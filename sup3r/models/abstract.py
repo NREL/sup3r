@@ -1041,15 +1041,14 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
                         'features in exogenous_data '
                         f'({list(exogenous_data)})'
                     )
-                    hr_feat = layer.name.replace('_obs', '')
-                    assert hr_feat in exogenous_data, msg
+                    assert layer.name in exogenous_data, msg
                     hr_exo = exogenous_data.get_combine_type_data(
                         layer.name, 'layer'
                     )
                     hr_exo = self._reshape_norm_exo(
                         hi_res,
                         hr_exo,
-                        hr_feat,
+                        layer.name,
                         norm_in=norm_in,
                     )
                     hi_res = layer(hi_res, hr_exo)

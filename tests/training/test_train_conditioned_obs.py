@@ -7,7 +7,7 @@ import tempfile
 import numpy as np
 import pytest
 
-from sup3r.models import Sup3rGanFixedObs
+from sup3r.models import Sup3rGanWithObs
 from sup3r.preprocessing import (
     BatchHandler,
     DataHandler,
@@ -42,9 +42,9 @@ def test_fixed_wind_obs(gen_config_with_concat_masked):
         sample_shape=(20, 20, 1),
     )
 
-    Sup3rGanFixedObs.seed()
+    Sup3rGanWithObs.seed()
 
-    model = Sup3rGanFixedObs(
+    model = Sup3rGanWithObs(
         gen_config_with_concat_masked(),
         pytest.S_FP_DISC,
         obs_frac={'spatial': 0.1},
