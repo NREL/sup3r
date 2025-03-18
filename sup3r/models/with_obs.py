@@ -14,14 +14,14 @@ from .base import Sup3rGan
 logger = logging.getLogger(__name__)
 
 
-class Sup3rGanFixedObs(Sup3rGan):
+class Sup3rGanWithObs(Sup3rGan):
     """Sup3r GAN model which includes mid network observation fixing. This
     model is useful for when production runs will be over a domain for which
     observation data is available."""
 
     def __init__(self, *args, obs_frac=None, loss_obs_weight=None, **kwargs):
         """
-        Initialize the Sup3rGanFixedObs model.
+        Initialize the Sup3rGanWithObs model.
 
         Parameters
         ----------
@@ -163,7 +163,9 @@ class Sup3rGanFixedObs(Sup3rGan):
         """Mask high res data to act as sparse observation data. Add this to
         the standard high res exo input"""
         exo_data = super().get_hr_exo_input(hi_res_true)
-        spatial_frac = RANDOM_GENERATOR.uniform(0, self.obs_frac['spatial'])
+        spatial_frac = RANDOM_GENERATOR.uniform(
+            low=0, high=self.obs_frac['spatial']
+        )
         time_frac = self.obs_frac.get('time', None)
         obs_mask = self._get_obs_mask(hi_res_true, spatial_frac, time_frac)
         for feature in self.obs_features:

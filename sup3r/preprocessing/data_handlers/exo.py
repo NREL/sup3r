@@ -371,9 +371,12 @@ class ExoDataHandler:
         steps = []
         for i, model in enumerate(models):
             is_sfc_model = model.__class__.__name__ == 'SurfaceSpatialMetModel'
+            obs_features = getattr(model, 'obs_features', [])
             if feature.lower() in _lowered(model.lr_features) or is_sfc_model:
                 steps.append({'model': i, 'combine_type': 'input'})
             if feature.lower() in _lowered(model.hr_exo_features):
+                steps.append({'model': i, 'combine_type': 'layer'})
+            if feature.lower() in _lowered(obs_features):
                 steps.append({'model': i, 'combine_type': 'layer'})
             if (
                 feature.lower() in _lowered(model.hr_out_features)
