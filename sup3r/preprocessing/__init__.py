@@ -55,6 +55,7 @@ from .rasterizers import (
     ExoRasterizer,
     ExoRasterizerH5,
     ExoRasterizerNC,
+    ObsRasterizer,
     Rasterizer,
     SzaRasterizer,
 )

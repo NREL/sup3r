@@ -6,7 +6,7 @@ subclass refactor here."""
 import logging
 import os
 import shutil
-from abc import ABC, abstractmethod
+from abc import ABC
 from dataclasses import dataclass
 from typing import ClassVar, Optional, Union
 from warnings import warn
@@ -128,9 +128,13 @@ class BaseExoRasterizer(ABC):
         )
 
     @property
-    @abstractmethod
     def source_data(self):
-        """Get the 1D array of source data from the source_file_h5"""
+        """Get the array of exogenous data from the source_file_h5"""
+        if self._source_data is None:
+            self._source_data = self.source_handler[self.feature].data
+            if 'time' not in self.source_handler[self.feature].dims:
+                self._source_data = self._source_data.data[:, None]
+        return self._source_data
 
     @property
     def source_handler(self):
@@ -242,12 +246,12 @@ class BaseExoRasterizer(ABC):
         """Maximum distance (float) to map high-resolution data from
         source_file to the low-resolution file_paths input."""
         if self.distance_upper_bound is None:
-            diff = da.diff(self.source_lat_lon, axis=0)
-            diff = da.median(diff, axis=0).max()
-            self.distance_upper_bound = diff
+            diff = da.diff(self.hr_lat_lon, axis=0)
+            diff = da.abs(da.median(diff, axis=0)).max()
+            self.distance_upper_bound = np.asarray(diff)
             logger.info(
                 'Set distance upper bound to {:.4f}'.format(
-                    np.asarray(self.distance_upper_bound)
+                    self.distance_upper_bound
                 )
             )
         return self.distance_upper_bound
@@ -285,8 +289,11 @@ class BaseExoRasterizer(ABC):
         if not os.path.exists(cache_fp):
             tmp_fp = cache_fp + '.tmp'
             Cacher.write_netcdf(
-                tmp_fp, data, max_workers=self.max_workers, chunks=self.chunks,
-                verbose=self.verbose
+                tmp_fp,
+                data,
+                max_workers=self.max_workers,
+                chunks=self.chunks,
+                verbose=self.verbose,
             )
             shutil.move(tmp_fp, cache_fp)
             logger.info('Moved %s to %s', tmp_fp, cache_fp)
@@ -375,6 +382,85 @@ class ExoRasterizerNC(BaseExoRasterizer):
         return source_lat_lon
 
 
+class ObsRasterizer(BaseExoRasterizer):
+    """Rasterizer for sparse spatiotemporal observation data"""
+
+    @property
+    def source_handler(self):
+        """Get the Loader object that handles the exogenous data file."""
+        feat = self.feature.replace('_obs', '')
+        msg = f'Getting {self.feature} for full domain from {self.source_file}'
+        if self._source_handler is None:
+            logger.info(msg)
+            self._source_handler = Loader(
+                file_paths=self.source_file, features=[feat]
+            )
+        return self._source_handler
+
+    @property
+    def source_data(self):
+        """Get the 1D array of exogenous data from the source_file_nc"""
+        feat = self.feature.replace('_obs', '')
+        return self.source_handler[feat].data
+
+    @property
+    def tree(self):
+        """Get the KDTree built on the target lat lon data from the file_paths
+        input with s_enhance"""
+        if self._tree is None:
+            self._tree = KDTree(self.source_lat_lon.reshape((-1, 2)))
+        return self._tree
+
+    @property
+    def nn(self):
+        """Get the nearest neighbor indices. This uses a single neighbor by
+        default"""
+        _, nn = self.tree.query(
+            self.hr_lat_lon.reshape((-1, 2)),
+            distance_upper_bound=self.get_distance_upper_bound(),
+        )
+        return nn
+
+    def get_data(self):
+        """Get a raster of source observation values corresponding to the
+        high-resolution grid (the file_paths input grid * s_enhance *
+        t_enhance). The shape is (lats, lons, time, 1)
+        """
+        target_tmask = self.hr_time_index.isin(self.source_handler.time_index)
+        source_tmask = self.source_handler.time_index.isin(self.hr_time_index)
+        src_data = self.source_data.reshape((-1, self.source_data.shape[-1]))
+        out = np.full(self.hr_shape, np.nan)
+        out = out.reshape((-1, out.shape[-1]))
+        gid_mask = self.nn != src_data.shape[0]
+        src_data = src_data.vindex[self.nn[gid_mask]]
+        mask = gid_mask[:, None] & target_tmask
+        out[mask] = src_data[:, source_tmask].flatten()
+        hr_data = out.reshape(self.hr_shape)
+        logger.info(
+            'Found {} observations within {:4f} of high-resolution grid '
+            'points.'.format(gid_mask.sum(), self.distance_upper_bound)
+        )
+        logger.info(
+            'Finished mapping raster from %s for "%s"',
+            self.source_file,
+            self.feature,
+        )
+        cover_frac = (~np.isnan(hr_data)).sum() / hr_data.size
+        logger.info(
+            'Observations cover {:.4f} of the high-res domain.'.format(
+                cover_frac
+            )
+        )
+        data_vars = {
+            self.feature: (
+                Dimension.dims_3d(),
+                da.asarray(hr_data, dtype=np.float32),
+            )
+        }
+        ds = xr.Dataset(coords=self.coords, data_vars=data_vars)
+        return Sup3rX(ds)
+
+
 class SzaRasterizer(BaseExoRasterizer):
     """SzaRasterizer for H5 files"""
 
@@ -413,6 +499,8 @@ class ExoRasterizer(BaseExoRasterizer, metaclass=Sup3rMeta):
         }
         if feature.lower() == 'sza':
             ExoClass = SzaRasterizer
+        elif feature.lower().endswith('_obs'):
+            ExoClass = ObsRasterizer
         else:
             ExoClass = cls.TypeSpecificClasses[get_source_type(source_file)]
         return ExoClass(**kwargs)
