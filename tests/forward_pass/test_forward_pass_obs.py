@@ -11,7 +11,7 @@ from rex import Outputs
 
 from sup3r.models import Sup3rGanWithObs
 from sup3r.pipeline.forward_pass import ForwardPass, ForwardPassStrategy
-from sup3r.utilities.pytest.helpers import make_fake_dset, make_fake_nc_file
+from sup3r.utilities.pytest.helpers import make_fake_dset
 from sup3r.utilities.utilities import RANDOM_GENERATOR
 
 SHAPE = (20, 20)
@@ -33,11 +33,12 @@ def input_file(tmpdir_factory):
     """Dummy input for :class:`ForwardPass`"""
 
     input_file = str(tmpdir_factory.mktemp('data').join('fwp_input.nc'))
-    make_fake_nc_file(
-        input_file,
+    dset = make_fake_dset(
         shape=(100, 100, 8),
         features=['u_10m', 'v_10m'],
     )
+    dset = dset.coarsen(west_east=2, south_north=2).mean()
+    dset.to_netcdf(input_file)
     return input_file
 
 
@@ -46,7 +47,7 @@ def nc_obs_file(tmpdir_factory):
     """Dummy observation data saved to netcdf file"""
     obs_file = str(tmpdir_factory.mktemp('data').join('fwp_obs.nc'))
     dset = make_fake_dset(
-        shape=(100, 100, 8),
+        shape=(100, 100, 20),
         features=['u_10m', 'v_10m'],
     )
 
@@ -67,20 +68,20 @@ def nc_obs_file(tmpdir_factory):
 @pytest.fixture(scope='module')
 def h5_obs_file(tmpdir_factory):
     """Dummy observation data, flattened and sparsified and saved to h5"""
-    obs_file = str(tmpdir_factory.mktemp('data').join('fwp_obs.nc'))
+    obs_file = str(tmpdir_factory.mktemp('data').join('fwp_obs.h5'))
     dset = make_fake_dset(
-        shape=(100, 100, 8),
+        shape=(100, 100, 20),
         features=['u_10m', 'v_10m'],
     )
 
     mask = RANDOM_GENERATOR.choice(
-        [True, False], dset['u_10m'].shape[:-1], p=[0.9, 0.1]
+        [True, False], dset.latitude.values.shape, p=[0.95, 0.05]
     )
     lats = dset.latitude.values[~mask].flatten()
     lons = dset.longitude.values[~mask].flatten()
     flat_shape = (len(dset.time), len(lats))
-    u_10m = dset['u_10m'].values[~mask].reshape(flat_shape)
-    v_10m = dset['v_10m'].values[~mask].reshape(flat_shape)
+    u_10m = dset['u_10m'].values[:, ~mask].reshape(flat_shape)
+    v_10m = dset['v_10m'].values[:, ~mask].reshape(flat_shape)
 
     meta = pd.DataFrame({'latitude': lats, 'longitude': lons})
 
@@ -131,7 +132,7 @@ def test_fwp_with_obs(
 
     with tempfile.TemporaryDirectory() as td:
         exo_tmp = {
-            'u_10m': {
+            'u_10m_obs': {
                 'steps': [
                     {
                         'model': 0,
@@ -140,7 +141,7 @@ def test_fwp_with_obs(
                     }
                 ]
             },
-            'v_10m': {
+            'v_10m_obs': {
                 'steps': [
                     {
                         'model': 0,
@@ -155,21 +156,19 @@ def test_fwp_with_obs(
         model.save(model_dir)
 
         exo_handler_kwargs = {
-            'u_10m': {
+            'u_10m_obs': {
                 'file_paths': input_file,
                 'source_file': obs_file,
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
-                's_enhance': 2,
             },
-            'v_10m': {
+            'v_10m_obs': {
                 'file_paths': input_file,
                 'source_file': obs_file,
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
-                's_enhance': 2,
             },
         }
 

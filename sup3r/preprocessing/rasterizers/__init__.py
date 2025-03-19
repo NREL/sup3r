@@ -12,6 +12,7 @@ from .exo import (
     ExoRasterizer,
     ExoRasterizerH5,
     ExoRasterizerNC,
+    ObsRasterizer,
     SzaRasterizer,
 )
 from .extended import Rasterizer

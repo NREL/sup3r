@@ -126,8 +126,8 @@ def gen_config_with_concat_masked():
                 'activation': 'relu',
             },
             {'class': 'Cropping2D', 'cropping': 4},
-            {'class': 'Sup3rConcatObs', 'name': 'u_10m'},
-            {'class': 'Sup3rConcatObs', 'name': 'v_10m'},
+            {'class': 'Sup3rConcatObs', 'name': 'u_10m_obs'},
+            {'class': 'Sup3rConcatObs', 'name': 'v_10m_obs'},
             {
                 'class': 'FlexiblePadding',
                 'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
