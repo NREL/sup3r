@@ -131,11 +131,14 @@ class ForwardPassStrategy:
         Dictionary of args to pass to
         :class:`~sup3r.preprocessing.data_handlers.ExoDataHandler` for
         extracting exogenous features for foward passes. This should be
-        a nested dictionary with keys for each exogenous feature. The
-        dictionaries corresponding to the feature names should include the path
-        to exogenous data source and the files used for input to the forward
-        passes, at minimum. Can also provide a dictionary of
-        ``input_handler_kwargs`` used for the handler which opens the
+        a nested dictionary with keys for each exogenous feature. If the
+        exogenous feature is sparse observation data, which will be rasterized
+        with :class:`~sup3r.preprocessing.rasterizers.ObsRasterizer`, the
+        feature name should include a "_obs" suffix. The dictionaries
+        corresponding to the feature names should include the path to exogenous
+        data source and the files used for input to the forward passes, at
+        minimum. Can also provide a dictionary of ``input_handler_kwargs`` used
+        for the handler which opens the
         exogenous data. e.g.::
             {'topography': {
                 'source_file': ...,

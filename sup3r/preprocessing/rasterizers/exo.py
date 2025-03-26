@@ -491,18 +491,20 @@ class ExoRasterizer(BaseExoRasterizer, metaclass=Sup3rMeta):
     def __new__(cls, file_paths, source_file, feature, **kwargs):
         """Override parent class to return type specific class based on
         `source_file`"""
-        kwargs = {
-            'file_paths': file_paths,
-            'source_file': source_file,
-            'feature': feature,
-            **kwargs,
-        }
         if feature.lower() == 'sza':
             ExoClass = SzaRasterizer
         elif feature.lower().endswith('_obs'):
             ExoClass = ObsRasterizer
         else:
             ExoClass = cls.TypeSpecificClasses[get_source_type(source_file)]
+
+        kwargs = {
+            'file_paths': file_paths,
+            'source_file': source_file,
+            'feature': feature.replace('_obs', ''),
+            **kwargs,
+        }
+
         return ExoClass(**kwargs)
 
     _signature_objs = (BaseExoRasterizer,)
