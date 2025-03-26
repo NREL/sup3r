@@ -147,6 +147,92 @@ def gen_config_with_concat_masked():
 
 
 @pytest.fixture(scope='package')
+def gen_config_with_concat_masked_weighted():
+    """Get generator config with custom concat masked (and weighted) layer."""
+
+    def func():
+        return [
+            {
+                'class': 'FlexiblePadding',
+                'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
+                'mode': 'REFLECT',
+            },
+            {
+                'class': 'Conv2DTranspose',
+                'filters': 2,
+                'kernel_size': 3,
+                'strides': 1,
+                'activation': 'relu',
+            },
+            {'class': 'Cropping2D', 'cropping': 4},
+            {
+                'class': 'FlexiblePadding',
+                'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
+                'mode': 'REFLECT',
+            },
+            {
+                'class': 'Conv2DTranspose',
+                'filters': 64,
+                'kernel_size': 3,
+                'strides': 1,
+                'activation': 'relu',
+            },
+            {'class': 'Cropping2D', 'cropping': 4},
+            {
+                'class': 'FlexiblePadding',
+                'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
+                'mode': 'REFLECT',
+            },
+            {
+                'class': 'Conv2DTranspose',
+                'filters': 64,
+                'kernel_size': 3,
+                'strides': 1,
+                'activation': 'relu',
+            },
+            {'class': 'Cropping2D', 'cropping': 4},
+            {'class': 'SpatialExpansion', 'spatial_mult': 2},
+            {'class': 'Activation', 'activation': 'relu'},
+            {
+                'class': 'FlexiblePadding',
+                'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
+                'mode': 'REFLECT',
+            },
+            {
+                'class': 'Conv2DTranspose',
+                'filters': 2,
+                'kernel_size': 3,
+                'strides': 1,
+                'activation': 'relu',
+            },
+            {'class': 'Cropping2D', 'cropping': 4},
+            {
+                'class': 'Sup3rConcatWeightedObsWithEmbedding',
+                'name': 'u_10m_obs',
+            },
+            {
+                'class': 'Sup3rConcatWeightedObsWithEmbedding',
+                'name': 'v_10m_obs',
+            },
+            {
+                'class': 'FlexiblePadding',
+                'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
+                'mode': 'REFLECT',
+            },
+            {
+                'class': 'Conv2DTranspose',
+                'filters': 2,
+                'kernel_size': 3,
+                'strides': 1,
+                'activation': 'relu',
+            },
+            {'class': 'Cropping2D', 'cropping': 4},
+        ]
+
+    return func
+
+
+@pytest.fixture(scope='package')
 def gen_config_with_topo():
     """Get generator config with custom topo layer."""
 

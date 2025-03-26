@@ -19,6 +19,8 @@ from phygnn.layers.custom_layers import (
     Sup3rAdder,
     Sup3rConcat,
     Sup3rConcatObs,
+    Sup3rConcatWeightedObs,
+    Sup3rConcatWeightedObsWithEmbedding,
 )
 from rex.utilities.utilities import safe_json_load
 from tensorflow.keras import optimizers
@@ -37,7 +39,9 @@ logger = logging.getLogger(__name__)
 SUP3R_LAYERS = (
     Sup3rAdder,
     Sup3rConcat,
-    Sup3rConcatObs
+    Sup3rConcatObs,
+    Sup3rConcatWeightedObs,
+    Sup3rConcatWeightedObsWithEmbedding,
 )
 
 
@@ -1048,7 +1052,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
                     hr_exo = self._reshape_norm_exo(
                         hi_res,
                         hr_exo,
-                        layer.name,
+                        layer.name.replace('_obs', ''),
                         norm_in=norm_in,
                     )
                     hi_res = layer(hi_res, hr_exo)
@@ -1104,9 +1108,8 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
                         f'layer.name = {layer.name} does not match any '
                         f'features in exogenous_data ({list(hi_res_exo)})'
                     )
-                    hr_feat = layer.name.replace('_obs', '')
                     assert layer.name in hi_res_exo, msg
-                    hr_exo = hi_res_exo[hr_feat]
+                    hr_exo = hi_res_exo[layer.name]
                     hi_res = layer(hi_res, hr_exo)
 
                 else:

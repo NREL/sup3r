@@ -10,13 +10,26 @@ from warnings import warn
 
 import numpy as np
 from phygnn import CustomNetwork
-from phygnn.layers.custom_layers import Sup3rAdder, Sup3rConcat
+from phygnn.layers.custom_layers import (
+    Sup3rAdder,
+    Sup3rConcat,
+    Sup3rConcatObs,
+    Sup3rConcatWeightedObs,
+    Sup3rConcatWeightedObsWithEmbedding,
+)
 
 from sup3r.preprocessing.data_handlers import ExoData
 from sup3r.utilities import VERSION_RECORD
 from sup3r.utilities.utilities import safe_cast
 
 logger = logging.getLogger(__name__)
+
+
+SUP3R_OBS_LAYERS = (
+    Sup3rConcatObs,
+    Sup3rConcatWeightedObs,
+    Sup3rConcatWeightedObsWithEmbedding,
+)
 
 
 class AbstractInterface(ABC):
@@ -390,6 +403,20 @@ class AbstractInterface(ABC):
                 for layer in self._gen.layers
                 if isinstance(layer, (Sup3rAdder, Sup3rConcat))
             ]
+        return features
+
+    @property
+    def obs_features(self):
+        """Get list of exogenous observation feature names the model uses.
+        These come from the names of the ``Sup3rObs..`` layers."""
+        # pylint: disable=E1101
+        features = []
+        if hasattr(self, '_gen'):
+            for layer in self._gen.layers:
+                check = isinstance(layer, SUP3R_OBS_LAYERS)
+                check = check and layer.name not in features
+                if check:
+                    features.append(layer.name)
         return features
 
     @property

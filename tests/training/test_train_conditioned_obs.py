@@ -1,5 +1,5 @@
-"""Test the training of super resolution GANs with exogenous observation data.
-"""
+"""Test the training of super resolution GANs with exogenous observation
+data."""
 
 import os
 import tempfile
@@ -19,9 +19,18 @@ FEATURES_W = ['u_10m', 'v_10m']
 TARGET_W = (39.01, -105.15)
 
 
-def test_fixed_wind_obs(gen_config_with_concat_masked):
+@pytest.mark.parametrize(
+    'gen_config',
+    [
+        'gen_config_with_concat_masked',
+        'gen_config_with_concat_masked_weighted',
+    ],
+)
+def test_fixed_wind_obs(gen_config, request):
     """Test a special model which fixes observations mid network with
     ``Sup3rConcatObs`` layer."""
+
+    gen_config = request.getfixturevalue(gen_config)()
     kwargs = {
         'file_paths': pytest.FP_WTK,
         'features': FEATURES_W,
@@ -45,16 +54,16 @@ def test_fixed_wind_obs(gen_config_with_concat_masked):
     Sup3rGanWithObs.seed()
 
     model = Sup3rGanWithObs(
-        gen_config_with_concat_masked(),
+        gen_config,
         pytest.S_FP_DISC,
-        obs_frac={'spatial': 0.1},
+        onshore_obs_frac={'spatial': 0.1},
         loss_obs_weight=0.1,
         learning_rate=1e-4,
     )
-    test_mask = model._get_obs_mask(np.zeros((1, 20, 20, 1, 1)))
+    test_mask = model.get_obs_mask(np.zeros((1, 20, 20, 1, 1)))
     frac = 1 - test_mask.sum() / test_mask.size
     assert np.abs(0.1 - frac) < test_mask.size / (2 * np.sqrt(test_mask.size))
-    assert model.obs_features == ['u_10m', 'v_10m']
+    assert model.obs_features == ['u_10m_obs', 'v_10m_obs']
     with tempfile.TemporaryDirectory() as td:
         model_kwargs = {
             'input_resolution': {'spatial': '16km', 'temporal': '3600min'},
@@ -82,16 +91,12 @@ def test_fixed_wind_obs(gen_config_with_concat_masked):
         y = model.generate(x, exogenous_data=None)
 
     exo_tmp = {
-        'u_10m': {
-            'steps': [
-                {'model': 0, 'combine_type': 'layer', 'data': u10m_obs}
-            ]
+        'u_10m_obs': {
+            'steps': [{'model': 0, 'combine_type': 'layer', 'data': u10m_obs}]
         },
-        'v_10m': {
-            'steps': [
-                {'model': 0, 'combine_type': 'layer', 'data': v10m_obs}
-            ]
-        }
+        'v_10m_obs': {
+            'steps': [{'model': 0, 'combine_type': 'layer', 'data': v10m_obs}]
+        },
     }
     y = model.generate(x, exogenous_data=exo_tmp)
 
