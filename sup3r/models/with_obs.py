@@ -4,7 +4,6 @@ import logging
 
 import numpy as np
 import tensorflow as tf
-from phygnn.layers.custom_layers import Sup3rConcatObs
 from tensorflow.keras.losses import MeanAbsoluteError
 
 from sup3r.utilities.utilities import RANDOM_GENERATOR
@@ -45,20 +44,6 @@ class Sup3rGanWithObs(Sup3rGan):
         self.obs_frac = {} if obs_frac is None else obs_frac
         self.loss_obs_weight = loss_obs_weight
         super().__init__(*args, **kwargs)
-
-    @property
-    def obs_features(self):
-        """Get list of exogenous observation feature names the model uses.
-        These come from the names of the ``Sup3rObs`` layers."""
-        # pylint: disable=E1101
-        features = []
-        if hasattr(self, '_gen'):
-            for layer in self._gen.layers:
-                check = isinstance(layer, Sup3rConcatObs)
-                check = check and layer.name not in features
-                if check:
-                    features.append(layer.name)
-        return features
 
     @tf.function
     def _get_loss_obs_comparison(self, hi_res_true, hi_res_gen, obs_mask):
@@ -105,45 +90,6 @@ class Sup3rGanWithObs(Sup3rGan):
             )
             obs_mask[sp_mask] = True
         return np.repeat(obs_mask[None, ...], hi_res.shape[0], axis=0)
-
-    def init_weights(self, lr_shape, hr_shape, device=None):
-        """Initialize the generator and discriminator weights with device
-        placement.
-
-        Parameters
-        ----------
-        lr_shape : tuple
-            Shape of one batch of low res input data for sup3r resolution. Note
-            that the batch size (axis=0) must be included, but the actual batch
-            size doesnt really matter.
-        hr_shape : tuple
-            Shape of one batch of high res input data for sup3r resolution.
-            Note that the batch size (axis=0) must be included, but the actual
-            batch size doesnt really matter.
-        device : str | None
-            Option to place model weights on a device. If None,
-            self.default_device will be used.
-        """
-
-        if not self.generator_weights:
-            if device is None:
-                device = self.default_device
-
-            logger.info(
-                'Initializing model weights on device "{}"'.format(device)
-            )
-            low_res = np.ones(lr_shape).astype(np.float32)
-            hi_res = np.ones(hr_shape).astype(np.float32)
-
-            hr_exo_shape = hr_shape[:-1] + (1,)
-            hr_exo = np.ones(hr_exo_shape).astype(np.float32)
-
-            with tf.device(device):
-                hr_exo_data = {}
-                for feature in self.hr_exo_features + self.obs_features:
-                    hr_exo_data[feature] = hr_exo
-                _ = self._tf_generate(low_res, hr_exo_data)
-                _ = self._tf_discriminate(hi_res)
 
     @property
     def model_params(self):
