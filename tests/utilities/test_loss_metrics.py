@@ -3,16 +3,18 @@
 import numpy as np
 import pytest
 import tensorflow as tf
+from tensorflow.keras.losses import MeanAbsoluteError
 
+from sup3r.models.abstract import AbstractSingleModel
 from sup3r.utilities.loss_metrics import (
     CoarseMseLoss,
     LowResLoss,
-    MaterialDerivativeOnlyLoss,
-    MmdMseLoss,
+    MaterialDerivativeLoss,
+    MmdLoss,
     SpatialExtremesLoss,
-    SpatiotemporalExtremesLoss,
-    StExtremesFftLoss,
+    SpatiotemporalFftLoss,
     TemporalExtremesLoss,
+    _derivative,
 )
 from sup3r.utilities.utilities import (
     RANDOM_GENERATOR,
@@ -32,10 +34,10 @@ def test_mmd_loss():
     # distributions differing by only a small peak should give small mse and
     # larger mmd
     mse_fun = tf.keras.losses.MeanSquaredError()
-    mmd_mse_fun = MmdMseLoss()
+    mmd_fun = MmdLoss()
 
     mse = mse_fun(x, y)
-    mmd_plus_mse = mmd_mse_fun(x, y)
+    mmd_plus_mse = (mmd_fun(x, y) + mse) / 2
 
     assert mmd_plus_mse > mse
 
@@ -46,7 +48,7 @@ def test_mmd_loss():
 
     # scaling the same distribution should give high mse and smaller mmd
     mse = mse_fun(5 * x, x)
-    mmd_plus_mse = mmd_mse_fun(5 * x, x)
+    mmd_plus_mse = (mmd_fun(5 * x, x) + mse) / 2
 
     assert mmd_plus_mse < mse
 
@@ -114,9 +116,14 @@ def test_spex_loss():
 def test_stex_loss():
     """Test custom SpatioTemporalExtremesLoss function that looks at min/max
     values in the timeseries."""
-    loss_obj = SpatiotemporalExtremesLoss(
-        spatial_weight=1, temporal_weight=1
-    )
+
+    def loss_obj(x, y):
+        loss = (
+            MeanAbsoluteError()(x, y)
+            + SpatialExtremesLoss()(x, y)
+            + TemporalExtremesLoss()(x, y)
+        )
+        return 1 / 3 * loss
 
     x = np.zeros((1, 10, 10, 5, 1))
     y = np.zeros((1, 10, 10, 5, 1))
@@ -138,9 +145,15 @@ def test_st_fft_loss():
     """Test custom StExtremesFftLoss function that looks at min/max
     values in the timeseries and also encourages accuracy of the frequency
     spectrum"""
-    loss_obj = StExtremesFftLoss(
-        spatial_weight=1.0, temporal_weight=1.0, fft_weight=1.0
-    )
+
+    def loss_obj(x, y):
+        loss = (
+            SpatiotemporalFftLoss()(x, y)
+            + SpatialExtremesLoss()(x, y)
+            + TemporalExtremesLoss()(x, y)
+            + MeanAbsoluteError()(x, y)
+        )
+        return 1 / 4 * loss
 
     x = np.zeros((1, 10, 10, 5, 1))
     y = np.zeros((1, 10, 10, 5, 1))
@@ -149,13 +162,13 @@ def test_st_fft_loss():
     x[:, 5, 5, 2, 0] = 100
     y[:, 5, 5, 2, 0] = 150
     loss = loss_obj(x, y)
-    assert loss.numpy() > 1.5
+    assert loss.numpy() > 1.0
 
     # loss should be dominated by special min/max values
     x[:, 5, 5, 2, 0] = -100
     y[:, 5, 5, 2, 0] = -150
     loss = loss_obj(x, y)
-    assert loss.numpy() > 1.5
+    assert loss.numpy() > 1.0
 
 
 def test_lr_loss():
@@ -241,7 +254,7 @@ def test_lr_loss():
         t_enhance=1,
         t_method=t_meth,
         tf_loss='MeanSquaredError',
-        ex_loss='SpatialExtremesOnlyLoss',
+        ex_loss='SpatialExtremesLoss',
     )
     ex_loss = loss_obj(xtensor, ytensor)
     assert ex_loss > loss
@@ -254,7 +267,7 @@ def test_md_loss():
     x = RANDOM_GENERATOR.random((6, 10, 10, 8, 3))
     y = x.copy()
 
-    md_loss = MaterialDerivativeOnlyLoss()
+    md_loss = MaterialDerivativeLoss()
     u_div = md_loss._compute_md(x, fidx=0)
     v_div = md_loss._compute_md(x, fidx=1)
 
@@ -267,10 +280,30 @@ def test_md_loss():
     v_div_np += y[..., 1] * np.gradient(y[..., 1], axis=2)
 
     with pytest.raises(ValueError):
-        md_loss._derivative(x, axis=0)
+        _derivative(x, axis=0)
 
     with pytest.raises(AssertionError):
         md_loss(x[..., 0], y[..., 0])
 
     assert np.allclose(u_div, u_div_np)
     assert np.allclose(v_div, v_div_np)
+
+
+def test_multiterm_loss():
+    """Test multi-term loss functionality."""
+
+    x = RANDOM_GENERATOR.random((6, 10, 10, 8, 3))
+    y = x.copy()
+
+    md_loss = MaterialDerivativeLoss()
+    mae_loss = MeanAbsoluteError()
+    multi_loss = AbstractSingleModel.get_loss_fun(
+        {
+            'MaterialDerivativeLoss': {},
+            'MeanAbsoluteError': {},
+            'term_weights': [0.2, 0.8],
+        }
+    )
+    loss, _ = multi_loss(x, y)
+
+    assert np.allclose(0.2 * md_loss(x, y) + 0.8 * mae_loss(x, y), loss)

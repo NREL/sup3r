@@ -276,9 +276,11 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
             logger.error(msg)
             raise RuntimeError(msg)
 
-        loss = self.calc_loss_cond_mom(output_true, output_gen, mask)
+        loss, loss_details = self.calc_loss_cond_mom(
+            output_true, output_gen, mask
+        )
 
-        loss_details = {'loss_gen': loss}
+        loss_details.update({'loss_gen': loss})
 
         return loss, loss_details
 
@@ -297,7 +299,7 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
         """
         logger.debug('Starting end-of-epoch validation loss calculation...')
         for val_batch in batch_handler.val_data:
-            val_exo_data = self.get_high_res_exo_input(val_batch.high_res)
+            val_exo_data = self.get_hr_exo_input(val_batch.high_res)
             output_gen = self._tf_generate(val_batch.low_res, val_exo_data)
             _, v_loss_details = self.calc_loss(
                 val_batch.output, output_gen, val_batch.mask

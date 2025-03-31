@@ -3,6 +3,7 @@
 import json
 import logging
 import random
+import re
 import string
 import time
 
@@ -370,3 +371,10 @@ def pd_date_range(*args, **kwargs):
             kwargs['closed'] = None
 
     return pd.date_range(*args, **kwargs)
+
+
+def camel_to_underscore(name):
+    """Converts a camel case string to underscore (snake case)."""
+    name = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+    name = re.sub('([a-z0-9])([A-Z])', r'\1_\2', name).lower()
+    return name
