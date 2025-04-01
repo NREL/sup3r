@@ -399,7 +399,7 @@ class EraDownloader:
 
             # if trailing dimensions don't match this is for an ensemble
             # download
-            dims = {k: ds.dims[k] for k in ordered_dims(ds.dims)}
+            dims = {k: ds.sizes[k] for k in ordered_dims(ds.dims)}
             arr_shape = list(dims.values())
             if len(pres) != arr_shape[-1]:
                 pres = np.repeat(pres[..., None], arr_shape[-1], axis=-1)
