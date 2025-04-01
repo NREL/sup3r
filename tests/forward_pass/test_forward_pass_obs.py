@@ -120,7 +120,7 @@ def test_fwp_with_obs(
     model = Sup3rGanWithObs(
         gen_config_with_concat_masked(),
         pytest.S_FP_DISC,
-        obs_frac={'spatial': 0.1},
+        onshore_obs_frac={'spatial': 0.1},
         loss_obs_weight=0.1,
         learning_rate=1e-4,
     )
@@ -151,7 +151,10 @@ def test_fwp_with_obs(
                 ]
             },
         }
-        _ = model.generate(np.ones((6, 10, 10, 2)), exogenous_data=exo_tmp)
+        _ = model.generate(
+            np.ones((6, 10, 10, 2)),
+            exogenous_data=exo_tmp
+        )
         model_dir = os.path.join(td, 'test')
         model.save(model_dir)
 

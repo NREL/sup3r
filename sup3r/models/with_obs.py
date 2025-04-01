@@ -66,20 +66,13 @@ class Sup3rGanWithObs(Sup3rGan):
     def _get_loss_obs_comparison(self, hi_res_true, hi_res_gen, obs_mask):
         """Get loss for observation locations and for non observation
         locations."""
-
-        hr_true = [
-            hi_res_true[..., self.hr_out_features.index(f.replace('_obs', ''))]
-            for f in self.obs_features
-        ]
-        hr_true = tf.stack(hr_true, axis=-1)
-        hr_gen = [
-            hi_res_gen[..., self.hr_out_features.index(f.replace('_obs', ''))]
-            for f in self.obs_features
-        ]
-        hr_gen = tf.stack(hr_gen, axis=-1)
-
-        loss_obs = MeanAbsoluteError()(hr_true[~obs_mask], hr_gen[~obs_mask])
-        loss_non_obs = MeanAbsoluteError()(hr_true[obs_mask], hr_gen[obs_mask])
+        hr_true = hi_res_true[..., : len(self.hr_out_features)]
+        loss_obs = MeanAbsoluteError()(
+            hr_true[~obs_mask], hi_res_gen[~obs_mask]
+        )
+        loss_non_obs = MeanAbsoluteError()(
+            hr_true[obs_mask], hi_res_gen[obs_mask]
+        )
         return loss_obs, loss_non_obs
 
     def _get_obs_mask(self, hi_res, spatial_frac, time_frac=None):
@@ -107,8 +100,9 @@ class Sup3rGanWithObs(Sup3rGan):
         for those locations. This is also divided between onshore and offshore
         regions"""
         on_sf = RANDOM_GENERATOR.uniform(
-            low=0, high=self.onshore_obs_frac['spatial']
+            low=-1e-6, high=self.onshore_obs_frac['spatial']
         )
+        on_sf = max(on_sf, 0)
         on_tf = self.onshore_obs_frac.get('time', None)
         off_tf = self.offshore_obs_frac.get('time', None)
         obs_mask = self._get_obs_mask(hi_res, on_sf, on_tf)

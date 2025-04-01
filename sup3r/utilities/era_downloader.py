@@ -30,7 +30,7 @@ from sup3r.preprocessing.names import (
     SFC_VARS,
     Dimension,
 )
-from sup3r.preprocessing.utilities import log_args
+from sup3r.preprocessing.utilities import log_args, ordered_dims
 
 # these are occasionally included in downloaded files, more often with cds-beta
 IGNORE_VARS = ('number', 'expver')
@@ -196,13 +196,11 @@ class EraDownloader:
         )
         if sfc_and_level_check:
             msg = (
-                'Both surface and pressure level variables were requested '
-                'without requesting "orog" and "zg". Adding these to the '
-                'download.'
+                f'Both surface and pressure level variables ({variables}) '
+                'were requested without requesting "orog" and "zg".'
             )
-            logger.info(msg)
-            self.sfc_file_variables.append('geopotential')
-            self.level_file_variables.append('geopotential')
+            logger.warning(msg)
+            warn(msg)
 
         else:
             if 'orog' in variables:
@@ -362,8 +360,13 @@ class EraDownloader:
         """Rename variables and convert geopotential to geopotential height."""
         tmp_file = self.get_tmp_file(self.surface_file)
         ds = Loader(self.surface_file)
-        logger.info('Converting "z" var to "orog" for %s', self.surface_file)
-        ds = self.convert_z(ds, name='orog')
+
+        if 'z' in ds.data_vars:
+            logger.info(
+                'Converting "z" var to "orog" for %s', self.surface_file
+            )
+            ds = self.convert_z(ds, name='orog')
+
         ds = standardize_names(ds, ERA_NAME_MAP)
         ds = standardize_values(ds)
 
@@ -396,11 +399,13 @@ class EraDownloader:
 
             # if trailing dimensions don't match this is for an ensemble
             # download
-            if len(pres) != ds['zg'].shape[-1]:
-                pres = np.repeat(pres[..., None], ds['zg'].shape[-1], axis=-1)
+            dims = {k: ds.dims[k] for k in ordered_dims(ds.dims)}
+            arr_shape = list(dims.values())
+            if len(pres) != arr_shape[-1]:
+                pres = np.repeat(pres[..., None], arr_shape[-1], axis=-1)
             ds['pressure'] = (
-                ds['zg'].dims,
-                da.broadcast_to(pres, ds['zg'].shape),
+                dims,
+                da.broadcast_to(pres, arr_shape),
             )
             ds['pressure'].attrs['units'] = 'Pa'
         return ds
@@ -430,8 +435,11 @@ class EraDownloader:
         """Convert geopotential to geopotential height."""
         tmp_file = self.get_tmp_file(self.level_file)
         ds = Loader(self.level_file)
-        logger.info('Converting "z" var to "zg" for %s', self.level_file)
-        ds = self.convert_z(ds, name='zg')
+
+        if 'z' in ds.data_vars:
+            logger.info('Converting "z" var to "zg" for %s', self.level_file)
+            ds = self.convert_z(ds, name='zg')
+
         ds = standardize_names(ds, ERA_NAME_MAP)
         ds = standardize_values(ds)
         ds = self.add_pressure(ds)

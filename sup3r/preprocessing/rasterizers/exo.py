@@ -429,7 +429,7 @@ class ObsRasterizer(BaseExoRasterizer):
         target_tmask = self.hr_time_index.isin(self.source_handler.time_index)
         source_tmask = self.source_handler.time_index.isin(self.hr_time_index)
         src_data = self.source_data.reshape((-1, self.source_data.shape[-1]))
-        out = np.full(self.hr_shape, np.nan)
+        out = np.full(self.hr_shape, np.nan, dtype=np.float32)
         out = out.reshape((-1, out.shape[-1]))
         gid_mask = self.nn != src_data.shape[0]
         src_data = src_data.vindex[self.nn[gid_mask]]

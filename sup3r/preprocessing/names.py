@@ -112,6 +112,7 @@ COORD_NAMES = {
     'isobaricInhPa': Dimension.PRESSURE_LEVEL,
     'pressure_level': Dimension.PRESSURE_LEVEL,
     'xtime': Dimension.TIME,
+    'time_index': Dimension.TIME,
     'valid_time': Dimension.TIME,
     'west_east': Dimension.LONGITUDE,
     'south_north': Dimension.LATITUDE
@@ -129,6 +130,7 @@ DIM_NAMES = {
     'isobaricInhPa': Dimension.PRESSURE_LEVEL,
     'pressure_level': Dimension.PRESSURE_LEVEL,
     'xtime': Dimension.TIME,
+    'time_index': Dimension.TIME,
     'valid_time': Dimension.TIME
 }
 
