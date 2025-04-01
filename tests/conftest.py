@@ -207,11 +207,11 @@ def gen_config_with_concat_masked_weighted():
             },
             {'class': 'Cropping2D', 'cropping': 4},
             {
-                'class': 'Sup3rConcatWeightedObsWithEmbedding',
+                'class': 'Sup3rConcatWeightedObs',
                 'name': 'u_10m_obs',
             },
             {
-                'class': 'Sup3rConcatWeightedObsWithEmbedding',
+                'class': 'Sup3rConcatWeightedObs',
                 'name': 'v_10m_obs',
             },
             {

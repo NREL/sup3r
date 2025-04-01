@@ -4,6 +4,8 @@ from typing import ClassVar
 
 import numpy as np
 import tensorflow as tf
+from tensorflow.keras.applications import VGG16
+from tensorflow.keras.applications.vgg16 import preprocess_input
 from tensorflow.keras.losses import MeanAbsoluteError, MeanSquaredError
 
 
@@ -640,3 +642,86 @@ class LowResLoss(tf.keras.losses.Loss):
             x2 = self._t_coarsen_sample(x2)
 
         return self._tf_loss(x1, x2) + ex_loss
+
+
+class PerceptualLoss(tf.keras.losses.Loss):
+    """Perceptual loss that is calculated as MSE between feature maps of
+    ground truth and synthetic data"""
+
+    def __init__(self, layer_names=None):
+        """
+        Parameters
+        ----------
+        layer_names : list | None
+            List of layer names in VGG16 to use to extract feature maps from
+            ground truth and synthetic data. Defaults to ['block1_conv2',
+            'block2_conv2']
+        """
+        super().__init__()
+        # VGG16 for perceptual loss
+        vgg = VGG16(weights='imagenet', include_top=False)
+        vgg.trainable = False
+        self.layer_names = layer_names
+        if self.layer_names is None:
+            self.layer_names = ['block1_conv2', 'block2_conv2']
+        vgg_outputs = [vgg.get_layer(name).output for name in self.layer_names]
+        self.feature_extractor = tf.keras.Model(
+            inputs=vgg.input, outputs=vgg_outputs
+        )
+
+    def _feature_loss(self, x1, x2):
+        """Calculate loss for a single feature. e.g. A single pair of tensors
+        each with only 3 channels"""
+        x1 = preprocess_input(x1)
+        x2 = preprocess_input(x2)
+        x1 = self.feature_extractor(x1)
+        x2 = self.feature_extractor(x2)
+        if len(self.layer_names) == 1:
+            x1 = [x1]
+            x2 = [x2]
+        loss = 0
+        for x1_f, x2_f in zip(x1, x2):
+            loss += tf.reduce_mean(tf.square(x1_f - x2_f))
+        return loss
+
+    def __call__(self, x1, x2):
+        """Perceptual loss calculated on true and synthetic feature maps
+
+        Parameters
+        ----------
+        x1 : tf.tensor
+            Synthetic high-res generator output, shape is either of these:
+            (n_obs, spatial_1, spatial_2, features)
+            (n_obs, spatial_1, spatial_2, temporal, features)
+        x2 : tf.tensor
+            True high resolution data, shape is either of these:
+            (n_obs, spatial_1, spatial_2, features)
+            (n_obs, spatial_1, spatial_2, temporal, features)
+
+        Returns
+        -------
+        tf.tensor
+            0D tensor loss value
+        """
+        if len(x1.shape) == 5:
+            new_shape = (
+                x1.shape[0] * x1.shape[3],
+                x1.shape[1],
+                x1.shape[2],
+                x1.shape[-1],
+            )
+            x1 = tf.reshape(x1, new_shape)
+            x2 = tf.reshape(x2, new_shape)
+
+        losses = []
+        for i in range(x1.shape[-1]):
+            x1_f = x1[..., i]
+            x2_f = x2[..., i]
+
+            # VGG input needs 3 RGB channels
+            x1_f = tf.stack([x1_f] * 3, axis=-1)
+            x2_f = tf.stack([x2_f] * 3, axis=-1)
+
+            losses.append(self._feature_loss(x1_f, x2_f))
+
+        return tf.reduce_mean(losses)
