@@ -830,6 +830,7 @@ class EraDownloader:
     @classmethod
     def _combine_files(cls, files, outfile, chunks='auto', res_kwargs=None):
         if not os.path.exists(outfile):
+            os.makedirs(os.path.dirname(outfile), exist_ok=True)
             logger.info(f'Combining {files} into {outfile}.')
             try:
                 res_kwargs = res_kwargs or {}

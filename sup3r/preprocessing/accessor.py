@@ -23,6 +23,7 @@ from sup3r.preprocessing.utilities import (
     ordered_dims,
     parse_keys,
 )
+from sup3r.utilities.utilities import nn_fill_array
 
 logger = logging.getLogger(__name__)
 
@@ -372,18 +373,16 @@ class Sup3rX:
                     )
                 self._ds[feat] = self._ds[feat].interpolate_na(**kwargs)
             else:
-                horiz = (
-                    self._ds[feat]
-                    .chunk({Dimension.WEST_EAST: -1})
-                    .interpolate_na(dim=Dimension.WEST_EAST, **kwargs)
+                msg = (
+                    'No dim given for interpolate_na. This will use nearest '
+                    'neighbor fill, which could take some time.'
                 )
-                vert = (
-                    self._ds[feat]
-                    .chunk({Dimension.SOUTH_NORTH: -1})
-                    .interpolate_na(dim=Dimension.SOUTH_NORTH, **kwargs)
+                logger.warning(msg)
+                warn(msg)
+                self._ds[feat] = (
+                    self._ds[feat].dims,
+                    nn_fill_array(self._ds[feat].values),
                 )
-                new_var = (self._ds[feat].dims, (horiz.data + vert.data) / 2)
-                self._ds[feat] = new_var
         return self
 
     @staticmethod

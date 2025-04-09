@@ -164,7 +164,8 @@ SFC_VARS = [
     'northward_turbulent_surface_stress',
     'eastward_turbulent_surface_stress',
     'sea_surface_temperature',
-    'instantaneous_10m_wind_gust'
+    'instantaneous_10m_wind_gust',
+    'skin_temperature'
 ]
 
 # variables available on multiple pressure levels
