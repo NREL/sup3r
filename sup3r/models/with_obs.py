@@ -33,15 +33,17 @@ class Sup3rGanWithObs(Sup3rGan):
         ----------
         args : list
             Positional args for ``Sup3rGan`` parent class.
-        onshore_obs_frac : dict
+        onshore_obs_frac : Dict[List] | Dict[float]
             Fraction of the batch that should be treated as onshore
             observations. Should include ``spatial`` key and optionally
             ``time`` key if this is a spatiotemporal model. The values should
             correspond roughly to the fraction of the production domain for
             which onshore observations are available (spatial) and the fraction
-            of the full time period that these cover. For each batch a spatial
-            frac will be selected by uniformly selecting from the range ``(0,
-            obs_frac['spatial'])``
+            of the full time period that these cover. The values can be either
+            a list (for a lower and upper bound, respectively) or a single
+            float. For each batch a spatial frac will be selected by either
+            sampling uniformly between this lower and upper bound or just
+            using a single float.
         offshore_obs_frac : dict
             Same as ``onshore_obs_frac`` but for offshore observations.
             Offshore observations are frequently sparser than onshore
@@ -99,10 +101,10 @@ class Sup3rGanWithObs(Sup3rGan):
         might be very sparse spatially but cover most of the full time period
         for those locations. This is also divided between onshore and offshore
         regions"""
-        on_sf = RANDOM_GENERATOR.uniform(
-            low=-1e-6, high=self.onshore_obs_frac['spatial']
-        )
-        on_sf = max(on_sf, 0)
+        on_sf = self.onshore_obs_frac['spatial']
+        if not isinstance(on_sf, (list, tuple)):
+            on_sf = [on_sf, on_sf]
+        on_sf = max(RANDOM_GENERATOR.uniform(*on_sf), 0)
         on_tf = self.onshore_obs_frac.get('time', None)
         off_tf = self.offshore_obs_frac.get('time', None)
         obs_mask = self._get_obs_mask(hi_res, on_sf, on_tf)
@@ -111,9 +113,10 @@ class Sup3rGanWithObs(Sup3rGan):
                 'topography'
             )
             topo = hi_res[..., topo_idx]
-            off_sf = RANDOM_GENERATOR.uniform(
-                low=0, high=self.offshore_obs_frac['spatial']
-            )
+            off_sf = self.offshore_obs_frac['spatial']
+            if not isinstance(off_sf, (list, tuple)):
+                off_sf = [off_sf, off_sf]
+            off_sf = max(RANDOM_GENERATOR.uniform(*off_sf), 0)
             offshore_mask = self._get_obs_mask(hi_res, off_sf, off_tf)
             obs_mask = tf.where(topo > 0, obs_mask, offshore_mask)
         return obs_mask
@@ -142,9 +145,8 @@ class Sup3rGanWithObs(Sup3rGan):
             # obs_features can include a _obs suffix to avoid name conflict
             # with fully gridded exo features
             f_idx = self.hr_out_features.index(feature.replace('_obs', ''))
-            exo_data[feature] = tf.where(
-                obs_mask, np.nan, hi_res_true[..., f_idx]
-            )[..., None]
+            tmp = tf.where(obs_mask, np.nan, hi_res_true[..., f_idx])
+            exo_data[feature] = tmp[..., None]
         exo_data['mask'] = obs_mask
         return exo_data
 
@@ -169,6 +171,8 @@ class Sup3rGanWithObs(Sup3rGan):
         loss_update = {
             'loss_obs': loss_obs,
             'loss_non_obs': loss_non_obs,
+            'obs_frac': np.sum(~hi_res_exo['mask'])
+            / np.size(hi_res_exo['mask']),
         }
         if self.loss_obs_weight is not None and calc_loss_kwargs['train_gen']:
             loss_obs *= self.loss_obs_weight

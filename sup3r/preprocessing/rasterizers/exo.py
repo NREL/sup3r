@@ -186,10 +186,9 @@ class BaseExoRasterizer(ABC):
 
     @property
     def source_lat_lon(self):
-        """Get the 2D array (n, 2) of lat, lon data from the source_file_h5"""
+        """Get the 2D array (n, 2) of lat, lon data from the source_file"""
         if self._source_lat_lon is None:
-            with Loader(self.source_file) as res:
-                self._source_lat_lon = res.lat_lon
+            self._source_lat_lon = self.source_handler.lat_lon.reshape((-1, 2))
         return self._source_lat_lon
 
     @property
@@ -248,7 +247,10 @@ class BaseExoRasterizer(ABC):
         if self.distance_upper_bound is None:
             diff = da.diff(self.hr_lat_lon, axis=0)
             diff = da.abs(da.median(diff, axis=0)).max()
-            self.distance_upper_bound = np.asarray(diff)
+
+            # divide by 2 - this should be distance to pixel edge rather than
+            # adjacent pixel center
+            self.distance_upper_bound = np.asarray(diff) / 2
             logger.info(
                 'Set distance upper bound to {:.4f}'.format(
                     self.distance_upper_bound
@@ -375,12 +377,6 @@ class ExoRasterizerNC(BaseExoRasterizer):
         """Get the 1D array of exogenous data from the source_file_nc"""
         return self.source_handler[self.feature].data.flatten()[..., None]
 
-    @property
-    def source_lat_lon(self):
-        """Get the 2D array (n, 2) of lat, lon data from the source_file"""
-        source_lat_lon = self.source_handler.lat_lon.reshape((-1, 2))
-        return source_lat_lon
-
 
 class ObsRasterizer(BaseExoRasterizer):
     """Rasterizer for sparse spatiotemporal observation data"""
@@ -403,24 +399,6 @@ class ObsRasterizer(BaseExoRasterizer):
         feat = self.feature.replace('_obs', '')
         return self.source_handler[feat].data
 
-    @property
-    def tree(self):
-        """Get the KDTree built on the target lat lon data from the file_paths
-        input with s_enhance"""
-        if self._tree is None:
-            self._tree = KDTree(self.source_lat_lon.reshape((-1, 2)))
-        return self._tree
-
-    @property
-    def nn(self):
-        """Get the nearest neighbor indices. This uses a single neighbor by
-        default"""
-        _, nn = self.tree.query(
-            self.hr_lat_lon.reshape((-1, 2)),
-            distance_upper_bound=self.get_distance_upper_bound(),
-        )
-        return nn
-
     def get_data(self):
         """Get a raster of source observation values corresponding to the
         high-resolution grid (the file_paths input grid * s_enhance *
@@ -431,10 +409,9 @@ class ObsRasterizer(BaseExoRasterizer):
         src_data = self.source_data.reshape((-1, self.source_data.shape[-1]))
         out = np.full(self.hr_shape, np.nan, dtype=np.float32)
         out = out.reshape((-1, out.shape[-1]))
-        gid_mask = self.nn != src_data.shape[0]
-        src_data = src_data.vindex[self.nn[gid_mask]]
-        mask = gid_mask[:, None] & target_tmask
-        out[mask] = src_data[:, source_tmask].flatten()
+        gid_mask = self.nn != out.shape[0]
+        src_data = src_data[gid_mask][:, source_tmask]
+        out[self.nn[gid_mask][:, None], target_tmask] = src_data
         hr_data = out.reshape(self.hr_shape)
         logger.info(
             'Found {} observations within {:4f} of high-resolution grid '
