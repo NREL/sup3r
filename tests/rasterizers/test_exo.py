@@ -11,12 +11,11 @@ from rex import Resource
 
 from sup3r.postprocessing import RexOutputs
 from sup3r.preprocessing import (
+    BaseExoRasterizer,
     Dimension,
     ExoData,
     ExoDataHandler,
     ExoRasterizer,
-    ExoRasterizerH5,
-    ExoRasterizerNC,
 )
 from sup3r.utilities.utilities import RANDOM_GENERATOR, xr_open_mfdataset
 
@@ -185,7 +184,7 @@ def test_srl_extraction_h5(s_enhance):
             'cache_dir': f'{td}/exo_cache/',
         }
 
-        te = ExoRasterizerH5(**kwargs)
+        te = BaseExoRasterizer(**kwargs)
 
         te_gen = ExoRasterizer(
             **{k: v for k, v in kwargs.items() if k != 'cache_dir'}
@@ -241,7 +240,7 @@ def test_topo_extraction_h5(s_enhance):
             'cache_dir': f'{td}/exo_cache/',
         }
 
-        te = ExoRasterizerH5(**kwargs)
+        te = BaseExoRasterizer(**kwargs)
 
         te_gen = ExoRasterizer(
             **{k: v for k, v in kwargs.items() if k != 'cache_dir'}
@@ -284,7 +283,7 @@ def test_bad_s_enhance(s_enhance=10):
         fp_exo_topo = make_topo_file(pytest.FP_WTK, td)
 
         with pytest.warns(UserWarning) as warnings:
-            te = ExoRasterizerH5(
+            te = BaseExoRasterizer(
                 pytest.FP_WTK,
                 fp_exo_topo,
                 feature='topography',
@@ -313,7 +312,7 @@ def test_topo_extraction_nc():
     just makes sure that the data can be rasterized from a WRF file.
     """
     with TemporaryDirectory() as td:
-        te = ExoRasterizerNC(
+        te = BaseExoRasterizer(
             pytest.FP_WRF,
             pytest.FP_WRF,
             feature='topography',

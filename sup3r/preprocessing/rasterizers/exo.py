@@ -8,7 +8,7 @@ import os
 import shutil
 from abc import ABC
 from dataclasses import dataclass
-from typing import ClassVar, Optional, Union
+from typing import Optional, Union
 from warnings import warn
 
 import dask.array as da
@@ -24,12 +24,12 @@ from sup3r.preprocessing.cachers import Cacher
 from sup3r.preprocessing.derivers.utilities import SolarZenith
 from sup3r.preprocessing.loaders import Loader
 from sup3r.preprocessing.names import Dimension
+from sup3r.preprocessing.utilities import compute_if_dask
 from sup3r.utilities.utilities import nn_fill_array
 
 from ..utilities import (
     get_class_kwargs,
     get_input_handler_class,
-    get_source_type,
     log_args,
 )
 
@@ -58,8 +58,7 @@ class BaseExoRasterizer(ABC):
         the file_paths input. Accordingly, source_file should be a
         significantly higher resolution than file_paths. Warnings will be
         raised if the low-resolution pixels in file_paths do not have unique
-        nearest pixels from source_file. File format can be .h5 for
-        ExoRasterizerH5 or .nc for ExoRasterizerNC
+        nearest pixels from source_file. File format can be .h5 or .nc
     feature : str
         Name of exogenous feature to rasterize.
     s_enhance : int
@@ -109,6 +108,7 @@ class BaseExoRasterizer(ABC):
     cache_dir: str = './exo_cache/'
     chunks: Optional[Union[str, dict]] = 'auto'
     distance_upper_bound: Optional[int] = None
+    fill_nans: bool = True
     max_workers: int = 1
     verbose: bool = False
 
@@ -129,11 +129,13 @@ class BaseExoRasterizer(ABC):
 
     @property
     def source_data(self):
-        """Get the array of exogenous data from the source_file_h5"""
+        """Get the array of exogenous data from the source_file"""
         if self._source_data is None:
             self._source_data = self.source_handler[self.feature].data
             if 'time' not in self.source_handler[self.feature].dims:
-                self._source_data = self._source_data.data[:, None]
+                self._source_data = self._source_data[..., None]
+            shape = (-1, self._source_data.shape[-1])
+            self._source_data = self.source_data.reshape(shape)
         return self._source_data
 
     @property
@@ -305,24 +307,21 @@ class BaseExoRasterizer(ABC):
     def get_data(self):
         """Get a raster of source values corresponding to the
         high-resolution grid (the file_paths input grid * s_enhance *
-        t_enhance). The shape is (lats, lons, 1)
+        t_enhance). The shape is (lats, lons, temporal)
         """
-        assert (
-            len(self.source_data.shape) == 2 and self.source_data.shape[1] == 1
-        )
+        assert len(self.source_data.shape) == 2
 
-        df = pd.DataFrame(
-            {self.feature: self.source_data.flatten(), 'gid_target': self.nn}
-        )
-        n_target = np.prod(self.hr_shape[:-1])
-        df = df[df['gid_target'] != n_target]
-        df = df.sort_values('gid_target')
-        df = df.groupby('gid_target').mean()
+        if self.source_data.shape[1] == 1:
+            hr_data = self._get_data_2d()
+            dims = Dimension.dims_2d()
 
-        missing = set(np.arange(n_target)) - set(df.index)
-        if any(missing):
+        else:
+            hr_data = self._get_data_3d()
+            dims = Dimension.dims_3d()
+
+        if np.isnan(hr_data).any() and self.fill_nans:
             msg = (
-                f'{len(missing)} target pixels did not have unique '
+                f'{np.isnan(hr_data).sum()} target pixels did not have unique '
                 f'high-resolution {self.feature} source data to map from. If '
                 'there are a lot of target pixels missing source data this '
                 'probably means the source data is not high enough '
@@ -330,13 +329,6 @@ class BaseExoRasterizer(ABC):
             )
             logger.warning(msg)
             warn(msg)
-            temp_df = pd.DataFrame(
-                {self.feature: np.nan}, index=sorted(missing)
-            )
-            df = pd.concat((df, temp_df)).sort_index()
-
-        hr_data = df[self.feature].values.reshape(self.hr_shape[:-1])
-        if np.isnan(hr_data).any():
             hr_data = nn_fill_array(hr_data)
 
         logger.info(
@@ -346,36 +338,57 @@ class BaseExoRasterizer(ABC):
         )
         data_vars = {
             self.feature: (
-                Dimension.dims_2d(),
+                dims,
                 da.asarray(hr_data, dtype=np.float32),
             )
         }
         ds = xr.Dataset(coords=self.coords, data_vars=data_vars)
         return Sup3rX(ds)
 
+    def _get_data_2d(self):
+        """Get a raster of source values corresponding to the
+        high-resolution grid (the file_paths input grid * s_enhance *
+        t_enhance). The shape is (lats, lons, 1)
+        """
+        assert (
+            len(self.source_data.shape) == 2 and self.source_data.shape[1] == 1
+        )
 
-class ExoRasterizerH5(BaseExoRasterizer):
-    """ExoRasterizer for H5 files"""
+        df = pd.DataFrame({
+            self.feature: self.source_data.flatten(),
+            'gid_target': self.nn,
+        })
+        n_target = np.prod(self.hr_shape[:-1])
+        df = df[df['gid_target'] != n_target]
+        df = df.sort_values('gid_target')
+        df = df.groupby('gid_target').mean()
 
-    @property
-    def source_data(self):
-        """Get the 1D array of exogenous data from the source_file_h5"""
-        if self._source_data is None:
-            self._source_data = self.source_handler[self.feature]
-            if 'time' not in self.source_handler[self.feature].dims:
-                self._source_data = self._source_data.data[:, None]
-            else:
-                self._source_data = self._source_data.data[..., slice(0, 1)]
-        return self._source_data
+        missing = set(np.arange(n_target)) - set(df.index)
+        if any(missing):
+            temp_df = pd.DataFrame(
+                {self.feature: np.nan}, index=sorted(missing)
+            )
+            df = pd.concat((df, temp_df)).sort_index()
 
+        return df[self.feature].values.reshape(self.hr_shape[:-1])
 
-class ExoRasterizerNC(BaseExoRasterizer):
-    """ExoRasterizer for netCDF files"""
+    def _get_data_3d(self):
+        """Get a raster of source observation values corresponding to the
+        high-resolution grid (the file_paths input grid * s_enhance *
+        t_enhance). The shape is (lats, lons, time)
+        """
+        assert (
+            len(self.source_data.shape) == 2 and self.source_data.shape[1] > 1
+        )
 
-    @property
-    def source_data(self):
-        """Get the 1D array of exogenous data from the source_file_nc"""
-        return self.source_handler[self.feature].data.flatten()[..., None]
+        target_tmask = self.hr_time_index.isin(self.source_handler.time_index)
+        source_tmask = self.source_handler.time_index.isin(self.hr_time_index)
+        out = np.full(self.hr_shape, np.nan, dtype=np.float32)
+        out = out.reshape((-1, out.shape[-1]))
+        gid_mask = self.nn != out.shape[0]
+        src_data = self.source_data[gid_mask][:, source_tmask]
+        out[self.nn[gid_mask][:, None], target_tmask] = src_data
+        return out.reshape(self.hr_shape)
 
 
 class ObsRasterizer(BaseExoRasterizer):
@@ -395,47 +408,33 @@ class ObsRasterizer(BaseExoRasterizer):
 
     @property
     def source_data(self):
-        """Get the 1D array of exogenous data from the source_file_nc"""
+        """Get the flattened observation data from the source_file"""
         feat = self.feature.replace('_obs', '')
-        return self.source_handler[feat].data
+        src = self.source_handler[feat].data
+        src = src.reshape((-1, src.shape[-1]))
+        return src
 
-    def get_data(self):
+    def _get_data_3d(self):
         """Get a raster of source observation values corresponding to the
         high-resolution grid (the file_paths input grid * s_enhance *
-        t_enhance). The shape is (lats, lons, time, 1)
+        t_enhance). The shape is (lats, lons, time)
         """
-        target_tmask = self.hr_time_index.isin(self.source_handler.time_index)
-        source_tmask = self.source_handler.time_index.isin(self.hr_time_index)
-        src_data = self.source_data.reshape((-1, self.source_data.shape[-1]))
-        out = np.full(self.hr_shape, np.nan, dtype=np.float32)
-        out = out.reshape((-1, out.shape[-1]))
-        gid_mask = self.nn != out.shape[0]
-        src_data = src_data[gid_mask][:, source_tmask]
-        out[self.nn[gid_mask][:, None], target_tmask] = src_data
-        hr_data = out.reshape(self.hr_shape)
+        hr_data = super()._get_data_3d()
+        gid_mask = self.nn != np.prod(self.hr_shape[:-1])
         logger.info(
-            'Found {} observations within {:4f} of high-resolution grid '
-            'points.'.format(gid_mask.sum(), self.distance_upper_bound)
-        )
-        logger.info(
-            'Finished mapping raster from %s for "%s"',
-            self.source_file,
-            self.feature,
+            'Found {} of {} observations within {:4f} degrees of high-'
+            'resolution grid points.'.format(
+                gid_mask.sum(), len(gid_mask), self.distance_upper_bound
+            )
         )
         cover_frac = (~np.isnan(hr_data)).sum() / hr_data.size
         logger.info(
-            'Observations cover {:.4f} of the high-res domain.'.format(
-                cover_frac
+            'Observations cover {:.4e} of the high-res domain.'.format(
+                compute_if_dask(cover_frac)
             )
         )
-        data_vars = {
-            self.feature: (
-                Dimension.dims_3d(),
-                da.asarray(hr_data, dtype=np.float32),
-            )
-        }
-        ds = xr.Dataset(coords=self.coords, data_vars=data_vars)
-        return Sup3rX(ds)
+        self.fill_nans = False  # override parent attribute to not fill nans
+        return hr_data
 
 
 class SzaRasterizer(BaseExoRasterizer):
@@ -460,11 +459,6 @@ class SzaRasterizer(BaseExoRasterizer):
 class ExoRasterizer(BaseExoRasterizer, metaclass=Sup3rMeta):
     """Type agnostic `ExoRasterizer` class."""
 
-    TypeSpecificClasses: ClassVar = {
-        'nc': ExoRasterizerNC,
-        'h5': ExoRasterizerH5,
-    }
-
     def __new__(cls, file_paths, source_file, feature, **kwargs):
         """Override parent class to return type specific class based on
         `source_file`"""
@@ -473,7 +467,7 @@ class ExoRasterizer(BaseExoRasterizer, metaclass=Sup3rMeta):
         elif feature.lower().endswith('_obs'):
             ExoClass = ObsRasterizer
         else:
-            ExoClass = cls.TypeSpecificClasses[get_source_type(source_file)]
+            ExoClass = BaseExoRasterizer
 
         kwargs = {
             'file_paths': file_paths,

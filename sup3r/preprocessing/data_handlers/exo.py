@@ -6,6 +6,7 @@ import logging
 import pathlib
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional, Union
+from warnings import warn
 
 import numpy as np
 
@@ -82,8 +83,29 @@ class ExoData(dict):
             Each array in in 'data' key has 3D or 4D shape:
             (spatial_1, spatial_2, 1)
             (spatial_1, spatial_2, n_temporal, 1)
+
+            If the 'combine_type' key is missing it is assumed to be 'layer',
+            and if the 'steps' key is missing it is assumed to be a single
+            step and will be converted to a list
         """  # noqa : D301
         if isinstance(steps, dict):
+            for feat, entry in steps.items():
+                msg = (f'ExoData entry for {feat} has no "steps" key. '
+                       'Assuming this is for a single step.')
+                if 'steps' not in entry:
+                    logger.warning(msg)
+                    warn(msg)
+                steps_list = entry.get('steps', [entry])
+                for i, step in enumerate(steps_list):
+                    msg = (f'ExoData entry for {feat}, step #{i+1} has no '
+                           '"combine_type" key. Assuming this is for a '
+                           'layer combination.')
+                    if 'combine_type' not in step:
+                        logger.warning(msg)
+                        warn(msg)
+                    step['combine_type'] = step.get('combine_type', 'layer')
+                    steps_list[i] = step
+                steps[feat] = {'steps': steps_list}
             self.update(steps)
 
         else:
@@ -204,7 +226,7 @@ class ExoData(dict):
         combine_types = [step['combine_type'] for step in tmp['steps']]
         msg = (
             'Received exogenous_data without any combine_type '
-            f'= "{combine_type}" steps'
+            f'= "{combine_type}" steps.'
         )
         assert combine_type in combine_types, msg
         return tmp['steps'][combine_types.index(combine_type)]['data']
