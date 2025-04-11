@@ -429,7 +429,13 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
                 hr_exo_data = {}
                 for feature in self.hr_exo_features + self.obs_features:
                     hr_exo_data[feature] = hr_exo
-                _ = self._tf_generate(low_res, hr_exo_data)
+                out = self._tf_generate(low_res, hr_exo_data)
+                msg = (
+                    f'Number of model outputs {out.shape[-1]} does not '
+                    'match the number of computed hr_out_features '
+                    f'{len(self.hr_out_features)}'
+                )
+                assert out.shape[-1] == len(self.hr_out_features), msg
                 _ = self._tf_discriminate(hi_res)
 
     @staticmethod
