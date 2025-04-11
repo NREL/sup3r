@@ -58,7 +58,7 @@ def xr_open_mfdataset(files, **kwargs):
     out = xr.open_mfdataset(
         files, preprocess=preprocess_datasets, **default_kwargs
     )
-    bad_dims = len(out['latitude'].dims) == 2 and (
+    bad_dims = 'latitude' in out and len(out['latitude'].dims) == 2 and (
         out['latitude'].dims != out['longitude'].dims
     )
     if bad_dims:
