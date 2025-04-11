@@ -164,7 +164,8 @@ class BaseExoRasterizer(ABC):
         fn += f'{"_".join(map(str, self.input_handler.target))}_'
         fn += f'{"x".join(map(str, self.input_handler.grid_shape))}_'
 
-        if len(self.source_data.shape) == 3:
+        # add the time index to the filename if data is time dependent
+        if self.source_data.shape[-1] > 1:
             start = str(self.hr_time_index[0])
             start = start.replace(':', '').replace('-', '').replace(' ', '')
             end = str(self.hr_time_index[-1])
@@ -184,6 +185,8 @@ class BaseExoRasterizer(ABC):
             coord: (Dimension.dims_2d(), self.hr_lat_lon[..., i])
             for i, coord in enumerate(Dimension.coords_2d())
         }
+        if self.source_data.shape[1] > 1:
+            coords['time'] = self.hr_time_index
         return coords
 
     @property
@@ -332,23 +335,18 @@ class BaseExoRasterizer(ABC):
             hr_data = nn_fill_array(hr_data)
 
         logger.info(
-            'Finished mapping raster from %s for "%s"',
-            self.source_file,
-            self.feature,
+            f'Finished mapping raster from {self.source_file} for '
+            f'"{self.feature}"',
         )
-        data_vars = {
-            self.feature: (
-                dims,
-                da.asarray(hr_data, dtype=np.float32),
-            )
-        }
-        ds = xr.Dataset(coords=self.coords, data_vars=data_vars)
-        return Sup3rX(ds)
+        data_vars = (dims, da.asarray(hr_data, dtype=np.float32))
+        data_vars = {self.feature: data_vars}
+        return Sup3rX(xr.Dataset(coords=self.coords, data_vars=data_vars))
 
     def _get_data_2d(self):
         """Get a raster of source values corresponding to the
         high-resolution grid (the file_paths input grid * s_enhance *
-        t_enhance). The shape is (lats, lons, 1)
+        t_enhance). This is used for time independent exogenous data
+        like topography. The shape is (lats, lons, 1)
         """
         assert (
             len(self.source_data.shape) == 2 and self.source_data.shape[1] == 1
@@ -373,9 +371,10 @@ class BaseExoRasterizer(ABC):
         return df[self.feature].values.reshape(self.hr_shape[:-1])
 
     def _get_data_3d(self):
-        """Get a raster of source observation values corresponding to the
-        high-resolution grid (the file_paths input grid * s_enhance *
-        t_enhance). The shape is (lats, lons, time)
+        """Get a raster of source values for spatiotemporal exogeneous
+        data corresponding to the high-resolution grid (the file_paths input
+        grid * s_enhance * t_enhance) and high-resolution time index.
+        The shape is (lats, lons, time)
         """
         assert (
             len(self.source_data.shape) == 2 and self.source_data.shape[1] > 1
@@ -409,10 +408,11 @@ class ObsRasterizer(BaseExoRasterizer):
     @property
     def source_data(self):
         """Get the flattened observation data from the source_file"""
-        feat = self.feature.replace('_obs', '')
-        src = self.source_handler[feat].data
-        src = src.reshape((-1, src.shape[-1]))
-        return src
+        if self._source_data is None:
+            feat = self.feature.replace('_obs', '')
+            src = self.source_handler[feat].data
+            self._source_data = src.reshape((-1, src.shape[-1]))
+        return self._source_data
 
     def _get_data_3d(self):
         """Get a raster of source observation values corresponding to the
