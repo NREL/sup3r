@@ -562,9 +562,9 @@ class OutputHandler(OutputMixin):
         new_x = np.arange(0, 10, 10 / hr_x) + 5 / hr_x
 
         logger.debug('Running meshgrid.')
-        X, Y = np.meshgrid(x, y)
+        X, Y = np.meshgrid(x, y, copy=False)
         old = np.array([Y.flatten(), X.flatten()]).T
-        X, Y = np.meshgrid(new_x, new_y)
+        X, Y = np.meshgrid(new_x, new_y, copy=False)
         new = np.array([Y.flatten(), X.flatten()]).T
 
         logger.debug('Running griddata.')
