@@ -58,4 +58,9 @@ from .rasterizers import (
     Rasterizer,
     SzaRasterizer,
 )
-from .samplers import DualSampler, DualSamplerCC, Sampler, SamplerDC
+from .samplers import (
+    DualSampler,
+    DualSamplerCC,
+    Sampler,
+    SamplerDC,
+)

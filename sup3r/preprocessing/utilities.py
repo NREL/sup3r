@@ -228,6 +228,8 @@ def compute_if_dask(arr):
             compute_if_dask(arr.stop),
             compute_if_dask(arr.step),
         )
+    if isinstance(arr, (tuple, list)):
+        return type(arr)(compute_if_dask(a) for a in arr)
     return arr.compute() if hasattr(arr, 'compute') else arr
 
 
@@ -409,6 +411,7 @@ def parse_keys(
     order. If keys is empty then we just want to return the coordinate
     data, so features will be set to just the coordinate names."""
 
+    keys = list(keys) if isinstance(keys, set) else keys
     keys = keys if isinstance(keys, tuple) else (keys,)
     has_feats = is_type_of(keys[0], str)
 

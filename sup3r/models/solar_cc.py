@@ -206,10 +206,11 @@ class SolarCC(Sup3rGan):
 
         disc_out_true = tf.concat([disc_out_true], axis=0)
         disc_out_gen = tf.concat([disc_out_gen], axis=0)
-        loss_disc = self.calc_loss_disc(disc_out_true, disc_out_gen)
-
+        loss_disc = self.calc_loss_disc(
+            disc_out_true=disc_out_true, disc_out_gen=disc_out_gen)
         loss_gen_content /= len(sub_day_slices)
-        loss_gen_advers = self.calc_loss_gen_advers(disc_out_gen)
+        loss_gen_advers = self.calc_loss_disc(
+            disc_out_true=disc_out_gen, disc_out_gen=disc_out_true)
         loss_gen = loss_gen_content + weight_gen_advers * loss_gen_advers
 
         loss = None
