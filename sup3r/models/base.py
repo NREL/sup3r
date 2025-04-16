@@ -865,30 +865,26 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         disc_out_true = self._tf_discriminate(hi_res_true)
         disc_out_gen = self._tf_discriminate(hi_res_gen)
 
-        loss_gen_content, loss_gen_content_details = (
-            self.calc_loss_gen_content(hi_res_true, hi_res_gen)
-        )
-        loss_gen_advers = self.calc_loss_disc(
-            disc_out_true=disc_out_gen, disc_out_gen=disc_out_true
-        )
-        loss_gen = loss_gen_content + weight_gen_advers * loss_gen_advers
-        loss_disc = self.calc_loss_disc(
-            disc_out_true=disc_out_true, disc_out_gen=disc_out_gen
-        )
+        loss_details = {}
 
-        loss = None
         if train_gen:
-            loss = loss_gen
-        elif train_disc:
-            loss = loss_disc
+            loss_gen_content, loss_gen_content_details = (
+                self.calc_loss_gen_content(hi_res_true, hi_res_gen)
+            )
+            loss_gen_advers = self.calc_loss_disc(
+                disc_out_true=disc_out_gen, disc_out_gen=disc_out_true
+            )
+            loss = loss_gen_content + weight_gen_advers * loss_gen_advers
+            loss_details['loss_gen'] = loss
+            loss_details['loss_gen_content'] = loss_gen_content
+            loss_details['loss_gen_advers'] = loss_gen_advers
+            loss_details.update(loss_gen_content_details)
 
-        loss_details = {
-            'loss_gen': loss_gen,
-            'loss_gen_content': loss_gen_content,
-            'loss_gen_advers': loss_gen_advers,
-            'loss_disc': loss_disc,
-        }
-        loss_details.update(loss_gen_content_details)
+        elif train_disc:
+            loss = self.calc_loss_disc(
+                disc_out_true=disc_out_true, disc_out_gen=disc_out_gen
+            )
+            loss_details['loss_disc'] = loss
 
         return loss, loss_details
 

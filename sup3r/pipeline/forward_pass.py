@@ -387,7 +387,9 @@ class ForwardPass:
     def _constant_output_check(cls, out_data, allowed_const):
         """Check if forward pass output is constant. This can happen when the
         chunk going through the forward pass is too big. This is due to a
-        tensorflow padding bug, with the padding mode set to 'reflect'.
+        tensorflow padding bug, with the padding mode set to 'reflect'. With
+        the currently preferred tensorflow version (2.15.1) this results in
+        scrambled output rather than constant.
         https://github.com/tensorflow/tensorflow/issues/91027
 
         Parameters
