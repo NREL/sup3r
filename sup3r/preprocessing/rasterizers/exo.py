@@ -375,6 +375,11 @@ class BaseExoRasterizer(ABC):
         data corresponding to the high-resolution grid (the file_paths input
         grid * s_enhance * t_enhance) and high-resolution time index.
         The shape is (lats, lons, time)
+
+        TODO: This does not currently perform any aggregation of the source
+        data, it just uses the closest source data point to the target
+        point, within the distance bound, and uses exact matches for
+        time steps.
         """
         assert (
             len(self.source_data.shape) == 2 and self.source_data.shape[1] > 1

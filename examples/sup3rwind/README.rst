@@ -32,6 +32,8 @@ The process for running the Sup3rWind models is much the same as for `Sup3rCC <h
 #. If you're running on a slurm cluster, this will kick off a number of jobs that you can see with the ``squeue`` command. If you're running locally, your terminal should now be running the Sup3rWind models. The software will create a ``./logs/`` directory in which you can monitor the progress of your jobs.
 #. The ``sup3r-pipeline`` is designed to run several modules in serial, with each module running multiple chunks in parallel. Once the first module (forward-pass) finishes, you'll want to run ``python -m sup3r.cli -c config_pipeline.json pipeline`` again. This will clean up status files and kick off the next step in the pipeline (if the current step was successful).
 
+You can also checkout the `example notebook <https://github.com/NREL/sup3r/tree/main/examples/sup3rwind/running_sup3r_models.ipynb>`__ for how to run models without config files.
+
 Training from scratch
 ---------------------
 
