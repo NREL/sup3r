@@ -9,6 +9,7 @@ import numpy as np
 
 from sup3r.preprocessing.accessor import Sup3rX
 from sup3r.preprocessing.base import Sup3rDataset
+from sup3r.preprocessing.names import Dimension
 
 from .utilities import SolarZenith, invert_uv, transform_rotate_wind
 
@@ -391,6 +392,30 @@ class Sza(DerivedFeature):
         return sza.astype(np.float32)
 
 
+class Latitude(DerivedFeature):
+    """latitude feature with time dimension included."""
+
+    @classmethod
+    def compute(cls, data):
+        """Compute method for latitude."""
+        lat = data[Dimension.LATITUDE]
+        lat = lat.expand_dims(Dimension.TIME, axis=-1)
+        lat = np.repeat(lat, len(data.time_index), axis=-1)
+        return lat.astype(np.float32)
+
+
+class Longitude(DerivedFeature):
+    """longitude feature with time dimension included."""
+
+    @classmethod
+    def compute(cls, data):
+        """Compute method for longitude."""
+        lon = data[Dimension.LONGITUDE]
+        lon = lon.expand_dims(Dimension.TIME, axis=-1)
+        lon = np.repeat(lon, len(data.time_index), axis=-1)
+        return lon.astype(np.float32)
+
+
 RegistryBase = {
     'u_(.*)': UWind,
     'v_(.*)': VWind,
@@ -400,8 +425,8 @@ RegistryBase = {
     'cloud_mask': CloudMask,
     'clearsky_ratio': ClearSkyRatio,
     'sza': Sza,
-    'latitude_feature': 'latitude',
-    'longitude_feature': 'longitude',
+    'latitude_feature': Latitude,
+    'longitude_feature': Longitude,
 }
 
 RegistryH5WindCC = {
