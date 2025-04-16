@@ -821,6 +821,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         weight_gen_advers=0.001,
         train_gen=True,
         train_disc=False,
+        compute_disc=False,
     ):
         """Calculate the GAN loss function using generated and true high
         resolution data.
@@ -839,6 +840,11 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             True if generator is being trained, then loss=loss_gen
         train_disc : bool
             True if disc is being trained, then loss=loss_disc
+        compute_disc : bool
+            True if discriminator loss should be computed, even if not being
+            trained. Outside of generator pre-training this needs to be
+            tracked to determine if the discriminator is "too good" or "not
+            good enough"
 
         Returns
         -------
@@ -866,6 +872,12 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         disc_out_gen = self._tf_discriminate(hi_res_gen)
 
         loss_details = {}
+        loss = None
+
+        if compute_disc or train_disc:
+            loss_details['loss_disc'] = self.calc_loss_disc(
+                disc_out_true=disc_out_true, disc_out_gen=disc_out_gen
+            )
 
         if train_gen:
             loss_gen_content, loss_gen_content_details = (
@@ -881,10 +893,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             loss_details.update(loss_gen_content_details)
 
         elif train_disc:
-            loss = self.calc_loss_disc(
-                disc_out_true=disc_out_true, disc_out_gen=disc_out_gen
-            )
-            loss_details['loss_disc'] = loss
+            loss = loss_details['loss_disc']
 
         return loss, loss_details
 
@@ -909,11 +918,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             hi_res_exo = self.get_hr_exo_input(batch.high_res)
             hi_res_gen = self._tf_generate(batch.low_res, hi_res_exo)
             _, v_loss_details = self.calc_loss(
-                batch.high_res,
-                hi_res_gen,
-                weight_gen_advers=weight_gen_advers,
-                train_gen=False,
-                train_disc=False,
+                batch.high_res, hi_res_gen, weight_gen_advers=weight_gen_advers
             )
             self._val_record = self.update_loss_details(
                 self._val_record,
@@ -988,6 +993,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
                 optimizer=self.optimizer,
                 train_gen=True,
                 train_disc=False,
+                compute_disc=train_disc,
                 multi_gpu=multi_gpu,
             )
 
@@ -1008,7 +1014,9 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         b_loss_details['disc_train_frac'] = float(trained_disc)
         return b_loss_details
 
-    def _post_batch(self, ib, b_loss_details, loss_mean_window, n_batches):
+    def _post_batch(
+        self, ib, b_loss_details, loss_mean_window, n_batches, previous_means
+    ):
         """Update loss details after the current batch and write to log.
 
         Parameters
@@ -1021,12 +1029,19 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             Number of batches to use in the running loss means
         n_batches : int
             Number of batches in an epoch
+        previous_means : dict
+            Dictionary of previous loss means over the loss_mean_window
 
         Returns
         -------
         loss_means : dict
             Dictionary of running loss means
         """
+        # set default values for when either disc / gen is not trained for the
+        # last batch
+        for key, val in previous_means.items():
+            if key.startswith('train_'):
+                b_loss_details.setdefault(key.replace('train_', ''), val)
 
         self._train_record = self.update_loss_details(
             self._train_record,
@@ -1155,7 +1170,11 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             )
 
             loss_means = self._post_batch(
-                ib, b_loss_details, loss_mean_window, len(batch_handler)
+                ib,
+                b_loss_details,
+                loss_mean_window,
+                len(batch_handler),
+                loss_means,
             )
 
         self.total_batches += len(batch_handler)
