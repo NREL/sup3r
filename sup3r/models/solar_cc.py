@@ -210,7 +210,7 @@ class SolarCC(Sup3rGan):
         if train_gen:
             # sample only daylight hours for content loss
             ziter = zip(sub_day_slices, point_loss_slices, day_24h_slices)
-            for i, (tslice_sub, tslice_ploss, tslice_24h) in enumerate(ziter):
+            for tslice_sub, tslice_ploss, tslice_24h in ziter:
                 hr_true_sub = hi_res_true[:, :, :, tslice_sub, :]
                 hr_gen_24h = hi_res_gen[:, :, :, tslice_24h, :]
                 hr_true_ploss = hi_res_true[:, :, :, tslice_ploss, :]
