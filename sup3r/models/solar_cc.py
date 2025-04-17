@@ -97,6 +97,7 @@ class SolarCC(Sup3rGan):
         weight_gen_advers=0.001,
         train_gen=True,
         train_disc=False,
+        compute_disc=False,
     ):
         """Calculate the GAN loss function using generated and true high
         resolution data.
@@ -115,6 +116,11 @@ class SolarCC(Sup3rGan):
             True if generator is being trained, then loss=loss_gen
         train_disc : bool
             True if disc is being trained, then loss=loss_disc
+        compute_disc : bool
+            True if discriminator loss should be computed, even if not being
+            trained. Outside of generator pre-training this needs to be
+            tracked to determine if the discriminator is "too good" or "not
+            good enough"
 
         Returns
         -------
@@ -168,30 +174,9 @@ class SolarCC(Sup3rGan):
             for x in range(0, 24 * n_days, 24)
         ]
 
-        # sample only daylight hours for disc training and gen content loss
         disc_out_true = []
         disc_out_gen = []
         loss_gen_content = 0.0
-        ziter = zip(sub_day_slices, point_loss_slices, day_24h_slices)
-        for tslice_sub, tslice_ploss, tslice_24h in ziter:
-            hr_true_sub = hi_res_true[:, :, :, tslice_sub, :]
-            hr_gen_24h = hi_res_gen[:, :, :, tslice_24h, :]
-            hr_true_ploss = hi_res_true[:, :, :, tslice_ploss, :]
-            hr_gen_ploss = hi_res_gen[:, :, :, tslice_ploss, :]
-
-            hr_true_mean = tf.math.reduce_mean(hr_true_sub, axis=3)
-            hr_gen_mean = tf.math.reduce_mean(hr_gen_24h, axis=3)
-
-            gen_c_sub, gen_c_sub_details = self.calc_loss_gen_content(
-                hr_true_ploss, hr_gen_ploss
-            )
-            gen_c_24h, gen_c_24h_details = self.calc_loss_gen_content(
-                hr_true_mean, hr_gen_mean
-            )
-            loss_gen_content = gen_c_sub + gen_c_24h
-
-            disc_t = self._tf_discriminate(hr_true_sub)
-            disc_out_true.append(disc_t)
 
         # Randomly sample daylight windows from generated data. Better than
         # strided samples covering full day because the random samples will
@@ -204,32 +189,64 @@ class SolarCC(Sup3rGan):
             disc_g = self._tf_discriminate(hi_res_gen[:, :, :, t0:t1, :])
             disc_out_gen.append(disc_g)
 
+        # sample only daylight hours for disc training
+        ziter = zip(sub_day_slices, point_loss_slices, day_24h_slices)
+        for tslice_sub, _, _ in ziter:
+            hr_true_sub = hi_res_true[:, :, :, tslice_sub, :]
+            disc_t = self._tf_discriminate(hr_true_sub)
+            disc_out_true.append(disc_t)
+
         disc_out_true = tf.concat([disc_out_true], axis=0)
         disc_out_gen = tf.concat([disc_out_gen], axis=0)
-        loss_disc = self.calc_loss_disc(disc_out_true, disc_out_gen)
 
-        loss_gen_content /= len(sub_day_slices)
-        loss_gen_advers = self.calc_loss_gen_advers(disc_out_gen)
-        loss_gen = loss_gen_content + weight_gen_advers * loss_gen_advers
-
+        loss_details = {}
         loss = None
-        if train_gen:
-            loss = loss_gen
-        elif train_disc:
-            loss = loss_disc
 
-        loss_details = {
-            'loss_gen': loss_gen,
-            'loss_gen_content': loss_gen_content,
-            'loss_gen_advers': loss_gen_advers,
-            'loss_disc': loss_disc,
-        }
-        loss_details.update(
-            {f'c_sub_{k}': v for k, v in gen_c_sub_details.items()}
-        )
-        loss_details.update(
-            {f'c_24h_{k}': v for k, v in gen_c_24h_details.items()}
-        )
+        if compute_disc or train_disc:
+            loss_details['loss_disc'] = self.calc_loss_disc(
+                disc_out_true=disc_out_true, disc_out_gen=disc_out_gen
+            )
+
+        if train_gen:
+            # sample only daylight hours for content loss
+            ziter = zip(sub_day_slices, point_loss_slices, day_24h_slices)
+            for tslice_sub, tslice_ploss, tslice_24h in ziter:
+                hr_true_sub = hi_res_true[:, :, :, tslice_sub, :]
+                hr_gen_24h = hi_res_gen[:, :, :, tslice_24h, :]
+                hr_true_ploss = hi_res_true[:, :, :, tslice_ploss, :]
+                hr_gen_ploss = hi_res_gen[:, :, :, tslice_ploss, :]
+
+                hr_true_mean = tf.math.reduce_mean(hr_true_sub, axis=3)
+                hr_gen_mean = tf.math.reduce_mean(hr_gen_24h, axis=3)
+
+                gen_c_sub, gen_c_sub_details = self.calc_loss_gen_content(
+                    hr_true_ploss, hr_gen_ploss
+                )
+                gen_c_24h, gen_c_24h_details = self.calc_loss_gen_content(
+                    hr_true_mean, hr_gen_mean
+                )
+                loss_gen_content += (gen_c_sub + gen_c_24h) / len(
+                    sub_day_slices
+                )
+                for k, v in gen_c_sub_details.items():
+                    loss_details[f'c_sub_{k}'] = loss_details.get(
+                        f'c_sub_{k}', 0
+                    ) + v / len(sub_day_slices)
+                for k, v in gen_c_24h_details.items():
+                    loss_details[f'c_24h_{k}'] = loss_details.get(
+                        f'c_24h_{k}', 0
+                    ) + v / len(sub_day_slices)
+
+            loss_gen_advers = self.calc_loss_disc(
+                disc_out_true=disc_out_gen, disc_out_gen=disc_out_true
+            )
+            loss = loss_gen_content + weight_gen_advers * loss_gen_advers
+            loss_details['loss_gen'] = loss
+            loss_details['loss_gen_content'] = loss_gen_content
+            loss_details['loss_gen_advers'] = loss_gen_advers
+
+        elif train_disc:
+            loss = loss_details['loss_disc']
 
         return loss, loss_details
 
