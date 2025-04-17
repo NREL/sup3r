@@ -1041,7 +1041,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         n_batches : int
             Number of batches in an epoch
         previous_means : dict
-            Dictionary of previous loss means over the loss_mean_window
+            Dictionary of loss means over the last epoch
 
         Returns
         -------
@@ -1070,10 +1070,9 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         gen_loss = self._train_record['train_loss_gen'].values.mean()
 
         logger.debug(
-            'Batch {} out of {} has (gen / disc) loss of: '
-            '({:.2e} / {:.2e}). Running mean (gen / disc): '
-            '({:.2e} / {:.2e}). Trained (gen / disc): '
-            '({} / {})'.format(
+            'Batch {} out of {} has (gen / disc) loss of: ({:.2e} / {:.2e}). '
+            'Running mean (gen / disc): ({:.2e} / {:.2e}). Trained '
+            '(gen / disc): ({} / {})'.format(
                 ib + 1,
                 n_batches,
                 b_loss_details['loss_gen'],
@@ -1091,8 +1090,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             )
             logger.warning(msg)
             warn(msg)
-        loss_means = self._train_record.mean(axis=0)
-        return loss_means.to_dict()
+        return self._train_record.mean(axis=0).to_dict()
 
     def _train_epoch(
         self,
