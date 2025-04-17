@@ -982,7 +982,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
 
         trained_gen = False
         trained_disc = False
-        b_loss_details = {}
+        loss_details = {}
         if only_gen or (train_gen and not gen_too_good):
             trained_gen = True
             b_loss_details = self.timer(self.run_gradient_descent)(
@@ -996,6 +996,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
                 compute_disc=train_disc,
                 multi_gpu=multi_gpu,
             )
+            loss_details.update(b_loss_details)
 
         if only_disc or (train_disc and not disc_too_good):
             trained_disc = True
@@ -1009,10 +1010,11 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
                 train_disc=True,
                 multi_gpu=multi_gpu,
             )
+            loss_details.update(b_loss_details)
 
-        b_loss_details['gen_train_frac'] = float(trained_gen)
-        b_loss_details['disc_train_frac'] = float(trained_disc)
-        return b_loss_details
+        loss_details['gen_train_frac'] = float(trained_gen)
+        loss_details['disc_train_frac'] = float(trained_disc)
+        return loss_details
 
     def _post_batch(
         self, ib, b_loss_details, loss_mean_window, n_batches, previous_means
