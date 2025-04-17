@@ -58,11 +58,11 @@ class Interpolator:
         """Linearly interpolate between levels."""
         diff = da.map_blocks(lambda x, y: x - y, lev_samps[1], lev_samps[0])
         alpha = da.where(
-            diff == 0,
+            np.abs(diff < 1e-3),  # to avoid excessively large alpha values
             0,
             da.map_blocks(lambda x, y: x / y, (level - lev_samps[0]), diff),
         )
-        indices = 'ijk'[:lev_samps[0].ndim]
+        indices = 'ijk'[: lev_samps[0].ndim]
         return da.blockwise(
             lambda x, y, a: x * (1 - a) + y * a,
             indices,

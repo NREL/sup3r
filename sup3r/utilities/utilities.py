@@ -22,22 +22,26 @@ RANDOM_GENERATOR = np.random.default_rng(seed=42)
 def preprocess_datasets(dset):
     """Standardization preprocessing applied before datasets are concatenated
     by ``xr.open_mfdataset``"""
+    if 'latitude' in dset.dims:
+        dset = dset.swap_dims({'latitude': 'south_north'})
+    if 'longitude' in dset.dims:
+        dset = dset.swap_dims({'longitude': 'west_east'})
+    if 'valid_time' in dset:
+        dset = dset.rename({'valid_time': 'time'})
+    if 'isobaricInhPa' in dset:
+        dset = dset.rename({'isobaricInhPa': 'level'})
+    if 'orog' in dset:
+        dset = dset.rename({'orog': 'topography'})
     if 'time' in dset and dset.time.size > 1:
         if 'time' in dset.indexes and hasattr(
             dset.indexes['time'], 'to_datetimeindex'
         ):
             dset['time'] = dset.indexes['time'].to_datetimeindex()
-        ti = dset['time'].astype(int)
+        ti = dset['time'].astype('int64')
         dset['time'] = ti
-    if 'latitude' in dset.dims:
-        dset = dset.swap_dims({'latitude': 'south_north'})
-    if 'longitude' in dset.dims:
-        dset = dset.swap_dims({'longitude': 'west_east'})
-    # temporary to handle downloaded era files
-    if 'expver' in dset:
-        dset = dset.drop_vars('expver')
-    if 'number' in dset:
-        dset = dset.drop_vars('number')
+
+    # sometimes these are included in prelim ERA5 data
+    dset = dset.drop_vars(['expver', 'number'], errors='ignore')
     return dset
 
 
@@ -47,9 +51,15 @@ def xr_open_mfdataset(files, **kwargs):
     default_kwargs.update(kwargs)
     if isinstance(files, str):
         files = [files]
-    return xr.open_mfdataset(
+    out = xr.open_mfdataset(
         files, preprocess=preprocess_datasets, **default_kwargs
     )
+    bad_dims = 'latitude' in out and len(out['latitude'].dims) == 2 and (
+        out['latitude'].dims != out['longitude'].dims
+    )
+    if bad_dims:
+        out['longitude'] = (out['latitude'].dims, out['longitude'].values.T)
+    return out
 
 
 def safe_cast(o):
@@ -92,6 +102,8 @@ class Timer:
     @property
     def elapsed(self):
         """Elapsed time between start and stop."""
+        if self._stop is None:
+            return time.time() - self._start
         return self._stop - self._start
 
     @property

@@ -25,7 +25,7 @@ def test_time_independent_loading():
         out_file = os.path.join(td, 'topo.nc')
         nc = make_fake_dset((20, 20, 1), features=['topography'])
         nc = nc.isel(time=0)
-        nc = nc.drop(Dimension.TIME)
+        nc = nc.drop_vars(Dimension.TIME)
         assert Dimension.TIME not in nc.dims
         assert Dimension.TIME not in nc.coords
         nc.to_netcdf(out_file, format='NETCDF4', engine='h5netcdf')
