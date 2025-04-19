@@ -456,3 +456,9 @@ class Container(metaclass=Sup3rMeta):
         except Exception as e:
             msg = f'{self.__class__.__name__} object has no attribute "{attr}"'
             raise AttributeError(msg) from e
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        pass

@@ -507,7 +507,13 @@ class Sup3rX:
     def lat_lon(self) -> Union[np.ndarray, da.core.Array]:
         """Base lat lon for contained data."""
         coords = [self._ds[d] for d in Dimension.coords_2d()]
-        return self._stack_features(coords)
+        lat_lon = self._stack_features(coords)
+
+        # only one coordinate but this property is assumed to be a 2D array
+        if len(lat_lon.shape) == 1:
+            lat_lon = lat_lon.reshape((1, 1, 2))
+
+        return lat_lon
 
     @lat_lon.setter
     def lat_lon(self, lat_lon):
