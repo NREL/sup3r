@@ -477,7 +477,7 @@ class ExoRasterizer(BaseExoRasterizer, metaclass=Sup3rMeta):
         kwargs = {
             'file_paths': file_paths,
             'source_file': source_file,
-            'feature': feature.replace('_obs', ''),
+            'feature': feature,
             **kwargs,
         }
 

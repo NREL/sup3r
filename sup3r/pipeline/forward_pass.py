@@ -384,13 +384,13 @@ class ForwardPass:
         return cmd.replace('\\', '/')
 
     @classmethod
-    def _constant_output_check(cls, out_data, allowed_const):
-        """Check if forward pass output is constant. This can happen when the
-        chunk going through the forward pass is too big. This is due to a
-        tensorflow padding bug, with the padding mode set to 'reflect'. With
-        the currently preferred tensorflow version (2.15.1) this results in
-        scrambled output rather than constant.
-        https://github.com/tensorflow/tensorflow/issues/91027
+    def _output_check(cls, out_data, allowed_const):
+        """Check if forward pass output is constant or contains NaNs. This can
+        happen when the chunk going through the forward pass is too big.
+        This is due to a tensorflow padding bug, with the padding mode
+        set to 'reflect'. With the currently preferred tensorflow
+        version (2.15.1) this results in scrambled output rather than
+        constant. https://github.com/tensorflow/tensorflow/issues/91027
 
         Parameters
         ----------
@@ -409,6 +409,12 @@ class ForwardPass:
             allowed_const = []
         elif not isinstance(allowed_const, (list, tuple)):
             allowed_const = [allowed_const]
+
+        if np.isnan(out_data).any():
+            msg = 'Forward pass output contains NaN values!'
+            failed = True
+            logger.error(msg)
+            return failed
 
         for i in range(out_data.shape[-1]):
             msg = f'All values are the same for feature channel {i}!'
@@ -627,6 +633,11 @@ class ForwardPass:
 
         model = get_model(model_class, model_kwargs)
 
+        if np.isnan(chunk.input_data).any():
+            msg = 'Input data contains NaN values!'
+            logger.error(msg)
+            raise RuntimeError(msg)
+
         output_data = cls.run_generator(
             data_chunk=chunk.input_data,
             hr_crop_slices=chunk.hr_crop_slice,
@@ -636,7 +647,7 @@ class ForwardPass:
             model=model,
         )
 
-        failed = cls._constant_output_check(
+        failed = cls._output_check(
             output_data, allowed_const=allowed_const
         )
 
