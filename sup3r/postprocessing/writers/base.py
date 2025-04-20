@@ -405,11 +405,19 @@ class OutputHandler(OutputMixin):
 
             f_max = data[..., fidx].max()
             f_min = data[..., fidx].min()
-            msg = f'{fn} has a max of {f_max} > {max_val}. {enforcing_msg}'
+            max_frac = np.sum(data[..., fidx] > max_val) / data[..., fidx].size
+            min_frac = np.sum(data[..., fidx] < min_val) / data[..., fidx].size
+            msg = (
+                f'{fn} has a max of {f_max} > {max_val}, with '
+                f'{max_frac:.4e} of points above this max. {enforcing_msg}'
+            )
             if f_max > max_val:
                 logger.warning(msg)
                 warn(msg)
-            msg = f'{fn} has a min of {f_min} < {min_val}. {enforcing_msg}'
+            msg = (
+                f'{fn} has a min of {f_min} < {min_val}, with '
+                f'{min_frac:.4e} of points below this min. {enforcing_msg}'
+            )
             if f_min < min_val:
                 logger.warning(msg)
                 warn(msg)
