@@ -16,8 +16,6 @@ import xarray as xr
 from packaging import version
 from scipy import ndimage as nd
 
-from sup3r.preprocessing.derivers.utilities import parse_feature
-
 ATTR_DIR = os.path.dirname(os.path.realpath(__file__))
 ATTR_FP = os.path.join(ATTR_DIR, 'output_attrs.json')
 with open(ATTR_FP) as f:
@@ -26,6 +24,46 @@ with open(ATTR_FP) as f:
 RANDOM_GENERATOR = np.random.default_rng(seed=42)
 
 logger = logging.getLogger(__name__)
+
+
+def nn_fill_array(array):
+    """Fill any NaN values in an np.ndarray from the nearest non-nan values.
+
+    Parameters
+    ----------
+    array : Union[np.ndarray, da.core.Array]
+        Input array with NaN values
+
+    Returns
+    -------
+    array : Union[np.ndarray, da.core.Array]
+        Output array with NaN values filled
+    """
+
+    nan_mask = np.isnan(array)
+    indices = nd.distance_transform_edt(
+        nan_mask, return_distances=False, return_indices=True
+    )
+    if hasattr(array, 'vindex'):
+        return array.vindex[tuple(indices)]
+    return array[tuple(indices)]
+
+
+def get_feature_basename(feature):
+    """Get the base name of a feature, removing any height or pressure
+    suffix"""
+    height = re.findall(r'_\d+m', feature)
+    press = re.findall(r'_\d+pa', feature)
+    basename = (
+        feature.replace(height[0], '')
+        if height
+        else feature.replace(press[0], '')
+        if press
+        else feature.split('_(.*)')[0]
+        if '_(.*)' in feature
+        else feature
+    )
+    return basename
 
 
 def preprocess_datasets(dset):
@@ -109,7 +147,7 @@ def enforce_limits(features, data, nn_fill=False):
         Array of feature data with physical limits enforced
     """
     for fidx, fn in enumerate(features):
-        dset_name = parse_feature(fn).basename
+        dset_name = get_feature_basename(fn)
         if dset_name not in OUTPUT_ATTRS:
             msg = f'Could not find "{dset_name}" in OUTPUT_ATTRS dict!'
             logger.error(msg)
@@ -167,7 +205,7 @@ def get_dset_attrs(feature):
     dtype : str
         Data type for requested dset. Defaults to float32
     """
-    feat_base_name = parse_feature(feature).basename
+    feat_base_name = get_feature_basename(feature)
     if feat_base_name in OUTPUT_ATTRS:
         attrs = OUTPUT_ATTRS[feat_base_name]
         dtype = attrs.get('dtype', 'float32')
@@ -453,29 +491,6 @@ def spatial_coarsening(data, s_enhance=2, obs_axis=True):
             raise ValueError(msg)
 
     return data
-
-
-def nn_fill_array(array):
-    """Fill any NaN values in an np.ndarray from the nearest non-nan values.
-
-    Parameters
-    ----------
-    array : Union[np.ndarray, da.core.Array]
-        Input array with NaN values
-
-    Returns
-    -------
-    array : Union[np.ndarray, da.core.Array]
-        Output array with NaN values filled
-    """
-
-    nan_mask = np.isnan(array)
-    indices = nd.distance_transform_edt(
-        nan_mask, return_distances=False, return_indices=True
-    )
-    if hasattr(array, 'vindex'):
-        return array.vindex[tuple(indices)]
-    return array[tuple(indices)]
 
 
 def pd_date_range(*args, **kwargs):
