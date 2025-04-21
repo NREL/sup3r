@@ -2,10 +2,12 @@
 
 import json
 import logging
+import os
 import random
 import re
 import string
 import time
+from warnings import warn
 
 import numpy as np
 import pandas as pd
@@ -14,9 +16,16 @@ import xarray as xr
 from packaging import version
 from scipy import ndimage as nd
 
-logger = logging.getLogger(__name__)
+from sup3r.preprocessing.derivers.utilities import parse_feature
+
+ATTR_DIR = os.path.dirname(os.path.realpath(__file__))
+ATTR_FP = os.path.join(ATTR_DIR, 'output_attrs.json')
+with open(ATTR_FP) as f:
+    OUTPUT_ATTRS = json.load(f)
 
 RANDOM_GENERATOR = np.random.default_rng(seed=42)
+
+logger = logging.getLogger(__name__)
 
 
 def preprocess_datasets(dset):
@@ -54,8 +63,10 @@ def xr_open_mfdataset(files, **kwargs):
     out = xr.open_mfdataset(
         files, preprocess=preprocess_datasets, **default_kwargs
     )
-    bad_dims = 'latitude' in out and len(out['latitude'].dims) == 2 and (
-        out['latitude'].dims != out['longitude'].dims
+    bad_dims = (
+        'latitude' in out
+        and len(out['latitude'].dims) == 2
+        and (out['latitude'].dims != out['longitude'].dims)
     )
     if bad_dims:
         out['longitude'] = (out['latitude'].dims, out['longitude'].values.T)
@@ -75,6 +86,103 @@ def safe_cast(o):
     if isinstance(o, (str, list)):
         return o
     return str(o)
+
+
+def enforce_limits(features, data, nn_fill=False):
+    """Enforce physical limits for feature data
+
+    Parameters
+    ----------
+    features : list
+        List of features with ordering corresponding to last channel of
+        data array.
+    data : ndarray
+        Array of feature data
+    nn_fill : bool
+        Whether to fill values outside of limits with nearest neighbor
+        interpolation. If False, values outside of limits are set to
+        the limits.
+
+    Returns
+    -------
+    data : ndarray
+        Array of feature data with physical limits enforced
+    """
+    for fidx, fn in enumerate(features):
+        dset_name = parse_feature(fn).basename
+        if dset_name not in OUTPUT_ATTRS:
+            msg = f'Could not find "{dset_name}" in OUTPUT_ATTRS dict!'
+            logger.error(msg)
+            raise KeyError(msg)
+
+        max_val = OUTPUT_ATTRS[dset_name].get('max', np.inf)
+        min_val = OUTPUT_ATTRS[dset_name].get('min', -np.inf)
+        enforcing_msg = f'Enforcing range of ({min_val}, {max_val}) for "{fn}"'
+
+        f_max = data[..., fidx].max()
+        f_min = data[..., fidx].min()
+        max_frac = np.sum(data[..., fidx] > max_val) / data[..., fidx].size
+        min_frac = np.sum(data[..., fidx] < min_val) / data[..., fidx].size
+        msg = (
+            f'{fn} has a max of {f_max} > {max_val}, with '
+            f'{max_frac:.4e} of points above this max. {enforcing_msg}'
+        )
+        if f_max > max_val:
+            logger.warning(msg)
+            warn(msg)
+        msg = (
+            f'{fn} has a min of {f_min} < {min_val}, with '
+            f'{min_frac:.4e} of points below this min. {enforcing_msg}'
+        )
+        if f_min < min_val:
+            logger.warning(msg)
+            warn(msg)
+
+        if nn_fill:
+            data[..., fidx] = np.where(
+                data[..., fidx] > max_val, np.nan, data[..., fidx]
+            )
+            data[..., fidx] = np.where(
+                data[..., fidx] < min_val, np.nan, data[..., fidx]
+            )
+            data[..., fidx] = nn_fill_array(data[..., fidx])
+        else:
+            data[..., fidx] = np.maximum(data[..., fidx], min_val)
+            data[..., fidx] = np.minimum(data[..., fidx], max_val)
+    return data.astype(np.float32)
+
+
+def get_dset_attrs(feature):
+    """Get attrributes for output feature
+
+    Parameters
+    ----------
+    feature : str
+        Name of feature to write
+
+    Returns
+    -------
+    attrs : dict
+        Dictionary of attributes for requested dset
+    dtype : str
+        Data type for requested dset. Defaults to float32
+    """
+    feat_base_name = parse_feature(feature).basename
+    if feat_base_name in OUTPUT_ATTRS:
+        attrs = OUTPUT_ATTRS[feat_base_name]
+        dtype = attrs.get('dtype', 'float32')
+    else:
+        attrs = {}
+        dtype = 'float32'
+        msg = (
+            'Could not find feature "{}" with base name "{}" in '
+            'OUTPUT_ATTRS global variable. Writing with float32 and no '
+            'chunking.'.format(feature, feat_base_name)
+        )
+        logger.warning(msg)
+        warn(msg)
+
+    return attrs, dtype
 
 
 def safe_serialize(obj, **kwargs):

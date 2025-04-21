@@ -28,6 +28,7 @@ class OutputHandlerNC(OutputHandler):
         meta_data=None,
         max_workers=None,
         invert_uv=None,
+        nn_fill=False,
         gids=None,
     ):
         """Write forward pass output to NETCDF file
@@ -54,6 +55,9 @@ class OutputHandlerNC(OutputHandler):
         invert_uv : bool | None
             Whether to convert u and v wind components to windspeed and
             direction
+        nn_fill : bool
+            Whether to fill data outside of limits with nearest neighbour or
+            cap to limits
         gids : list
             List of coordinate indices used to label each lat lon pair and to
             help with spatial chunk data collection
@@ -65,6 +69,7 @@ class OutputHandlerNC(OutputHandler):
             features=features,
             lat_lon=lat_lon,
             invert_uv=invert_uv,
+            nn_fill=nn_fill,
             max_workers=max_workers,
         )
 

@@ -479,6 +479,7 @@ class ForwardPass:
                     allowed_const=strategy.allowed_const,
                     output_workers=strategy.output_workers,
                     invert_uv=strategy.invert_uv,
+                    nn_fill=strategy.nn_fill,
                     meta=fwp.meta,
                 )
                 logger.info(
@@ -588,6 +589,7 @@ class ForwardPass:
         allowed_const,
         invert_uv=None,
         meta=None,
+        nn_fill=True,
         output_workers=None,
     ):
         """Run a forward pass on single spatiotemporal chunk.
@@ -615,6 +617,9 @@ class ForwardPass:
             Whether to convert uv to windspeed and winddirection for writing
             output. This defaults to True for H5 output and False for NETCDF
             output.
+        nn_fill : bool
+            Whether to fill data outside of limits with nearest neighbour or
+            cap to limits.
         meta : dict | None
             Meta data to write to forward pass output file.
         output_workers : int | None
@@ -662,6 +667,7 @@ class ForwardPass:
                 out_file=chunk.out_file,
                 meta_data=meta,
                 invert_uv=invert_uv,
+                nn_fill=nn_fill,
                 max_workers=output_workers,
                 gids=chunk.gids,
             )
