@@ -372,10 +372,11 @@ class Sup3rX:
                         'use_coordinate', False
                     )
                 self._ds[feat] = self._ds[feat].interpolate_na(**kwargs)
-            else:
+            elif np.isnan(self._ds[feat]).any():
                 msg = (
                     'No dim given for interpolate_na. This will use nearest '
-                    'neighbor fill, which could take some time.'
+                    f'neighbor fill to interpolate {feat}, which could take '
+                    'some time.'
                 )
                 logger.warning(msg)
                 warn(msg)

@@ -36,15 +36,14 @@ from .utilities import TensorboardMixIn
 
 logger = logging.getLogger(__name__)
 
-
-SUP3R_LAYERS = (
-    Sup3rAdder,
-    Sup3rConcat,
+SUP3R_OBS_LAYERS = (
     Sup3rConcatObs,
     Sup3rConcatEmbeddedObs,
     Sup3rConcatWeightedObs,
     Sup3rConcatWeightedObsWithEmbedding,
 )
+
+SUP3R_LAYERS = (Sup3rAdder, Sup3rConcat, *SUP3R_OBS_LAYERS)
 
 
 # pylint: disable=E1101,W0201,E0203
@@ -1041,7 +1040,15 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         try:
             for i, layer in enumerate(self.generator.layers[1:]):
                 layer_num = i + 1
-                if isinstance(layer, SUP3R_LAYERS):
+                is_obs_layer = isinstance(layer, SUP3R_OBS_LAYERS)
+                is_exo_layer = isinstance(layer, SUP3R_LAYERS)
+                if is_obs_layer and layer.name not in exogenous_data:
+                    msg = (f'Observation data not given for {layer.name}. '
+                           'Will run forward pass without it.')
+                    logger.warning(msg)
+                    warn(msg)
+                    hi_res = layer(hi_res)
+                elif is_exo_layer:
                     msg = (
                         f'layer.name = {layer.name} does not match any '
                         'features in exogenous_data '

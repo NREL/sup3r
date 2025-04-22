@@ -97,7 +97,7 @@ class ExoData(dict):
                     warn(msg)
                 steps_list = entry.get('steps', [entry])
                 for i, step in enumerate(steps_list):
-                    msg = (f'ExoData entry for {feat}, step #{i+1} has no '
+                    msg = (f'ExoData entry for {feat}, step #{i + 1}, has no '
                            '"combine_type" key. Assuming this is for a '
                            'layer combination.')
                     if 'combine_type' not in step:

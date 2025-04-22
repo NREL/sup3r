@@ -156,6 +156,10 @@ def enforce_limits(features, data, nn_fill=False):
         max_val = OUTPUT_ATTRS[dset_name].get('max', np.inf)
         min_val = OUTPUT_ATTRS[dset_name].get('min', -np.inf)
         enforcing_msg = f'Enforcing range of ({min_val}, {max_val}) for "{fn}"'
+        if nn_fill:
+            enforcing_msg += ' with nearest neighbor interpolation.'
+        else:
+            enforcing_msg += ' with clipping.'
 
         f_max = data[..., fidx].max()
         f_min = data[..., fidx].min()

@@ -6,9 +6,11 @@ TODO: Integrate this with Cacher class
 import logging
 import os
 
+import xarray as xr
 from rex.utilities.loggers import init_logger
 
 from sup3r.preprocessing.cachers import Cacher
+from sup3r.preprocessing.names import Dimension
 from sup3r.utilities.utilities import xr_open_mfdataset
 
 from .base import BaseCollector
@@ -31,6 +33,12 @@ class CollectorNC(BaseCollector):
         res_kwargs=None,
     ):
         """Collect data files from a dir to one output file.
+
+        TODO: This assumes that if there is any spatial chunking it is split
+        by latitude. This should be generalized to allow for any spatial
+        chunking and any dimension. This will either require a new file
+        naming scheme with a spatial index for both latitude and
+        longitude or checking each chunk to see how they are split.
 
         Filename requirements:
          - Should end with ".nc"
@@ -76,10 +84,19 @@ class CollectorNC(BaseCollector):
             logger.info(f'overwrite=True, removing {out_file}.')
             os.remove(out_file)
 
+        spatial_chunks = collector.group_spatial_chunks()
+
         tmp_file = out_file + '.tmp'
         if not os.path.exists(tmp_file):
-            res_kwargs = res_kwargs or {}
-            out = xr_open_mfdataset(collector.flist, **res_kwargs)
+            res_kwargs = res_kwargs or {
+                'combine': 'nested',
+                'concat_dim': Dimension.TIME,
+            }
+            for s_idx in spatial_chunks:
+                spatial_chunks[s_idx] = xr_open_mfdataset(
+                    spatial_chunks[s_idx], **res_kwargs
+                )
+            out = xr.concat(spatial_chunks.values(), dim=Dimension.SOUTH_NORTH)
             Cacher.write_netcdf(tmp_file, data=out, features=features)
 
         os.replace(tmp_file, out_file)
@@ -88,12 +105,12 @@ class CollectorNC(BaseCollector):
         logger.info('Finished file collection.')
 
     def group_spatial_chunks(self):
-        """Group same spatial chunks together so each chunk has same spatial
+        """Group same spatial chunks together so each entry has same spatial
         footprint but different times"""
         chunks = {}
         for file in self.flist:
-            s_chunk = file.split('_')[0]
-            dirname = os.path.dirname(file)
-            s_file = os.path.join(dirname, f's_{s_chunk}.nc')
-            chunks[s_file] = [*chunks.get(s_file, []), s_file]
+            _, s_idx = self.get_chunk_indices(file)
+            chunks[s_idx] = [*chunks.get(s_idx, []), file]
+        for k, v in chunks.items():
+            chunks[k] = sorted(v)
         return chunks
