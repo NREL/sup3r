@@ -147,8 +147,8 @@ def gen_config_with_concat_masked():
 
 
 @pytest.fixture(scope='package')
-def gen_config_with_concat_masked_weighted():
-    """Get generator config with custom concat masked (and weighted) layer."""
+def gen_config_with_concat_embedded():
+    """Get generator config with custom concat embedded obs layer."""
 
     def func():
         return [
@@ -207,11 +207,11 @@ def gen_config_with_concat_masked_weighted():
             },
             {'class': 'Cropping2D', 'cropping': 4},
             {
-                'class': 'Sup3rConcatWeightedObs',
+                'class': 'Sup3rConcatEmbeddedObs',
                 'name': 'u_10m_obs',
             },
             {
-                'class': 'Sup3rConcatWeightedObs',
+                'class': 'Sup3rConcatEmbeddedObs',
                 'name': 'v_10m_obs',
             },
             {

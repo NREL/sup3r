@@ -15,8 +15,6 @@ from phygnn.layers.custom_layers import (
     Sup3rConcat,
     Sup3rConcatEmbeddedObs,
     Sup3rConcatObs,
-    Sup3rConcatWeightedObs,
-    Sup3rConcatWeightedObsWithEmbedding,
 )
 
 from sup3r.preprocessing.data_handlers import ExoData
@@ -28,9 +26,7 @@ logger = logging.getLogger(__name__)
 
 SUP3R_OBS_LAYERS = (
     Sup3rConcatObs,
-    Sup3rConcatEmbeddedObs,
-    Sup3rConcatWeightedObs,
-    Sup3rConcatWeightedObsWithEmbedding,
+    Sup3rConcatEmbeddedObs
 )
 
 

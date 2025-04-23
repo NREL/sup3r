@@ -23,7 +23,7 @@ TARGET_W = (39.01, -105.15)
     'gen_config',
     [
         'gen_config_with_concat_masked',
-        'gen_config_with_concat_masked_weighted',
+        'gen_config_with_concat_embedded',
     ],
 )
 def test_fixed_wind_obs(gen_config, request):

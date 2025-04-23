@@ -20,8 +20,6 @@ from phygnn.layers.custom_layers import (
     Sup3rConcat,
     Sup3rConcatEmbeddedObs,
     Sup3rConcatObs,
-    Sup3rConcatWeightedObs,
-    Sup3rConcatWeightedObsWithEmbedding,
 )
 from rex.utilities.utilities import safe_json_load
 from tensorflow.keras import optimizers
@@ -38,9 +36,7 @@ logger = logging.getLogger(__name__)
 
 SUP3R_OBS_LAYERS = (
     Sup3rConcatObs,
-    Sup3rConcatEmbeddedObs,
-    Sup3rConcatWeightedObs,
-    Sup3rConcatWeightedObsWithEmbedding,
+    Sup3rConcatEmbeddedObs
 )
 
 SUP3R_LAYERS = (Sup3rAdder, Sup3rConcat, *SUP3R_OBS_LAYERS)
