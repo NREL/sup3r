@@ -578,6 +578,39 @@ class Sup3rX:
             warn(msg)
         return self
 
+    def set_regular_grid(self):
+        """In the case of a regular grid, use this to set latitude and
+        and longitude as 1D arrays which enables calls to ``self.sel``
+        and combining chunks with different coordinates through
+        ``xr.combine_by_coords``"""
+
+        lat_lon_2d = (
+            len(self._ds[Dimension.LATITUDE].dims) == 2
+            and len(self._ds[Dimension.LONGITUDE].dims) == 2
+        )
+        same_lats = np.allclose(
+            np.diff(self._ds[Dimension.LATITUDE].values, axis=1), 0
+        )
+        same_lons = np.allclose(
+            np.diff(self._ds[Dimension.LONGITUDE].values, axis=0), 0
+        )
+        if not (lat_lon_2d and same_lats and same_lons):
+            msg = 'Cannot set regular grid for non-regular data'
+            logger.warning(msg)
+            warn(msg)
+        else:
+            self._ds[Dimension.LATITUDE] = self._ds[
+                Dimension.LATITUDE
+            ].isel(**{Dimension.WEST_EAST: 0})
+            self._ds[Dimension.LONGITUDE] = self._ds[
+                Dimension.LONGITUDE
+            ].isel(**{Dimension.SOUTH_NORTH: 0})
+            self._ds = self._ds.swap_dims({
+                Dimension.SOUTH_NORTH: Dimension.LATITUDE,
+                Dimension.WEST_EAST: Dimension.LONGITUDE,
+            })
+        return self
+
     def _qa(self, feature, stats=None):
         """Get qa info for given feature."""
         info = {}

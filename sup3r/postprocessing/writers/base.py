@@ -487,9 +487,9 @@ class OutputHandler(OutputMixin):
 
         logger.debug('Running meshgrid.')
         X, Y = np.meshgrid(x, y, copy=False)
-        old = np.array([Y.flatten(), X.flatten()]).T
+        old = np.array([Y.flatten(), X.flatten()], dtype=np.float32).T
         X, Y = np.meshgrid(new_x, new_y, copy=False)
-        new = np.array([Y.flatten(), X.flatten()]).T
+        new = np.array([Y.flatten(), X.flatten()], dtype=np.float32).T
 
         logger.debug('Running griddata.')
         lons = griddata(old, lons, new)
@@ -499,7 +499,7 @@ class OutputHandler(OutputMixin):
         lat_lon = np.dstack((lats.reshape(shape), lons.reshape(shape)))
         logger.debug('Finished getting high resolution lat / lon grid')
 
-        return lat_lon
+        return lat_lon.astype(np.float32)
 
     @staticmethod
     def get_times(low_res_times, shape):

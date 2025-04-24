@@ -84,7 +84,7 @@ class OutputHandlerNC(OutputHandler):
         for i, f in enumerate(features):
             data_vars[f] = (
                 (Dimension.TIME, *Dimension.dims_2d()),
-                np.transpose(data[..., i], axes=(2, 0, 1)),
+                np.transpose(data[..., i], axes=(2, 0, 1)).astype(np.float32),
             )
 
         attrs = meta_data or {}
