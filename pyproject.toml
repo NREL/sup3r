@@ -28,7 +28,7 @@ classifiers=[
 ]
 dependencies = [
   "NREL-rex>=0.2.91",
-  "NREL-phygnn>=0.0.23",
+  "NREL-phygnn>=0.0.31",
   "NREL-gaps>=0.6.13",
   "NREL-farms>=1.0.4",
   "dask>=2022.0",
