@@ -19,6 +19,7 @@ from phygnn.layers.custom_layers import (
     Sup3rAdder,
     Sup3rConcat,
     Sup3rConcatEmbeddedObs,
+    Sup3rConcatEmbeddedObsWithExo,
     Sup3rConcatObs,
 )
 from rex.utilities.utilities import safe_json_load
@@ -36,7 +37,8 @@ logger = logging.getLogger(__name__)
 
 SUP3R_OBS_LAYERS = (
     Sup3rConcatObs,
-    Sup3rConcatEmbeddedObs
+    Sup3rConcatEmbeddedObs,
+    Sup3rConcatEmbeddedObsWithExo,
 )
 
 SUP3R_LAYERS = (Sup3rAdder, Sup3rConcat, *SUP3R_OBS_LAYERS)
@@ -1039,8 +1041,10 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
                 is_obs_layer = isinstance(layer, SUP3R_OBS_LAYERS)
                 is_exo_layer = isinstance(layer, SUP3R_LAYERS)
                 if is_obs_layer and layer.name not in exogenous_data:
-                    msg = (f'Observation data not given for {layer.name}. '
-                           'Will run forward pass without it.')
+                    msg = (
+                        f'Observation data not given for {layer.name}. '
+                        'Will run forward pass without it.'
+                    )
                     logger.warning(msg)
                     warn(msg)
                     hi_res = layer(hi_res)
@@ -1115,7 +1119,13 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
                     )
                     assert layer.name in hi_res_exo, msg
                     hr_exo = hi_res_exo[layer.name]
-                    hi_res = layer(hi_res, hr_exo)
+                    if hasattr(layer, 'exo_features'):
+                        extra_feats = layer.exo_features
+                        extras = [hi_res_exo[feat] for feat in extra_feats]
+                        extras = tf.concat(extras, axis=-1)
+                        hi_res = layer(hi_res, hr_exo, extras)
+                    else:
+                        hi_res = layer(hi_res, hr_exo)
 
                 else:
                     hi_res = layer(hi_res)

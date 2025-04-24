@@ -14,6 +14,7 @@ from phygnn.layers.custom_layers import (
     Sup3rAdder,
     Sup3rConcat,
     Sup3rConcatEmbeddedObs,
+    Sup3rConcatEmbeddedObsWithExo,
     Sup3rConcatObs,
 )
 
@@ -26,7 +27,8 @@ logger = logging.getLogger(__name__)
 
 SUP3R_OBS_LAYERS = (
     Sup3rConcatObs,
-    Sup3rConcatEmbeddedObs
+    Sup3rConcatEmbeddedObs,
+    Sup3rConcatEmbeddedObsWithExo,
 )
 
 
