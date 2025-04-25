@@ -73,9 +73,11 @@ def make_fake_dset(shape, features, const=None):
     data_vars = {}
     for f in features:
         if 'zg' in f:
-            data = da.random.uniform(10, 100, shape)
+            data = da.random.uniform(10, 1000, shape)
         elif 'orog' in f:
-            data = da.random.uniform(0, 1, shape)
+            data = da.random.uniform(0, 10, shape)
+        elif 'pressure' in f:
+            data = da.random.uniform(80000, 100000, shape)
         else:
             data = da.random.uniform(-1, 1, shape)
         data_vars[f] = (

@@ -491,7 +491,7 @@ class ForwardPass:
                 if failed:
                     msg = (
                         f'Forward pass for chunk_index {chunk_index} failed '
-                        'with constant output.'
+                        'with constant output or NaNs.'
                     )
                     raise MemoryError(msg)
 
@@ -557,7 +557,7 @@ class ForwardPass:
                     if failed:
                         msg = (
                             f'Forward pass for chunk_index {chunk_idx} failed '
-                            'with constant output.'
+                            'with constant output or NaNs.'
                         )
                         raise MemoryError(msg)
                     msg = (

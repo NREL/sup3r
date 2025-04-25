@@ -1201,6 +1201,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         weight_gen_advers=0.001,
         train_gen=True,
         train_disc=False,
+        compute_disc=False
     ):
         """Calculate the GAN loss function using generated and true high
         resolution data."""

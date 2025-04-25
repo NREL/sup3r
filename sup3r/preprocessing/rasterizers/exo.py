@@ -91,6 +91,9 @@ class BaseExoRasterizer(ABC):
         Maximum distance to map high-resolution data from source_file to the
         low-resolution file_paths input. None (default) will calculate this
         based on the median distance between points in source_file
+    fill_nans : bool
+        Whether to fill nans in the output data. This should probably be True
+        for all cases except for sparse observation data.
     max_workers : int
         Number of workers used for writing data to cache files. Gets passed to
         ``Cacher.write_netcdf.``
@@ -111,6 +114,10 @@ class BaseExoRasterizer(ABC):
     fill_nans: bool = True
     max_workers: int = 1
     verbose: bool = False
+
+    # These sometimes have a time dimension but we don't need the time in
+    # the cache file
+    STATIC_FEATURES = ('topography', 'srl')
 
     @log_args
     def __post_init__(self):
@@ -134,8 +141,10 @@ class BaseExoRasterizer(ABC):
             self._source_data = self.source_handler[self.feature].data
             if 'time' not in self.source_handler[self.feature].dims:
                 self._source_data = self._source_data[..., None]
+            elif self.feature in self.STATIC_FEATURES:
+                self._source_data = self._source_data[..., :1]
             shape = (-1, self._source_data.shape[-1])
-            self._source_data = self.source_data.reshape(shape)
+            self._source_data = self._source_data.reshape(shape)
         return self._source_data
 
     @property

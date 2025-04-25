@@ -65,7 +65,7 @@ def test_h5_solar_sig():
         'hr_spatial_coarsen',
         'nan_method_kwargs',
         'interp_kwargs',
-        'cache_kwargs',
+        'cache_kwargs'
     ]
     sig = signature(DataHandlerH5SolarCC)
     params = [p.name for p in sig.parameters.values()]

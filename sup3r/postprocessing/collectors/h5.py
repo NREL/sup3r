@@ -12,6 +12,7 @@ from scipy.spatial import KDTree
 
 from sup3r.postprocessing.writers.base import RexOutputs
 from sup3r.preprocessing.utilities import _mem_check
+from sup3r.utilities.utilities import get_dset_attrs
 
 from .base import BaseCollector
 
@@ -528,7 +529,7 @@ class CollectorH5(BaseCollector):
             None uses all available.
         """
         if len(subset_masked_meta) > 0:
-            attrs, final_dtype = self.get_dset_attrs(feature)
+            attrs, final_dtype = get_dset_attrs(feature)
             scale_factor = attrs.get('scale_factor', 1)
 
             logger.debug(
