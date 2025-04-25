@@ -9,6 +9,7 @@ from tensorflow.keras.losses import MeanAbsoluteError
 from sup3r.utilities.utilities import RANDOM_GENERATOR
 
 from .base import Sup3rGan
+from .dc import Sup3rGanDC
 
 logger = logging.getLogger(__name__)
 
@@ -185,3 +186,7 @@ class Sup3rGanWithObs(Sup3rGan):
                 )
             loss_details.update(loss_update)
         return loss, loss_details, hi_res_gen, hi_res_exo
+
+
+class Sup3rGanWithObsDC(Sup3rGanDC, Sup3rGanWithObs):
+    """Data-centric model with observation conditioning."""
