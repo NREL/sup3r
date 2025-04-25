@@ -21,6 +21,7 @@ from phygnn.layers.custom_layers import (
     Sup3rConcatEmbeddedObs,
     Sup3rConcatEmbeddedObsWithExo,
     Sup3rConcatObs,
+    Sup3rObsModel,
 )
 from rex.utilities.utilities import safe_json_load
 from tensorflow.keras import optimizers
@@ -36,6 +37,7 @@ from .utilities import TensorboardMixIn
 logger = logging.getLogger(__name__)
 
 SUP3R_OBS_LAYERS = (
+    Sup3rObsModel,
     Sup3rConcatObs,
     Sup3rConcatEmbeddedObs,
     Sup3rConcatEmbeddedObsWithExo,
@@ -989,6 +991,51 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
 
         return hi_res_exo
 
+    def run_exo_layer(self, layer, input_array, exogenous_data, norm_in=True):
+        """run_exo_layer method used in public ``generate`` method. Runs a
+        layer that combines exogenous data with the hi_res data. These layers
+        can include single or multiple exogenous features and also single or
+        multiple gridded exogenous features (in the case when the former
+        is exogenous observation features).
+
+        Parameters
+        ----------
+        layer : tf.keras.layers.Layer
+            Layer to run on the hi_res data. This should be a custom layer
+            that combines exogenous data with the hi_res data.
+        input_array : np.ndarray
+            Either high or low-resolution input data, usually a 4D or 5D array
+            of shape:
+            (n_obs, spatial_1, spatial_2, n_features)
+            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
+        """
+        msg = (
+            '{} does not match any features in exogenous_data '
+            f'({list(exogenous_data)})'
+        )
+        feat_stack = []
+        extras = []
+        features = getattr(layer, 'features', [layer.name])
+        exo_features = getattr(layer, 'exo_features', [])
+        for feat in features + exo_features:
+            assert feat in exogenous_data, msg.format(feat)
+            exo = exogenous_data.get_combine_type_data(feat, 'layer')
+            exo = self._reshape_norm_exo(
+                input_array,
+                exo,
+                feat.replace('_obs', ''),
+                norm_in=norm_in,
+            )
+            if feat in features:
+                feat_stack.append(exo)
+            else:
+                extras.append(exo)
+        hr_exo = np.concatenate(feat_stack, axis=-1)
+        if len(extras) > 0:
+            extras = np.concatenate(extras, axis=-1)
+            return layer(input_array, hr_exo, extras)
+        return layer(input_array, hr_exo)
+
     def generate(
         self, low_res, norm_in=True, un_norm_out=True, exogenous_data=None
     ):
@@ -1049,22 +1096,9 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
                     warn(msg)
                     hi_res = layer(hi_res)
                 elif is_exo_layer:
-                    msg = (
-                        f'layer.name = {layer.name} does not match any '
-                        'features in exogenous_data '
-                        f'({list(exogenous_data)})'
+                    hi_res = self.run_exo_layer(
+                        layer, hi_res, exogenous_data, norm_in=norm_in
                     )
-                    assert layer.name in exogenous_data, msg
-                    hr_exo = exogenous_data.get_combine_type_data(
-                        layer.name, 'layer'
-                    )
-                    hr_exo = self._reshape_norm_exo(
-                        hi_res,
-                        hr_exo,
-                        layer.name.replace('_obs', ''),
-                        norm_in=norm_in,
-                    )
-                    hi_res = layer(hi_res, hr_exo)
                 else:
                     hi_res = layer(hi_res)
         except Exception as e:
@@ -1080,6 +1114,30 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             hi_res = self.un_norm_output(hi_res)
 
         return self._combine_fwp_output(hi_res, exogenous_data)
+
+    def _run_exo_layer(self, layer, input_array, hi_res_exo):
+        """Private run_exo_layer method used in ``_tf_generate``. Runs a layer
+        that combines exogenous data with the hi_res data. These layers can
+        include single or multiple exogenous features."""
+        msg = (
+            '{} does not match any features in exogenous_data '
+            f'({list(hi_res_exo)})'
+        )
+        features = getattr(layer, 'features', [layer.name])
+        exo_features = getattr(layer, 'exo_features', [])
+        feat_stack = []
+        extras = []
+        for feat in features + exo_features:
+            assert feat in hi_res_exo, msg.format(feat)
+            if feat in features:
+                feat_stack.append(hi_res_exo[feat])
+            else:
+                extras.append(hi_res_exo[feat])
+        hr_exo = tf.concat(feat_stack, axis=-1)
+        if len(extras) > 0:
+            extras = tf.concat(extras, axis=-1)
+            return layer(input_array, hr_exo, extras)
+        return layer(input_array, hr_exo)
 
     @tf.function
     def _tf_generate(self, low_res, hi_res_exo=None):
@@ -1113,20 +1171,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             for i, layer in enumerate(self.generator.layers[1:]):
                 layer_num = i + 1
                 if isinstance(layer, SUP3R_LAYERS):
-                    msg = (
-                        f'layer.name = {layer.name} does not match any '
-                        f'features in exogenous_data ({list(hi_res_exo)})'
-                    )
-                    assert layer.name in hi_res_exo, msg
-                    hr_exo = hi_res_exo[layer.name]
-                    if hasattr(layer, 'exo_features'):
-                        extra_feats = layer.exo_features
-                        extras = [hi_res_exo[feat] for feat in extra_feats]
-                        extras = tf.concat(extras, axis=-1)
-                        hi_res = layer(hi_res, hr_exo, extras)
-                    else:
-                        hi_res = layer(hi_res, hr_exo)
-
+                    hi_res = self._run_exo_layer(layer, hi_res, hi_res_exo)
                 else:
                     hi_res = layer(hi_res)
         except Exception as e:
@@ -1211,7 +1256,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         weight_gen_advers=0.001,
         train_gen=True,
         train_disc=False,
-        compute_disc=False
+        compute_disc=False,
     ):
         """Calculate the GAN loss function using generated and true high
         resolution data."""

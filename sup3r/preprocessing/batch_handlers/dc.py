@@ -26,7 +26,9 @@ class BatchHandlerDC(BaseDC):
     from lower performing spatiotemporal extents during training. To do this,
     validation data is required, as it is used to compute losses within fixed
     spatiotemporal bins which are then used as sampling probabilities for those
-    same regions when building batches.
+    same regions when building batches. So, this means there should be a
+    correspondance between the validation data domain / time period and
+    the training data.
 
     See Also
     --------

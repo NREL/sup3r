@@ -16,6 +16,7 @@ from phygnn.layers.custom_layers import (
     Sup3rConcatEmbeddedObs,
     Sup3rConcatEmbeddedObsWithExo,
     Sup3rConcatObs,
+    Sup3rObsModel,
 )
 
 from sup3r.preprocessing.data_handlers import ExoData
@@ -26,6 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 SUP3R_OBS_LAYERS = (
+    Sup3rObsModel,
     Sup3rConcatObs,
     Sup3rConcatEmbeddedObs,
     Sup3rConcatEmbeddedObsWithExo,
@@ -413,10 +415,10 @@ class AbstractInterface(ABC):
         features = []
         if hasattr(self, '_gen'):
             for layer in self._gen.layers:
-                check = isinstance(layer, SUP3R_OBS_LAYERS)
-                check = check and layer.name not in features
-                if check:
-                    features.append(layer.name)
+                if isinstance(layer, SUP3R_OBS_LAYERS):
+                    obs_feats = getattr(layer, 'features', [layer.name])
+                    obs_feats = [f for f in obs_feats if f not in features]
+                    features.extend(obs_feats)
         return features
 
     @property
