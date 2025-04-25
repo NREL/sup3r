@@ -163,23 +163,25 @@ class Sup3rGanWithObs(Sup3rGan):
             low_res, hi_res_true, **calc_loss_kwargs
         )
         loss, loss_details, hi_res_gen, hi_res_exo = out
-        loss_obs, loss_non_obs = self._get_loss_obs_comparison(
-            hi_res_true,
-            hi_res_gen,
-            hi_res_exo['mask'],
-        )
-        loss_update = {
-            'loss_obs': loss_obs,
-            'loss_non_obs': loss_non_obs,
-            'obs_frac': np.sum(~hi_res_exo['mask'])
-            / np.size(hi_res_exo['mask']),
-        }
-        if self.loss_obs_weight is not None and calc_loss_kwargs['train_gen']:
-            loss_obs *= self.loss_obs_weight
-            loss += loss_obs
-            loss_update['loss_gen'] = loss
-            loss_update['loss_gen_content'] = (
-                loss_details['loss_gen_content'] + loss_obs
+
+        if calc_loss_kwargs.get('train_gen', True):
+            loss_obs, loss_non_obs = self._get_loss_obs_comparison(
+                hi_res_true,
+                hi_res_gen,
+                hi_res_exo['mask'],
             )
-        loss_details.update(loss_update)
+            loss_update = {
+                'loss_obs': loss_obs,
+                'loss_non_obs': loss_non_obs,
+                'obs_frac': np.sum(~hi_res_exo['mask'])
+                / np.size(hi_res_exo['mask']),
+            }
+            if self.loss_obs_weight is not None:
+                loss_obs *= self.loss_obs_weight
+                loss += loss_obs
+                loss_update['loss_gen'] = loss
+                loss_update['loss_gen_content'] = (
+                    loss_details['loss_gen_content'] + loss_obs
+                )
+            loss_details.update(loss_update)
         return loss, loss_details, hi_res_gen, hi_res_exo
