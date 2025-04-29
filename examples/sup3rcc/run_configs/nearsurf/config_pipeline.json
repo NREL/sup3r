@@ -1,5 +1,5 @@
 {
-    "logging": {"log_level": "DEBUG"},
+    "logging": {"log_level": "DEBUG", "log_file": "./logs/pipeline.log"},
     "pipeline": [
         {
             "forward-pass-step1": "./config_fwp_step1.json",
@@ -14,11 +14,11 @@
             "command": "forward-pass"
         },
         {
-            "solar": "./config_solar.json",
-            "command": "solar"
+            "data-collect-step2": "./config_collect_step2.json",
+            "command": "data-collect"
         },
         {
-            "data-collect-step2": "./config_collect_step2.json",
+            "data-collect-step3": "./config_collect_step3.json",
             "command": "data-collect"
         }
     ]

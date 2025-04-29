@@ -1,0 +1,1765 @@
+{
+  "pipeline_config": "./config_pipeline.json",
+  "sets": [
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1980.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1980.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_1980"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1981.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1981.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_1981"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1982.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1982.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_1982"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1983.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1983.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_1983"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1984.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1984.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_1984"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1985.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1985.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_1985"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1986.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1986.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_1986"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1987.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1987.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_1987"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1988.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1988.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_1988"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1989.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1989.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_1989"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1990.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1990.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_1990"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1991.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1991.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_1991"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1992.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1992.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_1992"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1993.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1993.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_1993"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1994.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1994.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_1994"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1995.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1995.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_1995"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1996.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1996.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_1996"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1997.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1997.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_1997"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1998.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1998.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_1998"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1999.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_1999.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_1999"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2000.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2000.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2000"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2001.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2001.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2001"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2002.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2002.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2002"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2003.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2003.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2003"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2004.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2004.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2004"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2005.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2005.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2005"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2006.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2006.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2006"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2007.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2007.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2007"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2008.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2008.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2008"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2009.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2009.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2009"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2010.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2010.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2010"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2011.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2011.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2011"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2012.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2012.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2012"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2013.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2013.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2013"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2014.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2014.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2014"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2015.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2015.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2015"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2016.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2016.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2016"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2017.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2017.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2017"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2018.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2018.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2018"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2019.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2019.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2019"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2020.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2020.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2020"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2021.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2021.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2021"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2022.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2022.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2022"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2023.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2023.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2023"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2024.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2024.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2024"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2025.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2025.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2025"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2026.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2026.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2026"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2027.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2027.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2027"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2028.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2028.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2028"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2029.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2029.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2029"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2030.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2030.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2030"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2031.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2031.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2031"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2032.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2032.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2032"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2033.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2033.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2033"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2034.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2034.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2034"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2035.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2035.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2035"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2036.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2036.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2036"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2037.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2037.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2037"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2038.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2038.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2038"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2039.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2039.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2039"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2040.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2040.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2040"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2041.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2041.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2041"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2042.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2042.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2042"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2043.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2043.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2043"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2044.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2044.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2044"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2045.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2045.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2045"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2046.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2046.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2046"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2047.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2047.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2047"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2048.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2048.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2048"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2049.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2049.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2049"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2050.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2050.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2050"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2051.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2051.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2051"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2052.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2052.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2052"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2053.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2053.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2053"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2054.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2054.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2054"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2055.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2055.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2055"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2056.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2056.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2056"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2057.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2057.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2057"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2058.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2058.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2058"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2059.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ],
+        "source_file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2059.nc"
+          ]
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json",
+        "./config_qa.json"
+      ],
+      "set_tag": "taiesm1_nearsurf_2059"
+    }
+  ]
+}
