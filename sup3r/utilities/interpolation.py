@@ -42,15 +42,27 @@ class Interpolator:
             to the one requested.
             (lat, lon, time, level)
         """
-        lev_diff = np.abs(lev_array - level)
-        argmin1 = da.argmin(lev_diff, axis=-1, keepdims=True)
         lev_indices = da.broadcast_to(
             da.arange(lev_array.shape[-1]), lev_array.shape
         )
+
+        above_mask = lev_array >= level
+        below_mask = lev_array < level
+        below = da.ma.masked_array(lev_array, above_mask)
+        above = da.ma.masked_array(lev_array, below_mask)
+
+        argmin1 = da.argmin(np.abs(below - level), axis=-1, keepdims=True)
         mask1 = lev_indices == argmin1
-        lev_diff = da.abs(da.ma.masked_array(lev_array, mask1) - level)
-        argmin2 = da.argmin(lev_diff, axis=-1, keepdims=True)
+        argmin2 = da.argmin(np.abs(above - level), axis=-1, keepdims=True)
         mask2 = lev_indices == argmin2
+
+        # Get alternative second level in case there is no level above
+        alts = da.ma.masked_array(lev_array, mask1)
+        argmin3 = da.argmin(np.abs(alts - level), axis=-1, keepdims=True)
+        mask3 = lev_indices == argmin3
+
+        above_exists = da.any(above_mask, axis=-1, keepdims=True)
+        mask2 = da.where(above_exists, mask2, mask3)
         return mask1, mask2
 
     @classmethod
@@ -63,7 +75,7 @@ class Interpolator:
             da.map_blocks(lambda x, y: x / y, (level - lev_samps[0]), diff),
         )
         indices = 'ijk'[: lev_samps[0].ndim]
-        return da.blockwise(
+        out = da.blockwise(
             lambda x, y, a: x * (1 - a) + y * a,
             indices,
             var_samps[0],
@@ -73,6 +85,7 @@ class Interpolator:
             alpha,
             indices,
         )
+        return out
 
     @classmethod
     def _log_interp(cls, lev_samps, var_samps, level):
