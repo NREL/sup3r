@@ -1017,7 +1017,12 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         extras = []
         features = getattr(layer, 'features', [layer.name])
         exo_features = getattr(layer, 'exo_features', [])
+        is_obs_layer = isinstance(layer, SUP3R_OBS_LAYERS)
         for feat in features + exo_features:
+            missing_obs = feat in features and feat not in exogenous_data
+            if is_obs_layer and missing_obs:
+                logger.warning(msg.format(feat))
+                continue
             assert feat in exogenous_data, msg.format(feat)
             exo = exogenous_data.get_combine_type_data(feat, 'layer')
             exo = self._reshape_norm_exo(
@@ -1030,7 +1035,11 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
                 feat_stack.append(exo)
             else:
                 extras.append(exo)
-        hr_exo = np.concatenate(feat_stack, axis=-1)
+        hr_exo = (
+            np.concatenate(feat_stack, axis=-1)
+            if len(feat_stack) > 0
+            else None
+        )
         if len(extras) > 0:
             extras = np.concatenate(extras, axis=-1)
             return layer(input_array, hr_exo, extras)
@@ -1085,17 +1094,8 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         try:
             for i, layer in enumerate(self.generator.layers[1:]):
                 layer_num = i + 1
-                is_obs_layer = isinstance(layer, SUP3R_OBS_LAYERS)
                 is_exo_layer = isinstance(layer, SUP3R_LAYERS)
-                if is_obs_layer and layer.name not in exogenous_data:
-                    msg = (
-                        f'Observation data not given for {layer.name}. '
-                        'Will run forward pass without it.'
-                    )
-                    logger.warning(msg)
-                    warn(msg)
-                    hi_res = layer(hi_res)
-                elif is_exo_layer:
+                if is_exo_layer:
                     hi_res = self.run_exo_layer(
                         layer, hi_res, exogenous_data, norm_in=norm_in
                     )
