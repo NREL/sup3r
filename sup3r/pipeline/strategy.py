@@ -176,8 +176,8 @@ class ForwardPassStrategy:
         for writing to output. This defaults to True for H5 output and False
         for NETCDF output.
     nn_fill : bool
-        Whether to fill data outside of limits with nearest neighbour or cap
-        to limits.
+        Whether to fill data outside of accepted limits (e.g. relative
+        humidity 0-100) with nearest neighbour or cap to limits.
     pass_workers : int | None
         Max number of workers to use for performing forward passes on a single
         node. If 1 then all forward passes on chunks distributed to a single
@@ -194,6 +194,11 @@ class ForwardPassStrategy:
         how to distribute jobs across nodes. Preflight tasks like bias
         correction will be skipped because they will be performed on the nodes
         jobs are distributed to by the head node.
+    redistribute_chunks : bool
+        Whether to continue to redistribute unfinished chunks across all
+        requested nodes. This is useful for large runs when some nodes might
+        finish before others. This is in constrast to determining which chunks
+        are assigned to each node at the start of the run and not changing.
     """
 
     file_paths: Union[str, list, pathlib.Path]
@@ -217,6 +222,7 @@ class ForwardPassStrategy:
     pass_workers: int = 1
     max_nodes: int = 1
     head_node: bool = False
+    redistribute_chunks: bool = False
 
     @log_args
     def __post_init__(self):
@@ -231,10 +237,8 @@ class ForwardPassStrategy:
         self.input_features = model.lr_features
         self.output_features = model.hr_out_features
         self.features, self.exo_features = self._init_features(model)
+        self.time_slice, self.padded_time_slice = self.get_time_slices()
         self.input_handler = self.timer(self.init_input_handler, log=True)()
-        self.time_slice = _parse_time_slice(
-            self.input_handler_kwargs.get('time_slice', slice(None))
-        )
         self.fwp_chunk_shape = self._get_fwp_chunk_shape()
         self.fwp_slicer = ForwardPassSlicer(
             coarse_shape=self.input_handler.grid_shape,
@@ -290,11 +294,41 @@ class ForwardPassStrategy:
         }
         return meta_data
 
+    def get_time_slices(self):
+        """Get the time slice for initializaing the input handler and the
+        time slice applied to the data given by the input handler to get the
+        actual requested time period. These are different because we want the
+        data stored by the input handler to have extra time steps at the start
+        and end of the time period for padding input to the forward pass."""
+        time_slice = self.input_handler_kwargs.get('time_slice', slice(None))
+        time_slice = _parse_time_slice(time_slice)
+        step = time_slice.step if time_slice.step else 1
+        pstart = (
+            0
+            if time_slice.start is None
+            else time_slice.start - self.temporal_pad * step
+        )
+        pend = (
+            None
+            if time_slice.stop is None
+            else time_slice.stop + self.temporal_pad * step
+        )
+        padded_slice = slice(pstart, pend, time_slice.step)
+        start = 0 if time_slice.start is None else self.temporal_pad
+        stop = (
+            None
+            if time_slice.stop is None or time_slice.stop == 0
+            else -self.temporal_pad
+        )
+        unpadded_slice = slice(start, stop)
+        return unpadded_slice, padded_slice
+
     def init_input_handler(self):
         """Get input handler instance for given input kwargs. If self.head_node
-        is False we get all requested features. Otherwise this is part of
-        initialization on a head node and just used to get the shape of the
-        input domain, so we don't need to get any features yet."""
+        is False or features are being cached we get all requested features.
+        Otherwise this is part of initialization on a head node and just used
+        to get the shape of the input domain, so we don't need to get any
+        features yet."""
         self.input_handler_kwargs = self.input_handler_kwargs or {}
         self.input_handler_kwargs['file_paths'] = self.file_paths
         self.input_handler_kwargs['features'] = self.features
@@ -303,11 +337,11 @@ class ForwardPassStrategy:
         input_handler_kwargs = copy.deepcopy(self.input_handler_kwargs)
 
         input_handler_kwargs['features'] = self.features
-        if self.head_node:
+        if self.head_node and 'cache_kwargs' not in input_handler_kwargs:
             input_handler_kwargs['features'] = []
             input_handler_kwargs['chunks'] = 'auto'
 
-        input_handler_kwargs['time_slice'] = slice(None)
+        input_handler_kwargs['time_slice'] = self.padded_time_slice
         return InputHandler(**input_handler_kwargs)
 
     def _init_features(self, model):
@@ -317,13 +351,16 @@ class ForwardPassStrategy:
         features = [f for f in model.lr_features if f not in exo_features]
         return features, exo_features
 
-    @cached_property
+    @property
     def node_chunks(self):
         """Get array of lists such that node_chunks[i] is a list of
         indices for the chunks that will be sent through the generator on the
         ith node."""
-        node_chunks = min(self.max_nodes or np.inf, len(self.unmasked_chunks))
-        return np.array_split(self.unmasked_chunks, node_chunks)
+        chunks = self.unmasked_chunks
+        if self.redistribute_chunks:
+            chunks = [c for c in chunks if not self.chunk_finished(c)]
+        node_chunks = min(self.max_nodes or np.inf, len(chunks))
+        return np.array_split(chunks, node_chunks)
 
     @property
     def unmasked_chunks(self):
