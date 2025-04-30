@@ -3,7 +3,6 @@
     "dset_split": false,
     "file_paths": "./chunks2/sup3r_chunk_*irradiance.h5",
     "out_file": "./output/sup3rcc_4km_hourly.h5",
-    "target_meta_file": "/kfs2/projects/alcaps/meta_data/sup3rcc_4km_meta_taiesm1.csv",
     "features": [
         "ghi",
         "dhi",

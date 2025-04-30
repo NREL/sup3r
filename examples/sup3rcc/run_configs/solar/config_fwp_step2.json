@@ -1,7 +1,7 @@
 {
     "file_paths": "./output/sup3rcc_100km_hourly*.h5",
     "model_kwargs": {
-        "model_dir": "/projects/alcaps/sup3rcc_models_202412/gan_solar_step2_25x_1x_1f_w5e-2_v0_e5280/"
+        "model_dir": "/datasets/sup3rcc/models/sup3rcc_models_202412/sup3rcc_solar_step2_25x_1x_1f_w5e-2_v0_e5280/"
     },
     "model_class": "Sup3rGan",
     "out_pattern": "./chunks2/sup3r_chunk_{file_id}.h5",
@@ -16,7 +16,7 @@
         "shape": [ 31, 52 ]
     },
     "output_workers": 1,
-    "pass_workers": 2,
+    "pass_workers": 1,
     "max_nodes": 5,
     "execution_control": {
         "option": "kestrel",
