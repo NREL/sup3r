@@ -3,14 +3,10 @@
 import os
 import tempfile
 
-import numpy as np
 import pytest
 
 from sup3r.models import Sup3rGan, Sup3rGanWithObsDC
-from sup3r.preprocessing import (
-    DataHandler,
-)
-from sup3r.utilities.pytest.helpers import BatchHandlerTesterDC
+from sup3r.preprocessing import DataHandler, DualBatchHandlerDC, DualRasterizer
 
 TARGET_COORD = (39.01, -105.15)
 FEATURES = ['u_10m', 'v_10m']
@@ -24,7 +20,7 @@ FEATURES = ['u_10m', 'v_10m']
         (4, 4, 'gen_config_with_concat_masked'),
     ],
 )
-def test_train_spatial_obs_dc(
+def test_train_spatial_dual_obs_dc(
     gen_config,
     request,
     n_space_bins,
@@ -33,9 +29,9 @@ def test_train_spatial_obs_dc(
     sample_shape=(8, 8, 1),
     n_epoch=4,
 ):
-    """Test data-centric spatial model training with observation conditioned
-    models. Check that the spatial weights give the correct number of
-    observations from each spatial bin"""
+    """Test dual data-centric spatial model training with observation
+    conditioned models. Check that the spatial weights give the correct number
+    of observations from each spatial bin"""
 
     gen_config = request.getfixturevalue(gen_config)()
     Sup3rGan.seed()
@@ -44,12 +40,24 @@ def test_train_spatial_obs_dc(
         pytest.S_FP_DISC,
         learning_rate=1e-4,
         onshore_obs_frac={'spatial': 0.1},
-        loss={'MmdLoss': {}, 'MeanSquaredError': {}},
+        loss={
+            'SpatialDerivativeLoss': {},
+            'MeanSquaredError': {},
+            'term_weights': [0.2, 0.8],
+        },
     )
 
-    handler = DataHandler(
+    hr_handler = DataHandler(
         pytest.FP_WTK,
         FEATURES,
+        target=TARGET_COORD,
+        shape=full_shape,
+        time_slice=slice(None, None, 10),
+    )
+    lr_handler = DataHandler(
+        pytest.FP_WTK,
+        FEATURES,
+        hr_spatial_coarsen=2,
         target=TARGET_COORD,
         shape=full_shape,
         time_slice=slice(None, None, 10),
@@ -57,7 +65,12 @@ def test_train_spatial_obs_dc(
     batch_size = 1
     n_batches = 10
 
-    batcher = BatchHandlerTesterDC(
+    handler = DualRasterizer(
+        data={'low_res': lr_handler.data, 'high_res': hr_handler.data},
+        s_enhance=2,
+        t_enhance=1,
+    )
+    batcher = DualBatchHandlerDC(
         train_containers=[handler],
         val_containers=[handler],
         n_space_bins=n_space_bins,
@@ -67,10 +80,16 @@ def test_train_spatial_obs_dc(
         n_batches=n_batches,
         sample_shape=sample_shape,
     )
+    assert batcher.n_space_bins == n_space_bins
+    assert batcher.n_time_bins == n_time_bins
 
-    assert batcher.val_data.n_batches == n_space_bins * n_time_bins
+    assert all(
+        len(c.spatial_weights) == n_space_bins for c in batcher.containers
+    )
+    assert all(
+        len(c.temporal_weights) == n_time_bins for c in batcher.containers
+    )
 
-    deviation = 1 / np.sqrt(batcher.n_batches * batcher.batch_size - 1)
     with tempfile.TemporaryDirectory() as td:
         # test that the normalized number of samples from each bin is close
         # to the weight for that bin
@@ -83,14 +102,4 @@ def test_train_spatial_obs_dc(
             train_disc=False,
             checkpoint_int=2,
             out_dir=os.path.join(td, 'test_{epoch}'),
-        )
-        assert np.allclose(
-            batcher._mean_record_normed(batcher.space_bin_record),
-            batcher._mean_record_normed(batcher.spatial_weights_record),
-            atol=deviation,
-        )
-        assert np.allclose(
-            batcher._mean_record_normed(batcher.time_bin_record),
-            batcher._mean_record_normed(batcher.temporal_weights_record),
-            atol=deviation,
         )

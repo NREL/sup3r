@@ -188,5 +188,5 @@ class Sup3rGanWithObs(Sup3rGan):
         return loss, loss_details, hi_res_gen, hi_res_exo
 
 
-class Sup3rGanWithObsDC(Sup3rGanDC, Sup3rGanWithObs):
+class Sup3rGanWithObsDC(Sup3rGanWithObs, Sup3rGanDC):
     """Data-centric model with observation conditioning."""

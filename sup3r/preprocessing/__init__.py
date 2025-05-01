@@ -33,6 +33,7 @@ from .batch_handlers import (
     BatchHandlerMom2SepSF,
     BatchHandlerMom2SF,
     DualBatchHandler,
+    DualBatchHandlerDC,
 )
 from .batch_queues import BatchQueueDC, DualBatchQueue, SingleBatchQueue
 from .cachers import Cacher

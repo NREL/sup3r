@@ -83,7 +83,7 @@ class SamplerDC(Sampler):
         self.spatial_weights = spatial_weights
         self.temporal_weights = temporal_weights
 
-    def get_sample_index(self, n_obs=None):
+    def _get_sample_index(self, shape, sample_shape, n_obs=None):
         """Randomly gets weighted spatial sample and time sample indices
 
         Returns
@@ -95,20 +95,29 @@ class SamplerDC(Sampler):
         n_obs = n_obs or self.batch_size
         if self.spatial_weights is not None:
             spatial_slice = weighted_box_sampler(
-                self.shape, self.sample_shape[:2], weights=self.spatial_weights
+                shape, sample_shape[:2], weights=self.spatial_weights
             )
         else:
-            spatial_slice = uniform_box_sampler(
-                self.shape, self.sample_shape[:2]
-            )
+            spatial_slice = uniform_box_sampler(shape, sample_shape[:2])
         if self.temporal_weights is not None:
             time_slice = weighted_time_sampler(
-                self.shape,
-                self.sample_shape[2] * n_obs,
+                shape,
+                sample_shape[2] * n_obs,
                 weights=self.temporal_weights,
             )
         else:
-            time_slice = uniform_time_sampler(
-                self.shape, self.sample_shape[2] * n_obs
-            )
+            time_slice = uniform_time_sampler(shape, sample_shape[2] * n_obs)
         return (*spatial_slice, time_slice, self.features)
+
+    def get_sample_index(self, n_obs=None):
+        """Randomly gets weighted spatial sample and time sample indices
+
+        Returns
+        -------
+        observation_index : tuple
+            Tuple of sampled spatial grid, time slice, and features indices.
+            Used to get single observation like self.data[observation_index]
+        """
+        return self._get_sample_index(
+            self.shape, self.sample_shape, n_obs=n_obs
+        )

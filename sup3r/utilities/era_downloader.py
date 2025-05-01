@@ -17,6 +17,7 @@ import dask
 import dask.array as da
 import numpy as np
 import pandas as pd
+import xarray as xr
 from rex import init_logger
 
 from sup3r.preprocessing import Cacher, Loader
@@ -818,7 +819,7 @@ class EraDownloader:
         )
         openable = True
         try:
-            _ = Loader(file)
+            _ = xr.open_dataset(file)
         except Exception as e:
             msg = 'Could not open %s. %s. Will redownload.'
             logger.warning(msg, file, e)

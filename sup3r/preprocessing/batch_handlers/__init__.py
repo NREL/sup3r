@@ -1,5 +1,5 @@
 """Composite objects built from batch queues and samplers."""
-from .dc import BatchHandlerDC
+from .dc import BatchHandlerDC, DualBatchHandlerDC
 from .factory import (
     BatchHandler,
     BatchHandlerCC,

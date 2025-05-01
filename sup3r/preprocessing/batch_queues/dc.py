@@ -6,6 +6,7 @@ import logging
 import numpy as np
 
 from .base import SingleBatchQueue
+from .dual import DualBatchQueue
 
 logger = logging.getLogger(__name__)
 
@@ -34,11 +35,13 @@ class BatchQueueDC(SingleBatchQueue):
         kwargs : dict
             Keyword arguments for parent class.
         """
+        super().__init__(samplers, **kwargs)
         self.n_space_bins = n_space_bins
         self.n_time_bins = n_time_bins
         self._spatial_weights = np.ones(n_space_bins) / n_space_bins
         self._temporal_weights = np.ones(n_time_bins) / n_time_bins
-        super().__init__(samplers, **kwargs)
+        for sampler in self.containers:
+            sampler.update_weights(self.spatial_weights, self.temporal_weights)
 
     _signature_objs = (__init__, SingleBatchQueue)
 
@@ -64,6 +67,33 @@ class BatchQueueDC(SingleBatchQueue):
         performance across validation samples."""
         self._spatial_weights = spatial_weights
         self._temporal_weights = temporal_weights
+
+
+class DualBatchQueueDC(DualBatchQueue, BatchQueueDC):
+    """Data centric batch queue for dual samplers"""
+
+    def __init__(self, samplers, n_space_bins=1, n_time_bins=1, **kwargs):
+        """
+        Parameters
+        ----------
+        samplers : List[Sampler]
+            List of Sampler instances
+        n_space_bins : int
+            Number of spatial bins to use for weighted sampling.
+        n_time_bins : int
+            Number of time bins to use for weighted sampling.
+        kwargs : dict
+            Keyword arguments for parent class.
+        """
+        super().__init__(samplers, **kwargs)
+        self.n_space_bins = n_space_bins
+        self.n_time_bins = n_time_bins
+        self._spatial_weights = np.ones(n_space_bins) / n_space_bins
+        self._temporal_weights = np.ones(n_time_bins) / n_time_bins
+        for sampler in self.containers:
+            sampler.update_weights(self.spatial_weights, self.temporal_weights)
+
+    _signature_objs = (__init__, DualBatchQueue, BatchQueueDC)
 
 
 class ValBatchQueueDC(BatchQueueDC):
@@ -125,3 +155,32 @@ class ValBatchQueueDC(BatchQueueDC):
             dtype=np.float32,
         )[0]
         return self._temporal_weights
+
+
+class DualValBatchQueueDC(DualBatchQueueDC, ValBatchQueueDC):
+    """Validation queue for dual data centric sampling. This is used to
+    sample from dual samplers with the same spatial and temporal binning as
+    :class:`~sup3r.preprocessing.batch_queues.dc.ValBatchQueueDC`"""
+
+    def __init__(self, samplers, n_space_bins=1, n_time_bins=1, **kwargs):
+        """
+        Parameters
+        ----------
+        samplers : List[Sampler]
+            List of Sampler instances
+        n_space_bins : int
+            Number of spatial bins to use for weighted sampling.
+        n_time_bins : int
+            Number of time bins to use for weighted sampling.
+        kwargs : dict
+            Keyword arguments for parent class.
+        """
+        super().__init__(
+            samplers,
+            n_space_bins=n_space_bins,
+            n_time_bins=n_time_bins,
+            **kwargs,
+        )
+        self.n_batches = n_space_bins * n_time_bins
+
+    _signature_objs = (__init__, DualBatchQueueDC, ValBatchQueueDC)

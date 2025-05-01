@@ -104,7 +104,7 @@ class CollectorNC(BaseCollector):
                 tmp_file,
                 data=out,
                 features=features,
-                cacher_kwargs=cacher_kwargs,
+                **cacher_kwargs,
             )
 
         os.replace(tmp_file, out_file)

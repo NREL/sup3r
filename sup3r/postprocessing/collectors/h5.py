@@ -761,14 +761,10 @@ class CollectorH5(BaseCollector):
             ``pipeline_step`` will be set to ``"collect``, mimicking old reV
             behavior. By default, ``None``.
         target_meta_file : str
-            Path to target final meta containing coordinates to keep from the
-            full file list collected meta. This can be but is not necessarily a
-            subset of the full list of coordinates for all files in the file
-            list. This is used to remove coordinates from the full file list
-            which are not present in the target_meta. Either this full
-            meta or a subset, depending on which coordinates are present in
-            the data to be collected, will be the final meta for the collected
-            output files.
+            Path to meta file specifying coordinates to keep in the final
+            collected output. This can contain coordinates not present in the
+            collected data, in which case only the collected data will be
+            written.
         n_writes : int | None
             Number of writes to split full file list into. Must be less than
             or equal to the number of temporal chunks if chunks have different

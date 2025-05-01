@@ -3,12 +3,16 @@ low and high resolution data. These paired datasets are contained in a
 Sup3rDataset object."""
 
 import logging
-from typing import Dict, Optional
+from typing import Dict, List, Optional, Union
+
+import dask.array as da
+import numpy as np
 
 from sup3r.preprocessing.base import Sup3rDataset
 from sup3r.preprocessing.utilities import lowered
 
 from .base import Sampler
+from .dc import SamplerDC
 from .utilities import uniform_box_sampler, uniform_time_sampler
 
 logger = logging.getLogger(__name__)
@@ -124,6 +128,18 @@ class DualSampler(Sampler):
         )
         assert self.hr_data.shape[:-1] == enhanced_shape, msg
 
+    def get_hr_from_lr(self, lr_index):
+        """Get hr sample index from lr sample index."""
+        hr_index = [
+            slice(s.start * self.s_enhance, s.stop * self.s_enhance)
+            for s in lr_index[:2]
+        ]
+        hr_index += [
+            slice(s.start * self.t_enhance, s.stop * self.t_enhance)
+            for s in lr_index[2:-1]
+        ]
+        return hr_index
+
     def get_sample_index(self, n_obs=None):
         """Get paired sample index, consisting of index for the low res sample
         and the index for the high res sample with the same spatiotemporal
@@ -137,16 +153,62 @@ class DualSampler(Sampler):
             self.lr_data.shape, self.lr_sample_shape[2] * n_obs
         )
         lr_index = (*spatial_slice, time_slice, self.lr_features)
-        hr_index = [
-            slice(s.start * self.s_enhance, s.stop * self.s_enhance)
-            for s in lr_index[:2]
-        ]
-        hr_index += [
-            slice(s.start * self.t_enhance, s.stop * self.t_enhance)
-            for s in lr_index[2:-1]
-        ]
+        hr_index = (*self.get_hr_from_lr(lr_index), self.hr_features)
         obs_index = (*hr_index, self.hr_out_features)
-        hr_index = (*hr_index, self.hr_features)
 
+        sample_index = (lr_index, hr_index, obs_index)
+        return sample_index[: len(self.data)]
+
+
+class DualSamplerDC(DualSampler, SamplerDC):
+    """Sampler for data-centric sampling from paired (or dual) datasets."""
+
+    def __init__(
+        self,
+        data,
+        spatial_weights: Optional[
+            Union[np.ndarray, da.core.Array, List]
+        ] = None,
+        temporal_weights: Optional[
+            Union[np.ndarray, da.core.Array, List]
+        ] = None,
+        **kwargs,
+    ):
+        """
+        Parameters
+        ----------
+        data : Sup3rDataset
+            A :class:`~sup3r.preprocessing.base.Sup3rDataset` instance with
+            low-res and high-res data members, and optionally an obs member.
+        **kwargs : dict
+            Keyword arguments for DualSampler
+        spatial_weights : Union[np.ndarray, da.core.Array] | List | None
+            Set of weights used to initialize the spatial sampling. See
+            :class:`~sup3r.preprocessing.samplers.dc.SamplerDC`
+        temporal_weights : Union[np.ndarray, da.core.Array] | List | None
+            Set of weights used to initialize the temporal sampling. See
+            :class:`~sup3r.preprocessing.samplers.dc.SamplerDC`
+        """
+        super().__init__(data, **kwargs)
+        self.spatial_weights = spatial_weights or [1]
+        self.temporal_weights = temporal_weights or [1]
+        post_init_args = {
+            'spatial_weights': self.spatial_weights,
+            'temporal_weights': self.temporal_weights,
+        }
+        self.post_init_log(post_init_args)
+
+    _signature_objs = (__init__, DualSampler)
+
+    def get_sample_index(self, n_obs=None):
+        """Randomly gets weighted spatial sample and time sample indices for
+        both low and high resolution data."""
+
+        lr_index = self._get_sample_index(
+            self.lr_data.shape, self.lr_sample_shape, n_obs=n_obs
+        )
+        lr_index = (*lr_index[:-1], self.lr_features)
+        hr_index = (*self.get_hr_from_lr(lr_index), self.hr_features)
+        obs_index = (*hr_index, self.hr_out_features)
         sample_index = (lr_index, hr_index, obs_index)
         return sample_index[: len(self.data)]
