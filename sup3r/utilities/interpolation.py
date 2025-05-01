@@ -56,13 +56,16 @@ class Interpolator:
         argmin2 = da.argmin(np.abs(above - level), axis=-1, keepdims=True)
         mask2 = lev_indices == argmin2
 
-        # Get alternative second level in case there is no level above
-        alts = da.ma.masked_array(lev_array, mask1)
-        argmin3 = da.argmin(np.abs(alts - level), axis=-1, keepdims=True)
-        mask3 = lev_indices == argmin3
+        # Get alternative levels in case there is no level below or above
+        below_exists = da.any(below_mask, axis=-1, keepdims=True)
+        argmin3 = da.argmin(np.abs(lev_array - level), axis=-1, keepdims=True)
+        mask1 = da.where(below_exists, mask1, lev_indices == argmin3)
 
         above_exists = da.any(above_mask, axis=-1, keepdims=True)
-        mask2 = da.where(above_exists, mask2, mask3)
+        alts = da.ma.masked_array(lev_array, mask1)
+        argmin3 = da.argmin(np.abs(alts - level), axis=-1, keepdims=True)
+        mask2 = da.where(above_exists, mask2, lev_indices == argmin3)
+
         return mask1, mask2
 
     @classmethod
