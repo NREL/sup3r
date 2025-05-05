@@ -16,7 +16,8 @@ class Interpolator:
     @classmethod
     def get_level_masks(cls, lev_array, level):
         """Get the masks used to select closest surrounding levels in the
-        lev_array to requested interpolation level.
+        lev_array to the requested interpolation level. If there are levels
+        above and below the requested level these are prioritized.
 
         Parameters
         ----------

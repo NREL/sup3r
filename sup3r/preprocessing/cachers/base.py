@@ -82,8 +82,10 @@ class Cacher(Container):
         ):
             self.out_files = self.cache_data(**cache_kwargs)
 
+    @classmethod
     def _write_single(
-        self,
+        cls,
+        data,
         feature,
         out_file,
         chunks,
@@ -105,9 +107,9 @@ class Cacher(Container):
                 'Writing %s to %s. %s', feature, tmp_file, _mem_check()
             )
             if ext == '.h5':
-                func = self.write_h5
+                func = cls.write_h5
             elif ext == '.nc':
-                func = self.write_netcdf
+                func = cls.write_netcdf
             else:
                 msg = (
                     'cache_pattern must have either h5 or nc extension. '
@@ -117,7 +119,7 @@ class Cacher(Container):
                 raise ValueError(msg)
             func(
                 out_file=tmp_file,
-                data=self.data,
+                data=data,
                 features=[feature],
                 chunks=chunks,
                 max_workers=max_workers,
@@ -176,6 +178,7 @@ class Cacher(Container):
         if any(missing_files):
             for feature, out_file in zip(missing_features, missing_files):
                 self._write_single(
+                    data=self.data,
                     feature=feature,
                     out_file=out_file,
                     chunks=chunks,
