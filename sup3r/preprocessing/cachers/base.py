@@ -85,10 +85,10 @@ class Cacher(Container):
     @classmethod
     def _write_single(
         cls,
-        data,
-        feature,
         out_file,
-        chunks,
+        data,
+        features='all',
+        chunks=None,
         max_workers=None,
         mode='w',
         attrs=None,
@@ -99,36 +99,39 @@ class Cacher(Container):
             logger.info(
                 f'{out_file} already exists. Delete if you want to overwrite.'
             )
+            return
+        if features == 'all':
+            features = list(data.data_vars)
+        features = features if isinstance(features, list) else [features]
+        _, ext = os.path.splitext(out_file)
+        os.makedirs(os.path.dirname(out_file), exist_ok=True)
+        tmp_file = out_file + '.tmp'
+        logger.info(
+            'Writing %s to %s. %s', features, tmp_file, _mem_check()
+        )
+        if ext == '.h5':
+            func = cls.write_h5
+        elif ext == '.nc':
+            func = cls.write_netcdf
         else:
-            _, ext = os.path.splitext(out_file)
-            os.makedirs(os.path.dirname(out_file), exist_ok=True)
-            tmp_file = out_file + '.tmp'
-            logger.info(
-                'Writing %s to %s. %s', feature, tmp_file, _mem_check()
+            msg = (
+                'cache_pattern must have either h5 or nc extension. '
+                f'Received {ext}.'
             )
-            if ext == '.h5':
-                func = cls.write_h5
-            elif ext == '.nc':
-                func = cls.write_netcdf
-            else:
-                msg = (
-                    'cache_pattern must have either h5 or nc extension. '
-                    f'Received {ext}.'
-                )
-                logger.error(msg)
-                raise ValueError(msg)
-            func(
-                out_file=tmp_file,
-                data=data,
-                features=[feature],
-                chunks=chunks,
-                max_workers=max_workers,
-                mode=mode,
-                attrs=attrs,
-                verbose=verbose,
-            )
-            os.replace(tmp_file, out_file)
-            logger.info('Moved %s to %s', tmp_file, out_file)
+            logger.error(msg)
+            raise ValueError(msg)
+        func(
+            out_file=tmp_file,
+            data=data,
+            features=features,
+            chunks=chunks,
+            max_workers=max_workers,
+            mode=mode,
+            attrs=attrs,
+            verbose=verbose,
+        )
+        os.replace(tmp_file, out_file)
+        logger.info('Moved %s to %s', tmp_file, out_file)
 
     def cache_data(
         self,
@@ -179,7 +182,7 @@ class Cacher(Container):
             for feature, out_file in zip(missing_features, missing_files):
                 self._write_single(
                     data=self.data,
-                    feature=feature,
+                    features=feature,
                     out_file=out_file,
                     chunks=chunks,
                     max_workers=max_workers,
