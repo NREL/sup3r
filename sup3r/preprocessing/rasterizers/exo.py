@@ -5,7 +5,6 @@ subclass refactor here."""
 
 import logging
 import os
-import shutil
 from abc import ABC
 from dataclasses import dataclass
 from typing import Optional, Union
@@ -303,16 +302,13 @@ class BaseExoRasterizer(ABC):
             data = self.get_data()
 
         if not os.path.exists(cache_fp):
-            tmp_fp = cache_fp + '.tmp'
-            Cacher.write_netcdf(
-                tmp_fp,
-                data,
+            Cacher._write_single(
+                out_file=cache_fp,
+                data=data,
                 max_workers=self.max_workers,
                 chunks=self.chunks,
                 verbose=self.verbose,
             )
-            shutil.move(tmp_fp, cache_fp)
-            logger.info('Moved %s to %s', tmp_fp, cache_fp)
 
         return Sup3rX(data.chunk(self.chunks))
 

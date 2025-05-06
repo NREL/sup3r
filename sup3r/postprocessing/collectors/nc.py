@@ -31,6 +31,7 @@ class CollectorNC(BaseCollector):
         log_file=None,
         overwrite=True,
         res_kwargs=None,
+        cacher_kwargs=None,
     ):
         """Collect data files from a dir to one output file.
 
@@ -65,6 +66,8 @@ class CollectorNC(BaseCollector):
             Whether to overwrite existing output file
         res_kwargs : dict | None
             Dictionary of kwargs to pass to xarray.open_mfdataset.
+        cacher_kwargs : dict | None
+            Dictionary of kwargs to pass to Cacher._write_single.
         """
         logger.info(f'Initializing collection for file_paths={file_paths}')
 
@@ -86,8 +89,7 @@ class CollectorNC(BaseCollector):
 
         spatial_chunks = collector.group_spatial_chunks()
 
-        tmp_file = out_file + '.tmp'
-        if not os.path.exists(tmp_file):
+        if not os.path.exists(out_file):
             res_kwargs = res_kwargs or {
                 'combine': 'nested',
                 'concat_dim': Dimension.TIME,
@@ -97,10 +99,13 @@ class CollectorNC(BaseCollector):
                     spatial_chunks[s_idx], **res_kwargs
                 )
             out = xr.concat(spatial_chunks.values(), dim=Dimension.SOUTH_NORTH)
-            Cacher.write_netcdf(tmp_file, data=out, features=features)
-
-        os.replace(tmp_file, out_file)
-        logger.info('Moved %s to %s.', tmp_file, out_file)
+            cacher_kwargs = cacher_kwargs or {}
+            Cacher._write_single(
+                out_file=out_file,
+                data=out,
+                features=features,
+                **cacher_kwargs,
+            )
 
         logger.info('Finished file collection.')
 

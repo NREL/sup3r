@@ -85,16 +85,17 @@ class Cacher(Container):
     @classmethod
     def _write_single(
         cls,
-        data,
-        feature,
         out_file,
-        chunks,
+        data,
+        features='all',
+        chunks=None,
         max_workers=None,
         mode='w',
         attrs=None,
         verbose=False,
     ):
         """Write single NETCDF or H5 cache file."""
+        features = features if isinstance(features, list) else [features]
         if os.path.exists(out_file):
             logger.info(
                 f'{out_file} already exists. Delete if you want to overwrite.'
@@ -104,7 +105,7 @@ class Cacher(Container):
             os.makedirs(os.path.dirname(out_file), exist_ok=True)
             tmp_file = out_file + '.tmp'
             logger.info(
-                'Writing %s to %s. %s', feature, tmp_file, _mem_check()
+                'Writing %s to %s. %s', features, tmp_file, _mem_check()
             )
             if ext == '.h5':
                 func = cls.write_h5
@@ -120,7 +121,7 @@ class Cacher(Container):
             func(
                 out_file=tmp_file,
                 data=data,
-                features=[feature],
+                features=features,
                 chunks=chunks,
                 max_workers=max_workers,
                 mode=mode,
@@ -179,7 +180,7 @@ class Cacher(Container):
             for feature, out_file in zip(missing_features, missing_files):
                 self._write_single(
                     data=self.data,
-                    feature=feature,
+                    features=feature,
                     out_file=out_file,
                     chunks=chunks,
                     max_workers=max_workers,

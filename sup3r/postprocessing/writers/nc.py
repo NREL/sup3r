@@ -93,7 +93,7 @@ class OutputHandlerNC(OutputHandler):
         attrs['date_created'] = attrs.get('date_created', now)
 
         ds = xr.Dataset(data_vars=data_vars, coords=coords, attrs=attrs)
-        Cacher.write_netcdf(
+        Cacher._write_single(
             out_file=out_file,
             data=ds,
             features=features,

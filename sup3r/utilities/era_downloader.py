@@ -835,18 +835,15 @@ class EraDownloader:
             try:
                 res_kwargs = res_kwargs or {}
                 loader = Loader(files, res_kwargs=res_kwargs)
-                tmp_file = cls.get_tmp_file(outfile)
                 for ignore_var in IGNORE_VARS:
                     if ignore_var in loader.coords:
                         loader.data = loader.data.drop_vars(ignore_var)
-                Cacher.write_netcdf(
+                Cacher._write_single(
                     data=loader.data,
-                    out_file=tmp_file,
+                    out_file=outfile,
                     max_workers=1,
                     chunks=chunks,
                 )
-                os.replace(tmp_file, outfile)
-                logger.info('Moved %s to %s.', tmp_file, outfile)
             except Exception as e:
                 msg = f'Error combining {files}. {e}'
                 logger.error(msg)
