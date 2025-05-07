@@ -14,7 +14,7 @@ from sup3r.preprocessing.samplers.utilities import (
     uniform_box_sampler,
     uniform_time_sampler,
 )
-from sup3r.preprocessing.utilities import compute_if_dask, log_args, lowered
+from sup3r.preprocessing.utilities import compute_if_dask, lowered
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,6 @@ class Sampler(Container):
     """Basic Sampler class for iterating through batches of samples from the
     contained data."""
 
-    @log_args
     def __init__(
         self,
         data,

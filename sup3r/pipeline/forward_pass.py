@@ -237,7 +237,6 @@ class ForwardPass:
             )
             logger.exception(msg)
             raise RuntimeError(msg) from e
-
         if len(hi_res.shape) == 4:
             hi_res = np.expand_dims(np.transpose(hi_res, (1, 2, 0, 3)), axis=0)
 

@@ -149,9 +149,7 @@ class BaseExoRasterizer(ABC):
     @property
     def source_handler(self):
         """Get the Loader object that handles the exogenous data file."""
-        msg = f'Getting {self.feature} for full domain from {self.source_file}'
         if self._source_handler is None:
-            logger.info(msg)
             self._source_handler = Loader(
                 file_paths=self.source_file, features=[self.feature]
             )
@@ -297,6 +295,11 @@ class BaseExoRasterizer(ABC):
 
         cache_fp = self.cache_file
         if os.path.exists(cache_fp):
+            logger.info(
+                'Loading cached data for {} from {}'.format(
+                    self.feature, cache_fp
+                )
+            )
             data = Loader(cache_fp)
         else:
             data = self.get_data()
@@ -407,9 +410,7 @@ class ObsRasterizer(BaseExoRasterizer):
     def source_handler(self):
         """Get the Loader object that handles the exogenous data file."""
         feat = self.feature.replace('_obs', '')
-        msg = f'Getting {self.feature} for full domain from {self.source_file}'
         if self._source_handler is None:
-            logger.info(msg)
             self._source_handler = Loader(
                 file_paths=self.source_file, features=[feat]
             )

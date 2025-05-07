@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional, Union
 from warnings import warn
 
+import dask.array as da
 import numpy as np
 
 from sup3r.preprocessing.rasterizers import ExoRasterizer
@@ -95,6 +96,8 @@ class ExoData(dict):
                 if 'steps' not in entry:
                     logger.warning(msg)
                     warn(msg)
+                if isinstance(entry, (np.ndarray, da.core.Array)):
+                    entry = {'data': entry}
                 steps_list = entry.get('steps', [entry])
                 for i, step in enumerate(steps_list):
                     msg = (f'ExoData entry for {feat}, step #{i + 1}, has no '
