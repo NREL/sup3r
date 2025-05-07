@@ -19,7 +19,7 @@ from sup3r.bias.utilities import bias_correct_features
 from sup3r.pipeline.slicer import ForwardPassSlicer
 from sup3r.pipeline.utilities import get_model
 from sup3r.postprocessing import OutputHandler
-from sup3r.preprocessing import ExoData, ExoDataHandler, Rasterizer
+from sup3r.preprocessing import ExoData, ExoDataHandler, Loader
 from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.utilities import (
     _parse_time_slice,
@@ -305,21 +305,17 @@ class ForwardPassStrategy:
         step = time_slice.step if time_slice.step else 1
         pstart = (
             0
-            if time_slice.start is None
+            if not time_slice.start
             else time_slice.start - self.temporal_pad * step
         )
         pend = (
             None
-            if time_slice.stop is None
+            if not time_slice.stop
             else time_slice.stop + self.temporal_pad * step
         )
         padded_slice = slice(pstart, pend, time_slice.step)
-        start = 0 if time_slice.start is None else self.temporal_pad
-        stop = (
-            None
-            if time_slice.stop is None or time_slice.stop == 0
-            else -self.temporal_pad
-        )
+        start = 0 if not padded_slice.start else self.temporal_pad
+        stop = None if not padded_slice.stop else -self.temporal_pad
         unpadded_slice = slice(start, stop)
         return unpadded_slice, padded_slice
 
@@ -484,7 +480,7 @@ class ForwardPassStrategy:
 
         kwargs = dict(zip(Dimension.dims_2d(), lr_pad_slice))
         kwargs[Dimension.TIME] = ti_pad_slice
-        input_data = self.input_handler.isel(**kwargs)
+        input_data = self.input_handler[self.features].isel(**kwargs)
         logger.info(
             'Loading data for chunk_index=%s into memory.', chunk_index
         )
@@ -581,7 +577,7 @@ class ForwardPassStrategy:
                 )
                 input_handler_kwargs['target'] = self.input_handler.target
                 input_handler_kwargs['shape'] = self.input_handler.grid_shape
-                _ = input_handler_kwargs.pop('time_slice', None)
+                input_handler_kwargs['time_slice'] = self.padded_time_slice
                 exo_kwargs['input_handler_kwargs'] = input_handler_kwargs
                 exo_kwargs = get_class_kwargs(ExoDataHandler, exo_kwargs)
                 exo_kwargs_list.append(exo_kwargs)
@@ -625,19 +621,23 @@ class ForwardPassStrategy:
         --------
         sup3r.pipeline.strategy.ForwardPassStrategy
         """
-
         mask = np.zeros(len(self.lr_pad_slices))
+        logger.info('Checking for mask in input handler.')
         input_handler_kwargs = copy.deepcopy(self.input_handler_kwargs)
         input_handler_kwargs['features'] = 'all'
-        handler = Rasterizer(
-            **get_class_kwargs(Rasterizer, input_handler_kwargs)
+        loader = Loader(
+            self.file_paths,
+            **get_class_kwargs(Loader, input_handler_kwargs),
         )
-        if 'mask' in handler.data:
+        if 'mask' in loader.data:
             logger.info(
                 'Found "mask" in DataHandler. Computing forward pass '
                 'chunk mask for %s chunks',
                 len(self.lr_pad_slices),
             )
+            InputHandler = get_input_handler_class(self.input_handler_name)
+            input_handler_kwargs['features'] = ['mask']
+            handler = InputHandler(self.file_paths, **input_handler_kwargs)
             mask_vals = handler.data['mask'].values
             for s_chunk_idx, lr_slices in enumerate(self.lr_pad_slices):
                 mask_check = mask_vals[lr_slices[0], lr_slices[1]]
