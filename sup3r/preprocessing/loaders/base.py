@@ -65,7 +65,9 @@ class BaseLoader(Container, ABC):
             Optional base loader update. The default for H5 files is
             MultiFileResourceX and for NETCDF is xarray.open_mfdataset
         """
-        logger.info('Loading %s from %s', features, file_paths)
+        logger.info(
+            'Loading features: %s from files: %s', features, file_paths
+        )
         super().__init__()
         self.res_kwargs = res_kwargs or {}
         self.file_paths = file_paths

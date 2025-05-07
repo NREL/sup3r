@@ -58,7 +58,11 @@ class BaseRasterizer(Container):
             are more than this value away from the target lat/lon, an error is
             raised.
         """
-        logger.info('Rasterizing %s from %s', features, loader.file_paths)
+        logger.info(
+            'Rasterizing features: %s from files: %s',
+            features,
+            loader.file_paths,
+        )
         super().__init__(data=loader.data)
         self.loader = loader
         self.threshold = threshold
