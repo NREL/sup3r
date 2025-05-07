@@ -16,7 +16,7 @@ import numpy as np
 from warnings import warn
 from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.names import Dimension
-from sup3r.preprocessing.utilities import _mem_check, log_args, _lowered
+from sup3r.preprocessing.utilities import _mem_check, _lowered
 from sup3r.utilities.utilities import safe_cast, safe_serialize
 from rex.utilities.utilities import to_records_array
 
@@ -36,7 +36,6 @@ class Cacher(Container):
     features to the same file call :meth:`write_netcdf` or :meth:`write_h5`
     directly"""
 
-    @log_args
     def __init__(
         self,
         data: Union['Sup3rX', 'Sup3rDataset'],
@@ -106,9 +105,7 @@ class Cacher(Container):
         _, ext = os.path.splitext(out_file)
         os.makedirs(os.path.dirname(out_file), exist_ok=True)
         tmp_file = out_file + '.tmp'
-        logger.info(
-            'Writing %s to %s. %s', features, tmp_file, _mem_check()
-        )
+        logger.info('Writing %s to %s. %s', features, tmp_file, _mem_check())
         if ext == '.h5':
             func = cls.write_h5
         elif ext == '.nc':
@@ -174,11 +171,12 @@ class Cacher(Container):
 
         if any(cached_files):
             logger.info(
-                'Cache files %s already exist. Delete to overwrite.',
-                cached_files,
+                f'Cache files with pattern {cache_pattern} already exist. '
+                'Delete to overwrite.'
             )
 
         if any(missing_files):
+            logger.info('Caching %s to %s', missing_features, missing_files)
             for feature, out_file in zip(missing_features, missing_files):
                 self._write_single(
                     data=self.data,
@@ -517,9 +515,11 @@ class Cacher(Container):
                 try:
                     ncfile.setncattr(attr_name, attr_value)
                 except Exception as e:
-                    msg = (f'Could not write {attr_name} as attribute, '
-                           f'serializing with json dumps, '
-                           f'received error: "{e}"')
+                    msg = (
+                        f'Could not write {attr_name} as attribute, '
+                        f'serializing with json dumps, '
+                        f'received error: "{e}"'
+                    )
                     logger.warning(msg)
                     warn(msg)
                     ncfile.setncattr(attr_name, safe_serialize(attr_value))

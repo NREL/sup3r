@@ -192,6 +192,7 @@ class DataHandler(Deriver):
             self.rasterizer = self.loader = self.cache
 
         if any(missing_features) or just_coords:
+            logger.info('%s not found in cache', missing_features)
             self.rasterizer = Rasterizer(
                 file_paths=file_paths,
                 res_kwargs=res_kwargs,

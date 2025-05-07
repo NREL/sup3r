@@ -54,7 +54,7 @@ def get_input_handler_class(input_handler_name: Optional[str] = None):
         DataHandler or Rasterizer class from sup3r.preprocessing.
     """
     if input_handler_name is None:
-        input_handler_name = 'Rasterizer'
+        input_handler_name = 'DataHandler'
 
         logger.info(
             '"input_handler_name" arg was not provided. Using '
