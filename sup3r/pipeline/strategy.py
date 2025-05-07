@@ -637,7 +637,7 @@ class ForwardPassStrategy:
             )
             InputHandler = get_input_handler_class(self.input_handler_name)
             input_handler_kwargs['features'] = ['mask']
-            handler = InputHandler(self.file_paths, **input_handler_kwargs)
+            handler = InputHandler(**input_handler_kwargs)
             mask_vals = handler.data['mask'].values
             for s_chunk_idx, lr_slices in enumerate(self.lr_pad_slices):
                 mask_check = mask_vals[lr_slices[0], lr_slices[1]]
