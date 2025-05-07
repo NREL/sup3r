@@ -26,6 +26,7 @@ class OutputHandlerH5(OutputHandler):
         out_file,
         meta_data=None,
         invert_uv=None,
+        nn_fill=False,
         max_workers=None,
         gids=None,
     ):
@@ -51,6 +52,9 @@ class OutputHandlerH5(OutputHandler):
         invert_uv : bool | None
             Whether to convert u and v wind components to windspeed and
             direction
+        nn_fill : bool
+            Whether to fill data outside of limits with nearest
+            neighbour or cap to limits
         max_workers : int | None
             Max workers to use for inverse transform.
         gids : list
@@ -74,6 +78,7 @@ class OutputHandlerH5(OutputHandler):
             lat_lon,
             max_workers=max_workers,
             invert_uv=invert_uv,
+            nn_fill=nn_fill,
         )
         gids = (
             gids

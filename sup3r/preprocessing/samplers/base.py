@@ -7,7 +7,6 @@ from fnmatch import fnmatch
 from typing import Dict, Optional, Tuple
 from warnings import warn
 
-import dask.array as da
 import numpy as np
 
 from sup3r.preprocessing.base import Container
@@ -15,7 +14,7 @@ from sup3r.preprocessing.samplers.utilities import (
     uniform_box_sampler,
     uniform_time_sampler,
 )
-from sup3r.preprocessing.utilities import compute_if_dask, log_args, lowered
+from sup3r.preprocessing.utilities import compute_if_dask, lowered
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +23,6 @@ class Sampler(Container):
     """Basic Sampler class for iterating through batches of samples from the
     contained data."""
 
-    @log_args
     def __init__(
         self,
         data,
@@ -197,7 +195,7 @@ class Sampler(Container):
         # (lats, lons, batch_size, times, feats)
         out = np.reshape(samples, new_shape)
         # (batch_size, lats, lons, times, feats)
-        return compute_if_dask(np.transpose(out, axes=(2, 0, 1, 3, 4)))
+        return np.transpose(out, axes=(2, 0, 1, 3, 4))
 
     def _stack_samples(self, samples):
         """Used to build batch arrays in the case of independent time samples
@@ -222,25 +220,27 @@ class Sampler(Container):
             (batch_size, samp_shape[0], samp_shape[1], samp_shape[2], n_feats)
         """
         if isinstance(samples[0], tuple):
-            lr = da.stack([s[0] for s in samples], axis=0)
-            hr = da.stack([s[1] for s in samples], axis=0)
+            lr = np.stack([s[0] for s in samples], axis=0)
+            hr = np.stack([s[1] for s in samples], axis=0)
             return (lr, hr)
-        return da.stack(samples, axis=0)
+        return np.stack(samples, axis=0)
 
     def _fast_batch(self):
         """Get batch of samples with adjacent time slices."""
         out = self.data.sample(self.get_sample_index(n_obs=self.batch_size))
+        out = compute_if_dask(out)
         if isinstance(out, tuple):
             return tuple(self._reshape_samples(o) for o in out)
         return self._reshape_samples(out)
 
     def _slow_batch(self):
         """Get batch of samples with random time slices."""
-        samples = [
+        out = [
             self.data.sample(self.get_sample_index(n_obs=1))
             for _ in range(self.batch_size)
         ]
-        return self._stack_samples(samples)
+        out = compute_if_dask(out)
+        return self._stack_samples(out)
 
     def _fast_batch_possible(self):
         return self.batch_size * self.sample_shape[2] <= self.data.shape[2]

@@ -9,10 +9,7 @@ import numpy as np
 
 from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.names import Dimension
-from sup3r.preprocessing.utilities import (
-    _parse_time_slice,
-    compute_if_dask,
-)
+from sup3r.preprocessing.utilities import _parse_time_slice, compute_if_dask
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +58,11 @@ class BaseRasterizer(Container):
             are more than this value away from the target lat/lon, an error is
             raised.
         """
+        logger.info(
+            'Rasterizing features: %s from files: %s',
+            features,
+            loader.file_paths,
+        )
         super().__init__(data=loader.data)
         self.loader = loader
         self.threshold = threshold
@@ -214,8 +216,7 @@ class BaseRasterizer(Container):
         msg = (
             'The distance between the closest coordinate: '
             f'{np.asarray(lat_lon[row, col])} and the requested '
-            f'target: {np.asarray(target)} for files: '
-            f'{self.loader.file_paths} is {np.asarray(dist.min())}.'
+            f'target: {np.asarray(target)} is {np.asarray(dist.min())}. '
         )
         if self.threshold is not None and dist.min() > self.threshold:
             add_msg = f'This exceeds the given threshold: {self.threshold}'

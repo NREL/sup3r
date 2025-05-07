@@ -13,7 +13,7 @@ from rex import Resource
 from rex.utilities.fun_utils import get_fun_call_str
 
 from sup3r.bias.utilities import bias_correct_feature
-from sup3r.postprocessing import OUTPUT_ATTRS, RexOutputs
+from sup3r.postprocessing import RexOutputs
 from sup3r.preprocessing.derivers import Deriver
 from sup3r.preprocessing.derivers.utilities import parse_feature
 from sup3r.preprocessing.utilities import (
@@ -24,6 +24,7 @@ from sup3r.preprocessing.utilities import (
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
 from sup3r.utilities.utilities import (
+    OUTPUT_ATTRS,
     spatial_coarsening,
     temporal_coarsening,
     xr_open_mfdataset,
