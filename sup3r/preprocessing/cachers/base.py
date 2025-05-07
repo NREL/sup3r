@@ -94,7 +94,6 @@ class Cacher(Container):
         verbose=False,
     ):
         """Write single NETCDF or H5 cache file."""
-        features = features if isinstance(features, list) else [features]
         if os.path.exists(out_file):
             logger.info(
                 f'{out_file} already exists. Delete if you want to overwrite.'
