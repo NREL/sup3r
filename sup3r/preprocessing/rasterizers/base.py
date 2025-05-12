@@ -58,11 +58,7 @@ class BaseRasterizer(Container):
             are more than this value away from the target lat/lon, an error is
             raised.
         """
-        logger.info(
-            'Rasterizing features: %s from files: %s',
-            features,
-            loader.file_paths,
-        )
+        logger.info('Rasterizing %s from %s', features, loader.file_paths)
         super().__init__(data=loader.data)
         self.loader = loader
         self.threshold = threshold
@@ -152,11 +148,6 @@ class BaseRasterizer(Container):
     def get_raster_index(self):
         """Get set of slices or indices selecting the requested region from
         the contained data."""
-        logger.info(
-            'Getting raster index for target / shape: %s / %s',
-            np.asarray(self._target),
-            np.asarray(self._grid_shape),
-        )
         self.check_target_and_shape(self.full_lat_lon)
         row, col = self.get_closest_row_col(self.full_lat_lon, self._target)
         lat_slice = slice(row - self._grid_shape[0] + 1, row + 1)
@@ -217,12 +208,11 @@ class BaseRasterizer(Container):
             'The distance between the closest coordinate: '
             f'{np.asarray(lat_lon[row, col])} and the requested '
             f'target: {np.asarray(target)} is {np.asarray(dist.min())}. '
+            f'This exceeds the given threshold: {self.threshold}'
         )
         if self.threshold is not None and dist.min() > self.threshold:
-            add_msg = f'This exceeds the given threshold: {self.threshold}'
-            logger.error(f'{msg} {add_msg}')
-            raise RuntimeError(f'{msg} {add_msg}')
-        logger.info(msg)
+            logger.error(msg)
+            raise RuntimeError(msg)
         return row, col
 
     def get_lat_lon(self):

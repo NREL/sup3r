@@ -126,93 +126,15 @@ def gen_config_with_concat_masked():
                 'activation': 'relu',
             },
             {'class': 'Cropping2D', 'cropping': 4},
-            {'class': 'Sup3rConcatObs', 'name': 'u_10m_obs'},
-            {'class': 'Sup3rConcatObs', 'name': 'v_10m_obs'},
             {
-                'class': 'FlexiblePadding',
-                'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
-                'mode': 'REFLECT',
-            },
-            {
-                'class': 'Conv2DTranspose',
-                'filters': 2,
-                'kernel_size': 3,
-                'strides': 1,
-                'activation': 'relu',
-            },
-            {'class': 'Cropping2D', 'cropping': 4},
-        ]
-
-    return func
-
-
-@pytest.fixture(scope='package')
-def gen_config_with_concat_embedded():
-    """Get generator config with custom concat embedded obs layer."""
-
-    def func():
-        return [
-            {
-                'class': 'FlexiblePadding',
-                'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
-                'mode': 'REFLECT',
-            },
-            {
-                'class': 'Conv2DTranspose',
-                'filters': 2,
-                'kernel_size': 3,
-                'strides': 1,
-                'activation': 'relu',
-            },
-            {'class': 'Cropping2D', 'cropping': 4},
-            {
-                'class': 'FlexiblePadding',
-                'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
-                'mode': 'REFLECT',
-            },
-            {
-                'class': 'Conv2DTranspose',
-                'filters': 64,
-                'kernel_size': 3,
-                'strides': 1,
-                'activation': 'relu',
-            },
-            {'class': 'Cropping2D', 'cropping': 4},
-            {
-                'class': 'FlexiblePadding',
-                'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
-                'mode': 'REFLECT',
-            },
-            {
-                'class': 'Conv2DTranspose',
-                'filters': 64,
-                'kernel_size': 3,
-                'strides': 1,
-                'activation': 'relu',
-            },
-            {'class': 'Cropping2D', 'cropping': 4},
-            {'class': 'SpatialExpansion', 'spatial_mult': 2},
-            {'class': 'Activation', 'activation': 'relu'},
-            {
-                'class': 'FlexiblePadding',
-                'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
-                'mode': 'REFLECT',
-            },
-            {
-                'class': 'Conv2DTranspose',
-                'filters': 2,
-                'kernel_size': 3,
-                'strides': 1,
-                'activation': 'relu',
-            },
-            {'class': 'Cropping2D', 'cropping': 4},
-            {
-                'class': 'Sup3rConcatEmbeddedObs',
+                'class': 'Sup3rConcatObs',
                 'name': 'u_10m_obs',
+                'fill_method': 'idw',
             },
             {
-                'class': 'Sup3rConcatEmbeddedObs',
+                'class': 'Sup3rConcatObs',
                 'name': 'v_10m_obs',
+                'fill_method': 'idw',
             },
             {
                 'class': 'FlexiblePadding',
