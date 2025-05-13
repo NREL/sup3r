@@ -10,8 +10,6 @@ import tensorflow as tf
 from phygnn.layers.custom_layers import (
     Sup3rAdder,
     Sup3rConcat,
-    Sup3rConcatEmbeddedObs,
-    Sup3rConcatEmbeddedObsWithExo,
     Sup3rConcatObs,
     Sup3rObsModel,
 )
@@ -22,14 +20,9 @@ from sup3r.utilities.utilities import Timer
 
 logger = logging.getLogger(__name__)
 
-SUP3R_OBS_LAYERS = (
-    Sup3rObsModel,
-    Sup3rConcatObs,
-    Sup3rConcatEmbeddedObs,
-    Sup3rConcatEmbeddedObsWithExo,
-)
+SUP3R_OBS_LAYERS = Sup3rObsModel, Sup3rConcatObs
 
-SUP3R_EXO_LAYERS = (Sup3rAdder, Sup3rConcat)
+SUP3R_EXO_LAYERS = Sup3rAdder, Sup3rConcat
 
 SUP3R_LAYERS = (*SUP3R_EXO_LAYERS, *SUP3R_OBS_LAYERS)
 
