@@ -15,14 +15,6 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from phygnn import CustomNetwork
-from phygnn.layers.custom_layers import (
-    Sup3rAdder,
-    Sup3rConcat,
-    Sup3rConcatEmbeddedObs,
-    Sup3rConcatEmbeddedObsWithExo,
-    Sup3rConcatObs,
-    Sup3rObsModel,
-)
 from rex.utilities.utilities import safe_json_load
 from tensorflow.keras import optimizers
 
@@ -32,18 +24,9 @@ from sup3r.preprocessing.utilities import numpy_if_tensor
 from sup3r.utilities import VERSION_RECORD
 from sup3r.utilities.utilities import camel_to_underscore, safe_cast
 
-from .utilities import TensorboardMixIn
+from .utilities import SUP3R_LAYERS, SUP3R_OBS_LAYERS, TensorboardMixIn
 
 logger = logging.getLogger(__name__)
-
-SUP3R_OBS_LAYERS = (
-    Sup3rObsModel,
-    Sup3rConcatObs,
-    Sup3rConcatEmbeddedObs,
-    Sup3rConcatEmbeddedObsWithExo,
-)
-
-SUP3R_LAYERS = (Sup3rAdder, Sup3rConcat, *SUP3R_OBS_LAYERS)
 
 
 # pylint: disable=E1101,W0201,E0203
@@ -444,10 +427,8 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         """
         exo_data = {}
         for feature in self.hr_exo_features:
-            f_idx = self.hr_exo_features.index(feature)
-            f_idx += len(self.hr_out_features)
-            exo_fdata = hi_res[..., f_idx : f_idx + 1]
-            exo_data[feature] = exo_fdata
+            exo_fdata = hi_res[..., self.hr_features.index(feature)]
+            exo_data[feature] = exo_fdata[..., None]
         return exo_data
 
     @tf.function
@@ -1023,15 +1004,18 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             if is_obs_layer and missing_obs:
                 logger.warning(
                     msg.format(feat),
-                    'Will run without this observation feature.'
+                    'Will run without this observation feature.',
                 )
                 continue
             assert feat in exogenous_data, msg.format(feat)
             exo = exogenous_data.get_combine_type_data(feat, 'layer')
+            fname = (
+                feat.replace('_obs', '') if feat not in self._means else feat
+            )
             exo = self._reshape_norm_exo(
                 input_array,
                 exo,
-                feat.replace('_obs', ''),
+                fname,
                 norm_in=norm_in,
             )
             if feat in features:

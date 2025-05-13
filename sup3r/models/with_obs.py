@@ -24,7 +24,7 @@ class Sup3rGanWithObs(Sup3rGan):
         *args,
         onshore_obs_frac=None,
         offshore_obs_frac=None,
-        loss_obs_weight=None,
+        loss_obs_weight=0.0,
         **kwargs,
     ):
         """
@@ -51,7 +51,7 @@ class Sup3rGanWithObs(Sup3rGan):
             observations.
         loss_obs_weight : float
             Value used to weight observation locations in extra content loss
-            term. e.g. The new content loss will include ``obs_loss_weight *
+            term. e.g. The new content loss will include ``loss_obs_weight *
             MAE(hi_res_gen[~obs_mask], hi_res_true[~obs_mask])``
         kwargs : dict
             Keyword arguments for the ``Sup3rGan`` parent class.
@@ -78,23 +78,39 @@ class Sup3rGanWithObs(Sup3rGan):
         )
         return loss_obs, loss_non_obs
 
-    def _get_obs_mask(self, hi_res, spatial_frac, time_frac=None):
+    @property
+    def obs_training_inds(self):
+        """Get the indices of the observation features in the true high res
+        data. Obs features have an _obs suffix to avoid name conflict with
+        fully gridded features. During training these are matched with the
+        true high res data."""
+        hr_feats = [f.replace('_obs', '') for f in self.hr_features]
+        obs_inds = [
+            hr_feats.index(f.replace('_obs', '')) for f in self.obs_features
+        ]
+        return obs_inds
+
+    def _get_obs_mask(self, hi_res, spatial_frac, time_frac=1.0):
         """Get observation mask for a given spatial and temporal obs
-        fraction."""
-        obs_mask = RANDOM_GENERATOR.choice(
-            [True, False],
-            size=hi_res.shape[1:3],
-            p=[1 - spatial_frac, spatial_frac],
-        )
+        fraction.
+
+        Returns
+        -------
+        np.ndarray
+            Mask which is True for locations that are not observed and False
+            for locations that are observed.
+            (n_obs, spatial_1, spatial_2, n_features)
+            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
+        """
+        mask_shape = [*hi_res.shape[:3], 1, len(self.hr_out_features)]
         if self.is_5d:
-            sp_mask = obs_mask.copy()
-            obs_mask = RANDOM_GENERATOR.choice(
-                [True, False],
-                size=hi_res.shape[1:-1],
-                p=[1 - time_frac, time_frac],
-            )
-            obs_mask[sp_mask] = True
-        return np.repeat(obs_mask[None, ...], hi_res.shape[0], axis=0)
+            mask_shape[3] = hi_res.shape[3]
+        sp_mask = RANDOM_GENERATOR.uniform(size=mask_shape[:3]) <= spatial_frac
+        sp_mask = sp_mask[..., None, None]
+        time_mask = RANDOM_GENERATOR.uniform(size=mask_shape[-2:]) <= time_frac
+        time_mask = time_mask[None, None, None, ...]
+        mask = ~(sp_mask & time_mask)
+        return mask if self.is_5d else np.squeeze(mask, axis=-2)
 
     def get_obs_mask(self, hi_res):
         """Define observation mask for the current batch. This is done
@@ -106,20 +122,18 @@ class Sup3rGanWithObs(Sup3rGan):
         if not isinstance(on_sf, (list, tuple)):
             on_sf = [on_sf, on_sf]
         on_sf = max(RANDOM_GENERATOR.uniform(*on_sf), 0)
-        on_tf = self.onshore_obs_frac.get('time', None)
-        off_tf = self.offshore_obs_frac.get('time', None)
+        on_tf = self.onshore_obs_frac.get('time', 1.0)
         obs_mask = self._get_obs_mask(hi_res, on_sf, on_tf)
-        if 'topography' in self.hr_exo_features and self.offshore_obs_frac:
-            topo_idx = len(self.hr_out_features) + self.hr_exo_features.index(
-                'topography'
-            )
+        if 'topography' in self.hr_features and self.offshore_obs_frac:
+            topo_idx = self.hr_features.index('topography')
             topo = hi_res[..., topo_idx]
             off_sf = self.offshore_obs_frac['spatial']
+            off_tf = self.offshore_obs_frac.get('time', 1.0)
             if not isinstance(off_sf, (list, tuple)):
                 off_sf = [off_sf, off_sf]
             off_sf = max(RANDOM_GENERATOR.uniform(*off_sf), 0)
             offshore_mask = self._get_obs_mask(hi_res, off_sf, off_tf)
-            obs_mask = tf.where(topo > 0, obs_mask, offshore_mask)
+            obs_mask = tf.where(topo[..., None] > 0, obs_mask, offshore_mask)
         return obs_mask
 
     @property
@@ -134,7 +148,6 @@ class Sup3rGanWithObs(Sup3rGan):
         params = super().model_params
         params['onshore_obs_frac'] = self.onshore_obs_frac
         params['offshore_obs_frac'] = self.offshore_obs_frac
-        params['loss_obs_weight'] = self.loss_obs_weight
         return params
 
     def get_hr_exo_input(self, hi_res_true):
@@ -142,12 +155,10 @@ class Sup3rGanWithObs(Sup3rGan):
         the standard high res exo input"""
         exo_data = super().get_hr_exo_input(hi_res_true)
         obs_mask = self.get_obs_mask(hi_res_true)
-        for feature in self.obs_features:
-            # obs_features can include a _obs suffix to avoid name conflict
-            # with fully gridded exo features
-            f_idx = self.hr_out_features.index(feature.replace('_obs', ''))
-            tmp = tf.where(obs_mask, np.nan, hi_res_true[..., f_idx])
-            exo_data[feature] = tmp[..., None]
+        for i, feature in enumerate(self.obs_features):
+            obs_idx = self.obs_training_inds[i]
+            obs = tf.where(obs_mask[..., i], np.nan, hi_res_true[..., obs_idx])
+            exo_data[feature] = obs[..., None]
         exo_data['mask'] = obs_mask
         return exo_data
 
@@ -177,7 +188,7 @@ class Sup3rGanWithObs(Sup3rGan):
                 'obs_frac': np.sum(~hi_res_exo['mask'])
                 / np.size(hi_res_exo['mask']),
             }
-            if self.loss_obs_weight is not None:
+            if self.loss_obs_weight and not np.isnan(loss_obs):
                 loss_obs *= self.loss_obs_weight
                 loss += loss_obs
                 loss_update['loss_gen'] = loss
