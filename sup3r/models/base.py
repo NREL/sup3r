@@ -1173,7 +1173,11 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
                 multi_gpu,
             )
             elapsed = time.time() - start
-            logger.info('Finished batch in {:.4f} seconds'.format(elapsed))
+            logger.info(
+                'Finished batch {} out of {} in {:.4f} seconds'.format(
+                    ib + 1, len(batch_handler), elapsed
+                )
+            )
 
             loss_means = self._post_batch(
                 ib,
