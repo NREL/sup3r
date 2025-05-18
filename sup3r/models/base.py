@@ -419,11 +419,11 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             logger.info(
                 'Initializing model weights on device "{}"'.format(device)
             )
-            low_res = np.ones(lr_shape).astype(np.float32)
-            hi_res = np.ones(hr_shape).astype(np.float32)
+            low_res = tf.fill(lr_shape, 1.0)
+            hi_res = tf.fill(hr_shape, 1.0)
 
             hr_exo_shape = hr_shape[:-1] + (1,)
-            hr_exo = np.ones(hr_exo_shape).astype(np.float32)
+            hr_exo = tf.fill(hr_exo_shape, 1.0)
 
             with tf.device(device):
                 hr_exo_data = {}
@@ -931,7 +931,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             _, v_loss_details, _, _ = self._get_hr_exo_and_loss(
                 batch.low_res,
                 batch.high_res,
-                weight_gen_advers=weight_gen_advers
+                weight_gen_advers=weight_gen_advers,
             )
             self._val_record = self.update_loss_details(
                 self._val_record,
@@ -1025,6 +1025,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             )
             loss_details.update(b_loss_details)
 
+        loss_details = {k: float(v) for k, v in loss_details.items()}
         loss_details['gen_train_frac'] = float(trained_gen)
         loss_details['disc_train_frac'] = float(trained_disc)
         return loss_details
@@ -1159,6 +1160,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             disc_too_bad = (loss_disc > disc_th_high) and train_disc
             gen_too_good = disc_too_bad
 
+            start = time.time()
             b_loss_details = self._train_batch(
                 batch,
                 train_gen,
@@ -1170,6 +1172,8 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
                 weight_gen_advers,
                 multi_gpu,
             )
+            elapsed = time.time() - start
+            logger.info('Finished batch in {:.4f} seconds'.format(elapsed))
 
             loss_means = self._post_batch(
                 ib,

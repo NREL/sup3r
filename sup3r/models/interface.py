@@ -472,6 +472,8 @@ class AbstractInterface(ABC):
             'smoothing',
         )
         keys = [k for k in keys if k in kwargs]
+        if 'hr_out_features' in kwargs:
+            self.meta['hr_out_features'] = kwargs['hr_out_features']
 
         hr_exo_feat = kwargs.get('hr_exo_features', [])
         msg = (

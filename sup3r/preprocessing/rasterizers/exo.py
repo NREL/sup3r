@@ -95,7 +95,7 @@ class BaseExoRasterizer(ABC):
         for all cases except for sparse observation data.
     max_workers : int
         Number of workers used for writing data to cache files. Gets passed to
-        ``Cacher.write_netcdf.``
+        ``Cacher._write_single.``
     verbose : bool
         Whether to log output as each chunk is written to cache file.
     """
