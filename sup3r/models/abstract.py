@@ -426,11 +426,13 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             Dictionary of exogenous feature data used as input to tf_generate.
             e.g. ``{'topography': tf.Tensor(...)}``
         """
+        if len(self.hr_exo_features) == 0:
+            return {}
         inds = [self.hr_features.index(f) for f in self.hr_exo_features]
         exo = tf.gather(hi_res, inds, axis=-1)
         exo = tf.expand_dims(exo, axis=-2)
-        exo_data = dict(zip(self.hr_exo_features, tf.unstack(exo, axis=-1)))
-        return exo_data
+        exo = dict(zip(self.hr_exo_features, tf.unstack(exo, axis=-1)))
+        return exo
 
     def _combine_loss_input(self, hi_res_true, hi_res_gen):
         """Combine exogenous feature data from hi_res_true with hi_res_gen
