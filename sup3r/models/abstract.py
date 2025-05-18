@@ -424,6 +424,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             self._val_record = self._history[val_cols].iloc[-1:]
             self._val_record = self._val_record.reset_index(drop=True)
 
+    @tf.function
     def get_hr_exo_input(self, hi_res):
         """Get exogenous feature data from hi_res
 
@@ -438,15 +439,12 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             Dictionary of exogenous feature data used as input to tf_generate.
             e.g. ``{'topography': tf.Tensor(...)}``
         """
-        exo_data = {}
-        for feature in self.hr_exo_features:
-            f_idx = self.hr_exo_features.index(feature)
-            f_idx += len(self.hr_out_features)
-            exo_fdata = hi_res[..., f_idx : f_idx + 1]
-            exo_data[feature] = exo_fdata
+        inds = [self.hr_features.index(f) for f in self.hr_exo_features]
+        exo = tf.gather(hi_res, inds, axis=-1)
+        exo = tf.expand_dims(exo, axis=-2)
+        exo_data = dict(zip(self.hr_exo_features, tf.unstack(exo, axis=-1)))
         return exo_data
 
-    @tf.function
     def _combine_loss_input(self, hi_res_true, hi_res_gen):
         """Combine exogenous feature data from hi_res_true with hi_res_gen
         for loss calculation

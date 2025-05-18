@@ -77,23 +77,74 @@ class Sup3rGanWithObs(Sup3rGan):
         )
         return loss_obs, loss_non_obs
 
-    def _get_obs_mask(self, hi_res, spatial_frac, time_frac=None):
+    @property
+    def obs_training_inds(self):
+        """Get the indices of the observation features in the true high res
+        data. Obs features have an _obs suffix to avoid name conflict with
+        fully gridded features. During training these are matched with the
+        true high res data."""
+        hr_feats = [f.replace('_obs', '') for f in self.hr_features]
+        obs_inds = [
+            hr_feats.index(f.replace('_obs', '')) for f in self.obs_features
+        ]
+        return obs_inds
+
+    def _get_single_obs_mask(self, hi_res, spatial_frac, time_frac=1.0):
         """Get observation mask for a given spatial and temporal obs
-        fraction."""
-        obs_mask = RANDOM_GENERATOR.choice(
-            [True, False],
-            size=hi_res.shape[1:3],
-            p=[1 - spatial_frac, spatial_frac],
+        fraction for a single batch entry.
+
+        Returns
+        -------
+        np.ndarray
+            Mask which is True for locations that are not observed and False
+            for locations that are observed.
+            (spatial_1, spatial_2, n_features)
+            (spatial_1, spatial_2, n_temporal, n_features)
+        """
+        mask_shape = [*hi_res.shape[:3], 1, len(self.hr_out_features)]
+        mask_shape[3] = hi_res.shape[3] if self.is_5d else 1
+        s_mask = RANDOM_GENERATOR.uniform(size=mask_shape[1:3]) <= spatial_frac
+        s_mask = s_mask[..., None, None]
+        t_mask = RANDOM_GENERATOR.uniform(size=mask_shape[-2]) <= time_frac
+        t_mask = t_mask[None, None, ..., None]
+        mask = ~(s_mask & t_mask)
+        mask = np.repeat(mask, mask_shape[-1], axis=-1)
+        return mask if self.is_5d else np.squeeze(mask, axis=-2)
+
+    def _get_obs_mask(self, hi_res, spatial_frac, time_frac=1.0):
+        """Get observation mask for a given spatial and temporal obs
+        fraction for an entire batch.
+
+        Returns
+        -------
+        np.ndarray
+            Mask which is True for locations that are not observed and False
+            for locations that are observed.
+            (n_obs, spatial_1, spatial_2, n_features)
+            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
+        """
+        s_range = (
+            spatial_frac
+            if isinstance(spatial_frac, (list, tuple))
+            else [spatial_frac, spatial_frac]
         )
-        if self.is_5d:
-            sp_mask = obs_mask.copy()
-            obs_mask = RANDOM_GENERATOR.choice(
-                [True, False],
-                size=hi_res.shape[1:-1],
-                p=[1 - time_frac, time_frac],
-            )
-            obs_mask[sp_mask] = True
-        return np.repeat(obs_mask[None, ...], hi_res.shape[0], axis=0)
+        t_range = (
+            time_frac
+            if isinstance(time_frac, (list, tuple))
+            else [time_frac, time_frac]
+        )
+        s_fracs = RANDOM_GENERATOR.uniform(*s_range, size=hi_res.shape[0])
+        t_fracs = RANDOM_GENERATOR.uniform(*t_range, size=hi_res.shape[0])
+        s_fracs = np.clip(s_fracs, 0, 1)
+        t_fracs = np.clip(t_fracs, 0, 1)
+        mask = tf.stack(
+            [
+                self._get_single_obs_mask(hi_res, s, t)
+                for s, t in zip(s_fracs, t_fracs)
+            ],
+            axis=0,
+        )
+        return mask
 
     def get_obs_mask(self, hi_res):
         """Define observation mask for the current batch. This is done
@@ -102,11 +153,7 @@ class Sup3rGanWithObs(Sup3rGan):
         for those locations. This is also divided between onshore and offshore
         regions"""
         on_sf = self.onshore_obs_frac['spatial']
-        if not isinstance(on_sf, (list, tuple)):
-            on_sf = [on_sf, on_sf]
-        on_sf = max(RANDOM_GENERATOR.uniform(*on_sf), 0)
-        on_tf = self.onshore_obs_frac.get('time', None)
-        off_tf = self.offshore_obs_frac.get('time', None)
+        on_tf = self.onshore_obs_frac.get('time', 1.0)
         obs_mask = self._get_obs_mask(hi_res, on_sf, on_tf)
         if 'topography' in self.hr_exo_features and self.offshore_obs_frac:
             topo_idx = len(self.hr_out_features) + self.hr_exo_features.index(
@@ -114,9 +161,7 @@ class Sup3rGanWithObs(Sup3rGan):
             )
             topo = hi_res[..., topo_idx]
             off_sf = self.offshore_obs_frac['spatial']
-            if not isinstance(off_sf, (list, tuple)):
-                off_sf = [off_sf, off_sf]
-            off_sf = max(RANDOM_GENERATOR.uniform(*off_sf), 0)
+            off_tf = self.offshore_obs_frac.get('time', 1.0)
             offshore_mask = self._get_obs_mask(hi_res, off_sf, off_tf)
             obs_mask = tf.where(topo > 0, obs_mask, offshore_mask)
         return obs_mask
@@ -136,17 +181,18 @@ class Sup3rGanWithObs(Sup3rGan):
         params['loss_obs_weight'] = self.loss_obs_weight
         return params
 
+    @tf.function
     def get_hr_exo_input(self, hi_res_true):
         """Mask high res data to act as sparse observation data. Add this to
         the standard high res exo input"""
         exo_data = super().get_hr_exo_input(hi_res_true)
         obs_mask = self.get_obs_mask(hi_res_true)
-        for feature in self.obs_features:
-            # obs_features can include a _obs suffix to avoid name conflict
-            # with fully gridded exo features
-            f_idx = self.hr_out_features.index(feature.replace('_obs', ''))
-            tmp = tf.where(obs_mask, np.nan, hi_res_true[..., f_idx])
-            exo_data[feature] = tmp[..., None]
+        nan_const = tf.constant(float('nan'), dtype=hi_res_true.dtype)
+        obs = tf.gather(hi_res_true, self.obs_training_inds, axis=-1)
+        obs = tf.where(obs_mask[..., : obs.shape[-1]], nan_const, obs)
+        obs = tf.expand_dims(obs, axis=-2)
+        exo_obs = dict(zip(self.obs_features, tf.unstack(obs, axis=-1)))
+        exo_data.update(exo_obs)
         exo_data['mask'] = obs_mask
         return exo_data
 
@@ -170,13 +216,15 @@ class Sup3rGanWithObs(Sup3rGan):
                 hi_res_gen,
                 hi_res_exo['mask'],
             )
+            obs_frac = np.sum(~hi_res_exo['mask']) / np.size(
+                hi_res_exo['mask']
+            )
             loss_update = {
                 'loss_obs': loss_obs,
                 'loss_non_obs': loss_non_obs,
-                'obs_frac': np.sum(~hi_res_exo['mask'])
-                / np.size(hi_res_exo['mask']),
+                'obs_frac': obs_frac,
             }
-            if self.loss_obs_weight is not None:
+            if self.loss_obs_weight and obs_frac > 0:
                 loss_obs *= self.loss_obs_weight
                 loss += loss_obs
                 loss_update['loss_gen'] = loss
@@ -185,3 +233,15 @@ class Sup3rGanWithObs(Sup3rGan):
                 )
             loss_details.update(loss_update)
         return loss, loss_details, hi_res_gen, hi_res_exo
+
+    def _post_batch(self, ib, b_loss_details, n_batches, previous_means):
+        """Update loss details after the current batch and write to log."""
+        if 'obs_frac' in b_loss_details:
+            logger.debug(
+                'Batch {} out of {} has obs_frac: {:.4e}'.format(
+                    ib + 1, n_batches, b_loss_details['obs_frac']
+                )
+            )
+        return super()._post_batch(
+            ib, b_loss_details, n_batches, previous_means
+        )

@@ -92,9 +92,11 @@ class Cacher(Container):
         mode='w',
         attrs=None,
         verbose=False,
+        overwrite=False,
+        keep_dim_order=False,
     ):
         """Write single NETCDF or H5 cache file."""
-        if os.path.exists(out_file):
+        if os.path.exists(out_file) and not overwrite:
             logger.info(
                 f'{out_file} already exists. Delete if you want to overwrite.'
             )
@@ -126,6 +128,7 @@ class Cacher(Container):
             mode=mode,
             attrs=attrs,
             verbose=verbose,
+            keep_dim_order=keep_dim_order,
         )
         os.replace(tmp_file, out_file)
         logger.info('Moved %s to %s', tmp_file, out_file)
@@ -138,6 +141,7 @@ class Cacher(Container):
         mode='w',
         attrs=None,
         verbose=False,
+        keep_dim_order=False,
     ):
         """Cache data to file with file type based on user provided
         cache_pattern.
@@ -160,6 +164,10 @@ class Cacher(Container):
             e.g. {**global_attrs, dset: {...}}
         verbose : bool
             Whether to log progress for each chunk written to output files.
+        keep_dim_order : bool
+            Whether to keep the original dimension order of the data. If
+            ``False`` then the data will be transposed to have the time
+            dimension first.
         """
         msg = 'cache_pattern must have {feature} format key.'
         assert '{feature}' in cache_pattern, msg
@@ -187,6 +195,7 @@ class Cacher(Container):
                     mode=mode,
                     verbose=verbose,
                     attrs=attrs,
+                    keep_dim_order=keep_dim_order,
                 )
             logger.info('Finished writing %s', missing_files)
         return missing_files + cached_files
@@ -287,6 +296,7 @@ class Cacher(Container):
         mode='w',
         attrs=None,
         verbose=False,  # noqa # pylint: disable=W0613
+        keep_dim_order=False,
     ):
         """Cache data to h5 file using user provided chunks value.
 
@@ -313,8 +323,16 @@ class Cacher(Container):
             dataframe that will then be added to the coordinate meta.
         verbose : bool
             Dummy arg to match ``write_netcdf`` signature
+        keep_dim_order : bool
+            Whether to keep the original dimension order of the data. If
+            ``False`` then the data will be transposed to have the time
+            dimension first.
         """
-        if len(data.dims) == 3 and Dimension.TIME in data.dims:
+        if (
+            len(data.dims) == 3
+            and Dimension.TIME in data.dims
+            and not keep_dim_order
+        ):
             data = data.transpose(Dimension.TIME, *Dimension.dims_2d())
         if features == 'all':
             features = list(data.data_vars)
@@ -442,6 +460,7 @@ class Cacher(Container):
         mode='w',
         attrs=None,
         verbose=False,
+        keep_dim_order=False # noqa # pylint: disable=W0613
     ):
         """Cache data to a netcdf file.
 
@@ -469,6 +488,8 @@ class Cacher(Container):
             e.g. {**global_attrs, dset: {...}}
         verbose : bool
             Whether to log output after each chunk is written.
+        keep_dim_order : bool
+            Dummy arg to match ``write_h5`` signature
         """
         chunks = chunks or 'auto'
         global_attrs = data.attrs.copy()
