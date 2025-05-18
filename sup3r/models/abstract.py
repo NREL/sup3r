@@ -18,7 +18,6 @@ from phygnn import CustomNetwork
 from phygnn.layers.custom_layers import (
     Sup3rAdder,
     Sup3rConcat,
-    Sup3rConcatEmbeddedObs,
     Sup3rConcatObs,
 )
 from rex.utilities.utilities import safe_json_load
@@ -34,10 +33,7 @@ from .utilities import TensorboardMixIn
 
 logger = logging.getLogger(__name__)
 
-SUP3R_OBS_LAYERS = (
-    Sup3rConcatObs,
-    Sup3rConcatEmbeddedObs
-)
+SUP3R_OBS_LAYERS = (Sup3rConcatObs,)
 
 SUP3R_LAYERS = (Sup3rAdder, Sup3rConcat, *SUP3R_OBS_LAYERS)
 
@@ -439,11 +435,12 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             Dictionary of exogenous feature data used as input to tf_generate.
             e.g. ``{'topography': tf.Tensor(...)}``
         """
+        if len(self.hr_exo_features) == 0:
+            return {}
         inds = [self.hr_features.index(f) for f in self.hr_exo_features]
         exo = tf.gather(hi_res, inds, axis=-1)
         exo = tf.expand_dims(exo, axis=-2)
-        exo_data = dict(zip(self.hr_exo_features, tf.unstack(exo, axis=-1)))
-        return exo_data
+        return dict(zip(self.hr_exo_features, tf.unstack(exo, axis=-1)))
 
     def _combine_loss_input(self, hi_res_true, hi_res_gen):
         """Combine exogenous feature data from hi_res_true with hi_res_gen

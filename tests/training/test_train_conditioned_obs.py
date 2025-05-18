@@ -19,13 +19,7 @@ FEATURES_W = ['u_10m', 'v_10m']
 TARGET_W = (39.01, -105.15)
 
 
-@pytest.mark.parametrize(
-    'gen_config',
-    [
-        'gen_config_with_concat_masked',
-        'gen_config_with_concat_embedded',
-    ],
-)
+@pytest.mark.parametrize('gen_config', ['gen_config_with_concat_masked'])
 def test_fixed_wind_obs(gen_config, request):
     """Test a special model which fixes observations mid network with
     ``Sup3rConcatObs`` layer."""

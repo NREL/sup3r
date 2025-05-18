@@ -186,6 +186,8 @@ class Sup3rGanWithObs(Sup3rGan):
         """Mask high res data to act as sparse observation data. Add this to
         the standard high res exo input"""
         exo_data = super().get_hr_exo_input(hi_res_true)
+        if len(self.obs_features) == 0:
+            return exo_data
         obs_mask = self.get_obs_mask(hi_res_true)
         nan_const = tf.constant(float('nan'), dtype=hi_res_true.dtype)
         obs = tf.gather(hi_res_true, self.obs_training_inds, axis=-1)

@@ -13,7 +13,6 @@ from phygnn import CustomNetwork
 from phygnn.layers.custom_layers import (
     Sup3rAdder,
     Sup3rConcat,
-    Sup3rConcatEmbeddedObs,
     Sup3rConcatObs,
 )
 
@@ -24,10 +23,9 @@ from sup3r.utilities.utilities import safe_cast
 logger = logging.getLogger(__name__)
 
 
-SUP3R_OBS_LAYERS = (
-    Sup3rConcatObs,
-    Sup3rConcatEmbeddedObs
-)
+SUP3R_OBS_LAYERS = (Sup3rConcatObs,)
+
+SUP3R_EXO_LAYERS = (Sup3rConcat, Sup3rAdder)
 
 
 class AbstractInterface(ABC):
@@ -385,6 +383,20 @@ class AbstractInterface(ABC):
         return self.meta.get('hr_out_features', [])
 
     @property
+    def obs_features(self):
+        """Get list of exogenous observation feature names the model uses.
+        These come from the names of the ``Sup3rObs..`` layers."""
+        # pylint: disable=E1101
+        features = []
+        if hasattr(self, '_gen'):
+            for layer in self._gen.layers:
+                check = isinstance(layer, SUP3R_OBS_LAYERS)
+                check = check and layer.name not in features
+                if check:
+                    features.append(layer.name)
+        return features
+
+    @property
     def hr_exo_features(self):
         """Get list of high-resolution exogenous filter names the model uses.
         If the model has N concat or add layers this list will be the last N
@@ -399,23 +411,19 @@ class AbstractInterface(ABC):
             features = [
                 layer.name
                 for layer in self._gen.layers
-                if isinstance(layer, (Sup3rAdder, Sup3rConcat))
+                if isinstance(layer, SUP3R_EXO_LAYERS)
             ]
+        obs_feats = [feat.replace('_obs', '') for feat in self.obs_features]
+        features += [f for f in obs_feats if f not in self.hr_out_features]
         return features
 
     @property
-    def obs_features(self):
-        """Get list of exogenous observation feature names the model uses.
-        These come from the names of the ``Sup3rObs..`` layers."""
-        # pylint: disable=E1101
-        features = []
-        if hasattr(self, '_gen'):
-            for layer in self._gen.layers:
-                check = isinstance(layer, SUP3R_OBS_LAYERS)
-                check = check and layer.name not in features
-                if check:
-                    features.append(layer.name)
-        return features
+    def hr_features(self):
+        """Get the list of high-resolution feature names that are included in
+        the high-resolution data during training. This includes both output
+        and exogenous features.
+        """
+        return self.hr_out_features + self.hr_exo_features
 
     @property
     def smoothing(self):
