@@ -2,7 +2,7 @@
 datasets"""
 
 import logging
-from typing import Tuple, Union
+from typing import Dict, Tuple, Union
 from warnings import warn
 
 import numpy as np
@@ -38,9 +38,12 @@ class DualRasterizer(Container):
     @log_args
     def __init__(
         self,
-        data: Union[Sup3rDataset, Tuple[xr.Dataset, xr.Dataset]],
+        data: Union[
+            Sup3rDataset, Tuple[xr.Dataset, xr.Dataset], Dict[str, xr.Dataset]
+        ],
         regrid_workers=1,
         regrid_lr=True,
+        run_qa=True,
         s_enhance=1,
         t_enhance=1,
         lr_cache_kwargs=None,
@@ -51,7 +54,8 @@ class DualRasterizer(Container):
 
         Parameters
         ----------
-        data : Sup3rDataset | Tuple[xr.Dataset, xr.Dataset]
+        data : Sup3rDataset | Tuple[xr.Dataset, xr.Dataset] |
+               Dict[str, xr.Dataset]
             A tuple of xr.Dataset instances. The first must be low-res
             and the second must be high-res data
         regrid_workers : int | None
@@ -60,6 +64,9 @@ class DualRasterizer(Container):
             Flag to regrid the low-res data to the high-res grid. This will
             take care of any minor inconsistencies in different projections.
             Disable this if the grids are known to be the same.
+        run_qa : bool
+            Flag to run qa on the regridded low-res data. This will check for
+            NaNs and fill them if there are not too many.
         s_enhance : int
             Spatial enhancement factor
         t_enhance : int
@@ -76,9 +83,11 @@ class DualRasterizer(Container):
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
         if isinstance(data, tuple):
-            data = Sup3rDataset(low_res=data[0], high_res=data[1])
+            data = {'low_res': data[0], 'high_res': data[1]}
+        if isinstance(data, dict):
+            data = Sup3rDataset(**data)
         msg = (
-            'The DualRasterizer requires either a data tuple with two '
+            'The DualRasterizer requires a data tuple or dictionary with two '
             'members, low and high resolution in that order, or a '
             f'Sup3rDataset instance. Received {type(data)}.'
         )
@@ -130,7 +139,8 @@ class DualRasterizer(Container):
         self.update_hr_data()
         super().__init__(data=(self.lr_data, self.hr_data))
 
-        self.check_regridded_lr_data()
+        if run_qa:
+            self.check_regridded_lr_data()
 
         if lr_cache_kwargs is not None:
             Cacher(self.lr_data, lr_cache_kwargs)
@@ -200,7 +210,7 @@ class DualRasterizer(Container):
             lr_coords_new = {
                 Dimension.LATITUDE: self.lr_lat_lon[..., 0],
                 Dimension.LONGITUDE: self.lr_lat_lon[..., 1],
-                Dimension.TIME: self.lr_data.indexes['time'][
+                Dimension.TIME: self.lr_data.indexes[Dimension.TIME][
                     : self.lr_required_shape[2]
                 ],
             }
@@ -213,7 +223,7 @@ class DualRasterizer(Container):
         """Check for NaNs after regridding and do NN fill if needed."""
         fill_feats = []
         logger.info('Checking for NaNs after regridding')
-        qa_info = self.lr_data.qa()
+        qa_info = self.lr_data.qa(stats=['nan_perc'])
         for f in self.lr_data.features:
             nan_perc = qa_info[f]['nan_perc']
             if nan_perc > 0:

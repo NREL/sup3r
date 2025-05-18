@@ -30,7 +30,9 @@ def test_dual_rasterizer_shapes(full_shape=(20, 20)):
     )
 
     pair_rasterizer = DualRasterizer(
-        (lr_container.data, hr_container.data), s_enhance=2, t_enhance=1
+        {'low_res': lr_container.data, 'high_res': hr_container.data},
+        s_enhance=2,
+        t_enhance=1,
     )
     assert pair_rasterizer.lr_data.shape == (
         pair_rasterizer.hr_data.shape[0] // 2,
@@ -63,7 +65,9 @@ def test_dual_nan_fill(full_shape=(20, 20)):
     assert np.isnan(lr_container.data.as_array()).any()
 
     pair_rasterizer = DualRasterizer(
-        (lr_container.data, hr_container.data), s_enhance=1, t_enhance=1
+        {'low_res': lr_container.data, 'high_res': hr_container.data},
+        s_enhance=1,
+        t_enhance=1,
     )
 
     assert not np.isnan(pair_rasterizer.lr_data.as_array()).any()
@@ -89,7 +93,7 @@ def test_regrid_caching(full_shape=(20, 20)):
         lr_cache_pattern = os.path.join(td, 'lr_{feature}.h5')
         hr_cache_pattern = os.path.join(td, 'hr_{feature}.h5')
         pair_rasterizer = DualRasterizer(
-            (lr_container.data, hr_container.data),
+            {'low_res': lr_container.data, 'high_res': hr_container.data},
             s_enhance=2,
             t_enhance=1,
             lr_cache_kwargs={'cache_pattern': lr_cache_pattern},

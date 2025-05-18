@@ -8,6 +8,8 @@ import numpy as np
 import pandas as pd
 from rex.utilities.solar_position import SolarPosition
 
+from sup3r.utilities.utilities import get_feature_basename
+
 logger = logging.getLogger(__name__)
 
 
@@ -93,15 +95,7 @@ def parse_feature(feature):
         def __init__(self):
             height = re.findall(r'_\d+m', feature)
             press = re.findall(r'_\d+pa', feature)
-            self.basename = (
-                feature.replace(height[0], '')
-                if height
-                else feature.replace(press[0], '')
-                if press
-                else feature.split('_(.*)')[0]
-                if '_(.*)' in feature
-                else feature
-            )
+            self.basename = get_feature_basename(feature)
             self.height = (
                 int(round(float(height[0][1:-1]))) if height else None
             )

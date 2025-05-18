@@ -97,6 +97,15 @@ def test_train_disc(
         loaded.train(batch_handler, **model_kwargs)
         assert all(loaded.history['disc_train_frac'] == 1)
 
+        out_dir = os.path.join(td, 'st_gan')
+        model.save(out_dir)
+        loaded = model.load(out_dir)
+
+        batch_handler = BatchHandler(**bh_kwargs)
+
+        loaded.train(batch_handler, **model_kwargs)
+        assert all(loaded.history['disc_train_frac'] == 1)
+
 
 @pytest.mark.parametrize(
     ['fp_gen', 'fp_disc', 's_enhance', 't_enhance', 'sample_shape'],
@@ -180,10 +189,13 @@ def test_train(fp_gen, fp_disc, s_enhance, t_enhance, sample_shape, n_epoch=8):
         assert 'OptmGen/learning_rate' in model.history
         assert 'OptmDisc/learning_rate' in model.history
 
-        msg = ('Could not find OptmGen states in columns: '
-               f'{sorted(model.history.columns)}')
-        check = [col.startswith('OptmGen/Adam/v')
-                 for col in model.history.columns]
+        msg = (
+            'Could not find OptmGen states in columns: '
+            f'{sorted(model.history.columns)}'
+        )
+        check = [
+            col.startswith('OptmGen/Adam/v') for col in model.history.columns
+        ]
         assert any(check), msg
 
         assert 'config_generator' in loaded.meta
