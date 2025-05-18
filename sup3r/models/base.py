@@ -419,11 +419,11 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             logger.info(
                 'Initializing model weights on device "{}"'.format(device)
             )
-            low_res = tf.fill(lr_shape, 1.0)
-            hi_res = tf.fill(hr_shape, 1.0)
+            low_res = np.ones(lr_shape)
+            hi_res = np.ones(hr_shape)
 
             hr_exo_shape = hr_shape[:-1] + (1,)
-            hr_exo = tf.fill(hr_exo_shape, 1.0)
+            hr_exo = np.ones(hr_exo_shape)
 
             with tf.device(device):
                 hr_exo_data = {}
