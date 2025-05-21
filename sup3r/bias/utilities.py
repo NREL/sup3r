@@ -15,6 +15,7 @@ from sup3r.preprocessing.utilities import (
     get_date_range_kwargs,
 )
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -249,8 +250,10 @@ def bias_correct_feature(
         Data corrected by the bias_correct_method ready for input to the
         forward pass through the generative model.
     """
+
     time_slice = _parse_time_slice(time_slice)
     data = input_handler[source_feature][..., time_slice]
+
     lat_lon = input_handler.lat_lon
     if bc_method is not None:
         bc_method = getattr(sup3r.bias.bias_transforms, bc_method)
@@ -260,15 +263,15 @@ def bias_correct_feature(
         if 'date_range_kwargs' in signature(bc_method).parameters:
             ti = input_handler.time_index[time_slice]
             feature_kwargs['date_range_kwargs'] = get_date_range_kwargs(ti)
-        if (
-            'lr_padded_slice' in signature(bc_method).parameters
-            and 'lr_padded_slice' not in feature_kwargs
-        ):
+
+        use_lrps = 'lr_padded_slice' in signature(bc_method).parameters
+        need_lrps = 'lr_padded_slice' not in feature_kwargs
+        if use_lrps and need_lrps:
             feature_kwargs['lr_padded_slice'] = None
-        if (
-            'temporal_avg' in signature(bc_method).parameters
-            and 'temporal_avg' not in feature_kwargs
-        ):
+
+        use_tavg = 'temporal_avg' in signature(bc_method).parameters
+        need_tavg = 'temporal_avg' not in feature_kwargs
+        if use_tavg and need_tavg:
             msg = (
                 'The kwarg "temporal_avg" was not provided in the bias '
                 'correction kwargs but is present in the bias '
@@ -306,6 +309,7 @@ def bias_correct_features(
     """
 
     time_slice = _parse_time_slice(time_slice)
+
     for feat in features:
         try:
             input_handler[feat][..., time_slice] = bias_correct_feature(
@@ -324,4 +328,5 @@ def bias_correct_features(
             )
             logger.exception(msg)
             raise RuntimeError(msg) from e
+
     return input_handler

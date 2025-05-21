@@ -575,10 +575,10 @@ def _apply_qdm(
         if no_trend
         else np.reshape(bias_fut_params, (-1, bias_fut_params.shape[-1]))
     )
+
     # The distributions at this point, after selected the respective
     # time window with `window_idx`, are 3D (space, space, N-params)
     # Collapse 3D (space, space, N) into 2D (space**2, N)
-
     QDM = QuantileDeltaMapping(
         params_oh=np.reshape(base_params, (-1, base_params.shape[-1])),
         params_mh=np.reshape(bias_params, (-1, bias_params.shape[-1])),
@@ -594,8 +594,12 @@ def _apply_qdm(
     # input 3D shape (spatial, spatial, temporal)
     # QDM expects input arr with shape (time, space)
     tmp = np.reshape(subset.data, (-1, subset.shape[-1])).T
+
     # Apply QDM correction
+    logger.info(f'Applying QDM to data with shape {tmp.shape}...')
     tmp = QDM(tmp, max_workers=max_workers)
+    logger.info(f'Finished QDM on data shape {tmp.shape}!')
+
     # Reorgnize array back from  (time, space)
     # to (spatial, spatial, temporal)
     return np.reshape(tmp.T, subset.shape)
@@ -751,9 +755,13 @@ def local_qdm_bc(
     )
 
     cfg = params['cfg']
-    base_params = params['base']
-    bias_params = params['bias']
-    bias_fut_params = params.get('bias_fut', None)
+
+    # params as dask arrays slows down QDM by several orders of magnitude
+    base_params = np.array(params['base'])
+    bias_params = np.array(params['bias'])
+    bias_fut_params = None
+    if 'bias_fut' in params:
+        bias_fut_params = np.array(params['bias_fut'])
 
     if lr_padded_slice is not None:
         spatial_slice = (lr_padded_slice[0], lr_padded_slice[1])
