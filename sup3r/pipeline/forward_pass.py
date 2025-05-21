@@ -24,6 +24,7 @@ from sup3r.preprocessing.utilities import (
 )
 from sup3r.utilities import ModuleName
 from sup3r.utilities.cli import BaseCLI
+from sup3r.utilities.utilities import Timer
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +53,7 @@ class ForwardPass:
         node_index : int
             Index of node used to run forward pass
         """
+        self.timer = Timer()
         self.strategy = strategy
         self.model = get_model(strategy.model_class, strategy.model_kwargs)
         self.node_index = node_index
@@ -230,7 +232,8 @@ class ForwardPass:
         temp = cls._reshape_data_chunk(model, data_chunk, exo_data)
         data_chunk, exo_data, i_lr_t, i_lr_s = temp
         try:
-            hi_res = model.generate(data_chunk, exogenous_data=exo_data)
+            fun = Timer()(model.generate, log=True)
+            hi_res = fun(data_chunk, exogenous_data=exo_data)
         except Exception as e:
             msg = 'Forward pass failed on chunk with shape {}.'.format(
                 data_chunk.shape
