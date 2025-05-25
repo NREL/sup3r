@@ -4,7 +4,6 @@ import logging
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras.losses import MeanAbsoluteError
 
 from sup3r.utilities.utilities import RANDOM_GENERATOR
 
@@ -25,6 +24,7 @@ class Sup3rGanWithObs(Sup3rGan):
         onshore_obs_frac=None,
         offshore_obs_frac=None,
         loss_obs_weight=0.0,
+        loss_obs=None,
         **kwargs,
     ):
         """
@@ -49,6 +49,9 @@ class Sup3rGanWithObs(Sup3rGan):
             Same as ``onshore_obs_frac`` but for offshore observations.
             Offshore observations are frequently sparser than onshore
             observations.
+        loss_obs : str | dict
+            Loss function to use for the additional observation loss term. This
+            defaults to the content loss function specified with ``loss``.
         loss_obs_weight : float
             Value used to weight observation locations in extra content loss
             term. e.g. The new content loss will include ``loss_obs_weight *
@@ -56,24 +59,26 @@ class Sup3rGanWithObs(Sup3rGan):
         kwargs : dict
             Keyword arguments for the ``Sup3rGan`` parent class.
         """
+        super().__init__(*args, **kwargs)
         self.onshore_obs_frac = (
             {} if onshore_obs_frac is None else onshore_obs_frac
         )
         self.offshore_obs_frac = (
             {} if offshore_obs_frac is None else offshore_obs_frac
         )
+        loss_obs = self.loss_name if loss_obs is None else loss_obs
+        self.loss_obs_fun = self.get_loss_fun(loss_obs)
         self.loss_obs_weight = loss_obs_weight
-        super().__init__(*args, **kwargs)
 
     @tf.function
     def _get_loss_obs_comparison(self, hi_res_true, hi_res_gen, obs_mask):
         """Get loss for observation locations and for non observation
         locations."""
         hr_true = hi_res_true[..., : len(self.hr_out_features)]
-        loss_obs = MeanAbsoluteError()(
+        loss_obs, _ = self.loss_obs_fun(
             hr_true[~obs_mask], hi_res_gen[~obs_mask]
         )
-        loss_non_obs = MeanAbsoluteError()(
+        loss_non_obs, _ = self.loss_obs_fun(
             hr_true[obs_mask], hi_res_gen[obs_mask]
         )
         return loss_obs, loss_non_obs
