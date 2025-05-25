@@ -56,9 +56,12 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         loss : str | dict
             Loss function class name from sup3r.utilities.loss_metrics
             (prioritized) or tensorflow.keras.losses. Defaults to
-            tf.keras.losses.MeanSquaredError. This can be provided as a dict
-            with kwargs for loss functions with extra parameters.
-            e.g. {'SpatialExtremesLoss': {'weight': 0.5}}
+            tf.keras.losses.MeanSquaredError. As a dictionary this can
+            include multiple loss function classes, each with
+            dictionaries of kwargs for that function. Can also include a
+            key ``term_weights``, which provides a list of weights for
+            each loss function. e.g. ``{'SpatialExtremesLoss': {},
+            'MeanAbsoluteError': {}, 'term_weights': [0.8, 0.2]}``
         optimizer : tf.keras.optimizers.Optimizer | dict | None | str
             Instantiated tf.keras.optimizers object or a dict optimizer config
             from tf.keras.optimizers.get_config(). None defaults to Adam.
@@ -419,11 +422,11 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             logger.info(
                 'Initializing model weights on device "{}"'.format(device)
             )
-            low_res = tf.fill(lr_shape, 1.0)
-            hi_res = tf.fill(hr_shape, 1.0)
+            low_res = tf.cast(np.ones(lr_shape), dtype=tf.float32)
+            hi_res = tf.cast(np.ones(hr_shape), dtype=tf.float32)
 
             hr_exo_shape = hr_shape[:-1] + (1,)
-            hr_exo = tf.fill(hr_exo_shape, 1.0)
+            hr_exo = tf.cast(np.ones(hr_exo_shape), dtype=tf.float32)
 
             with tf.device(device):
                 hr_exo_data = {}

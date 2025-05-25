@@ -625,10 +625,7 @@ class ForwardPassStrategy:
         logger.info('Checking for mask in input handler.')
         input_handler_kwargs = copy.deepcopy(self.input_handler_kwargs)
         input_handler_kwargs['features'] = 'all'
-        loader = Loader(
-            self.file_paths,
-            **get_class_kwargs(Loader, input_handler_kwargs),
-        )
+        loader = Loader(**get_class_kwargs(Loader, input_handler_kwargs))
         if 'mask' in loader.data:
             logger.info(
                 'Found "mask" in DataHandler. Computing forward pass '
