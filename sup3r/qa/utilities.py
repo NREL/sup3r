@@ -34,7 +34,7 @@ def tke_frequency_spectrum(u, v, f_range=None):
     v_f = np.fft.fftn(v.reshape((-1, v.shape[-1])))
     u_f = np.fft.fftn(u.reshape((-1, u.shape[-1])))
     E_f = np.abs(v_f)**2 + np.abs(u_f)**2
-    E_f = np.mean(E_f, axis=0)
+    E_f = np.nanmean(E_f, axis=0)
     if f_range is None:
         f = np.arange(len(E_f))
     else:
@@ -71,7 +71,7 @@ def frequency_spectrum(var, f_range=None):
     """
     var_f = np.fft.fftn(var.reshape((-1, var.shape[-1])))
     E_f = np.abs(var_f)**2
-    E_f = np.mean(E_f, axis=0)
+    E_f = np.nanmean(E_f, axis=0)
     if f_range is None:
         f = np.arange(len(E_f))
     else:
@@ -115,7 +115,7 @@ def tke_wavenumber_spectrum(u, v, x_range=None, axis=0):
     """
     u_k = np.fft.fftn(u)
     v_k = np.fft.fftn(v)
-    E_k = np.mean(np.abs(v_k)**2 + np.abs(u_k)**2, axis=axis)
+    E_k = np.nanmean(np.abs(v_k)**2 + np.abs(u_k)**2, axis=axis)
     if x_range is None:
         k = np.arange(len(E_k))
     else:
@@ -154,7 +154,7 @@ def wavenumber_spectrum(var, x_range=None, axis=0):
         variable with a given wavenumber
     """
     var_k = np.fft.fftn(var)
-    E_k = np.mean(np.abs(var_k)**2, axis=axis)
+    E_k = np.nanmean(np.abs(var_k)**2, axis=axis)
     if x_range is None:
         k = np.arange(len(E_k))
     else:
@@ -218,7 +218,7 @@ def direct_dist(var, bins=40, range=None, diff_max=None, scale=1,
         diffs = var / scale
     diff_max = diff_max or np.percentile(np.abs(diffs), percentile)
     diffs = diffs[(np.abs(diffs) < diff_max)]
-    norm = np.sqrt(np.mean(diffs**2))
+    norm = np.sqrt(np.nanmean(diffs**2))
     counts, centers = continuous_dist(diffs, bins=bins, range=range,
                                       interpolate=interpolate)
     return centers, counts, norm
@@ -273,7 +273,7 @@ def gradient_dist(var, bins=40, range=None, diff_max=None, scale=1,
     diffs /= scale
     diff_max = diff_max or np.percentile(np.abs(diffs), percentile)
     diffs = diffs[(np.abs(diffs) < diff_max)]
-    norm = np.sqrt(np.mean(diffs**2))
+    norm = np.sqrt(np.nanmean(diffs**2))
     counts, centers = continuous_dist(diffs, bins=bins, range=range,
                                       interpolate=interpolate)
     return centers, counts, norm
@@ -336,7 +336,7 @@ def time_derivative_dist(var, bins=40, range=None, diff_max=None, t_steps=1,
     diffs /= scale
     diff_max = diff_max or np.percentile(np.abs(diffs), percentile)
     diffs = diffs[(np.abs(diffs) < diff_max)]
-    norm = np.sqrt(np.mean(diffs**2))
+    norm = np.sqrt(np.nanmean(diffs**2))
     counts, centers = continuous_dist(diffs, bins=bins, range=range,
                                       interpolate=interpolate)
     return centers, counts, norm
@@ -371,7 +371,7 @@ def continuous_dist(diffs, bins=None, range=None, interpolate=False):
     if bins is None:
         dx = np.abs(np.diff(diffs))
         dx = dx[dx > 0]
-        dx = np.mean(dx)
+        dx = np.nanmean(dx)
         bins = int((np.max(diffs) - np.min(diffs)) / dx)
         logger.debug(f'Using n_bins={bins} to compute distribution')
     counts, edges = np.histogram(diffs, bins=bins, range=range)

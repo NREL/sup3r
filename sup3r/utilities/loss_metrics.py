@@ -332,7 +332,7 @@ class SpatialExtremesLoss(tf.keras.losses.Loss):
     """Loss class that encourages accuracy of the min/max values in the
     spatial domain. This does not include an additional MAE term"""
 
-    MAE_LOSS = MeanAbsoluteError()
+    LOSS_METRIC = MeanAbsoluteError()
 
     def __call__(self, x1, x2):
         """Custom content loss that encourages temporal min/max accuracy
@@ -357,17 +357,17 @@ class SpatialExtremesLoss(tf.keras.losses.Loss):
         x1_max = tf.reduce_max(x1, axis=(1, 2))
         x2_max = tf.reduce_max(x2, axis=(1, 2))
 
-        mae_min = self.MAE_LOSS(x1_min, x2_min)
-        mae_max = self.MAE_LOSS(x1_max, x2_max)
+        loss_min = self.LOSS_METRIC(x1_min, x2_min)
+        loss_max = self.LOSS_METRIC(x1_max, x2_max)
 
-        return (mae_min + mae_max) / 2
+        return (loss_min + loss_max) / 2
 
 
 class TemporalExtremesLoss(tf.keras.losses.Loss):
     """Loss class that encourages accuracy of the min/max values in the
     timeseries. This does not include an additional mae term"""
 
-    MAE_LOSS = MeanAbsoluteError()
+    LOSS_METRIC = MeanAbsoluteError()
 
     def __call__(self, x1, x2):
         """Custom content loss that encourages temporal min/max accuracy
@@ -392,10 +392,10 @@ class TemporalExtremesLoss(tf.keras.losses.Loss):
         x1_max = tf.reduce_max(x1, axis=3)
         x2_max = tf.reduce_max(x2, axis=3)
 
-        mae_min = self.MAE_LOSS(x1_min, x2_min)
-        mae_max = self.MAE_LOSS(x1_max, x2_max)
+        loss_min = self.LOSS_METRIC(x1_min, x2_min)
+        loss_max = self.LOSS_METRIC(x1_max, x2_max)
 
-        return (mae_min + mae_max) / 2
+        return (loss_min + loss_max) / 2
 
 
 class SpatialFftLoss(tf.keras.losses.Loss):
