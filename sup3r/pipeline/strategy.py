@@ -315,7 +315,11 @@ class ForwardPassStrategy:
         )
         padded_slice = slice(pstart, pend, time_slice.step)
         start = 0 if not padded_slice.start else self.temporal_pad
-        stop = None if not padded_slice.stop else -self.temporal_pad
+        stop = (
+            None
+            if not padded_slice.stop or not self.temporal_pad
+            else -self.temporal_pad
+        )
         unpadded_slice = slice(start, stop)
         return unpadded_slice, padded_slice
 
