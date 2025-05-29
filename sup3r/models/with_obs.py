@@ -67,6 +67,7 @@ class Sup3rGanWithObs(Sup3rGan):
             {} if offshore_obs_frac is None else offshore_obs_frac
         )
         loss_obs = self.loss_name if loss_obs is None else loss_obs
+        self.loss_obs_name = loss_obs
         self.loss_obs_fun = self.get_loss_fun(loss_obs)
         self.loss_obs_weight = loss_obs_weight
 
@@ -182,6 +183,7 @@ class Sup3rGanWithObs(Sup3rGan):
         params = super().model_params
         params['onshore_obs_frac'] = self.onshore_obs_frac
         params['offshore_obs_frac'] = self.offshore_obs_frac
+        params['loss_obs'] = self.loss_obs_name
         return params
 
     @tf.function
