@@ -99,6 +99,7 @@ class ExoData(dict):
                 if isinstance(entry, (np.ndarray, da.core.Array)):
                     entry = {'data': entry}
                 steps_list = entry.get('steps', [entry])
+
                 for i, step in enumerate(steps_list):
                     msg = (f'ExoData entry for {feat}, step #{i + 1}, has no '
                            '"combine_type" key. Assuming this is for a '

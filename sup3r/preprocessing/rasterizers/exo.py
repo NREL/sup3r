@@ -74,9 +74,9 @@ class BaseExoRasterizer(ABC):
         corresponding to ``file_paths``, temporally enhanced 4x to 15 min
     input_handler_name : str
         data handler class to use for input data. Provide a string name to
-        match a :class:`~sup3r.preprocessing.rasterizers.Rasterizer`. If None
-        the correct handler will be guessed based on file type and time series
-        properties.
+        match a ``data_handler`` or ``rasterizer`` imported into
+        ``~sup3r.preprocessing``. If None the correct handler will be
+        guessed based on file type and time series properties.
     input_handler_kwargs : dict | None
         Any kwargs for initializing the ``input_handler_name`` class.
     cache_dir : str | './exo_cache'
@@ -404,7 +404,25 @@ class BaseExoRasterizer(ABC):
 
 
 class ObsRasterizer(BaseExoRasterizer):
-    """Rasterizer for sparse spatiotemporal observation data"""
+    """Rasterizer for sparse spatiotemporal observation data. This is used in
+    the same way as other rasterizers (provide netcdf or flattened h5 data)
+    but it does not aggregate and leaves NaNs in the output data if there are
+    no observations within the ``distance_upper_bound`` of the target pixel.
+
+    Note
+    ----
+    When setting up a forward pass config file you have to specifiy how to
+    access exogenous features. To automatically select this rasterizer instead
+    of the ``BaseExoRasterizer`` name the exogenous feature with an '_obs'
+    suffix. For example, to use this rasterizer with u_10m data, set the
+    feature to 'u_10m_obs'.
+
+    See Also
+    --------
+    ExoRasterizer
+        Type agnostic class that returns the correct rasterizer based on the
+        feature name.
+    """
 
     @property
     def source_handler(self):

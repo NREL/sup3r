@@ -811,6 +811,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         logger.info(msg)
         return total_grad, loss_details
 
+    @tf.function
     def _get_parallel_grad(
         self,
         low_res,

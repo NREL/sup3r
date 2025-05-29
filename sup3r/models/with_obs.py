@@ -15,7 +15,19 @@ logger = logging.getLogger(__name__)
 class Sup3rGanWithObs(Sup3rGan):
     """Sup3r GAN model which includes mid network observation fusion. This
     model is useful for when production runs will be over a domain for which
-    observation data is available."""
+    observation data is available.
+
+    Note
+    ----
+    During training this model uses sparse sampling of ground truth data to
+    simulate observation data. This is done by creating masks of ground truth
+    data and then selecting unmasked data. All model methods which create
+    observation masks are only used during training. During inference "real"
+    observation data is passed in as exogenous data with NaN values for where
+    the observations are not available. These NaN values are then handled by
+    observation specific model layers - e.g. ``Sup3rObsModel`` or
+    ``Sup3rConcatObs``
+    """
 
     def __init__(
         self,
@@ -98,6 +110,17 @@ class Sup3rGanWithObs(Sup3rGan):
         """Get observation mask for a given spatial and temporal obs
         fraction for a single batch entry.
 
+        Parameters
+        ----------
+        hi_res : np.ndarray
+            True high resolution data for a single batch entry.
+        spatial_frac : float
+            Fraction of the spatial domain that should be treated as
+            observations. This is a value between 0 and 1.
+        time_frac : float, optional
+            Fraction of the temporal domain that should be treated as
+            observations. This is a value between 0 and 1. Default is 1.0
+
         Returns
         -------
         np.ndarray
@@ -118,7 +141,24 @@ class Sup3rGanWithObs(Sup3rGan):
 
     def _get_obs_mask(self, hi_res, spatial_frac, time_frac=1.0):
         """Get observation mask for a given spatial and temporal obs
-        fraction for an entire batch.
+        fraction for an entire batch. This is divided between spatial and
+        temporal fractions because often the spatial fraction is significantly
+        lower than the temporal fraction in practice, e.g. for a given spatial
+        location there might be observations for most of the time period but
+        only a small fraction of the spatial domain is observed.
+
+        Parameters
+        ----------
+        hi_res : np.ndarray
+            True high resolution data for the entire batch.
+        spatial_frac : float | list
+            Fraction of the spatial domain that should be treated as
+            observations. This is a value between 0 and 1 or a list with
+            lower and upper bounds for the spatial fraction.
+        time_frac : float | list, optional
+            Fraction of the temporal domain that should be treated as
+            observations. This is a value between 0 and 1 or a list with
+            lower and upper bounds for the temporal fraction. Default is 1.0
 
         Returns
         -------
@@ -151,12 +191,11 @@ class Sup3rGanWithObs(Sup3rGan):
         )
         return mask
 
-    def get_obs_mask(self, hi_res):
-        """Define observation mask for the current batch. This is done
-        with a spatial mask and a temporal mask since often observation data
-        might be very sparse spatially but cover most of the full time period
-        for those locations. This is also divided between onshore and offshore
-        regions"""
+    def _get_full_obs_mask(self, hi_res):
+        """Define observation mask for the current batch. This differs from
+        ``_get_obs_mask`` by defining a composite mask based on separate
+        onshore and offshore masks. This is because there is often more
+        observation data available onshore than offshore."""
         on_sf = self.onshore_obs_frac['spatial']
         on_tf = self.onshore_obs_frac.get('time', 1.0)
         obs_mask = self._get_obs_mask(hi_res, on_sf, on_tf)
@@ -193,7 +232,7 @@ class Sup3rGanWithObs(Sup3rGan):
         exo_data = super().get_hr_exo_input(hi_res_true)
         if len(self.obs_features) == 0:
             return exo_data
-        obs_mask = self.get_obs_mask(hi_res_true)
+        obs_mask = self._get_full_obs_mask(hi_res_true)
         nan_const = tf.constant(float('nan'), dtype=hi_res_true.dtype)
         obs = tf.gather(hi_res_true, self.obs_training_inds, axis=-1)
         obs = tf.where(obs_mask[..., : obs.shape[-1]], nan_const, obs)
