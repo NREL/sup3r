@@ -813,8 +813,9 @@ class CollectorH5(BaseCollector):
         flist_chunks = collector.get_flist_chunks(
             collector.flist, n_writes=n_writes
         )
+        tmp_file = out_file + '.tmp'
         if not os.path.exists(out_file):
-            collector._init_h5(out_file, time_index, target_meta, global_attrs)
+            collector._init_h5(tmp_file, time_index, target_meta, global_attrs)
         for dset in features:
             logger.debug('Collecting dataset "%s".', dset)
             collector.collect_feature(
@@ -824,8 +825,9 @@ class CollectorH5(BaseCollector):
                 time_index=time_index,
                 shape=shape,
                 flist_chunks=flist_chunks,
-                out_file=out_file,
+                out_file=tmp_file,
                 threshold=threshold,
                 max_workers=max_workers,
             )
+        os.replace(tmp_file, out_file)
         logger.info('Finished file collection.')
