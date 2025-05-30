@@ -6,9 +6,7 @@ import logging
 import pathlib
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional, Union
-from warnings import warn
 
-import dask.array as da
 import numpy as np
 
 from sup3r.preprocessing.rasterizers import ExoRasterizer
@@ -91,25 +89,15 @@ class ExoData(dict):
         """  # noqa : D301
         if isinstance(steps, dict):
             for feat, entry in steps.items():
-                msg = (f'ExoData entry for {feat} has no "steps" key. '
-                       'Assuming this is for a single step.')
-                if 'steps' not in entry:
-                    logger.warning(msg)
-                    warn(msg)
-                if isinstance(entry, (np.ndarray, da.core.Array)):
-                    entry = {'data': entry}
-                steps_list = entry.get('steps', [entry])
+                msg = f'ExoData entry for {feat} must have a "steps" key.'
+                assert 'steps' in entry, msg
 
+                steps_list = entry['steps']
                 for i, step in enumerate(steps_list):
-                    msg = (f'ExoData entry for {feat}, step #{i + 1}, has no '
-                           '"combine_type" key. Assuming this is for a '
-                           'layer combination.')
-                    if 'combine_type' not in step:
-                        logger.warning(msg)
-                        warn(msg)
-                    step['combine_type'] = step.get('combine_type', 'layer')
-                    steps_list[i] = step
-                steps[feat] = {'steps': steps_list}
+                    msg = (f'ExoData entry for {feat}, step #{i + 1}, must '
+                           'have a "data" and "combine_type" key.')
+                    assert 'data' in step and 'combine_type' in step, msg
+
             self.update(steps)
 
         else:
