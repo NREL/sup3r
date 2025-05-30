@@ -55,7 +55,7 @@ def test_fixed_wind_obs(gen_config, request):
         learning_rate=1e-4,
     )
     model.meta['hr_out_features'] = ['u_10m', 'v_10m']
-    test_mask = model.get_obs_mask(np.zeros((1, 20, 20, 1, 1))).numpy()
+    test_mask = model._get_full_obs_mask(np.zeros((1, 20, 20, 1, 1))).numpy()
     frac = 1 - test_mask.sum() / test_mask.size
     assert np.abs(0.1 - frac) < test_mask.size / (2 * np.sqrt(test_mask.size))
     assert model.obs_features == ['u_10m_obs', 'v_10m_obs']
