@@ -78,6 +78,7 @@ class Sup3rGanWithObs(Sup3rGan):
             {} if offshore_obs_frac is None else offshore_obs_frac
         )
         loss_obs = self.loss_name if loss_obs is None else loss_obs
+        self.loss_obs_name = loss_obs
         self.loss_obs_fun = self.get_loss_fun(loss_obs)
         self.loss_obs_weight = loss_obs_weight
 
@@ -86,11 +87,14 @@ class Sup3rGanWithObs(Sup3rGan):
         """Get loss for observation locations and for non observation
         locations."""
         hr_true = hi_res_true[..., : len(self.hr_out_features)]
+        zeros_like = tf.zeros_like(hr_true)
         loss_obs, _ = self.loss_obs_fun(
-            hr_true[~obs_mask], hi_res_gen[~obs_mask]
+            tf.where(~obs_mask, hr_true, zeros_like),
+            tf.where(~obs_mask, hi_res_gen, zeros_like)
         )
         loss_non_obs, _ = self.loss_obs_fun(
-            hr_true[obs_mask], hi_res_gen[obs_mask]
+            tf.where(obs_mask, hr_true, zeros_like),
+            tf.where(obs_mask, hi_res_gen, zeros_like)
         )
         return loss_obs, loss_non_obs
 
@@ -199,15 +203,13 @@ class Sup3rGanWithObs(Sup3rGan):
         on_sf = self.onshore_obs_frac['spatial']
         on_tf = self.onshore_obs_frac.get('time', 1.0)
         obs_mask = self._get_obs_mask(hi_res, on_sf, on_tf)
-        if 'topography' in self.hr_exo_features and self.offshore_obs_frac:
-            topo_idx = len(self.hr_out_features) + self.hr_exo_features.index(
-                'topography'
-            )
+        if 'topography' in self.hr_features and self.offshore_obs_frac:
+            topo_idx = self.hr_features.index('topography')
             topo = hi_res[..., topo_idx]
             off_sf = self.offshore_obs_frac['spatial']
             off_tf = self.offshore_obs_frac.get('time', 1.0)
             offshore_mask = self._get_obs_mask(hi_res, off_sf, off_tf)
-            obs_mask = tf.where(topo > 0, obs_mask, offshore_mask)
+            obs_mask = tf.where(topo[..., None] > 0, obs_mask, offshore_mask)
         return obs_mask
 
     @property
@@ -223,6 +225,7 @@ class Sup3rGanWithObs(Sup3rGan):
         params['onshore_obs_frac'] = self.onshore_obs_frac
         params['offshore_obs_frac'] = self.offshore_obs_frac
         params['loss_obs_weight'] = self.loss_obs_weight
+        params['loss_obs'] = self.loss_obs_name
         return params
 
     @tf.function
