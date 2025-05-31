@@ -19,7 +19,7 @@ from sup3r.bias.utilities import bias_correct_features
 from sup3r.pipeline.slicer import ForwardPassSlicer
 from sup3r.pipeline.utilities import get_model
 from sup3r.postprocessing import OutputHandler
-from sup3r.preprocessing import ExoData, ExoDataHandler, Rasterizer
+from sup3r.preprocessing import ExoData, ExoDataHandler, Loader
 from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.utilities import (
     _parse_time_slice,
@@ -131,11 +131,14 @@ class ForwardPassStrategy:
         Dictionary of args to pass to
         :class:`~sup3r.preprocessing.data_handlers.ExoDataHandler` for
         extracting exogenous features for foward passes. This should be
-        a nested dictionary with keys for each exogenous feature. The
-        dictionaries corresponding to the feature names should include the path
-        to exogenous data source and the files used for input to the forward
-        passes, at minimum. Can also provide a dictionary of
-        ``input_handler_kwargs`` used for the handler which opens the
+        a nested dictionary with keys for each exogenous feature. If the
+        exogenous feature is sparse observation data, which will be rasterized
+        with :class:`~sup3r.preprocessing.rasterizers.ObsRasterizer`, the
+        feature name should include a "_obs" suffix. The dictionaries
+        corresponding to the feature names should include the path to exogenous
+        data source and the files used for input to the forward passes, at
+        minimum. Can also provide a dictionary of ``input_handler_kwargs`` used
+        for the handler which opens the
         exogenous data. e.g.::
             {'topography': {
                 'source_file': ...,
@@ -172,6 +175,9 @@ class ForwardPassStrategy:
         Whether to convert u and v wind components to windspeed and direction
         for writing to output. This defaults to True for H5 output and False
         for NETCDF output.
+    nn_fill : bool
+        Whether to fill data outside of accepted limits (e.g. relative
+        humidity 0-100) with nearest neighbour or cap to limits.
     pass_workers : int | None
         Max number of workers to use for performing forward passes on a single
         node. If 1 then all forward passes on chunks distributed to a single
@@ -188,6 +194,11 @@ class ForwardPassStrategy:
         how to distribute jobs across nodes. Preflight tasks like bias
         correction will be skipped because they will be performed on the nodes
         jobs are distributed to by the head node.
+    redistribute_chunks : bool
+        Whether to continue to redistribute unfinished chunks across all
+        requested nodes. This is useful for large runs when some nodes might
+        finish before others. This is in constrast to determining which chunks
+        are assigned to each node at the start of the run and not changing.
     """
 
     file_paths: Union[str, list, pathlib.Path]
@@ -207,9 +218,11 @@ class ForwardPassStrategy:
     incremental: bool = True
     output_workers: int = 1
     invert_uv: Optional[bool] = None
+    nn_fill: bool = True
     pass_workers: int = 1
     max_nodes: int = 1
     head_node: bool = False
+    redistribute_chunks: bool = False
 
     @log_args
     def __post_init__(self):
@@ -224,10 +237,8 @@ class ForwardPassStrategy:
         self.input_features = model.lr_features
         self.output_features = model.hr_out_features
         self.features, self.exo_features = self._init_features(model)
+        self.time_slice, self.padded_time_slice = self.get_time_slices()
         self.input_handler = self.timer(self.init_input_handler, log=True)()
-        self.time_slice = _parse_time_slice(
-            self.input_handler_kwargs.get('time_slice', slice(None))
-        )
         self.fwp_chunk_shape = self._get_fwp_chunk_shape()
         self.fwp_slicer = ForwardPassSlicer(
             coarse_shape=self.input_handler.grid_shape,
@@ -283,11 +294,41 @@ class ForwardPassStrategy:
         }
         return meta_data
 
+    def get_time_slices(self):
+        """Get the time slice for initializaing the input handler and the
+        time slice applied to the data given by the input handler to get the
+        actual requested time period. These are different because we want the
+        data stored by the input handler to have extra time steps at the start
+        and end of the time period for padding input to the forward pass."""
+        time_slice = self.input_handler_kwargs.get('time_slice', slice(None))
+        time_slice = _parse_time_slice(time_slice)
+        step = time_slice.step if time_slice.step else 1
+        pstart = (
+            0
+            if not time_slice.start
+            else time_slice.start - self.temporal_pad * step
+        )
+        pend = (
+            None
+            if not time_slice.stop
+            else time_slice.stop + self.temporal_pad * step
+        )
+        padded_slice = slice(pstart, pend, time_slice.step)
+        start = 0 if not padded_slice.start else self.temporal_pad
+        stop = (
+            None
+            if not padded_slice.stop or not self.temporal_pad
+            else -self.temporal_pad
+        )
+        unpadded_slice = slice(start, stop)
+        return unpadded_slice, padded_slice
+
     def init_input_handler(self):
         """Get input handler instance for given input kwargs. If self.head_node
-        is False we get all requested features. Otherwise this is part of
-        initialization on a head node and just used to get the shape of the
-        input domain, so we don't need to get any features yet."""
+        is False or features are being cached we get all requested features.
+        Otherwise this is part of initialization on a head node and just used
+        to get the shape of the input domain, so we don't need to get any
+        features yet."""
         self.input_handler_kwargs = self.input_handler_kwargs or {}
         self.input_handler_kwargs['file_paths'] = self.file_paths
         self.input_handler_kwargs['features'] = self.features
@@ -296,11 +337,11 @@ class ForwardPassStrategy:
         input_handler_kwargs = copy.deepcopy(self.input_handler_kwargs)
 
         input_handler_kwargs['features'] = self.features
-        if self.head_node:
+        if self.head_node and 'cache_kwargs' not in input_handler_kwargs:
             input_handler_kwargs['features'] = []
             input_handler_kwargs['chunks'] = 'auto'
 
-        input_handler_kwargs['time_slice'] = slice(None)
+        input_handler_kwargs['time_slice'] = self.padded_time_slice
         return InputHandler(**input_handler_kwargs)
 
     def _init_features(self, model):
@@ -310,13 +351,16 @@ class ForwardPassStrategy:
         features = [f for f in model.lr_features if f not in exo_features]
         return features, exo_features
 
-    @cached_property
+    @property
     def node_chunks(self):
         """Get array of lists such that node_chunks[i] is a list of
         indices for the chunks that will be sent through the generator on the
         ith node."""
-        node_chunks = min(self.max_nodes or np.inf, len(self.unmasked_chunks))
-        return np.array_split(self.unmasked_chunks, node_chunks)
+        chunks = self.unmasked_chunks
+        if self.redistribute_chunks:
+            chunks = [c for c in chunks if not self.chunk_finished(c)]
+        node_chunks = min(self.max_nodes or np.inf, len(chunks))
+        return np.array_split(chunks, node_chunks)
 
     @property
     def unmasked_chunks(self):
@@ -440,7 +484,7 @@ class ForwardPassStrategy:
 
         kwargs = dict(zip(Dimension.dims_2d(), lr_pad_slice))
         kwargs[Dimension.TIME] = ti_pad_slice
-        input_data = self.input_handler.isel(**kwargs)
+        input_data = self.input_handler[self.features].isel(**kwargs)
         logger.info(
             'Loading data for chunk_index=%s into memory.', chunk_index
         )
@@ -537,7 +581,7 @@ class ForwardPassStrategy:
                 )
                 input_handler_kwargs['target'] = self.input_handler.target
                 input_handler_kwargs['shape'] = self.input_handler.grid_shape
-                _ = input_handler_kwargs.pop('time_slice', None)
+                input_handler_kwargs['time_slice'] = self.padded_time_slice
                 exo_kwargs['input_handler_kwargs'] = input_handler_kwargs
                 exo_kwargs = get_class_kwargs(ExoDataHandler, exo_kwargs)
                 exo_kwargs_list.append(exo_kwargs)
@@ -581,19 +625,20 @@ class ForwardPassStrategy:
         --------
         sup3r.pipeline.strategy.ForwardPassStrategy
         """
-
         mask = np.zeros(len(self.lr_pad_slices))
+        logger.info('Checking for mask in input handler.')
         input_handler_kwargs = copy.deepcopy(self.input_handler_kwargs)
         input_handler_kwargs['features'] = 'all'
-        handler = Rasterizer(
-            **get_class_kwargs(Rasterizer, input_handler_kwargs)
-        )
-        if 'mask' in handler.data:
+        loader = Loader(**get_class_kwargs(Loader, input_handler_kwargs))
+        if 'mask' in loader.data:
             logger.info(
                 'Found "mask" in DataHandler. Computing forward pass '
                 'chunk mask for %s chunks',
                 len(self.lr_pad_slices),
             )
+            InputHandler = get_input_handler_class(self.input_handler_name)
+            input_handler_kwargs['features'] = ['mask']
+            handler = InputHandler(**input_handler_kwargs)
             mask_vals = handler.data['mask'].values
             for s_chunk_idx, lr_slices in enumerate(self.lr_pad_slices):
                 mask_check = mask_vals[lr_slices[0], lr_slices[1]]

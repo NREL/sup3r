@@ -2,7 +2,6 @@
 
 import os
 import tempfile
-import time
 
 import numpy as np
 import pytest
@@ -69,7 +68,6 @@ def test_wind_hi_res_topo(
         gen_config_with_topo(CustomLayer), pytest.S_FP_DISC, learning_rate=1e-4
     )
 
-    start = time.time()
     with tempfile.TemporaryDirectory() as td:
         model.train(
             batcher,
@@ -111,5 +109,3 @@ def test_wind_hi_res_topo(
     assert y.shape[1] == x.shape[1] * 2
     assert y.shape[2] == x.shape[2] * 2
     assert y.shape[3] == len(features) - len(lr_only_features) - 1
-
-    print(f'Elapsed: {time.time() - start}')

@@ -28,7 +28,7 @@ classifiers=[
 ]
 dependencies = [
   "NREL-rex>=0.2.91",
-  "NREL-phygnn>=0.0.23",
+  "NREL-phygnn>=0.0.32",
   "NREL-gaps>=0.6.13",
   "NREL-farms>=1.0.4",
   "dask>=2022.0",
@@ -42,9 +42,20 @@ dependencies = [
   "pytest>=5.2",
   "scipy>=1.0.0",
   "sphinx>=7.0",
-  "tensorflow>2.4,<2.16",
   "xarray>=2023.0"
 ]
+
+# If used, cause glibc conflict
+# [tool.pixi.target.linux-64.dependencies]
+# cuda = ">=11.8"
+# cudnn = {version = ">=8.6.0", channel = "conda-forge"}
+# # 8.9.7
+
+[tool.pixi.target.linux-64.pypi-dependencies]
+tensorflow = {version = "~=2.15.1", extras = ["and-cuda"] }
+
+[tool.pixi.target.osx-arm64.dependencies]
+tensorflow = {version = "~=2.15.0", channel = "conda-forge"}
 
 [project.optional-dependencies]
 dev = [
@@ -282,7 +293,6 @@ matplotlib = ">=3.1"
 numpy = "~=1.7"
 pandas = ">=2.0"
 scipy = ">=1.0.0"
-tensorflow = ">2.4,<2.16"
 xarray = ">=2023.0"
 
 [tool.pixi.pypi-dependencies]
@@ -294,6 +304,7 @@ NREL-farms = { version = ">=1.0.4" }
 
 [tool.pixi.environments]
 default = { solve-group = "default" }
+kestrel = { features = ["kestrel"], solve-group = "default" }
 dev = { features = ["dev", "doc", "test"], solve-group = "default" }
 doc = { features = ["doc"], solve-group = "default" }
 test = { features = ["test"], solve-group = "default" }

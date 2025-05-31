@@ -82,8 +82,22 @@ class ExoData(dict):
             Each array in in 'data' key has 3D or 4D shape:
             (spatial_1, spatial_2, 1)
             (spatial_1, spatial_2, n_temporal, 1)
+
+            If the 'combine_type' key is missing it is assumed to be 'layer',
+            and if the 'steps' key is missing it is assumed to be a single
+            step and will be converted to a list
         """  # noqa : D301
         if isinstance(steps, dict):
+            for feat, entry in steps.items():
+                msg = f'ExoData entry for {feat} must have a "steps" key.'
+                assert 'steps' in entry, msg
+
+                steps_list = entry['steps']
+                for i, step in enumerate(steps_list):
+                    msg = (f'ExoData entry for {feat}, step #{i + 1}, must '
+                           'have a "data" and "combine_type" key.')
+                    assert 'data' in step and 'combine_type' in step, msg
+
             self.update(steps)
 
         else:
@@ -204,7 +218,7 @@ class ExoData(dict):
         combine_types = [step['combine_type'] for step in tmp['steps']]
         msg = (
             'Received exogenous_data without any combine_type '
-            f'= "{combine_type}" steps'
+            f'= "{combine_type}" steps.'
         )
         assert combine_type in combine_types, msg
         return tmp['steps'][combine_types.index(combine_type)]['data']
@@ -371,9 +385,12 @@ class ExoDataHandler:
         steps = []
         for i, model in enumerate(models):
             is_sfc_model = model.__class__.__name__ == 'SurfaceSpatialMetModel'
+            obs_features = getattr(model, 'obs_features', [])
             if feature.lower() in _lowered(model.lr_features) or is_sfc_model:
                 steps.append({'model': i, 'combine_type': 'input'})
             if feature.lower() in _lowered(model.hr_exo_features):
+                steps.append({'model': i, 'combine_type': 'layer'})
+            if feature.lower() in _lowered(obs_features):
                 steps.append({'model': i, 'combine_type': 'layer'})
             if (
                 feature.lower() in _lowered(model.hr_out_features)

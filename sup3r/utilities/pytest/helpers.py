@@ -73,9 +73,11 @@ def make_fake_dset(shape, features, const=None):
     data_vars = {}
     for f in features:
         if 'zg' in f:
-            data = da.random.uniform(10, 100, shape)
+            data = da.random.uniform(10, 1000, shape)
         elif 'orog' in f:
-            data = da.random.uniform(0, 1, shape)
+            data = da.random.uniform(0, 10, shape)
+        elif 'pressure' in f:
+            data = da.random.uniform(80000, 100000, shape)
         else:
             data = da.random.uniform(-1, 1, shape)
         data_vars[f] = (
@@ -107,9 +109,17 @@ class DummySampler(Sampler):
     """Dummy container with random data."""
 
     def __init__(
-        self, sample_shape, data_shape, features, batch_size, feature_sets=None
+        self,
+        sample_shape,
+        data_shape,
+        features,
+        batch_size,
+        feature_sets=None,
+        chunk_shape=None,
     ):
         data = make_fake_dset(data_shape, features=features)
+        if chunk_shape is not None:
+            data = data.chunk(chunk_shape)
         super().__init__(
             Sup3rDataset(high_res=data),
             sample_shape,
@@ -314,10 +324,7 @@ def make_collect_chunks(td):
     out_files = []
     for t, slice_hr in enumerate(t_slices_hr):
         for s, (s1_hr, s2_hr) in enumerate(product(s_slices_hr, s_slices_hr)):
-            out_file = out_pattern.format(
-                t=str(t).zfill(6),
-                s=str(s).zfill(6)
-            )
+            out_file = out_pattern.format(t=str(t).zfill(6), s=str(s).zfill(6))
             out_files.append(out_file)
             OutputHandlerH5._write_output(
                 data[s1_hr, s2_hr, slice_hr, :],
@@ -330,15 +337,7 @@ def make_collect_chunks(td):
                 gids=gids[s1_hr, s2_hr],
             )
 
-    return (
-        out_files,
-        data,
-        ws_true,
-        wd_true,
-        features,
-        hr_lat_lon,
-        hr_times
-    )
+    return (out_files, data, ws_true, wd_true, features, hr_lat_lon, hr_times)
 
 
 def make_fake_h5_chunks(td):
@@ -436,7 +435,7 @@ def make_fake_h5_chunks(td):
         s_slices_lr,
         s_slices_hr,
         low_res_lat_lon,
-        low_res_times
+        low_res_times,
     )
 
 

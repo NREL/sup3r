@@ -1,0 +1,144 @@
+{
+    "u": {
+        "scale_factor": 100.0,
+        "units": "m s-1",
+        "dtype": "uint16",
+        "chunks": [2000, 500],
+        "min": -120,
+        "max": 120
+    },
+    "v": {
+        "scale_factor": 100.0,
+        "units": "m s-1",
+        "dtype": "uint16",
+        "chunks": [2000, 500],
+        "min": -120,
+        "max": 120
+    },
+    "windspeed": {
+        "scale_factor": 100.0,
+        "units": "m s-1",
+        "dtype": "uint16",
+        "chunks": [2000, 500],
+        "min": 0,
+        "max": 120
+    },
+    "winddirection": {
+        "scale_factor": 100.0,
+        "units": "degree",
+        "dtype": "uint16",
+        "chunks": [2000, 500],
+        "min": 0,
+        "max": 360
+    },
+    "clearsky_ratio": {
+        "scale_factor": 10000.0,
+        "units": "ratio",
+        "dtype": "uint16",
+        "chunks": [2000, 500],
+        "min": 0,
+        "max": 1
+    },
+    "dhi": {
+        "scale_factor": 1.0,
+        "units": "W/m2",
+        "dtype": "uint16",
+        "chunks": [2000, 500],
+        "min": 0,
+        "max": 1350
+    },
+    "dni": {
+        "scale_factor": 1.0,
+        "units": "W/m2",
+        "dtype": "uint16",
+        "chunks": [2000, 500],
+        "min": 0,
+        "max": 1350
+    },
+    "ghi": {
+        "scale_factor": 1.0,
+        "units": "W/m2",
+        "dtype": "uint16",
+        "chunks": [2000, 500],
+        "min": 0,
+        "max": 1350
+    },
+    "rsds": {
+        "scale_factor": 1.0,
+        "units": "W/m2",
+        "dtype": "uint16",
+        "chunks": [2000, 500],
+        "min": 0,
+        "max": 1350
+    },
+    "temperature": {
+        "scale_factor": 100.0,
+        "units": "C",
+        "dtype": "int16",
+        "chunks": [2000, 500],
+        "min": -200,
+        "max": 100
+    },
+    "temperature_min": {
+        "scale_factor": 100.0,
+        "units": "C",
+        "dtype": "int16",
+        "chunks": [2000, 500],
+        "min": -200,
+        "max": 100
+    },
+    "temperature_max": {
+        "scale_factor": 100.0,
+        "units": "C",
+        "dtype": "int16",
+        "chunks": [2000, 500],
+        "min": -200,
+        "max": 100
+    },
+    "relativehumidity": {
+        "scale_factor": 100.0,
+        "units": "percent",
+        "dtype": "uint16",
+        "chunks": [2000, 500],
+        "max": 100,
+        "min": 0
+    },
+    "relativehumidity_min": {
+        "scale_factor": 100.0,
+        "units": "percent",
+        "dtype": "uint16",
+        "chunks": [2000, 500],
+        "max": 100,
+        "min": 0
+    },
+    "relativehumidity_max": {
+        "scale_factor": 100.0,
+        "units": "percent",
+        "dtype": "uint16",
+        "chunks": [2000, 500],
+        "max": 100,
+        "min": 0
+    },
+    "pressure": {
+        "scale_factor": 0.1,
+        "units": "Pa",
+        "dtype": "uint16",
+        "chunks": [2000, 500],
+        "min": 0,
+        "max": 150000
+    },
+    "pr": {
+        "scale_factor": 1,
+        "units": "kg m-2 s-1",
+        "dtype": "float32",
+        "min": 0,
+        "chunks": [2000, 250]
+    },
+    "srl": {
+        "scale_factor": 1,
+        "units": "m",
+        "dtype": "float32",
+        "min": 0,
+        "chunks": [2000, 250]
+    }
+}

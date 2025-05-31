@@ -161,16 +161,12 @@ def test_only_interp_method():
     ws[..., 2] = 12
 
     out = np.asarray(Interpolator.interp_to_level(hgt, ws, [50]))
-    func = interp1d(
-        hgt[0, 0, 0, :2], ws[0, 0, 0, :2], fill_value='extrapolate'
-    )
+    func = interp1d(hgt[0, 0, 0], ws[0, 0, 0], fill_value='extrapolate')
     correct = func(50)
     assert np.allclose(out, correct)
 
     out = np.asarray(Interpolator.interp_to_level(hgt, ws, [60]))
-    func = interp1d(
-        hgt[0, 0, 0, 1:], ws[0, 0, 0, 1:], fill_value='extrapolate'
-    )
+    func = interp1d(hgt[0, 0, 0], ws[0, 0, 0], fill_value='extrapolate')
     correct = func(60)
     assert np.allclose(out, correct)
 

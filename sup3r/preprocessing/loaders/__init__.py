@@ -22,7 +22,8 @@ class Loader:
         SpecificClass = cls.TypeSpecificClasses[get_source_type(file_paths)]
         return SpecificClass(file_paths, **kwargs)
 
-    __signature__, __doc__ = composite_info(list(TypeSpecificClasses.values()))
+    _signature_objs = (BaseLoader,)
+    __doc__ = BaseLoader.__doc__
 
     def __enter__(self):
         return self
