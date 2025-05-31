@@ -953,6 +953,11 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             return hi_res_exo
 
         if norm_in and self._means is not None:
+            exo_name = (
+                exo_name.replace('_obs', '')
+                if exo_name not in self._means
+                else exo_name
+            )
             hi_res_exo = (
                 hi_res_exo.copy() - self._means[exo_name]
             ) / self._stdevs[exo_name]
@@ -1011,13 +1016,10 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
                 continue
             assert feat in exogenous_data, msg.format(feat)
             exo = exogenous_data.get_combine_type_data(feat, 'layer')
-            fname = (
-                feat.replace('_obs', '') if feat not in self._means else feat
-            )
             exo = self._reshape_norm_exo(
                 input_array,
                 exo,
-                fname,
+                feat,
                 norm_in=norm_in,
             )
             if feat in features:
