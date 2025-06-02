@@ -8,10 +8,5 @@ objects."""
 
 from .base import BaseRasterizer
 from .dual import DualRasterizer
-from .exo import (
-    ExoRasterizer,
-    ExoRasterizerH5,
-    ExoRasterizerNC,
-    SzaRasterizer,
-)
+from .exo import BaseExoRasterizer, ExoRasterizer, ObsRasterizer, SzaRasterizer
 from .extended import Rasterizer

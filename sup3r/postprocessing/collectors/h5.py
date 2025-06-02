@@ -12,6 +12,7 @@ from scipy.spatial import KDTree
 
 from sup3r.postprocessing.writers.base import RexOutputs
 from sup3r.preprocessing.utilities import _mem_check
+from sup3r.utilities.utilities import get_dset_attrs
 
 from .base import BaseCollector
 
@@ -528,7 +529,7 @@ class CollectorH5(BaseCollector):
             None uses all available.
         """
         if len(subset_masked_meta) > 0:
-            attrs, final_dtype = self.get_dset_attrs(feature)
+            attrs, final_dtype = get_dset_attrs(feature)
             scale_factor = attrs.get('scale_factor', 1)
 
             logger.debug(
@@ -812,8 +813,9 @@ class CollectorH5(BaseCollector):
         flist_chunks = collector.get_flist_chunks(
             collector.flist, n_writes=n_writes
         )
+        tmp_file = out_file + '.tmp'
         if not os.path.exists(out_file):
-            collector._init_h5(out_file, time_index, target_meta, global_attrs)
+            collector._init_h5(tmp_file, time_index, target_meta, global_attrs)
         for dset in features:
             logger.debug('Collecting dataset "%s".', dset)
             collector.collect_feature(
@@ -823,8 +825,9 @@ class CollectorH5(BaseCollector):
                 time_index=time_index,
                 shape=shape,
                 flist_chunks=flist_chunks,
-                out_file=out_file,
+                out_file=tmp_file,
                 threshold=threshold,
                 max_workers=max_workers,
             )
+        os.replace(tmp_file, out_file)
         logger.info('Finished file collection.')

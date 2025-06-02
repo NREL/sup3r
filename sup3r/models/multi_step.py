@@ -14,8 +14,8 @@ import numpy as np
 import sup3r.models
 from sup3r.preprocessing.data_handlers import ExoData
 
-from .abstract import AbstractInterface
 from .base import Sup3rGan
+from .interface import AbstractInterface
 
 logger = logging.getLogger(__name__)
 

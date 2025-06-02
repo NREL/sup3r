@@ -237,7 +237,6 @@ class ForwardPass:
             )
             logger.exception(msg)
             raise RuntimeError(msg) from e
-
         if len(hi_res.shape) == 4:
             hi_res = np.expand_dims(np.transpose(hi_res, (1, 2, 0, 3)), axis=0)
 
@@ -384,13 +383,13 @@ class ForwardPass:
         return cmd.replace('\\', '/')
 
     @classmethod
-    def _constant_output_check(cls, out_data, allowed_const):
-        """Check if forward pass output is constant. This can happen when the
-        chunk going through the forward pass is too big. This is due to a
-        tensorflow padding bug, with the padding mode set to 'reflect'. With
-        the currently preferred tensorflow version (2.15.1) this results in
-        scrambled output rather than constant.
-        https://github.com/tensorflow/tensorflow/issues/91027
+    def _output_check(cls, out_data, allowed_const):
+        """Check if forward pass output is constant or contains NaNs. This can
+        happen when the chunk going through the forward pass is too big.
+        This is due to a tensorflow padding bug, with the padding mode
+        set to 'reflect'. With the currently preferred tensorflow
+        version (2.15.1) this results in scrambled output rather than
+        constant. https://github.com/tensorflow/tensorflow/issues/91027
 
         Parameters
         ----------
@@ -409,6 +408,12 @@ class ForwardPass:
             allowed_const = []
         elif not isinstance(allowed_const, (list, tuple)):
             allowed_const = [allowed_const]
+
+        if np.isnan(out_data).any():
+            msg = 'Forward pass output contains NaN values!'
+            failed = True
+            logger.error(msg)
+            return failed
 
         for i in range(out_data.shape[-1]):
             msg = f'All values are the same for feature channel {i}!'
@@ -473,6 +478,7 @@ class ForwardPass:
                     allowed_const=strategy.allowed_const,
                     output_workers=strategy.output_workers,
                     invert_uv=strategy.invert_uv,
+                    nn_fill=strategy.nn_fill,
                     meta=fwp.meta,
                 )
                 logger.info(
@@ -484,7 +490,7 @@ class ForwardPass:
                 if failed:
                     msg = (
                         f'Forward pass for chunk_index {chunk_index} failed '
-                        'with constant output.'
+                        'with constant output or NaNs.'
                     )
                     raise MemoryError(msg)
 
@@ -550,7 +556,7 @@ class ForwardPass:
                     if failed:
                         msg = (
                             f'Forward pass for chunk_index {chunk_idx} failed '
-                            'with constant output.'
+                            'with constant output or NaNs.'
                         )
                         raise MemoryError(msg)
                     msg = (
@@ -582,6 +588,7 @@ class ForwardPass:
         allowed_const,
         invert_uv=None,
         meta=None,
+        nn_fill=True,
         output_workers=None,
     ):
         """Run a forward pass on single spatiotemporal chunk.
@@ -609,6 +616,9 @@ class ForwardPass:
             Whether to convert uv to windspeed and winddirection for writing
             output. This defaults to True for H5 output and False for NETCDF
             output.
+        nn_fill : bool
+            Whether to fill data outside of limits with nearest neighbour or
+            cap to limits.
         meta : dict | None
             Meta data to write to forward pass output file.
         output_workers : int | None
@@ -627,6 +637,11 @@ class ForwardPass:
 
         model = get_model(model_class, model_kwargs)
 
+        if np.isnan(chunk.input_data).any():
+            msg = 'Input data contains NaN values!'
+            logger.error(msg)
+            raise RuntimeError(msg)
+
         output_data = cls.run_generator(
             data_chunk=chunk.input_data,
             hr_crop_slices=chunk.hr_crop_slice,
@@ -636,7 +651,7 @@ class ForwardPass:
             model=model,
         )
 
-        failed = cls._constant_output_check(
+        failed = cls._output_check(
             output_data, allowed_const=allowed_const
         )
 
@@ -651,6 +666,7 @@ class ForwardPass:
                 out_file=chunk.out_file,
                 meta_data=meta,
                 invert_uv=invert_uv,
+                nn_fill=nn_fill,
                 max_workers=output_workers,
                 gids=chunk.gids,
             )

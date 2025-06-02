@@ -28,6 +28,7 @@ class OutputHandlerNC(OutputHandler):
         meta_data=None,
         max_workers=None,
         invert_uv=None,
+        nn_fill=False,
         gids=None,
     ):
         """Write forward pass output to NETCDF file
@@ -54,6 +55,9 @@ class OutputHandlerNC(OutputHandler):
         invert_uv : bool | None
             Whether to convert u and v wind components to windspeed and
             direction
+        nn_fill : bool
+            Whether to fill data outside of limits with nearest neighbour or
+            cap to limits
         gids : list
             List of coordinate indices used to label each lat lon pair and to
             help with spatial chunk data collection
@@ -65,6 +69,7 @@ class OutputHandlerNC(OutputHandler):
             features=features,
             lat_lon=lat_lon,
             invert_uv=invert_uv,
+            nn_fill=nn_fill,
             max_workers=max_workers,
         )
 
@@ -79,7 +84,7 @@ class OutputHandlerNC(OutputHandler):
         for i, f in enumerate(features):
             data_vars[f] = (
                 (Dimension.TIME, *Dimension.dims_2d()),
-                np.transpose(data[..., i], axes=(2, 0, 1)),
+                np.transpose(data[..., i], axes=(2, 0, 1)).astype(np.float32),
             )
 
         attrs = meta_data or {}
@@ -88,7 +93,7 @@ class OutputHandlerNC(OutputHandler):
         attrs['date_created'] = attrs.get('date_created', now)
 
         ds = xr.Dataset(data_vars=data_vars, coords=coords, attrs=attrs)
-        Cacher.write_netcdf(
+        Cacher._write_single(
             out_file=out_file,
             data=ds,
             features=features,

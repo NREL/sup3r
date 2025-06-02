@@ -8,4 +8,3 @@ from .writers import (
     OutputMixin,
     RexOutputs,
 )
-from .writers.base import OUTPUT_ATTRS

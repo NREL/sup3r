@@ -16,7 +16,8 @@ class Interpolator:
     @classmethod
     def get_level_masks(cls, lev_array, level):
         """Get the masks used to select closest surrounding levels in the
-        lev_array to requested interpolation level.
+        lev_array to the requested interpolation level. If there are levels
+        above and below the requested level these are prioritized.
 
         Parameters
         ----------
@@ -42,15 +43,30 @@ class Interpolator:
             to the one requested.
             (lat, lon, time, level)
         """
-        lev_diff = np.abs(lev_array - level)
-        argmin1 = da.argmin(lev_diff, axis=-1, keepdims=True)
         lev_indices = da.broadcast_to(
             da.arange(lev_array.shape[-1]), lev_array.shape
         )
+
+        above_mask = lev_array >= level
+        below_mask = lev_array < level
+        below = da.ma.masked_array(lev_array, above_mask)
+        above = da.ma.masked_array(lev_array, below_mask)
+
+        argmin1 = da.argmin(np.abs(below - level), axis=-1, keepdims=True)
         mask1 = lev_indices == argmin1
-        lev_diff = da.abs(da.ma.masked_array(lev_array, mask1) - level)
-        argmin2 = da.argmin(lev_diff, axis=-1, keepdims=True)
+        argmin2 = da.argmin(np.abs(above - level), axis=-1, keepdims=True)
         mask2 = lev_indices == argmin2
+
+        # Get alternative levels in case there is no level below or above
+        below_exists = da.any(below_mask, axis=-1, keepdims=True)
+        argmin3 = da.argmin(np.abs(lev_array - level), axis=-1, keepdims=True)
+        mask1 = da.where(below_exists, mask1, lev_indices == argmin3)
+
+        above_exists = da.any(above_mask, axis=-1, keepdims=True)
+        alts = da.ma.masked_array(lev_array, mask1)
+        argmin3 = da.argmin(np.abs(alts - level), axis=-1, keepdims=True)
+        mask2 = da.where(above_exists, mask2, lev_indices == argmin3)
+
         return mask1, mask2
 
     @classmethod
@@ -58,12 +74,12 @@ class Interpolator:
         """Linearly interpolate between levels."""
         diff = da.map_blocks(lambda x, y: x - y, lev_samps[1], lev_samps[0])
         alpha = da.where(
-            diff == 0,
+            np.abs(diff) < 1e-3,  # to avoid excessively large alpha values
             0,
             da.map_blocks(lambda x, y: x / y, (level - lev_samps[0]), diff),
         )
-        indices = 'ijk'[:lev_samps[0].ndim]
-        return da.blockwise(
+        indices = 'ijk'[: lev_samps[0].ndim]
+        out = da.blockwise(
             lambda x, y, a: x * (1 - a) + y * a,
             indices,
             var_samps[0],
@@ -73,6 +89,7 @@ class Interpolator:
             alpha,
             indices,
         )
+        return out
 
     @classmethod
     def _log_interp(cls, lev_samps, var_samps, level):

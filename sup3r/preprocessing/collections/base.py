@@ -44,7 +44,7 @@ class Collection(Container):
         if not self._features:
             _ = [
                 self._features.append(f)
-                for f in np.concatenate([d.features for d in self.data])
+                for f in np.concatenate([c.features for c in self.containers])
                 if f not in self._features
             ]
         return self._features
@@ -60,8 +60,6 @@ class Collection(Container):
     def __getattr__(self, attr):
         """Get attributes from self or the first container in the
         collection."""
-        if attr in dir(self):
-            return self.__getattribute__(attr)
         return self.check_shared_attr(attr)
 
     def check_shared_attr(self, attr):

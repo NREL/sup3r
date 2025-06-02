@@ -23,6 +23,7 @@ from sup3r.preprocessing.utilities import (
     ordered_dims,
     parse_keys,
 )
+from sup3r.utilities.utilities import nn_fill_array
 
 logger = logging.getLogger(__name__)
 
@@ -371,19 +372,18 @@ class Sup3rX:
                         'use_coordinate', False
                     )
                 self._ds[feat] = self._ds[feat].interpolate_na(**kwargs)
-            else:
-                horiz = (
-                    self._ds[feat]
-                    .chunk({Dimension.WEST_EAST: -1})
-                    .interpolate_na(dim=Dimension.WEST_EAST, **kwargs)
+            elif np.isnan(self._ds[feat]).any():
+                msg = (
+                    'No dim given for interpolate_na. This will use nearest '
+                    f'neighbor fill to interpolate {feat}, which could take '
+                    'some time.'
                 )
-                vert = (
-                    self._ds[feat]
-                    .chunk({Dimension.SOUTH_NORTH: -1})
-                    .interpolate_na(dim=Dimension.SOUTH_NORTH, **kwargs)
+                logger.warning(msg)
+                warn(msg)
+                self._ds[feat] = (
+                    self._ds[feat].dims,
+                    nn_fill_array(self._ds[feat].values),
                 )
-                new_var = (self._ds[feat].dims, (horiz.data + vert.data) / 2)
-                self._ds[feat] = new_var
         return self
 
     @staticmethod
@@ -488,8 +488,8 @@ class Sup3rX:
     def time_index(self):
         """Base time index for contained data."""
         return (
-            pd.to_datetime(self._ds.indexes['time'])
-            if 'time' in self._ds.indexes
+            pd.to_datetime(self._ds.indexes[Dimension.TIME])
+            if Dimension.TIME in self._ds.indexes
             else None
         )
 
@@ -508,7 +508,13 @@ class Sup3rX:
     def lat_lon(self) -> Union[np.ndarray, da.core.Array]:
         """Base lat lon for contained data."""
         coords = [self._ds[d] for d in Dimension.coords_2d()]
-        return self._stack_features(coords)
+        lat_lon = self._stack_features(coords)
+
+        # only one coordinate but this property is assumed to be a 2D array
+        if len(lat_lon.shape) == 1:
+            lat_lon = lat_lon.reshape((1, 1, 2))
+
+        return lat_lon
 
     @lat_lon.setter
     def lat_lon(self, lat_lon):
@@ -562,40 +568,73 @@ class Sup3rX:
         """Flatten rasterized dataset so that there is only a single spatial
         dimension."""
         if not self.flattened:
-            self._ds = self._ds.stack(
-                {Dimension.FLATTENED_SPATIAL: Dimension.dims_2d()}
-            )
-            self._ds = self._ds.assign(
-                {
-                    Dimension.FLATTENED_SPATIAL: np.arange(
-                        len(self._ds[Dimension.FLATTENED_SPATIAL])
-                    )
-                }
-            )
+            dims = {Dimension.FLATTENED_SPATIAL: Dimension.dims_2d()}
+            self._ds = self._ds.stack(dims)
+            index = np.arange(len(self._ds[Dimension.FLATTENED_SPATIAL]))
+            self._ds = self._ds.assign({Dimension.FLATTENED_SPATIAL: index})
         else:
             msg = 'Dataset is already flattened'
             logger.warning(msg)
             warn(msg)
         return self
 
-    def _qa(self, feature):
+    def set_regular_grid(self):
+        """In the case of a regular grid, use this to set latitude and
+        and longitude as 1D arrays which enables calls to ``self.sel``
+        and combining chunks with different coordinates through
+        ``xr.combine_by_coords``"""
+
+        lat_lon_2d = (
+            len(self._ds[Dimension.LATITUDE].dims) == 2
+            and len(self._ds[Dimension.LONGITUDE].dims) == 2
+        )
+        same_lats = np.allclose(
+            np.diff(self._ds[Dimension.LATITUDE].values, axis=1), 0
+        )
+        same_lons = np.allclose(
+            np.diff(self._ds[Dimension.LONGITUDE].values, axis=0), 0
+        )
+        if not (lat_lon_2d and same_lats and same_lons):
+            msg = 'Cannot set regular grid for non-regular data'
+            logger.warning(msg)
+            warn(msg)
+        else:
+            self._ds[Dimension.LATITUDE] = self._ds[
+                Dimension.LATITUDE
+            ].isel(**{Dimension.WEST_EAST: 0})
+            self._ds[Dimension.LONGITUDE] = self._ds[
+                Dimension.LONGITUDE
+            ].isel(**{Dimension.SOUTH_NORTH: 0})
+            self._ds = self._ds.swap_dims({
+                Dimension.SOUTH_NORTH: Dimension.LATITUDE,
+                Dimension.WEST_EAST: Dimension.LONGITUDE,
+            })
+        return self
+
+    def _qa(self, feature, stats=None):
         """Get qa info for given feature."""
         info = {}
+        stats = stats or ['nan_perc', 'std', 'mean', 'min', 'max']
         logger.info('Running qa on feature: %s', feature)
         nan_count = 100 * np.isnan(self[feature].data).sum()
         nan_perc = nan_count / self[feature].size
-        info['nan_perc'] = compute_if_dask(nan_perc)
-        info['std'] = compute_if_dask(self[feature].std().data)
-        info['mean'] = compute_if_dask(self[feature].mean().data)
-        info['min'] = compute_if_dask(self[feature].min().data)
-        info['max'] = compute_if_dask(self[feature].max().data)
+
+        for stat in stats:
+            logger.info('Running QA method %s on feature: %s', stat, feature)
+            if stat == 'nan_perc':
+                info['nan_perc'] = compute_if_dask(nan_perc)
+            else:
+                msg = f'Unknown QA method requested: {stat}'
+                assert hasattr(self[feature], stat), msg
+                qa_data = getattr(self[feature], stat)().data
+                info[stat] = compute_if_dask(qa_data)
         return info
 
-    def qa(self):
-        """Check NaNs and stats for all features."""
+    def qa(self, stats=None):
+        """Check NaNs and the given stats for all features."""
         qa_info = {}
         for f in self.features:
-            qa_info[f] = self._qa(f)
+            qa_info[f] = self._qa(f, stats=stats)
         return qa_info
 
     def __mul__(self, other):
@@ -604,9 +643,8 @@ class Sup3rX:
         try:
             return type(self)(other * self._ds)
         except Exception as e:
-            raise NotImplementedError(
-                f'Multiplication not supported for type {type(other)}.'
-            ) from e
+            msg = f'Multiplication not supported for type {type(other)}.'
+            raise NotImplementedError(msg) from e
 
     def __rmul__(self, other):
         return self.__mul__(other)
@@ -617,6 +655,5 @@ class Sup3rX:
         try:
             return type(self)(self._ds**other)
         except Exception as e:
-            raise NotImplementedError(
-                f'Exponentiation not supported for type {type(other)}.'
-            ) from e
+            msg = f'Exponentiation not supported for type {type(other)}.'
+            raise NotImplementedError(msg) from e

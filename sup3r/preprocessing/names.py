@@ -112,6 +112,7 @@ COORD_NAMES = {
     'isobaricInhPa': Dimension.PRESSURE_LEVEL,
     'pressure_level': Dimension.PRESSURE_LEVEL,
     'xtime': Dimension.TIME,
+    'time_index': Dimension.TIME,
     'valid_time': Dimension.TIME,
     'west_east': Dimension.LONGITUDE,
     'south_north': Dimension.LATITUDE
@@ -129,6 +130,7 @@ DIM_NAMES = {
     'isobaricInhPa': Dimension.PRESSURE_LEVEL,
     'pressure_level': Dimension.PRESSURE_LEVEL,
     'xtime': Dimension.TIME,
+    'time_index': Dimension.TIME,
     'valid_time': Dimension.TIME
 }
 
@@ -162,6 +164,8 @@ SFC_VARS = [
     'northward_turbulent_surface_stress',
     'eastward_turbulent_surface_stress',
     'sea_surface_temperature',
+    'instantaneous_10m_wind_gust',
+    'skin_temperature'
 ]
 
 # variables available on multiple pressure levels

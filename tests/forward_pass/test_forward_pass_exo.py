@@ -23,7 +23,7 @@ from sup3r.preprocessing import Dimension, ExoDataHandler
 from sup3r.utilities.pytest.helpers import make_fake_nc_file
 from sup3r.utilities.utilities import RANDOM_GENERATOR, xr_open_mfdataset
 
-target = (19.3, -123.5)
+target = (39.5, -105)
 shape = (8, 8)
 sample_shape = (8, 8, 6)
 time_slice = slice(None, None, 1)
@@ -682,7 +682,10 @@ def test_fwp_wind_hi_res_topo_plus_linear(input_files, gen_config_with_topo):
     exo_tmp = {
         'topography': {
             'steps': [
-                {'combine_type': 'layer', 'data': np.ones((4, 20, 20, 1))}
+                {
+                    'combine_type': 'layer',
+                    'data': RANDOM_GENERATOR.random((4, 20, 20, 1)),
+                }
             ]
         }
     }
@@ -721,12 +724,13 @@ def test_fwp_wind_hi_res_topo_plus_linear(input_files, gen_config_with_topo):
             input_files,
             model_kwargs=model_kwargs,
             model_class='MultiStepGan',
-            fwp_chunk_shape=(4, 4, 8),
-            spatial_pad=1,
-            temporal_pad=1,
+            fwp_chunk_shape=(8, 8, 8),
+            spatial_pad=2,
+            temporal_pad=2,
             input_handler_kwargs=input_handler_kwargs,
             out_pattern=out_files,
             exo_handler_kwargs=exo_handler_kwargs,
+            allowed_const=0,
             max_nodes=1,
         )
         forward_pass = ForwardPass(handler)

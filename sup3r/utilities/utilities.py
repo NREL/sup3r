@@ -2,10 +2,12 @@
 
 import json
 import logging
+import os
 import random
 import re
 import string
 import time
+from warnings import warn
 
 import numpy as np
 import pandas as pd
@@ -14,30 +16,79 @@ import xarray as xr
 from packaging import version
 from scipy import ndimage as nd
 
-logger = logging.getLogger(__name__)
+ATTR_DIR = os.path.dirname(os.path.realpath(__file__))
+ATTR_FP = os.path.join(ATTR_DIR, 'output_attrs.json')
+with open(ATTR_FP) as f:
+    OUTPUT_ATTRS = json.load(f)
 
 RANDOM_GENERATOR = np.random.default_rng(seed=42)
+
+logger = logging.getLogger(__name__)
+
+
+def nn_fill_array(array):
+    """Fill any NaN values in an np.ndarray from the nearest non-nan values.
+
+    Parameters
+    ----------
+    array : Union[np.ndarray, da.core.Array]
+        Input array with NaN values
+
+    Returns
+    -------
+    array : Union[np.ndarray, da.core.Array]
+        Output array with NaN values filled
+    """
+
+    nan_mask = np.isnan(array)
+    indices = nd.distance_transform_edt(
+        nan_mask, return_distances=False, return_indices=True
+    )
+    if hasattr(array, 'vindex'):
+        return array.vindex[tuple(indices)]
+    return array[tuple(indices)]
+
+
+def get_feature_basename(feature):
+    """Get the base name of a feature, removing any height or pressure
+    suffix"""
+    height = re.findall(r'_\d+m', feature)
+    press = re.findall(r'_\d+pa', feature)
+    basename = (
+        feature.replace(height[0], '')
+        if height
+        else feature.replace(press[0], '')
+        if press
+        else feature.split('_(.*)')[0]
+        if '_(.*)' in feature
+        else feature
+    )
+    return basename
 
 
 def preprocess_datasets(dset):
     """Standardization preprocessing applied before datasets are concatenated
     by ``xr.open_mfdataset``"""
+    if 'latitude' in dset.dims:
+        dset = dset.swap_dims({'latitude': 'south_north'})
+    if 'longitude' in dset.dims:
+        dset = dset.swap_dims({'longitude': 'west_east'})
+    if 'valid_time' in dset:
+        dset = dset.rename({'valid_time': 'time'})
+    if 'isobaricInhPa' in dset:
+        dset = dset.rename({'isobaricInhPa': 'level'})
+    if 'orog' in dset:
+        dset = dset.rename({'orog': 'topography'})
     if 'time' in dset and dset.time.size > 1:
         if 'time' in dset.indexes and hasattr(
             dset.indexes['time'], 'to_datetimeindex'
         ):
             dset['time'] = dset.indexes['time'].to_datetimeindex()
-        ti = dset['time'].astype(int)
+        ti = dset['time'].astype('int64')
         dset['time'] = ti
-    if 'latitude' in dset.dims:
-        dset = dset.swap_dims({'latitude': 'south_north'})
-    if 'longitude' in dset.dims:
-        dset = dset.swap_dims({'longitude': 'west_east'})
-    # temporary to handle downloaded era files
-    if 'expver' in dset:
-        dset = dset.drop_vars('expver')
-    if 'number' in dset:
-        dset = dset.drop_vars('number')
+
+    # sometimes these are included in prelim ERA5 data
+    dset = dset.drop_vars(['expver', 'number'], errors='ignore')
     return dset
 
 
@@ -47,9 +98,17 @@ def xr_open_mfdataset(files, **kwargs):
     default_kwargs.update(kwargs)
     if isinstance(files, str):
         files = [files]
-    return xr.open_mfdataset(
+    out = xr.open_mfdataset(
         files, preprocess=preprocess_datasets, **default_kwargs
     )
+    bad_dims = (
+        'latitude' in out
+        and len(out['latitude'].dims) == 2
+        and (out['latitude'].dims != out['longitude'].dims)
+    )
+    if bad_dims:
+        out['longitude'] = (out['latitude'].dims, out['longitude'].values.T)
+    return out
 
 
 def safe_cast(o):
@@ -65,6 +124,107 @@ def safe_cast(o):
     if isinstance(o, (str, list)):
         return o
     return str(o)
+
+
+def enforce_limits(features, data, nn_fill=False):
+    """Enforce physical limits for feature data
+
+    Parameters
+    ----------
+    features : list
+        List of features with ordering corresponding to last channel of
+        data array.
+    data : ndarray
+        Array of feature data
+    nn_fill : bool
+        Whether to fill values outside of limits with nearest neighbor
+        interpolation. If False, values outside of limits are set to
+        the limits.
+
+    Returns
+    -------
+    data : ndarray
+        Array of feature data with physical limits enforced
+    """
+    for fidx, fn in enumerate(features):
+        dset_name = get_feature_basename(fn)
+        if dset_name not in OUTPUT_ATTRS:
+            msg = f'Could not find "{dset_name}" in OUTPUT_ATTRS dict!'
+            logger.error(msg)
+            raise KeyError(msg)
+
+        max_val = OUTPUT_ATTRS[dset_name].get('max', np.inf)
+        min_val = OUTPUT_ATTRS[dset_name].get('min', -np.inf)
+        enforcing_msg = f'Enforcing range of ({min_val}, {max_val}) for "{fn}"'
+        if nn_fill:
+            enforcing_msg += ' with nearest neighbor interpolation.'
+        else:
+            enforcing_msg += ' with clipping.'
+
+        f_max = data[..., fidx].max()
+        f_min = data[..., fidx].min()
+        max_frac = np.sum(data[..., fidx] > max_val) / data[..., fidx].size
+        min_frac = np.sum(data[..., fidx] < min_val) / data[..., fidx].size
+        msg = (
+            f'{fn} has a max of {f_max} > {max_val}, with '
+            f'{max_frac:.4e} of points above this max. {enforcing_msg}'
+        )
+        if f_max > max_val:
+            logger.warning(msg)
+            warn(msg)
+        msg = (
+            f'{fn} has a min of {f_min} < {min_val}, with '
+            f'{min_frac:.4e} of points below this min. {enforcing_msg}'
+        )
+        if f_min < min_val:
+            logger.warning(msg)
+            warn(msg)
+
+        if nn_fill:
+            data[..., fidx] = np.where(
+                data[..., fidx] > max_val, np.nan, data[..., fidx]
+            )
+            data[..., fidx] = np.where(
+                data[..., fidx] < min_val, np.nan, data[..., fidx]
+            )
+            data[..., fidx] = nn_fill_array(data[..., fidx])
+        else:
+            data[..., fidx] = np.maximum(data[..., fidx], min_val)
+            data[..., fidx] = np.minimum(data[..., fidx], max_val)
+    return data.astype(np.float32)
+
+
+def get_dset_attrs(feature):
+    """Get attrributes for output feature
+
+    Parameters
+    ----------
+    feature : str
+        Name of feature to write
+
+    Returns
+    -------
+    attrs : dict
+        Dictionary of attributes for requested dset
+    dtype : str
+        Data type for requested dset. Defaults to float32
+    """
+    feat_base_name = get_feature_basename(feature)
+    if feat_base_name in OUTPUT_ATTRS:
+        attrs = OUTPUT_ATTRS[feat_base_name]
+        dtype = attrs.get('dtype', 'float32')
+    else:
+        attrs = {}
+        dtype = 'float32'
+        msg = (
+            'Could not find feature "{}" with base name "{}" in '
+            'OUTPUT_ATTRS global variable. Writing with float32 and no '
+            'chunking.'.format(feature, feat_base_name)
+        )
+        logger.warning(msg)
+        warn(msg)
+
+    return attrs, dtype
 
 
 def safe_serialize(obj, **kwargs):
@@ -92,6 +252,8 @@ class Timer:
     @property
     def elapsed(self):
         """Elapsed time between start and stop."""
+        if self._stop is None:
+            return time.time() - self._start
         return self._stop - self._start
 
     @property
@@ -333,29 +495,6 @@ def spatial_coarsening(data, s_enhance=2, obs_axis=True):
             raise ValueError(msg)
 
     return data
-
-
-def nn_fill_array(array):
-    """Fill any NaN values in an np.ndarray from the nearest non-nan values.
-
-    Parameters
-    ----------
-    array : Union[np.ndarray, da.core.Array]
-        Input array with NaN values
-
-    Returns
-    -------
-    array : Union[np.ndarray, da.core.Array]
-        Output array with NaN values filled
-    """
-
-    nan_mask = np.isnan(array)
-    indices = nd.distance_transform_edt(
-        nan_mask, return_distances=False, return_indices=True
-    )
-    if hasattr(array, 'vindex'):
-        return array.vindex[tuple(indices)]
-    return array[tuple(indices)]
 
 
 def pd_date_range(*args, **kwargs):

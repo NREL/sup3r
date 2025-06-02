@@ -11,13 +11,13 @@ import logging
 import threading
 import time
 from abc import ABC, abstractmethod
-from collections import namedtuple
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import TYPE_CHECKING, List, Optional, Union
 
 import numpy as np
 import tensorflow as tf
 
+from sup3r.preprocessing.base import DsetTuple
 from sup3r.preprocessing.collections.base import Collection
 from sup3r.utilities.utilities import RANDOM_GENERATOR, Timer
 
@@ -32,7 +32,7 @@ class AbstractBatchQueue(Collection, ABC):
     generator and maintains a queue of batches in a dedicated thread so the
     training routine can proceed as soon as batches are available."""
 
-    Batch = namedtuple('Batch', ['low_res', 'high_res'])
+    BATCH_MEMBERS = ('low_res', 'high_res')
 
     def __init__(
         self,
@@ -46,6 +46,7 @@ class AbstractBatchQueue(Collection, ABC):
         max_workers: int = 1,
         thread_name: str = 'training',
         mode: str = 'lazy',
+        verbose: bool = False,
     ):
         """
         Parameters
@@ -77,6 +78,8 @@ class AbstractBatchQueue(Collection, ABC):
             Loading mode. Default is 'lazy', which only loads data into memory
             as batches are queued. 'eager' will load all data into memory right
             away.
+        verbose : bool
+            Whether to log timing information for batch steps.
         """
         msg = (
             f'{self.__class__.__name__} requires a list of samplers. '
@@ -88,6 +91,7 @@ class AbstractBatchQueue(Collection, ABC):
         self._queue_thread = None
         self._training_flag = threading.Event()
         self._thread_name = thread_name
+        self._thread_pool = ThreadPoolExecutor(max_workers=max_workers)
         self.mode = mode
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
@@ -106,6 +110,7 @@ class AbstractBatchQueue(Collection, ABC):
             'smoothing_ignore': [],
             'smoothing': None,
         }
+        self.verbose = verbose
         self.timer = Timer()
         self.preflight()
 
@@ -115,6 +120,17 @@ class AbstractBatchQueue(Collection, ABC):
         """Shape of objects stored in the queue. e.g. for single dataset queues
         this is (batch_size, *sample_shape, len(features)). For dual dataset
         queues this is [(batch_size, *lr_shape), (batch_size, *hr_shape)]"""
+
+    @property
+    def queue_len(self):
+        """Get number of batches in the queue."""
+        return self.queue.size().numpy() + self.queue_futures
+
+    @property
+    def queue_futures(self):
+        """Get number of scheduled futures that will eventually add batches to
+        the queue."""
+        return self._thread_pool._work_queue.qsize()
 
     def get_queue(self):
         """Return FIFO queue for storing batches."""
@@ -179,7 +195,7 @@ class AbstractBatchQueue(Collection, ABC):
         high res samples. For a dual dataset queue this will just include
         smoothing."""
 
-    def post_proc(self, samples) -> Batch:
+    def post_proc(self, samples) -> DsetTuple:
         """Performs some post proc on dequeued samples before sending out for
         training. Post processing can include coarsening on high-res data (if
         :class:`Collection` consists of :class:`Sampler` objects and not
@@ -187,11 +203,12 @@ class AbstractBatchQueue(Collection, ABC):
 
         Returns
         -------
-        Batch : namedtuple
-             namedtuple with `low_res` and `high_res` attributes
+        Batch : DsetTuple
+             namedtuple-like object with `low_res` and `high_res` attributes.
+             Could also include `obs` member.
         """
-        lr, hr = self.transform(samples, **self.transform_kwargs)
-        return self.Batch(low_res=lr, high_res=hr)
+        tsamps = self.transform(samples, **self.transform_kwargs)
+        return DsetTuple(**dict(zip(self.BATCH_MEMBERS, tsamps)))
 
     def start(self) -> None:
         """Start thread to keep sample queue full for batches."""
@@ -219,14 +236,10 @@ class AbstractBatchQueue(Collection, ABC):
         self.start()
         return self
 
-    def get_batch(self) -> Batch:
+    def get_batch(self) -> DsetTuple:
         """Get batch from queue or directly from a ``Sampler`` through
         ``sample_batch``."""
-        if (
-            self.mode == 'eager'
-            or self.queue_cap == 0
-            or self.queue.size().numpy() == 0
-        ):
+        if self.mode == 'eager' or self.queue_cap == 0 or self.queue_len == 0:
             return self.sample_batch()
         return self.queue.dequeue()
 
@@ -239,31 +252,47 @@ class AbstractBatchQueue(Collection, ABC):
             and not self.queue.is_closed()
         )
 
+    def sample_batches(self, n_batches) -> None:
+        """Sample given number of batches either in serial or with thread
+        pool."""
+        if n_batches == 1 or self.max_workers == 1:
+            return [self.sample_batch() for _ in range(n_batches)]
+        tasks = [
+            self._thread_pool.submit(self.sample_batch)
+            for _ in range(n_batches)
+        ]
+        logger.debug(
+            'Added %s sample_batch futures to %s queue.',
+            n_batches,
+            self._thread_name,
+        )
+        return tasks
+
     def enqueue_batches(self) -> None:
         """Callback function for queue thread. While training, the queue is
         checked for empty spots and filled. In the training thread, batches are
         removed from the queue."""
         log_time = time.time()
         while self.running:
-            needed = self.queue_cap - self.queue.size().numpy()
-            if needed == 1 or self.max_workers == 1:
-                self.enqueue_batch()
-            elif needed > 0:
-                with ThreadPoolExecutor(self.max_workers) as exe:
-                    _ = [exe.submit(self.enqueue_batch) for _ in range(needed)]
-                logger.debug(
-                    'Added %s enqueue futures to %s queue.',
-                    needed,
-                    self._thread_name,
-                )
-            if time.time() > log_time + 10:
+            needed = max(self.queue_cap - self.queue_len, 0)
+            needed = min(self.max_workers, needed)
+            if needed > 0:
+                batches = self.sample_batches(n_batches=needed)
+                if needed > 1 and self.max_workers > 1:
+                    for batch in as_completed(batches):
+                        self.queue.enqueue(batch.result())
+                else:
+                    for batch in batches:
+                        self.queue.enqueue(batch)
+
+            if time.time() > log_time + 60:
                 logger.debug(self.log_queue_info())
                 log_time = time.time()
 
-    def __next__(self) -> Batch:
+    def __next__(self) -> DsetTuple:
         """Dequeue batch samples, squeeze if for a spatial only model, perform
         some post-proc like smoothing, coarsening, etc, and then send out for
-        training as a namedtuple of low_res / high_res arrays.
+        training as a namedtuple-like object of low_res / high_res arrays.
 
         Returns
         -------
@@ -281,11 +310,12 @@ class AbstractBatchQueue(Collection, ABC):
             batch = self.post_proc(samples)
             self.timer.stop()
             self._batch_count += 1
-            logger.debug(
-                'Batch step %s finished in %s.',
-                self._batch_count,
-                self.timer.elapsed_str,
-            )
+            if self.verbose:
+                logger.debug(
+                    'Batch step %s finished in %s.',
+                    self._batch_count,
+                    self.timer.elapsed_str,
+                )
         else:
             raise StopIteration
         return batch
@@ -309,20 +339,16 @@ class AbstractBatchQueue(Collection, ABC):
         These samples are wrapped in an ``np.asarray`` call, so they have been
         loaded into memory.
         """
-        return next(self.get_random_container())
+        out = next(self.get_random_container())
+        if not isinstance(out, tuple):
+            return tf.convert_to_tensor(out, dtype=tf.float32)
+        return tuple(tf.convert_to_tensor(o, dtype=tf.float32) for o in out)
 
     def log_queue_info(self):
         """Log info about queue size."""
-        return '{} queue length: {} / {}.'.format(
-            self._thread_name.title(),
-            self.queue.size().numpy(),
-            self.queue_cap,
+        return '{} queue length: {} / {}'.format(
+            self._thread_name.title(), self.queue_len, self.queue_cap
         )
-
-    def enqueue_batch(self):
-        """Build batch and send to queue."""
-        if self.running and self.queue.size().numpy() < self.queue_cap:
-            self.queue.enqueue(self.sample_batch())
 
     @property
     def lr_shape(self):

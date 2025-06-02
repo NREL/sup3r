@@ -8,7 +8,6 @@ import logging
 import os
 import re
 from abc import abstractmethod
-from warnings import warn
 
 import dask
 import numpy as np
@@ -22,17 +21,14 @@ from sup3r.preprocessing.derivers.utilities import (
 )
 from sup3r.utilities import VERSION_RECORD
 from sup3r.utilities.utilities import (
+    enforce_limits,
+    get_dset_attrs,
     pd_date_range,
     safe_serialize,
     xr_open_mfdataset,
 )
 
 logger = logging.getLogger(__name__)
-
-ATTR_DIR = os.path.dirname(os.path.realpath(__file__))
-ATTR_FP = os.path.join(ATTR_DIR, 'output_attrs.json')
-with open(ATTR_FP) as f:
-    OUTPUT_ATTRS = json.load(f)
 
 
 class OutputMixin:
@@ -59,39 +55,6 @@ class OutputMixin:
         if len(time_key) > 0:
             return time_key[0]
         return 'time'
-
-    @staticmethod
-    def get_dset_attrs(feature):
-        """Get attrributes for output feature
-
-        Parameters
-        ----------
-        feature : str
-            Name of feature to write
-
-        Returns
-        -------
-        attrs : dict
-            Dictionary of attributes for requested dset
-        dtype : str
-            Data type for requested dset. Defaults to float32
-        """
-        feat_base_name = parse_feature(feature).basename
-        if feat_base_name in OUTPUT_ATTRS:
-            attrs = OUTPUT_ATTRS[feat_base_name]
-            dtype = attrs.get('dtype', 'float32')
-        else:
-            attrs = {}
-            dtype = 'float32'
-            msg = (
-                'Could not find feature "{}" with base name "{}" in '
-                'OUTPUT_ATTRS global variable. Writing with float32 and no '
-                'chunking.'.format(feature, feat_base_name)
-            )
-            logger.warning(msg)
-            warn(msg)
-
-        return attrs, dtype
 
     @staticmethod
     def _init_h5(out_file, time_index, meta, global_attrs):
@@ -135,7 +98,7 @@ class OutputMixin:
 
         with RexOutputs(out_file, mode='a') as f:
             if dset not in f.dsets:
-                attrs, dtype = cls.get_dset_attrs(dset)
+                attrs, dtype = get_dset_attrs(dset)
                 logger.info(
                     'Initializing dataset "{}" with shape {} and '
                     'dtype {}'.format(dset, f.shape, dtype)
@@ -176,7 +139,7 @@ class OutputMixin:
             fh.time_index = time_index
 
             for dset, data in zip(dsets, data_list):
-                attrs, dtype = cls.get_dset_attrs(dset)
+                attrs, dtype = get_dset_attrs(dset)
                 fh.add_dataset(
                     tmp_file,
                     dset,
@@ -337,7 +300,13 @@ class OutputHandler(OutputMixin):
 
     @classmethod
     def _transform_output(
-        cls, data, features, lat_lon, invert_uv=None, max_workers=None
+        cls,
+        data,
+        features,
+        lat_lon,
+        invert_uv=None,
+        nn_fill=False,
+        max_workers=None,
     ):
         """Transform output data before writing to H5 file
 
@@ -355,6 +324,9 @@ class OutputHandler(OutputMixin):
         invert_uv : bool | None
             Whether to convert u and v wind components to windspeed and
             direction
+        nn_fill : bool
+            Whether to fill values outside limits with nearest neighbors. If
+            False, values outside limits will be set to the limits.
         max_workers : int | None
             Max workers to use for inverse transform. If None the max_workers
             will be estimated based on memory limits.
@@ -368,56 +340,8 @@ class OutputHandler(OutputMixin):
                 data, features, lat_lon, max_workers=max_workers
             )
             features = cls.get_renamed_features(features)
-        data = cls.enforce_limits(features=features, data=data)
+        data = enforce_limits(features=features, data=data, nn_fill=nn_fill)
         return data, features
-
-    @staticmethod
-    def enforce_limits(features, data):
-        """Enforce physical limits for feature data
-
-        Parameters
-        ----------
-        features : list
-            List of features with ordering corresponding to last channel of
-            data array.
-        data : ndarray
-            Array of feature data
-
-        Returns
-        -------
-        data : ndarray
-            Array of feature data with physical limits enforced
-        """
-        maxes = []
-        mins = []
-        for fidx, fn in enumerate(features):
-            dset_name = parse_feature(fn).basename
-            if dset_name not in OUTPUT_ATTRS:
-                msg = f'Could not find "{dset_name}" in OUTPUT_ATTRS dict!'
-                logger.error(msg)
-                raise KeyError(msg)
-
-            max_val = OUTPUT_ATTRS[dset_name].get('max', np.inf)
-            min_val = OUTPUT_ATTRS[dset_name].get('min', -np.inf)
-            enforcing_msg = (
-                f'Enforcing range of ({min_val}, {max_val} for "{fn}")'
-            )
-
-            f_max = data[..., fidx].max()
-            f_min = data[..., fidx].min()
-            msg = f'{fn} has a max of {f_max} > {max_val}. {enforcing_msg}'
-            if f_max > max_val:
-                logger.warning(msg)
-                warn(msg)
-            msg = f'{fn} has a min of {f_min} < {min_val}. {enforcing_msg}'
-            if f_min < min_val:
-                logger.warning(msg)
-                warn(msg)
-            maxes.append(max_val)
-            mins.append(min_val)
-
-        data = np.maximum(data, mins)
-        return np.minimum(data, maxes).astype(np.float32)
 
     @staticmethod
     def pad_lat_lon(lat_lon):
@@ -562,10 +486,10 @@ class OutputHandler(OutputMixin):
         new_x = np.arange(0, 10, 10 / hr_x) + 5 / hr_x
 
         logger.debug('Running meshgrid.')
-        X, Y = np.meshgrid(x, y)
-        old = np.array([Y.flatten(), X.flatten()]).T
-        X, Y = np.meshgrid(new_x, new_y)
-        new = np.array([Y.flatten(), X.flatten()]).T
+        X, Y = np.meshgrid(x, y, copy=False)
+        old = np.array([Y.flatten(), X.flatten()], dtype=np.float32).T
+        X, Y = np.meshgrid(new_x, new_y, copy=False)
+        new = np.array([Y.flatten(), X.flatten()], dtype=np.float32).T
 
         logger.debug('Running griddata.')
         lons = griddata(old, lons, new)
@@ -575,7 +499,7 @@ class OutputHandler(OutputMixin):
         lat_lon = np.dstack((lats.reshape(shape), lons.reshape(shape)))
         logger.debug('Finished getting high resolution lat / lon grid')
 
-        return lat_lon
+        return lat_lon.astype(np.float32)
 
     @staticmethod
     def get_times(low_res_times, shape):
@@ -626,6 +550,7 @@ class OutputHandler(OutputMixin):
         out_file,
         meta_data,
         invert_uv=True,
+        nn_fill=False,
         max_workers=None,
         gids=None,
     ):
@@ -641,6 +566,7 @@ class OutputHandler(OutputMixin):
         out_file,
         meta_data=None,
         invert_uv=None,
+        nn_fill=False,
         max_workers=None,
         gids=None,
     ):
@@ -665,6 +591,9 @@ class OutputHandler(OutputMixin):
         invert_uv : bool | None
             Whether to convert u and v wind components to windspeed and
             direction
+        nn_fill : bool
+            Whether to fill data outside of limits with nearest neighbour or
+            cap to limits
         max_workers : int | None
             Max workers to use for inverse uv transform. If None the
             max_workers will be estimated based on memory limits.
@@ -682,6 +611,7 @@ class OutputHandler(OutputMixin):
             out_file,
             meta_data=meta_data,
             invert_uv=invert_uv,
+            nn_fill=nn_fill,
             max_workers=max_workers,
             gids=gids,
         )

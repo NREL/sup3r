@@ -39,6 +39,10 @@ def pytest_configure(config):  # pylint: disable=unused-argument # noqa: ARG001
     pytest.ST_FP_DISC = os.path.join(TEST_DATA_DIR, 'config_disc_st_test.json')
     pytest.S_FP_DISC = os.path.join(TEST_DATA_DIR, 'config_disc_s_test.json')
 
+    pytest.ST_FP_DISC_PROD = os.path.join(
+        CONFIG_DIR, 'spatiotemporal/disc.json'
+    )
+
     pytest.FPS_GCM = [
         os.path.join(TEST_DATA_DIR, 'ua_test.nc'),
         os.path.join(TEST_DATA_DIR, 'va_test.nc'),
@@ -60,6 +64,86 @@ def set_random_state():
 def train_on_cpu():
     """Train on cpu for tests."""
     os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+
+
+@pytest.fixture(scope='package')
+def gen_config_with_concat_masked():
+    """Get generator config with custom concat masked layer."""
+
+    def func():
+        return [
+            {
+                'class': 'FlexiblePadding',
+                'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
+                'mode': 'REFLECT',
+            },
+            {
+                'class': 'Conv2DTranspose',
+                'filters': 2,
+                'kernel_size': 3,
+                'strides': 1,
+                'activation': 'relu',
+            },
+            {'class': 'Cropping2D', 'cropping': 4},
+            {
+                'class': 'FlexiblePadding',
+                'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
+                'mode': 'REFLECT',
+            },
+            {
+                'class': 'Conv2DTranspose',
+                'filters': 64,
+                'kernel_size': 3,
+                'strides': 1,
+                'activation': 'relu',
+            },
+            {'class': 'Cropping2D', 'cropping': 4},
+            {
+                'class': 'FlexiblePadding',
+                'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
+                'mode': 'REFLECT',
+            },
+            {
+                'class': 'Conv2DTranspose',
+                'filters': 64,
+                'kernel_size': 3,
+                'strides': 1,
+                'activation': 'relu',
+            },
+            {'class': 'Cropping2D', 'cropping': 4},
+            {'class': 'SpatialExpansion', 'spatial_mult': 2},
+            {'class': 'Activation', 'activation': 'relu'},
+            {
+                'class': 'FlexiblePadding',
+                'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
+                'mode': 'REFLECT',
+            },
+            {
+                'class': 'Conv2DTranspose',
+                'filters': 2,
+                'kernel_size': 3,
+                'strides': 1,
+                'activation': 'relu',
+            },
+            {'class': 'Cropping2D', 'cropping': 4},
+            {'class': 'Sup3rConcatObs', 'name': 'u_10m_obs'},
+            {'class': 'Sup3rConcatObs', 'name': 'v_10m_obs'},
+            {
+                'class': 'FlexiblePadding',
+                'paddings': [[0, 0], [3, 3], [3, 3], [0, 0]],
+                'mode': 'REFLECT',
+            },
+            {
+                'class': 'Conv2DTranspose',
+                'filters': 2,
+                'kernel_size': 3,
+                'strides': 1,
+                'activation': 'relu',
+            },
+            {'class': 'Cropping2D', 'cropping': 4},
+        ]
+
+    return func
 
 
 @pytest.fixture(scope='package')

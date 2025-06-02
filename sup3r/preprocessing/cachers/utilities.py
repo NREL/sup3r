@@ -33,8 +33,7 @@ def _check_for_cache(features, cache_kwargs):
 
     if any(cached_files):
         logger.info(
-            'Found some cache files: %s. Loading %s from these files.',
-            cached_files,
-            cached_features,
+            'Found cache files for %s with file pattern: %s',
+            cached_features, cache_pattern
         )
     return cached_files, cached_features, missing_files, missing_features

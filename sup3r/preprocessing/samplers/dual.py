@@ -16,7 +16,10 @@ logger = logging.getLogger(__name__)
 
 class DualSampler(Sampler):
     """Sampler for sampling from paired (or dual) datasets. Pairs consist of
-    low and high resolution data, which are contained by a Sup3rDataset."""
+    low and high resolution data, which are contained by a Sup3rDataset. This
+    can also include extra observation data on the same grid as the
+    high-resolution data which has NaNs at points where observation data
+    doesn't exist. This will be used in an additional content loss term."""
 
     def __init__(
         self,
@@ -32,7 +35,7 @@ class DualSampler(Sampler):
         ----------
         data : Sup3rDataset
             A :class:`~sup3r.preprocessing.base.Sup3rDataset` instance with
-            low-res and high-res data members
+            low-res and high-res data members, and optionally an obs member.
         sample_shape : tuple
             Size of arrays to sample from the high-res data. The sample shape
             for the low-res sampler will be determined from the enhancement
@@ -57,10 +60,16 @@ class DualSampler(Sampler):
         """
         msg = (
             f'{self.__class__.__name__} requires a Sup3rDataset object '
-            'with `.low_res` and `.high_res` data members, in that order'
+            'with `.low_res` and `.high_res` data members, and optionally an '
+            '`.obs` member, in that order'
         )
-        assert hasattr(data, 'low_res') and hasattr(data, 'high_res'), msg
-        assert data.low_res == data[0] and data.high_res == data[1], msg
+        dnames = ['low_res', 'high_res', 'obs'][: len(data)]
+        check = (
+            hasattr(data, dname) and getattr(data, dname) == data[i]
+            for i, dname in enumerate(dnames)
+        )
+        assert check, msg
+
         super().__init__(
             data=data, sample_shape=sample_shape, batch_size=batch_size
         )
@@ -73,8 +82,9 @@ class DualSampler(Sampler):
         feature_sets = feature_sets or {}
         self._lr_only_features = feature_sets.get('lr_only_features', [])
         self._hr_exo_features = feature_sets.get('hr_exo_features', [])
-        self.lr_features = list(self.lr_data.data_vars)
         self.features = self.get_features(feature_sets)
+        lr_feats = self.lr_data.features
+        self.lr_features = [f for f in lr_feats if f in self.features]
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
         self.check_for_consistent_shapes()
@@ -108,16 +118,17 @@ class DualSampler(Sampler):
             self.lr_data.shape[2] * self.t_enhance,
         )
         msg = (
-            f'hr_data.shape {self.hr_data.shape} and enhanced '
+            f'hr_data.shape {self.hr_data.shape[:-1]} and enhanced '
             f'lr_data.shape {enhanced_shape} are not compatible with '
             'the given enhancement factors'
         )
-        assert self.hr_data.shape[:3] == enhanced_shape, msg
+        assert self.hr_data.shape[:-1] == enhanced_shape, msg
 
     def get_sample_index(self, n_obs=None):
         """Get paired sample index, consisting of index for the low res sample
         and the index for the high res sample with the same spatiotemporal
-        extent."""
+        extent. Optionally includes an extra high res index if the sample data
+        includes observation data."""
         n_obs = n_obs or self.batch_size
         spatial_slice = uniform_box_sampler(
             self.lr_data.shape, self.lr_sample_shape[:2]
@@ -134,5 +145,8 @@ class DualSampler(Sampler):
             slice(s.start * self.t_enhance, s.stop * self.t_enhance)
             for s in lr_index[2:-1]
         ]
+        obs_index = (*hr_index, self.hr_out_features)
         hr_index = (*hr_index, self.hr_features)
-        return (lr_index, hr_index)
+
+        sample_index = (lr_index, hr_index, obs_index)
+        return sample_index[: len(self.data)]

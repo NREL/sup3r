@@ -2,11 +2,9 @@
 
 import copy
 import json
-import locale
 import logging
 import os
 import pprint
-import re
 import time
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
@@ -17,7 +15,6 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from phygnn import CustomNetwork
-from phygnn.layers.custom_layers import Sup3rAdder, Sup3rConcat
 from rex.utilities.utilities import safe_json_load
 from tensorflow.keras import optimizers
 
@@ -25,593 +22,18 @@ import sup3r.utilities.loss_metrics
 from sup3r.preprocessing.data_handlers import ExoData
 from sup3r.preprocessing.utilities import numpy_if_tensor
 from sup3r.utilities import VERSION_RECORD
-from sup3r.utilities.utilities import Timer, camel_to_underscore, safe_cast
+from sup3r.utilities.utilities import camel_to_underscore, safe_cast
+
+from .utilities import SUP3R_LAYERS, SUP3R_OBS_LAYERS, TensorboardMixIn
 
 logger = logging.getLogger(__name__)
-
-
-class TensorboardMixIn:
-    """MixIn class for tensorboard logging and profiling.
-
-    Note: To monitor model training with tensorboard run ``ssh -N -f -L
-    localhost:6006:localhost:6006 <user>@<host>`` on your local machine and
-    then ``tensorboard --logdir <log_dir>`` on the remote machine
-    """
-
-    def __init__(self):
-        self._tb_writer = None
-        self._tb_log_dir = None
-        self._write_tb_profile = False
-        self._total_batches = None
-        self._history = None
-        self.timer = Timer()
-
-    @property
-    def total_batches(self):
-        """Record of total number of batches for logging."""
-        if self._total_batches is None and self._history is None:
-            self._total_batches = 0
-        elif self._history is None and 'total_batches' in self._history:
-            self._total_batches = self._history['total_batches'].values[-1]
-        elif self._total_batches is None and self._history is not None:
-            self._total_batches = 0
-        return self._total_batches
-
-    @total_batches.setter
-    def total_batches(self, value):
-        """Set total number of batches."""
-        self._total_batches = value
-
-    def dict_to_tensorboard(self, entry):
-        """Write data to tensorboard log file. This is usually a loss_details
-        dictionary.
-
-        Parameters
-        ----------
-        entry: dict
-            Dictionary of values to write to tensorboard log file
-        """
-        if self._tb_writer is not None:
-            with self._tb_writer.as_default():
-                for name, value in entry.items():
-                    if isinstance(value, str):
-                        tf.summary.text(name, value, self.total_batches)
-                    else:
-                        tf.summary.scalar(name, value, self.total_batches)
-
-    def profile_to_tensorboard(self, name):
-        """Write profile data to tensorboard log file.
-
-        Parameters
-        ----------
-        name : str
-            Tag name to use for profile info
-        """
-        if self._tb_writer is not None and self._write_tb_profile:
-            with self._tb_writer.as_default():
-                tf.summary.trace_export(
-                    name=name,
-                    step=self.total_batches,
-                    profiler_outdir=self._tb_log_dir,
-                )
-
-    def _init_tensorboard_writer(self, out_dir):
-        """Initialize the ``tf.summary.SummaryWriter`` to use for writing
-        tensorboard compatible log files.
-
-        Parameters
-        ----------
-        out_dir : str
-            Standard out_dir where model epochs are saved. e.g. './gan_{epoch}'
-        """
-        tb_log_pardir = os.path.abspath(os.path.join(out_dir, os.pardir))
-        self._tb_log_dir = os.path.join(tb_log_pardir, 'logs')
-        os.makedirs(self._tb_log_dir, exist_ok=True)
-        self._tb_writer = tf.summary.create_file_writer(self._tb_log_dir)
-
-
-class AbstractInterface(ABC):
-    """
-    Abstract class to define the required interface for Sup3r model subclasses
-
-    Note that this only sets the required interfaces for a GAN that can be
-    loaded from disk and used to predict synthetic outputs. The interface for
-    models that can be trained will be set in another class.
-    """
-
-    @classmethod
-    @abstractmethod
-    def load(cls, model_dir, verbose=True):
-        """Load the GAN with its sub-networks from a previously saved-to output
-        directory.
-
-        Parameters
-        ----------
-        model_dir
-            Directory to load GAN model files from.
-        verbose : bool
-            Flag to log information about the loaded model.
-
-        Returns
-        -------
-        out : BaseModel
-            Returns a pretrained gan model that was previously saved to
-            model_dir
-        """
-
-    @abstractmethod
-    def generate(
-        self, low_res, norm_in=True, un_norm_out=True, exogenous_data=None
-    ):
-        """Use the generator model to generate high res data from low res
-        input. This is the public generate function."""
-
-    @staticmethod
-    def seed(s=0):
-        """
-        Set the random seed for reproducible results.
-
-        Parameters
-        ----------
-        s : int
-            Random seed
-        """
-        CustomNetwork.seed(s=s)
-
-    @property
-    def input_dims(self):
-        """Get dimension of model generator input. This is usually 4D for
-        spatial models and 5D for spatiotemporal models. This gives the input
-        to the first step if the model is multi-step. Returns 5 for linear
-        models.
-
-        Returns
-        -------
-        int
-        """
-        # pylint: disable=E1101
-        if hasattr(self, '_gen'):
-            return self._gen.layers[0].rank
-        if hasattr(self, 'models'):
-            return self.models[0].input_dims
-        return 5
-
-    @property
-    def is_5d(self):
-        """Check if model expects spatiotemporal input"""
-        return self.input_dims == 5
-
-    @property
-    def is_4d(self):
-        """Check if model expects spatial only input"""
-        return self.input_dims == 4
-
-    # pylint: disable=E1101
-    def get_s_enhance_from_layers(self):
-        """Compute factor by which model will enhance spatial resolution from
-        layer attributes. Used in model training during high res coarsening"""
-        s_enhance = None
-        if hasattr(self, '_gen'):
-            s_enhancements = [
-                getattr(layer, '_spatial_mult', 1)
-                for layer in self._gen.layers
-            ]
-            s_enhance = int(np.prod(s_enhancements))
-        return s_enhance
-
-    # pylint: disable=E1101
-    def get_t_enhance_from_layers(self):
-        """Compute factor by which model will enhance temporal resolution from
-        layer attributes. Used in model training during high res coarsening"""
-        t_enhance = None
-        if hasattr(self, '_gen'):
-            t_enhancements = [
-                getattr(layer, '_temporal_mult', 1)
-                for layer in self._gen.layers
-            ]
-            t_enhance = int(np.prod(t_enhancements))
-        return t_enhance
-
-    @property
-    def s_enhance(self):
-        """Factor by which model will enhance spatial resolution. Used in
-        model training during high res coarsening and also in forward pass
-        routine to determine shape of needed exogenous data"""
-        models = getattr(self, 'models', [self])
-        s_enhances = [m.meta.get('s_enhance', None) for m in models]
-        s_enhance = (
-            self.get_s_enhance_from_layers()
-            if any(s is None for s in s_enhances)
-            else int(np.prod(s_enhances))
-        )
-        if len(models) == 1:
-            self.meta['s_enhance'] = s_enhance
-        return s_enhance
-
-    @property
-    def t_enhance(self):
-        """Factor by which model will enhance temporal resolution. Used in
-        model training during high res coarsening and also in forward pass
-        routine to determine shape of needed exogenous data"""
-        models = getattr(self, 'models', [self])
-        t_enhances = [m.meta.get('t_enhance', None) for m in models]
-        t_enhance = (
-            self.get_t_enhance_from_layers()
-            if any(t is None for t in t_enhances)
-            else int(np.prod(t_enhances))
-        )
-        if len(models) == 1:
-            self.meta['t_enhance'] = t_enhance
-        return t_enhance
-
-    @property
-    def s_enhancements(self):
-        """List of spatial enhancement factors. In the case of a single step
-        model this is just ``[self.s_enhance]``. This is used to determine
-        shapes of needed exogenous data in forward pass routine"""
-        if hasattr(self, 'models'):
-            return [model.s_enhance for model in self.models]
-        return [self.s_enhance]
-
-    @property
-    def t_enhancements(self):
-        """List of temporal enhancement factors. In the case of a single step
-        model this is just ``[self.t_enhance]``. This is used to determine
-        shapes of needed exogenous data in forward pass routine"""
-        if hasattr(self, 'models'):
-            return [model.t_enhance for model in self.models]
-        return [self.t_enhance]
-
-    @property
-    def input_resolution(self):
-        """Resolution of input data. Given as a dictionary
-        ``{'spatial': '...km', 'temporal': '...min'}``. The numbers are
-        required to be integers in the units specified. The units are not
-        strict as long as the resolution of the exogenous data, when extracting
-        exogenous data, is specified in the same units."""
-        input_resolution = self.meta.get('input_resolution', None)
-        msg = 'model.input_resolution is None. This needs to be set.'
-        assert input_resolution is not None, msg
-        return input_resolution
-
-    def _get_numerical_resolutions(self):
-        """Get the input and output resolutions without units. e.g. for
-        ``{"spatial": "30km", "temporal": "60min"}`` this returns
-        ``{"spatial": 30, "temporal": 60}``"""
-        ires_num = {
-            k: int(re.search(r'\d+', v).group(0))
-            for k, v in self.input_resolution.items()
-        }
-        enhancements = {'spatial': self.s_enhance, 'temporal': self.t_enhance}
-        ores_num = {k: v // enhancements[k] for k, v in ires_num.items()}
-        return ires_num, ores_num
-
-    def _ensure_valid_input_resolution(self):
-        """Ensure ehancement factors evenly divide input_resolution"""
-
-        if self.input_resolution is None:
-            return
-
-        ires_num, ores_num = self._get_numerical_resolutions()
-        s_enhance = self.meta['s_enhance']
-        t_enhance = self.meta['t_enhance']
-        check = (
-            ires_num['temporal'] / ores_num['temporal'] == t_enhance
-            and ires_num['spatial'] / ores_num['spatial'] == s_enhance
-        )
-        msg = (
-            f'Enhancement factors (s_enhance={s_enhance}, '
-            f't_enhance={t_enhance}) do not evenly divide '
-            f'input resolution ({self.input_resolution})'
-        )
-        if not check:
-            logger.error(msg)
-            raise RuntimeError(msg)
-
-    def _ensure_valid_enhancement_factors(self):
-        """Ensure user provided enhancement factors are the same as those
-        computed from layer attributes"""
-        t_enhance = self.meta.get('t_enhance', None)
-        s_enhance = self.meta.get('s_enhance', None)
-        if s_enhance is None or t_enhance is None:
-            return
-
-        layer_se = self.get_s_enhance_from_layers()
-        layer_te = self.get_t_enhance_from_layers()
-        layer_se = layer_se if layer_se is not None else self.meta['s_enhance']
-        layer_te = layer_te if layer_te is not None else self.meta['t_enhance']
-        msg = (
-            f'Enhancement factors computed from layer attributes '
-            f'(s_enhance={layer_se}, t_enhance={layer_te}) '
-            f'conflict with user provided values (s_enhance={s_enhance}, '
-            f't_enhance={t_enhance})'
-        )
-        check = layer_se == s_enhance or layer_te == t_enhance
-        if not check:
-            logger.error(msg)
-            raise RuntimeError(msg)
-
-    @property
-    def output_resolution(self):
-        """Resolution of output data. Given as a dictionary
-        {'spatial': '...km', 'temporal': '...min'}. This is computed from the
-        input resolution and the enhancement factors."""
-        output_res = self.meta.get('output_resolution', None)
-        if self.input_resolution is not None and output_res is None:
-            ires_num, ores_num = self._get_numerical_resolutions()
-            output_res = {
-                k: v.replace(str(ires_num[k]), str(ores_num[k]))
-                for k, v in self.input_resolution.items()
-            }
-            self.meta['output_resolution'] = output_res
-        return output_res
-
-    def _combine_fwp_input(self, low_res, exogenous_data=None):
-        """Combine exogenous_data at input resolution with low_res data prior
-        to forward pass through generator
-
-        Parameters
-        ----------
-        low_res : np.ndarray
-            Low-resolution input data, usually a 4D or 5D array of shape:
-            (n_obs, spatial_1, spatial_2, n_features)
-            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
-        exogenous_data : dict | ExoData | None
-            Special dictionary (class:`ExoData`) of exogenous feature data with
-            entries describing whether features should be combined at input, a
-            mid network layer, or with output. This doesn't have to include
-            the 'model' key since this data is for a single step model.
-
-        Returns
-        -------
-        low_res : np.ndarray
-            Low-resolution input data combined with exogenous_data, usually a
-            4D or 5D array of shape:
-            (n_obs, spatial_1, spatial_2, n_features)
-            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
-        """
-        if exogenous_data is None:
-            return low_res
-
-        if (
-            not isinstance(exogenous_data, ExoData)
-            and exogenous_data is not None
-        ):
-            exogenous_data = ExoData(exogenous_data)
-
-        fnum_diff = len(self.lr_features) - low_res.shape[-1]
-        exo_feats = [] if fnum_diff <= 0 else self.lr_features[-fnum_diff:]
-        msg = (
-            f'Provided exogenous_data: {exogenous_data} is missing some '
-            f'required features ({exo_feats})'
-        )
-        assert all(feature in exogenous_data for feature in exo_feats), msg
-        if exogenous_data is not None and fnum_diff > 0:
-            for feature in exo_feats:
-                exo_input = exogenous_data.get_combine_type_data(
-                    feature, 'input'
-                )
-                if exo_input is not None:
-                    low_res = np.concatenate((low_res, exo_input), axis=-1)
-
-        return low_res
-
-    def _combine_fwp_output(self, hi_res, exogenous_data=None):
-        """Combine exogenous_data at output resolution with generated hi_res
-        data following forward pass output.
-
-        Parameters
-        ----------
-        hi_res : np.ndarray
-            High-resolution output data, usually a 4D or 5D array of shape:
-            (n_obs, spatial_1, spatial_2, n_features)
-            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
-        exogenous_data : dict | ExoData | None
-            Special dictionary (class:`ExoData`) of exogenous feature data with
-            entries describing whether features should be combined at input, a
-            mid network layer, or with output. This doesn't have to include
-            the 'model' key since this data is for a single step model.
-
-        Returns
-        -------
-        hi_res : np.ndarray
-            High-resolution output data combined with exogenous_data, usually a
-            4D or 5D array of shape:
-            (n_obs, spatial_1, spatial_2, n_features)
-            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
-        """
-        if exogenous_data is None:
-            return hi_res
-
-        if (
-            not isinstance(exogenous_data, ExoData)
-            and exogenous_data is not None
-        ):
-            exogenous_data = ExoData(exogenous_data)
-
-        fnum_diff = len(self.hr_out_features) - hi_res.shape[-1]
-        exo_feats = [] if fnum_diff <= 0 else self.hr_out_features[-fnum_diff:]
-        msg = (
-            'Provided exogenous_data is missing some required features '
-            f'({exo_feats})'
-        )
-        assert all(feature in exogenous_data for feature in exo_feats), msg
-        if exogenous_data is not None and fnum_diff > 0:
-            for feature in exo_feats:
-                exo_output = exogenous_data.get_combine_type_data(
-                    feature, 'output'
-                )
-                if exo_output is not None:
-                    hi_res = np.concatenate((hi_res, exo_output), axis=-1)
-        return hi_res
-
-    @tf.function
-    def _combine_loss_input(self, high_res_true, high_res_gen):
-        """Combine exogenous feature data from high_res_true with high_res_gen
-        for loss calculation
-
-        Parameters
-        ----------
-        high_res_true : tf.Tensor
-            Ground truth high resolution spatiotemporal data.
-        high_res_gen : tf.Tensor
-            Superresolved high resolution spatiotemporal data generated by the
-            generative model.
-
-        Returns
-        -------
-        high_res_gen : tf.Tensor
-            Same as input with exogenous data combined with high_res input
-        """
-        if high_res_true.shape[-1] > high_res_gen.shape[-1]:
-            for feature in self.hr_exo_features:
-                f_idx = self.hr_exo_features.index(feature)
-                f_idx += len(self.hr_out_features)
-                exo_data = high_res_true[..., f_idx : f_idx + 1]
-                high_res_gen = tf.concat((high_res_gen, exo_data), axis=-1)
-        return high_res_gen
-
-    @property
-    @abstractmethod
-    def meta(self):
-        """Get meta data dictionary that defines how the model was created"""
-
-    @property
-    def lr_features(self):
-        """Get a list of low-resolution features input to the generative model.
-        This includes low-resolution features that might be supplied
-        exogenously at inference time but that were in the low-res batches
-        during training"""
-        return self.meta.get('lr_features', [])
-
-    @property
-    def hr_out_features(self):
-        """Get the list of high-resolution output feature names that the
-        generative model outputs."""
-        return self.meta.get('hr_out_features', [])
-
-    @property
-    def hr_exo_features(self):
-        """Get list of high-resolution exogenous filter names the model uses.
-        If the model has N concat or add layers this list will be the last N
-        features in the training features list. The ordering is assumed to be
-        the same as the order of concat or add layers. If training features is
-        [..., topo, sza], and the model has 2 concat or add layers, exo
-        features will be [topo, sza]. Topo will then be used in the first
-        concat layer and sza will be used in the second"""
-        # pylint: disable=E1101
-        features = []
-        if hasattr(self, '_gen'):
-            features = [
-                layer.name
-                for layer in self._gen.layers
-                if isinstance(layer, (Sup3rAdder, Sup3rConcat))
-            ]
-        return features
-
-    @property
-    def smoothing(self):
-        """Value of smoothing parameter used in gaussian filtering of coarsened
-        high res data."""
-        return self.meta.get('smoothing', None)
-
-    @property
-    def smoothed_features(self):
-        """Get the list of smoothed input feature names that the generative
-        model was trained on."""
-        return self.meta.get('smoothed_features', [])
-
-    @property
-    def model_params(self):
-        """
-        Model parameters, used to save model to disc
-
-        Returns
-        -------
-        dict
-        """
-        return {'meta': self.meta}
-
-    @property
-    def version_record(self):
-        """A record of important versions that this model was built with.
-
-        Returns
-        -------
-        dict
-        """
-        return VERSION_RECORD
-
-    def set_model_params(self, **kwargs):
-        """Set parameters used for training the model
-
-        Parameters
-        ----------
-        kwargs : dict
-            Keyword arguments including 'input_resolution',
-            'lr_features', 'hr_exo_features', 'hr_out_features',
-            'smoothed_features', 's_enhance', 't_enhance', 'smoothing'
-        """
-
-        keys = (
-            'input_resolution',
-            'lr_features',
-            'hr_exo_features',
-            'hr_out_features',
-            'smoothed_features',
-            's_enhance',
-            't_enhance',
-            'smoothing',
-        )
-        keys = [k for k in keys if k in kwargs]
-
-        hr_exo_feat = kwargs.get('hr_exo_features', [])
-        msg = (
-            f'Expected high-res exo features {self.hr_exo_features} '
-            f'based on model architecture but received "hr_exo_features" '
-            f'from data handler: {hr_exo_feat}'
-        )
-        assert list(self.hr_exo_features) == list(hr_exo_feat), msg
-
-        for var in keys:
-            val = self.meta.get(var, None)
-            if val is None:
-                self.meta[var] = kwargs[var]
-            elif val != kwargs[var]:
-                msg = (
-                    'Model was previously trained with {var}={} but '
-                    'received new {var}={}'.format(val, kwargs[var], var=var)
-                )
-                logger.warning(msg)
-                warn(msg)
-
-        self._ensure_valid_enhancement_factors()
-        self._ensure_valid_input_resolution()
-
-    def save_params(self, out_dir):
-        """
-        Parameters
-        ----------
-        out_dir : str
-            Directory to save linear model params. This directory will be
-            created if it does not already exist.
-        """
-        if not os.path.exists(out_dir):
-            os.makedirs(out_dir, exist_ok=True)
-
-        fp_params = os.path.join(out_dir, 'model_params.json')
-        with open(
-            fp_params, 'w', encoding=locale.getpreferredencoding(False)
-        ) as f:
-            params = self.model_params
-            json.dump(params, f, sort_keys=True, indent=2, default=safe_cast)
 
 
 # pylint: disable=E1101,W0201,E0203
 class AbstractSingleModel(ABC, TensorboardMixIn):
     """
-    Abstract class to define the required training interface
-    for Sup3r model subclasses
+    Abstract class to define the required training interface for Sup3r model
+    subclasses
     """
 
     def __init__(self):
@@ -989,12 +411,13 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             self._val_record = self._history[val_cols].iloc[-1:]
             self._val_record = self._val_record.reset_index(drop=True)
 
-    def get_hr_exo_input(self, high_res):
-        """Get exogenous feature data from high_res
+    @tf.function
+    def get_hr_exo_input(self, hi_res):
+        """Get exogenous feature data from hi_res
 
         Parameters
         ----------
-        high_res : tf.Tensor
+        hi_res : tf.Tensor
             Ground truth high resolution spatiotemporal data.
 
         Returns
@@ -1003,37 +426,36 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             Dictionary of exogenous feature data used as input to tf_generate.
             e.g. ``{'topography': tf.Tensor(...)}``
         """
-        exo_data = {}
-        for feature in self.hr_exo_features:
-            f_idx = self.hr_exo_features.index(feature)
-            f_idx += len(self.hr_out_features)
-            exo_fdata = high_res[..., f_idx : f_idx + 1]
-            exo_data[feature] = exo_fdata
-        return exo_data
+        if len(self.hr_exo_features) == 0:
+            return {}
+        inds = [self.hr_features.index(f) for f in self.hr_exo_features]
+        exo = tf.gather(hi_res, inds, axis=-1)
+        exo = tf.expand_dims(exo, axis=-2)
+        exo = dict(zip(self.hr_exo_features, tf.unstack(exo, axis=-1)))
+        return exo
 
-    @tf.function
-    def _combine_loss_input(self, high_res_true, high_res_gen):
-        """Combine exogenous feature data from high_res_true with high_res_gen
+    def _combine_loss_input(self, hi_res_true, hi_res_gen):
+        """Combine exogenous feature data from hi_res_true with hi_res_gen
         for loss calculation
 
         Parameters
         ----------
-        high_res_true : tf.Tensor
+        hi_res_true : tf.Tensor
             Ground truth high resolution spatiotemporal data.
-        high_res_gen : tf.Tensor
+        hi_res_gen : tf.Tensor
             Superresolved high resolution spatiotemporal data generated by the
             generative model.
 
         Returns
         -------
-        high_res_gen : tf.Tensor
-            Same as input with exogenous data combined with high_res input
+        hi_res_gen : tf.Tensor
+            Same as input with exogenous data combined with hi_res input
         """
-        if high_res_true.shape[-1] > high_res_gen.shape[-1]:
-            exo_dict = self.get_hr_exo_input(high_res_true)
+        if hi_res_true.shape[-1] > hi_res_gen.shape[-1]:
+            exo_dict = self.get_hr_exo_input(hi_res_true)
             exo_data = [exo_dict[feat] for feat in self.hr_exo_features]
-            high_res_gen = tf.concat((high_res_gen, *exo_data), axis=-1)
-        return high_res_gen
+            hi_res_gen = tf.concat((hi_res_gen, *exo_data), axis=-1)
+        return hi_res_gen
 
     @classmethod
     def get_loss_fun(cls, loss):
@@ -1067,11 +489,11 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         loss_funcs = [cls._get_loss_fun({ln: loss[ln]}) for ln in lns]
         weights = copy.deepcopy(loss).pop('term_weights', [1.0] * len(lns))
 
-        def loss_fun(x1, x2):
+        def loss_fun(hi_res_true, hi_res_gen):
             loss_details = {}
             loss = 0
             for i, (ln, loss_func) in enumerate(zip(lns, loss_funcs)):
-                val = loss_func(x1, x2)
+                val = loss_func(hi_res_true, hi_res_gen)
                 loss_details[camel_to_underscore(ln)] = val
                 loss += weights[i] * val
             return loss, loss_details
@@ -1354,10 +776,68 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
                 self.save(out_dir.format(epoch=epoch))
 
         if extras is not None:
-            for k, v in extras.items():
-                self._history.at[epoch, k] = safe_cast(v)
+            entry = np.vstack([safe_cast(v) for v in extras.values()])
+            self._history.loc[epoch, list(extras)] = entry.T
 
         return stop
+
+    def _sum_parallel_grad(self, futures, start_time):
+        """Sum gradient descent future results"""
+
+        # sum the gradients from each gpu to weight equally in
+        # optimizer momentum calculation
+        total_grad = None
+        for future in futures:
+            grad, loss_details = future.result()
+            if total_grad is None:
+                total_grad = grad
+            else:
+                for i, igrad in enumerate(grad):
+                    total_grad[i] += igrad
+
+        msg = (
+            f'Finished {len(futures)} gradient descent steps on '
+            f'{len(self.gpu_list)} GPUs in {time.time() - start_time:.4f} '
+            'seconds'
+        )
+        logger.info(msg)
+        return total_grad, loss_details
+
+    def _get_parallel_grad(
+        self,
+        low_res,
+        hi_res_true,
+        training_weights,
+        **calc_loss_kwargs,
+    ):
+        """Compute gradient for one mini-batch of (low_res, hi_res_true)
+        across multiple GPUs"""
+
+        futures = []
+        start_time = time.time()
+        lr_chunks = tf.split(low_res, len(self.gpu_list), axis=0)
+        hr_true_chunks = tf.split(hi_res_true, len(self.gpu_list), axis=0)
+        mask_chunks = None
+        if 'mask' in calc_loss_kwargs:
+            mask_chunks = tf.split(
+                calc_loss_kwargs['mask'], len(self.gpu_list), axis=0
+            )
+
+        with ThreadPoolExecutor(max_workers=len(self.gpu_list)) as exe:
+            for i in range(len(self.gpu_list)):
+                if mask_chunks is not None:
+                    calc_loss_kwargs['mask'] = mask_chunks[i]
+                futures.append(
+                    exe.submit(
+                        self.get_single_grad,
+                        lr_chunks[i],
+                        hr_true_chunks[i],
+                        training_weights,
+                        device_name=f'/gpu:{i}',
+                        **calc_loss_kwargs,
+                    )
+                )
+        return self._sum_parallel_grad(futures, start_time=start_time)
 
     def run_gradient_descent(
         self,
@@ -1368,7 +848,6 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         multi_gpu=False,
         **calc_loss_kwargs,
     ):
-        # pylint: disable=E0602
         """Run gradient descent for one mini-batch of (low_res, hi_res_true)
         and update weights
 
@@ -1404,11 +883,11 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         loss_details : dict
             Namespace of the breakdown of loss components
         """
-        self.timer.start()
         if optimizer is None:
             optimizer = self.optimizer
 
         if not multi_gpu or len(self.gpu_list) < 2:
+            start_time = time.time()
             grad, loss_details = self.get_single_grad(
                 low_res,
                 hi_res_true,
@@ -1417,63 +896,25 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
                 **calc_loss_kwargs,
             )
             optimizer.apply_gradients(zip(grad, training_weights))
-            self.timer.stop()
-            logger.debug(
-                'Finished single gradient descent step in %s',
-                self.timer.elapsed_str,
+            msg = (
+                'Finished single gradient descent step in '
+                f'{time.time() - start_time:.4f} seconds'
             )
+            logger.debug(msg)
         else:
-            futures = []
-            lr_chunks = np.array_split(low_res, len(self.gpu_list))
-            hr_true_chunks = np.array_split(hi_res_true, len(self.gpu_list))
-            split_mask = False
-            mask_chunks = None
-            if 'mask' in calc_loss_kwargs:
-                split_mask = True
-                mask_chunks = np.array_split(
-                    calc_loss_kwargs['mask'], len(self.gpu_list)
-                )
-
-            with ThreadPoolExecutor(max_workers=len(self.gpu_list)) as exe:
-                for i in range(len(self.gpu_list)):
-                    if split_mask:
-                        calc_loss_kwargs['mask'] = mask_chunks[i]
-                    futures.append(
-                        exe.submit(
-                            self.get_single_grad,
-                            lr_chunks[i],
-                            hr_true_chunks[i],
-                            training_weights,
-                            device_name=f'/gpu:{i}',
-                            **calc_loss_kwargs,
-                        )
-                    )
-
-            # sum the gradients from each gpu to weight equally in
-            # optimizer momentum calculation
-            total_grad = None
-            for future in futures:
-                grad, loss_details = future.result()
-                if total_grad is None:
-                    total_grad = grad
-                else:
-                    for i, igrad in enumerate(grad):
-                        total_grad[i] += igrad
-
+            total_grad, loss_details = self._get_parallel_grad(
+                low_res,
+                hi_res_true,
+                training_weights,
+                **calc_loss_kwargs,
+            )
             optimizer.apply_gradients(zip(total_grad, training_weights))
 
-            self.timer.stop()
-            logger.debug(
-                'Finished %s gradient descent steps on %s GPUs in %s',
-                len(futures),
-                len(self.gpu_list),
-                self.timer.elapsed_str,
-            )
         return loss_details
 
     def _reshape_norm_exo(self, hi_res, hi_res_exo, exo_name, norm_in=True):
-        """Reshape the hi_res_topo to match the hi_res tensor (if necessary)
-        and normalize (if requested).
+        """Reshape the hi_res_exo data to match the hi_res tensor (if
+        necessary) and normalize (if requested).
 
         Parameters
         ----------
@@ -1510,6 +951,11 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             return hi_res_exo
 
         if norm_in and self._means is not None:
+            exo_name = (
+                exo_name.replace('_obs', '')
+                if exo_name not in self._means
+                else exo_name
+            )
             hi_res_exo = (
                 hi_res_exo.copy() - self._means[exo_name]
             ) / self._stdevs[exo_name]
@@ -1530,6 +976,63 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             raise RuntimeError(msg)
 
         return hi_res_exo
+
+    def run_exo_layer(self, layer, input_array, exogenous_data, norm_in=True):
+        """run_exo_layer method used in public ``generate`` method. Runs a
+        layer that combines exogenous data with the hi_res data. These layers
+        can include single or multiple exogenous features and also single or
+        multiple gridded exogenous features (in the case when the former
+        is exogenous observation features).
+
+        Parameters
+        ----------
+        layer : tf.keras.layers.Layer
+            Layer to run on the hi_res data. This should be a custom layer
+            that combines exogenous data with the hi_res data.
+        input_array : np.ndarray
+            Either high or low-resolution input data, usually a 4D or 5D array
+            of shape:
+            (n_obs, spatial_1, spatial_2, n_features)
+            (n_obs, spatial_1, spatial_2, n_temporal, n_features)
+        """
+        msg = (
+            '{} does not match any features in exogenous_data '
+            f'({list(exogenous_data)}). '
+        )
+        feat_stack = []
+        extras = []
+        features = getattr(layer, 'features', [layer.name])
+        exo_features = getattr(layer, 'exo_features', [])
+        is_obs_layer = isinstance(layer, SUP3R_OBS_LAYERS)
+        for feat in features + exo_features:
+            missing_obs = feat in features and feat not in exogenous_data
+            if is_obs_layer and missing_obs:
+                logger.warning(
+                    msg.format(feat),
+                    'Will run without this observation feature.',
+                )
+                continue
+            assert feat in exogenous_data, msg.format(feat)
+            exo = exogenous_data.get_combine_type_data(feat, 'layer')
+            exo = self._reshape_norm_exo(
+                input_array,
+                exo,
+                feat,
+                norm_in=norm_in,
+            )
+            if feat in features:
+                feat_stack.append(exo)
+            else:
+                extras.append(exo)
+        hr_exo = (
+            np.concatenate(feat_stack, axis=-1)
+            if len(feat_stack) > 0
+            else None
+        )
+        if len(extras) > 0:
+            extras = np.concatenate(extras, axis=-1)
+            return layer(input_array, hr_exo, extras)
+        return layer(input_array, hr_exo)
 
     def generate(
         self, low_res, norm_in=True, un_norm_out=True, exogenous_data=None
@@ -1580,20 +1083,11 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         try:
             for i, layer in enumerate(self.generator.layers[1:]):
                 layer_num = i + 1
-                if isinstance(layer, (Sup3rAdder, Sup3rConcat)):
-                    msg = (
-                        f'layer.name = {layer.name} does not match any '
-                        'features in exogenous_data '
-                        f'({list(exogenous_data)})'
+                is_exo_layer = isinstance(layer, SUP3R_LAYERS)
+                if is_exo_layer:
+                    hi_res = self.run_exo_layer(
+                        layer, hi_res, exogenous_data, norm_in=norm_in
                     )
-                    assert layer.name in exogenous_data, msg
-                    hi_res_exo = exogenous_data.get_combine_type_data(
-                        layer.name, 'layer'
-                    )
-                    hi_res_exo = self._reshape_norm_exo(
-                        hi_res, hi_res_exo, layer.name, norm_in=norm_in
-                    )
-                    hi_res = layer(hi_res, hi_res_exo)
                 else:
                     hi_res = layer(hi_res)
         except Exception as e:
@@ -1610,6 +1104,30 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
 
         return self._combine_fwp_output(hi_res, exogenous_data)
 
+    def _run_exo_layer(self, layer, input_array, hi_res_exo):
+        """Private run_exo_layer method used in ``_tf_generate``. Runs a layer
+        that combines exogenous data with the hi_res data. These layers can
+        include single or multiple exogenous features."""
+        msg = (
+            '{} does not match any features in exogenous_data '
+            f'({list(hi_res_exo)})'
+        )
+        features = getattr(layer, 'features', [layer.name])
+        exo_features = getattr(layer, 'exo_features', [])
+        feat_stack = []
+        extras = []
+        for feat in features + exo_features:
+            assert feat in hi_res_exo, msg.format(feat)
+            if feat in features:
+                feat_stack.append(hi_res_exo[feat])
+            else:
+                extras.append(hi_res_exo[feat])
+        hr_exo = tf.concat(feat_stack, axis=-1)
+        if len(extras) > 0:
+            extras = tf.concat(extras, axis=-1)
+            return layer(input_array, hr_exo, extras)
+        return layer(input_array, hr_exo)
+
     @tf.function
     def _tf_generate(self, low_res, hi_res_exo=None):
         """Use the generator model to generate high res data from low res input
@@ -1620,7 +1138,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             Real low-resolution data. The generator should always
             received normalized data with mean=0 stdev=1.
         hi_res_exo : dict
-            Dictionary of exogenous_data with same resolution as high_res data
+            Dictionary of exogenous_data with same resolution as hi_res data
             e.g. ``{'topography': np.array}``
             The arrays in this dictionary should be a 4D array for spatial
             enhancement model or 5D array for a spatiotemporal enhancement
@@ -1641,14 +1159,8 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         try:
             for i, layer in enumerate(self.generator.layers[1:]):
                 layer_num = i + 1
-                if isinstance(layer, (Sup3rAdder, Sup3rConcat)):
-                    msg = (
-                        f'layer.name = {layer.name} does not match any '
-                        f'features in exogenous_data ({list(hi_res_exo)})'
-                    )
-                    assert layer.name in hi_res_exo, msg
-                    hr_exo = hi_res_exo[layer.name]
-                    hi_res = layer(hi_res, hr_exo)
+                if isinstance(layer, SUP3R_LAYERS):
+                    hi_res = self._run_exo_layer(layer, hi_res, hi_res_exo)
                 else:
                     hi_res = layer(hi_res)
         except Exception as e:
@@ -1660,7 +1172,21 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
 
         return hi_res
 
-    @tf.function
+    def _get_hr_exo_and_loss(
+        self,
+        low_res,
+        hi_res_true,
+        **calc_loss_kwargs,
+    ):
+        """Get high-resolution exogenous data, generate synthetic output, and
+        compute loss."""
+        hi_res_exo = self.get_hr_exo_input(hi_res_true)
+        hi_res_gen = self._tf_generate(low_res, hi_res_exo)
+        loss, loss_details = self.calc_loss(
+            hi_res_true, hi_res_gen, **calc_loss_kwargs
+        )
+        return loss, loss_details, hi_res_gen, hi_res_exo
+
     def get_single_grad(
         self,
         low_res,
@@ -1705,11 +1231,21 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             watch_accessed_variables=False
         ) as tape:
             tape.watch(training_weights)
-            hi_res_exo = self.get_hr_exo_input(hi_res_true)
-            hi_res_gen = self._tf_generate(low_res, hi_res_exo)
-            loss_out = self.calc_loss(
-                hi_res_true, hi_res_gen, **calc_loss_kwargs
+            loss, loss_details, _, _ = self._get_hr_exo_and_loss(
+                low_res, hi_res_true, **calc_loss_kwargs
             )
-            loss, loss_details = loss_out
             grad = tape.gradient(loss, training_weights)
         return grad, loss_details
+
+    @abstractmethod
+    def calc_loss(
+        self,
+        hi_res_true,
+        hi_res_gen,
+        weight_gen_advers=0.001,
+        train_gen=True,
+        train_disc=False,
+        compute_disc=False,
+    ):
+        """Calculate the GAN loss function using generated and true high
+        resolution data."""
