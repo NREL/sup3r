@@ -503,7 +503,9 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             if len(self.hr_exo_features) == 0
             else slice(0, -len(self.hr_exo_features))
         )
-        return self.loss_fun(hi_res_true[..., slc], hi_res_gen[..., slc])
+        # gen is first since loss can included regularizers which just
+        # apply to generator output
+        return self.loss_fun(hi_res_gen[..., slc], hi_res_true[..., slc])
 
     @staticmethod
     @tf.function

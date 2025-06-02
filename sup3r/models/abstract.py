@@ -815,19 +815,17 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
 
         futures = []
         start_time = time.time()
-        lr_chunks = np.array_split(low_res, len(self.gpu_list))
-        hr_true_chunks = np.array_split(hi_res_true, len(self.gpu_list))
-        split_mask = False
+        lr_chunks = tf.split(low_res, len(self.gpu_list), axis=0)
+        hr_true_chunks = tf.split(hi_res_true, len(self.gpu_list), axis=0)
         mask_chunks = None
         if 'mask' in calc_loss_kwargs:
-            split_mask = True
-            mask_chunks = np.array_split(
-                calc_loss_kwargs['mask'], len(self.gpu_list)
+            mask_chunks = tf.split(
+                calc_loss_kwargs['mask'], len(self.gpu_list), axis=0
             )
 
         with ThreadPoolExecutor(max_workers=len(self.gpu_list)) as exe:
             for i in range(len(self.gpu_list)):
-                if split_mask:
+                if mask_chunks is not None:
                     calc_loss_kwargs['mask'] = mask_chunks[i]
                 futures.append(
                     exe.submit(

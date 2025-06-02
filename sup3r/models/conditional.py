@@ -238,7 +238,7 @@ class Sup3rCondMom(AbstractSingleModel, AbstractInterface):
             moment predictor
         """
 
-        return self.loss_fun(output_true * mask, output_gen * mask)
+        return self.loss_fun(output_gen * mask, output_true * mask)
 
     def calc_loss(self, output_true, output_gen, mask):
         """Calculate the total moment predictor loss

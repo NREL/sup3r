@@ -87,14 +87,11 @@ class Sup3rGanWithObs(Sup3rGan):
         """Get loss for observation locations and for non observation
         locations."""
         hr_true = hi_res_true[..., : len(self.hr_out_features)]
-        zeros_like = tf.zeros_like(hr_true)
         loss_obs, _ = self.loss_obs_fun(
-            tf.where(~obs_mask, hr_true, zeros_like),
-            tf.where(~obs_mask, hi_res_gen, zeros_like)
+            hi_res_gen[~obs_mask], hr_true[~obs_mask]
         )
         loss_non_obs, _ = self.loss_obs_fun(
-            tf.where(obs_mask, hr_true, zeros_like),
-            tf.where(obs_mask, hi_res_gen, zeros_like)
+            hi_res_gen[obs_mask], hr_true[obs_mask]
         )
         return loss_obs, loss_non_obs
 
@@ -265,9 +262,9 @@ class Sup3rGanWithObs(Sup3rGan):
                 hi_res_gen,
                 hi_res_exo['mask'],
             )
-            obs_frac = np.sum(~hi_res_exo['mask']) / np.size(
-                hi_res_exo['mask']
-            )
+            n_obs = tf.reduce_sum(tf.cast(~hi_res_exo['mask'], tf.float32))
+            n_total = tf.cast(tf.size(hi_res_exo['mask']), tf.float32)
+            obs_frac = n_obs / n_total
             loss_update = {
                 'loss_obs': loss_obs,
                 'loss_non_obs': loss_non_obs,
@@ -276,10 +273,8 @@ class Sup3rGanWithObs(Sup3rGan):
             if self.loss_obs_weight and obs_frac > 0:
                 loss_obs *= self.loss_obs_weight
                 loss += loss_obs
-                loss_update['loss_gen'] = loss
-                loss_update['loss_gen_content'] = (
-                    loss_details['loss_gen_content'] + loss_obs
-                )
+                loss_details['loss_gen'] += loss_obs
+                loss_details['loss_gen_content'] += loss_obs
             loss_details.update(loss_update)
         return loss, loss_details, hi_res_gen, hi_res_exo
 
