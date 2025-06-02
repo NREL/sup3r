@@ -345,11 +345,7 @@ class ForwardPass:
             initialize ForwardPassStrategy and run ForwardPass on a single
             node.
         """
-        use_cpu = config.get('use_cpu', True)
         import_str = ''
-        if use_cpu:
-            import_str += 'import os;\n'
-            import_str += 'os.environ["CUDA_VISIBLE_DEVICES"] = "-1";\n'
         import_str += 'import time;\n'
         import_str += 'from gaps import Status;\n'
         import_str += 'from rex import init_logger;\n'

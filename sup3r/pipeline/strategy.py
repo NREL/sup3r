@@ -277,6 +277,10 @@ class ForwardPassStrategy:
 
         self.preflight()
 
+        # disable GPU if requested
+        if self.use_cpu:
+            os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
     @property
     def meta(self):
         """Meta data dictionary for the strategy. Used to add info to forward
