@@ -199,6 +199,10 @@ class ForwardPassStrategy:
         requested nodes. This is useful for large runs when some nodes might
         finish before others. This is in constrast to determining which chunks
         are assigned to each node at the start of the run and not changing.
+    use_cpu : bool
+        Flag to only use CPUs or to also use GPUs if available. Default is to
+        use CPUs because they have more memory and GPUs are expensive on the
+        NREL HPC.
     """
 
     file_paths: Union[str, list, pathlib.Path]
@@ -223,6 +227,7 @@ class ForwardPassStrategy:
     max_nodes: int = 1
     head_node: bool = False
     redistribute_chunks: bool = False
+    use_cpu: bool = False
 
     @log_args
     def __post_init__(self):
@@ -271,6 +276,10 @@ class ForwardPassStrategy:
             self.exo_data = self.timer(self.load_exo_data, log=True)(model)
 
         self.preflight()
+
+        # disable GPU if requested
+        if self.use_cpu:
+            os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
     @property
     def meta(self):
