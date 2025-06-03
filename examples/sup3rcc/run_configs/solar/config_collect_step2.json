@@ -1,0 +1,19 @@
+{
+    "n_writes": 100000,
+    "dset_split": false,
+    "file_paths": "./chunks2/sup3r_chunk_*irradiance.h5",
+    "out_file": "./output/sup3rcc_4km_hourly.h5",
+    "features": [
+        "ghi",
+        "dhi",
+        "dni"
+    ],
+    "log_file": "./logs/collect.log",
+    "execution_control": {
+        "option": "kestrel",
+        "feature": "--qos=normal",
+        "walltime": 4,
+        "alloc": "alcaps"
+    },
+    "log_level": "DEBUG"
+}

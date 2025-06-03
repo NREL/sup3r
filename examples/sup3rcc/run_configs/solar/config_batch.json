@@ -1,35 +1,965 @@
 {
-    "pipeline_config": "./config_pipeline.json",
-    "sets": [
-      {
-        "args": {
-            "file_paths": [
-                ["/scratch/gbuster/sup3r/source_gcm_data/wind_solar_day_MRI-ESM2-0_ssp585_r1i1p1f1_gn_20150101-20151231.nc"],
-                ["/scratch/gbuster/sup3r/source_gcm_data/wind_solar_day_MRI-ESM2-0_ssp585_r1i1p1f1_gn_20160101-20161231.nc"],
-                ["/scratch/gbuster/sup3r/source_gcm_data/wind_solar_day_MRI-ESM2-0_ssp585_r1i1p1f1_gn_20170101-20171231.nc"],
-                ["/scratch/gbuster/sup3r/source_gcm_data/wind_solar_day_MRI-ESM2-0_ssp585_r1i1p1f1_gn_20180101-20181231.nc"],
-                ["/scratch/gbuster/sup3r/source_gcm_data/wind_solar_day_MRI-ESM2-0_ssp585_r1i1p1f1_gn_20190101-20191231.nc"],
-                ["/scratch/gbuster/sup3r/source_gcm_data/wind_solar_day_MRI-ESM2-0_ssp585_r1i1p1f1_gn_20200101-20201231.nc"],
-                ["/scratch/gbuster/sup3r/source_gcm_data/wind_solar_day_MRI-ESM2-0_ssp585_r1i1p1f1_gn_20210101-20211231.nc"],
-                ["/scratch/gbuster/sup3r/source_gcm_data/wind_solar_day_MRI-ESM2-0_ssp585_r1i1p1f1_gn_20220101-20221231.nc"],
-                ["/scratch/gbuster/sup3r/source_gcm_data/wind_solar_day_MRI-ESM2-0_ssp585_r1i1p1f1_gn_20230101-20231231.nc"],
-                ["/scratch/gbuster/sup3r/source_gcm_data/wind_solar_day_MRI-ESM2-0_ssp585_r1i1p1f1_gn_20240101-20241231.nc"],
-
-                ["/scratch/gbuster/sup3r/source_gcm_data/wind_solar_day_MRI-ESM2-0_ssp585_r1i1p1f1_gn_20500101-20501231.nc"],
-                ["/scratch/gbuster/sup3r/source_gcm_data/wind_solar_day_MRI-ESM2-0_ssp585_r1i1p1f1_gn_20510101-20511231.nc"],
-                ["/scratch/gbuster/sup3r/source_gcm_data/wind_solar_day_MRI-ESM2-0_ssp585_r1i1p1f1_gn_20520101-20521231.nc"],
-                ["/scratch/gbuster/sup3r/source_gcm_data/wind_solar_day_MRI-ESM2-0_ssp585_r1i1p1f1_gn_20530101-20531231.nc"],
-                ["/scratch/gbuster/sup3r/source_gcm_data/wind_solar_day_MRI-ESM2-0_ssp585_r1i1p1f1_gn_20540101-20541231.nc"],
-                ["/scratch/gbuster/sup3r/source_gcm_data/wind_solar_day_MRI-ESM2-0_ssp585_r1i1p1f1_gn_20550101-20551231.nc"],
-                ["/scratch/gbuster/sup3r/source_gcm_data/wind_solar_day_MRI-ESM2-0_ssp585_r1i1p1f1_gn_20560101-20561231.nc"],
-                ["/scratch/gbuster/sup3r/source_gcm_data/wind_solar_day_MRI-ESM2-0_ssp585_r1i1p1f1_gn_20570101-20571231.nc"],
-                ["/scratch/gbuster/sup3r/source_gcm_data/wind_solar_day_MRI-ESM2-0_ssp585_r1i1p1f1_gn_20580101-20581231.nc"],
-                ["/scratch/gbuster/sup3r/source_gcm_data/wind_solar_day_MRI-ESM2-0_ssp585_r1i1p1f1_gn_20590101-20591231.nc"]
-            ]
-        },
-        "files": ["./config_fwp.json"],
-        "set_tag": "prod_solar_ssp585"
-      }
-    ]
-  }
-
+  "pipeline_config": "./config_pipeline.json",
+  "sets": [
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2000.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2000"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2001.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2001"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2002.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2002"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2003.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2003"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2004.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2004"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2005.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2005"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2006.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2006"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2007.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2007"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2008.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2008"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2009.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2009"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2010.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2010"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2011.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2011"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2012.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2012"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2013.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2013"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2014.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2014"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2015.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2015"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2016.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2016"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2017.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2017"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2018.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2018"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2019.nc"
+          ]
+        ],
+        "no_trend": [
+          true
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2019"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2020.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2020"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2021.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2021"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2022.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2022"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2023.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2023"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2024.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2024"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2025.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2025"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2026.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2026"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2027.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2027"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2028.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2028"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2029.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2029"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2030.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2030"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2031.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2031"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2032.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2032"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2033.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2033"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2034.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2034"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2035.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2035"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2036.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2036"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2037.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2037"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2038.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2038"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2039.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2039"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2040.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2040"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2041.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2041"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2042.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2042"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2043.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2043"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2044.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2044"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2045.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2045"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2046.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2046"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2047.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2047"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2048.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2048"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2049.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2049"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2050.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2050"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2051.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2051"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2052.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2052"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2053.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2053"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2054.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2054"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2055.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2055"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2056.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2056"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2057.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2057"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2058.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2058"
+    },
+    {
+      "args": {
+        "file_paths": [
+          [
+            "/scratch/gbuster/cache_gcm/taiesm1_ssp245_r1i1p1f1_2059.nc"
+          ]
+        ],
+        "no_trend": [
+          false
+        ]
+      },
+      "files": [
+        "./config_fwp_step1.json"
+      ],
+      "set_tag": "taiesm1_solar_2059"
+    }
+  ]
+}

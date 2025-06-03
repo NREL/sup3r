@@ -1,0 +1,28 @@
+{
+    "file_paths": "./output/sup3rcc_100km_hourly*.h5",
+    "model_kwargs": {
+        "model_dir": "/datasets/sup3rcc/models/sup3rcc_models_202412/sup3rcc_solar_step2_25x_1x_1f_w5e-2_v0_e5280/"
+    },
+    "model_class": "Sup3rGan",
+    "out_pattern": "./chunks2/sup3r_chunk_{file_id}.h5",
+    "log_pattern": "./logs/sup3r_fwp_log_{node_index}.log",
+    "spatial_pad": 2,
+    "temporal_pad": 0,
+    "fwp_chunk_shape": [52, 52, 24],
+    "input_handler_name": "DataHandler",
+    "input_handler_kwargs": {
+        "chunks": {"time": 24, "south_north": 10, "west_east": 10},
+        "target": [23.09, -128.74],
+        "shape": [ 31, 52 ]
+    },
+    "output_workers": 1,
+    "pass_workers": 1,
+    "max_nodes": 5,
+    "execution_control": {
+        "option": "kestrel",
+        "feature": "--qos=normal",
+        "walltime": 4,
+        "alloc": "alcaps"
+    },
+    "log_level": "DEBUG"
+}

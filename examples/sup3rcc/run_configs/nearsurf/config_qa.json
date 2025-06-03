@@ -1,0 +1,60 @@
+{
+    "source_file_paths": "/scratch/gbuster/cache_gcm/taiesm1_historical_r1i1p1f1_2000.nc",
+    "out_file_path": "./output/sup3rcc_4km_hourly_trh.h5",
+    "qa_fp": "./output/qa.h5",
+    "input_handler_name": "DataHandlerNCforCC",
+    "input_handler_kwargs": { "target": [ 23.2, -129 ], "shape": [ 31, 52 ], "time_shift": -720, "chunks": null},
+    "features": [
+        "temperature_2m",
+        "temperature_2m",
+        "temperature_2m",
+        "relativehumidity_2m"
+    ],
+    "source_features": [
+        "temperature_2m",
+        "temperature_max_2m",
+        "temperature_min_2m",
+        "relativehumidity_2m"
+    ],
+    "output_names": [
+        "temperature_2m",
+        "temperature_max_2m",
+        "temperature_min_2m",
+        "relativehumidity_2m"
+    ],
+    "s_enhance": 25,
+    "t_enhance": 24,
+    "temporal_coarsening_method": [
+        "average",
+        "max",
+        "min",
+        "average"
+    ],
+    "bias_correct_method": "local_qdm_bc",
+    "bias_correct_kwargs": {
+        "temperature_2m": {
+            "feature_name": "temperature_2m", "base_dset": "temperature_2m", "no_trend": true, "relative": false, "out_range": [ -70, 70 ],
+            "bias_fp": "/datasets/sup3rcc/esm_low_res_bias_correction/v0.2.2_beta/taiesm1_ssp245_r1i1p1f1/bc_qdm_taiesm1_ssp245_r1i1p1f1_era_tas.h5"
+        },
+        "temperature_min_2m": {
+            "feature_name": "temperature_min_2m", "base_dset": "temperature_2m", "no_trend": true, "relative": false, "out_range": [ -70, 70 ],
+            "bias_fp": "/datasets/sup3rcc/esm_low_res_bias_correction/v0.2.2_beta/taiesm1_ssp245_r1i1p1f1/bc_qdm_taiesm1_ssp245_r1i1p1f1_era_tasmin.h5"
+        },
+        "temperature_max_2m": {
+            "feature_name": "temperature_max_2m", "base_dset": "temperature_2m", "no_trend": true, "relative": false, "out_range": [ -70, 70 ],
+            "bias_fp": "/datasets/sup3rcc/esm_low_res_bias_correction/v0.2.2_beta/taiesm1_ssp245_r1i1p1f1/bc_qdm_taiesm1_ssp245_r1i1p1f1_era_tasmax.h5"
+        },
+        "relativehumidity_2m": {
+            "feature_name": "relativehumidity_2m", "base_dset": "relativehumidity_2m", "no_trend": true, "relative": true, "out_range": [ 0, 100 ], "delta_range": [ 0.5, 2.0 ],
+            "bias_fp": "/datasets/sup3rcc/esm_low_res_bias_correction/v0.2.2_beta/taiesm1_ssp245_r1i1p1f1/bc_qdm_taiesm1_ssp245_r1i1p1f1_era_hurs.h5"
+        }
+    },
+    "log_file": "./logs/sup3r_qa.log",
+    "execution_control": {
+        "option": "kestrel",
+        "feature": "--qos=normal",
+        "walltime": 4,
+        "alloc": "alcaps"
+    },
+    "log_level": "DEBUG"
+}

@@ -1,0 +1,17 @@
+{
+    "n_writes": 100000,
+    "dset_split": true,
+    "file_paths": "./chunks1/sup3r_chunk_*.h5",
+    "out_file": "./output/sup3rcc_100km_hourly.h5",
+    "features": [
+        "clearsky_ratio"
+    ],
+    "log_file": "./logs/collect.log",
+    "execution_control": {
+        "option": "kestrel",
+        "feature": "--qos=normal",
+        "walltime": 4,
+        "alloc": "alcaps"
+    },
+    "log_level": "DEBUG"
+}

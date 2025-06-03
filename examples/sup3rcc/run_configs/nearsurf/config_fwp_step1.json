@@ -1,0 +1,83 @@
+{
+    "file_paths": [
+        "PLACEHOLDER"
+    ],
+    "model_kwargs": {
+        "model_dir": "/datasets/sup3rcc/models/sup3rcc_models_202412/sup3rcc_nearsurf_step1_1x_24x_8f_w1e-2_v1_e4300/"
+    },
+    "model_class": "Sup3rGan",
+    "out_pattern": "./chunks1/sup3r_chunk_{file_id}.h5",
+    "log_pattern": "./logs/sup3r_fwp_log_{node_index}.log",
+    "bias_correct_method": "local_qdm_bc",
+    "bias_correct_kwargs": {
+        "U_10m": {
+            "feature_name": "U_10m", "base_dset": "U_10m", "no_trend": true, "relative": false, "out_range": [ -100, 100 ],
+            "bias_fp": "/datasets/sup3rcc/esm_low_res_bias_correction/v0.2.2_beta/taiesm1_ssp245_r1i1p1f1/bc_qdm_taiesm1_ssp245_r1i1p1f1_era_u_10m.h5"
+        },
+        "V_10m": {
+            "feature_name": "V_10m", "base_dset": "V_10m", "no_trend": true, "relative": false, "out_range": [ -100, 100 ],
+            "bias_fp": "/datasets/sup3rcc/esm_low_res_bias_correction/v0.2.2_beta/taiesm1_ssp245_r1i1p1f1/bc_qdm_taiesm1_ssp245_r1i1p1f1_era_v_10m.h5"
+        },
+        "U_100m": {
+            "feature_name": "U_100m", "base_dset": "U_100m", "no_trend": true, "relative": false, "out_range": [ -100, 100 ],
+            "bias_fp": "/datasets/sup3rcc/esm_low_res_bias_correction/v0.2.2_beta/taiesm1_ssp245_r1i1p1f1/bc_qdm_taiesm1_ssp245_r1i1p1f1_era_u_100m.h5"
+        },
+        "V_100m": {
+            "feature_name": "V_100m", "base_dset": "V_100m", "no_trend": true, "relative": false, "out_range": [ -100, 100 ],
+            "bias_fp": "/datasets/sup3rcc/esm_low_res_bias_correction/v0.2.2_beta/taiesm1_ssp245_r1i1p1f1/bc_qdm_taiesm1_ssp245_r1i1p1f1_era_v_100m.h5"
+        },
+        "U_200m": {
+            "feature_name": "U_200m", "base_dset": "U_200m", "no_trend": true, "relative": false, "out_range": [ -100, 100 ],
+            "bias_fp": "/datasets/sup3rcc/esm_low_res_bias_correction/v0.2.2_beta/taiesm1_ssp245_r1i1p1f1/bc_qdm_taiesm1_ssp245_r1i1p1f1_era_u_200m.h5"
+        },
+        "V_200m": {
+            "feature_name": "V_200m", "base_dset": "V_200m", "no_trend": true, "relative": false, "out_range": [ -100, 100 ],
+            "bias_fp": "/datasets/sup3rcc/esm_low_res_bias_correction/v0.2.2_beta/taiesm1_ssp245_r1i1p1f1/bc_qdm_taiesm1_ssp245_r1i1p1f1_era_v_200m.h5"
+        },
+        "temperature_2m": {
+            "feature_name": "temperature_2m", "base_dset": "temperature_2m", "no_trend": true, "relative": false, "out_range": [ -70, 70 ],
+            "bias_fp": "/datasets/sup3rcc/esm_low_res_bias_correction/v0.2.2_beta/taiesm1_ssp245_r1i1p1f1/bc_qdm_taiesm1_ssp245_r1i1p1f1_era_tas.h5"
+        },
+        "temperature_min_2m": {
+            "feature_name": "temperature_min_2m", "base_dset": "temperature_2m", "no_trend": true, "relative": false, "out_range": [ -70, 70 ],
+            "bias_fp": "/datasets/sup3rcc/esm_low_res_bias_correction/v0.2.2_beta/taiesm1_ssp245_r1i1p1f1/bc_qdm_taiesm1_ssp245_r1i1p1f1_era_tasmin.h5"
+        },
+        "temperature_max_2m": {
+            "feature_name": "temperature_max_2m", "base_dset": "temperature_2m", "no_trend": true, "relative": false, "out_range": [ -70, 70 ],
+            "bias_fp": "/datasets/sup3rcc/esm_low_res_bias_correction/v0.2.2_beta/taiesm1_ssp245_r1i1p1f1/bc_qdm_taiesm1_ssp245_r1i1p1f1_era_tasmax.h5"
+        },
+        "relativehumidity_2m": {
+            "feature_name": "relativehumidity_2m", "base_dset": "relativehumidity_2m", "no_trend": true, "relative": true, "out_range": [ 0, 100 ], "delta_range": [ 0.5, 2.0 ],
+            "bias_fp": "/datasets/sup3rcc/esm_low_res_bias_correction/v0.2.2_beta/taiesm1_ssp245_r1i1p1f1/bc_qdm_taiesm1_ssp245_r1i1p1f1_era_hurs.h5"
+        }
+    },
+    "spatial_pad": 1,
+    "temporal_pad": 3,
+    "fwp_chunk_shape": [
+        52,
+        52,
+        37
+    ],
+    "input_handler_name": "DataHandlerNCforCC",
+    "input_handler_kwargs": {
+        "target": [
+            23.2,
+            -129
+        ],
+        "shape": [
+            31,
+            52
+        ],
+        "time_shift": -720
+    },
+    "output_workers": 1,
+    "pass_workers": 1,
+    "max_nodes": 5,
+    "execution_control": {
+        "option": "kestrel",
+        "feature": "--qos=high",
+        "walltime": 4,
+        "alloc": "alcaps"
+    },
+    "log_level": "DEBUG"
+}

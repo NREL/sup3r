@@ -1,0 +1,40 @@
+{
+    "file_paths": "./output/sup3rcc_100km_hourly*.h5",
+    "model_kwargs": {
+        "model_dir": "/datasets/sup3rcc/models/sup3rcc_models_202412/sup3rcc_nearsurf_step2_25x_1x_8f_w5e-3_v0_e4770/"
+    },
+    "model_class": "Sup3rGan",
+    "out_pattern": "./chunks2/sup3r_chunk_{file_id}.h5",
+    "log_pattern": "./logs/sup3r_fwp_log_{node_index}.log",
+    "spatial_pad": 3,
+    "temporal_pad": 6,
+    "fwp_chunk_shape": [10, 10, 48],
+    "input_handler_name": "DataHandler",
+    "input_handler_kwargs": {
+        "chunks": {"time": 24, "south_north": 10, "west_east": 10},
+        "target": [23.09, -128.74],
+        "shape": [ 31, 52 ]
+    },
+    "output_workers": 1,
+    "pass_workers": 1,
+    "max_nodes": 2,
+    "execution_control": {
+        "option": "kestrel",
+        "feature": "--qos=high",
+        "walltime": 4,
+        "alloc": "alcaps"
+    },
+    "log_level": "DEBUG",
+    "exo_handler_kwargs": {
+        "topography": {
+            "file_paths": "./output/sup3rcc_100km_hourly*.h5",
+            "source_file": "/datasets/sup3rcc/ancillary/conus_topo_1km.nc",
+            "input_handler_name": "DataHandler",
+            "input_handler_kwargs": {
+                "chunks": {"time": 24, "south_north": 10, "west_east": 10},
+                "target": [23.09, -128.74],
+                "shape": [ 31, 52 ]
+            }
+        }
+    }
+}

@@ -1,6 +1,8 @@
 {
-    "file_paths": "./chunks/sup3r_chunk_*.h5",
-    "out_file": "./output/sup3r_data.h5",
+    "n_writes": 100000,
+    "dset_split": false,
+    "file_paths": "./chunks2/sup3r_chunk_*.h5",
+    "out_file": "./output/sup3rcc_4km_hourly_wind.h5",
     "features": [
         "windspeed_10m",
         "windspeed_100m",
@@ -9,13 +11,12 @@
         "winddirection_100m",
         "winddirection_200m"
     ],
-    "target_final_meta_file": "/projects/ntps/sup3r/final_models/meta/sup3rcc_mriesm20_25x_4km_meta.csv",
     "log_file": "./logs/collect.log",
     "execution_control": {
-        "option": "eagle",
+        "option": "kestrel",
         "feature": "--qos=high",
-        "walltime": 24,
-        "alloc": "ntps"
+        "walltime": 4,
+        "alloc": "alcaps"
     },
     "log_level": "DEBUG"
 }

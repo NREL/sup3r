@@ -1,0 +1,24 @@
+{
+    "n_writes": 100000,
+    "dset_split": true,
+    "file_paths": "./chunks1/sup3r_chunk_*.h5",
+    "out_file": "./output/sup3rcc_100km_hourly.h5",
+    "features": [
+        "windspeed_10m",
+        "windspeed_100m",
+        "windspeed_200m",
+        "winddirection_10m",
+        "winddirection_100m",
+        "winddirection_200m",
+        "temperature_2m",
+        "relativehumidity_2m"
+    ],
+    "log_file": "./logs/collect.log",
+    "execution_control": {
+        "option": "kestrel",
+        "feature": "--qos=high",
+        "walltime": 4,
+        "alloc": "alcaps"
+    },
+    "log_level": "DEBUG"
+}
