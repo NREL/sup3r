@@ -504,9 +504,10 @@ class ForwardPassStrategy:
                 f'Bias correcting data for chunk_index={chunk_index}, '
                 f'with shape={input_data.shape}'
             )
-            input_data = self.timer(
-                bias_correct_features, log=True, call_id=chunk_index
-            )(
+            fun = self.timer(
+                bias_correct_features, log=True, call_id=chunk_index,
+            )
+            input_data = fun(
                 features=list(self.bias_correct_kwargs),
                 input_handler=input_data,
                 bc_method=self.bias_correct_method,
