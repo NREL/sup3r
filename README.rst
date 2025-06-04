@@ -44,7 +44,10 @@ space and time while preserving physical accuracy.
 By dramatically cutting computational time and cost, Sup3r delivers the data
 needed for efficient, highly detailed energy system modeling and analysis.
 
-A few options to get started:
+Getting Started
+===============
+
+Here are some options to get started with sup3r:
 
 #. Learn `how to install sup3r <https://nrel.github.io/sup3r/#installing-sup3r>`_.
 #. Learn `how sup3r works <https://nrel.github.io/sup3r/#how-it-works>`_.
