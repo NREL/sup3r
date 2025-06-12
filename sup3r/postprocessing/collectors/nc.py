@@ -32,7 +32,7 @@ class CollectorNC(BaseCollector):
         overwrite=True,
         res_kwargs=None,
         cacher_kwargs=None,
-        is_regular_grid=False,
+        is_regular_grid=True,
     ):
         """Collect data files from a dir to one output file.
 
