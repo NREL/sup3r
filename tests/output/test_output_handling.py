@@ -9,6 +9,7 @@ from rex import ResourceX
 
 from sup3r.postprocessing import (
     CollectorH5,
+    CollectorNC,
     OutputHandlerH5,
     OutputHandlerNC,
 )
@@ -128,14 +129,14 @@ def test_invert_uv_inplace():
     assert np.allclose(data[..., 1], wd)
 
 
-def test_general_collect():
+def test_general_h5_collect():
     """Make sure general file collection gives complete meta, time_index, and
     data array."""
 
     with tempfile.TemporaryDirectory() as td:
         fp_out = os.path.join(td, 'out_combined.h5')
 
-        out = make_collect_chunks(td)
+        out = make_collect_chunks(td, ext='h5')
         out_files, data, features, hr_lat_lon, hr_times = (
             out[0],
             out[1],
@@ -158,6 +159,31 @@ def test_general_collect():
             assert np.array_equal(hr_times, time_index)
             assert np.array_equal(hr_lat_lon.reshape((-1, 2)), lat_lon)
             assert np.array_equal(base_data, collect_data)
+
+
+def test_general_nc_collect():
+    """Make sure general file collection gives complete meta, time_index, and
+    data array."""
+
+    with tempfile.TemporaryDirectory() as td:
+        fp_out = os.path.join(td, 'out_combined.nc')
+
+        out = make_collect_chunks(td, ext='nc')
+        out_files, base_data, features, hr_lat_lon, hr_times = (
+            out[0],
+            out[1],
+            out[-3],
+            out[-2],
+            out[-1],
+        )
+
+        CollectorNC.collect(out_files, fp_out, features=features,
+                            is_regular_grid=True)
+
+        with Loader(fp_out) as res:
+            assert np.array_equal(hr_times, res.time_index.values)
+            assert np.allclose(hr_lat_lon, res.lat_lon)
+            assert np.allclose(base_data, res.values)
 
 
 def test_h5_out_and_collect(collect_check):

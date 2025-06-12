@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from sup3r.postprocessing import OutputHandlerH5
+from sup3r.postprocessing import OutputHandlerH5, OutputHandlerNC
 from sup3r.preprocessing.base import Container, Sup3rDataset
 from sup3r.preprocessing.batch_handlers import BatchHandlerCC, BatchHandlerDC
 from sup3r.preprocessing.names import Dimension
@@ -268,13 +268,15 @@ def BatchHandlerTesterFactory(BatchHandlerClass, SamplerClass):
     return BatchHandlerTester
 
 
-def make_collect_chunks(td):
-    """Make fake h5 chunked output files for collection tests.
+def make_collect_chunks(td, ext='h5'):
+    """Make fake chunked output files for collection tests.
 
     Parameters
     ----------
     td : tempfile.TemporaryDirectory
         Test TemporaryDirectory
+    ext : str
+        File extension for output files. Either 'h5' or 'nc'. Default is 'h5'.
 
     Returns
     -------
@@ -320,13 +322,15 @@ def make_collect_chunks(td):
     s_slices_hr = np.array_split(np.arange(shape[0]), 4)
     s_slices_hr = [slice(s[0], s[-1] + 1) for s in s_slices_hr]
 
-    out_pattern = os.path.join(td, 'fp_out_{t}_{s}.h5')
+    out_pattern = os.path.join(td, 'fp_out_{t}_{s}.' + ext)
     out_files = []
+
+    Writer = OutputHandlerNC if ext == 'nc' else OutputHandlerH5
     for t, slice_hr in enumerate(t_slices_hr):
         for s, (s1_hr, s2_hr) in enumerate(product(s_slices_hr, s_slices_hr)):
             out_file = out_pattern.format(t=str(t).zfill(6), s=str(s).zfill(6))
             out_files.append(out_file)
-            OutputHandlerH5._write_output(
+            Writer._write_output(
                 data[s1_hr, s2_hr, slice_hr, :],
                 features,
                 hr_lat_lon[s1_hr, s2_hr],

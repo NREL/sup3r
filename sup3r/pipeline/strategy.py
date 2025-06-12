@@ -227,7 +227,7 @@ class ForwardPassStrategy:
     max_nodes: int = 1
     head_node: bool = False
     redistribute_chunks: bool = False
-    use_cpu: bool = False
+    use_cpu: bool = True
 
     @log_args
     def __post_init__(self):
