@@ -81,7 +81,7 @@ The Sup3rCC data has versions that coincide with the sup3r software versions. No
 Recommended Citation
 --------------------
 
-Buster, G., et al. Sup3rCC v0.2.2: Second-Generation Earth System Model Data Downscaled with Generative Machine Learning for Use in Energy System Modelling. (2025, In Preparation).
+Buster, G. et al. Second-Generation Downscaled Earth System Model Data using Generative Machine Learning. Data in Brief (2025) doi:10.1016/j.dib.2025.111774.
 
 Buster, G., Benton, B.N., Glaws, A. et al. High-resolution meteorology with climate change impacts from global climate model data using generative machine learning. Nature Energy (2024). https://doi.org/10.1038/s41560-024-01507-9
 
