@@ -50,7 +50,8 @@ Here are some options to get started with sup3r:
 
 #. Learn `how to install sup3r <https://nrel.github.io/sup3r/#installing-sup3r>`_.
 #. Learn `how sup3r works <https://nrel.github.io/sup3r/#how-it-works>`_.
-#. Learn `about our current applications of sup3r <https://nrel.github.io/sup3r/#applications-of-sup3r>`_.
+#. Learn about our `current applications of sup3r <https://nrel.github.io/sup3r/#applications-of-sup3r>`_.
+#. Learn about the methods and validation of sup3r from `our publications <https://nrel.github.io/sup3r/index.html#publications>`_.
 #. To access output datasets, see `our data records <https://nrel.github.io/sup3r/#data-records>`_ from previous applications.
 #. To get started running sup3r software, check out our `test suite <https://github.com/NREL/sup3r/tree/main/tests>`_ that uses the software on small pieces of test data.
 #. To get started loading in data for training or inference, start with the `data handler object <https://nrel.github.io/sup3r/_autosummary/sup3r.preprocessing.data_handlers.base.DataHandler.html#sup3r.preprocessing.data_handlers.base.DataHandler>`_ that is our basic data structure that opens NREL .h5 and other .nc data files.
@@ -238,6 +239,10 @@ v0.2.3), 2025. https://doi.org/10.5281/zenodo.15586596
 
 Publications
 ============
+
+Second-Generation Downscaled Earth System Model Data using Generative Machine
+Learning, Data in Brief (2025) https://doi.org/10.1016/j.dib.2025.111774
+
 Tackling Extreme Urban Heat: A Machine Learning Approach to Assess the Impacts
 of Climate Change and the Efficacy of Climate Adaptation Strategies in Urban
 Microclimates, arXiv (2024) https://doi.org/10.48550/arXiv.2411.05952
