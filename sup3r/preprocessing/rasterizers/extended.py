@@ -139,19 +139,29 @@ class Rasterizer(BaseRasterizer):
         data = self.loader[feats].isel(
             **{Dimension.FLATTENED_SPATIAL: self.raster_index.flatten()}
         )
+
         for f in feats:
             if Dimension.TIME in self.loader[f].dims:
                 dat = data[f].isel({Dimension.TIME: self.time_slice})
-                dat = dat.data.reshape(
-                    (*self.grid_shape, len(self.time_index))
-                )
-                data_vars[f] = ((*dims, Dimension.TIME), dat)
+                fdims = (*dims, Dimension.TIME)
+                raster_shape = (*self.grid_shape, len(self.time_index))
             else:
-                dat = data[f].data.reshape(self.grid_shape)
-                data_vars[f] = (dims, dat)
-        return xr.Dataset(
+                dat = data[f]
+                fdims = dims
+                raster_shape = self.grid_shape
+
+            if np.prod(raster_shape) == dat.size:
+                dat = dat.data.reshape(raster_shape)
+                data_vars[f] = (fdims, dat)
+            else:
+                logger.info(
+                    f'Not rasterizing "{f}" with weird shape {dat.shape}'
+                )
+
+        out = xr.Dataset(
             coords=coords, data_vars=data_vars, attrs=self.loader.attrs
         )
+        return out
 
     def save_raster_index(self):
         """Save raster index to cache file."""
@@ -176,11 +186,13 @@ class Rasterizer(BaseRasterizer):
                 f'Calculating raster_index for target={self._target}, '
                 f'shape={self._grid_shape}.'
             )
-            msg = ('Either shape + target or a raster_file must be provided '
-                   'for flattened data rasterization.')
-            assert (
-                self._target is not None and self._grid_shape is not None
-            ), msg
+            msg = (
+                'Either shape + target or a raster_file must be provided '
+                'for flattened data rasterization.'
+            )
+            assert self._target is not None and self._grid_shape is not None, (
+                msg
+            )
             raster_index = self.loader._res.get_raster_index(
                 self._target, self._grid_shape, max_delta=self.max_delta
             )
