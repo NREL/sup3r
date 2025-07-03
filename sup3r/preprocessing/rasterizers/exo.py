@@ -50,14 +50,14 @@ class BaseExoRasterizer(ABC):
         file path which will be passed through glob.glob. This is
         typically low-res WRF output or GCM netcdf data files that is
         source low-resolution data intended to be sup3r resolved.
-    source_file : str
-        Filepath to source data file to get hi-res exogenous data from which
+    source_files : str | list
+        Filepath(s) to source data file to get hi-res exogenous data from which
         will be mapped to the enhanced grid of the file_paths input. Pixels
-        from this source_file will be mapped to their nearest low-res pixel in
-        the file_paths input. Accordingly, source_file should be a
+        from these files will be mapped to their nearest low-res pixel in
+        the file_paths input. Accordingly, source_files should be a
         significantly higher resolution than file_paths. Warnings will be
         raised if the low-resolution pixels in file_paths do not have unique
-        nearest pixels from source_file. File format can be .h5 or .nc
+        nearest pixels from source_files. File format can be .h5 or .nc
     feature : str
         Name of exogenous feature to rasterize.
     s_enhance : int
@@ -79,6 +79,8 @@ class BaseExoRasterizer(ABC):
         guessed based on file type and time series properties.
     input_handler_kwargs : dict | None
         Any kwargs for initializing the ``input_handler_name`` class.
+    source_handler_kwargs : dict | None
+        Any kwargs for initializing the source handler (``Loader``).
     cache_dir : str | './exo_cache'
         Directory to use for caching rasterized data.
     chunks : str | dict
@@ -87,9 +89,9 @@ class BaseExoRasterizer(ABC):
         be "auto". This is passed to ``.chunk()`` before returning exo data
         through ``.data`` attribute
     distance_upper_bound : float | None
-        Maximum distance to map high-resolution data from source_file to the
+        Maximum distance to map high-resolution data from source_files to the
         low-resolution file_paths input. None (default) will calculate this
-        based on the median distance between points in source_file
+        based on the median distance between points in source_files
     fill_nans : bool
         Whether to fill nans in the output data. This should probably be True
         for all cases except for sparse observation data.
@@ -101,7 +103,8 @@ class BaseExoRasterizer(ABC):
     """
 
     file_paths: Optional[str] = None
-    source_file: Optional[str] = None
+    source_files: Optional[str] = None
+    source_handler_kwargs: Optional[dict] = None
     feature: Optional[str] = None
     s_enhance: int = 1
     t_enhance: int = 1
@@ -121,12 +124,13 @@ class BaseExoRasterizer(ABC):
     @log_args
     def __post_init__(self):
         self._source_data = None
+        self._source_handler = None
         self._tree = None
         self._hr_lat_lon = None
         self._source_lat_lon = None
         self._hr_time_index = None
-        self._source_handler = None
         self.input_handler_kwargs = self.input_handler_kwargs or {}
+        self.source_handler_kwargs = self.source_handler_kwargs or {}
         InputHandler = get_input_handler_class(self.input_handler_name)
         self.input_handler = InputHandler(
             self.file_paths,
@@ -134,8 +138,18 @@ class BaseExoRasterizer(ABC):
         )
 
     @property
+    def source_handler(self):
+        """Get the Loader object that handles the exogenous data file."""
+        if self._source_handler is None:
+            self._source_handler = Loader(
+                self.source_files, featuers=[self.feature],
+                **get_class_kwargs(Loader, self.source_handler_kwargs),
+            )
+        return self._source_handler
+
+    @property
     def source_data(self):
-        """Get the array of exogenous data from the source_file"""
+        """Get the array of exogenous data from the source_files"""
         if self._source_data is None:
             self._source_data = self.source_handler[self.feature].data
             if 'time' not in self.source_handler[self.feature].dims:
@@ -145,15 +159,6 @@ class BaseExoRasterizer(ABC):
             shape = (-1, self._source_data.shape[-1])
             self._source_data = self._source_data.reshape(shape)
         return self._source_data
-
-    @property
-    def source_handler(self):
-        """Get the Loader object that handles the exogenous data file."""
-        if self._source_handler is None:
-            self._source_handler = Loader(
-                file_paths=self.source_file, features=[self.feature]
-            )
-        return self._source_handler
 
     @property
     def cache_file(self):
@@ -197,7 +202,7 @@ class BaseExoRasterizer(ABC):
 
     @property
     def source_lat_lon(self):
-        """Get the 2D array (n, 2) of lat, lon data from the source_file"""
+        """Get the 2D array (n, 2) of lat, lon data from the source_files"""
         if self._source_lat_lon is None:
             self._source_lat_lon = self.source_handler.lat_lon.reshape((-1, 2))
         return self._source_lat_lon
@@ -254,7 +259,7 @@ class BaseExoRasterizer(ABC):
 
     def get_distance_upper_bound(self):
         """Maximum distance (float) to map high-resolution data from
-        source_file to the low-resolution file_paths input."""
+        source_files to the low-resolution file_paths input."""
         if self.distance_upper_bound is None:
             diff = da.diff(self.hr_lat_lon, axis=0)
             diff = da.abs(da.median(diff, axis=0)).max()
@@ -343,7 +348,7 @@ class BaseExoRasterizer(ABC):
             hr_data = nn_fill_array(hr_data)
 
         logger.info(
-            f'Finished mapping raster from {self.source_file} for '
+            f'Finished mapping raster from {self.source_files} for '
             f'"{self.feature}"',
         )
         data_vars = (dims, da.asarray(hr_data, dtype=np.float32))
@@ -430,13 +435,14 @@ class ObsRasterizer(BaseExoRasterizer):
         feat = self.feature.replace('_obs', '')
         if self._source_handler is None:
             self._source_handler = Loader(
-                file_paths=self.source_file, features=[feat]
+                self.source_files, featuers=[feat],
+                **get_class_kwargs(Loader, self.source_handler_kwargs),
             )
         return self._source_handler
 
     @property
     def source_data(self):
-        """Get the flattened observation data from the source_file"""
+        """Get the flattened observation data from the source_files"""
         if self._source_data is None:
             feat = self.feature.replace('_obs', '')
             src = self.source_handler[feat].data
@@ -488,9 +494,9 @@ class SzaRasterizer(BaseExoRasterizer):
 class ExoRasterizer(BaseExoRasterizer, metaclass=Sup3rMeta):
     """Type agnostic `ExoRasterizer` class."""
 
-    def __new__(cls, file_paths, source_file, feature, **kwargs):
+    def __new__(cls, file_paths, source_files, feature, **kwargs):
         """Override parent class to return type specific class based on
-        `source_file`"""
+        `source_files`"""
         if feature.lower() == 'sza':
             ExoClass = SzaRasterizer
         elif feature.lower().endswith('_obs'):
@@ -500,7 +506,7 @@ class ExoRasterizer(BaseExoRasterizer, metaclass=Sup3rMeta):
 
         kwargs = {
             'file_paths': file_paths,
-            'source_file': source_file,
+            'source_files': source_files,
             'feature': feature,
             **kwargs,
         }
