@@ -18,7 +18,7 @@ class Loader:
 
     def __new__(cls, file_paths, **kwargs):
         """Override parent class to return type specific class based on
-        `source_file`"""
+        `source_files`"""
         SpecificClass = cls.TypeSpecificClasses[get_source_type(file_paths)]
         return SpecificClass(file_paths, **kwargs)
 

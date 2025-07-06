@@ -141,7 +141,7 @@ class ForwardPassStrategy:
         for the handler which opens the
         exogenous data. e.g.::
             {'topography': {
-                'source_file': ...,
+                'source_files': ...,
                 'input_files': ...,
                 'input_handler_kwargs': {'target': ..., 'shape': ...}}}
     bias_correct_method : str | None

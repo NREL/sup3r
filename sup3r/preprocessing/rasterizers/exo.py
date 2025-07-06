@@ -142,7 +142,7 @@ class BaseExoRasterizer(ABC):
         """Get the Loader object that handles the exogenous data file."""
         if self._source_handler is None:
             self._source_handler = Loader(
-                self.source_files, featuers=[self.feature],
+                self.source_files, features=[self.feature],
                 **get_class_kwargs(Loader, self.source_handler_kwargs),
             )
         return self._source_handler
@@ -435,7 +435,7 @@ class ObsRasterizer(BaseExoRasterizer):
         feat = self.feature.replace('_obs', '')
         if self._source_handler is None:
             self._source_handler = Loader(
-                self.source_files, featuers=[feat],
+                self.source_files, features=[feat],
                 **get_class_kwargs(Loader, self.source_handler_kwargs),
             )
         return self._source_handler
