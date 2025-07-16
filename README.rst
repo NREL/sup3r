@@ -252,7 +252,7 @@ Model Data Using Generative Machine Learning, Nature Energy (2024)
 https://doi.org/10.1038/s41560-024-01507-9
 
 Super-Resolution for Renewable Energy Resource Data with Wind from Reanalysis 
-Data and Application to Ukraine. Energies (2025) https://doi.org/10.3390/en18143769
+Data and Application to Ukraine, Energies (2025) https://doi.org/10.3390/en18143769
 
 Adversarial Super-Resolution of Climatological Wind and Solar Data, Proceedings
 of the National Academy of Sciences (2020)
