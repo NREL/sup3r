@@ -264,9 +264,9 @@ Super-Resolution for Renewable Energy Resource Data with Climate Change Impacts
 (Sup3rCC). [Data set]. Open Energy Data Initiative (OEDI). National Renewable
 Energy Laboratory (NREL). https://doi.org/10.25984/1970814
 
-Wind Integration National Dataset (WIND) Toolkit (includes Sup3rWind data).
-[Data set]. Open Energy Data Initiative (OEDI). National Renewable Energy
-Laboratory. https://doi.org/10.25984/1822195
+Super-Resolution for Renewable Energy Resource Data with Wind from Reanalysis 
+(Sup3rWind). [Data set]. Open Energy Data Initiative (OEDI). National Renewable 
+Energy Laboratory. https://data.openei.org/submissions/8455
 
 Super-Resolution for Renewable Resource Data and Urban Heat Islands (Sup3rUHI).
 [Data set]. Open Energy Data Initiative (OEDI). National Renewable Energy Lab
