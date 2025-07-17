@@ -309,14 +309,14 @@ class ExoDataHandler:
         Each step entry can also contain enhancement factors. e.g.::
         [{'model': 0, 'combine_type': 'input', 's_enhance': 1, 't_enhance': 1},
          {'model': 0, 'combine_type': 'layer', 's_enhance': 3, 't_enhance': 1}]
-    source_file : str
-        Filepath to source wtk, nsrdb, or netcdf file to get hi-res data from
+    source_files : str
+        Filepath to source wtk, nsrdb, or netcdf files to get hi-res data from
         which will be mapped to the enhanced grid of the file_paths input.
-        Pixels from this file will be mapped to their nearest low-res pixel in
-        the file_paths input. Accordingly, the input should be a significantly
-        higher resolution than file_paths. Warnings will be raised if the
-        low-resolution pixels in file_paths do not have unique nearest pixels
-        from this exo source data.
+        Pixels from these files will be mapped to their nearest low-res pixel
+        in the file_paths input. Accordingly, the input should be a
+        significantly higher resolution than file_paths. Warnings will be
+        raised if the low-resolution pixels in file_paths do not have unique
+        nearest pixels from this exo source data.
     input_handler_name : str
         data handler class used by the exo handler. Provide a string name to
         match a :class:`~sup3r.preprocessing.rasterizers.Rasterizer`. If None
@@ -326,6 +326,8 @@ class ExoDataHandler:
     input_handler_kwargs : dict | None
         Any kwargs for initializing the ``input_handler_name`` class used by
         the exo handler.
+    source_handler_kwargs : dict | None
+        Any kwargs for initializing the source handler (``Loader``).
     cache_dir : str | None
         Directory for storing cache data. Default is './exo_cache'. If None
         then no data will be cached.
@@ -335,18 +337,19 @@ class ExoDataHandler:
         be "auto". This is passed to ``.chunk()`` before returning exo data
         through ``.data`` attribute
     distance_upper_bound : float | None
-        Maximum distance to map high-resolution data from source_file to the
+        Maximum distance to map high-resolution data from source_files to the
         low-resolution file_paths input. None (default) will calculate this
-        based on the median distance between points in source_file
+        based on the median distance between points in source_files
     """
 
     file_paths: Union[str, list, pathlib.Path]
     feature: str
     model: Optional[Union['Sup3rGan', 'MultiStepGan']] = None
     steps: Optional[list] = None
-    source_file: Optional[str] = None
+    source_files: Optional[str] = None
     input_handler_name: Optional[str] = None
     input_handler_kwargs: Optional[dict] = None
+    source_handler_kwargs: Optional[dict] = None
     cache_dir: str = './exo_cache'
     chunks: Optional[Union[str, dict]] = 'auto'
     distance_upper_bound: Optional[int] = None
@@ -403,12 +406,13 @@ class ExoDataHandler:
         """Get exo rasterizer instance for given enhancement factors"""
         return ExoRasterizer(
             file_paths=self.file_paths,
-            source_file=self.source_file,
+            source_files=self.source_files,
             feature=self.feature,
             s_enhance=s_enhance,
             t_enhance=t_enhance,
             input_handler_name=self.input_handler_name,
             input_handler_kwargs=self.input_handler_kwargs,
+            source_handler_kwargs=self.source_handler_kwargs,
             cache_dir=self.cache_dir,
             chunks=self.chunks,
             distance_upper_bound=self.distance_upper_bound,

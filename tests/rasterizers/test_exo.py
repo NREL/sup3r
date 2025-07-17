@@ -50,7 +50,7 @@ def test_exo_cache(feature):
         base = ExoDataHandler(
             pytest.FPS_GCM,
             feature,
-            source_file=fp_topo,
+            source_files=fp_topo,
             steps=steps,
             input_handler_kwargs={'target': TARGET, 'shape': SHAPE},
             input_handler_name='Rasterizer',
@@ -66,7 +66,7 @@ def test_exo_cache(feature):
         cache = ExoDataHandler(
             pytest.FPS_GCM,
             feature,
-            source_file=pytest.FP_WTK,
+            source_files=pytest.FP_WTK,
             steps=steps,
             input_handler_kwargs={'target': TARGET, 'shape': SHAPE},
             input_handler_name='Rasterizer',
@@ -173,7 +173,7 @@ def test_srl_extraction_h5(s_enhance):
 
         kwargs = {
             'file_paths': pytest.FP_WTK,
-            'source_file': fp_exo_srl,
+            'source_files': fp_exo_srl,
             'feature': 'srl',
             's_enhance': s_enhance,
             't_enhance': 1,
@@ -229,7 +229,7 @@ def test_topo_extraction_h5(s_enhance):
 
         kwargs = {
             'file_paths': pytest.FP_WTK,
-            'source_file': fp_exo_topo,
+            'source_files': fp_exo_topo,
             'feature': 'topography',
             's_enhance': s_enhance,
             't_enhance': 1,

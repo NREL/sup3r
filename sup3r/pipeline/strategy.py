@@ -141,7 +141,7 @@ class ForwardPassStrategy:
         for the handler which opens the
         exogenous data. e.g.::
             {'topography': {
-                'source_file': ...,
+                'source_files': ...,
                 'input_files': ...,
                 'input_handler_kwargs': {'target': ..., 'shape': ...}}}
     bias_correct_method : str | None
@@ -589,10 +589,14 @@ class ForwardPassStrategy:
                 input_handler_kwargs = exo_kwargs.get(
                     'input_handler_kwargs', {}
                 )
+                source_handler_kwargs = exo_kwargs.get(
+                    'source_handler_kwargs', {}
+                )
                 input_handler_kwargs['target'] = self.input_handler.target
                 input_handler_kwargs['shape'] = self.input_handler.grid_shape
                 input_handler_kwargs['time_slice'] = self.padded_time_slice
                 exo_kwargs['input_handler_kwargs'] = input_handler_kwargs
+                exo_kwargs['source_handler_kwargs'] = source_handler_kwargs
                 exo_kwargs = get_class_kwargs(ExoDataHandler, exo_kwargs)
                 exo_kwargs_list.append(exo_kwargs)
         return exo_kwargs_list
