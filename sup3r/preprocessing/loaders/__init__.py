@@ -3,14 +3,15 @@ data."""
 
 from typing import ClassVar
 
-from sup3r.preprocessing.utilities import composite_info, get_source_type
+from sup3r.preprocessing.base import Sup3rMeta
+from sup3r.preprocessing.utilities import get_source_type
 
 from .base import BaseLoader
 from .h5 import LoaderH5
 from .nc import LoaderNC
 
 
-class Loader:
+class Loader(BaseLoader, metaclass=Sup3rMeta):
     """`Loader` class which parses input file type and returns
     appropriate `TypeSpecificLoader`."""
 

@@ -80,7 +80,8 @@ class BaseExoRasterizer(ABC):
     input_handler_kwargs : dict | None
         Any kwargs for initializing the ``input_handler_name`` class.
     source_handler_kwargs : dict | None
-        Any kwargs for initializing the source handler (``Loader``).
+        Any kwargs for initializing the source handler
+        (:class:`~sup3r.preprocessing.Loader`).
     cache_dir : str | './exo_cache'
         Directory to use for caching rasterized data.
     chunks : str | dict
@@ -142,7 +143,8 @@ class BaseExoRasterizer(ABC):
         """Get the Loader object that handles the exogenous data file."""
         if self._source_handler is None:
             self._source_handler = Loader(
-                self.source_files, features=[self.feature],
+                self.source_files,
+                features=[self.feature],
                 **get_class_kwargs(Loader, self.source_handler_kwargs),
             )
         return self._source_handler
@@ -263,10 +265,7 @@ class BaseExoRasterizer(ABC):
         if self.distance_upper_bound is None:
             diff = da.diff(self.hr_lat_lon, axis=0)
             diff = da.abs(da.median(diff, axis=0)).max()
-
-            # divide by 2 - this should be distance to pixel edge rather than
-            # adjacent pixel center
-            self.distance_upper_bound = np.asarray(diff) / 2
+            self.distance_upper_bound = np.asarray(diff)
             logger.info(
                 'Set distance upper bound to {:.4f}'.format(
                     self.distance_upper_bound
@@ -397,7 +396,6 @@ class BaseExoRasterizer(ABC):
         assert (
             len(self.source_data.shape) == 2 and self.source_data.shape[1] > 1
         )
-
         target_tmask = self.hr_time_index.isin(self.source_handler.time_index)
         source_tmask = self.source_handler.time_index.isin(self.hr_time_index)
         out = np.full(self.hr_shape, np.nan, dtype=np.float32)
@@ -435,7 +433,8 @@ class ObsRasterizer(BaseExoRasterizer):
         feat = self.feature.replace('_obs', '')
         if self._source_handler is None:
             self._source_handler = Loader(
-                self.source_files, features=[feat],
+                self.source_files,
+                features=[feat],
                 **get_class_kwargs(Loader, self.source_handler_kwargs),
             )
         return self._source_handler
@@ -463,11 +462,18 @@ class ObsRasterizer(BaseExoRasterizer):
             )
         )
         cover_frac = (~np.isnan(hr_data)).sum() / hr_data.size
-        logger.info(
-            'Observations cover {:.4e} of the high-res domain.'.format(
+        if cover_frac == 0:
+            msg = (
+                'No observations found within the distance upper bound of '
+                f'{self.distance_upper_bound} degrees. '
+            )
+            warn(msg)
+            logger.warning(msg)
+        else:
+            msg = 'Observations cover {:.4e} of the high-res domain.'.format(
                 compute_if_dask(cover_frac)
             )
-        )
+            logger.info(msg)
         self.fill_nans = False  # override parent attribute to not fill nans
         return hr_data
 
