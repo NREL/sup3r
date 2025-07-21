@@ -70,8 +70,8 @@ class TrainingSession:
             model_thread.join()
             sys.exit()
 
-        logger.info('Finished training')
         model_thread.join()
+        logger.info('Finished training')
 
 
 class TensorboardMixIn:

@@ -3,14 +3,15 @@ data."""
 
 from typing import ClassVar
 
-from sup3r.preprocessing.utilities import composite_info, get_source_type
+from sup3r.preprocessing.base import Sup3rMeta
+from sup3r.preprocessing.utilities import get_source_type
 
 from .base import BaseLoader
 from .h5 import LoaderH5
 from .nc import LoaderNC
 
 
-class Loader:
+class Loader(BaseLoader, metaclass=Sup3rMeta):
     """`Loader` class which parses input file type and returns
     appropriate `TypeSpecificLoader`."""
 
@@ -18,7 +19,7 @@ class Loader:
 
     def __new__(cls, file_paths, **kwargs):
         """Override parent class to return type specific class based on
-        `source_file`"""
+        `source_files`"""
         SpecificClass = cls.TypeSpecificClasses[get_source_type(file_paths)]
         return SpecificClass(file_paths, **kwargs)
 

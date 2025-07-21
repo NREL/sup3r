@@ -161,14 +161,14 @@ def test_fwp_with_obs(
         exo_handler_kwargs = {
             'u_10m_obs': {
                 'file_paths': input_file,
-                'source_file': obs_file,
+                'source_files': obs_file,
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,
             },
             'v_10m_obs': {
                 'file_paths': input_file,
-                'source_file': obs_file,
+                'source_files': obs_file,
                 'target': target,
                 'shape': shape,
                 'cache_dir': td,

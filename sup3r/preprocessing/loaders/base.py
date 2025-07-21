@@ -25,12 +25,14 @@ logger = logging.getLogger(__name__)
 
 
 class BaseLoader(Container, ABC):
-    """Base loader. "Loads" files so that a `.data` attribute provides access
+    """
+    Base loader. "Loads" files so that a `.data` attribute provides access
     to the data in the files as a dask array with shape (lats, lons, time,
     features). This object provides a `__getitem__` method that can be used by
     :class:`~sup3r.preprocessing.samplers.Sampler` objects to build batches or
     by :class:`~sup3r.preprocessing.rasterizers.Rasterizer` objects to derive /
-    extract specific features / regions / time_periods."""
+    extract specific features / regions / time_periods.
+    """
 
     BASE_LOADER: Callable = xr_open_mfdataset
 

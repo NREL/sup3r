@@ -14,6 +14,7 @@ from sup3r.preprocessing import (
     DataHandlerH5WindCC,
     DataHandlerNCforCC,
     ExoRasterizer,
+    Loader,
     Rasterizer,
     SamplerDC,
 )
@@ -30,7 +31,8 @@ from sup3r.preprocessing import (
         DataHandlerH5SolarCC,
         DataHandlerH5WindCC,
         Rasterizer,
-        ExoRasterizer
+        ExoRasterizer,
+        Loader
     ),
 )
 def test_full_docs(obj):
