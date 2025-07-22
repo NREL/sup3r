@@ -460,7 +460,7 @@ class Cacher(Container):
         mode='w',
         attrs=None,
         verbose=False,
-        keep_dim_order=False # noqa # pylint: disable=W0613
+        keep_dim_order=False,  # noqa # pylint: disable=W0613
     ):
         """Cache data to a netcdf file.
 
@@ -515,6 +515,8 @@ class Cacher(Container):
                     dset, data_var.dtype, data_var.dims, chunksizes=chunksizes
                 )
                 var_attrs = data_var.attrs.copy()
+                var_attrs.setdefault('long_name', dset)
+                var_attrs.setdefault('standard_name', dset)
                 var_attrs.update(attrs.pop(dset, {}))
                 for attr_name, attr_value in var_attrs.items():
                     dout.setncattr(attr_name, safe_cast(attr_value))

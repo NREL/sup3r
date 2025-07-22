@@ -136,7 +136,9 @@ class BaseDeriver(Container):
             msg = 'All required features %s found. Proceeding.'
             if not missing:
                 logger.debug(msg, inputs)
-                return self._run_compute(feature, method)
+                out = self._run_compute(feature, method)
+                out.attrs.update({'inputs': inputs})
+                return out
             msg = (
                 'Some of the method inputs reference %s itself. We will '
                 'try height interpolation instead.'

@@ -50,6 +50,8 @@ def test_cacher_attrs():
         assert out.data['windspeed_100m'].attrs == {
             'attrs': 'test',
             'units': 'm/s',
+            'long_name': 'windspeed_100m',
+            'standard_name': 'windspeed_100m',
         }
         assert out.attrs == {**other_attrs, 'source_files': tmp_file}
 
