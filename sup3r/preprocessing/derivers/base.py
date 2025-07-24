@@ -89,10 +89,10 @@ class BaseDeriver(Container):
                 return method
         return None
 
-    def _get_inputs(self, feature):
+    def _get_inputs(self, feature, method=None):
         """Get method inputs and map any wildcards to height or pressure
         (depending on the name of "feature")"""
-        method = self._check_registry(feature)
+        method = method or self._check_registry(feature)
         fstruct = parse_feature(feature)
         return [fstruct.map_wildcard(i) for i in getattr(method, 'inputs', [])]
 
@@ -119,8 +119,7 @@ class BaseDeriver(Container):
         if isinstance(method, str):
             return method
         if hasattr(method, 'inputs'):
-            fstruct = parse_feature(feature)
-            inputs = [fstruct.map_wildcard(i) for i in method.inputs]
+            inputs = self._get_inputs(feature, method)
             missing = [f for f in inputs if f not in self.data]
             can_derive = all(
                 (self.no_overlap(m) or self.has_interp_variables(m))
@@ -132,12 +131,11 @@ class BaseDeriver(Container):
                 logger.debug(msg, missing)
                 for f in missing:
                     self.data[f] = self.derive(f)
-                return self._run_compute(feature, method)
             msg = 'All required features %s found. Proceeding.'
-            if not missing:
+            if not missing or all(f in self.data for f in missing):
                 logger.debug(msg, inputs)
                 out = self._run_compute(feature, method)
-                out.attrs.update({'inputs': inputs})
+                out.attrs.update(self.collect_input_attrs(feature, inputs))
                 return out
             msg = (
                 'Some of the method inputs reference %s itself. We will '
@@ -318,6 +316,31 @@ class BaseDeriver(Container):
             )
         return var_array, lev_array
 
+    def collect_input_attrs(self, feature, inputs=None):
+        """Collect attributes from the input features for the given feature."""
+        fstruct = parse_feature(feature)
+        attrs = {}
+        if inputs is None:
+            inputs = [
+                feat
+                for feat in self.data.features
+                if parse_feature(feat).basename == fstruct.basename
+            ]
+        for feat in inputs:
+            fattrs = self.data[feat].attrs
+            if fattrs is not None:
+                for k, v in fattrs.items():
+                    attrs.setdefault(k, [])
+                    if isinstance(v, (list, np.ndarray)):
+                        attrs[k].extend(v)
+                    else:
+                        attrs[k].append(v)
+        for k, v in attrs.items():
+            if len(set(v)) == 1:
+                attrs[k] = v[0]
+        attrs.setdefault('inputs', inputs)
+        return attrs
+
     def do_level_interpolation(
         self, feature, interp_kwargs=None
     ) -> xr.DataArray:
@@ -326,11 +349,7 @@ class BaseDeriver(Container):
         sl_var, sl_levs = self.get_single_level_data(feature)
 
         fstruct = parse_feature(feature)
-        attrs = {}
-        for feat in self.data.features:
-            if parse_feature(feat).basename == fstruct.basename:
-                attrs = self.data[feat].attrs
-
+        attrs = self.collect_input_attrs(feature)
         level = (
             fstruct.height if fstruct.height is not None else fstruct.pressure
         )
