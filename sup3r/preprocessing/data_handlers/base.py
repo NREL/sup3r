@@ -4,6 +4,12 @@
 :class:`~sup3r.preprocessing.loaders.Loader`,
 :class:`~sup3r.preprocessing.cachers.Cacher` classes.
 
+DataHandlers are used to load, rasterize, derive, and cache features from
+data. They can be used to load data from various sources, such as HDF5,
+NetCDF, or other formats, and to derive features from the loaded data. For
+example, you can provide u / v at isobars, geopotential, and surface elevation,
+to derive u / v at a specific height.
+
 TODO: If ``.data`` is a ``Sup3rDataset`` with more than one member only the
 high resolution data is cached. We could extend caching and loading to write /
 load both with groups
@@ -148,12 +154,13 @@ class DataHandler(Deriver):
 
         Examples
         --------
-        Extract windspeed at 40m and 80m above the ground from files for u/v at
-        10m and 100m. Windspeed will be interpolated from surrounding levels
+        Extract wind speed at 40m and 80m above the ground from files for u/v
+        at 10m and 100m. Windspeed will be interpolated from surrounding levels
         using a log profile. ``dh`` will contain dask arrays of this data with
-        10x10x50 chunk sizes. Data will be cached to files named
-        'windspeed_40m.h5' and 'windspeed_80m.h5' in './cache_dir' with
-        5x5x10 chunks on disk.
+        10x10x50 chunk sizes, which can be accessed with
+        ``dh['windspeed_40m']`` or ``dh['windspeed_80m']``. Data will be
+        cached to files named 'windspeed_40m.h5' and 'windspeed_80m.h5' in
+        './cache_dir' with 5x5x10 chunks on disk.
         >>> cache_chunks = {'south_north': 5, 'west_east': 5, 'time': 10}
         >>> load_chunks = {'south_north': 10, 'west_east': 10, 'time': 50}
         >>> grid_size = (50, 50)
@@ -170,6 +177,23 @@ class DataHandler(Deriver):
 
         Derive more features from already initialized data handler:
         >>> dh['windspeed_60m'] = dh.derive('windspeed_60m')
+
+        Derive wind speed and direction at 200m above the ground from files
+        for geopotential (zg), surface elevation (orog), and u/v at 10m, 100m,
+        and isobars.
+        >>> dh = DataHandler(
+        ...     file_paths=['./data_dir/u_10m.nc', './data_dir/u_100m.nc',
+        ...                 './data_dir/v_10m.nc', './data_dir/v_100m.nc',
+        ...                 './data_dir/u_isobars.nc',
+        ...                 './data_dir/v_isobars.nc',
+        ...                 './data_dir/zg.nc',
+        ...                 './data_dir/orog.nc'],
+        ...     features=['windspeed_200m', 'winddirection_200m'],
+        ...     shape=grid_size, time_slice=slice(0, 100),
+        ...     target=lower_left_coordinate,
+        ...     chunks=load_chunks, interp_kwargs={'method': 'log'},
+        ...     cache_kwargs={'cache_pattern': './cache_dir/{feature}.h5',
+        ...                   'chunks': cache_chunks})
         """  # pylint: disable=line-too-long
 
         features = parse_to_list(features=features)
