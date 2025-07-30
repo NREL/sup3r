@@ -8,7 +8,9 @@ DataHandlers are used to load, rasterize, derive, and cache features from
 data. They can be used to load data from various sources, such as HDF5,
 NetCDF, or other formats, and to derive features from the loaded data. For
 example, you can provide u / v at isobars, geopotential, and surface elevation,
-to derive u / v at a specific height.
+to derive u / v at a specific height. All variables (e.g. temperaute_500m) can
+be interpolated from isobars as long as geopotential and surface elevation are
+also provided.
 
 TODO: If ``.data`` is a ``Sup3rDataset`` with more than one member only the
 high resolution data is cached. We could extend caching and loading to write /
@@ -179,8 +181,8 @@ class DataHandler(Deriver):
         >>> dh['windspeed_60m'] = dh.derive('windspeed_60m')
 
         Derive wind speed and direction at 200m above the ground from files
-        for geopotential (zg), surface elevation (orog), and u/v at 10m, 100m,
-        and isobars.
+        for geopotential height (zg), surface elevation (orog), and u/v at 10m,
+        100m, and isobars. Both zg and orog are assumed to be in meters.
         >>> dh = DataHandler(
         ...     file_paths=['./data_dir/u_10m.nc', './data_dir/u_100m.nc',
         ...                 './data_dir/v_10m.nc', './data_dir/v_100m.nc',
