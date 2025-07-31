@@ -156,13 +156,13 @@ class DataHandler(Deriver):
 
         Examples
         --------
-        Extract wind speed at 40m and 80m above the ground from files for u/v
-        at 10m and 100m. Windspeed will be interpolated from surrounding levels
-        using a log profile. ``dh`` will contain dask arrays of this data with
-        10x10x50 chunk sizes, which can be accessed with
-        ``dh['windspeed_40m']`` or ``dh['windspeed_80m']``. Data will be
-        cached to files named 'windspeed_40m.h5' and 'windspeed_80m.h5' in
-        './cache_dir' with 5x5x10 chunks on disk.
+        >>> # Extract wind speed at 40m and 80m above the ground from files
+        >>> # for u/v at 10m and 100m. Windspeed will be interpolated from
+        >>> # surrounding levels using a log profile. ``dh`` will contain dask
+        >>> # arrays of this data with 10x10x50 chunk sizes, which can be
+        >>> # accessed with ``dh['windspeed_40m']`` or ``dh['windspeed_80m']``.
+        >>> # Data will be cached to files named 'windspeed_40m.h5' and
+        >>> # 'windspeed_80m.h5' in './cache_dir' with 5x5x10 chunks on disk.
         >>> cache_chunks = {'south_north': 5, 'west_east': 5, 'time': 10}
         >>> load_chunks = {'south_north': 10, 'west_east': 10, 'time': 50}
         >>> grid_size = (50, 50)
@@ -177,12 +177,13 @@ class DataHandler(Deriver):
         ...     cache_kwargs={'cache_pattern': './cache_dir/{feature}.h5',
         ...                   'chunks': cache_chunks})
 
-        Derive more features from already initialized data handler:
+        >>> # Derive more features from already initialized data handler:
         >>> dh['windspeed_60m'] = dh.derive('windspeed_60m')
 
-        Derive wind speed and direction at 200m above the ground from files
-        for geopotential height (zg), surface elevation (orog), and u/v at 10m,
-        100m, and isobars. Both zg and orog are assumed to be in meters.
+        >>> # Derive wind speed and direction at 200m above the ground from
+        >>> # files for geopotential height (zg), surface elevation (orog),
+        >>> # and u/v at 10m, 100m, and isobars. Both zg and orog are assumed
+        >>> # to be in meters.
         >>> dh = DataHandler(
         ...     file_paths=['./data_dir/u_10m.nc', './data_dir/u_100m.nc',
         ...                 './data_dir/v_10m.nc', './data_dir/v_100m.nc',

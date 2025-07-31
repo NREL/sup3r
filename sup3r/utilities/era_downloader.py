@@ -8,11 +8,11 @@ https://cds.climate.copernicus.eu/how-to-api
 
 Examples
 --------
-Download u / v at 10m, 100m, and specified pressure levels, for CONUS. Include
-orog = surface elevation, and zg = geopotential height, which are required for
-converting from pressure levels to heights. This downloads the data for all
-months, combine into a yearly file, and standardize the data for use in the
-sup3r package.
+>>> # Download u / v at 10m, 100m, and specified pressure levels, for CONUS.
+>>> # Include orog = surface elevation, and zg = geopotential height, which are
+>>> # required for converting from pressure levels to heights. This downloads
+>>> # the data for all months, combine into a yearly file, and standardize the
+>>> # data for use in the sup3r package.
 >>> area = [53, -132, 20, -60] # [max_lat, min_lon, min_lat, max_lon]
 >>> pressure_levels = [700, 800, 900, 925, 950, 975, 1000] # in hPa
 >>> monthly_file_pattern = f"./{year}/{month}/{{year}}_{{month}}_{{var}}.nc"
