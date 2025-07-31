@@ -96,6 +96,11 @@ class BaseExoRasterizer(ABC):
     fill_nans : bool
         Whether to fill nans in the output data. This should probably be True
         for all cases except for sparse observation data.
+    scale_factor : float
+        Scale factor to apply to the raw data from the source_files. This is
+        useful for scaling observation data which might systematically under or
+        over estimate the true value. For example, MADIS data is negatively
+        biased compared to 10m WTK data.
     max_workers : int
         Number of workers used for writing data to cache files. Gets passed to
         ``Cacher._write_single.``
@@ -115,6 +120,7 @@ class BaseExoRasterizer(ABC):
     chunks: Optional[Union[str, dict]] = 'auto'
     distance_upper_bound: Optional[int] = None
     fill_nans: bool = True
+    scale_factor: float = 1.0
     max_workers: int = 1
     verbose: bool = False
 
@@ -141,6 +147,9 @@ class BaseExoRasterizer(ABC):
     @property
     def source_handler(self):
         """Get the Loader object that handles the exogenous data file."""
+        assert self.source_files is not None, (
+            'source_files must be provided to BaseExoRasterizer'
+        )
         if self._source_handler is None:
             self._source_handler = Loader(
                 self.source_files,
@@ -333,6 +342,8 @@ class BaseExoRasterizer(ABC):
         else:
             hr_data = self._get_data_3d()
             dims = Dimension.dims_3d()
+
+        hr_data *= self.scale_factor
 
         if np.isnan(hr_data).any() and self.fill_nans:
             msg = (

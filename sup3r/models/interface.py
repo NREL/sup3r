@@ -134,7 +134,7 @@ class AbstractInterface(ABC):
             if any(s is None for s in s_enhances)
             else int(np.prod(s_enhances))
         )
-        if len(models) == 1:
+        if len(models) == 1 and isinstance(self.meta, dict):
             self.meta['s_enhance'] = s_enhance
         return s_enhance
 
@@ -150,7 +150,7 @@ class AbstractInterface(ABC):
             if any(t is None for t in t_enhances)
             else int(np.prod(t_enhances))
         )
-        if len(models) == 1:
+        if len(models) == 1 and isinstance(self.meta, dict):
             self.meta['t_enhance'] = t_enhance
         return t_enhance
 

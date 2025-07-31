@@ -340,6 +340,17 @@ class ExoDataHandler:
         Maximum distance to map high-resolution data from source_files to the
         low-resolution file_paths input. None (default) will calculate this
         based on the median distance between points in source_files
+    fill_nans : bool
+        Whether to fill nans in the output data. This should probably be True
+        for all cases except for sparse observation data.
+    scale_factor : float
+        Scale factor to apply to the raw data from the source_files. This is
+        useful for scaling observation data which might systematically under or
+        over estimate the true value. For example, MADIS data is negatively
+        biased compared to 10m WTK data.
+    max_workers : int | None
+        Number of workers used for writing data to cache files. Gets passed to
+        ``Cacher._write_single``.
     """
 
     file_paths: Union[str, list, pathlib.Path]
@@ -353,6 +364,9 @@ class ExoDataHandler:
     cache_dir: str = './exo_cache'
     chunks: Optional[Union[str, dict]] = 'auto'
     distance_upper_bound: Optional[int] = None
+    fill_nans: bool = True
+    scale_factor: float = 1.0
+    max_workers: Optional[int] = 1
 
     @log_args
     def __post_init__(self):
@@ -415,7 +429,10 @@ class ExoDataHandler:
             source_handler_kwargs=self.source_handler_kwargs,
             cache_dir=self.cache_dir,
             chunks=self.chunks,
+            fill_nans=self.fill_nans,
+            scale_factor=self.scale_factor,
             distance_upper_bound=self.distance_upper_bound,
+            max_workers=self.max_workers,
         )
 
     def get_single_step_data(self, s_enhance, t_enhance):
