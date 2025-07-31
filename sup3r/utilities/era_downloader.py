@@ -5,6 +5,29 @@ Note
 To use this you need to have ``cdsapi`` package installed and a ``~/.cdsapirc``
 file with a url and api key. Follow the instructions here:
 https://cds.climate.copernicus.eu/how-to-api
+
+Examples
+--------
+Download u / v at 10m, 100m, and specified pressure levels, for CONUS. Include
+orog = surface elevation, and zg = geopotential height, which are required for
+converting from pressure levels to heights. This downloads the data for all
+months, combine into a yearly file, and standardize the data for use in the
+sup3r package.
+>>> area = [53, -132, 20, -60] # [max_lat, min_lon, min_lat, max_lon]
+>>> pressure_levels = [700, 800, 900, 925, 950, 975, 1000] # in hPa
+>>> monthly_file_pattern = f"./{year}/{month}/{{year}}_{{month}}_{{var}}.nc"
+>>> yearly_file_pattern = f"./{year}/{{year}}_{{var}}.nc"
+>>> variables = ['u', 'v', 'orog', 'zg']
+>>> EraDownloader.run(
+        year=2021,
+        area=area,
+        levels=pressure_levels,
+        monthly_file_pattern=monthly_file_pattern,
+        yearly_file_pattern=yearly_file_pattern,
+        variables=variables,
+        max_workers=3,
+        product_type='reanalysis'
+    )
 """
 
 import logging

@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from typing import Tuple, Union
 
 import numpy as np
+import xarray as xr
 
 from sup3r.preprocessing.accessor import Sup3rX
 from sup3r.preprocessing.base import Sup3rDataset
@@ -83,7 +84,7 @@ class ClearSkyRatio(DerivedFeature):
 
         Returns
         -------
-        cs_ratio : ndarray
+        cs_ratio : xr.DataArray
             Clearsky ratio, e.g. the all-sky ghi / the clearsky ghi. NaN where
             nighttime.
         """
@@ -120,7 +121,7 @@ class ClearSkyRatioCC(DerivedFeature):
 
         Returns
         -------
-        cs_ratio : ndarray
+        cs_ratio : xr.DataArray
             Clearsky ratio, e.g. the all-sky ghi / the clearsky ghi. This is
             assumed to be daily average data for climate change source data.
         """
@@ -140,7 +141,7 @@ class CloudMask(DerivedFeature):
         """
         Returns
         -------
-        cloud_mask : ndarray
+        cloud_mask : xr.DataArray
             Cloud mask, e.g. 1 where cloudy, 0 where clear. NaN where
             nighttime. Data is float32 so it can be normalized without any
             integer weirdness.
@@ -157,6 +158,10 @@ class CloudMask(DerivedFeature):
         cloud_mask = data['ghi'] < data['clearsky_ghi']
         cloud_mask = cloud_mask.astype(np.float32)
         cloud_mask[night_mask] = np.nan
+        cloud_mask = xr.DataArray(
+            data=cloud_mask,
+            dims=Dimension.dims_3d()[: len(data.shape)]
+        )
         return cloud_mask.astype(np.float32)
 
 
@@ -234,7 +239,7 @@ class UWindPowerLaw(DerivedFeature):
 
         Returns
         -------
-        ndarray
+        xr.DataArray
             Derived feature array
 
         """
@@ -389,6 +394,10 @@ class Sza(DerivedFeature):
     def compute(cls, data):
         """Compute method for sza."""
         sza = SolarZenith.get_zenith(data.time_index, data.lat_lon)
+        sza = xr.DataArray(
+            data=sza,
+            dims=Dimension.dims_3d()[: len(sza.shape)]
+        )
         return sza.astype(np.float32)
 
 
