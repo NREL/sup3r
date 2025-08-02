@@ -480,7 +480,9 @@ class EraDownloader:
         )
 
     def process_and_combine(self):
-        """Process variables and combine."""
+        """Process variables and combine surface and level files into a single
+        monthly file. Proccesing includes renaming variables and converting to
+        standard units."""
 
         if os.path.exists(self.monthly_file) and not self._can_skip_file(
             self.monthly_file

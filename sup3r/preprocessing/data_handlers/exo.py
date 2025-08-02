@@ -329,8 +329,11 @@ class ExoDataHandler:
     source_handler_kwargs : dict | None
         Any kwargs for initializing the source handler (``Loader``).
     cache_dir : str | None
-        Directory for storing cache data. Default is './exo_cache'. If None
-        then no data will be cached.
+        Directory to use for caching rasterized data. If None (default) then no
+        data will be cached. If a string is provided then this will be
+        created if it does not exist and the rasterized data will be saved to
+        this directory. This is useful for speeding up subsequent runs of the
+        rasterizer.
     chunks : str | dict
         Dictionary of dimension chunk sizes for returned exo data. e.g.
         {'time': 100, 'south_north': 100, 'west_east': 100}. This can also just
@@ -361,7 +364,7 @@ class ExoDataHandler:
     input_handler_name: Optional[str] = None
     input_handler_kwargs: Optional[dict] = None
     source_handler_kwargs: Optional[dict] = None
-    cache_dir: str = './exo_cache'
+    cache_dir: Optional[str] = None
     chunks: Optional[Union[str, dict]] = 'auto'
     distance_upper_bound: Optional[int] = None
     fill_nans: bool = True
