@@ -94,8 +94,10 @@ class ExoData(dict):
 
                 steps_list = entry['steps']
                 for i, step in enumerate(steps_list):
-                    msg = (f'ExoData entry for {feat}, step #{i + 1}, must '
-                           'have a "data" and "combine_type" key.')
+                    msg = (
+                        f'ExoData entry for {feat}, step #{i + 1}, must '
+                        'have a "data" and "combine_type" key.'
+                    )
                     assert 'data' in step and 'combine_type' in step, msg
 
             self.update(steps)
@@ -285,13 +287,13 @@ class ExoDataHandler:
 
     Parameters
     ----------
+    feature : str
+        Exogenous feature to extract from file_paths
     file_paths : str | list
         A single source h5 file or netcdf file to extract raster data from. The
         string can be a unix-style file path which will be passed through
         glob.glob. This is typically low-res WRF output or GCM netcdf data that
         is source low-resolution data intended to be sup3r resolved.
-    feature : str
-        Exogenous feature to extract from file_paths
     model : Sup3rGan | MultiStepGan
         Model used to get exogenous data. If a ``MultiStepGan``
         ``lr_features``, ``hr_exo_features``, and ``hr_out_features`` will be
@@ -309,67 +311,16 @@ class ExoDataHandler:
         Each step entry can also contain enhancement factors. e.g.::
         [{'model': 0, 'combine_type': 'input', 's_enhance': 1, 't_enhance': 1},
          {'model': 0, 'combine_type': 'layer', 's_enhance': 3, 't_enhance': 1}]
-    source_files : str
-        Filepath to source wtk, nsrdb, or netcdf files to get hi-res data from
-        which will be mapped to the enhanced grid of the file_paths input.
-        Pixels from these files will be mapped to their nearest low-res pixel
-        in the file_paths input. Accordingly, the input should be a
-        significantly higher resolution than file_paths. Warnings will be
-        raised if the low-resolution pixels in file_paths do not have unique
-        nearest pixels from this exo source data.
-    input_handler_name : str
-        data handler class used by the exo handler. Provide a string name to
-        match a :class:`~sup3r.preprocessing.rasterizers.Rasterizer`. If None
-        the correct handler will be guessed based on file type and time series
-        properties. This is passed directly to the exo handler, along with
-        input_handler_kwargs
-    input_handler_kwargs : dict | None
-        Any kwargs for initializing the ``input_handler_name`` class used by
-        the exo handler.
-    source_handler_kwargs : dict | None
-        Any kwargs for initializing the source handler (``Loader``).
-    cache_dir : str | None
-        Directory to use for caching rasterized data. If None (default) then no
-        data will be cached. If a string is provided then this will be
-        created if it does not exist and the rasterized data will be saved to
-        this directory. This is useful for speeding up subsequent runs of the
-        rasterizer.
-    chunks : str | dict
-        Dictionary of dimension chunk sizes for returned exo data. e.g.
-        {'time': 100, 'south_north': 100, 'west_east': 100}. This can also just
-        be "auto". This is passed to ``.chunk()`` before returning exo data
-        through ``.data`` attribute
-    distance_upper_bound : float | None
-        Maximum distance to map high-resolution data from source_files to the
-        low-resolution file_paths input. None (default) will calculate this
-        based on the median distance between points in source_files
-    fill_nans : bool
-        Whether to fill nans in the output data. This should probably be True
-        for all cases except for sparse observation data.
-    scale_factor : float
-        Scale factor to apply to the raw data from the source_files. This is
-        useful for scaling observation data which might systematically under or
-        over estimate the true value. For example, MADIS data is negatively
-        biased compared to 10m WTK data.
-    max_workers : int | None
-        Number of workers used for writing data to cache files. Gets passed to
-        ``Cacher._write_single``.
+    exo_rasterizer_kwargs : dict
+        Keyword arguments passed to the
+        :class:`~sup3r.preprocessing.rasterizers.exo.BaseExoRasterizer` class.
     """
 
-    file_paths: Union[str, list, pathlib.Path]
     feature: str
+    file_paths: Union[str, list, pathlib.Path]
     model: Optional[Union['Sup3rGan', 'MultiStepGan']] = None
     steps: Optional[list] = None
-    source_files: Optional[str] = None
-    input_handler_name: Optional[str] = None
-    input_handler_kwargs: Optional[dict] = None
-    source_handler_kwargs: Optional[dict] = None
-    cache_dir: Optional[str] = None
-    chunks: Optional[Union[str, dict]] = 'auto'
-    distance_upper_bound: Optional[int] = None
-    fill_nans: bool = True
-    scale_factor: float = 1.0
-    max_workers: Optional[int] = 1
+    exo_rasterizer_kwargs: Optional[dict] = None
 
     @log_args
     def __post_init__(self):
@@ -422,20 +373,11 @@ class ExoDataHandler:
     def get_exo_rasterizer(self, s_enhance, t_enhance):
         """Get exo rasterizer instance for given enhancement factors"""
         return ExoRasterizer(
-            file_paths=self.file_paths,
-            source_files=self.source_files,
-            feature=self.feature,
             s_enhance=s_enhance,
             t_enhance=t_enhance,
-            input_handler_name=self.input_handler_name,
-            input_handler_kwargs=self.input_handler_kwargs,
-            source_handler_kwargs=self.source_handler_kwargs,
-            cache_dir=self.cache_dir,
-            chunks=self.chunks,
-            fill_nans=self.fill_nans,
-            scale_factor=self.scale_factor,
-            distance_upper_bound=self.distance_upper_bound,
-            max_workers=self.max_workers,
+            feature=self.feature,
+            file_paths=self.file_paths,
+            **self.exo_rasterizer_kwargs,
         )
 
     def get_single_step_data(self, s_enhance, t_enhance):
