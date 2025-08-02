@@ -199,8 +199,9 @@ class BaseExoRasterizer(ABC):
             fn += f'{start}_{end}_'
 
         fn += f'{self.s_enhance}x_{self.t_enhance}x.nc'
-        cache_fp = os.path.join(self.cache_dir, fn)
+        cache_fp = None
         if self.cache_dir is not None:
+            cache_fp = os.path.join(self.cache_dir, fn)
             os.makedirs(self.cache_dir, exist_ok=True)
         return cache_fp
 
@@ -311,7 +312,7 @@ class BaseExoRasterizer(ABC):
         t_enhance). The shape is (lats, lons, temporal, 1)"""
 
         cache_fp = self.cache_file
-        if os.path.exists(cache_fp):
+        if cache_fp is not None and os.path.exists(cache_fp):
             logger.info(
                 'Loading cached data for {} from {}'.format(
                     self.feature, cache_fp
@@ -321,7 +322,7 @@ class BaseExoRasterizer(ABC):
         else:
             data = self.get_data()
 
-        if not os.path.exists(cache_fp):
+        if cache_fp is not None and not os.path.exists(cache_fp):
             Cacher._write_single(
                 out_file=cache_fp,
                 data=data,
