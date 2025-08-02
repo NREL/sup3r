@@ -4,7 +4,6 @@ features."""
 
 import logging
 import pathlib
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional, Union
 
 import numpy as np
@@ -275,7 +274,6 @@ class ExoData(dict):
         return exo_chunk
 
 
-@dataclass
 class ExoDataHandler:
     """Class to rasterize exogenous features for multistep forward passes. e.g.
     Multiple topography arrays at different resolutions for multiple spatial
@@ -284,50 +282,65 @@ class ExoDataHandler:
     This takes a list of models and uses the different sets of models features
     to retrieve and rasterize exogenous data according to the requested target
     coordinate and grid shape, for each model step.
-
-    Parameters
-    ----------
-    feature : str
-        Exogenous feature to extract from file_paths
-    file_paths : str | list
-        A single source h5 file or netcdf file to extract raster data from. The
-        string can be a unix-style file path which will be passed through
-        glob.glob. This is typically low-res WRF output or GCM netcdf data that
-        is source low-resolution data intended to be sup3r resolved.
-    model : Sup3rGan | MultiStepGan
-        Model used to get exogenous data. If a ``MultiStepGan``
-        ``lr_features``, ``hr_exo_features``, and ``hr_out_features`` will be
-        checked for each model in ``model.models`` and exogenous data will be
-        retrieved based on the resolution required for that type of feature.
-        e.g. If a model has topography as a lr and hr_exo feature, and the
-        model performs 5x spatial enhancement with an input resolution of 30km
-        then topography at 30km and at 6km will be retrieved. Either this or
-        list of steps needs to be provided.
-    steps : list
-        List of dictionaries containing info on which models to use for a given
-        step index and what type of exo data the step requires. e.g.::
-        [{'model': 0, 'combine_type': 'input'},
-         {'model': 0, 'combine_type': 'layer'}]
-        Each step entry can also contain enhancement factors. e.g.::
-        [{'model': 0, 'combine_type': 'input', 's_enhance': 1, 't_enhance': 1},
-         {'model': 0, 'combine_type': 'layer', 's_enhance': 3, 't_enhance': 1}]
-    exo_rasterizer_kwargs : dict
-        Keyword arguments passed to the
-        :class:`~sup3r.preprocessing.rasterizers.exo.BaseExoRasterizer` class.
     """
 
-    feature: str
-    file_paths: Union[str, list, pathlib.Path]
-    model: Optional[Union['Sup3rGan', 'MultiStepGan']] = None
-    steps: Optional[list] = None
-    exo_rasterizer_kwargs: Optional[dict] = None
-
     @log_args
-    def __post_init__(self):
-        """Get list of steps with types of exogenous data needed for retrieval,
-        initialize `self.data`, and update `self.data` for each model step with
-        rasterized exo data."""
+    def __init__(
+        self,
+        feature: str,
+        file_paths: Union[str, list, pathlib.Path],
+        model: Optional[Union['Sup3rGan', 'MultiStepGan']] = None,
+        steps: Optional[list] = None,
+        **exo_rasterizer_kwargs,
+    ):
+        """
+        Get list of steps with types of exogenous data needed for
+        retrieval, initialize `self.data`, and update `self.data` for
+        each model step with rasterized exo data.
+
+        Parameters
+        ----------
+        feature : str
+            Exogenous feature to extract from file_paths
+        file_paths : str | list
+            A single source h5 file or netcdf file to extract raster
+            data from. The string can be a unix-style file path which
+            will be passed through glob.glob. This is typically low-res
+            WRF output or GCM netcdf data that is source low-resolution
+            data intended to be sup3r resolved.
+        model : Sup3rGan | MultiStepGan
+            Model used to get exogenous data. If a ``MultiStepGan``
+            ``lr_features``, ``hr_exo_features``, and
+            ``hr_out_features`` will be checked for each model in
+            ``model.models`` and exogenous data will be retrieved based
+            on the resolution required for that type of feature. e.g. If
+            a model has topography as a lr and hr_exo feature, and the
+            model performs 5x spatial enhancement with an input
+            resolution of 30km then topography at 30km and at 6km will
+            be retrieved. Either this or list of steps needs to be
+            provided.
+        steps : list
+            List of dictionaries containing info on which models to use
+            for a given step index and what type of exo data the step
+            requires. e.g.:: [{'model': 0, 'combine_type': 'input'},
+             {'model': 0, 'combine_type': 'layer'}]
+            Each step entry can also contain enhancement factors. e.g.::
+            [{'model': 0, 'combine_type': 'input', 's_enhance': 1,
+            't_enhance': 1},
+             {'model': 0, 'combine_type': 'layer', 's_enhance': 3,
+             't_enhance': 1}]
+        exo_rasterizer_kwargs : dict
+            Keyword arguments passed to the
+            :class:`~sup3r.preprocessing.rasterizers.exo.BaseExoRasterizer`
+            class.
+        """
+        self.feature = feature
+        self.file_paths = file_paths
+        self.model = model
+        self.steps = steps
+        self.exo_rasterizer_kwargs = exo_rasterizer_kwargs
         self.models = getattr(self.model, 'models', [self.model])
+
         if self.steps is None:
             self.steps = self.get_exo_steps(self.feature, self.models)
         else:
