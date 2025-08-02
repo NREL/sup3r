@@ -82,8 +82,12 @@ class BaseExoRasterizer(ABC):
     source_handler_kwargs : dict | None
         Any kwargs for initializing the source handler
         (:class:`~sup3r.preprocessing.Loader`).
-    cache_dir : str | './exo_cache'
-        Directory to use for caching rasterized data.
+    cache_dir : str | None
+        Directory to use for caching rasterized data. If None (default) then no
+        data will be cached. If a string is provided then this will be
+        created if it does not exist and the rasterized data will be saved to
+        this directory. This is useful for speeding up subsequent runs of the
+        rasterizer.
     chunks : str | dict
         Dictionary of dimension chunk sizes for returned exo data. e.g.
         {'time': 100, 'south_north': 100, 'west_east': 100}. This can also just
@@ -96,6 +100,11 @@ class BaseExoRasterizer(ABC):
     fill_nans : bool
         Whether to fill nans in the output data. This should probably be True
         for all cases except for sparse observation data.
+    scale_factor : float
+        Scale factor to apply to the raw data from the source_files. This is
+        useful for scaling observation data which might systematically under or
+        over estimate the true value. For example, MADIS data is negatively
+        biased compared to 10m WTK data.
     max_workers : int
         Number of workers used for writing data to cache files. Gets passed to
         ``Cacher._write_single.``
@@ -111,10 +120,11 @@ class BaseExoRasterizer(ABC):
     t_enhance: int = 1
     input_handler_name: Optional[str] = None
     input_handler_kwargs: Optional[dict] = None
-    cache_dir: str = './exo_cache/'
+    cache_dir: Optional[str] = None
     chunks: Optional[Union[str, dict]] = 'auto'
     distance_upper_bound: Optional[int] = None
     fill_nans: bool = True
+    scale_factor: float = 1.0
     max_workers: int = 1
     verbose: bool = False
 
@@ -141,6 +151,9 @@ class BaseExoRasterizer(ABC):
     @property
     def source_handler(self):
         """Get the Loader object that handles the exogenous data file."""
+        assert self.source_files is not None, (
+            'source_files must be provided to BaseExoRasterizer'
+        )
         if self._source_handler is None:
             self._source_handler = Loader(
                 self.source_files,
@@ -186,8 +199,9 @@ class BaseExoRasterizer(ABC):
             fn += f'{start}_{end}_'
 
         fn += f'{self.s_enhance}x_{self.t_enhance}x.nc'
-        cache_fp = os.path.join(self.cache_dir, fn)
+        cache_fp = None
         if self.cache_dir is not None:
+            cache_fp = os.path.join(self.cache_dir, fn)
             os.makedirs(self.cache_dir, exist_ok=True)
         return cache_fp
 
@@ -298,7 +312,7 @@ class BaseExoRasterizer(ABC):
         t_enhance). The shape is (lats, lons, temporal, 1)"""
 
         cache_fp = self.cache_file
-        if os.path.exists(cache_fp):
+        if cache_fp is not None and os.path.exists(cache_fp):
             logger.info(
                 'Loading cached data for {} from {}'.format(
                     self.feature, cache_fp
@@ -308,7 +322,7 @@ class BaseExoRasterizer(ABC):
         else:
             data = self.get_data()
 
-        if not os.path.exists(cache_fp):
+        if cache_fp is not None and not os.path.exists(cache_fp):
             Cacher._write_single(
                 out_file=cache_fp,
                 data=data,
@@ -333,6 +347,8 @@ class BaseExoRasterizer(ABC):
         else:
             hr_data = self._get_data_3d()
             dims = Dimension.dims_3d()
+
+        hr_data *= self.scale_factor
 
         if np.isnan(hr_data).any() and self.fill_nans:
             msg = (

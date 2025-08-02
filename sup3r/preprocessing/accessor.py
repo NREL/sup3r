@@ -588,6 +588,13 @@ class Sup3rX:
             len(self._ds[Dimension.LATITUDE].dims) == 2
             and len(self._ds[Dimension.LONGITUDE].dims) == 2
         )
+        if not lat_lon_2d:
+            msg = ('lat/lon data is not 2D. Either the regular grid has '
+                   'already been set or the data is non-regular')
+            logger.warning(msg)
+            warn(msg)
+            return self
+
         same_lats = np.allclose(
             np.diff(self._ds[Dimension.LATITUDE].values, axis=1), 0
         )
