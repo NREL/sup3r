@@ -284,8 +284,8 @@ def test_bad_s_enhance(s_enhance=10):
 
         with pytest.warns(UserWarning) as warnings:
             te = BaseExoRasterizer(
-                pytest.FP_WTK,
-                fp_exo_topo,
+                file_paths=pytest.FP_WTK,
+                source_files=fp_exo_topo,
                 feature='topography',
                 s_enhance=s_enhance,
                 t_enhance=1,
