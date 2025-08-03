@@ -21,7 +21,7 @@ def test_vortex_prepper(tmpdir_factory):
         os.makedirs(f'{td}/{m}')
         for h in in_heights:
             out_file = vortex_pattern.format(month=m, height=h)
-            make_fake_tif(shape=(100, 100), outfile=out_file)
+            make_fake_tif(shape=(100, 100), out_fille=out_file)
     vortex_out_file = os.path.join(td, 'vortex_means.h5')
 
     VortexMeanPrepper.run(

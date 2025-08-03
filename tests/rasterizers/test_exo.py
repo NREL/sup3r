@@ -313,8 +313,8 @@ def test_topo_extraction_nc():
     """
     with TemporaryDirectory() as td:
         te = BaseExoRasterizer(
-            pytest.FP_WRF,
-            pytest.FP_WRF,
+            file_paths=pytest.FP_WRF,
+            source_files=pytest.FP_WRF,
             feature='topography',
             s_enhance=1,
             t_enhance=1,
@@ -323,8 +323,8 @@ def test_topo_extraction_nc():
         hr_elev = np.asarray(te.data.as_array())
 
         te_gen = ExoRasterizer(
-            pytest.FP_WRF,
-            pytest.FP_WRF,
+            file_paths=pytest.FP_WRF,
+            source_files=pytest.FP_WRF,
             feature='topography',
             s_enhance=1,
             t_enhance=1,
