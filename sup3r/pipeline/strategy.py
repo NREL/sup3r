@@ -597,7 +597,6 @@ class ForwardPassStrategy:
                 input_handler_kwargs['time_slice'] = self.padded_time_slice
                 exo_kwargs['input_handler_kwargs'] = input_handler_kwargs
                 exo_kwargs['source_handler_kwargs'] = source_handler_kwargs
-                exo_kwargs = get_class_kwargs(ExoDataHandler, exo_kwargs)
                 exo_kwargs_list.append(exo_kwargs)
         return exo_kwargs_list
 

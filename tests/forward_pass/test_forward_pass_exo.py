@@ -104,8 +104,6 @@ def test_fwp_multi_step_model_topo_exoskip(input_files):
             'topography': {
                 'file_paths': input_files,
                 'source_files': pytest.FP_WTK,
-                'target': target,
-                'shape': shape,
                 'cache_dir': td,
             }
         }
@@ -199,8 +197,6 @@ def test_fwp_multi_step_spatial_model_topo_noskip(input_files):
             'topography': {
                 'file_paths': input_files,
                 'source_files': pytest.FP_WTK,
-                'target': target,
-                'shape': shape,
                 'cache_dir': td,
             }
         }
@@ -312,8 +308,6 @@ def test_fwp_multi_step_model_topo_noskip(input_files):
             'topography': {
                 'file_paths': input_files,
                 'source_files': pytest.FP_WTK,
-                'target': target,
-                'shape': shape,
                 'cache_dir': td,
             }
         }
@@ -386,8 +380,6 @@ def test_fwp_single_step_sfc_model(input_files, plot=False):
             'topography': {
                 'file_paths': input_files,
                 'source_files': pytest.FP_WTK,
-                'target': target,
-                'shape': shape,
                 'cache_dir': td,
                 'steps': [
                     {'model': 0, 'combine_type': 'input'},
@@ -513,8 +505,6 @@ def test_fwp_single_step_wind_hi_res_topo(input_files, plot=False):
             'topography': {
                 'file_paths': input_files,
                 'source_files': pytest.FP_WTK,
-                'target': target,
-                'shape': shape,
                 'cache_dir': td,
             }
         }
@@ -630,8 +620,6 @@ def test_fwp_multi_step_wind_hi_res_topo(input_files, gen_config_with_topo):
             'topography': {
                 'file_paths': input_files,
                 'source_files': pytest.FP_WTK,
-                'target': target,
-                'shape': shape,
                 'cache_dir': td,
             }
         }
@@ -706,8 +694,6 @@ def test_fwp_wind_hi_res_topo_plus_linear(input_files, gen_config_with_topo):
             'topography': {
                 'file_paths': input_files,
                 'source_files': pytest.FP_WTK,
-                'target': target,
-                'shape': shape,
                 'cache_dir': td,
             }
         }
@@ -798,14 +784,10 @@ def test_fwp_multi_step_model_multi_exo(input_files):
             'topography': {
                 'file_paths': input_files,
                 'source_files': pytest.FP_WTK,
-                'target': target,
-                'shape': shape,
                 'cache_dir': td,
             },
             'sza': {
                 'file_paths': input_files,
-                'target': target,
-                'shape': shape,
                 'cache_dir': td,
             },
         }
@@ -991,14 +973,10 @@ def test_fwp_multi_step_exo_hi_res_topo_and_sza(
             'topography': {
                 'file_paths': input_files,
                 'source_files': pytest.FP_WTK,
-                'target': target,
-                'shape': shape,
                 'cache_dir': td,
             },
             'sza': {
                 'file_paths': input_files,
-                'target': target,
-                'shape': shape,
                 'cache_dir': td,
             },
         }

@@ -44,22 +44,22 @@ class BaseExoRasterizer(ABC):
 
     Parameters
     ----------
+    feature : str
+        Name of exogenous feature to rasterize.
     file_paths : str | list
         A single source h5 file to extract raster data from or a list
         of netcdf files with identical grid. The string can be a unix-style
         file path which will be passed through glob.glob. This is
         typically low-res WRF output or GCM netcdf data files that is
         source low-resolution data intended to be sup3r resolved.
-    source_files : str | list
-        Filepath(s) to source data file to get hi-res exogenous data from which
+    source_files : str | list | None
+        Filepath(s) to source data file(s) to get hi-res exogenous data, which
         will be mapped to the enhanced grid of the file_paths input. Pixels
         from these files will be mapped to their nearest low-res pixel in
         the file_paths input. Accordingly, source_files should be a
         significantly higher resolution than file_paths. Warnings will be
         raised if the low-resolution pixels in file_paths do not have unique
         nearest pixels from source_files. File format can be .h5 or .nc
-    feature : str
-        Name of exogenous feature to rasterize.
     s_enhance : int
         Factor by which the Sup3rGan model will enhance the spatial
         dimensions of low resolution data from file_paths input. For
@@ -86,8 +86,11 @@ class BaseExoRasterizer(ABC):
         Directory to use for caching rasterized data. If None (default) then no
         data will be cached. If a string is provided then this will be
         created if it does not exist and the rasterized data will be saved to
-        this directory. This is useful for speeding up subsequent runs of the
-        rasterizer.
+        this directory. This is useful for speeding up forward passes on large
+        domains since the rasterized data will be cached once and then used for
+        all forward passes on chunks of the full domain. Files will be saved
+        to this directory with the name defined in ``.cache_file`` property.
+        define
     chunks : str | dict
         Dictionary of dimension chunk sizes for returned exo data. e.g.
         {'time': 100, 'south_north': 100, 'west_east': 100}. This can also just
@@ -112,10 +115,10 @@ class BaseExoRasterizer(ABC):
         Whether to log output as each chunk is written to cache file.
     """
 
+    feature: Optional[str] = None
     file_paths: Optional[str] = None
     source_files: Optional[str] = None
     source_handler_kwargs: Optional[dict] = None
-    feature: Optional[str] = None
     s_enhance: int = 1
     t_enhance: int = 1
     input_handler_name: Optional[str] = None
@@ -516,7 +519,7 @@ class SzaRasterizer(BaseExoRasterizer):
 class ExoRasterizer(BaseExoRasterizer, metaclass=Sup3rMeta):
     """Type agnostic `ExoRasterizer` class."""
 
-    def __new__(cls, file_paths, source_files, feature, **kwargs):
+    def __new__(cls, feature, file_paths, source_files=None, **kwargs):
         """Override parent class to return type specific class based on
         `source_files`"""
         if feature.lower() == 'sza':

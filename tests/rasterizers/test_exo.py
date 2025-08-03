@@ -48,8 +48,8 @@ def test_exo_cache(feature):
     with TemporaryDirectory() as td:
         fp_topo = make_topo_file(pytest.FPS_GCM[0], td)
         base = ExoDataHandler(
-            pytest.FPS_GCM,
-            feature,
+            file_paths=pytest.FPS_GCM,
+            feature=feature,
             source_files=fp_topo,
             steps=steps,
             input_handler_kwargs={'target': TARGET, 'shape': SHAPE},
@@ -64,8 +64,8 @@ def test_exo_cache(feature):
 
         # load cached data
         cache = ExoDataHandler(
-            pytest.FPS_GCM,
-            feature,
+            file_paths=pytest.FPS_GCM,
+            feature=feature,
             source_files=pytest.FP_WTK,
             steps=steps,
             input_handler_kwargs={'target': TARGET, 'shape': SHAPE},
