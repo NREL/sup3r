@@ -26,57 +26,54 @@ from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.utilities import compute_if_dask
 from sup3r.utilities.utilities import nn_fill_array
 
-from ..utilities import (
-    get_class_kwargs,
-    get_input_handler_class,
-    log_args,
-)
+from ..utilities import get_input_handler_class, log_args
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class BaseExoRasterizer(ABC):
-    """Class to extract high-res (4km+) data rasters for new
-    spatially-enhanced datasets (e.g. GCM files after spatial enhancement)
-    using nearest neighbor mapping and aggregation from NREL datasets (e.g. WTK
-    or NSRDB)
+    """Class to extract high-res (4km+) data rasters for new spatially-enhanced
+    datasets (e.g. GCM files after spatial enhancement) using nearest neighbor
+    mapping and aggregation from high-res datasets (e.g. WTK or NSRDB)
 
     Parameters
     ----------
     feature : str
         Name of exogenous feature to rasterize.
     file_paths : str | list
-        A single source h5 file to extract raster data from or a list
-        of netcdf files with identical grid. The string can be a unix-style
-        file path which will be passed through glob.glob. This is
-        typically low-res WRF output or GCM netcdf data files that is
-        source low-resolution data intended to be sup3r resolved.
+        A single source h5 file to extract raster data from or a list of netcdf
+        files with identical grid. The string can be a unix-style file path
+        which will be passed through glob.glob. This is typically low-res WRF
+        output or GCM netcdf data files that is source low-resolution data
+        intended to be sup3r resolved.
     source_files : str | list | None
         Filepath(s) to source data file(s) to get hi-res exogenous data, which
         will be mapped to the enhanced grid of the file_paths input. Pixels
-        from these files will be mapped to their nearest low-res pixel in
-        the file_paths input. Accordingly, source_files should be a
-        significantly higher resolution than file_paths. Warnings will be
-        raised if the low-resolution pixels in file_paths do not have unique
-        nearest pixels from source_files. File format can be .h5 or .nc
+        from these files will be mapped to their nearest low-res pixel in the
+        file_paths input. Accordingly, source_files should be a significantly
+        higher resolution than file_paths. Warnings will be raised if the
+        low-resolution pixels in file_paths do not have unique nearest pixels
+        from source_files. File format can be .h5 or .nc
     s_enhance : int
-        Factor by which the Sup3rGan model will enhance the spatial
-        dimensions of low resolution data from file_paths input. For
-        example, if getting topography data, file_paths has 100km data, and
-        s_enhance is 4, this class will output a topography raster
-        corresponding to the file_paths grid enhanced 4x to ~25km
+        Factor by which the Sup3rGan model will enhance the spatial dimensions
+        of low resolution data from file_paths input. For example, if getting
+        topography data, file_paths has 100km data, and s_enhance is 4, this
+        class will output a topography raster corresponding to the file_paths
+        grid enhanced 4x to ~25km. This parameter is calculated automatically
+        when running the forward pass with a config file.
     t_enhance : int
-        Factor by which the Sup3rGan model will enhance the temporal
-        dimension of low resolution data from file_paths input. For
-        example, if getting "sza" data, file_paths has hourly data, and
-        t_enhance is 4, this class will output an "sza" raster
-        corresponding to ``file_paths``, temporally enhanced 4x to 15 min
+        Factor by which the Sup3rGan model will enhance the temporal dimension
+        of low resolution data from file_paths input. For example, if getting
+        "sza" data, file_paths has hourly data, and t_enhance is 4, this class
+        will output an "sza" raster corresponding to ``file_paths``, temporally
+        enhanced 4x to 15 min. This parameter is calculated automatically
+        when running the forward pass with a config file.
     input_handler_name : str
         data handler class to use for input data. Provide a string name to
         match a ``data_handler`` or ``rasterizer`` imported into
-        ``~sup3r.preprocessing``. If None the correct handler will be
-        guessed based on file type and time series properties.
+        ``~sup3r.preprocessing``. If None the correct handler will be guessed
+        based on file type and time series properties.
     input_handler_kwargs : dict | None
         Any kwargs for initializing the ``input_handler_name`` class.
     source_handler_kwargs : dict | None
@@ -84,12 +81,12 @@ class BaseExoRasterizer(ABC):
         (:class:`~sup3r.preprocessing.Loader`).
     cache_dir : str | None
         Directory to use for caching rasterized data. If None (default) then no
-        data will be cached. If a string is provided then this will be
-        created if it does not exist and the rasterized data will be saved to
-        this directory. This is useful for speeding up forward passes on large
+        data will be cached. If a string is provided then this will be created
+        if it does not exist and the rasterized data will be saved to this
+        directory. This is useful for speeding up forward passes on large
         domains since the rasterized data will be cached once and then used for
-        all forward passes on chunks of the full domain. Files will be saved
-        to this directory with the name defined in ``.cache_file`` property.
+        all forward passes on chunks of the full domain. Files will be saved to
+        this directory with the name defined in ``.cache_file`` property.
         define
     chunks : str | dict
         Dictionary of dimension chunk sizes for returned exo data. e.g.
@@ -147,21 +144,20 @@ class BaseExoRasterizer(ABC):
         self.source_handler_kwargs = self.source_handler_kwargs or {}
         InputHandler = get_input_handler_class(self.input_handler_name)
         self.input_handler = InputHandler(
-            self.file_paths,
-            **get_class_kwargs(InputHandler, self.input_handler_kwargs),
+            self.file_paths, **self.input_handler_kwargs
         )
 
     @property
     def source_handler(self):
         """Get the Loader object that handles the exogenous data file."""
-        assert self.source_files is not None, (
-            'source_files must be provided to BaseExoRasterizer'
-        )
+        assert (
+            self.source_files is not None
+        ), 'source_files must be provided to BaseExoRasterizer'
         if self._source_handler is None:
             self._source_handler = Loader(
                 self.source_files,
                 features=[self.feature],
-                **get_class_kwargs(Loader, self.source_handler_kwargs),
+                **self.source_handler_kwargs,
             )
         return self._source_handler
 
@@ -374,10 +370,10 @@ class BaseExoRasterizer(ABC):
         return Sup3rX(xr.Dataset(coords=self.coords, data_vars=data_vars))
 
     def _get_data_2d(self):
-        """Get a raster of source values corresponding to the
-        high-resolution grid (the file_paths input grid * s_enhance *
-        t_enhance). This is used for time independent exogenous data
-        like topography. The shape is (lats, lons, 1)
+        """Get a raster of source values corresponding to the high-resolution
+        grid (the file_paths input grid * s_enhance * t_enhance). This is used
+        for time independent exogenous data like topography. The shape is
+        (lats, lons, 1)
         """
         assert (
             len(self.source_data.shape) == 2 and self.source_data.shape[1] == 1
@@ -402,27 +398,46 @@ class BaseExoRasterizer(ABC):
         return df[self.feature].values.reshape(self.hr_shape[:-1])
 
     def _get_data_3d(self):
-        """Get a raster of source values for spatiotemporal exogeneous
-        data corresponding to the high-resolution grid (the file_paths input
-        grid * s_enhance * t_enhance) and high-resolution time index.
-        The shape is (lats, lons, time)
+        """Get a raster of source values for spatiotemporal exogeneous data
+        corresponding to the high-resolution grid (the file_paths input grid *
+        s_enhance * t_enhance) and high-resolution time index. The shape is
+        (lats, lons, time)
 
-        TODO: This does not currently perform any aggregation of the source
-        data, it just uses the closest source data point to the target
-        point, within the distance bound, and uses exact matches for
-        time steps.
+        TODO: This does not currently perform any time aggregation of the
+        source data, it just uses exact matches for time steps.
         """
         assert (
             len(self.source_data.shape) == 2 and self.source_data.shape[1] > 1
         )
         target_tmask = self.hr_time_index.isin(self.source_handler.time_index)
         source_tmask = self.source_handler.time_index.isin(self.hr_time_index)
-        out = np.full(self.hr_shape, np.nan, dtype=np.float32)
-        out = out.reshape((-1, out.shape[-1]))
-        gid_mask = self.nn != out.shape[0]
-        src_data = self.source_data[gid_mask][:, source_tmask]
-        out[self.nn[gid_mask][:, None], target_tmask] = src_data
-        return out.reshape(self.hr_shape)
+        data = self.source_data[:, source_tmask]
+        rows = pd.MultiIndex.from_product(
+            [self.nn, range(data.shape[-1])], names=['gid_target', 'time']
+        )
+        df = pd.DataFrame(
+            {
+                self.feature: self.source_data[:, source_tmask].flatten(),
+            },
+            index=rows,
+        )
+        n_target = np.prod(self.hr_shape[:-1])
+        df = df[df.index.get_level_values(0) != n_target]
+        df = df.sort_values('gid_target')
+        df = df.groupby(['gid_target', 'time']).mean()
+
+        missing = set(np.arange(n_target)) - set(df.index.get_level_values(0))
+        rows = pd.MultiIndex.from_product(
+            [sorted(missing), range(data.shape[-1])],
+            names=['gid_target', 'time'],
+        )
+        if any(missing):
+            temp_df = pd.DataFrame({self.feature: np.nan}, index=rows)
+            df = pd.concat((df, temp_df)).sort_index()
+
+        out = df[self.feature].values.reshape((*self.hr_shape[:-1], -1))
+        out = out[..., target_tmask]
+        return out
 
 
 class ObsRasterizer(BaseExoRasterizer):
@@ -454,7 +469,7 @@ class ObsRasterizer(BaseExoRasterizer):
             self._source_handler = Loader(
                 self.source_files,
                 features=[feat],
-                **get_class_kwargs(Loader, self.source_handler_kwargs),
+                **self.source_handler_kwargs,
             )
         return self._source_handler
 

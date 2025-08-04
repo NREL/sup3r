@@ -7,6 +7,7 @@ from tempfile import TemporaryDirectory
 import numpy as np
 import pandas as pd
 import pytest
+import xarray as xr
 from rex import Resource
 
 from sup3r.postprocessing import RexOutputs
@@ -17,6 +18,7 @@ from sup3r.preprocessing import (
     ExoDataHandler,
     ExoRasterizer,
 )
+from sup3r.utilities.pytest.helpers import make_fake_dset, make_fake_nc_file
 from sup3r.utilities.utilities import RANDOM_GENERATOR, xr_open_mfdataset
 
 TARGET = (13.67, 125.0)
@@ -37,14 +39,12 @@ def test_exo_cache(feature):
     # no cached data
     steps = []
     for s_en, t_en in zip(S_ENHANCE, T_ENHANCE):
-        steps.append(
-            {
-                's_enhance': s_en,
-                't_enhance': t_en,
-                'combine_type': 'input',
-                'model': 0,
-            }
-        )
+        steps.append({
+            's_enhance': s_en,
+            't_enhance': t_en,
+            'combine_type': 'input',
+            'model': 0,
+        })
     with TemporaryDirectory() as td:
         fp_topo = make_topo_file(pytest.FPS_GCM[0], td)
         base = ExoDataHandler(
@@ -119,13 +119,11 @@ def make_topo_file(fp, td, N=100, offset=0.1):
     idy, idx = idy.flatten(), idx.flatten()
     scale = 30
     elevation = np.sin(scale * np.deg2rad(idy) + scale * np.deg2rad(idx))
-    meta = pd.DataFrame(
-        {
-            Dimension.LATITUDE: lat,
-            Dimension.LONGITUDE: lon,
-            'elevation': elevation,
-        }
-    )
+    meta = pd.DataFrame({
+        Dimension.LATITUDE: lat,
+        Dimension.LONGITUDE: lon,
+        'elevation': elevation,
+    })
 
     fp_temp = os.path.join(td, 'elevation.h5')
     with RexOutputs(fp_temp, mode='w') as out:
@@ -149,12 +147,10 @@ def make_srl_file(fp, td, N=100, offset=0.1):
     lon, lat = lon.flatten(), lat.flatten()
     idy, idx = idy.flatten(), idx.flatten()
     srl = RANDOM_GENERATOR.uniform(0, 1, len(lat))
-    meta = pd.DataFrame(
-        {
-            Dimension.LATITUDE: lat,
-            Dimension.LONGITUDE: lon,
-        }
-    )
+    meta = pd.DataFrame({
+        Dimension.LATITUDE: lat,
+        Dimension.LONGITUDE: lon,
+    })
 
     fp_temp = os.path.join(td, 'srl.h5')
     with RexOutputs(fp_temp, mode='w') as out:
@@ -186,9 +182,9 @@ def test_srl_extraction_h5(s_enhance):
 
         te = BaseExoRasterizer(**kwargs)
 
-        te_gen = ExoRasterizer(
-            **{k: v for k, v in kwargs.items() if k != 'cache_dir'}
-        )
+        te_gen = ExoRasterizer(**{
+            k: v for k, v in kwargs.items() if k != 'cache_dir'
+        })
 
         assert np.array_equal(te.data.as_array(), te_gen.data.as_array())
 
@@ -242,9 +238,9 @@ def test_topo_extraction_h5(s_enhance):
 
         te = BaseExoRasterizer(**kwargs)
 
-        te_gen = ExoRasterizer(
-            **{k: v for k, v in kwargs.items() if k != 'cache_dir'}
-        )
+        te_gen = ExoRasterizer(**{
+            k: v for k, v in kwargs.items() if k != 'cache_dir'
+        })
 
         assert np.array_equal(te.data.as_array(), te_gen.data.as_array())
 
@@ -331,3 +327,71 @@ def test_topo_extraction_nc():
         )
         assert np.array_equal(te.data.as_array(), te_gen.data.as_array())
     assert np.allclose(te.source_data.flatten(), hr_elev.flatten())
+
+
+def test_obs_agg():
+    """Test the aggregation of 3D data"""
+    with TemporaryDirectory() as td:
+        make_fake_nc_file(
+            f'{td}/hr.nc',
+            (20, 20, 6),
+            ['u_10m'],
+            lat_range=(0, 5),
+            lon_range=(0, 5),
+        )
+        res = xr.open_mfdataset(f'{td}/hr.nc')
+        res = res.sx.coarsen(
+            {'south_north': 4, 'west_east': 4}
+        ).mean()
+        res.to_netcdf(f'{td}/lr.nc')
+
+        te = ExoRasterizer(
+            file_paths=f'{td}/lr.nc',
+            source_files=f'{td}/hr.nc',
+            feature='u_10m_obs',
+            s_enhance=2,
+            t_enhance=1,
+        )
+        agg_obs = np.asarray(te._agg_3d_data())
+        true_obs = te.source_handler['u_10m'].coarsen(
+            {'south_north': 2, 'west_east': 2}
+        ).mean().values
+        assert np.allclose(agg_obs, true_obs)
+
+
+@pytest.mark.parametrize('s_enhance', [1, 2, 5, 10])
+def test_obs_agg_with_nans(s_enhance):
+    """Test the aggregation of 3D data with some NaNs"""
+    with TemporaryDirectory() as td:
+        dset = make_fake_dset(
+            (40, 40, 6),
+            ['u_10m'],
+            lat_range=(0, 5),
+            lon_range=(0, 5),
+        )
+
+        mask = RANDOM_GENERATOR.choice(
+            [True, False], dset['u_10m'].shape, p=[0.6, 0.4]
+        )
+        u_10m = dset['u_10m'].values
+        u_10m[mask] = np.nan
+        dset['u_10m'] = (dset['u_10m'].dims, u_10m)
+        dset.to_netcdf(f'{td}/hr.nc')
+
+        res = dset.sx.coarsen(
+            {'south_north': 10, 'west_east': 10}
+        ).mean()
+        res.to_netcdf(f'{td}/lr.nc')
+
+        te = ExoRasterizer(
+            file_paths=f'{td}/lr.nc',
+            source_files=f'{td}/hr.nc',
+            feature='u_10m_obs',
+            s_enhance=s_enhance,
+            t_enhance=1,
+        )
+        agg_obs = np.asarray(te._get_data_3d())
+        true_obs = te.source_handler['u_10m'].coarsen(
+            {'south_north': 10 // s_enhance, 'west_east': 10 // s_enhance}
+        ).mean().values
+        assert np.allclose(agg_obs, true_obs, equal_nan=True)

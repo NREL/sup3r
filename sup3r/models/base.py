@@ -11,7 +11,6 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from sup3r.preprocessing.utilities import get_class_kwargs
 from sup3r.utilities import VERSION_RECORD
 
 from .abstract import AbstractSingleModel
@@ -340,17 +339,13 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             conf = self.get_optimizer_config(self.optimizer)
             conf.update(**kwargs)
             optimizer_class = get_optimizer_class(conf)
-            self._optimizer = optimizer_class.from_config(
-                get_class_kwargs(optimizer_class, conf)
-            )
+            self._optimizer = optimizer_class.from_config(conf)
 
         if 'disc' in option.lower() or 'all' in option.lower():
             conf = self.get_optimizer_config(self.optimizer_disc)
             conf.update(**kwargs)
             optimizer_class = get_optimizer_class(conf)
-            self._optimizer_disc = optimizer_class.from_config(
-                get_class_kwargs(optimizer_class, conf)
-            )
+            self._optimizer_disc = optimizer_class.from_config(conf)
 
     @property
     def meta(self):

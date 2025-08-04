@@ -24,7 +24,6 @@ from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.utilities import (
     _parse_time_slice,
     expand_paths,
-    get_class_kwargs,
     get_date_range_kwargs,
     get_input_handler_class,
     log_args,
@@ -640,15 +639,14 @@ class ForwardPassStrategy:
         """
         mask = np.zeros(len(self.lr_pad_slices))
         logger.info('Checking for mask in input handler.')
-        input_handler_kwargs = copy.deepcopy(self.input_handler_kwargs)
-        input_handler_kwargs['features'] = 'all'
-        loader = Loader(**get_class_kwargs(Loader, input_handler_kwargs))
+        loader = Loader(self.file_paths)
         if 'mask' in loader.data:
             logger.info(
                 'Found "mask" in DataHandler. Computing forward pass '
                 'chunk mask for %s chunks',
                 len(self.lr_pad_slices),
             )
+            input_handler_kwargs = copy.deepcopy(self.input_handler_kwargs)
             InputHandler = get_input_handler_class(self.input_handler_name)
             input_handler_kwargs['features'] = ['mask']
             handler = InputHandler(**input_handler_kwargs)
