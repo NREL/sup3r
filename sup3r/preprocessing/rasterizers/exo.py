@@ -428,11 +428,11 @@ class BaseExoRasterizer(ABC):
         df = df.groupby(['gid_target', 'time']).mean()
 
         missing = set(np.arange(n_target)) - set(df.index.get_level_values(0))
-        rows = pd.MultiIndex.from_product(
-            [sorted(missing), range(data.shape[-1])],
-            names=['gid_target', 'time'],
-        )
         if any(missing):
+            rows = pd.MultiIndex.from_product(
+                [sorted(missing), range(data.shape[-1])],
+                names=['gid_target', 'time'],
+            )
             temp_df = pd.DataFrame({self.feature: np.nan}, index=rows)
             df = pd.concat((df, temp_df)).sort_index()
 

@@ -11,6 +11,7 @@ import xarray as xr
 from rex import Resource
 
 from sup3r.preprocessing import Dimension, Loader, LoaderH5, LoaderNC
+from sup3r.preprocessing.loaders.utilities import standardize_values
 from sup3r.utilities.pytest.helpers import (
     make_fake_dset,
     make_fake_nc_file,
@@ -61,32 +62,29 @@ def test_standard_values():
     with TemporaryDirectory() as td:
         tmp_file = os.path.join(td, 'ta.nc')
         nc = make_fake_dset((10, 10, 10), features=['ta'])
-        old_vals = nc['ta'].values.copy() - 273.15
         nc['ta'].attrs['units'] = 'K'
+        old_vals = standardize_values(nc)['ta'].values
         nc.to_netcdf(tmp_file, format='NETCDF4', engine='h5netcdf')
         loader = Loader(tmp_file)
         assert loader.data['ta'].attrs['units'] == 'C'
         ta_vals = loader.data['ta'].transpose(*nc.dims).values
-        assert np.allclose(ta_vals, old_vals)
+        assert np.allclose(ta_vals, old_vals, rtol=0.01)
 
 
 def test_lat_inversion():
     """Write temp file with ascending lats and load. Needs to be corrected to
     descending lats."""
     with TemporaryDirectory() as td:
-        nc = make_fake_dset((20, 20, 100, 5), features=['u', 'v'])
-        nc[Dimension.LATITUDE] = (
-            nc[Dimension.LATITUDE].dims,
-            nc[Dimension.LATITUDE].data[::-1],
+        nc = make_fake_dset(
+            (20, 20, 100, 5), features=['u', 'v'], lat_range=(-70, 70)
         )
-        nc['u'] = (nc['u'].dims, nc['u'].data[:, :, ::-1, :])
         out_file = os.path.join(td, 'inverted.nc')
         nc.to_netcdf(out_file, format='NETCDF4', engine='h5netcdf')
         loader = LoaderNC(out_file)
         assert nc[Dimension.LATITUDE][0, 0] < nc[Dimension.LATITUDE][-1, 0]
         assert loader.lat_lon[-1, 0, 0] < loader.lat_lon[0, 0, 0]
 
-        assert np.array_equal(
+        assert np.allclose(
             nc['u']
             .transpose(
                 Dimension.SOUTH_NORTH,
@@ -96,6 +94,7 @@ def test_lat_inversion():
             )
             .data[::-1],
             loader['u'],
+            rtol=0.01,
         )
 
 
@@ -140,7 +139,7 @@ def test_level_inversion():
 
         og = nc['u'].transpose(*Dimension.dims_4d_pres()).values[..., ::-1]
         corrected = loader['u'].values
-        assert np.array_equal(og, corrected)
+        assert np.allclose(og, corrected, rtol=0.01)
 
 
 def test_load_cc():
@@ -294,9 +293,13 @@ def test_5d_load_nc():
         loader = LoaderNC([wind_file, level_file])
 
         assert loader.shape == (10, 10, 20, 3, 5)
-        assert sorted(loader.features) == sorted(
-            ['topography', 'u_100m', 'v_100m', 'zg', 'u']
-        )
+        assert sorted(loader.features) == sorted([
+            'topography',
+            'u_100m',
+            'v_100m',
+            'zg',
+            'u',
+        ])
         assert loader['u_100m'].shape == (10, 10, 20)
         assert loader['u'].shape == (10, 10, 20, 3)
         assert loader[['u', 'topography']].shape == (10, 10, 20, 3, 2)

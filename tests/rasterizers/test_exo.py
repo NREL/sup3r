@@ -352,7 +352,7 @@ def test_obs_agg():
             s_enhance=2,
             t_enhance=1,
         )
-        agg_obs = np.asarray(te._agg_3d_data())
+        agg_obs = np.asarray(te._get_data_3d())
         true_obs = te.source_handler['u_10m'].coarsen(
             {'south_north': 2, 'west_east': 2}
         ).mean().values

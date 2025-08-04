@@ -38,7 +38,7 @@ def make_fake_dset(
     """Make dummy data for tests."""
 
     if lat_range is None:
-        lat_range = (-70, 70)
+        lat_range = (70, -70)
     if lon_range is None:
         lon_range = (-150, 150)
 
