@@ -1,7 +1,8 @@
-"""Exo data rasterizers for topography and sza
+"""Exo data rasterizers for topography, srl, sza, observation data, etc.
 
-TODO: ExoDataHandler is pretty similar to ExoRasterizer. Maybe a mixin or
-subclass refactor here."""
+TODO: ExoDataHandler is pretty similar to ExoRasterizer and ExoRasterizer has
+a lot of the same logic as DualRasterizer. Maybe a mixin or subclass refactor
+here."""
 
 import logging
 import os
