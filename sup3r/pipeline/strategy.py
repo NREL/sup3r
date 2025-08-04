@@ -263,7 +263,8 @@ class ForwardPassStrategy:
             'worth doing as an independent preprocessing step instead.'
         )
         if self.head_node and not all(
-            os.path.exists(fp) for fp in self.get_exo_cache_files(model)
+            (fp is None or os.path.exists(fp))
+            for fp in self.get_exo_cache_files(model)
         ):
             logger.warning(msg)
             warn(msg)
@@ -278,7 +279,7 @@ class ForwardPassStrategy:
 
         # disable GPU if requested
         if self.use_cpu:
-            os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+            os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
     @property
     def meta(self):
@@ -504,7 +505,9 @@ class ForwardPassStrategy:
                 f'with shape={input_data.shape}'
             )
             fun = self.timer(
-                bias_correct_features, log=True, call_id=chunk_index,
+                bias_correct_features,
+                log=True,
+                call_id=chunk_index,
             )
             input_data = fun(
                 features=list(self.bias_correct_kwargs),
