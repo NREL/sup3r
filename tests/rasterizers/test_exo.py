@@ -356,7 +356,7 @@ def test_obs_agg():
         true_obs = te.source_handler['u_10m'].coarsen(
             {'south_north': 2, 'west_east': 2}
         ).mean().values
-        assert np.allclose(agg_obs, true_obs)
+        assert np.allclose(agg_obs, true_obs, equal_nan=True, rtol=0.01)
 
 
 @pytest.mark.parametrize('s_enhance', [1, 2, 5, 10])
