@@ -16,7 +16,7 @@ from sup3r.preprocessing.samplers import DualSamplerCC, Sampler, SamplerDC
 from sup3r.utilities.utilities import RANDOM_GENERATOR, pd_date_range
 
 
-def make_fake_tif(shape, out_fille):
+def make_fake_tif(shape, out_file):
     """Make dummy data for tests."""
 
     y = np.linspace(70, -70, shape[0])
@@ -29,7 +29,7 @@ def make_fake_tif(shape, out_fille):
         )
     }
     nc = xr.Dataset(coords=coords, data_vars=data_vars)
-    nc.to_netcdf(out_fille, format='NETCDF4', engine='h5netcdf')
+    nc.to_netcdf(out_file, format='NETCDF4', engine='h5netcdf')
 
 
 def make_fake_dset(

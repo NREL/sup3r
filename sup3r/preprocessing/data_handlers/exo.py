@@ -363,9 +363,9 @@ class ExoDataHandler:
     @classmethod
     def get_exo_steps(cls, feature, models):
         """Get list of steps describing how to use exogenous data for the given
-        feature in the list of given models. This checks the input and
-        exo feature lists for each model step and adds that step if the
-        given feature is found in the list."""
+        feature in the list of given models. This checks the input and exo
+        feature lists for each model step and adds that step if the given
+        feature is found in the list."""
         steps = []
         for i, model in enumerate(models):
             is_sfc_model = model.__class__.__name__ == 'SurfaceSpatialMetModel'

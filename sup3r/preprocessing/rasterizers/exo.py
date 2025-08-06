@@ -372,9 +372,14 @@ class BaseExoRasterizer(ABC):
 
     def _get_data_2d(self):
         """Get a raster of source values corresponding to the high-resolution
-        grid (the file_paths input grid * s_enhance * t_enhance). This is used
-        for time independent exogenous data like topography. The shape is
-        (lats, lons, 1)
+        grid (the file_paths input grid * s_enhance). This is used for time
+        independent exogenous data like topography. The shape is (lats, lons,
+        1)
+
+        Returns
+        -------
+        out : np.ndarray
+            3D array of source data with shape (lats, lons, 1).
         """
         assert (
             len(self.source_data.shape) == 2 and self.source_data.shape[1] == 1
@@ -401,11 +406,16 @@ class BaseExoRasterizer(ABC):
     def _get_data_3d(self):
         """Get a raster of source values for spatiotemporal exogeneous data
         corresponding to the high-resolution grid (the file_paths input grid *
-        s_enhance * t_enhance) and high-resolution time index. The shape is
-        (lats, lons, time)
+        s_enhance) and high-resolution time index (file paths input time index
+        * t_enhance). The shape is (lats, lons, time)
 
         TODO: This does not currently perform any time aggregation of the
         source data, it just uses exact matches for time steps.
+
+        Returns
+        -------
+        out : np.ndarray
+            3D array of source data with shape (lats, lons, time).
         """
         assert (
             len(self.source_data.shape) == 2 and self.source_data.shape[1] > 1
