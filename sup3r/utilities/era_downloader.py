@@ -53,12 +53,13 @@ class EraDownloader:
 
     >>> area = [53, -132, 20, -60] # [max_lat, min_lon, min_lat, max_lon]
     >>> pressure_levels = [700, 800, 900, 925, 950, 975, 1000] # in hPa
-    >>> monthly_fpattern = f"./{year}/{month}/{{year}}_{{month}}_{{var}}.nc"
-    >>> yearly_fpattern = f"./{year}/{{year}}_{{var}}.nc"
+    >>> monthly_fpattern = "./{year}/{month}/{year}_{month}_{var}.nc"
+    >>> yearly_fpattern = "./{year}/{year}_{var}.nc"
     >>> variables = ['u', 'v', 'orog', 'zg']
     >>> EraDownloader.run(
             year=2021,
             area=area,
+            months=list(range(1, 13)),
             levels=pressure_levels,
             monthly_file_pattern=monthly_fpattern,
             yearly_file_pattern=yearly_fpattern,
