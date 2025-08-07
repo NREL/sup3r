@@ -283,12 +283,21 @@ class MultiStepGan(AbstractInterface):
 
     @property
     def hr_exo_features(self):
-        """Get list of high-resolution exogenous filter names the model uses.
+        """Get list of high-resolution exogenous feature names the model uses.
         For the multi-step model, each entry in this list corresponds to one of
         the single-step models and is itself a list of hr_exo_features for that
         model.
         """
         return [model.hr_exo_features for model in self.models]
+
+    @property
+    def obs_features(self):
+        """Get list of high-resolution observation feature names the model
+        uses. For the multi-step model, each entry in this list corresponds to
+        one of the single-step models and is itself a list of obs_features for
+        that model.
+        """
+        return [model.obs_features for model in self.models]
 
     @property
     def model_params(self):

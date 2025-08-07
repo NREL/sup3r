@@ -20,7 +20,11 @@ class Loader(BaseLoader, metaclass=Sup3rMeta):
     def __new__(cls, file_paths, **kwargs):
         """Override parent class to return type specific class based on
         `source_files`"""
-        SpecificClass = cls.TypeSpecificClasses[get_source_type(file_paths)]
+        fp_type = get_source_type(file_paths)
+        assert fp_type in cls.TypeSpecificClasses, (
+            f'Unsupported file_paths: {file_paths}'
+        )
+        SpecificClass = cls.TypeSpecificClasses[fp_type]
         return SpecificClass(file_paths, **kwargs)
 
     _signature_objs = (BaseLoader,)

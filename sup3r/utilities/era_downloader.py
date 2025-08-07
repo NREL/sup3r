@@ -53,12 +53,13 @@ class EraDownloader:
 
     >>> area = [53, -132, 20, -60] # [max_lat, min_lon, min_lat, max_lon]
     >>> pressure_levels = [700, 800, 900, 925, 950, 975, 1000] # in hPa
-    >>> monthly_fpattern = f"./{year}/{month}/{{year}}_{{month}}_{{var}}.nc"
-    >>> yearly_fpattern = f"./{year}/{{year}}_{{var}}.nc"
+    >>> monthly_fpattern = "./{year}/{month}/{year}_{month}_{var}.nc"
+    >>> yearly_fpattern = "./{year}/{year}_{var}.nc"
     >>> variables = ['u', 'v', 'orog', 'zg']
     >>> EraDownloader.run(
             year=2021,
             area=area,
+            months=list(range(1, 13)),
             levels=pressure_levels,
             monthly_file_pattern=monthly_fpattern,
             yearly_file_pattern=yearly_fpattern,
@@ -480,7 +481,9 @@ class EraDownloader:
         )
 
     def process_and_combine(self):
-        """Process variables and combine."""
+        """Process variables and combine surface and level files into a single
+        monthly file. Proccesing includes renaming variables and converting to
+        standard units."""
 
         if os.path.exists(self.monthly_file) and not self._can_skip_file(
             self.monthly_file
@@ -819,7 +822,7 @@ class EraDownloader:
             for month in range(1, 13)
         ]
 
-        outfile = yearly_file_pattern.format(year=year, var=variable)
+        out_file = yearly_file_pattern.format(year=year, var=variable)
         default_kwargs = {
             'combine': 'nested',
             'concat_dim': 'time',
@@ -828,7 +831,7 @@ class EraDownloader:
         res_kwargs = res_kwargs or {}
         default_kwargs.update(res_kwargs)
         cls._combine_files(
-            files, outfile, chunks=chunks, res_kwargs=res_kwargs
+            files, out_file, chunks=chunks, res_kwargs=res_kwargs
         )
 
     @classmethod
@@ -853,10 +856,10 @@ class EraDownloader:
         return openable
 
     @classmethod
-    def _combine_files(cls, files, outfile, chunks='auto', res_kwargs=None):
-        if not os.path.exists(outfile):
-            os.makedirs(os.path.dirname(outfile), exist_ok=True)
-            logger.info(f'Combining {files} into {outfile}.')
+    def _combine_files(cls, files, out_file, chunks='auto', res_kwargs=None):
+        if not os.path.exists(out_file):
+            os.makedirs(os.path.dirname(out_file), exist_ok=True)
+            logger.info(f'Combining {files} into {out_file}.')
             try:
                 res_kwargs = res_kwargs or {}
                 loader = Loader(files, res_kwargs=res_kwargs)
@@ -865,7 +868,7 @@ class EraDownloader:
                         loader.data = loader.data.drop_vars(ignore_var)
                 Cacher._write_single(
                     data=loader.data,
-                    out_file=outfile,
+                    out_file=out_file,
                     max_workers=1,
                     chunks=chunks,
                 )
@@ -874,7 +877,7 @@ class EraDownloader:
                 logger.error(msg)
                 raise RuntimeError(msg) from e
         else:
-            logger.info(f'{outfile} already exists.')
+            logger.info(f'{out_file} already exists.')
 
     @classmethod
     def make_yearly_file(

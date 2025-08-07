@@ -16,7 +16,7 @@ from sup3r.preprocessing.samplers import DualSamplerCC, Sampler, SamplerDC
 from sup3r.utilities.utilities import RANDOM_GENERATOR, pd_date_range
 
 
-def make_fake_tif(shape, outfile):
+def make_fake_tif(shape, out_file):
     """Make dummy data for tests."""
 
     y = np.linspace(70, -70, shape[0])
@@ -29,14 +29,21 @@ def make_fake_tif(shape, outfile):
         )
     }
     nc = xr.Dataset(coords=coords, data_vars=data_vars)
-    nc.to_netcdf(outfile, format='NETCDF4', engine='h5netcdf')
+    nc.to_netcdf(out_file, format='NETCDF4', engine='h5netcdf')
 
 
-def make_fake_dset(shape, features, const=None):
+def make_fake_dset(
+    shape, features, lat_range=None, lon_range=None, const=None
+):
     """Make dummy data for tests."""
 
-    lats = np.linspace(70, -70, shape[0])
-    lons = np.linspace(-150, 150, shape[1])
+    if lat_range is None:
+        lat_range = (70, -70)
+    if lon_range is None:
+        lon_range = (-150, 150)
+
+    lats = np.linspace(*lat_range, shape[0])
+    lons = np.linspace(*lon_range, shape[1])
     lons, lats = np.meshgrid(lons, lats)
     time = pd.date_range('2023-01-01', '2023-12-31', freq='60min')[: shape[2]]
     dims = (
@@ -91,9 +98,11 @@ def make_fake_dset(shape, features, const=None):
     return nc.astype(np.float32)
 
 
-def make_fake_nc_file(file_name, shape, features):
+def make_fake_nc_file(
+    file_name, shape, features, lat_range=None, lon_range=None, const=None
+):
     """Make nc file with dummy data for tests."""
-    nc = make_fake_dset(shape, features)
+    nc = make_fake_dset(shape, features, lat_range, lon_range, const)
     nc.to_netcdf(file_name, format='NETCDF4', engine='h5netcdf')
 
 

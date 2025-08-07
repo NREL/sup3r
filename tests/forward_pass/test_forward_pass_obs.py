@@ -162,15 +162,11 @@ def test_fwp_with_obs(
             'u_10m_obs': {
                 'file_paths': input_file,
                 'source_files': obs_file,
-                'target': target,
-                'shape': shape,
                 'cache_dir': td,
             },
             'v_10m_obs': {
                 'file_paths': input_file,
                 'source_files': obs_file,
-                'target': target,
-                'shape': shape,
                 'cache_dir': td,
             },
         }

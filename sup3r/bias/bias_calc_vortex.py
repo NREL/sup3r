@@ -74,8 +74,8 @@ class VortexMeanPrepper:
         files = []
         for height in self.in_heights:
             infile = self.get_input_file(month, height)
-            outfile = infile.replace('.tif', '.nc')
-            files.append(outfile)
+            out_file = infile.replace('.tif', '.nc')
+            files.append(out_file)
         return files
 
     @property
@@ -111,11 +111,11 @@ class VortexMeanPrepper:
         """
         infile = self.get_input_file(month, height)
         logger.info(f'Getting mean windspeed_{height}m for {month}.')
-        outfile = infile.replace('.tif', '.nc')
-        if os.path.exists(outfile) and self.overwrite:
-            os.remove(outfile)
+        out_file = infile.replace('.tif', '.nc')
+        if os.path.exists(out_file) and self.overwrite:
+            os.remove(out_file)
 
-        if not os.path.exists(outfile) or self.overwrite:
+        if not os.path.exists(out_file) or self.overwrite:
             ds = xr.open_mfdataset(infile)
             ds = ds.rename(
                 {
@@ -125,8 +125,8 @@ class VortexMeanPrepper:
                 }
             )
             ds = ds.isel(band=0).drop_vars('band')
-            ds.to_netcdf(outfile, format='NETCDF4', engine='h5netcdf')
-        return outfile
+            ds.to_netcdf(out_file, format='NETCDF4', engine='h5netcdf')
+        return out_file
 
     def convert_month_tif(self, month):
         """Write netcdf files for all heights for the given month."""

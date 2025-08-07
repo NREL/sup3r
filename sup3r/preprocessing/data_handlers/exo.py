@@ -4,7 +4,6 @@ features."""
 
 import logging
 import pathlib
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional, Union
 
 import numpy as np
@@ -94,8 +93,10 @@ class ExoData(dict):
 
                 steps_list = entry['steps']
                 for i, step in enumerate(steps_list):
-                    msg = (f'ExoData entry for {feat}, step #{i + 1}, must '
-                           'have a "data" and "combine_type" key.')
+                    msg = (
+                        f'ExoData entry for {feat}, step #{i + 1}, must '
+                        'have a "data" and "combine_type" key.'
+                    )
                     assert 'data' in step and 'combine_type' in step, msg
 
             self.update(steps)
@@ -273,7 +274,6 @@ class ExoData(dict):
         return exo_chunk
 
 
-@dataclass
 class ExoDataHandler:
     """Class to rasterize exogenous features for multistep forward passes. e.g.
     Multiple topography arrays at different resolutions for multiple spatial
@@ -282,84 +282,65 @@ class ExoDataHandler:
     This takes a list of models and uses the different sets of models features
     to retrieve and rasterize exogenous data according to the requested target
     coordinate and grid shape, for each model step.
-
-    Parameters
-    ----------
-    file_paths : str | list
-        A single source h5 file or netcdf file to extract raster data from. The
-        string can be a unix-style file path which will be passed through
-        glob.glob. This is typically low-res WRF output or GCM netcdf data that
-        is source low-resolution data intended to be sup3r resolved.
-    feature : str
-        Exogenous feature to extract from file_paths
-    model : Sup3rGan | MultiStepGan
-        Model used to get exogenous data. If a ``MultiStepGan``
-        ``lr_features``, ``hr_exo_features``, and ``hr_out_features`` will be
-        checked for each model in ``model.models`` and exogenous data will be
-        retrieved based on the resolution required for that type of feature.
-        e.g. If a model has topography as a lr and hr_exo feature, and the
-        model performs 5x spatial enhancement with an input resolution of 30km
-        then topography at 30km and at 6km will be retrieved. Either this or
-        list of steps needs to be provided.
-    steps : list
-        List of dictionaries containing info on which models to use for a given
-        step index and what type of exo data the step requires. e.g.::
-        [{'model': 0, 'combine_type': 'input'},
-         {'model': 0, 'combine_type': 'layer'}]
-        Each step entry can also contain enhancement factors. e.g.::
-        [{'model': 0, 'combine_type': 'input', 's_enhance': 1, 't_enhance': 1},
-         {'model': 0, 'combine_type': 'layer', 's_enhance': 3, 't_enhance': 1}]
-    source_files : str
-        Filepath to source wtk, nsrdb, or netcdf files to get hi-res data from
-        which will be mapped to the enhanced grid of the file_paths input.
-        Pixels from these files will be mapped to their nearest low-res pixel
-        in the file_paths input. Accordingly, the input should be a
-        significantly higher resolution than file_paths. Warnings will be
-        raised if the low-resolution pixels in file_paths do not have unique
-        nearest pixels from this exo source data.
-    input_handler_name : str
-        data handler class used by the exo handler. Provide a string name to
-        match a :class:`~sup3r.preprocessing.rasterizers.Rasterizer`. If None
-        the correct handler will be guessed based on file type and time series
-        properties. This is passed directly to the exo handler, along with
-        input_handler_kwargs
-    input_handler_kwargs : dict | None
-        Any kwargs for initializing the ``input_handler_name`` class used by
-        the exo handler.
-    source_handler_kwargs : dict | None
-        Any kwargs for initializing the source handler (``Loader``).
-    cache_dir : str | None
-        Directory for storing cache data. Default is './exo_cache'. If None
-        then no data will be cached.
-    chunks : str | dict
-        Dictionary of dimension chunk sizes for returned exo data. e.g.
-        {'time': 100, 'south_north': 100, 'west_east': 100}. This can also just
-        be "auto". This is passed to ``.chunk()`` before returning exo data
-        through ``.data`` attribute
-    distance_upper_bound : float | None
-        Maximum distance to map high-resolution data from source_files to the
-        low-resolution file_paths input. None (default) will calculate this
-        based on the median distance between points in source_files
     """
 
-    file_paths: Union[str, list, pathlib.Path]
-    feature: str
-    model: Optional[Union['Sup3rGan', 'MultiStepGan']] = None
-    steps: Optional[list] = None
-    source_files: Optional[str] = None
-    input_handler_name: Optional[str] = None
-    input_handler_kwargs: Optional[dict] = None
-    source_handler_kwargs: Optional[dict] = None
-    cache_dir: str = './exo_cache'
-    chunks: Optional[Union[str, dict]] = 'auto'
-    distance_upper_bound: Optional[int] = None
-
     @log_args
-    def __post_init__(self):
-        """Get list of steps with types of exogenous data needed for retrieval,
-        initialize `self.data`, and update `self.data` for each model step with
-        rasterized exo data."""
+    def __init__(
+        self,
+        feature: str,
+        file_paths: Union[str, list, pathlib.Path],
+        model: Optional[Union['Sup3rGan', 'MultiStepGan']] = None,
+        steps: Optional[list] = None,
+        **exo_rasterizer_kwargs,
+    ):
+        """
+        Get list of steps with types of exogenous data needed for
+        retrieval, initialize `self.data`, and update `self.data` for
+        each model step with rasterized exo data.
+
+        Parameters
+        ----------
+        feature : str
+            Exogenous feature to extract from file_paths
+        file_paths : str | list
+            A single source h5 file or netcdf file to extract raster
+            data from. The string can be a unix-style file path which
+            will be passed through glob.glob. This is typically low-res
+            WRF output or GCM netcdf data that is source low-resolution
+            data intended to be sup3r resolved.
+        model : Sup3rGan | MultiStepGan
+            Model used to get exogenous data. If a ``MultiStepGan``
+            ``lr_features``, ``hr_exo_features``, and
+            ``hr_out_features`` will be checked for each model in
+            ``model.models`` and exogenous data will be retrieved based
+            on the resolution required for that type of feature. e.g. If
+            a model has topography as a lr and hr_exo feature, and the
+            model performs 5x spatial enhancement with an input
+            resolution of 30km then topography at 30km and at 6km will
+            be retrieved. Either this or list of steps needs to be
+            provided.
+        steps : list
+            List of dictionaries containing info on which models to use
+            for a given step index and what type of exo data the step
+            requires. e.g.:: [{'model': 0, 'combine_type': 'input'},
+             {'model': 0, 'combine_type': 'layer'}]
+            Each step entry can also contain enhancement factors. e.g.::
+            [{'model': 0, 'combine_type': 'input', 's_enhance': 1,
+            't_enhance': 1},
+             {'model': 0, 'combine_type': 'layer', 's_enhance': 3,
+             't_enhance': 1}]
+        exo_rasterizer_kwargs : dict
+            Keyword arguments passed to the
+            :class:`~sup3r.preprocessing.rasterizers.exo.BaseExoRasterizer`
+            class.
+        """
+        self.feature = feature
+        self.file_paths = file_paths
+        self.model = model
+        self.steps = steps
+        self.exo_rasterizer_kwargs = exo_rasterizer_kwargs
         self.models = getattr(self.model, 'models', [self.model])
+
         if self.steps is None:
             self.steps = self.get_exo_steps(self.feature, self.models)
         else:
@@ -382,9 +363,9 @@ class ExoDataHandler:
     @classmethod
     def get_exo_steps(cls, feature, models):
         """Get list of steps describing how to use exogenous data for the given
-        feature in the list of given models. This checks the input and
-        exo feature lists for each model step and adds that step if the
-        given feature is found in the list."""
+        feature in the list of given models. This checks the input and exo
+        feature lists for each model step and adds that step if the given
+        feature is found in the list."""
         steps = []
         for i, model in enumerate(models):
             is_sfc_model = model.__class__.__name__ == 'SurfaceSpatialMetModel'
@@ -405,17 +386,11 @@ class ExoDataHandler:
     def get_exo_rasterizer(self, s_enhance, t_enhance):
         """Get exo rasterizer instance for given enhancement factors"""
         return ExoRasterizer(
-            file_paths=self.file_paths,
-            source_files=self.source_files,
-            feature=self.feature,
             s_enhance=s_enhance,
             t_enhance=t_enhance,
-            input_handler_name=self.input_handler_name,
-            input_handler_kwargs=self.input_handler_kwargs,
-            source_handler_kwargs=self.source_handler_kwargs,
-            cache_dir=self.cache_dir,
-            chunks=self.chunks,
-            distance_upper_bound=self.distance_upper_bound,
+            feature=self.feature,
+            file_paths=self.file_paths,
+            **self.exo_rasterizer_kwargs,
         )
 
     def get_single_step_data(self, s_enhance, t_enhance):
