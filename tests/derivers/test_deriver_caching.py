@@ -22,8 +22,8 @@ features = ['windspeed_100m', 'winddirection_100m']
 def test_cacher_attrs():
     """Make sure attributes are preserved in cached data."""
     with tempfile.TemporaryDirectory() as td:
-        nc = make_fake_dset(shape=(10, 10, 10), features=['windspeed_100m'])
-        nc['windspeed_100m'].attrs = {'attrs': 'test'}
+        nc = make_fake_dset(shape=(10, 10, 10), features=['ws_100m'])
+        nc['ws_100m'].attrs = {'attrs': 'test'}
         other_attrs = {
             'GRIB_centre': 'ecmf',
             'Description': 'European Centre for Medium-Range Weather...',
@@ -39,6 +39,7 @@ def test_cacher_attrs():
         DataHandler(
             tmp_file,
             features=['windspeed_100m'],
+            feature_aliases={'ws_100m': 'windspeed_100m'},
             cache_kwargs={
                 'cache_pattern': cache_pattern,
                 'max_workers': 1,

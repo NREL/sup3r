@@ -31,6 +31,7 @@ class Rasterizer(BaseRasterizer):
         threshold=None,
         raster_file=None,
         max_delta=20,
+        feature_aliases=None,
         BaseLoader=None,
     ):
         """
@@ -79,6 +80,10 @@ class Rasterizer(BaseRasterizer):
             once. If shape is (20, 20) and max_delta=10, the full raster will
             be retrieved in four chunks of (10, 10). This helps adapt to
             non-regular grids that curve over large distances.
+        feature_aliases : dict
+            Optional dictionary of feature aliases to use when loading data.
+            This is useful for renaming features to expected sup3r names.
+            For example, {'sp': 'pressure_0m', 'u10': u_10m'}.
         BaseLoader : Callable
             Optional base loader method update. This is a function which
             takes `file_paths` and `**kwargs` and returns an initialized
@@ -95,6 +100,7 @@ class Rasterizer(BaseRasterizer):
             features=features,
             res_kwargs=res_kwargs,
             chunks='auto' if preload else chunks,
+            feature_aliases=feature_aliases,
             BaseLoader=BaseLoader,
         )
         super().__init__(

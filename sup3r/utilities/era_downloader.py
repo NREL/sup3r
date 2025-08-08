@@ -74,6 +74,7 @@ class EraDownloader:
         self,
         year,
         month,
+        days,
         area,
         levels,
         file_pattern,
@@ -89,6 +90,8 @@ class EraDownloader:
             Year of data to download.
         month : int
             Month of data to download.
+        days : list
+            List of days to download data for the given month.
         area : list
             Domain area of the data to download.
             [max_lat, min_lon, min_lat, max_lon]
@@ -109,6 +112,7 @@ class EraDownloader:
         """
         self.year = year
         self.month = month
+        self.days = [str(day).zfill(2) for day in days]
         self.area = area
         self.levels = levels
         self.overwrite = overwrite
@@ -145,14 +149,6 @@ class EraDownloader:
         return self._variables
 
     @property
-    def days(self):
-        """Get list of days for the requested month"""
-        return [
-            str(n).zfill(2)
-            for n in np.arange(1, monthrange(self.year, self.month)[1] + 1)
-        ]
-
-    @property
     def monthly_file(self):
         """Name of file with all surface and level variables for a given month
         and year."""
@@ -182,6 +178,9 @@ class EraDownloader:
         written to the given file.
         """
         tmp_file = file.replace('.nc', '_tmp.nc')
+        if os.path.exists(tmp_file):
+            logger.info('Removing previous tmp file %s.', tmp_file)
+            os.remove(tmp_file)
         return tmp_file
 
     def _prep_var_lists(self, variables):
@@ -397,9 +396,9 @@ class EraDownloader:
         ds = standardize_values(ds)
 
         if 'monthly' in self.product_type:
-            ds['time'] = pd.DatetimeIndex(
-                [f'{self.year}-{str(self.month).zfill(2)}-01']
-            )
+            ds['time'] = pd.DatetimeIndex([
+                f'{self.year}-{str(self.month).zfill(2)}-01'
+            ])
         ds.compute().to_netcdf(tmp_file, format='NETCDF4', engine='h5netcdf')
         os.replace(tmp_file, self.surface_file)
         logger.info(
@@ -470,9 +469,9 @@ class EraDownloader:
         ds = standardize_values(ds)
         ds = self.add_pressure(ds)
         if 'monthly' in self.product_type:
-            ds['time'] = pd.DatetimeIndex(
-                [f'{self.year}-{str(self.month).zfill(2)}-01']
-            )
+            ds['time'] = pd.DatetimeIndex([
+                f'{self.year}-{str(self.month).zfill(2)}-01'
+            ])
         ds.compute().to_netcdf(tmp_file, format='NETCDF4', engine='h5netcdf')
         os.replace(tmp_file, self.level_file)
         logger.info(
@@ -552,6 +551,7 @@ class EraDownloader:
         cls,
         year,
         month,
+        days,
         area,
         levels,
         file_pattern,
@@ -567,6 +567,8 @@ class EraDownloader:
             Year of data to download.
         month : int
             Month of data to download.
+        days : list
+            List of days to download data for the given month.
         area : list
             Domain area of the data to download.
             [max_lat, min_lon, min_lat, max_lon]
@@ -590,6 +592,7 @@ class EraDownloader:
             downloader = cls(
                 year=year,
                 month=month,
+                days=days,
                 area=area,
                 levels=levels,
                 file_pattern=file_pattern,
@@ -608,6 +611,7 @@ class EraDownloader:
         monthly_file_pattern,
         yearly_file_pattern=None,
         months=None,
+        days=None,
         overwrite=False,
         max_workers=None,
         variable=None,
@@ -636,6 +640,10 @@ class EraDownloader:
         months : list | None
             List of months to download data for. If None then all months for
             the given year will be downloaded.
+        days : list | None
+            List of days to download data for. If None then all days for the
+            given months will be downloaded. This should be a list of lists
+            with an entry for each month. e.g. [[1, 2], [1, 2, 3]]
         overwrite : bool
             Whether to overwrite existing files.
         max_workers : int
@@ -667,10 +675,17 @@ class EraDownloader:
 
         tasks = []
         months = list(range(1, 13)) if months is None else months
+        if days is None:
+            days = [
+                list(np.arange(1, monthrange(year, month)[1] + 1))
+                for month in months
+            ]
+        days = [[str(day).zfill(2) for day in d] for d in days]
         for month in months:
             task = dask.delayed(cls.run_month)(
                 year=year,
                 month=month,
+                days=days[month - 1],
                 area=area,
                 levels=levels,
                 file_pattern=monthly_file_pattern,
@@ -704,6 +719,7 @@ class EraDownloader:
         monthly_file_pattern,
         yearly_file_pattern=None,
         months=None,
+        days=None,
         overwrite=False,
         max_workers=None,
         variables=None,
@@ -732,6 +748,10 @@ class EraDownloader:
         months : list | None
             List of months to download data for. If None then all months for
             the given year will be downloaded.
+        days : list | None
+            List of days to download data for. If None then all days for the
+            given months will be downloaded. This should be a list of lists
+            with an entry for each month. e.g. [[1, 2], [1, 2, 3]]
         overwrite : bool
             Whether to overwrite existing files.
         max_workers : int
@@ -757,6 +777,7 @@ class EraDownloader:
                 area=area,
                 levels=levels,
                 months=months,
+                days=days,
                 monthly_file_pattern=monthly_file_pattern,
                 yearly_file_pattern=yearly_file_pattern,
                 overwrite=overwrite,

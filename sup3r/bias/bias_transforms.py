@@ -256,6 +256,7 @@ def local_linear_bc(
     lr_padded_slice=None,
     out_range=None,
     smoothing=0,
+    threshold=0.1,
 ):
     """Bias correct data using a simple annual (or multi-year) *scalar +adder
     method on a site-by-site basis.
@@ -291,6 +292,10 @@ def local_linear_bc(
         effect of extreme values within aggregations over large number of
         pixels.  This value is the standard deviation for the gaussian_filter
         kernel.
+    threshold : float
+        Nearest neighbor euclidean distance threshold. If the coordinates are
+        more than this value away from the bias correction lat/lon, an error is
+        raised.
 
     Returns
     -------
@@ -298,7 +303,9 @@ def local_linear_bc(
         out = data * scalar + adder
     """
 
-    out = _get_spatial_bc_factors(lat_lon, feature_name, bias_fp)
+    out = _get_spatial_bc_factors(
+        lat_lon, feature_name, bias_fp, threshold=threshold
+    )
     scalar, adder = out['scalar'], out['adder']
     # 3D bias correction factors have seasonal/monthly correction in last axis
     if len(scalar.shape) == 3 and len(adder.shape) == 3:
@@ -353,6 +360,7 @@ def monthly_local_linear_bc(
     smoothing=0,
     scalar_range=None,
     adder_range=None,
+    threshold=0.1,
 ):
     """Bias correct data using a simple monthly *scalar +adder method on a
     site-by-site basis.
@@ -403,6 +411,10 @@ def monthly_local_linear_bc(
         Allowed range for the scalar term in the linear bias correction.
     adder_range : tuple | None
         Allowed range for the adder term in the linear bias correction.
+    threshold : float
+        Nearest neighbor euclidean distance threshold. If the coordinates are
+        more than this value away from the bias correction lat/lon, an error is
+        raised.
 
     Returns
     -------
@@ -410,7 +422,9 @@ def monthly_local_linear_bc(
         out = data * scalar + adder
     """
     time_index = make_time_index_from_kws(date_range_kwargs)
-    out = _get_spatial_bc_factors(lat_lon, feature_name, bias_fp)
+    out = _get_spatial_bc_factors(
+        lat_lon, feature_name, bias_fp, threshold=threshold
+    )
     scalar, adder = out['scalar'], out['adder']
 
     assert len(scalar.shape) == 3, 'Monthly bias correct needs 3D scalars'
