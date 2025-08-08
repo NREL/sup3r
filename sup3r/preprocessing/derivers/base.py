@@ -374,6 +374,12 @@ class BaseDeriver(Container):
             level=np.float32(level),
             interp_kwargs=interp_kwargs,
         )
+
+        assert not np.isnan(out).any(), (
+            f'NaN values found in the interpolated output for {feature}. '
+            'Make sure there are no NaN values in the level or variable data.'
+        )
+
         return xr.DataArray(
             data=_rechunk_if_dask(out),
             dims=Dimension.dims_3d()[: len(out.shape)],
