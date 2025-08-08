@@ -169,7 +169,7 @@ class MultiStepGan(AbstractInterface):
             assert model.input_dims == len(hi_res.shape), msg
         return hi_res
 
-    def _match_model_input(self, model_step, hi_res):
+    def _match_model_input(self, model_step, hi_res, exo_data):
         """Match the output data of the previous model step to the input of
         the current model step. This is done to allow for model steps that
         only use a subset of the features from the previous model step."""
@@ -177,9 +177,9 @@ class MultiStepGan(AbstractInterface):
             current_model = self.models[model_step]
             previous_model = self.models[model_step - 1]
             output_feats = previous_model.hr_out_features
-            exo_feats = current_model.hr_exo_features
             input_feats = current_model.lr_features
-            input_feats = [f for f in input_feats if f not in exo_feats]
+            exo_data = exo_data or {}
+            input_feats = [f for f in input_feats if f not in exo_data]
             if not set(input_feats).issubset(set(output_feats)):
                 msg = (
                     'Model step {} input features {} do not match '
@@ -249,7 +249,7 @@ class MultiStepGan(AbstractInterface):
                     )
                 )
 
-                hi_res = self._match_model_input(i, hi_res)
+                hi_res = self._match_model_input(i, hi_res, i_exo_data)
 
                 hi_res = model.generate(
                     hi_res,

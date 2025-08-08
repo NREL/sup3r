@@ -25,6 +25,13 @@ def test_multi_step_model():
     model1 = Sup3rGan(fp_gen, fp_disc)
     model2 = Sup3rGan(fp_gen, fp_disc)
 
+    model1.meta['input_resolution'] = {'spatial': '27km', 'temporal': '64min'}
+    model2.meta['input_resolution'] = {'spatial': '9km', 'temporal': '16min'}
+    model1.set_model_params(lr_features=FEATURES,
+                            hr_out_features=FEATURES)
+    model2.set_model_params(lr_features=FEATURES,
+                            hr_out_features=FEATURES)
+
     _ = model1.generate(np.ones((4, 10, 10, 6, len(FEATURES))))
     _ = model2.generate(np.ones((4, 10, 10, 6, len(FEATURES))))
 
