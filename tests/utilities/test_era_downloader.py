@@ -82,6 +82,7 @@ def test_era_dl(tmpdir_factory):
     EraDownloaderTester.run_month(
         year=year,
         month=month,
+        days=[[1, 2, 3]],
         area=area,
         levels=levels,
         file_pattern=file_pattern,
