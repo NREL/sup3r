@@ -995,10 +995,6 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
             (n_obs, spatial_1, spatial_2, n_features)
             (n_obs, spatial_1, spatial_2, n_temporal, n_features)
         """
-        msg = (
-            '{} does not match any features in exogenous_data '
-            f'({list(exogenous_data)}). '
-        )
         feat_stack = []
         extras = []
         features = getattr(layer, 'features', [layer.name])
@@ -1007,12 +1003,15 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         for feat in features + exo_features:
             missing_obs = feat in features and feat not in exogenous_data
             if is_obs_layer and missing_obs:
-                logger.warning(
-                    msg.format(feat),
-                    'Will run without this observation feature.',
+                msg = (
+                    f'{feat} does not match any features in exogenous_data '
+                    f'({list(exogenous_data)}). Will run without this '
+                    'observation feature.'
                 )
+                logger.warning(msg)
                 continue
-            assert feat in exogenous_data, msg.format(feat)
+            msg = f'exogenous_data is missing required feature "{feat}"'
+            assert feat in exogenous_data, msg
             exo = exogenous_data.get_combine_type_data(feat, 'layer')
             exo = self._reshape_norm_exo(
                 input_array,
