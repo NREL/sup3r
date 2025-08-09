@@ -376,12 +376,20 @@ class BaseDeriver(Container):
             logger.error(msg, feature)
             raise RuntimeError(msg % feature)
 
-        assert (
-            not np.isnan(lev_array).any()
-        ), f'NaN values found in the interpolation level array for {feature}.'
-        assert (
-            not np.isnan(var_array).any()
-        ), f'NaN values found in the interpolation input data for {feature}.'
+        if np.isnan(lev_array).any():
+            msg = (
+                'NaN values found in the interpolation level array for '
+                f'{feature}.'
+            )
+            logger.warning(msg)
+            warn(msg)
+        if np.isnan(var_array).any():
+            msg = (
+                'NaN values found in the interpolation variable array for '
+                f'{feature}.'
+            )
+            logger.warning(msg)
+            warn(msg)
 
         out = Interpolator.interp_to_level(
             lev_array=lev_array,
