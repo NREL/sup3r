@@ -111,6 +111,7 @@ class DataHandler(Deriver):
         time_shift: Optional[int] = None,
         hr_spatial_coarsen: int = 1,
         nan_method_kwargs: Optional[dict] = None,
+        feature_aliases: Optional[dict] = None,
         BaseLoader: Optional[Callable] = None,
         FeatureRegistry: Optional[dict] = None,
         interp_kwargs: Optional[dict] = None,
@@ -174,6 +175,10 @@ class DataHandler(Deriver):
             will be passed to
             :py:meth:`sup3r.preprocessing.accessor.Sup3rX.interpolate_na`. e.g.
             {'method': 'linear', 'dim': 'time'}
+        feature_aliases : dict
+            Optional dictionary of feature aliases to use when loading data.
+            This is useful for renaming features to expected sup3r names.
+            For example, {'sp': 'pressure_0m', 'u10': u_10m'}.
         BaseLoader : Callable
             Base level file loader wrapped by
             :class:`~sup3r.preprocessing.loaders.Loader`. This is usually
@@ -216,6 +221,7 @@ class DataHandler(Deriver):
                 features=load_features,
                 res_kwargs=res_kwargs,
                 chunks=chunks,
+                feature_aliases=feature_aliases,
                 BaseLoader=BaseLoader,
             )
             self.rasterizer = self.loader = self.cache
@@ -231,6 +237,7 @@ class DataHandler(Deriver):
                 shape=shape,
                 time_slice=time_slice,
                 threshold=threshold,
+                feature_aliases=feature_aliases,
                 BaseLoader=BaseLoader,
                 **kwargs,
             )

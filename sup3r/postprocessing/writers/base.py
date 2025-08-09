@@ -23,6 +23,7 @@ from sup3r.utilities import VERSION_RECORD
 from sup3r.utilities.utilities import (
     enforce_limits,
     get_dset_attrs,
+    get_tmp_file,
     pd_date_range,
     safe_serialize,
     xr_open_mfdataset,
@@ -133,7 +134,7 @@ class OutputMixin:
         global_attrs : dict
             Namespace of file-global attributes for the final output data.
         """
-        tmp_file = out_file.replace('.h5', '.h5.tmp')
+        tmp_file = get_tmp_file(out_file)
         with RexOutputs(tmp_file, 'w') as fh:
             fh.meta = meta
             fh.time_index = time_index

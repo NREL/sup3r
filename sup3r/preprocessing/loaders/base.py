@@ -42,6 +42,7 @@ class BaseLoader(Container, ABC):
         features='all',
         res_kwargs=None,
         chunks='auto',
+        feature_aliases=None,
         BaseLoader=None,
     ):
         """
@@ -63,6 +64,10 @@ class BaseLoader(Container, ABC):
             methods for H5 and NETCDF data, respectively. This argument can
             be "auto" in additional to a dictionary. If this is None then the
             data will not be chunked and instead loaded directly into memory.
+        feature_aliases : dict
+            Optional dictionary of feature aliases to use when loading data.
+            This is useful for renaming features to expected sup3r names.
+            For example, {'sp': 'pressure_0m', 'u10': u_10m'}.
         BaseLoader : Callable
             Optional base loader update. The default for H5 files is
             MultiFileResourceX and for NETCDF is xarray.open_mfdataset
@@ -79,7 +84,10 @@ class BaseLoader(Container, ABC):
         data = lower_names(self._load())
         data = self._add_attrs(data)
         data = standardize_values(data)
-        data = standardize_names(data, FEATURE_NAMES).astype(np.float32)
+        feature_aliases = feature_aliases or {}
+        feature_names = FEATURE_NAMES.copy()
+        feature_names.update(feature_aliases)
+        data = standardize_names(data, feature_names).astype(np.float32)
         data = data.transpose(*ordered_dims(data.dims), ...)
         features = list(data.dims) if features == [] else features
         self.data = data[features] if features != 'all' else data

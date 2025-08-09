@@ -26,6 +26,18 @@ RANDOM_GENERATOR = np.random.default_rng(seed=42)
 logger = logging.getLogger(__name__)
 
 
+def get_tmp_file(file):
+    """Get a temporary file name based on the input file name."""
+    if not isinstance(file, str):
+        raise TypeError('file must be a string.')
+    tmp_file = file + '.tmp'
+    if os.path.exists(tmp_file):
+        logger.warning(
+            f'Temporary file {tmp_file} already exists. Removing...')
+        os.remove(tmp_file)
+    return tmp_file
+
+
 def nn_fill_array(array):
     """Fill any NaN values in an np.ndarray from the nearest non-nan values.
 

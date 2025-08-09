@@ -19,6 +19,7 @@ from scipy.interpolate import interp1d
 from sup3r.postprocessing import OutputHandler, RexOutputs
 from sup3r.preprocessing.utilities import log_args
 from sup3r.utilities import VERSION_RECORD
+from sup3r.utilities.utilities import get_tmp_file
 
 logger = logging.getLogger(__name__)
 
@@ -451,7 +452,7 @@ class BiasCorrectUpdate:
         max_workers : int | None
             Number of workers to use for parallel processing.
         """
-        tmp_file = out_file.replace('.h5', '.h5.tmp')
+        tmp_file = get_tmp_file(out_file)
         logger.info(f'Bias correcting {dset} in {in_file} with {bc_file}.')
         with Resource(in_file) as fh_in:
             OutputHandler._init_h5(

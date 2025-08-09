@@ -621,7 +621,7 @@ class Sup3rX:
     def _qa(self, feature, stats=None):
         """Get qa info for given feature."""
         info = {}
-        stats = stats or ['nan_perc', 'std', 'mean', 'min', 'max']
+        stats = stats or ['nan_perc', 'std', 'mean', 'min', 'max', 'units']
         logger.info('Running qa on feature: %s', feature)
         nan_count = 100 * np.isnan(self[feature].data).sum()
         nan_perc = nan_count / self[feature].size
@@ -630,6 +630,8 @@ class Sup3rX:
             logger.info('Running QA method %s on feature: %s', stat, feature)
             if stat == 'nan_perc':
                 info['nan_perc'] = compute_if_dask(nan_perc)
+            elif stat == 'units':
+                info['units'] = self[feature].attrs.get('units', None)
             else:
                 msg = f'Unknown QA method requested: {stat}'
                 assert hasattr(self[feature], stat), msg
