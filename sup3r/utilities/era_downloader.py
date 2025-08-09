@@ -31,6 +31,7 @@ from sup3r.preprocessing.names import (
     Dimension,
 )
 from sup3r.preprocessing.utilities import log_args, ordered_dims
+from sup3r.utilities.utilities import get_tmp_file
 
 # these are occasionally included in downloaded files, more often with cds-beta
 IGNORE_VARS = ('number', 'expver')
@@ -172,17 +173,6 @@ class EraDownloader:
         basename = os.path.basename(self.monthly_file)
         return os.path.join(basedir, f'level_{basename}')
 
-    @classmethod
-    def get_tmp_file(cls, file):
-        """Get temp file for given file. Then only needed variables will be
-        written to the given file.
-        """
-        tmp_file = file.replace('.nc', '_tmp.nc')
-        if os.path.exists(tmp_file):
-            logger.info('Removing previous tmp file %s.', tmp_file)
-            os.remove(tmp_file)
-        return tmp_file
-
     def _prep_var_lists(self, variables):
         """Add all downloadable variables for the generic requested variables.
         e.g. if variable = 'u' add all downloadable u variables to list.
@@ -280,7 +270,7 @@ class EraDownloader:
             time_dict['day'] = self.days
 
         if sfc_check:
-            tmp_file = self.get_tmp_file(self.surface_file)
+            tmp_file = get_tmp_file(self.surface_file)
             self.download_file(
                 self.sfc_file_variables,
                 time_dict=time_dict,
@@ -293,7 +283,7 @@ class EraDownloader:
             os.replace(tmp_file, self.surface_file)
             logger.info('Moved %s to %s', tmp_file, self.surface_file)
         if level_check:
-            tmp_file = self.get_tmp_file(self.level_file)
+            tmp_file = get_tmp_file(self.level_file)
             self.download_file(
                 self.level_file_variables,
                 time_dict=time_dict,
@@ -383,7 +373,7 @@ class EraDownloader:
 
     def process_surface_file(self):
         """Rename variables and convert geopotential to geopotential height."""
-        tmp_file = self.get_tmp_file(self.surface_file)
+        tmp_file = get_tmp_file(self.surface_file)
         ds = Loader(self.surface_file)
 
         if 'z' in ds.data_vars:
@@ -458,7 +448,7 @@ class EraDownloader:
 
     def process_level_file(self):
         """Convert geopotential to geopotential height."""
-        tmp_file = self.get_tmp_file(self.level_file)
+        tmp_file = get_tmp_file(self.level_file)
         ds = Loader(self.level_file)
 
         if 'z' in ds.data_vars:

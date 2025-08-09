@@ -5,6 +5,7 @@ import logging
 import re
 from inspect import signature
 from typing import Type, Union
+from warnings import warn
 
 import dask.array as da
 import numpy as np
@@ -240,6 +241,13 @@ class BaseDeriver(Container):
             logger.error(msg, feature)
             raise RuntimeError(msg % feature)
 
+        if np.isnan(self.data[feature]).any():
+            msg = (
+                f'Feature "{feature}" contains NaN values. Either use '
+                '`nan_method_kwargs` to handle NaN values or clean the data.'
+            )
+            logger.warning(msg)
+            warn(msg)
         return self.data[feature]
 
     def get_single_level_data(self, feature):
@@ -367,6 +375,13 @@ class BaseDeriver(Container):
             msg = 'Neither single level nor multi level data was found for %s'
             logger.error(msg, feature)
             raise RuntimeError(msg % feature)
+
+        assert (
+            not np.isnan(lev_array).any()
+        ), f'NaN values found in the interpolation level array for {feature}.'
+        assert (
+            not np.isnan(var_array).any()
+        ), f'NaN values found in the interpolation input data for {feature}.'
 
         out = Interpolator.interp_to_level(
             lev_array=lev_array,
