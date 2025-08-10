@@ -415,9 +415,15 @@ class Cacher(Container):
         """Add chunk to netcdf file."""
         if msg is not None:
             logger.debug(msg)
-        with nc4.Dataset(out_file, 'a') as ds:
-            var = ds.variables[dset]
-            var[chunk_slice] = chunk_data
+        try:
+            with nc4.Dataset(out_file, 'a') as ds:
+                var = ds.variables[dset]
+                var[chunk_slice] = chunk_data
+        except Exception as e:
+            msg = (f'Error writing chunk {chunk_slice} for {dset} to '
+                   f'{out_file}: {e}')
+            logger.error(msg)
+            raise OSError(msg) from e
 
     @classmethod
     def write_netcdf_chunks(
