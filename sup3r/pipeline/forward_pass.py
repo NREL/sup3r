@@ -636,8 +636,12 @@ class ForwardPass:
 
         model = get_model(model_class, model_kwargs)
 
-        if np.isnan(chunk.input_data).any():
-            msg = 'Input data contains NaN values!'
+        mask = np.isnan(chunk.input_data).any(axis=(0, 1, 2))
+        if np.any(mask):
+            msg = (
+                f'Input data for {np.array(model.lr_features)[mask]} contains '
+                'NaN values!'
+            )
             logger.error(msg)
             raise RuntimeError(msg)
 
@@ -650,9 +654,7 @@ class ForwardPass:
             model=model,
         )
 
-        failed = cls._output_check(
-            output_data, allowed_const=allowed_const
-        )
+        failed = cls._output_check(output_data, allowed_const=allowed_const)
 
         if chunk.out_file is not None and not failed:
             logger.info(f'Saving forward pass output to {chunk.out_file}.')
