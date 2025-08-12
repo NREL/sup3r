@@ -571,6 +571,7 @@ class Sup3rX:
             dims = {Dimension.FLATTENED_SPATIAL: Dimension.dims_2d()}
             self._ds = self._ds.stack(dims)
             index = np.arange(len(self._ds[Dimension.FLATTENED_SPATIAL]))
+            self._ds = self._ds.drop_vars(Dimension.dims_2d())
             self._ds = self._ds.assign({Dimension.FLATTENED_SPATIAL: index})
         else:
             msg = 'Dataset is already flattened'
