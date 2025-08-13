@@ -391,18 +391,13 @@ class BaseExoRasterizer(ABC):
             'gid_target': self.nn,
         })
         n_target = np.prod(self.hr_shape[:-1])
+        out = np.full((n_target, 1), np.nan, dtype=np.float32)
         df = df[df['gid_target'] != n_target]
         df = df.sort_values('gid_target')
         df = df.groupby('gid_target').mean()
-
-        missing = set(np.arange(n_target)) - set(df.index)
-        if any(missing):
-            temp_df = pd.DataFrame(
-                {self.feature: np.nan}, index=sorted(missing)
-            )
-            df = pd.concat((df, temp_df)).sort_index()
-
-        return df[self.feature].values.reshape(self.hr_shape[:-1])
+        inds = df.index.values[df.index.values != n_target]
+        out[inds, 0] = df[self.feature].values
+        return out.reshape(self.hr_shape[:-1])
 
     def _get_data_3d(self):
         """Get a raster of source values for spatiotemporal exogeneous data
@@ -427,28 +422,19 @@ class BaseExoRasterizer(ABC):
         rows = pd.MultiIndex.from_product(
             [self.nn, range(data.shape[-1])], names=['gid_target', 'time']
         )
-        df = pd.DataFrame(
-            {
-                self.feature: self.source_data[:, source_tmask].flatten(),
-            },
-            index=rows,
-        )
+        df = pd.DataFrame({self.feature: data.flatten()}, index=rows)
         n_target = np.prod(self.hr_shape[:-1])
-        df = df[df.index.get_level_values(0) != n_target]
+        out = np.full(
+            (n_target, len(self.hr_time_index)), np.nan, dtype=np.float32
+        )
+        gids = df.index.get_level_values(0)
+        df = df[gids != n_target]
         df = df.sort_values('gid_target')
         df = df.groupby(['gid_target', 'time']).mean()
-
-        missing = set(np.arange(n_target)) - set(df.index.get_level_values(0))
-        if any(missing):
-            rows = pd.MultiIndex.from_product(
-                [sorted(missing), range(data.shape[-1])],
-                names=['gid_target', 'time'],
-            )
-            temp_df = pd.DataFrame({self.feature: np.nan}, index=rows)
-            df = pd.concat((df, temp_df)).sort_index()
-
-        out = df[self.feature].values.reshape((*self.hr_shape[:-1], -1))
-        out = out[..., target_tmask]
+        inds = gids.unique().values[gids.unique() != n_target][:, None]
+        vals = df[self.feature].values.reshape((-1, data.shape[-1]))
+        out[inds, target_tmask] = vals
+        out = out.reshape((*self.hr_shape[:-1], -1))
         return out
 
 
