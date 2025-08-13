@@ -17,7 +17,7 @@ from warnings import warn
 from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.names import Dimension
 from sup3r.preprocessing.utilities import _mem_check, _lowered
-from sup3r.utilities.utilities import safe_cast, safe_serialize
+from sup3r.utilities.utilities import safe_cast, safe_serialize, get_tmp_file
 from rex.utilities.utilities import to_records_array
 
 from .utilities import _check_for_cache
@@ -98,7 +98,8 @@ class Cacher(Container):
         """Write single NETCDF or H5 cache file."""
         if os.path.exists(out_file) and not overwrite:
             logger.info(
-                f'{out_file} already exists. Delete if you want to overwrite.'
+                f'{out_file} already exists. Delete or specify overwrite=True '
+                'if you want to overwrite.'
             )
             return
         if features == 'all':
@@ -106,7 +107,7 @@ class Cacher(Container):
         features = features if isinstance(features, list) else [features]
         _, ext = os.path.splitext(out_file)
         os.makedirs(os.path.dirname(out_file), exist_ok=True)
-        tmp_file = out_file + '.tmp'
+        tmp_file = get_tmp_file(out_file)
         logger.info('Writing %s to %s. %s', features, tmp_file, _mem_check())
         if ext == '.h5':
             func = cls.write_h5
@@ -142,6 +143,7 @@ class Cacher(Container):
         attrs=None,
         verbose=False,
         keep_dim_order=False,
+        overwrite=False,
     ):
         """Cache data to file with file type based on user provided
         cache_pattern.
@@ -168,6 +170,8 @@ class Cacher(Container):
             Whether to keep the original dimension order of the data. If
             ``False`` then the data will be transposed to have the time
             dimension first.
+        overwrite : bool
+            Whether to overwrite existing cache files.
         """
         msg = 'cache_pattern must have {feature} format key.'
         assert '{feature}' in cache_pattern, msg
@@ -177,11 +181,13 @@ class Cacher(Container):
             cache_kwargs={'cache_pattern': cache_pattern},
         )
 
-        if any(cached_files):
+        if any(cached_files) and not overwrite:
             logger.info(
                 f'Cache files with pattern {cache_pattern} already exist. '
-                'Delete to overwrite.'
+                'Delete or specify overwrite=True to overwrite.'
             )
+        elif any(cached_files) and overwrite:
+            missing_files += cached_files
 
         if any(missing_files):
             logger.info('Caching %s to %s', missing_features, missing_files)
@@ -196,6 +202,7 @@ class Cacher(Container):
                     verbose=verbose,
                     attrs=attrs,
                     keep_dim_order=keep_dim_order,
+                    overwrite=overwrite,
                 )
             logger.info('Finished writing %s', missing_files)
         return missing_files + cached_files
@@ -408,9 +415,15 @@ class Cacher(Container):
         """Add chunk to netcdf file."""
         if msg is not None:
             logger.debug(msg)
-        with nc4.Dataset(out_file, 'a') as ds:
-            var = ds.variables[dset]
-            var[chunk_slice] = chunk_data
+        try:
+            with nc4.Dataset(out_file, 'a') as ds:
+                var = ds.variables[dset]
+                var[chunk_slice] = chunk_data
+        except Exception as e:
+            msg = (f'Error writing chunk {chunk_slice} for {dset} to '
+                   f'{out_file}: {e}')
+            logger.error(msg)
+            raise OSError(msg) from e
 
     @classmethod
     def write_netcdf_chunks(

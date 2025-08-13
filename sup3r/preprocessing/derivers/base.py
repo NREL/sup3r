@@ -5,6 +5,7 @@ import logging
 import re
 from inspect import signature
 from typing import Type, Union
+from warnings import warn
 
 import dask.array as da
 import numpy as np
@@ -240,6 +241,13 @@ class BaseDeriver(Container):
             logger.error(msg, feature)
             raise RuntimeError(msg % feature)
 
+        if np.isnan(self.data[feature]).any():
+            msg = (
+                f'Feature "{feature}" contains NaN values. Either use '
+                '`nan_method_kwargs` to handle NaN values or clean the data.'
+            )
+            logger.warning(msg)
+            warn(msg)
         return self.data[feature]
 
     def get_single_level_data(self, feature):
@@ -368,12 +376,33 @@ class BaseDeriver(Container):
             logger.error(msg, feature)
             raise RuntimeError(msg % feature)
 
+        if np.isnan(lev_array).any():
+            msg = (
+                'NaN values found in the interpolation level array for '
+                f'{feature}.'
+            )
+            logger.warning(msg)
+            warn(msg)
+        if np.isnan(var_array).any():
+            msg = (
+                'NaN values found in the interpolation variable array for '
+                f'{feature}.'
+            )
+            logger.warning(msg)
+            warn(msg)
+
         out = Interpolator.interp_to_level(
             lev_array=lev_array,
             var_array=var_array,
             level=np.float32(level),
             interp_kwargs=interp_kwargs,
         )
+
+        assert not np.isnan(out).any(), (
+            f'NaN values found in the interpolated output for {feature}. '
+            'Make sure there are no NaN values in the level or variable data.'
+        )
+
         return xr.DataArray(
             data=_rechunk_if_dask(out),
             dims=Dimension.dims_3d()[: len(out.shape)],

@@ -12,7 +12,7 @@ from scipy.spatial import KDTree
 
 from sup3r.postprocessing.writers.base import RexOutputs
 from sup3r.preprocessing.utilities import _mem_check
-from sup3r.utilities.utilities import get_dset_attrs
+from sup3r.utilities.utilities import get_dset_attrs, get_tmp_file
 
 from .base import BaseCollector
 
@@ -813,7 +813,7 @@ class CollectorH5(BaseCollector):
         flist_chunks = collector.get_flist_chunks(
             collector.flist, n_writes=n_writes
         )
-        tmp_file = out_file + '.tmp'
+        tmp_file = get_tmp_file(out_file)
         if not os.path.exists(out_file):
             collector._init_h5(tmp_file, time_index, target_meta, global_attrs)
         for dset in features:
