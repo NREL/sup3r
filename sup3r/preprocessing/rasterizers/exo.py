@@ -221,6 +221,7 @@ class BaseExoRasterizer(ABC):
         """Get the 2D array (n, 2) of lat, lon data from the source_files"""
         if self._source_lat_lon is None:
             self._source_lat_lon = self.source_handler.lat_lon.reshape((-1, 2))
+            self._source_lat_lon = self._source_lat_lon.astype(np.float32)
         return self._source_lat_lon
 
     @property

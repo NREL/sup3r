@@ -169,6 +169,30 @@ class MultiStepGan(AbstractInterface):
             assert model.input_dims == len(hi_res.shape), msg
         return hi_res
 
+    def _match_model_input(self, model_step, hi_res, exo_data):
+        """Match the output data of the previous model step to the input of
+        the current model step. This is done to allow for model steps that
+        only use a subset of the features from the previous model step."""
+        if model_step > 0:
+            current_model = self.models[model_step]
+            previous_model = self.models[model_step - 1]
+            output_feats = previous_model.hr_out_features
+            input_feats = current_model.lr_features
+            exo_data = exo_data or {}
+            input_feats = [f for f in input_feats if f not in exo_data]
+            if not set(input_feats).issubset(set(output_feats)):
+                msg = (
+                    'Model step {} input features {} do not match '
+                    'previous model step {} output features {}'.format(
+                        model_step, input_feats, model_step - 1, output_feats
+                    )
+                )
+                logger.error(msg)
+                raise ValueError(msg)
+            lr_inds = [output_feats.index(fn) for fn in input_feats]
+            hi_res = hi_res[..., lr_inds]
+        return hi_res
+
     def generate(
         self, low_res, norm_in=True, un_norm_out=True, exogenous_data=None
     ):
@@ -224,6 +248,9 @@ class MultiStepGan(AbstractInterface):
                         i + 1, len(self.models), hi_res.shape
                     )
                 )
+
+                hi_res = self._match_model_input(i, hi_res, i_exo_data)
+
                 hi_res = model.generate(
                     hi_res,
                     norm_in=i_norm_in,
@@ -635,13 +662,11 @@ class SolarMultiStepGan(MultiStepGan):
         """Get an array of feature indices for the subset of features required
         for the spatial_wind_models. This excludes topography which is assumed
         to be provided as exogenous_data."""
-        return np.array(
-            [
-                self.lr_features.index(fn)
-                for fn in self.spatial_wind_models.lr_features
-                if fn != 'topography'
-            ]
-        )
+        return np.array([
+            self.lr_features.index(fn)
+            for fn in self.spatial_wind_models.lr_features
+            if fn != 'topography'
+        ])
 
     @property
     def idf_wind_out(self):
@@ -650,25 +675,21 @@ class SolarMultiStepGan(MultiStepGan):
         indices of u_200m + v_200m from the output features of
         spatial_wind_models"""
         temporal_solar_features = self.temporal_solar_models.lr_features
-        return np.array(
-            [
-                self.spatial_wind_models.hr_out_features.index(fn)
-                for fn in temporal_solar_features[1:]
-            ]
-        )
+        return np.array([
+            self.spatial_wind_models.hr_out_features.index(fn)
+            for fn in temporal_solar_features[1:]
+        ])
 
     @property
     def idf_solar(self):
         """Get an array of feature indices for the subset of features required
         for the spatial_solar_models. This excludes topography which is assumed
         to be provided as exogenous_data."""
-        return np.array(
-            [
-                self.lr_features.index(fn)
-                for fn in self.spatial_solar_models.lr_features
-                if fn != 'topography'
-            ]
-        )
+        return np.array([
+            self.lr_features.index(fn)
+            for fn in self.spatial_solar_models.lr_features
+            if fn != 'topography'
+        ])
 
     def generate(
         self, low_res, norm_in=True, un_norm_out=True, exogenous_data=None
