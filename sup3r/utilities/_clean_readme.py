@@ -2,8 +2,8 @@
 
 import sys
 
-PYPI_DISALLOWED_RST = {"raw::", "<p", "</p", "<img", "---------"}
-REMOVE_TEXT = ["A visual summary of this process is given below:", "&nbsp;"]
+PYPI_DISALLOWED_RST = {"raw::", "<p", "</p", "<br>", "<img", "---------"}
+REMOVE_TEXT = ["The process is described step-by-step below.", "&nbsp;"]
 
 
 def _clean(fp):
