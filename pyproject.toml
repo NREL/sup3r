@@ -74,6 +74,11 @@ test = [
   "pytest>=5.2",
   "pytest-env"
 ]
+build = [
+  "build>=1.2.2,<2",
+  "pkginfo>=1.10.0,<2",
+  "twine>=6.1.0,<7",
+]
 
 [project.scripts]
 sup3r = "sup3r.cli:main"
