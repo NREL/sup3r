@@ -214,18 +214,15 @@ class DataHandler(Deriver):
         just_coords = not features
         raster_feats = load_features if any(missing_features) else []
         self.rasterizer = self.loader = self.cache = None
-
         if any(cached_features):
             self.cache = Loader(
                 file_paths=cached_files,
                 features=load_features,
-                res_kwargs=res_kwargs,
                 chunks=chunks,
                 feature_aliases=feature_aliases,
                 BaseLoader=BaseLoader,
             )
             self.rasterizer = self.loader = self.cache
-
         if any(missing_features) or just_coords:
             logger.info('%s not found in cache', missing_features)
             self.rasterizer = Rasterizer(
