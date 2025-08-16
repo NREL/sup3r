@@ -671,11 +671,11 @@ class EraDownloader:
                 for month in months
             ]
         days = [[str(day).zfill(2) for day in d] for d in days]
-        for month in months:
+        for i, month in enumerate(months):
             task = dask.delayed(cls.run_month)(
                 year=year,
                 month=month,
-                days=days[month - 1],
+                days=days[i],
                 area=area,
                 levels=levels,
                 file_pattern=monthly_file_pattern,
