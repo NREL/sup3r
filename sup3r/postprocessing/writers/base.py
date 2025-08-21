@@ -454,6 +454,10 @@ class OutputHandler(OutputMixin):
             (spatial_1, spatial_2, 2)
             Last dimension has ordering (lat, lon)
         """
+        assert (
+            low_res_lat_lon.shape[0] > 1 and low_res_lat_lon.shape[1] > 1
+        ), 'low res lat/lon must have at least 2 rows and 2 columns'
+
         logger.debug('Getting high resolution lat / lon grid')
 
         # ensure lons are between -180 and 180

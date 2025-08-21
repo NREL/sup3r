@@ -101,6 +101,12 @@ class BaseExoRasterizer(ABC):
     fill_nans : bool
         Whether to fill nans in the output data. This should probably be True
         for all cases except for sparse observation data.
+    agg_method : str
+        Method to use for aggregating source data to the target pixels. This
+        can be 'mean', 'idw' (inverse distance weighted average), or 'nn'
+        (nearest neighbor). The default is 'mean'. This is only used for 3D
+        data (time dependent) and will be ignored for 2D data (time
+        independent).
     scale_factor : float
         Scale factor to apply to the raw data from the source_files. This is
         useful for scaling observation data which might systematically under or
@@ -125,6 +131,7 @@ class BaseExoRasterizer(ABC):
     chunks: Optional[Union[str, dict]] = 'auto'
     distance_upper_bound: Optional[int] = None
     fill_nans: bool = True
+    agg_method: str = 'mean'
     scale_factor: float = 1.0
     max_workers: int = 1
     verbose: bool = False
@@ -141,6 +148,8 @@ class BaseExoRasterizer(ABC):
         self._hr_lat_lon = None
         self._source_lat_lon = None
         self._hr_time_index = None
+        self._nn = None
+        self._dists = None
         self.input_handler_kwargs = self.input_handler_kwargs or {}
         self.source_handler_kwargs = self.source_handler_kwargs or {}
         InputHandler = get_input_handler_class(self.input_handler_name)
@@ -278,6 +287,11 @@ class BaseExoRasterizer(ABC):
         """Maximum distance (float) to map high-resolution data from
         source_files to the low-resolution file_paths input."""
         if self.distance_upper_bound is None:
+            assert self.hr_lat_lon.shape[0] > 1, (
+                'hr_lat_lon must have at least 2 lat points to calculate '
+                'distance upper bound. Either expand the grid or provide a '
+                'distance_upper_bound explicitly.'
+            )
             diff = da.diff(self.hr_lat_lon, axis=0)
             diff = da.abs(da.median(diff, axis=0)).max()
             self.distance_upper_bound = np.asarray(diff)
@@ -296,15 +310,29 @@ class BaseExoRasterizer(ABC):
             self._tree = KDTree(self.hr_lat_lon.reshape((-1, 2)))
         return self._tree
 
+    def query_tree(self, lat_lon):
+        """Query the KDTree for the nearest neighbor indices and distances
+        for the given lat_lon points."""
+        return self.tree.query(
+            lat_lon,
+            distance_upper_bound=self.get_distance_upper_bound(),
+        )
+
     @property
     def nn(self):
         """Get the nearest neighbor indices. This uses a single neighbor by
         default"""
-        _, nn = self.tree.query(
-            self.source_lat_lon,
-            distance_upper_bound=self.get_distance_upper_bound(),
-        )
-        return nn
+        if self._nn is None:
+            self._dists, self._nn = self.query_tree(self.source_lat_lon)
+        return self._nn
+
+    @property
+    def dists(self):
+        """Get the nearest neighbor indices. This uses a single neighbor by
+        default"""
+        if self._dists is None:
+            self._dists, self._nn = self.query_tree(self.source_lat_lon)
+        return self._dists
 
     @property
     def data(self):
@@ -371,6 +399,25 @@ class BaseExoRasterizer(ABC):
         data_vars = {self.feature: data_vars}
         return Sup3rX(xr.Dataset(coords=self.coords, data_vars=data_vars))
 
+    def _idw_fill(self, x):
+        """Compute weighted average for a group of data."""
+        valid_mask = ~np.isnan(x[self.feature].values)
+        if valid_mask.sum() == 0:
+            return np.nan
+        weights = 1 / np.maximum(x['distance'], 1e-6)
+        return np.average(
+            x[self.feature][valid_mask],
+            weights=weights[valid_mask] / weights[valid_mask].sum(),
+        )
+
+    def _mean_fill(self, x):
+        """Compute standard average for a group of data."""
+        return x[self.feature].mean()
+
+    def _nn_fill(self, x):
+        """Select value with min distance."""
+        return x[self.feature].iloc[np.argmin(x['distance'])]
+
     def _get_data_2d(self):
         """Get a raster of source values corresponding to the high-resolution
         grid (the file_paths input grid * s_enhance). This is used for time
@@ -413,27 +460,39 @@ class BaseExoRasterizer(ABC):
         out : np.ndarray
             3D array of source data with shape (lats, lons, time).
         """
-        assert (
-            len(self.source_data.shape) == 2 and self.source_data.shape[1] > 1
-        )
+        if self.agg_method == 'idw':
+            func = self._idw_fill
+        elif self.agg_method == 'nn':
+            func = self._nn_fill
+        elif self.agg_method == 'mean':
+            func = self._mean_fill
+        else:
+            raise ValueError(
+                f'Unknown aggregation method: {self.agg_method}. '
+                'Must be one of "idw", "nn", or "mean".'
+            )
+        logger.info('Using {} aggregation method'.format(self.agg_method))
         target_tmask = self.hr_time_index.isin(self.source_handler.time_index)
         source_tmask = self.source_handler.time_index.isin(self.hr_time_index)
         data = self.source_data[:, source_tmask]
         rows = pd.MultiIndex.from_product(
             [self.nn, range(data.shape[-1])], names=['gid_target', 'time']
         )
-        df = pd.DataFrame({self.feature: data.flatten()}, index=rows)
+        dists = np.repeat(self.dists[:, None], data.shape[-1], axis=1)
         n_target = np.prod(self.hr_shape[:-1])
+        df = pd.DataFrame(
+            {self.feature: data.flatten(), 'distance': dists.flatten()},
+            index=rows,
+        )
+        df = df[df.index.get_level_values(0) != n_target].sort_values(
+            'gid_target'
+        )
+        df = df.groupby(['gid_target', 'time']).apply(func)
         out = np.full(
             (n_target, len(self.hr_time_index)), np.nan, dtype=np.float32
         )
-        gids = df.index.get_level_values(0)
-        df = df[gids != n_target]
-        df = df.sort_values('gid_target')
-        df = df.groupby(['gid_target', 'time']).mean()
-        inds = gids.unique().values[gids.unique() != n_target][:, None]
-        vals = df[self.feature].values.reshape((-1, data.shape[-1]))
-        out[inds, target_tmask] = vals
+        inds = np.array(df.index.get_level_values(0).unique())[:, None]
+        out[inds, target_tmask] = df.values.reshape((-1, data.shape[-1]))
         out = out.reshape((*self.hr_shape[:-1], -1))
         return out
 
@@ -487,12 +546,6 @@ class ObsRasterizer(BaseExoRasterizer):
         """
         hr_data = super()._get_data_3d()
         gid_mask = self.nn != np.prod(self.hr_shape[:-1])
-        logger.info(
-            'Found {} of {} observations within {:4f} degrees of high-'
-            'resolution grid points.'.format(
-                gid_mask.sum(), len(gid_mask), self.distance_upper_bound
-            )
-        )
         cover_frac = (~np.isnan(hr_data)).sum() / hr_data.size
         if cover_frac == 0:
             msg = (
@@ -502,10 +555,14 @@ class ObsRasterizer(BaseExoRasterizer):
             warn(msg)
             logger.warning(msg)
         else:
-            msg = 'Observations cover {:.4e} of the high-res domain.'.format(
-                compute_if_dask(cover_frac)
+            msg = (
+                f'Found {gid_mask.sum()} of {len(gid_mask)} observations '
+                f'within {self.distance_upper_bound:4f} degrees of '
+                'high-resolution grid points. Observations cover '
+                f'{compute_if_dask(cover_frac):.4e} of the high-res domain.'
             )
             logger.info(msg)
+
         self.fill_nans = False  # override parent attribute to not fill nans
         return hr_data
 
