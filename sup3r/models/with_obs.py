@@ -82,21 +82,17 @@ class Sup3rGanWithObs(Sup3rGan):
         self.loss_obs_fun = self.get_loss_fun(loss_obs)
         self.loss_obs_weight = loss_obs_weight
 
-    # @tf.function
+    @tf.function
     def _get_loss_obs_comparison(self, hi_res_true, hi_res_gen, obs_mask):
         """Get loss for observation locations and for non observation
         locations."""
-        hr_true = tf.stack(
-            [hi_res_true[..., idx] for idx in self.obs_training_inds],
-            axis=-1,
+        hr_true = hi_res_true[..., : len(self.hr_out_features)]
+        loss_obs, _ = self.loss_obs_fun(
+            hi_res_gen[~obs_mask], hr_true[~obs_mask]
         )
-        hr_gen = tf.stack(
-            [hi_res_gen[..., idx] for idx in self.obs_training_inds],
-            axis=-1,
+        loss_non_obs, _ = self.loss_obs_fun(
+            hi_res_gen[obs_mask], hr_true[obs_mask]
         )
-        mask = obs_mask[..., : hr_gen.shape[-1]]
-        loss_obs, _ = self.loss_obs_fun(hr_gen[~mask], hr_true[~mask])
-        loss_non_obs, _ = self.loss_obs_fun(hr_gen[mask], hr_true[mask])
         return loss_obs, loss_non_obs
 
     @property
