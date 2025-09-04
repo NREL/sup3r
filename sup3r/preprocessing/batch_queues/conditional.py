@@ -148,7 +148,7 @@ class ConditionalBatchQueue(SingleBatchQueue):
             (batch_size, spatial_1, spatial_2, temporal, features)
         """
 
-    def post_proc(self, samples):
+    def get_batch(self):
         """Returns normalized collection of samples / observations along with
         mask and target output for conditional moment estimation. Performs
         coarsening on high-res data if :class:`Collection` consists of
@@ -160,12 +160,10 @@ class ConditionalBatchQueue(SingleBatchQueue):
             Namedtuple-like object with `low_res`, `high_res`, `mask`, and
             `output` attributes
         """
-        lr, hr = self.transform(samples, **self.transform_kwargs)
+        lr, hr = next(iter(self.queue))
         mask = self.make_mask(high_res=hr)
         output = self.make_output(samples=(lr, hr))
-        return DsetTuple(
-            low_res=lr, high_res=hr, output=output, mask=mask
-        )
+        return DsetTuple(low_res=lr, high_res=hr, output=output, mask=mask)
 
 
 class QueueMom1(ConditionalBatchQueue):

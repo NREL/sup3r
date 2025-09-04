@@ -228,9 +228,9 @@ class BatchHandlerTesterDC(BatchHandlerDC):
         self.space_bin_count[np.digitize(s_idx, self.spatial_bins)] += 1
         self.time_bin_count[np.digitize(t_idx, self.temporal_bins)] += 1
 
-    def sample_batch(self):
+    def _get_samples(self):
         """Override get_samples to track sample indices."""
-        out = super().sample_batch()
+        out = super()._get_samples()
         if len(self.containers[0].index_record) > 0:
             self._update_bin_count(self.containers[0].index_record[-1])
         return out
@@ -269,10 +269,10 @@ def BatchHandlerTesterFactory(BatchHandlerClass, SamplerClass):
             self.sample_count = 0
             super().__init__(*args, **kwargs)
 
-        def sample_batch(self):
+        def _get_samples(self):
             """Override get_samples to track sample count."""
             self.sample_count += 1
-            return super().sample_batch()
+            return super()._get_samples()
 
     return BatchHandlerTester
 

@@ -24,11 +24,6 @@ class SingleBatchQueue(AbstractBatchQueue):
     queues there are low / high res pairs and the high-res only stores the
     `hr_features`"""
 
-    @property
-    def queue_shape(self):
-        """Shape of objects stored in the queue."""
-        return [(self.batch_size, *self.hr_sample_shape, len(self.features))]
-
     def transform(
         self,
         samples,

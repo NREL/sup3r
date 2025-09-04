@@ -8,10 +8,7 @@ TODO:
 """
 
 import logging
-import threading
-import time
 from abc import ABC, abstractmethod
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import TYPE_CHECKING, List, Optional, Union
 
 import numpy as np
@@ -88,19 +85,17 @@ class AbstractBatchQueue(Collection, ABC):
         assert isinstance(samplers, list), msg
         super().__init__(containers=samplers)
         self._batch_count = 0
-        self._queue_thread = None
-        self._training_flag = threading.Event()
         self._thread_name = thread_name
-        self._thread_pool = ThreadPoolExecutor(max_workers=max_workers)
+        self.running = False
+        self.queue_cap = queue_cap or tf.data.AUTOTUNE
         self.mode = mode
         self.s_enhance = s_enhance
         self.t_enhance = t_enhance
         self.batch_size = batch_size
         self.n_batches = n_batches
-        self.queue_cap = n_batches if queue_cap is None else queue_cap
         self.max_workers = max_workers
         self.container_index = self.get_container_index()
-        self.queue = self.get_queue()
+        self.queue = None
         self.lr_sample_shape = (
             self.hr_sample_shape[0] // s_enhance,
             self.hr_sample_shape[1] // s_enhance,
@@ -113,32 +108,6 @@ class AbstractBatchQueue(Collection, ABC):
         self.verbose = verbose
         self.timer = Timer()
         self.preflight()
-
-    @property
-    @abstractmethod
-    def queue_shape(self):
-        """Shape of objects stored in the queue. e.g. for single dataset queues
-        this is (batch_size, *sample_shape, len(features)). For dual dataset
-        queues this is [(batch_size, *lr_shape), (batch_size, *hr_shape)]"""
-
-    @property
-    def queue_len(self):
-        """Get number of batches in the queue."""
-        return self.queue.size().numpy() + self.queue_futures
-
-    @property
-    def queue_futures(self):
-        """Get number of scheduled futures that will eventually add batches to
-        the queue."""
-        return self._thread_pool._work_queue.qsize()
-
-    def get_queue(self):
-        """Return FIFO queue for storing batches."""
-        return tf.queue.FIFOQueue(
-            self.queue_cap,
-            dtypes=[tf.float32] * len(self.queue_shape),
-            shapes=self.queue_shape,
-        )
 
     def preflight(self):
         """Run checks before kicking off the queue."""
@@ -156,16 +125,6 @@ class AbstractBatchQueue(Collection, ABC):
         if self.mode == 'eager':
             logger.info('Received mode = "eager".')
             _ = [c.compute() for c in self.containers]
-
-    @property
-    def queue_thread(self):
-        """Get new queue thread."""
-        if self._queue_thread is None or self._queue_thread._is_stopped:
-            self._queue_thread = threading.Thread(
-                target=self.enqueue_batches,
-                name=self._thread_name,
-            )
-        return self._queue_thread
 
     def check_features(self):
         """Make sure all samplers have the same sets of features."""
@@ -195,99 +154,55 @@ class AbstractBatchQueue(Collection, ABC):
         high res samples. For a dual dataset queue this will just include
         smoothing."""
 
-    def post_proc(self, samples) -> DsetTuple:
-        """Performs some post proc on dequeued samples before sending out for
-        training. Post processing can include coarsening on high-res data (if
-        :class:`Collection` consists of :class:`Sampler` objects and not
-        :class:`DualSampler` objects), smoothing, etc
-
-        Returns
-        -------
-        Batch : DsetTuple
-             namedtuple-like object with `low_res` and `high_res` attributes.
-             Could also include `obs` member.
-        """
-        tsamps = self.transform(samples, **self.transform_kwargs)
-        return DsetTuple(**dict(zip(self.BATCH_MEMBERS, tsamps)))
-
     def start(self) -> None:
         """Start thread to keep sample queue full for batches."""
-        self._training_flag.set()
-        if (
-            not self.queue_thread.is_alive()
-            and self.mode == 'lazy'
-            and self.queue_cap > 0
-        ):
-            logger.info(f'Starting {self._thread_name} queue.')
-            self.queue_thread.start()
+        self.running = True
+        self.queue = self.prefetch()
+        logger.info(f'Starting {self._thread_name} thread.')
 
     def stop(self) -> None:
         """Stop loading batches."""
-        self._training_flag.clear()
-        if self.queue_thread.is_alive():
-            logger.info(f'Stopping {self._thread_name} queue.')
-            self.queue_thread.join()
+        self.running = False
+        logger.info(f'Stopping {self._thread_name} thread.')
 
     def __len__(self):
         return self.n_batches
 
     def __iter__(self):
         self._batch_count = 0
-        self.start()
+        if not self.running:
+            self.start()
+        self.queue = self.prefetch()
         return self
 
-    def get_batch(self) -> DsetTuple:
-        """Get batch from queue or directly from a ``Sampler`` through
-        ``sample_batch``."""
-        if self.mode == 'eager' or self.queue_cap == 0 or self.queue_len == 0:
-            return self.sample_batch()
-        return self.queue.dequeue()
+    def prefetch(self):
+        """Prefetch batches"""
+        lr_shape, hr_shape = self.shapes
+        output_signature = (
+            tf.TensorSpec(lr_shape, tf.float32),
+            tf.TensorSpec(hr_shape, tf.float32),
+        )
 
-    @property
-    def running(self):
-        """Boolean to check whether to keep enqueueing batches."""
+        def worker_ds(_):
+            return tf.data.Dataset.from_generator(
+                self.gen, output_signature=output_signature
+            )
+
         return (
-            self._training_flag.is_set()
-            and self.queue_thread.is_alive()
-            and not self.queue.is_closed()
+            tf.data.Dataset.range(self.max_workers)
+            .interleave(
+                worker_ds,
+                cycle_length=self.max_workers,
+                num_parallel_calls=self.max_workers,
+                deterministic=False,
+            )
+            .prefetch(self.queue_cap)
         )
 
-    def sample_batches(self, n_batches) -> None:
-        """Sample given number of batches either in serial or with thread
-        pool."""
-        if n_batches == 1 or self.max_workers == 1:
-            return [self.sample_batch() for _ in range(n_batches)]
-        tasks = [
-            self._thread_pool.submit(self.sample_batch)
-            for _ in range(n_batches)
-        ]
-        logger.debug(
-            'Added %s sample_batch futures to %s queue.',
-            n_batches,
-            self._thread_name,
-        )
-        return tasks
-
-    def enqueue_batches(self) -> None:
-        """Callback function for queue thread. While training, the queue is
-        checked for empty spots and filled. In the training thread, batches are
-        removed from the queue."""
-        log_time = time.time()
-        while self.running:
-            needed = max(self.queue_cap - self.queue_len, 0)
-            needed = min(self.max_workers, needed)
-            if needed > 0:
-                batches = self.sample_batches(n_batches=needed)
-                if needed > 1 and self.max_workers > 1:
-                    for batch in as_completed(batches):
-                        self.queue.enqueue(batch.result())
-                else:
-                    for batch in batches:
-                        self.queue.enqueue(batch)
-
-            if time.time() > log_time + 60:
-                logger.debug(self.log_queue_info())
-                log_time = time.time()
+    def get_batch(self):
+        """Get samples from queue and perform any extra processing needed."""
+        samples = next(iter(self.queue))
+        return DsetTuple(**dict(zip(self.BATCH_MEMBERS, samples)))
 
     def __next__(self) -> DsetTuple:
         """Dequeue batch samples, squeeze if for a spatial only model, perform
@@ -301,13 +216,7 @@ class AbstractBatchQueue(Collection, ABC):
         """
         if self._batch_count < self.n_batches:
             self.timer.start()
-            samples = self.get_batch()
-            if self.sample_shape[2] == 1:
-                if isinstance(samples, (list, tuple)):
-                    samples = tuple(s[..., 0, :] for s in samples)
-                else:
-                    samples = samples[..., 0, :]
-            batch = self.post_proc(samples)
+            batch = self.get_batch()
             self.timer.stop()
             self._batch_count += 1
             if self.verbose:
@@ -330,25 +239,35 @@ class AbstractBatchQueue(Collection, ABC):
         self.container_index = self.get_container_index()
         return self.containers[self.container_index]
 
-    def sample_batch(self):
-        """Get random sampler from collection and return a batch of samples
-        from that sampler.
+    def _get_samples(self):
+        """Get random sampler and return batch of samples from that sampler."""
+        return next(self.get_random_container())
+
+    def gen(self):
+        """Get batch of samples, transform as needed, and yield low_res,
+        high_res batch pair. This is the generator for
+        ``tf.data.Dataset.from_generator``
 
         Notes
         -----
         These samples are wrapped in an ``np.asarray`` call, so they have been
         loaded into memory.
         """
-        out = next(self.get_random_container())
-        if not isinstance(out, tuple):
-            return tf.convert_to_tensor(out, dtype=tf.float32)
-        return tuple(tf.convert_to_tensor(o, dtype=tf.float32) for o in out)
-
-    def log_queue_info(self):
-        """Log info about queue size."""
-        return '{} queue length: {} / {}'.format(
-            self._thread_name.title(), self.queue_len, self.queue_cap
-        )
+        while self.running:
+            out = self._get_samples()
+            if not isinstance(out, tuple):
+                samples = tf.convert_to_tensor(out, dtype=tf.float32)
+            else:
+                samples = tuple(
+                    tf.convert_to_tensor(o, dtype=tf.float32) for o in out
+                )
+            if self.sample_shape[2] == 1:
+                if isinstance(samples, (list, tuple)):
+                    samples = tuple(s[..., 0, :] for s in samples)
+                else:
+                    samples = samples[..., 0, :]
+            lr, hr = self.transform(samples, **self.transform_kwargs)
+            yield lr, hr
 
     @property
     def lr_shape(self):

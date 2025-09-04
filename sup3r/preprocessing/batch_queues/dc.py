@@ -42,7 +42,7 @@ class BatchQueueDC(SingleBatchQueue):
 
     _signature_objs = (__init__, SingleBatchQueue)
 
-    def sample_batch(self):
+    def _get_samples(self):
         """Update weights and get batch of samples from sampled container."""
         sampler = self.get_random_container()
         sampler.update_weights(self.spatial_weights, self.temporal_weights)

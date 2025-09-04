@@ -299,9 +299,6 @@ def BatchHandlerFactory(
         def stop(self):
             """Stop the val data batch queue in addition to the train batch
             queue."""
-            self._training_flag.clear()
-            if self.val_data != []:
-                self.val_data._training_flag.clear()
             if hasattr(self.val_data, 'stop'):
                 self.val_data.stop()
             super().stop()

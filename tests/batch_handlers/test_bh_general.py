@@ -1,7 +1,7 @@
 """Smoke tests for batcher objects. Just make sure things run without errors"""
+
 import copy
 import os
-import time
 from tempfile import TemporaryDirectory
 
 import numpy as np
@@ -62,18 +62,10 @@ def test_batch_sampling_workers():
             stds={'u_100m': 1, 'v_100m': 1},
         )
         timer.start()
-        queue_time = 0
         for _ in range(n_epochs):
-            batches = batcher.sample_batches(n_batches)
-            batches = [batch.result() for batch in batches]
-            queue_start = time.time()
-            for batch in batches:
-                batcher.queue.enqueue(batch)
-                _ = batcher.queue.dequeue()
-            queue_time += (time.time() - queue_start)
+            _ = list(batcher)
         timer.stop()
         parallel_time = timer.elapsed / (n_batches * n_epochs)
-        parallel_queue_time = queue_time / (n_batches * n_epochs)
         batcher.stop()
 
         batcher = BatchHandler(
@@ -86,27 +78,15 @@ def test_batch_sampling_workers():
             stds={'u_100m': 1, 'v_100m': 1},
         )
         timer.start()
-        queue_time = 0
         for _ in range(n_epochs):
-            batches = batcher.sample_batches(n_batches)
-            queue_start = time.time()
-            for batch in batches:
-                batcher.queue.enqueue(batch)
-                _ = batcher.queue.dequeue()
-            queue_time += time.time() - queue_start
+            _ = list(batcher)
         timer.stop()
         serial_time = timer.elapsed / (n_batches * n_epochs)
-        serial_queue_time = queue_time / (n_batches * n_epochs)
         batcher.stop()
 
         print(
             'Elapsed total time (serial / parallel): {} / {}'.format(
                 serial_time, parallel_time
-            )
-        )
-        print(
-            'Elapsed queue time (serial / parallel): {} / {}'.format(
-                serial_queue_time, parallel_queue_time
             )
         )
         assert serial_time > parallel_time
