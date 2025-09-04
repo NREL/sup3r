@@ -1172,8 +1172,6 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
                 weight_gen_advers,
                 multi_gpu,
             )
-            elapsed = time.time() - start
-            logger.info('Finished batch in {:.4f} seconds'.format(elapsed))
 
             loss_means = self._post_batch(
                 ib,
@@ -1181,6 +1179,8 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
                 len(batch_handler),
                 loss_means,
             )
+            elapsed = time.time() - start
+            logger.info('Finished batch in {:.4f} seconds'.format(elapsed))
 
         self.total_batches += len(batch_handler)
         loss_details = self._train_record.mean().to_dict()
