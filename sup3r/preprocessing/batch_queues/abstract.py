@@ -193,7 +193,7 @@ class AbstractBatchQueue(Collection, ABC):
             .interleave(
                 worker_ds,
                 cycle_length=self.max_workers,
-                num_parallel_calls=self.max_workers,
+                num_parallel_calls=tf.data.AUTOTUNE,
                 deterministic=False,
             )
             .prefetch(self.queue_cap)
@@ -215,16 +215,8 @@ class AbstractBatchQueue(Collection, ABC):
             Batch object with batch.low_res and batch.high_res attributes
         """
         if self._batch_count < self.n_batches:
-            self.timer.start()
-            batch = self.get_batch()
-            self.timer.stop()
+            batch = self.timer(self.get_batch, log=True)()
             self._batch_count += 1
-            if self.verbose:
-                logger.debug(
-                    'Batch step %s finished in %s.',
-                    self._batch_count,
-                    self.timer.elapsed_str,
-                )
         else:
             raise StopIteration
         return batch

@@ -1055,7 +1055,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             if key.startswith('train_'):
                 b_loss_details.setdefault(key.replace('train_', ''), val)
 
-        self._train_record = self.timer(self.update_loss_details, log=True)(
+        self._train_record = self.update_loss_details(
             self._train_record,
             b_loss_details,
             n_batches,
@@ -1180,7 +1180,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             )
 
             logger.info(
-                f'Finished step {ib + 1} / {len(batch_handler)} in '
+                f'Finished batch step {ib + 1} / {len(batch_handler)} in '
                 f'{time.time() - start:.4f} seconds'
             )
 
