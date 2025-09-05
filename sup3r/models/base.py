@@ -1154,13 +1154,14 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             tf.summary.trace_on(graph=True, profiler=True)
 
         for ib, batch in enumerate(batch_handler):
+            start = time.time()
+
             b_loss_details = {}
             loss_disc = loss_means['train_loss_disc']
             disc_too_good = loss_disc <= disc_th_low
             disc_too_bad = (loss_disc > disc_th_high) and train_disc
             gen_too_good = disc_too_bad
 
-            start = time.time()
             b_loss_details = self._train_batch(
                 batch,
                 train_gen,
