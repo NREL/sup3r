@@ -1162,7 +1162,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             disc_too_bad = (loss_disc > disc_th_high) and train_disc
             gen_too_good = disc_too_bad
 
-            b_loss_details = self._train_batch(
+            b_loss_details = self.timer(self._train_batch, log=True)(
                 batch,
                 train_gen,
                 only_gen,
@@ -1174,14 +1174,16 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
                 multi_gpu,
             )
 
-            loss_means = self._post_batch(
-                ib,
-                b_loss_details,
-                len(batch_handler),
-                loss_means,
+            """
+            loss_means = self.timer(self._post_batch, log=True)(
+                ib, b_loss_details, len(batch_handler), loss_means
             )
-            elapsed = time.time() - start
-            logger.info('Finished batch in {:.4f} seconds'.format(elapsed))
+            """
+
+            logger.info(
+                f'Finished step {ib + 1} / {len(batch_handler)} in '
+                f'{time.time() - start:.4f} seconds'
+            )
 
         self.total_batches += len(batch_handler)
         loss_details = self._train_record.mean().to_dict()
