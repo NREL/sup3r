@@ -22,7 +22,7 @@ import sup3r.utilities.loss_metrics
 from sup3r.preprocessing.data_handlers import ExoData
 from sup3r.preprocessing.utilities import numpy_if_tensor
 from sup3r.utilities import VERSION_RECORD
-from sup3r.utilities.utilities import camel_to_underscore, safe_cast
+from sup3r.utilities.utilities import Timer, camel_to_underscore, safe_cast
 
 from .utilities import SUP3R_LAYERS, SUP3R_OBS_LAYERS, TensorboardMixIn
 
@@ -52,6 +52,7 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         self._stdevs = None
         self._train_record = pd.DataFrame()
         self._val_record = pd.DataFrame()
+        self.timer = Timer()
 
     def load_network(self, model, name):
         """Load a CustomNetwork object from hidden layers config, .json file

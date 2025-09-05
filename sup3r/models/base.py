@@ -1154,14 +1154,15 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             tf.summary.trace_on(graph=True, profiler=True)
 
         for ib, batch in enumerate(batch_handler):
+            start = time.time()
+
             b_loss_details = {}
             loss_disc = loss_means['train_loss_disc']
             disc_too_good = loss_disc <= disc_th_low
             disc_too_bad = (loss_disc > disc_th_high) and train_disc
             gen_too_good = disc_too_bad
 
-            start = time.time()
-            b_loss_details = self._train_batch(
+            b_loss_details = self.timer(self._train_batch, log=True)(
                 batch,
                 train_gen,
                 only_gen,
@@ -1172,14 +1173,16 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
                 weight_gen_advers,
                 multi_gpu,
             )
-            elapsed = time.time() - start
-            logger.info('Finished batch in {:.4f} seconds'.format(elapsed))
 
-            loss_means = self._post_batch(
-                ib,
-                b_loss_details,
-                len(batch_handler),
-                loss_means,
+            """
+            loss_means = self.timer(self._post_batch, log=True)(
+                ib, b_loss_details, len(batch_handler), loss_means
+            )
+            """
+
+            logger.info(
+                f'Finished step {ib} / {len(batch_handler)} in '
+                f'{time.time() - start:.4f} seconds'
             )
 
         self.total_batches += len(batch_handler)
