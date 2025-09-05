@@ -275,7 +275,6 @@ class AbstractBatchQueue(Collection, ABC):
         log_time = time.time()
         while self.running:
             needed = max(self.queue_cap - self.queue_len, 0)
-            needed = min(self.max_workers, needed)
             if needed > 0:
                 batches = self.sample_batches(n_batches=needed)
                 if needed > 1 and self.max_workers > 1:

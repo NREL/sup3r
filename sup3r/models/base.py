@@ -638,7 +638,7 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
         adaptive_update_bounds=(0.9, 0.99),
         adaptive_update_fraction=0.0,
         multi_gpu=False,
-        tensorboard_log=True,
+        tensorboard_log=False,
         tensorboard_profile=False,
     ):
         """Train the GAN model on real low res data and real high res data
@@ -1062,8 +1062,9 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
             prefix='train_',
         )
 
-        self.dict_to_tensorboard(b_loss_details)
-        self.dict_to_tensorboard(self.timer.log)
+        if self._tb_writer is not None:
+            self.dict_to_tensorboard(b_loss_details)
+            self.dict_to_tensorboard(self.timer.log)
 
         trained_gen = bool(self._train_record['gen_train_frac'].values[-1])
         trained_disc = bool(self._train_record['disc_train_frac'].values[-1])
@@ -1174,14 +1175,12 @@ class Sup3rGan(AbstractSingleModel, AbstractInterface):
                 multi_gpu,
             )
 
-            """
             loss_means = self.timer(self._post_batch, log=True)(
                 ib, b_loss_details, len(batch_handler), loss_means
             )
-            """
 
             logger.info(
-                f'Finished step {ib + 1} / {len(batch_handler)} in '
+                f'Finished batch step {ib + 1} / {len(batch_handler)} in '
                 f'{time.time() - start:.4f} seconds'
             )
 
