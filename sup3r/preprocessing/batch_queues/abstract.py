@@ -306,7 +306,7 @@ class AbstractBatchQueue(Collection, ABC):
             Batch object with batch.low_res and batch.high_res attributes
         """
         if self._batch_count < self.n_batches:
-            batch = self.timer(self.get_batch, log=True)()
+            batch = self.timer(self.get_batch, log=self.verbose)()
             self._batch_count += 1
         else:
             raise StopIteration
