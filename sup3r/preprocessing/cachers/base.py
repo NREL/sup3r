@@ -1,24 +1,22 @@
 """Basic objects that can cache rasterized / derived data."""
 
-# netCDF4 has to be imported before h5py
-# isort: skip_file
-import pandas as pd
 import copy
-import itertools
 import logging
 import os
-from typing import Dict, Optional, Union, TYPE_CHECKING
-import netCDF4 as nc4  # noqa
-import h5py
+from typing import TYPE_CHECKING, Dict, Optional, Union
+from warnings import warn
+
 import dask
 import dask.array as da
+import h5py
 import numpy as np
-from warnings import warn
+import pandas as pd
+from rex.utilities.utilities import to_records_array
+
 from sup3r.preprocessing.base import Container
 from sup3r.preprocessing.names import Dimension
-from sup3r.preprocessing.utilities import _mem_check, _lowered
-from sup3r.utilities.utilities import safe_cast, safe_serialize, get_tmp_file
-from rex.utilities.utilities import to_records_array
+from sup3r.preprocessing.utilities import _lowered, _mem_check
+from sup3r.utilities.utilities import get_tmp_file, safe_cast, safe_serialize
 
 from .utilities import _check_for_cache
 
@@ -91,7 +89,6 @@ class Cacher(Container):
         max_workers=None,
         mode='w',
         attrs=None,
-        verbose=False,
         overwrite=False,
         keep_dim_order=False,
     ):
@@ -128,7 +125,6 @@ class Cacher(Container):
             max_workers=max_workers,
             mode=mode,
             attrs=attrs,
-            verbose=verbose,
             keep_dim_order=keep_dim_order,
         )
         os.replace(tmp_file, out_file)
@@ -141,7 +137,6 @@ class Cacher(Container):
         max_workers=None,
         mode='w',
         attrs=None,
-        verbose=False,
         keep_dim_order=False,
         overwrite=False,
     ):
@@ -164,8 +159,6 @@ class Cacher(Container):
             Optional attributes to write to file. Can specify dataset specific
             attributes by adding a dictionary with the dataset name as a key.
             e.g. {**global_attrs, dset: {...}}
-        verbose : bool
-            Whether to log progress for each chunk written to output files.
         keep_dim_order : bool
             Whether to keep the original dimension order of the data. If
             ``False`` then the data will be transposed to have the time
@@ -199,7 +192,6 @@ class Cacher(Container):
                     chunks=chunks,
                     max_workers=max_workers,
                     mode=mode,
-                    verbose=verbose,
                     attrs=attrs,
                     keep_dim_order=keep_dim_order,
                     overwrite=overwrite,
@@ -302,7 +294,6 @@ class Cacher(Container):
         max_workers=None,
         mode='w',
         attrs=None,
-        verbose=False,  # noqa # pylint: disable=W0613
         keep_dim_order=False,
     ):
         """Cache data to h5 file using user provided chunks value.
@@ -328,8 +319,6 @@ class Cacher(Container):
             attributes by adding a dictionary with the dataset name as a key.
             e.g. {**global_attrs, dset: {...}}. Can also include a global meta
             dataframe that will then be added to the coordinate meta.
-        verbose : bool
-            Dummy arg to match ``write_netcdf`` signature
         keep_dim_order : bool
             Whether to keep the original dimension order of the data. If
             ``False`` then the data will be transposed to have the time
@@ -398,69 +387,85 @@ class Cacher(Container):
                     )
         cls.add_coord_meta(out_file=out_file, data=data, meta=meta)
 
-    @staticmethod
-    def get_chunk_slices(chunks, shape):
-        """Get slices used to write xarray data to netcdf file in chunks."""
-        slices = []
-        for i in range(len(shape)):
-            slice_ranges = [
-                (slice(k, min(k + chunks[i], shape[i])))
-                for k in range(0, shape[i], chunks[i])
-            ]
-            slices.append(slice_ranges)
-        return list(itertools.product(*slices))
+    @classmethod
+    def _prepare_netcdf_data(cls, data, features, chunks, attrs):
+        """Prepare data subset for netCDF writing."""
+        if features == 'all':
+            features = list(data.data_vars)
+        features = features if isinstance(features, list) else [features]
 
-    @staticmethod
-    def write_chunk(out_file, dset, chunk_slice, chunk_data, msg=None):
-        """Add chunk to netcdf file."""
-        if msg is not None:
-            logger.debug(msg)
-        try:
-            with nc4.Dataset(out_file, 'a') as ds:
-                var = ds.variables[dset]
-                var[chunk_slice] = chunk_data
-        except Exception as e:
-            msg = (f'Error writing chunk {chunk_slice} for {dset} to '
-                   f'{out_file}: {e}')
-            logger.error(msg)
-            raise OSError(msg) from e
+        data_subset = data[features].copy()
+
+        if Dimension.TIME in data_subset.coords:
+            data_subset[Dimension.TIME] = data_subset[Dimension.TIME].astype(
+                'int64'
+            )
+
+        coord_names = [
+            crd for crd in data.coords if crd in Dimension.coords_4d()
+        ]
+        for coord_name in coord_names:
+            if coord_name not in data_subset.coords:
+                data_subset = data_subset.assign_coords({
+                    coord_name: data[coord_name]
+                })
+
+        if chunks != 'auto':
+            chunk_dict = {}
+            for feature in features:
+                fchunk = cls.parse_chunks(
+                    feature, chunks, data_subset[feature].dims
+                )
+                if isinstance(fchunk, dict):
+                    fchunk = {
+                        k: v
+                        for k, v in fchunk.items()
+                        if k in data_subset[feature].dims
+                    }
+                chunk_dict[feature] = fchunk
+            data_subset = data_subset.chunk(chunk_dict)
+        else:
+            data_subset = data_subset.chunk('auto')
+
+        return data_subset, features, attrs
 
     @classmethod
-    def write_netcdf_chunks(
-        cls,
-        out_file,
-        feature,
-        data,
-        chunks=None,
-        max_workers=None,
-        verbose=False,
-    ):
-        """Write netcdf chunks with delayed dask tasks."""
-        tasks = []
-        data_var = data[feature]
-        data_var, chunksizes = cls.get_chunksizes(feature, data, chunks)
-        chunksizes = data_var.shape if chunksizes is None else chunksizes
-        chunk_slices = cls.get_chunk_slices(chunksizes, data_var.shape)
-        logger.info(
-            'Adding %s to %s with %s chunks and max_workers=%s. %s',
-            feature,
-            out_file,
-            len(chunk_slices),
-            max_workers,
-            _mem_check(),
-        )
-        for i, chunk_slice in enumerate(chunk_slices):
-            msg = f'Writing chunk {i + 1} / {len(chunk_slices)} to {out_file}'
-            msg = None if not verbose else msg
-            chunk = data_var.data[chunk_slice]
-            task = dask.delayed(cls.write_chunk)(
-                out_file, feature, chunk_slice, chunk, msg
-            )
-            tasks.append(task)
-        if max_workers == 1:
-            dask.compute(*tasks, scheduler='single-threaded')
-        else:
-            dask.compute(*tasks, scheduler='threads', num_workers=max_workers)
+    def _set_netcdf_attributes(cls, data_subset, features, attrs):
+        """Set variable and global attributes for netCDF output."""
+        # Set up variable attributes
+        for feature in features:
+            var_attrs = data_subset[feature].attrs.copy()
+            var_attrs.setdefault('long_name', feature)
+            var_attrs.setdefault('standard_name', feature)
+            var_attrs.update(attrs.pop(feature, {}))
+            data_subset[feature].attrs.update(var_attrs)
+
+        # Set up global attributes
+        for attr_name, attr_value in attrs.items():
+            attr_value = safe_cast(attr_value)
+            try:
+                data_subset.attrs[attr_name] = attr_value
+            except Exception as e:
+                msg = (
+                    f'Could not write {attr_name} as attribute, '
+                    f'serializing with json dumps, '
+                    f'received error: "{e}"'
+                )
+                logger.warning(msg)
+                warn(msg)
+                data_subset.attrs[attr_name] = safe_serialize(attr_value)
+
+        return data_subset
+
+    @classmethod
+    def _configure_netcdf_encoding(cls, data_subset, features, chunks):
+        """Configure encoding for netCDF output."""
+        encoding = {}
+        for feature in features:
+            _, chunksizes = cls.get_chunksizes(feature, data_subset, chunks)
+            if chunksizes is not None:
+                encoding[feature] = {'chunksizes': chunksizes}
+        return encoding
 
     @classmethod
     def write_netcdf(
@@ -472,10 +477,9 @@ class Cacher(Container):
         max_workers=None,
         mode='w',
         attrs=None,
-        verbose=False,
         keep_dim_order=False,  # noqa # pylint: disable=W0613
     ):
-        """Cache data to a netcdf file.
+        """Cache data to a netcdf file using xarray.
 
         Parameters
         ----------
@@ -499,8 +503,6 @@ class Cacher(Container):
             Optional attributes to write to file. Can specify dataset specific
             attributes by adding a dictionary with the dataset name as a key.
             e.g. {**global_attrs, dset: {...}}
-        verbose : bool
-            Whether to log output after each chunk is written.
         keep_dim_order : bool
             Dummy arg to match ``write_h5`` signature
         """
@@ -508,66 +510,46 @@ class Cacher(Container):
         global_attrs = data.attrs.copy()
         global_attrs.update(attrs or {})
         attrs = global_attrs.copy()
-        if features == 'all':
-            features = list(data.data_vars)
-        features = features if isinstance(features, list) else [features]
-        with nc4.Dataset(out_file, mode, format='NETCDF4') as ncfile:
-            for dim_name, dim_size in data.sizes.items():
-                ncfile.createDimension(dim_name, dim_size)
 
-            coord_names = [
-                crd for crd in data.coords if crd in Dimension.coords_4d()
-            ]
-            for dset in [*coord_names, *features]:
-                data_var, chunksizes = cls.get_chunksizes(dset, data, chunks)
+        data_subset, features, attrs = cls._prepare_netcdf_data(
+            data, features, chunks, attrs
+        )
 
-                if dset == Dimension.TIME:
-                    data_var = data_var.astype(int)
+        data_subset = cls._set_netcdf_attributes(data_subset, features, attrs)
 
-                dout = ncfile.createVariable(
-                    dset, data_var.dtype, data_var.dims, chunksizes=chunksizes
-                )
-                var_attrs = data_var.attrs.copy()
-                var_attrs.setdefault('long_name', dset)
-                var_attrs.setdefault('standard_name', dset)
-                var_attrs.update(attrs.pop(dset, {}))
-                for attr_name, attr_value in var_attrs.items():
-                    dout.setncattr(attr_name, safe_cast(attr_value))
+        encoding = cls._configure_netcdf_encoding(
+            data_subset, features, chunks
+        )
 
-                dout.coordinates = ' '.join(list(coord_names))
-
-                logger.debug(
-                    'Adding %s to %s with chunks=%s',
-                    dset,
+        if max_workers is not None:
+            with dask.config.set(scheduler='threads', num_workers=max_workers):
+                logger.info(
+                    'Writing %s to %s with max_workers=%s. %s',
+                    features,
                     out_file,
-                    chunksizes,
+                    max_workers,
+                    _mem_check(),
                 )
-
-                if dset in data.coords:
-                    ncfile.variables[dset][:] = np.asarray(data_var.data)
-
-            for attr_name, attr_value in attrs.items():
-                attr_value = safe_cast(attr_value)
-                try:
-                    ncfile.setncattr(attr_name, attr_value)
-                except Exception as e:
-                    msg = (
-                        f'Could not write {attr_name} as attribute, '
-                        f'serializing with json dumps, '
-                        f'received error: "{e}"'
-                    )
-                    logger.warning(msg)
-                    warn(msg)
-                    ncfile.setncattr(attr_name, safe_serialize(attr_value))
-
-        for feature in features:
-            cls.write_netcdf_chunks(
-                out_file=out_file,
-                feature=feature,
-                data=data,
-                chunks=chunks,
-                max_workers=max_workers,
-                verbose=verbose,
+                data_subset.to_netcdf(
+                    out_file,
+                    mode=mode,
+                    format='NETCDF4',
+                    encoding=encoding,
+                    compute=True,
+                )
+        else:
+            logger.info(
+                'Writing %s to %s. %s',
+                features,
+                out_file,
+                _mem_check(),
+            )
+            data_subset.to_netcdf(
+                out_file,
+                mode=mode,
+                format='NETCDF4',
+                encoding=encoding,
+                compute=True,
             )
 
         logger.info('Finished writing %s to %s', features, out_file)
