@@ -393,7 +393,7 @@ def test_obs_nn(s_enhance, with_nans):
             d_i = dists[nn == i]
             if d_i.size == 0:
                 continue
-            idx = np.abs(d_i.min() - dists).idxmin()
+            idx = np.argmin(np.abs(d_i.min() - dists))
             true_obs[i, :] = vals[idx, :]
 
         mask = np.isnan(agg_obs) | np.isnan(true_obs)
@@ -467,7 +467,7 @@ def test_obs_idw(s_enhance, with_nans):
                 continue
             v_i = []
             for d in d_i:
-                idx = np.abs(d - dists).idxmin()
+                idx = np.argmin(np.abs(d - dists))
                 v_i.append(vals[idx, :])
             w_i = 1 / np.maximum(d_i, 1e-6)
             w_i /= np.sum(w_i)
