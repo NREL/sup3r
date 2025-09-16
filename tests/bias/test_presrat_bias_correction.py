@@ -48,11 +48,7 @@ from sup3r.utilities.utilities import (
     xr_open_mfdataset,
 )
 
-CC_LAT_LON = DataHandler(
-    pytest.FP_RSDS,
-    features='rsds',
-    res_kwargs={'format': 'NETCDF', 'engine': 'netcdf4'},
-).lat_lon
+CC_LAT_LON = DataHandler(pytest.FP_RSDS, features='rsds').lat_lon
 # A reference zero rate threshold that might not make sense physically but for
 # testing purposes only. This might change in the future to force edge cases.
 ZR_THRESHOLD = 0.01
@@ -100,12 +96,10 @@ def fp_resource(tmpdir_factory):
 
     ds = ds.sortby('lat', ascending=False)
     lat_2d, lon_2d = xr.broadcast(ds['lat'], ds['lon'])
-    meta = pd.DataFrame(
-        {
-            'latitude': lat_2d.values.flatten(),
-            'longitude': lon_2d.values.flatten(),
-        }
-    )
+    meta = pd.DataFrame({
+        'latitude': lat_2d.values.flatten(),
+        'longitude': lon_2d.values.flatten(),
+    })
 
     shapes = {'ghi': (len(ds.ghi.time), np.prod(ds.ghi.isel(time=0).shape))}
     attrs = {'ghi': None}
@@ -133,9 +127,12 @@ def fp_resource(tmpdir_factory):
 @pytest.fixture(scope='module')
 def precip():
     """Synthetic historical modeled dataset"""
-    lat = np.array(
-        [40.3507847105177, 39.649032596592, 38.9472804370071, 38.2455282337738]
-    )
+    lat = np.array([
+        40.3507847105177,
+        39.649032596592,
+        38.9472804370071,
+        38.2455282337738,
+    ])
     lon = np.array([254.53125, 255.234375, 255.9375, 256.640625])
 
     time = pd.date_range(
