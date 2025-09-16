@@ -86,7 +86,7 @@ class Cacher(Container):
         data,
         features='all',
         chunks=None,
-        max_workers=None,
+        max_workers=1,
         mode='w',
         attrs=None,
         overwrite=False,
@@ -105,7 +105,13 @@ class Cacher(Container):
         _, ext = os.path.splitext(out_file)
         os.makedirs(os.path.dirname(out_file), exist_ok=True)
         tmp_file = get_tmp_file(out_file)
-        logger.info('Writing %s to %s. %s', features, tmp_file, _mem_check())
+        logger.info(
+            'Writing %s to %s with max_workers=%s. %s',
+            features,
+            tmp_file,
+            max_workers,
+            _mem_check(),
+        )
         if ext == '.h5':
             func = cls.write_h5
         elif ext == '.nc':
@@ -257,32 +263,70 @@ class Cacher(Container):
         return data_var, chunksizes
 
     @classmethod
-    def add_coord_meta(cls, out_file, data, meta=None):
-        """Add flattened coordinate meta to out_file. This is used for h5
-        caching.
+    def _prepare_h5_data(cls, data, features, keep_dim_order):
+        """Prepare dataset and feature list for H5 writing."""
+        if (
+            len(data.dims) == 3
+            and Dimension.TIME in data.dims
+            and not keep_dim_order
+        ):
+            data = data.transpose(Dimension.TIME, *Dimension.dims_2d())
 
-        Parameters
-        ----------
-        out_file : str
-            Name of output file.
-        data : Sup3rX | xr.Dataset
-            Data being written to the given ``out_file``.
-        meta : pd.DataFrame | None
-            Optional additional meta information to be written to the given
-            ``out_file``. If this is None then only coordinate info will be
-            included in the meta written to the ``out_file``
-        """
-        if meta is None or (isinstance(meta, dict) and not meta):
-            meta = pd.DataFrame()
-        for coord in Dimension.coords_2d():
-            if coord in data:
-                meta[coord] = data[coord].data.flatten()
-        logger.info('Adding coordinate meta to %s', out_file)
-        with h5py.File(out_file, 'a') as f:
-            meta = to_records_array(meta)
-            f.create_dataset(
-                '/meta', shape=meta.shape, dtype=meta.dtype, data=meta
+        if features == 'all':
+            features = list(data.data_vars)
+        features = features if isinstance(features, list) else [features]
+
+        data_subset = data[features].copy()
+
+        if Dimension.TIME in data_subset.coords:
+            data_subset[Dimension.TIME] = data_subset[Dimension.TIME].astype(
+                'int64'
             )
+
+        return data, features
+
+    @classmethod
+    def _set_h5_attributes(cls, f, data_subset, attrs):
+        """Set global attrs and write meta dataset to the open H5 file."""
+        global_attrs = data_subset.attrs.copy()
+        attrs = attrs or {}
+        meta = attrs.pop('meta', {})
+        global_attrs.update(attrs)
+        global_attrs = {k: safe_cast(v) for k, v in global_attrs.items()}
+        for k, v in global_attrs.items():
+            f.attrs[k] = v
+
+        if meta is None or (isinstance(meta, dict) and not meta):
+            meta_df = pd.DataFrame()
+        elif isinstance(meta, pd.DataFrame):
+            meta_df = meta.copy()
+        else:
+            meta_df = pd.DataFrame(meta)
+        for coord in Dimension.coords_2d():
+            if coord in data_subset:
+                meta_df[coord] = data_subset[coord].data.flatten()
+
+        meta_rec = to_records_array(meta_df)
+        f.create_dataset(
+            '/meta',
+            shape=meta_rec.shape,
+            dtype=meta_rec.dtype,
+            data=meta_rec,
+        )
+
+    @classmethod
+    def _get_h5_array_and_chunks(cls, dset, data, chunks):
+        """Get dask array for dataset and chunksizes for H5 writing."""
+        data_var, chunksizes = cls.get_chunksizes(dset, data, chunks)
+        data_arr = data_var.data
+        if not isinstance(data_arr, da.core.Array):
+            data_arr = da.asarray(data_arr)
+
+        dset_name = dset
+        if dset == Dimension.TIME:
+            dset_name = 'time_index'
+
+        return data_arr, chunksizes, dset_name
 
     @classmethod
     def write_h5(
@@ -324,71 +368,44 @@ class Cacher(Container):
             ``False`` then the data will be transposed to have the time
             dimension first.
         """
-        if (
-            len(data.dims) == 3
-            and Dimension.TIME in data.dims
-            and not keep_dim_order
-        ):
-            data = data.transpose(Dimension.TIME, *Dimension.dims_2d())
-        if features == 'all':
-            features = list(data.data_vars)
-        features = features if isinstance(features, list) else [features]
         chunks = chunks or 'auto'
-        global_attrs = data.attrs.copy()
-        attrs = attrs or {}
-        meta = attrs.pop('meta', {})
-        global_attrs.update(attrs)
-        attrs = {k: safe_cast(v) for k, v in global_attrs.items()}
+
+        data_subset, features = cls._prepare_h5_data(
+            data=data,
+            features=features,
+            keep_dim_order=keep_dim_order,
+        )
+
+        coord_names = [
+            crd for crd in data_subset.coords if crd in Dimension.coords_4d()
+        ]
+
         with h5py.File(out_file, mode) as f:
-            for k, v in attrs.items():
-                f.attrs[k] = v
-
-            coord_names = [
-                crd for crd in data.coords if crd in Dimension.coords_4d()
-            ]
-
-            if Dimension.TIME in data:
-                # int64 used explicity to avoid incorrect encoding as int32
-                data[Dimension.TIME] = data[Dimension.TIME].astype('int64')
+            cls._set_h5_attributes(f, data_subset, attrs)
 
             for dset in [*coord_names, *features]:
-                data_var, chunksizes = cls.get_chunksizes(dset, data, chunks)
-                data_var = data_var.data
-
-                if not isinstance(data_var, da.core.Array):
-                    data_var = da.asarray(data_var)
-
-                dset_name = dset
-                if dset == Dimension.TIME:
-                    dset_name = 'time_index'
-
-                logger.debug(
-                    'Adding %s to %s with chunks=%s and max_workers=%s',
-                    dset,
-                    out_file,
-                    chunksizes,
-                    max_workers,
+                data_arr, chunksizes, dset_name = cls._get_h5_array_and_chunks(
+                    dset, data_subset, chunks
                 )
 
-                d = f.create_dataset(
+                dset_obj = f.create_dataset(
                     f'/{dset_name}',
-                    dtype=data_var.dtype,
-                    shape=data_var.shape,
+                    dtype=data_arr.dtype,
+                    shape=data_arr.shape,
                     chunks=chunksizes,
                 )
                 if max_workers == 1:
-                    da.store(data_var, d, scheduler='single-threaded')
+                    da.store(data_arr, dset_obj, scheduler='single-threaded')
                 else:
                     da.store(
-                        data_var,
-                        d,
+                        data_arr,
+                        dset_obj,
                         scheduler='threads',
                         num_workers=max_workers,
                     )
-        cls.add_coord_meta(out_file=out_file, data=data, meta=meta)
 
     @classmethod
-    def _prepare_netcdf_data(cls, data, features, chunks, attrs):
+    def _prepare_netcdf_data(cls, data, features, chunks):
         """Prepare data subset for netCDF writing."""
         if features == 'all':
             features = list(data.data_vars)
@@ -411,7 +428,6 @@ class Cacher(Container):
                 })
 
         if chunks != 'auto':
-            chunk_dict = {}
             for feature in features:
                 fchunk = cls.parse_chunks(
                     feature, chunks, data_subset[feature].dims
@@ -422,17 +438,20 @@ class Cacher(Container):
                         for k, v in fchunk.items()
                         if k in data_subset[feature].dims
                     }
-                chunk_dict[feature] = fchunk
-            data_subset = data_subset.chunk(chunk_dict)
+                data_subset[feature] = data_subset[feature].chunk(fchunk)
         else:
             data_subset = data_subset.chunk('auto')
 
-        return data_subset, features, attrs
+        return data_subset, features
 
     @classmethod
     def _set_netcdf_attributes(cls, data_subset, features, attrs):
         """Set variable and global attributes for netCDF output."""
-        # Set up variable attributes
+
+        global_attrs = data_subset.attrs.copy()
+        attrs = attrs or {}
+        global_attrs.update(attrs)
+
         for feature in features:
             var_attrs = data_subset[feature].attrs.copy()
             var_attrs.setdefault('long_name', feature)
@@ -440,8 +459,7 @@ class Cacher(Container):
             var_attrs.update(attrs.pop(feature, {}))
             data_subset[feature].attrs.update(var_attrs)
 
-        # Set up global attributes
-        for attr_name, attr_value in attrs.items():
+        for attr_name, attr_value in global_attrs.items():
             attr_value = safe_cast(attr_value)
             try:
                 data_subset.attrs[attr_name] = attr_value
@@ -474,7 +492,7 @@ class Cacher(Container):
         data,
         features='all',
         chunks=None,
-        max_workers=None,
+        max_workers=1,
         mode='w',
         attrs=None,
         keep_dim_order=False,  # noqa # pylint: disable=W0613
@@ -507,12 +525,9 @@ class Cacher(Container):
             Dummy arg to match ``write_h5`` signature
         """
         chunks = chunks or 'auto'
-        global_attrs = data.attrs.copy()
-        global_attrs.update(attrs or {})
-        attrs = global_attrs.copy()
 
-        data_subset, features, attrs = cls._prepare_netcdf_data(
-            data, features, chunks, attrs
+        data_subset, features = cls._prepare_netcdf_data(
+            data, features, chunks
         )
 
         data_subset = cls._set_netcdf_attributes(data_subset, features, attrs)
@@ -521,29 +536,7 @@ class Cacher(Container):
             data_subset, features, chunks
         )
 
-        if max_workers is not None:
-            with dask.config.set(scheduler='threads', num_workers=max_workers):
-                logger.info(
-                    'Writing %s to %s with max_workers=%s. %s',
-                    features,
-                    out_file,
-                    max_workers,
-                    _mem_check(),
-                )
-                data_subset.to_netcdf(
-                    out_file,
-                    mode=mode,
-                    format='NETCDF4',
-                    encoding=encoding,
-                    compute=True,
-                )
-        else:
-            logger.info(
-                'Writing %s to %s. %s',
-                features,
-                out_file,
-                _mem_check(),
-            )
+        if max_workers == 1:
             data_subset.to_netcdf(
                 out_file,
                 mode=mode,
@@ -551,5 +544,15 @@ class Cacher(Container):
                 encoding=encoding,
                 compute=True,
             )
+
+        else:
+            with dask.config.set(scheduler='threads', num_workers=max_workers):
+                data_subset.to_netcdf(
+                    out_file,
+                    mode=mode,
+                    format='NETCDF4',
+                    encoding=encoding,
+                    compute=True,
+                )
 
         logger.info('Finished writing %s to %s', features, out_file)

@@ -109,8 +109,6 @@ class BaseExoRasterizer(ABC):
     max_workers : int
         Number of workers used for writing data to cache files. Gets passed to
         ``Cacher._write_single.``
-    verbose : bool
-        Whether to log output as each chunk is written to cache file.
     """
 
     feature: Optional[str] = None
@@ -127,7 +125,6 @@ class BaseExoRasterizer(ABC):
     fill_nans: bool = True
     scale_factor: float = 1.0
     max_workers: int = 1
-    verbose: bool = False
 
     # These sometimes have a time dimension but we don't need the time in
     # the cache file
@@ -350,7 +347,6 @@ class BaseExoRasterizer(ABC):
                 data=data,
                 max_workers=self.max_workers,
                 chunks=self.chunks,
-                verbose=self.verbose,
             )
 
         return Sup3rX(data.chunk(self.chunks))
