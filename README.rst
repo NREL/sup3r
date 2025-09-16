@@ -240,22 +240,22 @@ v0.2.3), 2025. https://doi.org/10.5281/zenodo.15586596
 Publications
 ============
 
+Estimating the impacts of increasing temperatures and the efficacy of climate 
+adaptation strategies in urban microclimates with deep learning, *Urban Climate*
+(2025) https://doi.org/10.1016/j.uclim.2025.102603
+
 Second-Generation Downscaled Earth System Model Data using Generative Machine
-Learning, Data in Brief (2025) https://doi.org/10.1016/j.dib.2025.111774
-
-Tackling Extreme Urban Heat: A Machine Learning Approach to Assess the Impacts
-of Climate Change and the Efficacy of Climate Adaptation Strategies in Urban
-Microclimates, arXiv (2024) https://doi.org/10.48550/arXiv.2411.05952
-
-High-Resolution Meteorology With Climate Change Impacts From Global Climate
-Model Data Using Generative Machine Learning, Nature Energy (2024)
-https://doi.org/10.1038/s41560-024-01507-9
+Learning, *Data in Brief* (2025) https://doi.org/10.1016/j.dib.2025.111774
 
 Super-Resolution for Renewable Energy Resource Data with Wind from Reanalysis 
-Data and Application to Ukraine, Energies (2025) https://doi.org/10.3390/en18143769
+Data and Application to Ukraine, *Energies* (2025) https://doi.org/10.3390/en18143769
 
-Adversarial Super-Resolution of Climatological Wind and Solar Data, Proceedings
-of the National Academy of Sciences (2020)
+High-Resolution Meteorology With Climate Change Impacts From Global Climate
+Model Data Using Generative Machine Learning, *Nature Energy* (2024)
+https://doi.org/10.1038/s41560-024-01507-9
+
+Adversarial Super-Resolution of Climatological Wind and Solar Data, 
+*Proceedings of the National Academy of Sciences* (2020)
 https://doi.org/10.1073/pnas.1918964117
 
 Data Records
