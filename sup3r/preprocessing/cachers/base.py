@@ -448,16 +448,16 @@ class Cacher(Container):
     def _set_netcdf_attributes(cls, data_subset, features, attrs):
         """Set variable and global attributes for netCDF output."""
 
-        global_attrs = data_subset.attrs.copy()
-        attrs = attrs or {}
-        global_attrs.update(attrs)
-
         for feature in features:
             var_attrs = data_subset[feature].attrs.copy()
             var_attrs.setdefault('long_name', feature)
             var_attrs.setdefault('standard_name', feature)
             var_attrs.update(attrs.pop(feature, {}))
             data_subset[feature].attrs.update(var_attrs)
+
+        global_attrs = data_subset.attrs.copy()
+        attrs = attrs or {}
+        global_attrs.update(attrs)
 
         for attr_name, attr_value in global_attrs.items():
             attr_value = safe_cast(attr_value)
