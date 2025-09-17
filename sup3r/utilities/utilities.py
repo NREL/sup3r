@@ -33,7 +33,8 @@ def get_tmp_file(file):
     tmp_file = file + '.tmp'
     if os.path.exists(tmp_file):
         logger.warning(
-            f'Temporary file {tmp_file} already exists. Removing...')
+            f'Temporary file {tmp_file} already exists. Removing...'
+        )
         os.remove(tmp_file)
     return tmp_file
 
