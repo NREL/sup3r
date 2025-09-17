@@ -7,6 +7,7 @@ from enum import Enum
 import cftime
 import dask
 import h5netcdf
+import netCDF4
 import numpy as np
 import pandas as pd
 import phygnn
@@ -28,6 +29,7 @@ VERSION_RECORD = {
     'python': sys.version,
     'xarray': xarray.__version__,
     'h5netcdf': h5netcdf.__version__,
+    'netCDF4': netCDF4.__version__,
     'dask': dask.__version__,
     'cftime': cftime.__version__,
 }
