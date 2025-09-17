@@ -283,7 +283,7 @@ class Cacher(Container):
                 'int64'
             )
 
-        return data, features
+        return data_subset, features
 
     @classmethod
     def _set_h5_attributes(cls, f, data_subset, attrs):
