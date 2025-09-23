@@ -9,7 +9,6 @@ from warnings import warn
 import dask
 import dask.array as da
 import h5py
-import numpy as np
 import pandas as pd
 from rex.utilities.utilities import to_records_array
 
@@ -249,17 +248,6 @@ class Cacher(Container):
 
         chunksizes = tuple(d[0] for d in data_var.chunksizes.values())
         chunksizes = chunksizes if chunksizes else None
-        if chunksizes is not None:
-            chunkmem = np.prod(chunksizes) * data_var.dtype.itemsize / 1e9
-            chunkmem = round(chunkmem, 3)
-            if chunkmem > 4:
-                msg = (
-                    'Chunks cannot be larger than 4GB. Given chunksizes %s '
-                    'result in %sGB. Will use chunksizes = None'
-                )
-                logger.warning(msg, chunksizes, chunkmem)
-                warn(msg % (chunksizes, chunkmem))
-                chunksizes = None
         return data_var, chunksizes
 
     @classmethod
