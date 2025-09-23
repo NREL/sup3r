@@ -1,0 +1,242 @@
+{
+    "bias_calc_class": "MonthlyScalarCorrection",
+    "jobs": [
+        {
+            "pre_load": true,
+            "base_fps": [
+                "./vortex_means.h5"
+            ],
+            "bias_fps": [
+                "./2001/*_v_10m*.nc",
+                "./2001/*_u_10m*.nc",
+                "./2002/*_v_10m*.nc",
+                "./2002/*_u_10m*.nc",
+                "./2003/*_v_10m*.nc",
+                "./2003/*_u_10m*.nc",
+                "./2004/*_v_10m*.nc",
+                "./2004/*_v_10m*.nc",
+                "./2005/*_u_10m*.nc",
+                "./2005/*_u_10m*.nc",
+                "./2006/*_v_10m*.nc",
+                "./2006/*_u_10m*.nc",
+                "./2007/*_v_10m*.nc",
+                "./2007/*_u_10m*.nc",
+                "./2008/*_v_10m*.nc",
+                "./2008/*_u_10m*.nc",
+                "./2009/*_v_10m*.nc",
+                "./2009/*_u_10m*.nc",
+                "./201*/*_v_10m*.nc",
+                "./201*/*_u_10m*.nc",
+                "./2020/*_v_10m*.nc",
+                "./2020/*_u_10m*.nc"
+            ],
+            "bias_handler_kwargs": {
+                "time_slice": [0, null, null]
+            },
+            "fp_out": "./u_10m.h5",
+            "base_dset": "windspeed_10m",
+            "bias_feature": "windspeed_10m",
+            "fill_extend": false,
+            "max_workers": null
+        },
+        {
+            "pre_load": true,
+            "base_fps": [
+                "./vortex_means.h5"
+            ],
+            "bias_fps": [
+                "./2001/*_v_10m*.nc",
+                "./2001/*_u_10m*.nc",
+                "./2002/*_v_10m*.nc",
+                "./2002/*_u_10m*.nc",
+                "./2003/*_v_10m*.nc",
+                "./2003/*_u_10m*.nc",
+                "./2004/*_v_10m*.nc",
+                "./2004/*_v_10m*.nc",
+                "./2005/*_u_10m*.nc",
+                "./2005/*_u_10m*.nc",
+                "./2006/*_v_10m*.nc",
+                "./2006/*_u_10m*.nc",
+                "./2007/*_v_10m*.nc",
+                "./2007/*_u_10m*.nc",
+                "./2008/*_v_10m*.nc",
+                "./2008/*_u_10m*.nc",
+                "./2009/*_v_10m*.nc",
+                "./2009/*_u_10m*.nc",
+                "./201*/*_v_10m*.nc",
+                "./201*/*_u_10m*.nc",
+                "./2020/*_v_10m*.nc",
+                "./2020/*_u_10m*.nc"
+            ],
+            "bias_handler_kwargs": {
+                "time_slice": [0, null, null]
+            },
+            "fp_out": "./v_10m.h5",
+            "base_dset": "windspeed_10m",
+            "bias_feature": "windspeed_10m",
+            "fill_extend": false,
+            "max_workers": null
+        },
+        {
+            "pre_load": true,
+            "base_fps": [
+                "./vortex_means.h5"
+            ],
+            "bias_fps": [
+                "./2001/*_v_100m*.nc",
+                "./2001/*_u_100m*.nc",
+                "./2002/*_v_100m*.nc",
+                "./2002/*_u_100m*.nc",
+                "./2003/*_v_100m*.nc",
+                "./2003/*_u_100m*.nc",
+                "./2004/*_v_100m*.nc",
+                "./2004/*_v_100m*.nc",
+                "./2005/*_u_100m*.nc",
+                "./2005/*_u_100m*.nc",
+                "./2006/*_v_100m*.nc",
+                "./2006/*_u_100m*.nc",
+                "./2007/*_v_100m*.nc",
+                "./2007/*_u_100m*.nc",
+                "./2008/*_v_100m*.nc",
+                "./2008/*_u_100m*.nc",
+                "./2009/*_v_100m*.nc",
+                "./2009/*_u_100m*.nc",
+                "./201*/*_v_100m*.nc",
+                "./201*/*_u_100m*.nc",
+                "./2020/*_v_100m*.nc",
+                "./2020/*_u_100m*.nc"
+            ],
+            "bias_handler_kwargs": {
+                "time_slice": [0, null, null]
+            },
+            "fp_out": "./u_100m.h5",
+            "base_dset": "windspeed_100m",
+            "bias_feature": "windspeed_100m",
+            "fill_extend": false,
+            "max_workers": null
+        },
+        {
+            "pre_load": true,
+            "base_fps": [
+                "./vortex_means.h5"
+            ],
+            "bias_fps": [
+                "./2001/*_v_100m*.nc",
+                "./2001/*_u_100m*.nc",
+                "./2002/*_v_100m*.nc",
+                "./2002/*_u_100m*.nc",
+                "./2003/*_v_100m*.nc",
+                "./2003/*_u_100m*.nc",
+                "./2004/*_v_100m*.nc",
+                "./2004/*_v_100m*.nc",
+                "./2005/*_u_100m*.nc",
+                "./2005/*_u_100m*.nc",
+                "./2006/*_v_100m*.nc",
+                "./2006/*_u_100m*.nc",
+                "./2007/*_v_100m*.nc",
+                "./2007/*_u_100m*.nc",
+                "./2008/*_v_100m*.nc",
+                "./2008/*_u_100m*.nc",
+                "./2009/*_v_100m*.nc",
+                "./2009/*_u_100m*.nc",
+                "./201*/*_v_100m*.nc",
+                "./201*/*_u_100m*.nc",
+                "./2020/*_v_100m*.nc",
+                "./2020/*_u_100m*.nc"
+            ],
+            "bias_handler_kwargs": {
+                "time_slice": [0, null, null]
+            },
+            "fp_out": "./v_100m.h5",
+            "base_dset": "windspeed_100m",
+            "bias_feature": "windspeed_100m",
+            "fill_extend": false,
+            "max_workers": null
+        },
+        {
+            "pre_load": true,
+            "base_fps": [
+                "./vortex_means.h5"
+            ],
+            "bias_fps": [
+                "./2001/*_v_200m*.nc",
+                "./2001/*_u_200m*.nc",
+                "./2002/*_v_200m*.nc",
+                "./2002/*_u_200m*.nc",
+                "./2003/*_v_200m*.nc",
+                "./2003/*_u_200m*.nc",
+                "./2004/*_v_200m*.nc",
+                "./2004/*_v_200m*.nc",
+                "./2005/*_u_200m*.nc",
+                "./2005/*_u_200m*.nc",
+                "./2006/*_v_200m*.nc",
+                "./2006/*_u_200m*.nc",
+                "./2007/*_v_200m*.nc",
+                "./2007/*_u_200m*.nc",
+                "./2008/*_v_200m*.nc",
+                "./2008/*_u_200m*.nc",
+                "./2009/*_v_200m*.nc",
+                "./2009/*_u_200m*.nc",
+                "./201*/*_v_200m*.nc",
+                "./201*/*_u_200m*.nc",
+                "./2020/*_v_200m*.nc",
+                "./2020/*_u_200m*.nc"
+            ],
+            "bias_handler_kwargs": {
+                "time_slice": [0, null, null]
+            },
+            "fp_out": "./u_200m.h5",
+            "base_dset": "windspeed_200m",
+            "bias_feature": "windspeed_200m",
+            "fill_extend": false,
+            "max_workers": null
+        },
+        {
+            "pre_load": true,
+            "base_fps": [
+                "./vortex_means.h5"
+            ],
+            "bias_fps": [
+                "./2001/*_v_200m*.nc",
+                "./2001/*_u_200m*.nc",
+                "./2002/*_v_200m*.nc",
+                "./2002/*_u_200m*.nc",
+                "./2003/*_v_200m*.nc",
+                "./2003/*_u_200m*.nc",
+                "./2004/*_v_200m*.nc",
+                "./2004/*_v_200m*.nc",
+                "./2005/*_u_200m*.nc",
+                "./2005/*_u_200m*.nc",
+                "./2006/*_v_200m*.nc",
+                "./2006/*_u_200m*.nc",
+                "./2007/*_v_200m*.nc",
+                "./2007/*_u_200m*.nc",
+                "./2008/*_v_200m*.nc",
+                "./2008/*_u_200m*.nc",
+                "./2009/*_v_200m*.nc",
+                "./2009/*_u_200m*.nc",
+                "./201*/*_v_200m*.nc",
+                "./201*/*_u_200m*.nc",
+                "./2020/*_v_200m*.nc",
+                "./2020/*_u_200m*.nc"
+            ],
+            "bias_handler_kwargs": {
+                "time_slice": [0, null, null]
+            },
+            "fp_out": "./v_200m.h5",
+            "base_dset": "windspeed_200m",
+            "bias_feature": "windspeed_200m",
+            "fill_extend": false,
+            "max_workers": null
+        }
+    ],
+    "execution_control": {
+        "option": "kestrel",
+        "feature": "--qos=normal",
+        "memory": 500,
+        "walltime": 39,
+        "alloc": "usaiddata"
+    },
+    "log_pattern": "./logs/ukraine_bc_{node_index}.log",
+    "log_level": "DEBUG"
+}
