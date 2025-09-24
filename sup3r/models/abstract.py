@@ -22,7 +22,7 @@ import sup3r.utilities.loss_metrics
 from sup3r.preprocessing.data_handlers import ExoData
 from sup3r.preprocessing.utilities import numpy_if_tensor
 from sup3r.utilities import VERSION_RECORD
-from sup3r.utilities.utilities import camel_to_underscore, safe_cast
+from sup3r.utilities.utilities import Timer, camel_to_underscore, safe_cast
 
 from .utilities import SUP3R_LAYERS, SUP3R_OBS_LAYERS, TensorboardMixIn
 
@@ -40,11 +40,12 @@ class AbstractSingleModel(ABC, TensorboardMixIn):
         super().__init__()
         self.gpu_list = tf.config.list_physical_devices('GPU')
         self.default_device = '/cpu:0' if len(self.gpu_list) == 0 else '/gpu:0'
-        self._version_record = VERSION_RECORD
+        self.timer = Timer()
         self.name = None
-        self._meta = None
         self.loss_name = None
         self.loss_fun = None
+        self._version_record = VERSION_RECORD
+        self._meta = None
         self._history = None
         self._optimizer = None
         self._gen = None
