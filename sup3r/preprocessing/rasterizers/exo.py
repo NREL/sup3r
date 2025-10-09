@@ -8,7 +8,7 @@ import logging
 import os
 from abc import ABC
 from dataclasses import dataclass
-from typing import Optional, Union
+from typing import ClassVar, Optional, Union
 from warnings import warn
 
 import dask.array as da
@@ -128,7 +128,7 @@ class BaseExoRasterizer(ABC):
 
     # These sometimes have a time dimension but we don't need the time in
     # the cache file
-    STATIC_FEATURES = ('topography', 'srl')
+    STATIC_FEATURES: ClassVar = ('topography', 'srl')
 
     @log_args
     def __post_init__(self):

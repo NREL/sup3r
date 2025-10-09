@@ -366,7 +366,7 @@ def test_obs_agg(s_enhance, with_nans):
             source_files=f'{td}/hr.nc',
             feature='u_10m_obs',
             s_enhance=s_enhance,
-            t_enhance=1
+            t_enhance=1,
         )
         agg_obs = np.asarray(te._get_data_3d())
         true_obs = (
