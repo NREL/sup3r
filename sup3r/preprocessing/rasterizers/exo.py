@@ -101,12 +101,6 @@ class BaseExoRasterizer(ABC):
     fill_nans : bool
         Whether to fill nans in the output data. This should probably be True
         for all cases except for sparse observation data.
-    agg_method : str
-        Method to use for aggregating source data to the target pixels. This
-        can be 'mean', 'idw' (inverse distance weighted average), or 'nn'
-        (nearest neighbor). The default is 'mean'. This is only used for 3D
-        data (time dependent) and will be ignored for 2D data (time
-        independent).
     scale_factor : float
         Scale factor to apply to the raw data from the source_files. This is
         useful for scaling observation data which might systematically under or
@@ -131,7 +125,6 @@ class BaseExoRasterizer(ABC):
     chunks: Optional[Union[str, dict]] = 'auto'
     distance_upper_bound: Optional[int] = None
     fill_nans: bool = True
-    agg_method: str = 'mean'
     scale_factor: float = 1.0
     max_workers: int = 1
     verbose: bool = False
@@ -160,9 +153,9 @@ class BaseExoRasterizer(ABC):
     @property
     def source_handler(self):
         """Get the Loader object that handles the exogenous data file."""
-        assert (
-            self.source_files is not None
-        ), 'source_files must be provided to BaseExoRasterizer'
+        assert self.source_files is not None, (
+            'source_files must be provided to BaseExoRasterizer'
+        )
         if self._source_handler is None:
             self._source_handler = Loader(
                 self.source_files,
@@ -399,24 +392,9 @@ class BaseExoRasterizer(ABC):
         data_vars = {self.feature: data_vars}
         return Sup3rX(xr.Dataset(coords=self.coords, data_vars=data_vars))
 
-    def _idw_fill(self, x):
-        """Compute weighted average for a group of data."""
-        valid_mask = ~np.isnan(x[self.feature].values)
-        if valid_mask.sum() == 0:
-            return np.nan
-        weights = 1 / np.maximum(x['distance'], 1e-6)
-        return np.average(
-            x[self.feature][valid_mask],
-            weights=weights[valid_mask] / weights[valid_mask].sum(),
-        )
-
     def _mean_fill(self, x):
         """Compute standard average for a group of data."""
         return x[self.feature].mean()
-
-    def _nn_fill(self, x):
-        """Select value with min distance."""
-        return x[self.feature].iloc[np.argmin(x['distance'])]
 
     def _get_data_2d(self):
         """Get a raster of source values corresponding to the high-resolution
@@ -460,18 +438,6 @@ class BaseExoRasterizer(ABC):
         out : np.ndarray
             3D array of source data with shape (lats, lons, time).
         """
-        if self.agg_method == 'idw':
-            func = self._idw_fill
-        elif self.agg_method == 'nn':
-            func = self._nn_fill
-        elif self.agg_method == 'mean':
-            func = self._mean_fill
-        else:
-            raise ValueError(
-                f'Unknown aggregation method: {self.agg_method}. '
-                'Must be one of "idw", "nn", or "mean".'
-            )
-        logger.info('Using {} aggregation method'.format(self.agg_method))
         target_tmask = self.hr_time_index.isin(self.source_handler.time_index)
         source_tmask = self.source_handler.time_index.isin(self.hr_time_index)
         data = self.source_data[:, source_tmask]
@@ -487,7 +453,7 @@ class BaseExoRasterizer(ABC):
         df = df[df.index.get_level_values(0) != n_target].sort_values(
             'gid_target'
         )
-        df = df.groupby(['gid_target', 'time']).apply(func)
+        df = df.groupby(['gid_target', 'time']).apply(self._mean_fill)
         out = np.full(
             (n_target, len(self.hr_time_index)), np.nan, dtype=np.float32
         )
